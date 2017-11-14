@@ -13,3 +13,17 @@ From version 0.0.3 RPFM can:
 
 Basic PackFile management as you can see. In addition, it has some special features:
 * ***Patch SiegeAI***: For mappers. It patches the opened PackFile so the Siege AI stuff of your map works properly, delete the useless xml files in your map's folder and save your PackFile.
+
+# Requeriments
+To build this Project, you need:
+* GTK 3.22 or higher.
+* Rust toolchain.
+
+To build, move to the repo directory and execute:
+```bash
+// For Windows
+cargo build --target=x86_64-pc-windows-gnu --release
+
+// For Linux
+cargo build --target=x86_64-unknown-linux-gnu --release
+```
