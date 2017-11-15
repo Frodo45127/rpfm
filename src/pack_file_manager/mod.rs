@@ -154,10 +154,10 @@ pub fn add_file_to_packfile(
         let mut file = File::open(&file_path).expect("Couldn't open file");
         file.read_to_end(&mut file_data).expect("Error reading file.");
 
-        pack_file.pack_file_header.file_count += 1;
+        pack_file.pack_file_header.packed_file_count += 1;
         let tree_path_processed = ::common::vec_strings_to_path_string(tree_path.to_vec());
         let index_entry_size = 6 + tree_path_processed.len();
-        pack_file.pack_file_header.index_size += index_entry_size as u32;
+        pack_file.pack_file_header.packed_index_size += index_entry_size as u32;
         let file_size = file_data.len() as u32;
         let new_packed_file = pack_file::PackedFile::add(file_size, tree_path, file_data);
         pack_file.pack_file_data.packed_files.push(new_packed_file);
@@ -207,11 +207,11 @@ pub fn delete_from_packfile(
     // - We get his index (I think this needs a proper rework) of the PackedFile to delete.
     // - We remove the PackedFile from both, the PackFile and the correlation data.
     if is_a_file {
-        pack_file.pack_file_header.file_count -= 1;
+        pack_file.pack_file_header.packed_file_count -= 1;
         let file_path = ::common::vec_strings_to_path_string(
             pack_file.pack_file_data.packed_files[index as usize].packed_file_path.to_vec());
         let index_entry_size = 6 + file_path.len();
-        pack_file.pack_file_header.index_size -= index_entry_size as u32;
+        pack_file.pack_file_header.packed_index_size -= index_entry_size as u32;
         let file_to_delete = index;
         pack_file.pack_file_data.packed_files.remove(file_to_delete as usize);
         pack_file.pack_file_extra_data.correlation_data.remove(file_to_delete as usize);
@@ -224,10 +224,10 @@ pub fn delete_from_packfile(
         for _i in 0..pack_file.pack_file_data.packed_files.len() {
             if index as usize <= pack_file.pack_file_data.packed_files.len(){
                 if pack_file.pack_file_data.packed_files[index as usize].packed_file_path.starts_with(&tree_path) {
-                    pack_file.pack_file_header.file_count -= 1;
+                    pack_file.pack_file_header.packed_file_count -= 1;
                     let file_path = ::common::vec_strings_to_path_string(pack_file.pack_file_data.packed_files[index as usize].packed_file_path.to_vec());
                     let index_entry_size = 6 + file_path.len();
-                    pack_file.pack_file_header.index_size -= index_entry_size as u32;
+                    pack_file.pack_file_header.packed_index_size -= index_entry_size as u32;
                     let file_to_delete = index;
                     pack_file.pack_file_data.packed_files.remove(file_to_delete as usize);
                     pack_file.pack_file_extra_data.correlation_data.remove(file_to_delete as usize);
