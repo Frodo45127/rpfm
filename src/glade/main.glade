@@ -894,7 +894,7 @@
     <property name="version">0.0.3</property>
     <property name="authors">Frodo45127</property>
     <property name="logo">img/rpfm.png</property>
-    <property name="license_type">gpl-3-0</property>
+    <property name="license_type">mit-x11</property>
     <child internal-child="vbox">
       <object class="GtkBox">
         <property name="can_focus">False</property>
