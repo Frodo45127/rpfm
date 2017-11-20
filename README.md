@@ -48,6 +48,7 @@ cargo build --target=x86_64-unknown-linux-gnu --release
 
 # Credits
 - ***Frodo45127***: I'm the guy who has made the program.
+- ***Maruka*** (From Steam): He made the wazard hat's icon.
 
 #### Special Thanks to:
 - ***The guys that made PFM***: Most of the decoding stuff would have been very hard to work out without the PFM source code. So many thanks for make the PFM open source!
