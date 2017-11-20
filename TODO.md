@@ -1,10 +1,11 @@
 # Shorterm (Probably next update)
-- [ ] Decode and encode LOC files.
-- [ ] Implement support for language PackFiles.
-- [ ] Replace the Rust icon with a proper icon.
+- [x] Decode and encode LOC files.
+- [x] Implement support for language PackFiles.
+- [x] Replace the Rust icon with a proper icon.
 
 # Midterm
 - [ ] Decode and encode DB Files.
+- [ ] Implement buttons for managing the TreeViews of the PackedFiles.
 - [ ] Implement basic hotkeys.
 - [ ] Implement more file management stuff, like moving between folders.
 - [ ] Add an option to add files directly from other PackFiles.

@@ -1,12 +1,12 @@
 # Rusted PackFile Manager
 ***Rusted PackFile Manager*** (RPFM) is a... reimplementation in Rust and GTK3 of ***PackFile Manager*** (PFM), one of the best modding tools ot the Total War Games.
 
-# Status of the project
+# Status of the Project
 The lastest released version can (only for TW:Warhammer 2 for now):
 - [x] ***Manipulate PackFiles*** (create, open and save).
 - [x] ***Manipulate PackedFiles*** (add, extract, rename, delete).
 - [ ] ***Edit DB PackedFiles***.
-- [ ] ***Edit Localisation PackedFiles***.
+- [x] ***Edit Localisation PackedFiles***.
 
 In addition to that, it has some special features:
 - [x] ***Patch SiegeAI***: For mappers. It patches the opened PackFile so the Siege AI stuff of your map works properly, delete the useless xml files in your map's folder and save your PackFile.
@@ -40,6 +40,11 @@ cargo build --target=x86_64-unknown-linux-gnu --release
 # FAQ
 - **Why not helping with PFM instead of reimplement it?**: because I wanted to learn a new language, and I already now a bit of C#. Also, where is the fun of that?
 - **Why the code quality is not the very best?**: because I'm using this project to learn Rust, and I'm constantly rewriting code as I find new and better ways to write it.
+
+# Known bugs
+- Loc PackedFile entries doesn't escape certain characters, so you can see entries with line breaks ("\n") but you can't add new ones. Same with tabs.
+- Decoding of big Loc files (like the vanilla localisation file) is SLOOOOWWWWWW. Need to improve his decoding in the future.
+- You can add and delete lines from a Loc PackedFile. "+" add a new line, "-" deletes the selected line. I'll add a button in a future update. For now, that should be enough.
 
 # Credits
 - ***Frodo45127***: I'm the guy who has made the program.
