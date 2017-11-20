@@ -10,6 +10,8 @@ use std::path::PathBuf;
 
 use pack_file_manager::pack_file::PackFile;
 
+pub mod packed_file_loc;
+
 // This function shows a Dialog window with some text. For notification of success and errors.
 // It requires:
 // - dialog: &MessageDialog object. It's the dialog windows we are going to use.
@@ -134,7 +136,7 @@ pub fn get_tree_path_from_selection(
 // - climb_to_parent: True if we want to expand the parent of the selection, not the selection itself.
 pub fn update_tree_view_expand_path(
     folder_tree_store: &TreeStore,
-    mut pack_file_decoded: &mut PackFile,
+    pack_file_decoded: &PackFile,
     folder_tree_selection: &TreeSelection,
     folder_tree_view: &TreeView,
     climb_to_parent: bool
@@ -158,7 +160,7 @@ pub fn update_tree_view_expand_path(
     }
 
     // Then we update the TreeView with all the data and expand the path we got before.
-    update_tree_view(&folder_tree_store, &mut pack_file_decoded);
+    update_tree_view(&folder_tree_store, &pack_file_decoded);
     folder_tree_view.expand_to_path(&TreePath::new_from_indicesv(&tree_path_index));
 
 }
@@ -171,14 +173,11 @@ pub fn update_tree_view_expand_path(
 // - pack_file_decoded: &mut PackFile we have opened, to get the data for the TreeView.
 pub fn update_tree_view(
     folder_tree_store: &TreeStore,
-    pack_file_decoded: &mut PackFile
+    pack_file_decoded: &PackFile
 ){
 
-    // First, we clean the TreeStore and the correlation data (to check if files from the PackFile
-    // are currently displayed in the TreeView).
+    // First, we clean the TreeStore
     folder_tree_store.clear();
-    let correlation_data_index = &mut pack_file_decoded.pack_file_extra_data.correlation_data;
-    correlation_data_index.clear();
 
     // Second, we set as the big_parent, the base for the folders of the TreeView, a fake folder
     // with the name of the PackFile.
@@ -271,13 +270,9 @@ pub fn update_tree_view(
         // Then, we form the path ("parent -> child" style path) to add to the TreeStore.
         for j in i.iter() {
 
-            // If it's the last string in the file path, it's a file, so we add it to the TreeStore
-            // and then push it to the correlation_data, so we know this file and his path are
-            // already in the table.
+            // If it's the last string in the file path, it's a file, so we add it to the TreeStore.
             if j == i.last().unwrap() {
                 parent = folder_tree_store.insert_with_values(Some(&parent), None, &[0], &[&format!("{}", j)]);
-                let tree_path = i.to_vec();
-                correlation_data_index.push(tree_path);
             }
 
             // If it's a folder, we check first if it's already in the TreeStore using the following

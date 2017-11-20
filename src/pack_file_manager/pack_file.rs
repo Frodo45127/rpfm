@@ -31,17 +31,16 @@ pub struct PackFile {
 pub struct PackFileExtraData {
     pub file_name: String,
     pub file_path: String,
-    pub correlation_data: Vec<Vec<String>>,
 }
 
 
 // Struct PackFileHeader: This struct stores all the info we can get from the header of the PackFile:
 // - pack_file_id: ID of the PackFile, like a version.
 // - pack_file_type: type of the PackFile (mod, movie,...).
-// - version: no idea. It was checked in PFM, so we save it, just in case.
-// - replaced_pack_file_name: no idea. It was checked in PFM, so we save it, just in case.
-// - file_count: amount of files stored inside the PackFile.
-// - index_size: size in bytes of the Index of the file (the first part of the data).
+// - pack_file_count: amount of files in the PackFile index, at the start of the data.
+// - pack_file_size: size in bytes of the PackFile Index of the file (the first part of the data, if exists).
+// - packed_file_count: amount of PackedFiles stored inside the PackFile.
+// - packed_index_size: size in bytes of the PackedFile Index of the file (the first part of the data).
 // - unknown_data: no idea. It was checked in PFM, so we save it, just in case.
 //
 // NOTE: to understand the "pack_file_type":
@@ -54,16 +53,17 @@ pub struct PackFileExtraData {
 pub struct PackFileHeader {
     pub pack_file_id: String,
     pub pack_file_type: u32,
-    pub version: u32,
-    pub replaced_pack_file_name: u32,
-    pub file_count: u32,
-    pub index_size: u32,
+    pub pack_file_count: u32,
+    pub pack_file_size: u32,
+    pub packed_file_count: u32,
+    pub packed_index_size: u32,
     pub unknown_data: u32,
 }
 
 // Struct PackFileData: This struct stores all the PackedFiles inside the PackFile in a vector.
 #[derive(Clone)]
 pub struct PackFileData {
+    pub pack_files: Vec<String>,
     pub packed_files: Vec<PackedFile>,
 }
 
@@ -76,43 +76,6 @@ pub struct PackedFile {
     pub packed_file_size: u32,
     pub packed_file_path: Vec<String>,
     pub packed_file_data: Vec<u8>,
-}
-
-// Implementation of "PackFileExtraData"
-impl  PackFileExtraData {
-
-    // This function creates an empty PackFileExtraData.
-    pub fn new() -> PackFileExtraData {
-        let file_name = String::new();
-        let file_path = String::new();
-        let correlation_data = vec![vec![]];
-        PackFileExtraData {
-            file_name,
-            file_path,
-            correlation_data,
-        }
-    }
-
-    // This function creates a PackFileExtraData with just a name.
-    pub fn new_with_name(file_name: String) -> PackFileExtraData {
-        let file_path = String::new();
-        let correlation_data = vec![vec![]];
-        PackFileExtraData {
-            file_name,
-            file_path,
-            correlation_data,
-        }
-    }
-
-    // This function creates a PackFileExtraData with a name and a path.
-    pub fn new_from_file(file_name: String, file_path: String) -> PackFileExtraData {
-        let correlation_data = vec![vec![]];
-        PackFileExtraData {
-            file_name,
-            file_path,
-            correlation_data,
-        }
-    }
 }
 
 // Implementation of "PackFile"
@@ -159,7 +122,7 @@ impl PackFile {
         let header = &pack_file_buffered[0..28];
         let data = &pack_file_buffered[28..];
         let pack_file_header = PackFileHeader::read(header);
-        let pack_file_data = PackFileData::read(data, pack_file_header.file_count, pack_file_header.index_size);
+        let pack_file_data = PackFileData::read(data, pack_file_header.pack_file_count, pack_file_header.pack_file_size, pack_file_header.packed_file_count, pack_file_header.packed_index_size);
 
         // And return the PackFile decoded.
         PackFile {
@@ -181,6 +144,37 @@ impl PackFile {
     }
 }
 
+// Implementation of "PackFileExtraData"
+impl  PackFileExtraData {
+
+    // This function creates an empty PackFileExtraData.
+    pub fn new() -> PackFileExtraData {
+        let file_name = String::new();
+        let file_path = String::new();
+        PackFileExtraData {
+            file_name,
+            file_path,
+        }
+    }
+
+    // This function creates a PackFileExtraData with just a name.
+    pub fn new_with_name(file_name: String) -> PackFileExtraData {
+        let file_path = String::new();
+        PackFileExtraData {
+            file_name,
+            file_path,
+        }
+    }
+
+    // This function creates a PackFileExtraData with a name and a path.
+    pub fn new_from_file(file_name: String, file_path: String) -> PackFileExtraData {
+        PackFileExtraData {
+            file_name,
+            file_path,
+        }
+    }
+}
+
 // Implementation of "PackFileHeader"
 impl PackFileHeader {
 
@@ -188,19 +182,19 @@ impl PackFileHeader {
     pub fn new() -> PackFileHeader {
         let pack_file_id = "PFH5".to_string();
         let pack_file_type = 3 as u32;
-        let version = 0 as u32;
-        let replaced_pack_file_name = 0 as u32;
-        let file_count = 0 as u32;
-        let index_size = 0 as u32;
+        let pack_file_count = 0 as u32;
+        let pack_file_size = 0 as u32;
+        let packed_file_count = 0 as u32;
+        let packed_index_size = 0 as u32;
         let unknown_data = 0 as u32;
 
         PackFileHeader {
             pack_file_id,
             pack_file_type,
-            version,
-            replaced_pack_file_name,
-            file_count,
-            index_size,
+            pack_file_count,
+            pack_file_size,
+            packed_file_count,
+            packed_index_size,
             unknown_data,
         }
     }
@@ -218,29 +212,29 @@ impl PackFileHeader {
         let mut pack_file_type = &pack_file_type[0..4];
         let pack_file_type: u32 = pack_file_type.read_u32::<BigEndian>().unwrap();
 
-        // Version
-        let mut version: Vec<u8> = header[8..12].into();
-        version.reverse();
-        let mut version = &version[0..4];
-        let version: u32 = version.read_u32::<BigEndian>().unwrap();
+        // Replaced PackFile count
+        let mut pack_file_count: Vec<u8> = header[8..12].into();
+        pack_file_count.reverse();
+        let mut pack_file_count = &pack_file_count[0..4];
+        let pack_file_count: u32 = pack_file_count.read_u32::<BigEndian>().unwrap();
 
-        // "replaced_pack_file_name"
-        let mut replaced_pack_file_name: Vec<u8> = header[12..16].into();
-        replaced_pack_file_name.reverse();
-        let mut replaced_pack_file_name = &replaced_pack_file_name[0..4];
-        let replaced_pack_file_name: u32 = replaced_pack_file_name.read_u32::<BigEndian>().unwrap();
+        // Replaced PackFile size
+        let mut pack_file_size: Vec<u8> = header[12..16].into();
+        pack_file_size.reverse();
+        let mut pack_file_size = &pack_file_size[0..4];
+        let pack_file_size: u32 = pack_file_size.read_u32::<BigEndian>().unwrap();
 
         // File count
-        let mut file_count: Vec<u8> = header[16..20].into();
-        file_count.reverse();
-        let mut file_count = &file_count[0..4];
-        let file_count: u32 = file_count.read_u32::<BigEndian>().unwrap();
+        let mut packed_file_count: Vec<u8> = header[16..20].into();
+        packed_file_count.reverse();
+        let mut packed_file_count = &packed_file_count[0..4];
+        let packed_file_count: u32 = packed_file_count.read_u32::<BigEndian>().unwrap();
 
         // Index size
-        let mut index_size: Vec<u8> = header[20..24].into();
-        index_size.reverse();
-        let mut index_size = &index_size[0..4];
-        let index_size: u32 = index_size.read_u32::<BigEndian>().unwrap();
+        let mut packed_index_size: Vec<u8> = header[20..24].into();
+        packed_index_size.reverse();
+        let mut packed_index_size = &packed_index_size[0..4];
+        let packed_index_size: u32 = packed_index_size.read_u32::<BigEndian>().unwrap();
 
         // Unknown data
         let mut unknown_data: Vec<u8> = header[24..28].into();
@@ -251,10 +245,10 @@ impl PackFileHeader {
         PackFileHeader {
             pack_file_id,
             pack_file_type,
-            version,
-            replaced_pack_file_name,
-            file_count,
-            index_size,
+            pack_file_count,
+            pack_file_size,
+            packed_file_count,
+            packed_index_size,
             unknown_data,
         }
     }
@@ -266,18 +260,18 @@ impl PackFileHeader {
 
         let pack_file_id = &header_decoded.pack_file_id;
         let pack_file_type = common::u32_to_u8_reverse(header_decoded.pack_file_type);
-        let version = common::u32_to_u8_reverse(header_decoded.version);
-        let replaced_pack_file_name = common::u32_to_u8_reverse(header_decoded.replaced_pack_file_name);
-        let file_count = common::u32_to_u8_reverse(header_decoded.file_count);
-        let index_size = common::u32_to_u8_reverse(header_decoded.index_size);
+        let pack_file_count = common::u32_to_u8_reverse(header_decoded.pack_file_count);
+        let pack_file_size = common::u32_to_u8_reverse(header_decoded.pack_file_size);
+        let packed_file_count = common::u32_to_u8_reverse(header_decoded.packed_file_count);
+        let packed_index_size = common::u32_to_u8_reverse(header_decoded.packed_index_size);
         let unknown_data = common::u32_to_u8_reverse(header_decoded.unknown_data);
 
         header_encoded.extend_from_slice(&pack_file_id.as_bytes());
         header_encoded.extend_from_slice(&pack_file_type);
-        header_encoded.extend_from_slice(&version);
-        header_encoded.extend_from_slice(&replaced_pack_file_name);
-        header_encoded.extend_from_slice(&file_count);
-        header_encoded.extend_from_slice(&index_size);
+        header_encoded.extend_from_slice(&pack_file_count);
+        header_encoded.extend_from_slice(&pack_file_size);
+        header_encoded.extend_from_slice(&packed_file_count);
+        header_encoded.extend_from_slice(&packed_index_size);
         header_encoded.extend_from_slice(&unknown_data);
         header_encoded
     }
@@ -288,9 +282,11 @@ impl PackFileData {
 
     // This function creates a new empty "PackFileData"
     pub fn new() -> PackFileData {
+        let pack_files: Vec<String> = vec![String::new()];
         let packed_files: Vec<PackedFile> = vec![];
 
         PackFileData {
+            pack_files,
             packed_files,
         }
     }
@@ -299,15 +295,53 @@ impl PackFileData {
     // them in a Vec<PackedFile>.
     // It requires:
     // - data: the raw data or the PackFile.
-    // - file_count: the amount of PackedFiles inside the PackFile. This should come from the header.
-    // - index_size: the size of the index of PackedFiles. This should come from the header.
-    pub fn read(data: &[u8], file_count: u32, index_size: u32) -> PackFileData {
+    // - packed_file_count: the amount of PackedFiles inside the PackFile. This should come from the header.
+    // - packed_index_size: the size of the index of PackedFiles. This should come from the header.
+    pub fn read(
+        data: &[u8],
+        pack_file_count: u32,
+        pack_file_size: u32,
+        packed_file_count: u32,
+        packed_index_size: u32
+    ) -> PackFileData {
 
+        let mut pack_files: Vec<String> = vec![];
         let mut packed_files: Vec<PackedFile> = vec![];
 
-        // We split the data into "index" and "data".
-        let packed_file_index = &data[..(index_size as usize)];
-        let packed_file_data = &data[(index_size as usize)..];
+        // We split the data into "pack_files_index", "index" and "data".
+        let pack_file_index = &data[..(pack_file_size as usize)];
+        let packed_file_index = &data[(pack_file_size as usize)..((packed_index_size as usize) + (pack_file_size as usize))];
+        let packed_file_data = &data[((packed_index_size as usize) + (pack_file_size as usize))..];
+
+        // Offset for the loop to get the PackFiles from the PackFile index.
+        let mut pack_file_index_offset: u32 = 0;
+
+        // First, we decode every entry in the PackFile index and store it. The process is simple:
+        // we get his name char by char until hitting \u{0}, then save it and start getting the next
+        // PackFile name.
+        for _ in 0..pack_file_count {
+
+            let mut pack_file_name: String = String::new();
+            let mut done = false;
+            while !done {
+                let c = pack_file_index[pack_file_index_offset as usize] as char;
+
+                // If the byte is \u{0}, the PackFile name is complete. We save it and update the
+                // offsets to get the name of the next PackFile.
+                if c.escape_unicode().to_string() == ("\\u{0}") {
+                    pack_files.push(pack_file_name);
+                    pack_file_name = String::new();
+                    pack_file_index_offset += 1;
+                    done = true;
+
+                // If none of the options before are True, then we add the character to the current
+                // PackFile name.
+                } else {
+                    pack_file_name.push(c);
+                    pack_file_index_offset += 1;
+                }
+            }
+        }
 
         // Offsets for the loop to get the file corresponding to the index entry.
         let mut packed_file_index_offset: u32 = 0;
@@ -318,7 +352,7 @@ impl PackFileData {
         let mut packed_file_index_file_size_path_offset: u32 = 5;
 
         // We start a loop to decode every PackedFile
-        for i in 0..file_count {
+        for i in 0..packed_file_count {
 
             // After the first PackedFile, we update the special offsets, because the first
             // PackedFile has a byte less than the others.
@@ -386,26 +420,33 @@ impl PackFileData {
         }
 
         PackFileData {
+            pack_files,
             packed_files,
         }
     }
 
     // This function takes a decoded Data and encode it, so it can be saved in a PackFile file.
     pub fn save(data_decoded: &PackFileData) -> Vec<u8> {
-
         let mut pack_file_index = vec![];
-        let mut pack_file_data = vec![];
+        let mut packed_file_index = vec![];
+        let mut packed_file_data = vec![];
+
+        for i in &data_decoded.pack_files {
+            pack_file_index.extend_from_slice( i.as_bytes());
+            packed_file_index.extend_from_slice("\0".as_bytes());
+        }
 
         for i in &data_decoded.packed_files {
             let mut packed_file_encoded = PackedFile::save(i);
-            pack_file_index.append(&mut packed_file_encoded.0);
-            pack_file_data.append(&mut packed_file_encoded.1);
-            pack_file_index.extend_from_slice("\0".as_bytes());
+            packed_file_index.append(&mut packed_file_encoded.0);
+            packed_file_data.append(&mut packed_file_encoded.1);
+            packed_file_index.extend_from_slice("\0".as_bytes());
         }
 
         let mut pack_file_data_encoded = vec![];
         pack_file_data_encoded.append(&mut pack_file_index);
-        pack_file_data_encoded.append(&mut pack_file_data);
+        pack_file_data_encoded.append(&mut packed_file_index);
+        pack_file_data_encoded.append(&mut packed_file_data);
         pack_file_data_encoded
     }
 }
@@ -465,6 +506,7 @@ impl PackedFile {
 
         // Then, we encode the data
         let packed_file_data_entry: Vec<u8> = packed_file_decoded.packed_file_data.to_vec();
+
 
         // Finally, we put both together and return them.
         let packed_file_data_encoded = (packed_file_index_entry, packed_file_data_entry);

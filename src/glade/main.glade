@@ -258,10 +258,14 @@
               </packing>
             </child>
             <child>
-              <object class="GtkBox">
+              <object class="GtkScrolledWindow" id="gtk_packed_file_data_display">
                 <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="orientation">vertical</property>
+                <property name="can_focus">True</property>
+                <property name="shadow_type">in</property>
+                <property name="min_content_width">200</property>
+                <property name="min_content_height">200</property>
+                <property name="propagate_natural_width">True</property>
+                <property name="propagate_natural_height">True</property>
                 <child>
                   <placeholder/>
                 </child>
@@ -891,8 +895,9 @@
     <property name="type_hint">dialog</property>
     <property name="transient_for">gtk_window</property>
     <property name="program_name">Rusted Pack File Manager</property>
-    <property name="version">0.0.3</property>
+    <property name="version">0.0.4</property>
     <property name="authors">Frodo45127</property>
+    <property name="artists">Maruka</property>
     <property name="logo">img/rpfm.png</property>
     <property name="license_type">mit-x11</property>
     <child internal-child="vbox">
