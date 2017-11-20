@@ -14,7 +14,7 @@ use std::io::{
 use std::error::Error;
 
 pub mod pack_file;
-pub mod packed_file;
+pub mod packed_files_manager;
 
 /*
 --------------------------------------------------------
@@ -137,8 +137,8 @@ pub fn add_file_to_packfile(
 
     // First we make a quick check to see if the file is already in the PackFile.
     let mut duplicated_file = false;
-    for i in &pack_file.pack_file_extra_data.correlation_data {
-        if i == &tree_path {
+    for i in &pack_file.pack_file_data.packed_files {
+        if &i.packed_file_path == &tree_path {
             duplicated_file = true;
             break;
         }
@@ -183,9 +183,9 @@ pub fn delete_from_packfile(
     let mut is_a_folder = false;
     let tree_path = tree_path;
 
-    // First, we check with the correlation data if the file is a folder or a file.
-    for i in &pack_file.pack_file_extra_data.correlation_data {
-        if i == &tree_path {
+    // First, we check if the file is a folder or a file.
+    for i in &pack_file.pack_file_data.packed_files  {
+        if &i.packed_file_path == &tree_path {
             is_a_file = true;
             break;
         }
@@ -193,8 +193,8 @@ pub fn delete_from_packfile(
     }
 
     if !is_a_file {
-        for i in &pack_file.pack_file_extra_data.correlation_data {
-            if i.starts_with(&tree_path) {
+        for i in &pack_file.pack_file_data.packed_files  {
+            if i.packed_file_path.starts_with(&tree_path) {
                 is_a_folder = true;
                 break;
             }
@@ -203,9 +203,9 @@ pub fn delete_from_packfile(
 
     // If it's a file, in order to delete it we need to:
     // - Reduce the amount of files in the header.
-    // - Reduce the size of the index in the header using the lenght of the path + 6.
+    // - Reduce the size of the index in the header using the length of the path + 6.
     // - We get his index (I think this needs a proper rework) of the PackedFile to delete.
-    // - We remove the PackedFile from both, the PackFile and the correlation data.
+    // - We remove the PackedFile from the PackFile.
     if is_a_file {
         pack_file.pack_file_header.packed_file_count -= 1;
         let file_path = ::common::vec_strings_to_path_string(
@@ -214,7 +214,6 @@ pub fn delete_from_packfile(
         pack_file.pack_file_header.packed_index_size -= index_entry_size as u32;
         let file_to_delete = index;
         pack_file.pack_file_data.packed_files.remove(file_to_delete as usize);
-        pack_file.pack_file_extra_data.correlation_data.remove(file_to_delete as usize);
     }
 
     // If it's a folder, we remove all files using that exact tree_path in his own tree_path, one
@@ -230,7 +229,6 @@ pub fn delete_from_packfile(
                     pack_file.pack_file_header.packed_index_size -= index_entry_size as u32;
                     let file_to_delete = index;
                     pack_file.pack_file_data.packed_files.remove(file_to_delete as usize);
-                    pack_file.pack_file_extra_data.correlation_data.remove(file_to_delete as usize);
                     index -= 1;
                 }
             }
@@ -265,9 +263,9 @@ pub fn extract_from_packfile(
     let mut files_extracted = 0;
     let mut files_errors = 0;
 
-    // First, we check with the correlation data if the tree_path is a folder or a file.
-    for i in &pack_file.pack_file_extra_data.correlation_data {
-        if i == &tree_path {
+    // First, we check if the tree_path is a folder or a file.
+    for i in &pack_file.pack_file_data.packed_files {
+        if &i.packed_file_path == &tree_path {
             is_a_file = true;
             break;
         }
@@ -275,8 +273,8 @@ pub fn extract_from_packfile(
     }
 
     if !is_a_file {
-        for i in &pack_file.pack_file_extra_data.correlation_data {
-            if i.starts_with(&tree_path) {
+        for i in &pack_file.pack_file_data.packed_files  {
+            if i.packed_file_path.starts_with(&tree_path) {
                 is_a_folder = true;
                 break;
             }
@@ -404,9 +402,9 @@ pub fn rename_packed_file(
         tree_path.pop();
         tree_path.reverse();
 
-        // Second, we check with the correlation data if the file is a folder or a file.
-        for i in &pack_file.pack_file_extra_data.correlation_data {
-            if i == &tree_path {
+        // Second, we check if the file is a folder or a file.
+        for i in &pack_file.pack_file_data.packed_files {
+            if &i.packed_file_path == &tree_path {
                 is_a_file = true;
                 break;
             }
@@ -414,8 +412,8 @@ pub fn rename_packed_file(
         }
 
         if !is_a_file {
-            for i in &pack_file.pack_file_extra_data.correlation_data {
-                if i.starts_with(&tree_path) {
+            for i in &pack_file.pack_file_data.packed_files {
+                if i.packed_file_path.starts_with(&tree_path) {
                     is_a_folder = true;
                     break;
                 }
@@ -427,16 +425,20 @@ pub fn rename_packed_file(
         new_tree_path.pop();
         new_tree_path.push(new_name.clone());
 
-        // If it's a file and it doesn't exist yet, we change the name of the file in both,
-        // PackedFile list and correlation data. Otherwise, return an error.
+        // If it's a file and it doesn't exist yet, we change the name of the file in the PackedFile
+        // list. Otherwise, return an error.
         if is_a_file {
-            if !pack_file.pack_file_extra_data.correlation_data.contains(&new_tree_path) {
+            let mut new_tree_path_already_exist = false;
+            for i in &pack_file.pack_file_data.packed_files {
+                if &i.packed_file_path == &new_tree_path {
+                    new_tree_path_already_exist = true;
+                    break;
+                }
+            }
+
+            if !new_tree_path_already_exist {
                 pack_file.pack_file_data.packed_files[index as usize].packed_file_path.pop();
-                pack_file.pack_file_extra_data.correlation_data[index as usize].pop();
-
                 pack_file.pack_file_data.packed_files[index as usize].packed_file_path.push(new_name.clone());
-                pack_file.pack_file_extra_data.correlation_data[index as usize].push(new_name.clone());
-
                 result = Ok(format!("File renamed."));
             }
             else {
@@ -449,8 +451,8 @@ pub fn rename_packed_file(
         else if is_a_folder {
 
             let mut new_folder_already_exist = false;
-            for i in &pack_file.pack_file_extra_data.correlation_data {
-                if i.starts_with(&new_tree_path) && i.len() > new_tree_path.len() {
+            for i in &pack_file.pack_file_data.packed_files {
+                if i.packed_file_path.starts_with(&new_tree_path) && i.packed_file_path.len() > new_tree_path.len() {
                     new_folder_already_exist = true;
                     break;
                 }
@@ -465,10 +467,7 @@ pub fn rename_packed_file(
                     if index as usize <= pack_file.pack_file_data.packed_files.len() {
                         if pack_file.pack_file_data.packed_files[index as usize].packed_file_path.starts_with(&tree_path) {
                             pack_file.pack_file_data.packed_files[index as usize].packed_file_path.remove(index_position);
-                            pack_file.pack_file_extra_data.correlation_data[index as usize].remove(index_position);
-
                             pack_file.pack_file_data.packed_files[index as usize].packed_file_path.insert(index_position, new_name.clone());
-                            pack_file.pack_file_extra_data.correlation_data[index as usize].insert(index_position, new_name.clone());
                         }
                     } else {
                         break;
@@ -488,10 +487,32 @@ pub fn rename_packed_file(
     result
 }
 
+/*
+--------------------------------------------------------
+             PackedFile-Related Functions
+--------------------------------------------------------
+*/
+
+// This function saves the data of the edited PackedFile in the main PackFile after a change has
+// been done by the user. Checking for valid characters is done before this, so be careful to not break it.
+pub fn update_packed_file_data(
+    packed_file_data_decoded: &::pack_file_manager::packed_files_manager::loc::Loc,
+    pack_file: &mut ::pack_file_manager::pack_file::PackFile,
+    index: usize,
+) {
+    let mut packed_file_data_encoded = ::pack_file_manager::packed_files_manager::loc::Loc::save(&packed_file_data_decoded).to_vec();
+    let packed_file_data_encoded_size = packed_file_data_encoded.len() as u32;
+
+    // Replace the old raw data of the PackedFile with the new one, and update his size.
+    &pack_file.pack_file_data.packed_files[index].packed_file_data.clear();
+    &pack_file.pack_file_data.packed_files[index].packed_file_data.append(&mut packed_file_data_encoded);
+    pack_file.pack_file_data.packed_files[index].packed_file_size = packed_file_data_encoded_size;
+}
+
 
 /*
 --------------------------------------------------------
-                PackedFile-Related Functions
+         Special PackedFile-Related Functions
 --------------------------------------------------------
 */
 

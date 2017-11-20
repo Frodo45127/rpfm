@@ -31,7 +31,6 @@ pub struct PackFile {
 pub struct PackFileExtraData {
     pub file_name: String,
     pub file_path: String,
-    pub correlation_data: Vec<Vec<String>>,
 }
 
 
@@ -77,43 +76,6 @@ pub struct PackedFile {
     pub packed_file_size: u32,
     pub packed_file_path: Vec<String>,
     pub packed_file_data: Vec<u8>,
-}
-
-// Implementation of "PackFileExtraData"
-impl  PackFileExtraData {
-
-    // This function creates an empty PackFileExtraData.
-    pub fn new() -> PackFileExtraData {
-        let file_name = String::new();
-        let file_path = String::new();
-        let correlation_data = vec![vec![]];
-        PackFileExtraData {
-            file_name,
-            file_path,
-            correlation_data,
-        }
-    }
-
-    // This function creates a PackFileExtraData with just a name.
-    pub fn new_with_name(file_name: String) -> PackFileExtraData {
-        let file_path = String::new();
-        let correlation_data = vec![vec![]];
-        PackFileExtraData {
-            file_name,
-            file_path,
-            correlation_data,
-        }
-    }
-
-    // This function creates a PackFileExtraData with a name and a path.
-    pub fn new_from_file(file_name: String, file_path: String) -> PackFileExtraData {
-        let correlation_data = vec![vec![]];
-        PackFileExtraData {
-            file_name,
-            file_path,
-            correlation_data,
-        }
-    }
 }
 
 // Implementation of "PackFile"
@@ -179,6 +141,37 @@ impl PackFile {
         pack_file_encoded.append(&mut pack_file_header_encoded);
         pack_file_encoded.append(&mut pack_file_data_encoded);
         pack_file_encoded
+    }
+}
+
+// Implementation of "PackFileExtraData"
+impl  PackFileExtraData {
+
+    // This function creates an empty PackFileExtraData.
+    pub fn new() -> PackFileExtraData {
+        let file_name = String::new();
+        let file_path = String::new();
+        PackFileExtraData {
+            file_name,
+            file_path,
+        }
+    }
+
+    // This function creates a PackFileExtraData with just a name.
+    pub fn new_with_name(file_name: String) -> PackFileExtraData {
+        let file_path = String::new();
+        PackFileExtraData {
+            file_name,
+            file_path,
+        }
+    }
+
+    // This function creates a PackFileExtraData with a name and a path.
+    pub fn new_from_file(file_name: String, file_path: String) -> PackFileExtraData {
+        PackFileExtraData {
+            file_name,
+            file_path,
+        }
     }
 }
 
@@ -513,6 +506,7 @@ impl PackedFile {
 
         // Then, we encode the data
         let packed_file_data_entry: Vec<u8> = packed_file_decoded.packed_file_data.to_vec();
+
 
         // Finally, we put both together and return them.
         let packed_file_data_encoded = (packed_file_index_entry, packed_file_data_entry);
