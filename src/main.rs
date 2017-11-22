@@ -2,6 +2,8 @@
 
 #![windows_subsystem = "windows"]
 
+#[macro_use]
+extern crate serde_derive;
 extern crate gtk;
 extern crate gdk;
 extern crate num;
@@ -71,16 +73,25 @@ fn main() {
     let file_chooser_add_folder_to_packfile: FileChooserDialog = builder.get_object("gtk_file_chooser_add_folder_to_packfile").expect("Couldn't get gtk_file_chooser_add_folder_to_packfile");
     let file_chooser_extract_file: FileChooserDialog = builder.get_object("gtk_file_chooser_extract_file").expect("Couldn't get gtk_file_chooser_extract_file");
     let file_chooser_extract_folder: FileChooserDialog = builder.get_object("gtk_file_chooser_extract_folder").expect("Couldn't get gtk_file_chooser_extract_folder");
+    let file_chooser_packedfile_loc_import_csv: FileChooserDialog = builder.get_object("gtk_file_chooser_packedfile_loc_import_csv").expect("Couldn't get gtk_file_chooser_packedfile_loc_import_csv");
+    let file_chooser_packedfile_loc_export_csv: FileChooserDialog = builder.get_object("gtk_file_chooser_packedfile_loc_export_csv").expect("Couldn't get gtk_file_chooser_packedfile_loc_export_csv");
+
+    let top_menu_file: MenuItem = builder.get_object("gtk_top_menu_file").expect("Couldn't get gtk_top_menu_file");
+    let top_menu_special_stuff: MenuItem = builder.get_object("gtk_top_menu_special_stuff").expect("Couldn't get gtk_top_menu_special_stuff");
+
+    let context_menu_tree_view: Popover = builder.get_object("gtk_context_menu_tree_view").expect("Couldn't get gtk_context_menu_tree_view");
+    let context_menu_tree_view_packed_file_loc: Popover = builder.get_object("gtk_context_menu_tree_view_packedfile_loc").expect("Couldn't get gtk_context_menu_tree_view_packedfile_loc");
 
     let tree_view_add_file: Button = builder.get_object("gtk_context_menu_tree_view_add_file").expect("Couldn't get gtk_context_menu_tree_view_add_file");
     let tree_view_add_folder: Button = builder.get_object("gtk_context_menu_tree_view_add_folder").expect("Couldn't get gtk_context_menu_tree_view_add_folder");
     let tree_view_delete_file: Button = builder.get_object("gtk_context_menu_tree_view_delete_file").expect("Couldn't get gtk_context_menu_tree_view_delete_file");
     let tree_view_extract_file: Button = builder.get_object("gtk_context_menu_tree_view_extract_file").expect("Couldn't get gtk_context_menu_tree_view_extract_file");
 
-    let top_menu_file: MenuItem = builder.get_object("gtk_top_menu_file").expect("Couldn't get gtk_top_menu_file");
-    let top_menu_special_stuff: MenuItem = builder.get_object("gtk_top_menu_special_stuff").expect("Couldn't get gtk_top_menu_special_stuff");
-
-    let context_menu_tree_view: Popover = builder.get_object("gtk_context_menu_tree_view").expect("Couldn't get gtk_context_menu_tree_view");
+    let tree_view_packedfile_loc_add_rows: Button = builder.get_object("gtk_context_menu_tree_view_loc_packedfile_add_rows").expect("Couldn't get gtk_context_menu_tree_view_loc_packedfile_add_rows");
+    let tree_view_packedfile_loc_add_rows_number: Entry = builder.get_object("gtk_context_menu_tree_view_loc_packedfile_add_rows_number").expect("Couldn't get gtk_context_menu_tree_view_loc_packedfile_add_rows_number");
+    let tree_view_packedfile_loc_delete_row: Button = builder.get_object("gtk_context_menu_tree_view_packedfile_loc_delete_row").expect("Couldn't get gtk_context_menu_tree_view_packedfile_loc_delete_row");
+    let tree_view_packedfile_loc_import_csv: Button = builder.get_object("gtk_context_menu_tree_view_packedfile_loc_import_csv").expect("Couldn't get gtk_context_menu_tree_view_packedfile_loc_import_csv");
+    let tree_view_packedfile_loc_export_csv: Button = builder.get_object("gtk_context_menu_tree_view_packedfile_loc_export_csv").expect("Couldn't get gtk_context_menu_tree_view_packedfile_loc_export_csv");
 
     let top_menu_file_new_packfile: MenuItem = builder.get_object("gtk_top_menu_file_new_packfile").expect("Couldn't get gtk_top_menu_file_new_packfile");
     let top_menu_file_open_packfile: MenuItem = builder.get_object("gtk_top_menu_file_open_packfile").expect("Couldn't get gtk_top_menu_file_open_packfile");
@@ -464,7 +475,7 @@ fn main() {
             if tree_path.len() == 0 {
                 tree_view_extract_file.set_sensitive(false);
             }
-            let rect = ui::get_rect_for_popover(&folder_tree_selection, &folder_tree_view);
+            let rect = ui::get_rect_for_popover(&folder_tree_view, Some(button.get_position()));
 
             context_menu_tree_view.set_pointing_to(&rect);
             context_menu_tree_view.popup();
@@ -675,7 +686,7 @@ fn main() {
         // First, we get the variable for the new name and spawn the popover.
         let new_name: Rc<RefCell<String>> = Rc::new(RefCell::new(String::new()));
 
-        let rect = ui::get_rect_for_popover(&folder_tree_selection, &folder_tree_view);
+        let rect = ui::get_rect_for_popover(&folder_tree_view, None);
         rename_popover.set_pointing_to(&rect);
         rename_popover.popup();
 
@@ -728,13 +739,20 @@ fn main() {
     folder_tree_view.connect_cursor_changed(clone!(
         error_dialog,
         pack_file_decoded,
-        folder_tree_selection => move |_| {
+        folder_tree_selection,
+        tree_view_packedfile_loc_add_rows,
+        tree_view_packedfile_loc_add_rows_number,
+        tree_view_packedfile_loc_delete_row,
+        tree_view_packedfile_loc_import_csv,
+        tree_view_packedfile_loc_export_csv,
+        context_menu_tree_view_packed_file_loc => move |_| {
 
-   // folder_tree_view.connect_cursor_changed(move |_| {
         // First, we destroy any childrens that the ScrolledWindow we use may have, cleaning it.
-        let childrens_to_utterly_destroy =  packed_file_data_display.get_children();
-        for i in childrens_to_utterly_destroy.iter() {
-            i.destroy();
+        let childrens_to_utterly_destroy = packed_file_data_display.get_children();
+        if !childrens_to_utterly_destroy.is_empty() {
+            for i in childrens_to_utterly_destroy.iter() {
+                i.destroy();
+            }
         }
 
         // Then, we get the tree_path selected, and check if it's a folder or a file.
@@ -774,16 +792,15 @@ fn main() {
                     let packed_file_tree_view_cell_text = packed_file_tree_view_stuff.packed_file_tree_view_cell_text;
                     let packed_file_tree_view_cell_tooltip = packed_file_tree_view_stuff.packed_file_tree_view_cell_tooltip;
 
+                    // Now we set the new TreeView as parent of the context menu Popover.
+                    context_menu_tree_view_packed_file_loc.set_relative_to(Some(&packed_file_tree_view));
+
                     // Then we populate the TreeView with the entries of the Loc PackedFile.
                     let packed_file_data_encoded = &*pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data;
                     let packed_file_data_decoded = Rc::new(RefCell::new(::pack_file_manager::packed_files_manager::loc::Loc::read(packed_file_data_encoded.to_vec())));
-                    let mut j = 0;
-                    for i in &*packed_file_data_decoded.borrow().packed_file_data.packed_file_data_entries {
-                        j += 1;
-                        packed_file_list_store.insert_with_values(None, &[0, 1, 2, 3], &[&j.to_string(), &i.key, &i.text, &i.tooltip]);
-                    }
+                    ui::packed_file_loc::PackedFileLocTreeView::load_data_to_tree_view(&packed_file_data_decoded.borrow().packed_file_data, &packed_file_list_store);
 
-                    // Here they come!!! This is what happen when we edit the cells
+                    // Here they come!!! This is what happen when we edit the cells.
                     // This is the key column. Here we need to restrict the String to not having " ",
                     // be empty or repeated.
                     packed_file_tree_view_cell_key.connect_edited(clone!(
@@ -794,46 +811,53 @@ fn main() {
                         packed_file_list_store,
                         packed_file_tree_view_selection => move |_,_, new_text|{
 
-                    //packed_file_tree_view_cell_key.connect_edited(move |_,_, new_text|{
-                        // First we need to check that the new value is valid, as this is a key column.
-                        let current_line = packed_file_list_store.get_iter_first().unwrap();
-                        let mut key_already_exists = false;
-                        let mut done = false;
-                        while !done {
-                            let key: String = packed_file_list_store.get_value(&current_line, 1).get().unwrap();
-                            if key == new_text {
-                                key_already_exists = true;
-                                break;
+                        // First we need to check if the value has changed. Otherwise we do nothing.
+                        let edited_cell = packed_file_tree_view_selection.get_selected();
+                        let edited_cell_column = packed_file_tree_view.get_cursor();
+                        let old_text: String = packed_file_list_store.get_value(&edited_cell.unwrap().1, edited_cell_column.1.unwrap().get_sort_column_id()).get().unwrap();
+
+                        // If the value has changed, then we need to check that the new value is
+                        // valid, as this is a key column.
+                        if old_text != new_text {
+                            let current_line = packed_file_list_store.get_iter_first().unwrap();
+                            let mut key_already_exists = false;
+                            let mut done = false;
+                            while !done {
+                                let key: String = packed_file_list_store.get_value(&current_line, 1).get().unwrap();
+                                if key == new_text {
+                                    key_already_exists = true;
+                                    break;
+                                }
+                                else if !packed_file_list_store.iter_next(&current_line) {
+                                    done = true;
+                                }
                             }
-                            else if !packed_file_list_store.iter_next(&current_line) {
-                                done = true;
+
+
+                            if new_text.is_empty() {
+                                ui::show_dialog(&error_dialog, format!("Only my hearth can be empty."));
                             }
-                        }
+                            else if new_text.contains(" ") {
+                                ui::show_dialog(&error_dialog, format!("Spaces are not valid characters."));
+                            }
+                            else if key_already_exists {
+                                ui::show_dialog(&error_dialog, format!("This key is already in the Loc PackedFile."));
+                            }
 
+                            // If it has passed all the checkings without error, we update the Loc PackedFile
+                            // and save the changes.
+                            else {
+                                let edited_cell = packed_file_tree_view_selection.get_selected();
+                                let edited_cell_column = packed_file_tree_view.get_cursor();
+                                packed_file_list_store.set_value(&edited_cell.unwrap().1, edited_cell_column.1.unwrap().get_sort_column_id() as u32, &new_text.to_value());
 
-                        if new_text.is_empty() {
-                            ui::show_dialog(&error_dialog, format!("Only my hearth can be empty."));
-                        }
-                        else if new_text.contains(" ") {
-                            ui::show_dialog(&error_dialog, format!("Spaces are not valid characters."));
-                        }
-                        else if key_already_exists {
-                            ui::show_dialog(&error_dialog, format!("This key is already in the Loc PackedFile."));
-                        }
-
-                        // If it has passed all the checkings without error, we update the Loc PackedFile
-                        // and save the changes.
-                        else {
-                            let edited_cell = packed_file_tree_view_selection.get_selected();
-                            let edited_cell_column = packed_file_tree_view.get_cursor();
-                            packed_file_list_store.set_value(&edited_cell.unwrap().1, edited_cell_column.1.unwrap().get_sort_column_id() as u32, &new_text.to_value());
-
-                            // Get the data from the table and turn it into a Vec<u8> to write it.
-                            packed_file_data_decoded.borrow_mut().packed_file_data = ui::packed_file_loc::PackedFileLocTreeView::return_data_from_tree_view(&packed_file_list_store);
-                            ::pack_file_manager::update_packed_file_data(
-                                &*packed_file_data_decoded.borrow_mut(),
-                                &mut *pack_file_decoded.borrow_mut(),
-                                index as usize);
+                                // Get the data from the table and turn it into a Vec<u8> to write it.
+                                packed_file_data_decoded.borrow_mut().packed_file_data = ui::packed_file_loc::PackedFileLocTreeView::return_data_from_tree_view(&packed_file_list_store);
+                                ::pack_file_manager::update_packed_file_data(
+                                    &*packed_file_data_decoded.borrow_mut(),
+                                    &mut *pack_file_decoded.borrow_mut(),
+                                    index as usize);
+                            }
                         }
                     }));
 
@@ -842,7 +866,8 @@ fn main() {
                         pack_file_decoded,
                         packed_file_data_decoded,
                         packed_file_tree_view,
-                        packed_file_list_store => move |_,_, new_text|{
+                        packed_file_list_store,
+                        packed_file_tree_view_selection => move |_,_, new_text|{
 
                         let edited_cell = packed_file_tree_view_selection.get_selected();
                         let edited_cell_column = packed_file_tree_view.get_cursor();
@@ -880,49 +905,174 @@ fn main() {
                             index as usize);
                     }));
 
-                    // When w hit + we add a line. When we hit - we delete the selected line.
-                    packed_file_tree_view.connect_key_release_event(clone!(
+
+                    // When we right-click the TreeView, we check if we need to enable or disable his buttons first.
+                    // Then we calculate the position where the popup must aim, and show it.
+                    //
+                    // NOTE: REMEMBER, WE OPEN THE POPUP HERE, BUT WE NEED TO CLOSED IT WHEN WE HIT HIS BUTTONS.
+                    packed_file_tree_view.connect_button_release_event(clone!(
+                        packed_file_tree_view_selection,
+                        context_menu_tree_view_packed_file_loc => move |packed_file_tree_view, button| {
+
+                        let button_val = button.get_button();
+                        if button_val == 3 && packed_file_tree_view_selection.count_selected_rows() > 0 {
+                            let rect = ui::get_rect_for_popover(&packed_file_tree_view, Some(button.get_position()));
+
+                            context_menu_tree_view_packed_file_loc.set_pointing_to(&rect);
+                            context_menu_tree_view_packed_file_loc.popup();
+                        }
+                        Inhibit(false)
+                    }));
+
+                    // When we hit the "Add row" button.
+                    tree_view_packedfile_loc_add_rows.connect_button_release_event(clone!(
+                        error_dialog,
+                        pack_file_decoded,
+                        packed_file_data_decoded,
+                        packed_file_list_store,
+                        tree_view_packedfile_loc_add_rows_number,
+                        context_menu_tree_view_packed_file_loc => move |_,_|{
+
+                        // We hide the context menu, then we get the selected file/folder, delete it and update the
+                        // TreeView. Pretty simple, actually.
+                        context_menu_tree_view_packed_file_loc.popdown();
+
+                        // First, we check if the input is a valid number, as I'm already seeing people
+                        // trying to add "two" rows.
+                        let number_rows = tree_view_packedfile_loc_add_rows_number.get_buffer().get_text();
+                        match number_rows.parse::<u32>() {
+                            Ok(number_rows) => {
+                                // Then we make this the new line's "Key" field unique, so there are no
+                                // duplicate keys in the Loc PackedFile.
+                                for _ in 0..number_rows {
+                                    let mut new_key = String::new();
+                                    let mut current_line = packed_file_list_store.get_iter_first().unwrap();
+                                    let mut done = false;
+                                    let mut j = 1;
+
+                                    while !done {
+                                        let key: String = packed_file_list_store.get_value(&current_line, 1).get().unwrap();
+
+                                        if key == format!("New_line_{}", j) {
+                                            current_line = packed_file_list_store.get_iter_first().unwrap();
+                                            j += 1;
+                                        }
+                                        else if !packed_file_list_store.iter_next(&current_line) {
+                                            new_key = format!("New_line_{}", j);
+                                            done = true;
+                                        }
+                                    }
+
+                                    packed_file_list_store.insert_with_values(None, &[0, 1, 2, 3], &[&"New".to_value(), &new_key.to_value(), &"New_line_text".to_value(), &true.to_value()]);
+                                }
+
+                                // Get the data from the table and turn it into a Vec<u8> to write it.
+                                packed_file_data_decoded.borrow_mut().packed_file_data = ui::packed_file_loc::PackedFileLocTreeView::return_data_from_tree_view(&packed_file_list_store);
+                                ::pack_file_manager::update_packed_file_data(
+                                    &*packed_file_data_decoded.borrow_mut(),
+                                    &mut *pack_file_decoded.borrow_mut(),
+                                    index as usize);
+                            }
+                            Err(_) => ui::show_dialog(&error_dialog, format!("You can only add an \"ENTIRE NUMBER\" of rows. Like 4, or 6. Maybe 5, who knows?")),
+                        }
+                        Inhibit(false)
+                    }));
+
+                    // When we hit the "Delete row" button.
+                    tree_view_packedfile_loc_delete_row.connect_button_release_event(clone!(
+                        pack_file_decoded,
+                        packed_file_data_decoded,
                         packed_file_tree_view,
-                        packed_file_list_store => move |_, key| {
+                        packed_file_list_store,
+                        context_menu_tree_view_packed_file_loc => move |_,_|{
 
-                        let key_val = key.get_keyval();
+                        // We hide the context menu, then we get the selected file/folder, delete it and update the
+                        // TreeView. Pretty simple, actually.
+                        context_menu_tree_view_packed_file_loc.popdown();
 
-                        // If we press "+", we add a new line.
-                        // NOTE: The new lines have "New" as autogenerated index, to differentiate them.
-                        if key_val == 65451 /* + */ {
+                        // In case we don't have any lines, we do nothing.
+                        if packed_file_tree_view.get_cursor().0 != None {
+                            let selected_line_tree_path = packed_file_tree_view.get_cursor().0.unwrap();
+                            let selected_line_tree_iter = packed_file_list_store.get_iter(&selected_line_tree_path).unwrap();
+                            packed_file_list_store.remove(&selected_line_tree_iter);
 
-                            // First we make this the new line's "Key" field unique, so there are no
-                            // duplicate keys in the Loc PackedFile.
-                            let mut new_key = String::new();
-                            let mut current_line = packed_file_list_store.get_iter_first().unwrap();
-                            let mut done = false;
-                            let mut i = 1;
-                            while !done {
-                                let key: String = packed_file_list_store.get_value(&current_line, 1).get().unwrap();
-
-                                if key == format!("New_line_{}", i) {
-                                    current_line = packed_file_list_store.get_iter_first().unwrap();
-                                    i += 1;
-                                }
-                                else if !packed_file_list_store.iter_next(&current_line) {
-                                    new_key = format!("New_line_{}", i);
-                                    done = true;
-                                }
-                            }
-
-                            packed_file_list_store.insert_with_values(None, &[0, 1, 2, 3], &[&"New".to_value(), &new_key.to_value(), &"New_line_text".to_value(), &false.to_value()]);
+                            // Get the data from the table and turn it into a Vec<u8> to write it.
+                            packed_file_data_decoded.borrow_mut().packed_file_data = ui::packed_file_loc::PackedFileLocTreeView::return_data_from_tree_view(&packed_file_list_store);
+                            ::pack_file_manager::update_packed_file_data(
+                                &*packed_file_data_decoded.borrow_mut(),
+                                &mut *pack_file_decoded.borrow_mut(),
+                                index as usize);
                         }
 
-                        // If we press "-", we delete the currently selected line.
-                        else if key_val == 65453 /* - */ {
+                        Inhibit(false)
+                    }));
 
-                            // In case we don't have any lines, we do nothing.
-                            if packed_file_tree_view.get_cursor().0 != None {
-                                let selected_line_tree_path = packed_file_tree_view.get_cursor().0.unwrap();
-                                let selected_line_tree_iter = packed_file_list_store.get_iter(&selected_line_tree_path).unwrap();
-                                packed_file_list_store.remove(&selected_line_tree_iter);
+                    // When we hit the "Import to CSV" button.
+                    tree_view_packedfile_loc_import_csv.connect_button_release_event(clone!(
+                        error_dialog,
+                        pack_file_decoded,
+                        packed_file_data_decoded,
+                        packed_file_list_store,
+                        file_chooser_packedfile_loc_import_csv,
+                        context_menu_tree_view_packed_file_loc => move |_,_|{
+
+                        // We hide the context menu first.
+                        context_menu_tree_view_packed_file_loc.popdown();
+
+                        // First we ask for the file to import.
+                        if file_chooser_packedfile_loc_import_csv.run() == gtk::ResponseType::Ok.into() {
+                            match pack_file_manager::packed_files_manager::import_from_csv(file_chooser_packedfile_loc_import_csv.get_filename().expect("Couldn't open file")) {
+
+                                // If the file we choose has been processed into a LocData, we replace
+                                // our old LocData with that one, and then re-create the ListStore.
+                                // After that, we save the PackedFile to memory with the new data.
+                                Ok(result) => {
+                                    packed_file_data_decoded.borrow_mut().packed_file_data = result;
+                                    ui::packed_file_loc::PackedFileLocTreeView::load_data_to_tree_view(&packed_file_data_decoded.borrow().packed_file_data, &packed_file_list_store);
+
+                                    // Get the data from the table and turn it into a Vec<u8> to write it.
+                                    packed_file_data_decoded.borrow_mut().packed_file_data = ui::packed_file_loc::PackedFileLocTreeView::return_data_from_tree_view(&packed_file_list_store);
+                                    ::pack_file_manager::update_packed_file_data(
+                                        &*packed_file_data_decoded.borrow_mut(),
+                                        &mut *pack_file_decoded.borrow_mut(),
+                                        index as usize);
+                                }
+                                Err(result) => {
+                                    ui::show_dialog(&error_dialog, result)
+                                }
                             }
                         }
+                        file_chooser_packedfile_loc_import_csv.hide_on_delete();
+
+                        Inhibit(true)
+                    }));
+
+                    // When we hit the "Export to CSV" button.
+                    tree_view_packedfile_loc_export_csv.connect_button_release_event(clone!(
+                        error_dialog,
+                        success_dialog,
+                        packed_file_data_decoded,
+                        folder_tree_selection,
+                        file_chooser_packedfile_loc_export_csv,
+                        context_menu_tree_view_packed_file_loc => move |_,_|{
+
+                        // We hide the context menu first.
+                        context_menu_tree_view_packed_file_loc.popdown();
+
+                        let tree_path = ui::get_tree_path_from_selection(&folder_tree_selection, false);
+                        file_chooser_packedfile_loc_export_csv.set_current_name(format!("{}.csv",&tree_path.last().unwrap()));
+
+                        if file_chooser_packedfile_loc_export_csv.run() == gtk::ResponseType::Ok.into() {
+                            match pack_file_manager::packed_files_manager::export_to_csv(&packed_file_data_decoded.borrow_mut().packed_file_data, file_chooser_packedfile_loc_export_csv.get_filename().expect("Couldn't open file")) {
+                                Ok(result) => {
+                                    ui::show_dialog(&success_dialog, result);
+                                }
+                                Err(result) => {
+                                    ui::show_dialog(&error_dialog, result)
+                                }
+                            }
+                        }
+                        file_chooser_packedfile_loc_export_csv.hide_on_delete();
                         Inhibit(true)
                     }));
                 }

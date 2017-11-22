@@ -22,6 +22,284 @@
     <property name="can_focus">False</property>
     <property name="stock">gtk-undelete</property>
   </object>
+  <object class="GtkImage" id="gtk_context_menu_tree_view_loc_packedfile_img_add_rows">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <property name="stock">gtk-add</property>
+  </object>
+  <object class="GtkImage" id="gtk_context_menu_tree_view_loc_packedfile_img_delete_row">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <property name="stock">gtk-delete</property>
+  </object>
+  <object class="GtkImage" id="gtk_context_menu_tree_view_loc_packedfile_img_export_to_csv">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <property name="stock">gtk-undo</property>
+  </object>
+  <object class="GtkImage" id="gtk_context_menu_tree_view_loc_packedfile_img_import_from_csv">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <property name="stock">gtk-redo</property>
+  </object>
+  <object class="GtkPopover" id="gtk_context_menu_tree_view_packedfile_loc">
+    <property name="can_focus">False</property>
+    <child>
+      <object class="GtkBox">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="orientation">vertical</property>
+        <child>
+          <object class="GtkBox">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <child>
+              <object class="GtkButton" id="gtk_context_menu_tree_view_loc_packedfile_add_rows">
+                <property name="label" translatable="yes">Add rows:</property>
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="receives_default">True</property>
+                <property name="image">gtk_context_menu_tree_view_loc_packedfile_img_add_rows</property>
+                <property name="relief">none</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkEntry" id="gtk_context_menu_tree_view_loc_packedfile_add_rows_number">
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="max_length">4</property>
+                <property name="has_frame">False</property>
+                <property name="width_chars">6</property>
+                <property name="text" translatable="yes">1</property>
+                <property name="xalign">1</property>
+                <property name="caps_lock_warning">False</property>
+                <property name="primary_icon_stock">gtk-goto-last</property>
+                <property name="placeholder_text" translatable="yes">1</property>
+                <property name="input_purpose">digits</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkButton" id="gtk_context_menu_tree_view_packedfile_loc_delete_row">
+            <property name="label" translatable="yes">Delete row              </property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="receives_default">True</property>
+            <property name="halign">start</property>
+            <property name="image">gtk_context_menu_tree_view_loc_packedfile_img_delete_row</property>
+            <property name="relief">none</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">1</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkSeparator">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">2</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkButton" id="gtk_context_menu_tree_view_packedfile_loc_import_csv">
+            <property name="label" translatable="yes">Import from CSV  </property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="receives_default">True</property>
+            <property name="halign">start</property>
+            <property name="image">gtk_context_menu_tree_view_loc_packedfile_img_import_from_csv</property>
+            <property name="relief">none</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">3</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkButton" id="gtk_context_menu_tree_view_packedfile_loc_export_csv">
+            <property name="label" translatable="yes">Export to CSV        </property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="receives_default">True</property>
+            <property name="halign">start</property>
+            <property name="image">gtk_context_menu_tree_view_loc_packedfile_img_export_to_csv</property>
+            <property name="relief">none</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">4</property>
+          </packing>
+        </child>
+      </object>
+    </child>
+  </object>
+  <object class="GtkFileFilter" id="gtk_file_chooser_packedfile_loc_import_csv_filter">
+    <patterns>
+      <pattern>*.csv</pattern>
+    </patterns>
+  </object>
+  <object class="GtkFileChooserDialog" id="gtk_file_chooser_packedfile_loc_export_csv">
+    <property name="can_focus">False</property>
+    <property name="title" translatable="yes">Export to CSV</property>
+    <property name="window_position">center</property>
+    <property name="default_width">700</property>
+    <property name="default_height">600</property>
+    <property name="type_hint">dialog</property>
+    <property name="transient_for">gtk_window</property>
+    <property name="action">save</property>
+    <property name="do_overwrite_confirmation">True</property>
+    <property name="filter">gtk_file_chooser_packedfile_loc_import_csv_filter</property>
+    <child internal-child="vbox">
+      <object class="GtkBox">
+        <property name="can_focus">False</property>
+        <property name="orientation">vertical</property>
+        <property name="spacing">2</property>
+        <child internal-child="action_area">
+          <object class="GtkButtonBox">
+            <property name="can_focus">False</property>
+            <property name="layout_style">end</property>
+            <child>
+              <object class="GtkButton" id="gtk_file_chooser_save_packfile_button_cancel3">
+                <property name="label">gtk-cancel</property>
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="receives_default">True</property>
+                <property name="use_stock">True</property>
+              </object>
+              <packing>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkButton" id="gtk_file_chooser_save_packfile_button_save3">
+                <property name="label">gtk-save</property>
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="can_default">True</property>
+                <property name="receives_default">True</property>
+                <property name="use_stock">True</property>
+              </object>
+              <packing>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">False</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+        <child>
+          <placeholder/>
+        </child>
+      </object>
+    </child>
+    <action-widgets>
+      <action-widget response="-6">gtk_file_chooser_save_packfile_button_cancel3</action-widget>
+      <action-widget response="-5">gtk_file_chooser_save_packfile_button_save3</action-widget>
+    </action-widgets>
+    <child>
+      <placeholder/>
+    </child>
+  </object>
+  <object class="GtkFileChooserDialog" id="gtk_file_chooser_packedfile_loc_import_csv">
+    <property name="can_focus">False</property>
+    <property name="hexpand">True</property>
+    <property name="vexpand">True</property>
+    <property name="title" translatable="yes">Import from CSV</property>
+    <property name="window_position">center</property>
+    <property name="default_width">700</property>
+    <property name="default_height">600</property>
+    <property name="type_hint">dialog</property>
+    <property name="transient_for">gtk_window</property>
+    <property name="filter">gtk_file_chooser_packedfile_loc_import_csv_filter</property>
+    <child internal-child="vbox">
+      <object class="GtkBox">
+        <property name="can_focus">False</property>
+        <property name="orientation">vertical</property>
+        <property name="spacing">2</property>
+        <child internal-child="action_area">
+          <object class="GtkButtonBox">
+            <property name="can_focus">False</property>
+            <property name="layout_style">end</property>
+            <child>
+              <object class="GtkButton" id="gtk_file_chooser_open_packfile_button_cancel1">
+                <property name="label">gtk-cancel</property>
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="receives_default">True</property>
+                <property name="use_stock">True</property>
+              </object>
+              <packing>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkButton" id="gtk_file_chooser_open_packfile_button_open1">
+                <property name="label">gtk-open</property>
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="can_default">True</property>
+                <property name="receives_default">True</property>
+                <property name="use_stock">True</property>
+              </object>
+              <packing>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">False</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+        <child>
+          <placeholder/>
+        </child>
+      </object>
+    </child>
+    <action-widgets>
+      <action-widget response="-6">gtk_file_chooser_open_packfile_button_cancel1</action-widget>
+      <action-widget response="-5">gtk_file_chooser_open_packfile_button_open1</action-widget>
+    </action-widgets>
+    <child>
+      <placeholder/>
+    </child>
+  </object>
   <object class="GtkFileFilter" id="gtk_file_chooser_packfile_filter">
     <patterns>
       <pattern>*.pack</pattern>
@@ -321,7 +599,7 @@
         <property name="homogeneous">True</property>
         <child>
           <object class="GtkButton" id="gtk_context_menu_tree_view_add_file">
-            <property name="label" translatable="yes">Add file</property>
+            <property name="label" translatable="yes">Add file                   </property>
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <property name="receives_default">True</property>
@@ -338,7 +616,7 @@
         </child>
         <child>
           <object class="GtkButton" id="gtk_context_menu_tree_view_add_folder">
-            <property name="label" translatable="yes">Add folder</property>
+            <property name="label" translatable="yes">Add folder             </property>
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <property name="receives_default">True</property>
@@ -354,7 +632,7 @@
         </child>
         <child>
           <object class="GtkButton" id="gtk_context_menu_tree_view_delete_file">
-            <property name="label" translatable="yes">Delete file/folder</property>
+            <property name="label" translatable="yes">Delete file/folder </property>
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <property name="receives_default">True</property>

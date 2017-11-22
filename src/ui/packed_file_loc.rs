@@ -105,16 +105,29 @@ impl PackedFileLocTreeView{
         }
     }
 
+    // This function loads the data from a LocData into a TreeView.
+    pub fn load_data_to_tree_view(
+        packed_file_data: &::pack_file_manager::packed_files_manager::loc::LocData,
+        packed_file_list_store: &ListStore
+    ) {
+        // First, we delete all the data from the ListStore.
+        packed_file_list_store.clear();
+
+        // Then we add every line to the ListStore.
+        let mut j = 0;
+        for i in &packed_file_data.packed_file_data_entries {
+            j += 1;
+            packed_file_list_store.insert_with_values(None, &[0, 1, 2, 3], &[&j.to_string(), &i.key, &i.text, &i.tooltip]);
+        }
+    }
 
     // This function returns a Vec<LocDataEntry> with all the stuff in the table. We need for it the
-    // ListStore from the table and the
+    // ListStore, and it'll return a LocData with all the stuff from the table.
     pub fn return_data_from_tree_view(
         packed_file_list_store: &ListStore,
     ) -> ::pack_file_manager::packed_files_manager::loc::LocData {
 
-        let mut packed_file_data_from_tree_view = ::pack_file_manager::packed_files_manager::loc::LocData {
-            packed_file_data_entries: vec![],
-        };
+        let mut packed_file_data_from_tree_view = ::pack_file_manager::packed_files_manager::loc::LocData::new();
 
         let current_line = packed_file_list_store.get_iter_first().unwrap();
 
