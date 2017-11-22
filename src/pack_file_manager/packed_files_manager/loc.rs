@@ -36,7 +36,7 @@ pub struct LocHeader {
 
 // Struct LocData: This stores the data of a decoded Localisation PackedFile in memory.
 // It stores the PackedFile's data in a Vec<LocDataEntry>.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct LocData {
     pub packed_file_data_entries: Vec<LocDataEntry>,
 }
@@ -46,7 +46,7 @@ pub struct LocData {
 // - key: the "key" column of the entry.
 // - text: the text you'll see ingame.
 // - tooltip (bool): this one I believe it was to enable or disable certain lines ingame.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct LocDataEntry {
     pub key: String,
     pub text: String,
@@ -129,6 +129,13 @@ impl LocHeader {
 // Implementation of "LocData"
 impl LocData {
 
+    // This function returns an empty LocData.
+    pub fn new() -> LocData {
+        let packed_file_data_entries: Vec<LocDataEntry> = vec![];
+        LocData {
+            packed_file_data_entries,
+        }
+    }
     // This function creates a new decoded LocData from the data of a PackedFile. A LocData is a
     // Vec<LocDataEntry>. This pass through all the data of the Loc PackedFile and decodes every
     // entry.
