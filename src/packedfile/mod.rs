@@ -6,14 +6,23 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::error::Error;
 
+use ::packedfile::loc::LocData;
+use ::packedfile::loc::LocDataEntry;
+
 pub mod loc;
+
+/*
+--------------------------------------------------
+          Functions for Loc PackedFiles
+--------------------------------------------------
+*/
 
 // Function to export a LocData to a CSV file, without headers and with the fields quoted.
 // It requires:
 // - packed_file_data_to_export: the LocData we are going to export.
 // - packed_file_path: the destination path of the CSV.
 pub fn export_to_csv(
-    packed_file_data: &::pack_file_manager::packed_files_manager::loc::LocData,
+    packed_file_data: &LocData,
     packed_file_path: PathBuf
 ) -> Result<String, String> {
 
@@ -27,7 +36,7 @@ pub fn export_to_csv(
     let mut writer = writer_builder.from_writer(vec![]);
 
     for i in packed_file_data.packed_file_data_entries.clone() {
-        writer.serialize(::pack_file_manager::packed_files_manager::loc::LocDataEntry {
+        writer.serialize(LocDataEntry {
             key: i.key,
             text: i.text,
             tooltip: i.tooltip,
@@ -60,10 +69,10 @@ pub fn export_to_csv(
 // I returns a Result with the new LocData or an Error, depending on what happened.
 pub fn import_from_csv(
     csv_file_path: PathBuf
-) -> Result<::pack_file_manager::packed_files_manager::loc::LocData, String> {
+) -> Result<LocData, String> {
 
-    let result: Result<::pack_file_manager::packed_files_manager::loc::LocData, String>;
-    let mut packed_file_data_from_tree_view = ::pack_file_manager::packed_files_manager::loc::LocData::new();
+    let result: Result<LocData, String>;
+    let mut packed_file_data_from_tree_view = LocData::new();
 
     // We expect no headers, so we need to tweak our reader first.
     let mut reader_builder = csv::ReaderBuilder::new();

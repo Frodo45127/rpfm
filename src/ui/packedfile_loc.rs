@@ -7,6 +7,9 @@ use gtk::{
     CellRendererText, TreeViewColumn, CellRendererToggle
 };
 
+use ::packedfile::loc::LocData;
+use ::packedfile::loc::LocDataEntry;
+
 // Struct PackedFileLocTreeView: contains all the stuff we need to give to the program to show a
 // TreeView with the data of a Loc file, allowing us to manipulate it.
 #[derive(Clone)]
@@ -107,7 +110,7 @@ impl PackedFileLocTreeView{
 
     // This function loads the data from a LocData into a TreeView.
     pub fn load_data_to_tree_view(
-        packed_file_data: &::pack_file_manager::packed_files_manager::loc::LocData,
+        packed_file_data: &LocData,
         packed_file_list_store: &ListStore
     ) {
         // First, we delete all the data from the ListStore.
@@ -125,9 +128,9 @@ impl PackedFileLocTreeView{
     // ListStore, and it'll return a LocData with all the stuff from the table.
     pub fn return_data_from_tree_view(
         packed_file_list_store: &ListStore,
-    ) -> ::pack_file_manager::packed_files_manager::loc::LocData {
+    ) -> LocData {
 
-        let mut packed_file_data_from_tree_view = ::pack_file_manager::packed_files_manager::loc::LocData::new();
+        let mut packed_file_data_from_tree_view = LocData::new();
 
         // Only in case we have any line in the ListStore we try to get it. Otherwise we return an
         // empty LocData.
@@ -138,7 +141,7 @@ impl PackedFileLocTreeView{
                 let text = packed_file_list_store.get_value(&current_line, 2).get().unwrap();
                 let tooltip = packed_file_list_store.get_value(&current_line, 3).get().unwrap();
 
-                &packed_file_data_from_tree_view.packed_file_data_entries.push(::pack_file_manager::packed_files_manager::loc::LocDataEntry::new(key, text, tooltip));
+                &packed_file_data_from_tree_view.packed_file_data_entries.push(LocDataEntry::new(key, text, tooltip));
 
                 if !packed_file_list_store.iter_next(&current_line) {
                     done = true;

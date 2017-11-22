@@ -8,9 +8,9 @@ use gtk::{
 use std::cmp::Ordering;
 use std::path::PathBuf;
 
-use pack_file_manager::pack_file::PackFile;
+use packfile::packfile::PackFile;
 
-pub mod packed_file_loc;
+pub mod packedfile_loc;
 
 // This function shows a Dialog window with some text. For notification of success and errors.
 // It requires:

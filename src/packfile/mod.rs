@@ -13,8 +13,9 @@ use std::io::{
 
 use std::error::Error;
 
-pub mod pack_file;
-pub mod packed_files_manager;
+use ::packedfile::loc::Loc;
+
+pub mod packfile;
 
 /*
 --------------------------------------------------------
@@ -23,15 +24,15 @@ pub mod packed_files_manager;
 */
 
 // This function creates a new PackFile with the name received.
-pub fn new_packfile(file_name: String) -> pack_file::PackFile {
-    let pack_file = pack_file::PackFile::new_with_name(file_name);
+pub fn new_packfile(file_name: String) -> packfile::PackFile {
+    let pack_file = packfile::PackFile::new_with_name(file_name);
     pack_file
 }
 
 
 // This function is used to open the PackFiles. It requires the path of the PackFile to open, and
 // it returns the PackFile decoded (if success) or an error message (if error).
-pub fn open_packfile(pack_file_path: PathBuf) -> Result<pack_file::PackFile, String> {
+pub fn open_packfile(pack_file_path: PathBuf) -> Result<packfile::PackFile, String> {
 
     // First, we get his name and path.
     let mut pack_file_path_string = pack_file_path.clone();
@@ -45,7 +46,7 @@ pub fn open_packfile(pack_file_path: PathBuf) -> Result<pack_file::PackFile, Str
     file.read_to_end(&mut pack_file_buffered).expect("Error reading file.");
 
 
-    let pack_file: Result<pack_file::PackFile, String>;
+    let pack_file: Result<packfile::PackFile, String>;
 
     // If the file has less than 4 bytes, the file is not valid.
     if pack_file_buffered.len() <= 4 {
@@ -53,7 +54,7 @@ pub fn open_packfile(pack_file_path: PathBuf) -> Result<pack_file::PackFile, Str
     }
     // If the header's first 4 bytes are "PFH5", it's a valid file, so we read it.
     else if ::common::latin1_to_string(&pack_file_buffered[0..4]) == "PFH5"  {
-        pack_file = Ok(pack_file::PackFile::read(pack_file_buffered, pack_file_name, pack_file_path_string));
+        pack_file = Ok(packfile::PackFile::read(pack_file_buffered, pack_file_name, pack_file_path_string));
     }
     // If we reach this point, the file is not valid.
     else {
@@ -71,7 +72,7 @@ pub fn open_packfile(pack_file_path: PathBuf) -> Result<pack_file::PackFile, Str
 // - new_path: an Option<PathBuf> with the path were we are going to save the PackFile. None if we
 //             are saving it in the same path it's when we opened it.
 pub fn save_packfile(
-    pack_file: &mut pack_file::PackFile,
+    pack_file: &mut packfile::PackFile,
     new_path: Option<PathBuf>
 ) -> Result<String, String> {
 
@@ -103,7 +104,7 @@ pub fn save_packfile(
 
     match File::create(pack_file_path) {
         Ok(mut file) => {
-            let pack_file_encoded: Vec<u8> = pack_file::PackFile::save(pack_file);
+            let pack_file_encoded: Vec<u8> = packfile::PackFile::save(pack_file);
             match file.write_all(&pack_file_encoded) {
                 Ok(_) => {
                     save_result = Ok(format!("File saved succesfuly:\n{}", pack_file_path.display()))
@@ -128,7 +129,7 @@ pub fn save_packfile(
 // - file_path: a PathBuf with the current path of the file.
 // - tree_path: a Vec<String> with the path in the TreeView where we are going to add the file.
 pub fn add_file_to_packfile(
-    pack_file: &mut pack_file::PackFile,
+    pack_file: &mut packfile::PackFile,
     file_path: PathBuf,
     tree_path: Vec<String>
 ) -> Result<String, String> {
@@ -159,7 +160,7 @@ pub fn add_file_to_packfile(
         let index_entry_size = 6 + tree_path_processed.len();
         pack_file.pack_file_header.packed_index_size += index_entry_size as u32;
         let file_size = file_data.len() as u32;
-        let new_packed_file = pack_file::PackedFile::add(file_size, tree_path, file_data);
+        let new_packed_file = packfile::PackedFile::add(file_size, tree_path, file_data);
         pack_file.pack_file_data.packed_files.push(new_packed_file);
 
         result = Ok(format!("File added."));
@@ -175,7 +176,7 @@ pub fn add_file_to_packfile(
 // This function is used to delete a PackedFile or a group of PackedFiles under the same tree_path
 // from the PackFile. We just need the open PackFile and the tree_path of the file/folder to delete.
 pub fn delete_from_packfile(
-    pack_file: &mut pack_file::PackFile,
+    pack_file: &mut packfile::PackFile,
     tree_path: Vec<String>,) {
 
     let mut index: i32 = 0;
@@ -247,7 +248,7 @@ pub fn delete_from_packfile(
 // - tree_path: the tree_path of the PackedFile we want to extract.
 // - extracted_path: the destination path of the file we want to extract.
 pub fn extract_from_packfile(
-    pack_file: &pack_file::PackFile,
+    pack_file: &packfile::PackFile,
     tree_path: Vec<String>,
     extracted_path: PathBuf
 ) -> Result<String, String> {
@@ -285,7 +286,7 @@ pub fn extract_from_packfile(
     if is_a_file {
         match File::create(&extracted_path) {
             Ok(mut extracted_file) => {
-                let packed_file_encoded: (Vec<u8>, Vec<u8>) = pack_file::PackedFile::save(&pack_file.pack_file_data.packed_files[index as usize]);
+                let packed_file_encoded: (Vec<u8>, Vec<u8>) = packfile::PackedFile::save(&pack_file.pack_file_data.packed_files[index as usize]);
                 match extracted_file.write_all(&packed_file_encoded.1) {
                     Ok(_) => file_result = Ok(format!("File extracted succesfuly:\n{}", extracted_path.display())),
                     Err(why) => file_result = Err(format!("Error while writing the following file to disk:\n{}\n\nThe problem reported is:\n{}", extracted_path.display(), why.description())),
@@ -299,7 +300,7 @@ pub fn extract_from_packfile(
     // Then we remove the start of the tree_path of the extracted files, as we only need the folder we
     // want to extract and his childrens.
     else if is_a_folder {
-        let mut files_to_extract: Vec<pack_file::PackedFile> = vec![];
+        let mut files_to_extract: Vec<packfile::PackedFile> = vec![];
         for i in &pack_file.pack_file_data.packed_files {
             if i.packed_file_path.starts_with(&tree_path) {
                 files_to_extract.push(i.clone());
@@ -320,7 +321,7 @@ pub fn extract_from_packfile(
                 if (j + 1) == i.packed_file_path.len() {
                     match File::create(&current_path) {
                         Ok(mut extracted_file) => {
-                            let packed_file_encoded: (Vec<u8>, Vec<u8>) = pack_file::PackedFile::save(&i);
+                            let packed_file_encoded: (Vec<u8>, Vec<u8>) = packfile::PackedFile::save(&i);
                             match extracted_file.write_all(&packed_file_encoded.1) {
                                 Ok(_) => files_extracted += 1,
                                 Err(_) => files_errors += 1,
@@ -364,7 +365,7 @@ pub fn extract_from_packfile(
 // - tree_path: a Vec<String> with the tree_path of the file to rename.
 // - new_name: the new name of the file to rename.
 pub fn rename_packed_file(
-    pack_file: &mut pack_file::PackFile,
+    pack_file: &mut packfile::PackFile,
     tree_path: Vec<String>,
     new_name: &String
 ) -> Result<String, String> {
@@ -496,11 +497,11 @@ pub fn rename_packed_file(
 // This function saves the data of the edited PackedFile in the main PackFile after a change has
 // been done by the user. Checking for valid characters is done before this, so be careful to not break it.
 pub fn update_packed_file_data(
-    packed_file_data_decoded: &::pack_file_manager::packed_files_manager::loc::Loc,
-    pack_file: &mut ::pack_file_manager::pack_file::PackFile,
+    packed_file_data_decoded: &Loc,
+    pack_file: &mut packfile::PackFile,
     index: usize,
 ) {
-    let mut packed_file_data_encoded = ::pack_file_manager::packed_files_manager::loc::Loc::save(&packed_file_data_decoded).to_vec();
+    let mut packed_file_data_encoded = Loc::save(&packed_file_data_decoded).to_vec();
     let packed_file_data_encoded_size = packed_file_data_encoded.len() as u32;
 
     // Replace the old raw data of the PackedFile with the new one, and update his size.
@@ -520,7 +521,7 @@ pub fn update_packed_file_data(
 // is SiegeAI inplemented in the map) is patched and the extra useless .xml files are deleted.
 // It requires a mut ref to a decoded PackFile, and returns an String (Result<Success, Error>).
 pub fn patch_siege_ai (
-    pack_file: &mut ::pack_file_manager::pack_file::PackFile
+    pack_file: &mut packfile::PackFile
 ) -> Result<String, String> {
 
     let save_result: Result<String, String>;
