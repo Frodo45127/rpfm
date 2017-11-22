@@ -33,10 +33,19 @@ pub fn get_rect_for_popover(
     cursor_position: Option<(f64, f64)>
 ) -> Rectangle {
     let cell = folder_tree_view.get_cursor();
-    let mut rect = folder_tree_view.get_cell_area(
-        Some(&cell.0.unwrap()),
-        Some(&cell.1.unwrap())
-    );
+    let mut rect: Rectangle;
+    if let Some(_) = cell.0.clone() {
+        rect = folder_tree_view.get_cell_area(
+            Some(&cell.0.unwrap()),
+            Some(&cell.1.unwrap())
+        );
+    }
+    else {
+        rect = folder_tree_view.get_cell_area(
+            None,
+            None
+        );
+    }
 
     let rect_new_coords: (i32, i32) = folder_tree_view.convert_bin_window_to_widget_coords(rect.x, rect.y);
     rect.y = rect_new_coords.1;

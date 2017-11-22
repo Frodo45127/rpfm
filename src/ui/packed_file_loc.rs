@@ -129,18 +129,20 @@ impl PackedFileLocTreeView{
 
         let mut packed_file_data_from_tree_view = ::pack_file_manager::packed_files_manager::loc::LocData::new();
 
-        let current_line = packed_file_list_store.get_iter_first().unwrap();
+        // Only in case we have any line in the ListStore we try to get it. Otherwise we return an
+        // empty LocData.
+        if let Some(current_line) = packed_file_list_store.get_iter_first() {
+            let mut done = false;
+            while !done {
+                let key = packed_file_list_store.get_value(&current_line, 1).get().unwrap();
+                let text = packed_file_list_store.get_value(&current_line, 2).get().unwrap();
+                let tooltip = packed_file_list_store.get_value(&current_line, 3).get().unwrap();
 
-        let mut done = false;
-        while !done {
-            let key = packed_file_list_store.get_value(&current_line, 1).get().unwrap();
-            let text = packed_file_list_store.get_value(&current_line, 2).get().unwrap();
-            let tooltip = packed_file_list_store.get_value(&current_line, 3).get().unwrap();
+                &packed_file_data_from_tree_view.packed_file_data_entries.push(::pack_file_manager::packed_files_manager::loc::LocDataEntry::new(key, text, tooltip));
 
-            &packed_file_data_from_tree_view.packed_file_data_entries.push(::pack_file_manager::packed_files_manager::loc::LocDataEntry::new(key, text, tooltip));
-
-            if !packed_file_list_store.iter_next(&current_line) {
-                done = true;
+                if !packed_file_list_store.iter_next(&current_line) {
+                    done = true;
+                }
             }
         }
         packed_file_data_from_tree_view

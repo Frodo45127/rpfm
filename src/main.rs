@@ -792,6 +792,9 @@ fn main() {
                     let packed_file_tree_view_cell_text = packed_file_tree_view_stuff.packed_file_tree_view_cell_text;
                     let packed_file_tree_view_cell_tooltip = packed_file_tree_view_stuff.packed_file_tree_view_cell_tooltip;
 
+                    // We enable "Multiple" selection mode, so we can do multi-row operations.
+                    packed_file_tree_view_selection.set_mode(gtk::SelectionMode::Multiple);
+
                     // Now we set the new TreeView as parent of the context menu Popover.
                     context_menu_tree_view_packed_file_loc.set_relative_to(Some(&packed_file_tree_view));
 
@@ -808,13 +811,12 @@ fn main() {
                         pack_file_decoded,
                         packed_file_data_decoded,
                         packed_file_tree_view,
-                        packed_file_list_store,
-                        packed_file_tree_view_selection => move |_,_, new_text|{
+                        packed_file_list_store => move |_,tree_path , new_text|{
 
                         // First we need to check if the value has changed. Otherwise we do nothing.
-                        let edited_cell = packed_file_tree_view_selection.get_selected();
+                        let edited_cell = packed_file_list_store.get_iter(&tree_path);
                         let edited_cell_column = packed_file_tree_view.get_cursor();
-                        let old_text: String = packed_file_list_store.get_value(&edited_cell.unwrap().1, edited_cell_column.1.unwrap().get_sort_column_id()).get().unwrap();
+                        let old_text: String = packed_file_list_store.get_value(&edited_cell.unwrap(), edited_cell_column.1.unwrap().get_sort_column_id()).get().unwrap();
 
                         // If the value has changed, then we need to check that the new value is
                         // valid, as this is a key column.
@@ -847,9 +849,9 @@ fn main() {
                             // If it has passed all the checkings without error, we update the Loc PackedFile
                             // and save the changes.
                             else {
-                                let edited_cell = packed_file_tree_view_selection.get_selected();
+                                let edited_cell = packed_file_list_store.get_iter(&tree_path);
                                 let edited_cell_column = packed_file_tree_view.get_cursor();
-                                packed_file_list_store.set_value(&edited_cell.unwrap().1, edited_cell_column.1.unwrap().get_sort_column_id() as u32, &new_text.to_value());
+                                packed_file_list_store.set_value(&edited_cell.unwrap(), edited_cell_column.1.unwrap().get_sort_column_id() as u32, &new_text.to_value());
 
                                 // Get the data from the table and turn it into a Vec<u8> to write it.
                                 packed_file_data_decoded.borrow_mut().packed_file_data = ui::packed_file_loc::PackedFileLocTreeView::return_data_from_tree_view(&packed_file_list_store);
@@ -866,12 +868,11 @@ fn main() {
                         pack_file_decoded,
                         packed_file_data_decoded,
                         packed_file_tree_view,
-                        packed_file_list_store,
-                        packed_file_tree_view_selection => move |_,_, new_text|{
+                        packed_file_list_store => move |_,tree_path , new_text|{
 
-                        let edited_cell = packed_file_tree_view_selection.get_selected();
+                        let edited_cell = packed_file_list_store.get_iter(&tree_path);
                         let edited_cell_column = packed_file_tree_view.get_cursor();
-                        packed_file_list_store.set_value(&edited_cell.unwrap().1, edited_cell_column.1.unwrap().get_sort_column_id() as u32, &new_text.to_value());
+                        packed_file_list_store.set_value(&edited_cell.unwrap(), edited_cell_column.1.unwrap().get_sort_column_id() as u32, &new_text.to_value());
 
                         // Get the data from the table and turn it into a Vec<u8> to write it.
                         packed_file_data_decoded.borrow_mut().packed_file_data = ui::packed_file_loc::PackedFileLocTreeView::return_data_from_tree_view(&packed_file_list_store);
@@ -912,15 +913,23 @@ fn main() {
                     // NOTE: REMEMBER, WE OPEN THE POPUP HERE, BUT WE NEED TO CLOSED IT WHEN WE HIT HIS BUTTONS.
                     packed_file_tree_view.connect_button_release_event(clone!(
                         packed_file_tree_view_selection,
+                        tree_view_packedfile_loc_delete_row,
                         context_menu_tree_view_packed_file_loc => move |packed_file_tree_view, button| {
 
                         let button_val = button.get_button();
-                        if button_val == 3 && packed_file_tree_view_selection.count_selected_rows() > 0 {
+                        if button_val == 3 {
+                            if packed_file_tree_view_selection.count_selected_rows() > 0 {
+                                tree_view_packedfile_loc_delete_row.set_sensitive(true);
+                            }
+                            else {
+                                tree_view_packedfile_loc_delete_row.set_sensitive(false);
+                            }
                             let rect = ui::get_rect_for_popover(&packed_file_tree_view, Some(button.get_position()));
 
                             context_menu_tree_view_packed_file_loc.set_pointing_to(&rect);
                             context_menu_tree_view_packed_file_loc.popup();
                         }
+
                         Inhibit(false)
                     }));
 
@@ -946,21 +955,28 @@ fn main() {
                                 // duplicate keys in the Loc PackedFile.
                                 for _ in 0..number_rows {
                                     let mut new_key = String::new();
-                                    let mut current_line = packed_file_list_store.get_iter_first().unwrap();
-                                    let mut done = false;
-                                    let mut j = 1;
 
-                                    while !done {
-                                        let key: String = packed_file_list_store.get_value(&current_line, 1).get().unwrap();
+                                    // Before checking for duplicates, we need to check if there is at least
+                                    // a row.
+                                    if let Some(mut current_line) = packed_file_list_store.get_iter_first() {
+                                        let mut done = false;
+                                        let mut j = 1;
 
-                                        if key == format!("New_line_{}", j) {
-                                            current_line = packed_file_list_store.get_iter_first().unwrap();
-                                            j += 1;
+                                        while !done {
+                                            let key: String = packed_file_list_store.get_value(&current_line, 1).get().unwrap();
+
+                                            if key == format!("New_line_{}", j) {
+                                                current_line = packed_file_list_store.get_iter_first().unwrap();
+                                                j += 1;
+                                            }
+                                            else if !packed_file_list_store.iter_next(&current_line) {
+                                                new_key = format!("New_line_{}", j);
+                                                done = true;
+                                            }
                                         }
-                                        else if !packed_file_list_store.iter_next(&current_line) {
-                                            new_key = format!("New_line_{}", j);
-                                            done = true;
-                                        }
+                                    }
+                                    else {
+                                        new_key = format!("New_line_1");
                                     }
 
                                     packed_file_list_store.insert_with_values(None, &[0, 1, 2, 3], &[&"New".to_value(), &new_key.to_value(), &"New_line_text".to_value(), &true.to_value()]);
@@ -982,19 +998,28 @@ fn main() {
                     tree_view_packedfile_loc_delete_row.connect_button_release_event(clone!(
                         pack_file_decoded,
                         packed_file_data_decoded,
-                        packed_file_tree_view,
                         packed_file_list_store,
+                        packed_file_tree_view_selection,
                         context_menu_tree_view_packed_file_loc => move |_,_|{
 
                         // We hide the context menu, then we get the selected file/folder, delete it and update the
                         // TreeView. Pretty simple, actually.
                         context_menu_tree_view_packed_file_loc.popdown();
 
-                        // In case we don't have any lines, we do nothing.
-                        if packed_file_tree_view.get_cursor().0 != None {
-                            let selected_line_tree_path = packed_file_tree_view.get_cursor().0.unwrap();
-                            let selected_line_tree_iter = packed_file_list_store.get_iter(&selected_line_tree_path).unwrap();
-                            packed_file_list_store.remove(&selected_line_tree_iter);
+                        // (Vec<TreePath>, TreeModel)
+                        let mut selected_rows = packed_file_tree_view_selection.get_selected_rows();
+
+                        // Only in case there is something selected (so we have at least a TreePath)
+                        // we delete rows. We sort the rows selected and reverse them. This is because
+                        // it's the only way I found to always delete the rows in reverse (from last
+                        // to beginning) so we avoid getting missing iters due to the rest of the rows
+                        // repositioning themselfs after deleting one of them.
+                        if !selected_rows.0.is_empty() {
+                            selected_rows.0.sort();
+                            for i in (0..selected_rows.0.len()).rev() {
+                                let selected_row_iter = packed_file_list_store.get_iter(&selected_rows.0[i]).unwrap();
+                                packed_file_list_store.remove(&selected_row_iter);
+                            }
 
                             // Get the data from the table and turn it into a Vec<u8> to write it.
                             packed_file_data_decoded.borrow_mut().packed_file_data = ui::packed_file_loc::PackedFileLocTreeView::return_data_from_tree_view(&packed_file_list_store);
