@@ -456,6 +456,7 @@ fn main() {
         tree_view_add_file,
         tree_view_add_folder,
         tree_view_extract_file,
+        tree_view_delete_file,
         context_menu_tree_view => move |_, button| {
 
         let button_val = button.get_button();
@@ -467,16 +468,21 @@ fn main() {
                     tree_view_add_file.set_sensitive(false);
                     tree_view_add_folder.set_sensitive(false);
                     tree_view_extract_file.set_sensitive(true);
+                    tree_view_delete_file.set_sensitive(true);
                     break;
                 }
                 else {
                     tree_view_add_file.set_sensitive(true);
                     tree_view_add_folder.set_sensitive(true);
                     tree_view_extract_file.set_sensitive(true);
+                    tree_view_delete_file.set_sensitive(true);
                 }
             }
             if tree_path.len() == 0 {
+                tree_view_add_file.set_sensitive(true);
+                tree_view_add_folder.set_sensitive(true);
                 tree_view_extract_file.set_sensitive(false);
+                tree_view_delete_file.set_sensitive(false);
             }
             let rect = ui::get_rect_for_popover(&folder_tree_view, Some(button.get_position()));
 
@@ -849,7 +855,7 @@ fn main() {
                                 ui::show_dialog(&error_dialog, format!("This key is already in the Loc PackedFile."));
                             }
 
-                            // If it has passed all the checkings without error, we update the Loc PackedFile
+                            // If it has passed all the checks without error, we update the Loc PackedFile
                             // and save the changes.
                             else {
                                 let edited_cell = packed_file_list_store.get_iter(&tree_path);
@@ -1072,7 +1078,7 @@ fn main() {
                         }
                         file_chooser_packedfile_loc_import_csv.hide_on_delete();
 
-                        Inhibit(true)
+                        Inhibit(false)
                     }));
 
                     // When we hit the "Export to CSV" button.
@@ -1106,6 +1112,8 @@ fn main() {
                 }
                 // If we reach this point, the coding to implement this type of file is not done yet,
                 // so we ignore the file.
+                // TODO: Here should be code to create a label in the empty ScrolledWindow with
+                // some info about how to use the program.
                 _ => {
                     println!("PackedFile Type not yet implemented.")
                 }

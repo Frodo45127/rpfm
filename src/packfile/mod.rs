@@ -147,18 +147,13 @@ pub fn add_file_to_packfile(
 
     // If the file is not already in the PackFile, we add it. To add a file we:
     // - Increase the amount of files in the header by 1;
-    // - Increase the index size in the header, with the lenght of the new file's index data.
     // - We calculate the size in bytes of the file, and pass it to the decode function.
     // - We add the new PackedFile to the packed_files Vec<PackedFile> of the PackFile.
     if !duplicated_file {
         let mut file_data = vec![];
         let mut file = File::open(&file_path).expect("Couldn't open file");
         file.read_to_end(&mut file_data).expect("Error reading file.");
-
         pack_file.pack_file_header.packed_file_count += 1;
-        let tree_path_processed = ::common::vec_strings_to_path_string(tree_path.to_vec());
-        let index_entry_size = 6 + tree_path_processed.len();
-        pack_file.pack_file_header.packed_index_size += index_entry_size as u32;
         let file_size = file_data.len() as u32;
         let new_packed_file = packfile::PackedFile::add(file_size, tree_path, file_data);
         pack_file.pack_file_data.packed_files.push(new_packed_file);
@@ -204,17 +199,11 @@ pub fn delete_from_packfile(
 
     // If it's a file, in order to delete it we need to:
     // - Reduce the amount of files in the header.
-    // - Reduce the size of the index in the header using the length of the path + 6.
     // - We get his index (I think this needs a proper rework) of the PackedFile to delete.
     // - We remove the PackedFile from the PackFile.
     if is_a_file {
         pack_file.pack_file_header.packed_file_count -= 1;
-        let file_path = ::common::vec_strings_to_path_string(
-            pack_file.pack_file_data.packed_files[index as usize].packed_file_path.to_vec());
-        let index_entry_size = 6 + file_path.len();
-        pack_file.pack_file_header.packed_index_size -= index_entry_size as u32;
-        let file_to_delete = index;
-        pack_file.pack_file_data.packed_files.remove(file_to_delete as usize);
+        pack_file.pack_file_data.packed_files.remove(index as usize);
     }
 
     // If it's a folder, we remove all files using that exact tree_path in his own tree_path, one
@@ -225,11 +214,7 @@ pub fn delete_from_packfile(
             if index as usize <= pack_file.pack_file_data.packed_files.len(){
                 if pack_file.pack_file_data.packed_files[index as usize].packed_file_path.starts_with(&tree_path) {
                     pack_file.pack_file_header.packed_file_count -= 1;
-                    let file_path = ::common::vec_strings_to_path_string(pack_file.pack_file_data.packed_files[index as usize].packed_file_path.to_vec());
-                    let index_entry_size = 6 + file_path.len();
-                    pack_file.pack_file_header.packed_index_size -= index_entry_size as u32;
-                    let file_to_delete = index;
-                    pack_file.pack_file_data.packed_files.remove(file_to_delete as usize);
+                    pack_file.pack_file_data.packed_files.remove(index as usize);
                     index -= 1;
                 }
             }
@@ -421,7 +406,7 @@ pub fn rename_packed_file(
             }
         }
 
-        // Now we create the new tree_path, while conserving the old one for checkings
+        // Now we create the new tree_path, while conserving the old one for checks
         let mut new_tree_path = tree_path.clone();
         new_tree_path.pop();
         new_tree_path.push(new_name.clone());
