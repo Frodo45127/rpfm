@@ -8,9 +8,9 @@ use gtk::{
 use std::cmp::Ordering;
 use std::path::PathBuf;
 
-use pack_file_manager::pack_file::PackFile;
+use packfile::packfile::PackFile;
 
-pub mod packed_file_loc;
+pub mod packedfile_loc;
 
 // This function shows a Dialog window with some text. For notification of success and errors.
 // It requires:
@@ -22,24 +22,41 @@ pub fn show_dialog(dialog: &MessageDialog, text: String) {
     dialog.hide_on_delete();
 }
 
-// This function get the rect needed to put the popovers in the correct places when we create them.
+// This function get the rect needed to put the popovers in the correct places when we create them,
+// all of this thanks to the magic of the FileChooserDialog from GTK3.
 // It requires:
-// - folder_tree_selection: The selected item from the TreeView. In his position we should create the Rect.
 // - folder_tree_view: The TreeView we are going to use as parent of the Popover.
+// - cursor_position: An option(f64, f64). This is usually get using gdk::EventButton::get_position
+// or something like that. In case we aren't using a button, we just put None and get a default position.
 pub fn get_rect_for_popover(
-    folder_tree_selection: &TreeSelection,
-    folder_tree_view: &TreeView
+    folder_tree_view: &TreeView,
+    cursor_position: Option<(f64, f64)>
 ) -> Rectangle {
-    let selected_rows = folder_tree_selection.get_selected_rows();
+    let cell = folder_tree_view.get_cursor();
+    let mut rect: Rectangle;
+    if let Some(_) = cell.0.clone() {
+        rect = folder_tree_view.get_cell_area(
+            Some(&cell.0.unwrap()),
+            Some(&cell.1.unwrap())
+        );
+    }
+    else {
+        rect = folder_tree_view.get_cell_area(
+            None,
+            None
+        );
+    }
 
-    let mut rect = folder_tree_view.get_cell_area(
-        Some(&selected_rows.0[0]),
-        Some(&folder_tree_view.get_column(0).unwrap())
-    );
-    rect.x = num::clamp(rect.x, 0, folder_tree_view.get_allocated_width() - 40);
+    let rect_new_coords: (i32, i32) = folder_tree_view.convert_bin_window_to_widget_coords(rect.x, rect.y);
+    rect.y = rect_new_coords.1;
+    match cursor_position {
+        Some(cursor_pos) =>  rect.x = num::clamp((cursor_pos.0 as i32) - 20, 0, folder_tree_view.get_allocated_width() - 40),
+        None => rect.x = num::clamp(rect.x, 0, folder_tree_view.get_allocated_width() - 40),
+    }
     rect.width = 40;
     rect
 }
+
 // This function is used to get the complete TreePath (path in a GTKTreeView) of an external file
 // or folder in a Vec<String> format. Needed to get the path for the TreeView and for encoding
 // the file in a PackFile.

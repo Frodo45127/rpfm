@@ -7,6 +7,9 @@ use gtk::{
     CellRendererText, TreeViewColumn, CellRendererToggle
 };
 
+use ::packedfile::loc::LocData;
+use ::packedfile::loc::LocDataEntry;
+
 // Struct PackedFileLocTreeView: contains all the stuff we need to give to the program to show a
 // TreeView with the data of a Loc file, allowing us to manipulate it.
 #[derive(Clone)]
@@ -58,6 +61,10 @@ impl PackedFileLocTreeView{
         column_text.set_clickable(true);
         column_tooltip.set_clickable(true);
 
+        column_key.set_reorderable(true);
+        column_text.set_reorderable(true);
+        column_tooltip.set_reorderable(true);
+
         column_key.set_resizable(true);
         column_text.set_resizable(true);
 
@@ -105,29 +112,44 @@ impl PackedFileLocTreeView{
         }
     }
 
+    // This function loads the data from a LocData into a TreeView.
+    pub fn load_data_to_tree_view(
+        packed_file_data: &LocData,
+        packed_file_list_store: &ListStore
+    ) {
+        // First, we delete all the data from the ListStore.
+        packed_file_list_store.clear();
+
+        // Then we add every line to the ListStore.
+        let mut j = 0;
+        for i in &packed_file_data.packed_file_data_entries {
+            j += 1;
+            packed_file_list_store.insert_with_values(None, &[0, 1, 2, 3], &[&format!("{:0count$}", j, count = (packed_file_data.packed_file_data_entries.len() / 10) + 1), &i.key, &i.text, &i.tooltip]);
+        }
+    }
 
     // This function returns a Vec<LocDataEntry> with all the stuff in the table. We need for it the
-    // ListStore from the table and the
+    // ListStore, and it'll return a LocData with all the stuff from the table.
     pub fn return_data_from_tree_view(
         packed_file_list_store: &ListStore,
-    ) -> ::pack_file_manager::packed_files_manager::loc::LocData {
+    ) -> LocData {
 
-        let mut packed_file_data_from_tree_view = ::pack_file_manager::packed_files_manager::loc::LocData {
-            packed_file_data_entries: vec![],
-        };
+        let mut packed_file_data_from_tree_view = LocData::new();
 
-        let current_line = packed_file_list_store.get_iter_first().unwrap();
+        // Only in case we have any line in the ListStore we try to get it. Otherwise we return an
+        // empty LocData.
+        if let Some(current_line) = packed_file_list_store.get_iter_first() {
+            let mut done = false;
+            while !done {
+                let key = packed_file_list_store.get_value(&current_line, 1).get().unwrap();
+                let text = packed_file_list_store.get_value(&current_line, 2).get().unwrap();
+                let tooltip = packed_file_list_store.get_value(&current_line, 3).get().unwrap();
 
-        let mut done = false;
-        while !done {
-            let key = packed_file_list_store.get_value(&current_line, 1).get().unwrap();
-            let text = packed_file_list_store.get_value(&current_line, 2).get().unwrap();
-            let tooltip = packed_file_list_store.get_value(&current_line, 3).get().unwrap();
+                &packed_file_data_from_tree_view.packed_file_data_entries.push(LocDataEntry::new(key, text, tooltip));
 
-            &packed_file_data_from_tree_view.packed_file_data_entries.push(::pack_file_manager::packed_files_manager::loc::LocDataEntry::new(key, text, tooltip));
-
-            if !packed_file_list_store.iter_next(&current_line) {
-                done = true;
+                if !packed_file_list_store.iter_next(&current_line) {
+                    done = true;
+                }
             }
         }
         packed_file_data_from_tree_view

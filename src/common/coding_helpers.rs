@@ -2,6 +2,7 @@
 // As we may or may not use them, all functions here should have the "#[allow(dead_code)]"
 // var set, so the compiler doesn't spam us every time we try to compile.
 
+extern crate unescape;
 extern crate byteorder;
 
 use std::char;
@@ -9,17 +10,12 @@ use std::char;
 use self::byteorder::{
     ReadBytesExt, BigEndian
 };
+
 /*
 --------------------------------------------------------
                     Decoding helpers
 --------------------------------------------------------
 */
-/*
-pub fn decode_string_u32(string_encoded: Vec<u8>) -> String {
-
-}
-*/
-
 
 // This function allow us to decode an UTF-16 encoded String. This type of Strings are encoded in
 // in 2 bytes reversed. Also, this is extremely slow. Needs a lot of improvements.
@@ -31,14 +27,14 @@ pub fn decode_string_u16(string_encoded: Vec<u8>) -> String {
         let mut character_encoded: Vec<u8> = string_encoded[offset..offset + 2].into();
         character_encoded.reverse();
         let character_u16: u16 = (&character_encoded[..]).read_u16::<BigEndian>().unwrap();
-        let character_u16 = char::decode_utf16(vec ![character_u16]
+        let character_u16 = char::decode_utf16(vec![character_u16]
                 .iter()
                 .cloned())
             .map( | r | r.map_err( | e | e.unpaired_surrogate()))
             .collect::< Vec < _ >> ();
-        let character_decoded = character_u16[0].unwrap();
+        let character_decoded = character_u16[0].unwrap().escape_debug().to_string();
 
-        string_decoded.push(character_decoded);
+        string_decoded.push_str(&character_decoded);
         offset += 2;
     }
     string_decoded
@@ -77,13 +73,16 @@ pub fn decode_size_string_u16(mut string_size_encoded: Vec<u8>) -> u16 {
 pub fn encode_string_u16(string_decoded: String) -> Vec<u8> {
     let mut string_encoded: Vec<u8> = vec![];
 
-    let string_decoded_length = string_decoded.chars().count() as u16;
+    // First we need to "unescape" all the escaped chars in the decoding process, so we write them
+    // instead \n, \",...
+    let string_decoded_unescaped = unescape::unescape(&string_decoded).unwrap();
+    let string_decoded_length = string_decoded_unescaped.chars().count() as u16;
     let string_decoded_length_encoded = ::common::u16_to_u8_reverse(string_decoded_length);
     string_encoded.append(&mut string_decoded_length_encoded.to_vec());
 
     for i in 0..string_decoded_length {
         let mut character_u16_buffer = [0; 1];
-        let character_u16 = string_decoded.chars().nth(i as usize).unwrap().encode_utf16(&mut character_u16_buffer);
+        let character_u16 = string_decoded_unescaped.chars().nth(i as usize).unwrap().encode_utf16(&mut character_u16_buffer);
         let mut character_u8 = ::common::u16_to_u8_reverse(character_u16[0]).to_vec();
         string_encoded.append(&mut character_u8);
     }
