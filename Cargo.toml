@@ -1,6 +1,6 @@
 [package]
 name = "rpfm-code"
-version = "0.0.4"
+version = "0.0.5"
 authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
 build = "build.rs"
 
