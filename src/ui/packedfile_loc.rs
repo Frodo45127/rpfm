@@ -10,8 +10,8 @@ use gtk::{
 use ::packedfile::loc::LocData;
 use ::packedfile::loc::LocDataEntry;
 
-// Struct PackedFileLocTreeView: contains all the stuff we need to give to the program to show a
-// TreeView with the data of a Loc file, allowing us to manipulate it.
+/// Struct PackedFileLocTreeView: contains all the stuff we need to give to the program to show a
+/// TreeView with the data of a Loc file, allowing us to manipulate it.
 #[derive(Clone)]
 pub struct PackedFileLocTreeView {
     pub packed_file_tree_view: TreeView,
@@ -22,11 +22,11 @@ pub struct PackedFileLocTreeView {
     pub packed_file_tree_view_cell_tooltip: CellRendererToggle,
 }
 
-// Implementation of "PackedFileLocTreeView".
+/// Implementation of "PackedFileLocTreeView".
 impl PackedFileLocTreeView{
 
-    // This function creates a new TreeView with "packed_file_data_display" as father and returns a
-    // PackedFileLocTreeView with all his data.
+    /// This function creates a new TreeView with "packed_file_data_display" as father and returns a
+    /// PackedFileLocTreeView with all his data.
     pub fn create_tree_view(packed_file_data_display: &ScrolledWindow) -> PackedFileLocTreeView {
 
         // First, we create the new ListStore, the new TreeView, and prepare the TreeView to display the data
@@ -112,7 +112,7 @@ impl PackedFileLocTreeView{
         }
     }
 
-    // This function loads the data from a LocData into a TreeView.
+    /// This function loads the data from a LocData into a TreeView.
     pub fn load_data_to_tree_view(
         packed_file_data: &LocData,
         packed_file_list_store: &ListStore
@@ -128,8 +128,8 @@ impl PackedFileLocTreeView{
         }
     }
 
-    // This function returns a Vec<LocDataEntry> with all the stuff in the table. We need for it the
-    // ListStore, and it'll return a LocData with all the stuff from the table.
+    /// This function returns a Vec<LocDataEntry> with all the stuff in the table. We need for it the
+    /// ListStore, and it'll return a LocData with all the stuff from the table.
     pub fn return_data_from_tree_view(
         packed_file_list_store: &ListStore,
     ) -> LocData {

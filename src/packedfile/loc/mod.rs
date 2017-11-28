@@ -10,22 +10,22 @@ use self::byteorder::{
     ReadBytesExt, BigEndian
 };
 
-// Struct Loc: This stores the data of a decoded Localisation PackedFile in memory.
-// It stores the PackedFile divided in 2 parts:
-// - pack_file_header: header of the PackFile, decoded.
-// - pack_file_data: data of the PackFile, decoded.
+/// Struct Loc: This stores the data of a decoded Localisation PackedFile in memory.
+/// It stores the PackedFile divided in 2 parts:
+/// - pack_file_header: header of the PackFile, decoded.
+/// - pack_file_data: data of the PackFile, decoded.
 #[derive(Clone)]
 pub struct Loc {
     pub packed_file_header: LocHeader,
     pub packed_file_data: LocData,
 }
 
-// Struct LocHeader: This stores the header of a decoded Localisation PackedFile in memory.
-// It stores the PackedFile's header in different parts:
-// - packed_file_header_byte_order_mark: an u16 (2 bytes) that marks the beginning of the PackedFile (FF FE).
-// - packed_file_header_packed_file_type: LOC (3 bytes) in our case. After this it should be a 0 byte.
-// - packed_file_header_packed_file_version: if this is not 1, the file is invalid, don't know why.
-// - packed_file_header_packed_file_entry_count: amount of entries in the file.
+/// Struct LocHeader: This stores the header of a decoded Localisation PackedFile in memory.
+/// It stores the PackedFile's header in different parts:
+/// - packed_file_header_byte_order_mark: an u16 (2 bytes) that marks the beginning of the PackedFile (FF FE).
+/// - packed_file_header_packed_file_type: LOC (3 bytes) in our case. After this it should be a 0 byte.
+/// - packed_file_header_packed_file_version: if this is not 1, the file is invalid, don't know why.
+/// - packed_file_header_packed_file_entry_count: amount of entries in the file.
 #[derive(Clone)]
 pub struct LocHeader {
     pub packed_file_header_byte_order_mark: u16,
@@ -34,18 +34,18 @@ pub struct LocHeader {
     pub packed_file_header_packed_file_entry_count: u32,
 }
 
-// Struct LocData: This stores the data of a decoded Localisation PackedFile in memory.
-// It stores the PackedFile's data in a Vec<LocDataEntry>.
+/// Struct LocData: This stores the data of a decoded Localisation PackedFile in memory.
+/// It stores the PackedFile's data in a Vec<LocDataEntry>.
 #[derive(Clone, Debug)]
 pub struct LocData {
     pub packed_file_data_entries: Vec<LocDataEntry>,
 }
 
-// Struct LocDataEntry: This stores an entry of a decoded Localisation PackedFile in memory.
-// It stores the entry's data in multiple parts:
-// - key: the "key" column of the entry.
-// - text: the text you'll see ingame.
-// - tooltip (bool): this one I believe it was to enable or disable certain lines ingame.
+/// Struct LocDataEntry: This stores an entry of a decoded Localisation PackedFile in memory.
+/// It stores the entry's data in multiple parts:
+/// - key: the "key" column of the entry.
+/// - text: the text you'll see ingame.
+/// - tooltip (bool): this one I believe it was to enable or disable certain lines ingame.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct LocDataEntry {
     pub key: String,
@@ -53,11 +53,11 @@ pub struct LocDataEntry {
     pub tooltip: bool,
 }
 
-// Implementation of "Loc"
+/// Implementation of "Loc"
 impl Loc {
 
-    // This function creates a new decoded Loc from the data of a PackedFile. Note that this assume
-    // the file is a loc. It'll crash otherwise.
+    /// This function creates a new decoded Loc from the data of a PackedFile. Note that this assume
+    /// the file is a loc. It'll crash otherwise.
     pub fn read(packed_file_data: Vec<u8>) -> Loc {
         let packed_file_header = LocHeader::read(packed_file_data[..14].to_vec());
         let packed_file_data = LocData::read(packed_file_data[14..].to_vec(), &packed_file_header.packed_file_header_packed_file_entry_count);
@@ -67,8 +67,8 @@ impl Loc {
         }
     }
 
-    // This function takes a LocHeader and a LocData and put them together in a Vec<u8>, encoding an
-    // entire LocFile ready to write on disk.
+    /// This function takes a LocHeader and a LocData and put them together in a Vec<u8>, encoding an
+    /// entire LocFile ready to write on disk.
     pub fn save(packed_file_decoded: &Loc) -> Vec<u8> {
         let mut packed_file_data_encoded = LocData::save(&packed_file_decoded.packed_file_data);
         let mut packed_file_header_encoded = LocHeader::save(&packed_file_decoded.packed_file_header, packed_file_data_encoded.1);
@@ -80,11 +80,11 @@ impl Loc {
     }
 }
 
-// Implementation of "LocHeader"
+/// Implementation of "LocHeader"
 impl LocHeader {
 
-    // This function creates a new decoded LocHeader from the data of a PackedFile. To see what are
-    // these values, check the LocHeader struct.
+    /// This function creates a new decoded LocHeader from the data of a PackedFile. To see what are
+    /// these values, check the LocHeader struct.
     pub fn read(packed_file_header: Vec<u8>) -> LocHeader {
         let mut packed_file_header_byte_order_mark: Vec<u8> = packed_file_header[0..2].into();
         packed_file_header_byte_order_mark.reverse();
@@ -111,8 +111,8 @@ impl LocHeader {
         }
     }
 
-    // This function takes a LocHeader and an entry count and creates a Vec<u8> encoded version of
-    // the LocHeader, ready to write it on disk.
+    /// This function takes a LocHeader and an entry count and creates a Vec<u8> encoded version of
+    /// the LocHeader, ready to write it on disk.
     pub fn save(packed_file_header_decoded: &LocHeader, packed_file_entry_count: u32) -> Vec<u8> {
         let mut packed_file_header_encoded: Vec<u8> = vec![];
 
@@ -126,19 +126,20 @@ impl LocHeader {
     }
 }
 
-// Implementation of "LocData"
+/// Implementation of "LocData"
 impl LocData {
 
-    // This function returns an empty LocData.
+    /// This function returns an empty LocData.
     pub fn new() -> LocData {
         let packed_file_data_entries: Vec<LocDataEntry> = vec![];
         LocData {
             packed_file_data_entries,
         }
     }
-    // This function creates a new decoded LocData from the data of a PackedFile. A LocData is a
-    // Vec<LocDataEntry>. This pass through all the data of the Loc PackedFile and decodes every
-    // entry.
+
+    /// This function creates a new decoded LocData from the data of a PackedFile. A LocData is a
+    /// Vec<LocDataEntry>. This pass through all the data of the Loc PackedFile and decodes every
+    /// entry.
     pub fn read(packed_file_data: Vec<u8>, packed_file_entry_count: &u32) -> LocData {
         let mut packed_file_data_entries: Vec<LocDataEntry> = vec![];
 
@@ -207,8 +208,8 @@ impl LocData {
         }
     }
 
-    // This function takes an entire LocData and encode it to Vec<u8> to write it on disk. Also, it
-    // returns his entry count for the header.
+    /// This function takes an entire LocData and encode it to Vec<u8> to write it on disk. Also, it
+    /// returns his entry count for the header.
     pub fn save(packed_file_data_decoded: &LocData) -> (Vec<u8>, u32) {
         let mut packed_file_data_encoded: Vec<u8> = vec![];
         let mut packed_file_entry_count = 0;
@@ -226,10 +227,10 @@ impl LocData {
 
 }
 
-// Implementation of "LocDataEntry"
+/// Implementation of "LocDataEntry"
 impl LocDataEntry {
 
-    // This function takes the key, text and tooltip values and makes a LocDataEntry with them.
+    /// This function takes the key, text and tooltip values and makes a LocDataEntry with them.
     pub fn new(key: String, text: String, tooltip: bool) -> LocDataEntry {
         LocDataEntry {
             key,

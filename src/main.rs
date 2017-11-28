@@ -27,7 +27,7 @@ mod ui;
 mod packfile;
 mod packedfile;
 
-// This macro is used to clone the variables into the closures without the compiler protesting.
+/// This macro is used to clone the variables into the closures without the compiler protesting.
 macro_rules! clone {
     (@param _) => ( _ );
     (@param $x:ident) => ( $x );
@@ -45,8 +45,8 @@ macro_rules! clone {
     );
 }
 
-// One Function to rule them all, One Function to find them,
-// One Function to bring them all and in the darkness bind them.
+/// One Function to rule them all, One Function to find them,
+/// One Function to bring them all and in the darkness bind them.
 fn main() {
 
     // Init GTK3. Boilerplate code.

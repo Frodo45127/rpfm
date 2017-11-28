@@ -17,8 +17,8 @@ use self::byteorder::{
 --------------------------------------------------------
 */
 
-// This function allow us to decode an UTF-16 encoded String. This type of Strings are encoded in
-// in 2 bytes reversed. Also, this is extremely slow. Needs a lot of improvements.
+/// This function allow us to decode an UTF-16 encoded String. This type of Strings are encoded in
+/// in 2 bytes reversed. Also, this is extremely slow. Needs a lot of improvements.
 pub fn decode_string_u16(string_encoded: Vec<u8>) -> String {
     let mut string_decoded: String = String::new();
     let mut offset: usize = 0;
@@ -40,8 +40,8 @@ pub fn decode_string_u16(string_encoded: Vec<u8>) -> String {
     string_decoded
 }
 
-// This function allow us to decode an encoded boolean. This is simple: \u{0} is false, \u{1} is true.
-// It only uses a byte.
+/// This function allow us to decode an encoded boolean. This is simple: \u{0} is false, \u{1} is true.
+/// It only uses a byte.
 pub fn decode_bool(bool_encoded: u8) -> bool {
     let bool_decoded: bool;
     if (bool_encoded as char).escape_unicode().to_string() == ("\\u{1}") {
@@ -54,8 +54,8 @@ pub fn decode_bool(bool_encoded: u8) -> bool {
 }
 
 
-// This function allow us to decode the size of an UTF-16 encoded String. His size are 2 UTF-16 bytes
-// at the start of the string.
+/// This function allow us to decode the size of an UTF-16 encoded String. His size are 2 UTF-16 bytes
+/// at the start of the string.
 pub fn decode_size_string_u16(mut string_size_encoded: Vec<u8>) -> u16 {
     string_size_encoded.reverse();
     let string_size_decoded: u16 = (&string_size_encoded[..]).read_u16::<BigEndian>().unwrap();
@@ -68,8 +68,8 @@ pub fn decode_size_string_u16(mut string_size_encoded: Vec<u8>) -> u16 {
 --------------------------------------------------------
 */
 
-// This function allow us to encode an UTF-16 decoded String. This type of Strings are encoded in
-// in 2 bytes reversed.
+/// This function allow us to encode an UTF-16 decoded String. This type of Strings are encoded in
+/// in 2 bytes reversed.
 pub fn encode_string_u16(string_decoded: String) -> Vec<u8> {
     let mut string_encoded: Vec<u8> = vec![];
 
@@ -89,8 +89,8 @@ pub fn encode_string_u16(string_decoded: String) -> Vec<u8> {
     string_encoded
 }
 
-// This function allow us to encode a boolean. This is simple: \u{0} is false, \u{1} is true.
-// It only uses a byte.
+/// This function allow us to encode a boolean. This is simple: \u{0} is false, \u{1} is true.
+/// It only uses a byte.
 pub fn encode_bool(bool_decoded: bool) -> Vec<u8> {
     let mut bool_encoded: Vec<u8> = vec![];
     if bool_decoded {

@@ -23,15 +23,15 @@ pub mod packfile;
 --------------------------------------------------------
 */
 
-// This function creates a new PackFile with the name received.
+/// This function creates a new PackFile with the name received.
 pub fn new_packfile(file_name: String) -> packfile::PackFile {
     let pack_file = packfile::PackFile::new_with_name(file_name);
     pack_file
 }
 
 
-// This function is used to open the PackFiles. It requires the path of the PackFile to open, and
-// it returns the PackFile decoded (if success) or an error message (if error).
+/// This function is used to open the PackFiles. It requires the path of the PackFile to open, and
+/// it returns the PackFile decoded (if success) or an error message (if error).
 pub fn open_packfile(pack_file_path: PathBuf) -> Result<packfile::PackFile, String> {
 
     // First, we get his name and path.
@@ -65,12 +65,12 @@ pub fn open_packfile(pack_file_path: PathBuf) -> Result<packfile::PackFile, Stri
 }
 
 
-// This function is used to take an open PackFile, encode it and save it into the disk. We return
-// a result with a message of success or error.
-// It requires:
-// - pack_file: a &mut pack_file::PackFile. It's the PackFile we are going to save.
-// - new_path: an Option<PathBuf> with the path were we are going to save the PackFile. None if we
-//             are saving it in the same path it's when we opened it.
+/// This function is used to take an open PackFile, encode it and save it into the disk. We return
+/// a result with a message of success or error.
+/// It requires:
+/// - pack_file: a &mut pack_file::PackFile. It's the PackFile we are going to save.
+/// - new_path: an Option<PathBuf> with the path were we are going to save the PackFile. None if we
+///             are saving it in the same path it's when we opened it.
 pub fn save_packfile(
     pack_file: &mut packfile::PackFile,
     new_path: Option<PathBuf>
@@ -122,12 +122,12 @@ pub fn save_packfile(
 }
 
 
-// This function is used to add a file to a PackFile, processing it and turning it into a PackedFile.
-// It returns the a success or error message, depending on whether the file has been added, or not.
-// It requires:
-// - pack_file: a &mut pack_file::PackFile. It's the PackFile where we are going add the file.
-// - file_path: a PathBuf with the current path of the file.
-// - tree_path: a Vec<String> with the path in the TreeView where we are going to add the file.
+/// This function is used to add a file to a PackFile, processing it and turning it into a PackedFile.
+/// It returns the a success or error message, depending on whether the file has been added, or not.
+/// It requires:
+/// - pack_file: a &mut pack_file::PackFile. It's the PackFile where we are going add the file.
+/// - file_path: a PathBuf with the current path of the file.
+/// - tree_path: a Vec<String> with the path in the TreeView where we are going to add the file.
 pub fn add_file_to_packfile(
     pack_file: &mut packfile::PackFile,
     file_path: PathBuf,
@@ -168,8 +168,8 @@ pub fn add_file_to_packfile(
 }
 
 
-// This function is used to delete a PackedFile or a group of PackedFiles under the same tree_path
-// from the PackFile. We just need the open PackFile and the tree_path of the file/folder to delete.
+/// This function is used to delete a PackedFile or a group of PackedFiles under the same tree_path
+/// from the PackFile. We just need the open PackFile and the tree_path of the file/folder to delete.
 pub fn delete_from_packfile(
     pack_file: &mut packfile::PackFile,
     tree_path: Vec<String>,) {
@@ -227,11 +227,11 @@ pub fn delete_from_packfile(
 }
 
 
-// This function is used to extract a PackedFile or a folder from the PackFile.
-// It requires:
-// - pack_file: the PackFile from where we want to extract the PackedFile.
-// - tree_path: the tree_path of the PackedFile we want to extract.
-// - extracted_path: the destination path of the file we want to extract.
+/// This function is used to extract a PackedFile or a folder from the PackFile.
+/// It requires:
+/// - pack_file: the PackFile from where we want to extract the PackedFile.
+/// - tree_path: the tree_path of the PackedFile we want to extract.
+/// - extracted_path: the destination path of the file we want to extract.
 pub fn extract_from_packfile(
     pack_file: &packfile::PackFile,
     tree_path: Vec<String>,
@@ -344,11 +344,11 @@ pub fn extract_from_packfile(
 }
 
 
-// This function is used to rename anything in the TreeView (yes, PackFile included).
-// It requires:
-// - pack_file: a &mut pack_file::PackFile. It's the PackFile opened.
-// - tree_path: a Vec<String> with the tree_path of the file to rename.
-// - new_name: the new name of the file to rename.
+/// This function is used to rename anything in the TreeView (yes, PackFile included).
+/// It requires:
+/// - pack_file: a &mut pack_file::PackFile. It's the PackFile opened.
+/// - tree_path: a Vec<String> with the tree_path of the file to rename.
+/// - new_name: the new name of the file to rename.
 pub fn rename_packed_file(
     pack_file: &mut packfile::PackFile,
     tree_path: Vec<String>,
@@ -479,8 +479,8 @@ pub fn rename_packed_file(
 --------------------------------------------------------
 */
 
-// This function saves the data of the edited PackedFile in the main PackFile after a change has
-// been done by the user. Checking for valid characters is done before this, so be careful to not break it.
+/// This function saves the data of the edited PackedFile in the main PackFile after a change has
+/// been done by the user. Checking for valid characters is done before this, so be careful to not break it.
 pub fn update_packed_file_data(
     packed_file_data_decoded: &Loc,
     pack_file: &mut packfile::PackFile,
@@ -502,9 +502,9 @@ pub fn update_packed_file_data(
 --------------------------------------------------------
 */
 
-// This function is used to patch and clean a PackFile exported with Terry, so the SiegeAI (if there
-// is SiegeAI inplemented in the map) is patched and the extra useless .xml files are deleted.
-// It requires a mut ref to a decoded PackFile, and returns an String (Result<Success, Error>).
+/// This function is used to patch and clean a PackFile exported with Terry, so the SiegeAI (if there
+/// is SiegeAI inplemented in the map) is patched and the extra useless .xml files are deleted.
+/// It requires a mut ref to a decoded PackFile, and returns an String (Result<Success, Error>).
 pub fn patch_siege_ai (
     pack_file: &mut packfile::PackFile
 ) -> Result<String, String> {

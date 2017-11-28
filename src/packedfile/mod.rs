@@ -18,10 +18,10 @@ pub mod db;
 --------------------------------------------------
 */
 
-// Function to export a LocData to a CSV file, without headers and with the fields quoted.
-// It requires:
-// - packed_file_data_to_export: the LocData we are going to export.
-// - packed_file_path: the destination path of the CSV.
+/// Function to export a LocData to a CSV file, without headers and with the fields quoted.
+/// It requires:
+/// - packed_file_data_to_export: the LocData we are going to export.
+/// - packed_file_path: the destination path of the CSV.
 pub fn export_to_csv(
     packed_file_data: &LocData,
     packed_file_path: PathBuf
@@ -64,10 +64,10 @@ pub fn export_to_csv(
 }
 
 
-// Function to import a LocData from a CSV file, without headers and with the fields quoted.
-// It requires:
-// - csv_file_path: the CSV we want to import.
-// I returns a Result with the new LocData or an Error, depending on what happened.
+/// Function to import a LocData from a CSV file, without headers and with the fields quoted.
+/// It requires:
+/// - csv_file_path: the CSV we want to import.
+/// I returns a Result with the new LocData or an Error, depending on what happened.
 pub fn import_from_csv(
     csv_file_path: PathBuf
 ) -> Result<LocData, String> {
