@@ -135,6 +135,9 @@ fn main() {
     // We also create a dummy PackFile we're going to use to store all the data from the opened Packfile.
     let pack_file_decoded = Rc::new(RefCell::new(PackFile::new()));
 
+    // And we import the master_schema for the DB tables.
+    let master_schema = include_str!("packedfile/db/master_schema.xml");
+
     // End of the "Getting Ready" part.
     // From here, it's all event handling.
 

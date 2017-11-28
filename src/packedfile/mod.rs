@@ -10,6 +10,7 @@ use ::packedfile::loc::LocData;
 use ::packedfile::loc::LocDataEntry;
 
 pub mod loc;
+pub mod db;
 
 /*
 --------------------------------------------------
