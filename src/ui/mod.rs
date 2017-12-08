@@ -11,6 +11,7 @@ use std::path::PathBuf;
 use packfile::packfile::PackFile;
 
 pub mod packedfile_loc;
+pub mod packedfile_db;
 
 /// This function shows a Dialog window with some text. For notification of success and errors.
 /// It requires:

@@ -1,4 +1,4 @@
-// In this file are all the helper functions used by the UI when decoding Loc files.
+// In this file are all the helper functions used by the UI when decoding Loc PackedFiles.
 extern crate gtk;
 
 use gtk::prelude::*;

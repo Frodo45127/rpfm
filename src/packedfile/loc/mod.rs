@@ -12,8 +12,8 @@ use self::byteorder::{
 
 /// Struct Loc: This stores the data of a decoded Localisation PackedFile in memory.
 /// It stores the PackedFile divided in 2 parts:
-/// - pack_file_header: header of the PackFile, decoded.
-/// - pack_file_data: data of the PackFile, decoded.
+/// - packed_file_header: header of the PackedFile, decoded.
+/// - packed_file_data: data of the PackedFile, decoded.
 #[derive(Clone)]
 pub struct Loc {
     pub packed_file_header: LocHeader,

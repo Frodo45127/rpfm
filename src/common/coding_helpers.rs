@@ -16,6 +16,35 @@ use self::byteorder::{
                     Decoding helpers
 --------------------------------------------------------
 */
+/// This function allow us to decode an UTF-32 encoded float. This type of floats are encoded in
+/// in 4 bytes reversed.
+pub fn decode_float_u32(float_encoded: Vec<u8>) -> f32 {
+    let mut float_decoded: Vec<u8> = float_encoded[0..4].into();
+    float_decoded.reverse();
+    let mut float_decoded = &float_decoded[0..4];
+    let float_decoded: f32 = float_decoded.read_f32::<BigEndian>().unwrap();
+    float_decoded
+}
+
+/// This function allow us to decode an UTF-32 encoded integer. This type of Integers are encoded in
+/// in 4 bytes reversed.
+pub fn decode_integer_u32(integer_encoded: Vec<u8>) -> u32 {
+    let mut integer_decoded: Vec<u8> = integer_encoded[0..4].into();
+    integer_decoded.reverse();
+    let mut integer_decoded = &integer_decoded[0..4];
+    let integer_decoded: u32 = integer_decoded.read_u32::<BigEndian>().unwrap();
+    integer_decoded
+}
+
+/// This function allow us to decode an UTF-16 encoded integer. This type of Integers are encoded in
+/// in 2 bytes reversed.
+pub fn decode_integer_u16(integer_encoded: Vec<u8>) -> u16 {
+    let mut integer_decoded: Vec<u8> = integer_encoded[0..2].into();
+    integer_decoded.reverse();
+    let mut integer_decoded = &integer_decoded[0..2];
+    let integer_decoded: u16 = integer_decoded.read_u16::<BigEndian>().unwrap();
+    integer_decoded
+}
 
 /// This function allow us to decode an UTF-16 encoded String. This type of Strings are encoded in
 /// in 2 bytes reversed. Also, this is extremely slow. Needs a lot of improvements.

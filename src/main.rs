@@ -21,6 +21,7 @@ use gtk::{
 };
 use packfile::packfile::PackFile;
 use ::packedfile::loc::Loc;
+use ::packedfile::db::DB;
 
 mod common;
 mod ui;
@@ -759,6 +760,7 @@ fn main() {
         tree_view_packedfile_loc_export_csv,
         context_menu_tree_view_packed_file_loc => move |_| {
 
+//    folder_tree_view.connect_cursor_changed( move |_| {
         // First, we destroy any childrens that the ScrolledWindow we use may have, cleaning it.
         let childrens_to_utterly_destroy = packed_file_data_display.get_children();
         if !childrens_to_utterly_destroy.is_empty() {
@@ -787,6 +789,9 @@ fn main() {
             let mut packed_file_type: &str = "None";
             if tree_path.last().unwrap().ends_with(".loc") {
                 packed_file_type = "Loc";
+            }
+            else if tree_path[0] == "db" {
+                packed_file_type = "DB";
             }
 
             // Then, depending of his type we decode it properly (if we have it implemented support
@@ -1113,6 +1118,22 @@ fn main() {
                         Inhibit(true)
                     }));
                 }
+
+                // If it's a DB, we try to decode it
+                "DB" => {
+                    let table = &*tree_path[1];
+                    let packed_file_data_encoded = &*pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data;
+                    let packed_file_data_decoded = Rc::new(RefCell::new(DB::read(packed_file_data_encoded.to_vec(), table, master_schema.clone())));
+
+                    let packed_file_tree_view_stuff = ui::packedfile_db::PackedFileDBTreeView::create_tree_view(&packed_file_data_display, &*packed_file_data_decoded.borrow());
+                    let packed_file_tree_view = packed_file_tree_view_stuff.packed_file_tree_view;
+                    let packed_file_list_store = packed_file_tree_view_stuff.packed_file_list_store;
+
+                    ui::packedfile_db::PackedFileDBTreeView::load_data_to_tree_view((&packed_file_data_decoded.borrow().packed_file_data.packed_file_data).to_vec(), &packed_file_data_decoded.borrow().packed_file_data.packed_file_data_structure, &packed_file_tree_view, &packed_file_list_store, packed_file_data_decoded.borrow().packed_file_header.packed_file_header_packed_file_entry_count);
+                }
+
+
+
                 // If we reach this point, the coding to implement this type of file is not done yet,
                 // so we ignore the file.
                 // TODO: Here should be code to create a label in the empty ScrolledWindow with
