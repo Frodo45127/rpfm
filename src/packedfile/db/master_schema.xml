@@ -5576,7 +5576,7 @@
     <field name='singleplayer' type='boolean' />
     <field name='intro_movie' type='optstring_ascii' />
     <field name='year' type='int' />
-    <field name='defender_funds_ratio' type='int' />
+    <field name='defender_funds_ratio' type='float' />
     <field name='has_key_buildings' type='boolean' />
     <field name='matchmaking' type='boolean' />
     <field name='playable_area_width' type='int' />

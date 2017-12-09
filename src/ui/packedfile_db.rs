@@ -17,6 +17,11 @@ use self::ordermap::OrderMap;
 pub struct PackedFileDBTreeView {
     pub packed_file_tree_view: TreeView,
     pub packed_file_list_store: ListStore,
+    pub packed_file_tree_view_cell_bool: Vec<CellRendererToggle>,
+    pub packed_file_tree_view_cell_string: Vec<CellRendererText>,
+    pub packed_file_tree_view_cell_optional_string: Vec<CellRendererText>,
+    pub packed_file_tree_view_cell_integer: Vec<CellRendererText>,
+    pub packed_file_tree_view_cell_float: Vec<CellRendererText>,
 }
 
 /// Enum DecodedData: This enum is used to store the data from the different fields of a row of a DB
@@ -91,6 +96,15 @@ impl PackedFileDBTreeView{
         column_index.add_attribute(&cell_index, "text", 0);
         packed_file_tree_view.append_column(&column_index);
 
+
+        let mut packed_file_tree_view_cell_bool = vec![];
+        let mut packed_file_tree_view_cell_string = vec![];
+        let mut packed_file_tree_view_cell_optional_string = vec![];
+        let mut packed_file_tree_view_cell_integer = vec![];
+        let mut packed_file_tree_view_cell_float = vec![];
+
+
+
         let mut index = 1;
         for (name, field_type) in packed_file_structure.iter() {
 
@@ -109,6 +123,7 @@ impl PackedFileDBTreeView{
                     column_bool.pack_start(&cell_bool, true);
                     column_bool.add_attribute(&cell_bool, "active", index);
                     packed_file_tree_view.append_column(&column_bool);
+                    packed_file_tree_view_cell_bool.push(cell_bool);
                 }
                 "string_ascii" => {
                     let cell_string = CellRendererText::new();
@@ -123,6 +138,7 @@ impl PackedFileDBTreeView{
                     column_string.pack_start(&cell_string, true);
                     column_string.add_attribute(&cell_string, "text", index);
                     packed_file_tree_view.append_column(&column_string);
+                    packed_file_tree_view_cell_string.push(cell_string);
                 }
                 "optstring_ascii" => {
                     let cell_optional_string = CellRendererText::new();
@@ -137,6 +153,7 @@ impl PackedFileDBTreeView{
                     column_optional_string.pack_start(&cell_optional_string, true);
                     column_optional_string.add_attribute(&cell_optional_string, "text", index);
                     packed_file_tree_view.append_column(&column_optional_string);
+                    packed_file_tree_view_cell_optional_string.push(cell_optional_string);
                 }
                 "int" => {
                     let cell_int = CellRendererText::new();
@@ -151,6 +168,7 @@ impl PackedFileDBTreeView{
                     column_int.pack_start(&cell_int, true);
                     column_int.add_attribute(&cell_int, "text", index);
                     packed_file_tree_view.append_column(&column_int);
+                    packed_file_tree_view_cell_integer.push(cell_int);
                 }
                 "float" => {
                     let cell_float = CellRendererText::new();
@@ -165,6 +183,7 @@ impl PackedFileDBTreeView{
                     column_float.pack_start(&cell_float, true);
                     column_float.add_attribute(&cell_float, "text", index);
                     packed_file_tree_view.append_column(&column_float);
+                    packed_file_tree_view_cell_float.push(cell_float);
                 }
                 _ => {
                     // This should only fire when we try to open a table with a non-implemented type.
@@ -185,6 +204,11 @@ impl PackedFileDBTreeView{
         PackedFileDBTreeView {
             packed_file_tree_view,
             packed_file_list_store,
+            packed_file_tree_view_cell_bool,
+            packed_file_tree_view_cell_string,
+            packed_file_tree_view_cell_optional_string,
+            packed_file_tree_view_cell_integer,
+            packed_file_tree_view_cell_float,
         }
     }
 
