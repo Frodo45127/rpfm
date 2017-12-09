@@ -13,16 +13,9 @@
 extern crate byteorder;
 extern crate ordermap;
 
-use ::common;
 use std::u32;
 
-use std::collections::HashMap;
-
 use self::ordermap::OrderMap;
-
-use self::byteorder::{
-    ReadBytesExt, BigEndian
-};
 
 pub mod helpers;
 
@@ -76,7 +69,6 @@ impl DB {
             packed_file_data[(packed_file_header.1)..].to_vec(),
             packed_file_db_type,
             master_schema,
-            packed_file_header.0.packed_file_header_packed_file_entry_count,
             packed_file_header.0.packed_file_header_packed_file_version
         );
 
@@ -96,9 +88,9 @@ impl DBHeader {
     /// to know where the body starts.
     pub fn read(packed_file_header: Vec<u8>) -> (DBHeader, usize) {
         let mut index: usize = 0;
-        let mut packed_file_header_packed_file_guid: String;
-        let mut packed_file_header_packed_file_version: u32;
-        let mut packed_file_header_packed_file_version_marker: bool;
+        let packed_file_header_packed_file_guid: String;
+        let packed_file_header_packed_file_version: u32;
+        let packed_file_header_packed_file_version_marker: bool;
 
         // If it has a GUID_MARKER, we get the GUID.
         if &packed_file_header[index..(index + 4)] == GUID_MARKER {
@@ -148,268 +140,90 @@ impl DBData {
         packed_file_data: Vec<u8>,
         packed_file_db_type: &str,
         master_schema: &str,
-        packed_file_header_packed_file_entry_count: u32,
         packed_file_header_packed_file_version: u32
     ) -> DBData {
-        let index: usize = 0;
+
         let packed_file_data_structure: Option<OrderMap<String, String>>;
         let mut packed_file_data_entries_fields: OrderMap<String,String> = OrderMap::new();
 
-        let index_master_schema = master_schema.find(&*format!("<table table_name='{}'\n         table_version='{}' >", packed_file_db_type, packed_file_header_packed_file_version));
+        // We depend on a very specific string to find the table. This need to be changed to something more... stable.
+        let index_master_schema = master_schema.find(
+                &*format!("<table table_name='{}'\n         table_version='{}' >",
+                packed_file_db_type,
+                packed_file_header_packed_file_version
+            )
+        );
 
-        // First, we check if it exists in the master schema
+        // First, we check if it exists in the master_schema.
         if index_master_schema != None {
 
-            // If we have found it in the schema, we take only that part of the schema
+            // If we have found it in the schema, we take only that part of the master_schema.
             let mut filtered_schema = master_schema.to_string().clone();
             filtered_schema.drain(..index_master_schema.unwrap());
 
             let mut index_filtered_schema = filtered_schema.find(&*format!("</table>")).unwrap();
             filtered_schema.drain(index_filtered_schema..);
 
-            // We take out the name and version lines, leaving only the fields
+            // We take out the name and version lines, leaving only the fields. The +1 is to delete the
+            // index character too.
             index_filtered_schema = filtered_schema.find(&*format!("\n")).unwrap();
             filtered_schema.drain(..(index_filtered_schema + 1));
             index_filtered_schema = filtered_schema.find(&*format!("\n")).unwrap();
             filtered_schema.drain(..(index_filtered_schema + 1));
 
-            // Then we split the fields and delete the last one, as it's empty
+            // Then we split the fields and delete the last one, as it's empty.
             let mut fields: Vec<&str> = filtered_schema.split("\n").collect();
             fields.pop();
 
-            // And get the data from every field to the entry fields hashmap
+            // And get the data from every field to the entry fields OrderMap.
             for i in fields.iter() {
 
                 let mut entry = i.to_string().clone();
-                let mut index_field = entry.find(&*format!("\'")).unwrap();
 
-                entry.drain(..(index_field + 1));
-                index_field = entry.find(&*format!("\'")).unwrap();
+                // We need to skip the line if it doesn't have a "name=\'" string, as we do not support
+                // foreign keys yet.
+                match entry.find(&*format!("name=\'")) {
+                    Some(mut index_field) => {
 
-                let name = entry.drain(..index_field).collect();
+                        // We delete from the beggining of the line to the first "'", and keep the text
+                        // from there until the next "'". That's our name
+                        entry.drain(..(index_field + 6));
+                        index_field = entry.find(&*format!("\'")).unwrap();
 
-                entry.drain(..1);
-                index_field = entry.find(&*format!("\'")).unwrap();
-                entry.drain(..(index_field + 1));
-                index_field = entry.find(&*format!("\'")).unwrap();
+                        let name = entry.drain(..index_field).collect();
 
-                let field_type = entry.drain(..index_field).collect();
+                        // The same for the field type. We need to take out the first character before
+                        // doing it, because it's the "'" closing the name, not the one we want.
+                        entry.drain(..1);
+                        index_field = entry.find(&*format!("\'")).unwrap();
+                        entry.drain(..(index_field + 1));
+                        index_field = entry.find(&*format!("\'")).unwrap();
 
-                packed_file_data_entries_fields.insert(name, field_type);
+                        let field_type = entry.drain(..index_field).collect();
+
+                        // Then we add the entry to the OrderMap.
+                        packed_file_data_entries_fields.insert(name, field_type);
+                    },
+                    None => {
+
+                        // In case there is no name, we skip the line.
+                        continue;
+                    },
+                }
             }
-
-
-
-
-            println!("{:#?}", packed_file_data_entries_fields);
-        }
-        else {
-            println!("DB PackedFile Type not supported. Yet.");
-        }
-
-        if packed_file_data_entries_fields.is_empty() {
-            packed_file_data_structure = None;
-        }
-        else {
+            //println!("{:#?}", packed_file_data_entries_fields);
+            // We return the structure of the DB PackedFile.
             packed_file_data_structure = Some(packed_file_data_entries_fields);
+        }
+        else {
+
+            // In case we didn't found a definition in the master_schema, we return None.
+            packed_file_data_structure = None;
         }
 
         DBData {
             packed_file_data_structure,
             packed_file_data,
         }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*
-
-        match packed_file_db_type {
-            "battles_tables" => {
-                match &*packed_file_header_packed_file_version.to_string() {
-                    "11" => {
-                        packed_file_data_entries = vec![];
-                        for _ in 0..packed_file_header_packed_file_entry_count {
-                            let entry = tables::DBTables::BattlesTable(tables::Battles::V11 {
-                                key: {
-                                    let data = helpers::decode_string_u8(packed_file_data.to_vec(), index);
-                                    index = data.1;
-                                    data.0
-                                },
-                                battle_type: {
-                                    let data = helpers::decode_string_u8(packed_file_data.to_vec(), index);
-                                    index = data.1;
-                                    data.0
-                                },
-                                is_naval: {
-                                    let data = helpers::decode_bool(packed_file_data.to_vec(), index);
-                                    index = data.1;
-                                    data.0
-                                },
-                                specification: {
-                                    let data = helpers::decode_string_u8(packed_file_data.to_vec(), index);
-                                    index = data.1;
-                                    data.0
-                                },
-                                screenshot_path: {
-                                    let data = helpers::decode_optional_string_u8(packed_file_data.to_vec(), index);
-                                    index = data.1;
-                                    data.0
-                                },
-                                map_path: {
-                                    let data = helpers::decode_optional_string_u8(packed_file_data.to_vec(), index);
-                                    index = data.1;
-                                    data.0
-                                },
-                                team_size_1: {
-                                    let data = helpers::decode_integer_u32(packed_file_data.to_vec(), index);
-                                    index = data.1;
-                                    data.0
-                                },
-                                team_size_2: {
-                                    let data = helpers::decode_integer_u32(packed_file_data.to_vec(), index);
-                                    index = data.1;
-                                    data.0
-                                },
-                                release: {
-                                    let data = helpers::decode_bool(packed_file_data.to_vec(), index);
-                                    index = data.1;
-                                    data.0
-                                },
-                                multiplayer: {
-                                    let data = helpers::decode_bool(packed_file_data.to_vec(), index);
-                                    index = data.1;
-                                    data.0
-                                },
-                                singleplayer: {
-                                    let data = helpers::decode_bool(packed_file_data.to_vec(), index);
-                                    index = data.1;
-                                    data.0
-                                },
-                                intro_movie: {
-                                    let data = helpers::decode_optional_string_u8(packed_file_data.to_vec(), index);
-                                    index = data.1;
-                                    data.0
-                                },
-                                year: {
-                                    let data = helpers::decode_integer_u32(packed_file_data.to_vec(), index);
-                                    index = data.1;
-                                    data.0
-                                },
-                                defender_funds_ratio: {
-                                    let data = helpers::decode_float_u32(packed_file_data.to_vec(), index);
-                                    index = data.1;
-                                    data.0
-                                },
-                                has_key_buildings: {
-                                    let data = helpers::decode_bool(packed_file_data.to_vec(), index);
-                                    index = data.1;
-                                    data.0
-                                },
-                                matchmaking: {
-                                    let data = helpers::decode_bool(packed_file_data.to_vec(), index);
-                                    index = data.1;
-                                    data.0
-                                },
-                                playable_area_width: {
-                                    let data = helpers::decode_integer_u32(packed_file_data.to_vec(), index);
-                                    index = data.1;
-                                    data.0
-                                },
-                                playable_area_height: {
-                                    let data = helpers::decode_integer_u32(packed_file_data.to_vec(), index);
-                                    index = data.1;
-                                    data.0
-                                },
-                                is_large_settlement: {
-                                    let data = helpers::decode_bool(packed_file_data.to_vec(), index);
-                                    index = data.1;
-                                    data.0
-                                },
-                                has_15m_walls: {
-                                    let data = helpers::decode_bool(packed_file_data.to_vec(), index);
-                                    index = data.1;
-                                    data.0
-                                },
-                                is_underground: {
-                                    let data = helpers::decode_bool(packed_file_data.to_vec(), index);
-                                    index = data.1;
-                                    data.0
-                                },
-                                catchment_name: {
-                                    let data = helpers::decode_optional_string_u8(packed_file_data.to_vec(), index);
-                                    index = data.1;
-                                    data.0
-                                },
-                                tile_upgrade: {
-                                    let data = helpers::decode_optional_string_u8(packed_file_data.to_vec(), index);
-                                    index = data.1;
-                                    data.0
-                                },
-                                battle_environment: {
-                                    let data = helpers::decode_optional_string_u8(packed_file_data.to_vec(), index);
-                                    index = data.1;
-                                    data.0
-                                },
-                                battle_environment_audio: {
-                                    let data = helpers::decode_optional_string_u8(packed_file_data.to_vec(), index);
-                                    index = data.1;
-                                    data.0
-                                },
-                            });
-                            packed_file_data_entries.push(entry);
-                        }
-                    }
-                    _ => {
-                        println!("DB PackedFile Version not yet implemented.");
-                    }
-
-                }
-            }
-            _ =>
-                for i in 0..packed_file_header_packed_file_entry_count {
-                    let entry = tables::DBTables::BattlesTable(tables::Battles::V11 {
-                    key: format!("D"),
-                    battle_type: format!("D"),
-                    is_naval: true,
-                    specification: format!("D"),
-                    screenshot_path: format!("D"),
-                    map_path: format!("D"),
-                    team_size_1: 10,
-                    team_size_2: 10,
-                    release: true,
-                    multiplayer: true,
-                    singleplayer: true,
-                    intro_movie: format!("D"),
-                    year: 10,
-                    defender_funds_ratio: 10.0,
-                    has_key_buildings: true,
-                    matchmaking: true,
-                    playable_area_width: 10,
-                    playable_area_height: 10,
-                    is_large_settlement: true,
-                    has_15m_walls: true,
-                    is_underground: true,
-                    catchment_name: format!("D"),
-                    tile_upgrade: format!("D"),
-                    battle_environment: format!("D"),
-                    battle_environment_audio: format!("D"),
-                });
-                packed_file_data_entries.push(entry);
-            }
-        }
-        DBData {
-            packed_file_data_entries,
-        }*/
     }
 }

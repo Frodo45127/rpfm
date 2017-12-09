@@ -5,12 +5,9 @@ extern crate glib;
 
 use gtk::prelude::*;
 use gtk::{
-    TreeView, TreeSelection, ListStore, ScrolledWindow,
+    TreeView, ListStore, ScrolledWindow,
     CellRendererText, TreeViewColumn, CellRendererToggle, Type
 };
-
-use self::glib::prelude::*;
-use self::glib::{AnyValue, Value};
 
 use self::ordermap::OrderMap;
 
@@ -22,6 +19,9 @@ pub struct PackedFileDBTreeView {
     pub packed_file_list_store: ListStore,
 }
 
+/// Enum DecodedData: This enum is used to store the data from the different fields of a row of a DB
+/// table.
+/// TODO: Put this shit into the db tables files, not in the ui files.
 #[derive(Clone, Debug)]
 pub enum DecodedData {
     Index(String),
@@ -39,7 +39,7 @@ impl PackedFileDBTreeView{
     /// PackedFileDBTreeView with all his data.
     pub fn create_tree_view(packed_file_data_display: &ScrolledWindow, packed_file_decoded: &::packedfile::db::DB) -> PackedFileDBTreeView {
 
-        // First, we create the slice we are going to use to create the TreeView, based on the structure
+        // First, we create the Vec<Type> we are going to use to create the TreeView, based on the structure
         // of the DB PackedFile.
         let mut list_store_structure: Vec<Type> = vec![];
         let packed_file_structure = packed_file_decoded.packed_file_data.packed_file_data_structure.clone().unwrap();
@@ -47,6 +47,7 @@ impl PackedFileDBTreeView{
         // The first column is an index for us to know how many entries we have.
         list_store_structure.push(Type::String);
 
+        // Depending on the type of the field, we push the gtk::Type equivalent to that column.
         for (_, field_type) in packed_file_structure.iter() {
             match &**field_type {
                 "boolean" => {
@@ -65,6 +66,8 @@ impl PackedFileDBTreeView{
                     list_store_structure.push(Type::F32);
                 }
                 _ => {
+                    // This should only fire when we try to open a table with a non-implemented type.
+                    // TODO: implement the types "string" and "oopstring". I guess those are u16 strings.
                     println!("Unkown field_type {}", field_type);
                 }
             }
@@ -90,6 +93,9 @@ impl PackedFileDBTreeView{
 
         let mut index = 1;
         for (name, field_type) in packed_file_structure.iter() {
+
+            // These are the specific declarations of the columns for every type implemented.
+            // FIXME: the name of the columns has no spaces nor underscores.
             match &**field_type {
                 "boolean" => {
                     let cell_bool = CellRendererToggle::new();
@@ -161,12 +167,16 @@ impl PackedFileDBTreeView{
                     packed_file_tree_view.append_column(&column_float);
                 }
                 _ => {
+                    // This should only fire when we try to open a table with a non-implemented type.
+                    // TODO: implement the types "string" and "oopstring". I guess those are u16 strings.
                     println!("Unkown field_type {}", field_type);
                 }
             }
             index += 1;
         }
 
+        // Disabled search. Not sure why I disabled it, but until all the decoding/enconding stuff is
+        // done, better keep it disable so it doesn't interfere with the events.
         packed_file_tree_view.set_enable_search(false);
 
         packed_file_data_display.add(&packed_file_tree_view);
@@ -203,15 +213,23 @@ impl PackedFileDBTreeView{
         let mut entry: Vec<DecodedData> = vec![];
 
         let mut index = 0;
+
+        // And fourth, we go cell by cell, row by row putting data into the cells. Because it's a mess
+        // of epic proportions to do it row by row.
+        // TODO: This shoudn't be done here, at least not all this.
         for i in 0..packed_file_data_entry_count {
             for j in column_numbers.iter() {
+
+                // First column it's always the index.
                 if *j == 0 {
                     let entry_index = DecodedData::Index(format!("{:0count$}", (i + 1), count = (packed_file_data_entry_count as usize / 10) + 1));
                     entry.push(entry_index);
                 }
+
+                // The rest of the columns, we decode them based on his type and store them in a DecodedData
+                // enum, as enums are the only thing I found that can store them.
                 else {
                     let field = packed_file_structure.get_index((*j as usize) - 1).unwrap();
-                    let field_name = field.0;
                     let field_type = field.1;
 
                     match &**field_type {
@@ -241,12 +259,13 @@ impl PackedFileDBTreeView{
                             entry.push(DecodedData::Float(data.0));
                         }
                         _ => {
+                            // If this fires up, the table has a non-implemented field. Current non-
+                            // implemented fields are "string" and "oopstring".
                             println!("Unkown field_type {}", field_type);
                         }
 
                     }
                 }
-
             }
             entries.push(entry.clone());
             entry.clear();
@@ -255,6 +274,9 @@ impl PackedFileDBTreeView{
         // Then we add every line to the ListStore.
         for entry in entries {
             let mut index = 0;
+
+            // Due to issues with types and gtk-rs, we need to create an empty line and then add the
+            // values to it, one by one.
             let current_row = packed_file_list_store.append();
 
             for field in entry {
@@ -266,13 +288,11 @@ impl PackedFileDBTreeView{
                     DecodedData::OptionalString(data) => gtk_value_field = gtk::ToValue::to_value(&data),
                     DecodedData::Integer(data) => gtk_value_field = gtk::ToValue::to_value(&data),
                     DecodedData::Float(data) => gtk_value_field = gtk::ToValue::to_value(&data),
-                    _ => gtk_value_field = gtk::ToValue::to_value("Error"),
                 }
 
                 packed_file_list_store.set_value(&current_row, index, &gtk_value_field);
                 index += 1;
             }
-            index = 0;
         }
     }
 }
