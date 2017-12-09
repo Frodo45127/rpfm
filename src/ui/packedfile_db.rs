@@ -222,7 +222,7 @@ impl PackedFileDBTreeView{
 
                 // First column it's always the index.
                 if *j == 0 {
-                    let entry_index = DecodedData::Index(format!("{:0count$}", (i + 1), count = (packed_file_data_entry_count as usize / 10) + 1));
+                    let entry_index = DecodedData::Index(format!("{:0count$}", (i + 1), count = (packed_file_data_entry_count.to_string().len() + 1)));
                     entry.push(entry_index);
                 }
 

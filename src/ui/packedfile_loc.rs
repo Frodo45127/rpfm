@@ -124,7 +124,7 @@ impl PackedFileLocTreeView{
         let mut j = 0;
         for i in &packed_file_data.packed_file_data_entries {
             j += 1;
-            packed_file_list_store.insert_with_values(None, &[0, 1, 2, 3], &[&format!("{:0count$}", j, count = (packed_file_data.packed_file_data_entries.len() / 10) + 1), &i.key, &i.text, &i.tooltip]);
+            packed_file_list_store.insert_with_values(None, &[0, 1, 2, 3], &[&format!("{:0count$}", j, count = (packed_file_data.packed_file_data_entries.len().to_string().len() + 1)), &i.key, &i.text, &i.tooltip]);
         }
     }
 
