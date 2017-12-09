@@ -10,7 +10,7 @@ use std::path::Path;
 
 pub mod coding_helpers;
 
-// This function may be a little stupid, but it turn easely some bytes into a readable String.
+/// This function may be a little stupid, but it turn easely some bytes into a readable String.
 #[allow(dead_code)]
 pub fn latin1_to_string(s: &[u8]) -> String {
     s.iter()
@@ -20,7 +20,7 @@ pub fn latin1_to_string(s: &[u8]) -> String {
         .collect()
 }
 
-// Turn a u32 into an array of 4 u8. For byte conversion.
+/// Turn a u32 into an array of 4 u8. For byte conversion.
 #[allow(dead_code)]
 pub fn u32_to_u8(x:u32) -> [u8;4] {
     let b1 : u8 = ((x >> 24) & 0xff) as u8;
@@ -30,7 +30,7 @@ pub fn u32_to_u8(x:u32) -> [u8;4] {
     return [b1, b2, b3, b4]
 }
 
-// Turn a u32 into an array of 4 u8, and reverse the array before returning it. For byte conversion.
+/// Turn a u32 into an array of 4 u8, and reverse the array before returning it. For byte conversion.
 #[allow(dead_code)]
 pub fn u32_to_u8_reverse(x:u32) -> [u8;4] {
     let b1 : u8 = ((x >> 24) & 0xff) as u8;
@@ -42,7 +42,7 @@ pub fn u32_to_u8_reverse(x:u32) -> [u8;4] {
     return array
 }
 
-// Turn a u16 into an array of 2 u8, and reverse the array before returning it. For byte conversion.
+/// Turn a u16 into an array of 2 u8, and reverse the array before returning it. For byte conversion.
 #[allow(dead_code)]
 pub fn u16_to_u8_reverse(x:u16) -> [u8;2] {
     let b1 : u8 = ((x >> 8) & 0xff) as u8;
@@ -52,8 +52,8 @@ pub fn u16_to_u8_reverse(x:u16) -> [u8;2] {
     return array
 }
 
-// This function takes a PathBuf and turn it into a Vec<String>.
-// Useful for managing paths more easily.
+/// This function takes a PathBuf and turn it into a Vec<String>.
+/// Useful for managing paths more easily.
 #[allow(dead_code)]
 pub fn path_to_vec_strings(path: PathBuf) -> Vec<String> {
     let mut path_processed: Vec<String> = vec![];
@@ -65,8 +65,8 @@ pub fn path_to_vec_strings(path: PathBuf) -> Vec<String> {
     path_processed
 }
 
-// This function takes a Vec<String> and concatenate them into one String.
-// Useful for managing paths.
+/// This function takes a Vec<String> and concatenate them into one String.
+/// Useful for managing paths.
 #[allow(dead_code)]
 pub fn vec_strings_to_path_string(vec_strings: Vec<String>) -> String {
     let mut path_processed: String = String::new();
@@ -79,8 +79,8 @@ pub fn vec_strings_to_path_string(vec_strings: Vec<String>) -> String {
     }
     path_processed
 }
-// This function takes a &Path and returns a Vec<PathBuf> with the paths of every file under the
-// original &Path.
+/// This function takes a &Path and returns a Vec<PathBuf> with the paths of every file under the
+/// original &Path.
 #[allow(dead_code)]
 pub fn get_files_from_subdir(current_path: &Path) -> Vec<PathBuf> {
 

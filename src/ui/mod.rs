@@ -11,23 +11,24 @@ use std::path::PathBuf;
 use packfile::packfile::PackFile;
 
 pub mod packedfile_loc;
+pub mod packedfile_db;
 
-// This function shows a Dialog window with some text. For notification of success and errors.
-// It requires:
-// - dialog: &MessageDialog object. It's the dialog windows we are going to use.
-// - text: String, the text we want to put in the dialog window.
+/// This function shows a Dialog window with some text. For notification of success and errors.
+/// It requires:
+/// - dialog: &MessageDialog object. It's the dialog windows we are going to use.
+/// - text: String, the text we want to put in the dialog window.
 pub fn show_dialog(dialog: &MessageDialog, text: String) {
     dialog.set_property_secondary_text(Some(text.as_str()));
     dialog.run();
     dialog.hide_on_delete();
 }
 
-// This function get the rect needed to put the popovers in the correct places when we create them,
-// all of this thanks to the magic of the FileChooserDialog from GTK3.
-// It requires:
-// - folder_tree_view: The TreeView we are going to use as parent of the Popover.
-// - cursor_position: An option(f64, f64). This is usually get using gdk::EventButton::get_position
-// or something like that. In case we aren't using a button, we just put None and get a default position.
+/// This function get the rect needed to put the popovers in the correct places when we create them,
+/// all of this thanks to the magic of the FileChooserDialog from GTK3.
+/// It requires:
+/// - folder_tree_view: The TreeView we are going to use as parent of the Popover.
+/// - cursor_position: An option(f64, f64). This is usually get using gdk::EventButton::get_position
+/// or something like that. In case we aren't using a button, we just put None and get a default position.
 pub fn get_rect_for_popover(
     folder_tree_view: &TreeView,
     cursor_position: Option<(f64, f64)>
@@ -57,13 +58,13 @@ pub fn get_rect_for_popover(
     rect
 }
 
-// This function is used to get the complete TreePath (path in a GTKTreeView) of an external file
-// or folder in a Vec<String> format. Needed to get the path for the TreeView and for encoding
-// the file in a PackFile.
-// It requires:
-// - file_path: &PathBuf of the external file.
-// - folder_tree_selection: &TreeSelection of the place of the TreeView where we want to add the file.
-// - is_file: bool. True if the &PathBuf is from a file, false if it's a folder.
+/// This function is used to get the complete TreePath (path in a GTKTreeView) of an external file
+/// or folder in a Vec<String> format. Needed to get the path for the TreeView and for encoding
+/// the file in a PackFile.
+/// It requires:
+/// - file_path: &PathBuf of the external file.
+/// - folder_tree_selection: &TreeSelection of the place of the TreeView where we want to add the file.
+/// - is_file: bool. True if the &PathBuf is from a file, false if it's a folder.
 pub fn get_tree_path_from_pathbuf(
     file_path: &PathBuf,
     folder_tree_selection: &TreeSelection,
@@ -102,12 +103,12 @@ pub fn get_tree_path_from_pathbuf(
     tree_path
 }
 
-// This function is used to get the complete TreePath (path in a GTKTreeView) of a selection of the
-// TreeView. I'm sure there are other ways to do it, but the TreeView has proven to be a mystery
-// BEYOND MY COMPREHENSION, so we use this for now.
-// It requires:
-// - folder_tree_selection: &TreeSelection of the place of the TreeView we want to know his TreePath.
-// - is_for_renaming: bool. True when we use this to get a path of something we want to rename.
+/// This function is used to get the complete TreePath (path in a GTKTreeView) of a selection of the
+/// TreeView. I'm sure there are other ways to do it, but the TreeView has proven to be a mystery
+/// BEYOND MY COMPREHENSION, so we use this for now.
+/// It requires:
+/// - folder_tree_selection: &TreeSelection of the place of the TreeView we want to know his TreePath.
+/// - is_for_renaming: bool. True when we use this to get a path of something we want to rename.
 pub fn get_tree_path_from_selection(
     folder_tree_selection: &TreeSelection,
     is_for_renaming: bool
@@ -143,14 +144,14 @@ pub fn get_tree_path_from_selection(
     tree_path
 }
 
-// This function recreates the entire TreeView (as it's a pain to update it) and expand the selected
-// TreePath, or the first parent (the PackFile) if there is nothing selected.
-// It requires:
-// - folder_tree_store: &TreeStore that the TreeView uses.
-// - mut pack_file_decoded: &mut PackFile we have opened, to get the data for the TreeView.
-// - folder_tree_selection: &TreeSelection, if there is something selected when we run this.
-// - folder_tree_view: &TreeView to update.
-// - climb_to_parent: True if we want to expand the parent of the selection, not the selection itself.
+/// This function recreates the entire TreeView (as it's a pain to update it) and expand the selected
+/// TreePath, or the first parent (the PackFile) if there is nothing selected.
+/// It requires:
+/// - folder_tree_store: &TreeStore that the TreeView uses.
+/// - mut pack_file_decoded: &mut PackFile we have opened, to get the data for the TreeView.
+/// - folder_tree_selection: &TreeSelection, if there is something selected when we run this.
+/// - folder_tree_view: &TreeView to update.
+/// - climb_to_parent: True if we want to expand the parent of the selection, not the selection itself.
 pub fn update_tree_view_expand_path(
     folder_tree_store: &TreeStore,
     pack_file_decoded: &PackFile,
@@ -182,12 +183,12 @@ pub fn update_tree_view_expand_path(
 
 }
 
-// This function clears the current TreeView, takes all the data needed for the new one, sort it
-// properly (folder -> file, A -> Z), takes care of duplicates and push it to the TreeStore so it's
-// displayed in the TreeView.
-// It requires:
-// - folder_tree_store: &TreeStore that the TreeView uses.
-// - pack_file_decoded: &mut PackFile we have opened, to get the data for the TreeView.
+/// This function clears the current TreeView, takes all the data needed for the new one, sort it
+/// properly (folder -> file, A -> Z), takes care of duplicates and push it to the TreeStore so it's
+/// displayed in the TreeView.
+/// It requires:
+/// - folder_tree_store: &TreeStore that the TreeView uses.
+/// - pack_file_decoded: &mut PackFile we have opened, to get the data for the TreeView.
 pub fn update_tree_view(
     folder_tree_store: &TreeStore,
     pack_file_decoded: &PackFile

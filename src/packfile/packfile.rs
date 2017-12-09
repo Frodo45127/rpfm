@@ -10,12 +10,12 @@ use self::byteorder::{
     ReadBytesExt, BigEndian
 };
 
-// Struct PackFile: This stores the data of the entire PackFile in memory ('cause fuck lazy-loading),
-// along with some extra data needed to manipulate the PackFile.
-// It stores the PackFile divided in 3 structs:
-// - pack_file_extra_data: extra data that we need to manipulate the PackFile.
-// - pack_file_header: header of the PackFile, decoded.
-// - pack_file_data: data of the PackFile, decoded.
+/// Struct PackFile: This stores the data of the entire PackFile in memory ('cause fuck lazy-loading),
+/// along with some extra data needed to manipulate the PackFile.
+/// It stores the PackFile divided in 3 structs:
+/// - pack_file_extra_data: extra data that we need to manipulate the PackFile.
+/// - pack_file_header: header of the PackFile, decoded.
+/// - pack_file_data: data of the PackFile, decoded.
 #[derive(Clone)]
 pub struct PackFile {
     pub pack_file_extra_data: PackFileExtraData,
@@ -23,10 +23,10 @@ pub struct PackFile {
     pub pack_file_data: PackFileData,
 }
 
-// Struct PackFileExtraData: This struct stores some extra data we need to manipulate the PackFiles:
-// - file_name: name of the PackFile.
-// - file_path: current path of the PackFile in the FileSystem.
-// - correlation_data: Vector with all the paths that are already in the TreeView. Useful for checking.
+/// Struct PackFileExtraData: This struct stores some extra data we need to manipulate the PackFiles:
+/// - file_name: name of the PackFile.
+/// - file_path: current path of the PackFile in the FileSystem.
+/// - correlation_data: Vector with all the paths that are already in the TreeView. Useful for checking.
 #[derive(Clone)]
 pub struct PackFileExtraData {
     pub file_name: String,
@@ -34,21 +34,21 @@ pub struct PackFileExtraData {
 }
 
 
-// Struct PackFileHeader: This struct stores all the info we can get from the header of the PackFile:
-// - pack_file_id: ID of the PackFile, like a version.
-// - pack_file_type: type of the PackFile (mod, movie,...).
-// - pack_file_count: amount of files in the PackFile index, at the start of the data.
-// - pack_file_index_size: size in bytes of the PackFile Index of the file (the first part of the data, if exists).
-// - packed_file_count: amount of PackedFiles stored inside the PackFile.
-// - packed_file_index_size: size in bytes of the PackedFile Index of the file (the first part of the data).
-// - unknown_data: no idea. It was checked in PFM, so we save it, just in case.
-//
-// NOTE: to understand the "pack_file_type":
-// 0 => "Boot",
-// 1 => "Release",
-// 2 => "Patch",
-// 3 => "Mod",
-// 4 => "Movie",
+/// Struct PackFileHeader: This struct stores all the info we can get from the header of the PackFile:
+/// - pack_file_id: ID of the PackFile, like a version.
+/// - pack_file_type: type of the PackFile (mod, movie,...).
+/// - pack_file_count: amount of files in the PackFile index, at the start of the data.
+/// - pack_file_index_size: size in bytes of the PackFile Index of the file (the first part of the data, if exists).
+/// - packed_file_count: amount of PackedFiles stored inside the PackFile.
+/// - packed_file_index_size: size in bytes of the PackedFile Index of the file (the first part of the data).
+/// - unknown_data: no idea. It was checked in PFM, so we save it, just in case.
+///
+/// NOTE: to understand the "pack_file_type":
+/// - 0 => "Boot",
+/// - 1 => "Release",
+/// - 2 => "Patch",
+/// - 3 => "Mod",
+/// - 4 => "Movie",
 #[derive(Clone)]
 pub struct PackFileHeader {
     pub pack_file_id: String,
@@ -60,17 +60,17 @@ pub struct PackFileHeader {
     pub unknown_data: u32,
 }
 
-// Struct PackFileData: This struct stores all the PackedFiles inside the PackFile in a vector.
+/// Struct PackFileData: This struct stores all the PackedFiles inside the PackFile in a vector.
 #[derive(Clone)]
 pub struct PackFileData {
     pub pack_files: Vec<String>,
     pub packed_files: Vec<PackedFile>,
 }
 
-// Struct PackedFile: This struct stores the data of a PackedFile:
-// - packed_file_size: size of the data.
-// - packed_file_path: path of the PackedFile inside the PackFile.
-// - packed_file_data: the data of the PackedFile. Temporal, until we implement PackedFileTypes.
+/// Struct PackedFile: This struct stores the data of a PackedFile:
+/// - packed_file_size: size of the data.
+/// - packed_file_path: path of the PackedFile inside the PackFile.
+/// - packed_file_data: the data of the PackedFile. Temporal, until we implement PackedFileTypes.
 #[derive(Clone)]
 pub struct PackedFile {
     pub packed_file_size: u32,
@@ -78,10 +78,10 @@ pub struct PackedFile {
     pub packed_file_data: Vec<u8>,
 }
 
-// Implementation of "PackFile"
+/// Implementation of "PackFile"
 impl PackFile {
 
-    // This function creates a new empty "PackFile".
+    /// This function creates a new empty "PackFile".
     pub fn new() -> PackFile {
         let pack_file_extra_data = PackFileExtraData::new();
         let pack_file_header = PackFileHeader::new();
@@ -94,7 +94,7 @@ impl PackFile {
         }
     }
 
-    // This function creates a new empty "PackFile" with a name.
+    /// This function creates a new empty "PackFile" with a name.
     pub fn new_with_name(file_name: String) -> PackFile {
         let pack_file_extra_data = PackFileExtraData::new_with_name(file_name);
         let pack_file_header = PackFileHeader::new();
@@ -107,12 +107,12 @@ impl PackFile {
         }
     }
 
-    // This function reads the content of a PackFile and returns an struct PackFile with all the
-    // contents of the PackFile decoded.
-    // It requires:
-    // - pack_file_buffered: a Vec<u8> with the entire PackFile encoded inside it.
-    // - file_name: a String with the name of the PackFile.
-    // - file_path: a String with the path of the PackFile.
+    /// This function reads the content of a PackFile and returns an struct PackFile with all the
+    /// contents of the PackFile decoded.
+    /// It requires:
+    /// - pack_file_buffered: a Vec<u8> with the entire PackFile encoded inside it.
+    /// - file_name: a String with the name of the PackFile.
+    /// - file_path: a String with the path of the PackFile.
     pub fn read(pack_file_buffered: Vec<u8>, file_name: String, file_path: String) -> PackFile {
 
         // We save the "Extra data" of the packfile
@@ -132,7 +132,7 @@ impl PackFile {
         }
     }
 
-    // This function takes a decoded &PackFile and encode it, ready for being wrote in the disk.
+    /// This function takes a decoded &PackFile and encode it, ready for being wrote in the disk.
     pub fn save(pack_file_decoded: &PackFile) -> Vec<u8> {
         let mut pack_file_data_encoded = PackFileData::save(&pack_file_decoded.pack_file_data);
 
@@ -151,10 +151,10 @@ impl PackFile {
     }
 }
 
-// Implementation of "PackFileExtraData"
-impl  PackFileExtraData {
+/// Implementation of "PackFileExtraData"
+impl PackFileExtraData {
 
-    // This function creates an empty PackFileExtraData.
+    /// This function creates an empty PackFileExtraData.
     pub fn new() -> PackFileExtraData {
         let file_name = String::new();
         let file_path = String::new();
@@ -164,7 +164,7 @@ impl  PackFileExtraData {
         }
     }
 
-    // This function creates a PackFileExtraData with just a name.
+    /// This function creates a PackFileExtraData with just a name.
     pub fn new_with_name(file_name: String) -> PackFileExtraData {
         let file_path = String::new();
         PackFileExtraData {
@@ -173,7 +173,7 @@ impl  PackFileExtraData {
         }
     }
 
-    // This function creates a PackFileExtraData with a name and a path.
+    /// This function creates a PackFileExtraData with a name and a path.
     pub fn new_from_file(file_name: String, file_path: String) -> PackFileExtraData {
         PackFileExtraData {
             file_name,
@@ -182,10 +182,10 @@ impl  PackFileExtraData {
     }
 }
 
-// Implementation of "PackFileHeader"
+/// Implementation of "PackFileHeader"
 impl PackFileHeader {
 
-    // This function creates a new PackFileHeader for an empty PackFile of Warhammer 2.
+    /// This function creates a new PackFileHeader for an empty PackFile of Warhammer 2.
     pub fn new() -> PackFileHeader {
         let pack_file_id = "PFH5".to_string();
         let pack_file_type = 3 as u32;
@@ -206,8 +206,8 @@ impl PackFileHeader {
         }
     }
 
-    // This function reads the Header of a PackFile and decode it into a PackFileHeader. We read all
-    // this data in packs of 4 bytes, then we put them together, reverse them and read them.
+    /// This function reads the Header of a PackFile and decode it into a PackFileHeader. We read all
+    /// this data in packs of 4 bytes, then we put them together, reverse them and read them.
     pub fn read(header: &[u8]) -> PackFileHeader {
 
         // ID
@@ -260,8 +260,8 @@ impl PackFileHeader {
         }
     }
 
-    // This function takes a decoded Header and encode it, so it can be saved in a PackFile file.
-    // We just put all the data in order in a 28 bytes Vec<u8>, and return that Vec<u8>.
+    /// This function takes a decoded Header and encode it, so it can be saved in a PackFile file.
+    /// We just put all the data in order in a 28 bytes Vec<u8>, and return that Vec<u8>.
     pub fn save(header_decoded: &PackFileHeader, pack_file_index_size: u32, packed_file_index_size: u32) -> Vec<u8> {
         let mut header_encoded = vec![];
 
@@ -284,10 +284,10 @@ impl PackFileHeader {
     }
 }
 
-// Implementation of "PackFileData"
+/// Implementation of "PackFileData"
 impl PackFileData {
 
-    // This function creates a new empty "PackFileData"
+    /// This function creates a new empty "PackFileData"
     pub fn new() -> PackFileData {
         let pack_files: Vec<String> = vec![];
         let packed_files: Vec<PackedFile> = vec![];
@@ -298,12 +298,12 @@ impl PackFileData {
         }
     }
 
-    // This function reads the Data part of a PackFile, get all the files on the PackFile and put
-    // them in a Vec<PackedFile>.
-    // It requires:
-    // - data: the raw data or the PackFile.
-    // - packed_file_count: the amount of PackedFiles inside the PackFile. This should come from the header.
-    // - packed_index_size: the size of the index of PackedFiles. This should come from the header.
+    /// This function reads the Data part of a PackFile, get all the files on the PackFile and put
+    /// them in a Vec<PackedFile>.
+    /// It requires:
+    /// - data: the raw data or the PackFile.
+    /// - packed_file_count: the amount of PackedFiles inside the PackFile. This should come from the header.
+    /// - packed_index_size: the size of the index of PackedFiles. This should come from the header.
     pub fn read(
         data: &[u8],
         pack_file_count: u32,
@@ -432,8 +432,9 @@ impl PackFileData {
         }
     }
 
-    // This function takes a decoded Data and encode it, so it can be saved in a PackFile file.
-    // NOTE: We return the stuff in 3 vectors to be able to use it to update the header before saving.
+    /// This function takes a decoded Data and encode it, so it can be saved in a PackFile file.
+    ///
+    /// NOTE: We return the stuff in 3 vectors to be able to use it to update the header before saving.
     pub fn save(data_decoded: &PackFileData) -> Vec<Vec<u8>> {
         let mut pack_file_index = vec![];
         let mut packed_file_index = vec![];
@@ -459,14 +460,14 @@ impl PackFileData {
     }
 }
 
-// Implementation of "PackedFile"
+/// Implementation of "PackedFile"
 impl PackedFile {
 
-    // This function adds a new PackedFile the the PackFile, from his size, path and data.
-    // It requires:
-    // - packed_file_size: the size in bytes of the data of the PackedFile.
-    // - packed_file_path: the path of the PackedFile.
-    // - packed_file_data: the data of the PackedFile.
+    /// This function adds a new PackedFile the the PackFile, from his size, path and data.
+    /// It requires:
+    /// - packed_file_size: the size in bytes of the data of the PackedFile.
+    /// - packed_file_path: the path of the PackedFile.
+    /// - packed_file_data: the data of the PackedFile.
     pub fn add(packed_file_size: u32, packed_file_path: Vec<String>, packed_file_data: Vec<u8>) -> PackedFile {
         PackedFile {
             packed_file_size,
@@ -475,7 +476,7 @@ impl PackedFile {
         }
     }
 
-    // This function receive all the info of a PackedFile and creates a PackedFile with it.
+    /// This function receive all the info of a PackedFile and creates a PackedFile with it.
     pub fn read(file_size: u32, path: Vec<String>, data: Vec<u8>) -> PackedFile {
 
         let packed_file_size = file_size;
@@ -489,7 +490,7 @@ impl PackedFile {
         }
     }
 
-    // This function takes a decoded PackedFile and encode it, so it can be Saved inside a PackFile file.
+    /// This function takes a decoded PackedFile and encode it, so it can be Saved inside a PackFile file.
     pub fn save(packed_file_decoded: &PackedFile) -> (Vec<u8>, Vec<u8>) {
 
         // We need to return both, the index and the data of the PackedFile, so we get them separated.
