@@ -9,6 +9,8 @@ use gtk::{
     CellRendererText, TreeViewColumn, CellRendererToggle, Type
 };
 
+use self::ordermap::OrderMap;
+
 /// Struct PackedFileDBTreeView: contains all the stuff we need to give to the program to show a
 /// TreeView with the data of a DB PackedFile, allowing us to manipulate it.
 #[derive(Clone)]
@@ -27,7 +29,10 @@ impl PackedFileDBTreeView{
 
     /// This function creates a new TreeView with "packed_file_data_display" as father and returns a
     /// PackedFileDBTreeView with all his data.
-    pub fn create_tree_view(packed_file_data_display: &ScrolledWindow, packed_file_decoded: &::packedfile::db::DB) -> PackedFileDBTreeView {
+    pub fn create_tree_view(
+        packed_file_data_display: &ScrolledWindow,
+        packed_file_decoded: &::packedfile::db::DB
+    ) -> PackedFileDBTreeView {
 
         // First, we create the Vec<Type> we are going to use to create the TreeView, based on the structure
         // of the DB PackedFile.
@@ -58,7 +63,7 @@ impl PackedFileDBTreeView{
                 _ => {
                     // This should only fire when we try to open a table with a non-implemented type.
                     // TODO: implement the types "string" and "oopstring". I guess those are u16 strings.
-                    println!("Unkown field_type {}", field_type);
+                    println!("Unkown field_type 3 {}", field_type);
                 }
             }
         }
@@ -80,7 +85,7 @@ impl PackedFileDBTreeView{
         column_index.pack_start(&cell_index, true);
         column_index.add_attribute(&cell_index, "text", 0);
         packed_file_tree_view.append_column(&column_index);
-        
+
         let mut packed_file_tree_view_cell_bool = vec![];
         let mut packed_file_tree_view_cell_string = vec![];
         let mut packed_file_tree_view_cell_optional_string = vec![];
@@ -170,7 +175,7 @@ impl PackedFileDBTreeView{
                 _ => {
                     // This should only fire when we try to open a table with a non-implemented type.
                     // TODO: implement the types "string" and "oopstring". I guess those are u16 strings.
-                    println!("Unkown field_type {}", field_type);
+                    println!("Unkown field_type 2 {}", field_type);
                 }
             }
             index += 1;
@@ -227,7 +232,7 @@ impl PackedFileDBTreeView{
             }
         }
     }
-/*
+
     /// This function returns a Vec<DataDecoded> with all the stuff in the table. We need for it the
     /// ListStore, and it'll return a Vec<DataDecoded> with all the stuff from the table.
     pub fn return_data_from_tree_view(
@@ -249,24 +254,28 @@ impl PackedFileDBTreeView{
                 let mut packed_file_data_from_tree_view_entry: Vec<::packedfile::db::DecodedData> = vec![];
 
                 for column in 1..columns {
-                    let data = packed_file_list_store.get_value(&current_line, column).get().unwrap();
-                    let field = packed_file_structure.get_index(column - 1).unwrap();
-                    let field_type = field.1;
+                    let column_structure = packed_file_data_structure.clone().unwrap();
+                    let field_type = column_structure.get_index(column as usize - 1).unwrap().1;
                     match &**field_type {
                         "boolean" => {
-                            packed_file_data_from_tree_view_entry.push(::packedfile::db::DecodedData::Boolean(data.0));
+                            let data: bool = packed_file_list_store.get_value(&current_line, column).get().unwrap();
+                            packed_file_data_from_tree_view_entry.push(::packedfile::db::DecodedData::Boolean(data));
                         }
                         "string_ascii" => {
-                            packed_file_data_from_tree_view_entry.push(::packedfile::db::DecodedData::String(data.0));
+                            let data: String = packed_file_list_store.get_value(&current_line, column).get().unwrap();
+                            packed_file_data_from_tree_view_entry.push(::packedfile::db::DecodedData::String(data));
                         }
                         "optstring_ascii" => {
-                            packed_file_data_from_tree_view_entry.push(::packedfile::db::DecodedData::OptionalString(data.0));
+                            let data: String = packed_file_list_store.get_value(&current_line, column).get().unwrap();
+                            packed_file_data_from_tree_view_entry.push(::packedfile::db::DecodedData::OptionalString(data));
                         }
                         "int" => {
-                            packed_file_data_from_tree_view_entry.push(::packedfile::db::DecodedData::Integer(data.0));
+                            let data: u32 = packed_file_list_store.get_value(&current_line, column).get().unwrap();
+                            packed_file_data_from_tree_view_entry.push(::packedfile::db::DecodedData::Integer(data));
                         }
                         "float" => {
-                            packed_file_data_from_tree_view_entry.push(::packedfile::db::DecodedData::Float(data.0));
+                            let data: f32 = packed_file_list_store.get_value(&current_line, column).get().unwrap();
+                            packed_file_data_from_tree_view_entry.push(::packedfile::db::DecodedData::Float(data));
                         }
                         _ => {
                             // If this fires up, the table has a non-implemented field. Current non-
@@ -283,5 +292,5 @@ impl PackedFileDBTreeView{
             }
         }
         packed_file_data_from_tree_view
-    }*/
+    }
 }

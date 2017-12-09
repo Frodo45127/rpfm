@@ -46,6 +46,7 @@ pub struct DBHeader {
     pub packed_file_header_packed_file_guid: String,
     pub packed_file_header_packed_file_version: u32,
     pub packed_file_header_packed_file_version_marker: bool,
+    pub packed_file_header_packed_file_mysterious_byte: u8,
     pub packed_file_header_packed_file_entry_count: u32,
 }
 
@@ -91,6 +92,19 @@ impl DB {
             packed_file_data,
         }
     }
+
+    /// This function takes an entire DB and encode it to Vec<u8>, so it can be written in the disk.
+    /// It returns a Vec<u8> with the entire DB encoded in it.
+    pub fn save(packed_file_decoded: &DB) -> Vec<u8> {
+
+        let mut packed_file_data_encoded = DBData::save(&packed_file_decoded.packed_file_data);
+        let mut packed_file_header_encoded = DBHeader::save(&packed_file_decoded.packed_file_header, packed_file_data_encoded.1);
+
+        let mut packed_file_encoded: Vec<u8> = vec![];
+        packed_file_encoded.append(&mut packed_file_header_encoded);
+        packed_file_encoded.append(&mut packed_file_data_encoded.0);
+        packed_file_encoded
+    }
 }
 
 
@@ -120,15 +134,14 @@ impl DBHeader {
             packed_file_header_packed_file_version = ::common::coding_helpers::decode_integer_u32(packed_file_header[(index + 4)..(index + 8)].to_vec());
             packed_file_header_packed_file_version_marker = true;
             index = index + 8;
-
         }
-
         else {
             packed_file_header_packed_file_version = 0;
             packed_file_header_packed_file_version_marker = false;
         }
 
-        // We skip a misteryous byte I don't know what it does.
+        // We save a mysterious byte I don't know what it does.
+        let packed_file_header_packed_file_mysterious_byte = packed_file_header[index];
         index += 1;
 
         let packed_file_header_packed_file_entry_count =  ::common::coding_helpers::decode_integer_u32(packed_file_header[(index)..(index + 4)].to_vec());
@@ -139,11 +152,40 @@ impl DBHeader {
             packed_file_header_packed_file_guid,
             packed_file_header_packed_file_version,
             packed_file_header_packed_file_version_marker,
+            packed_file_header_packed_file_mysterious_byte,
             packed_file_header_packed_file_entry_count,
         },
         index)
     }
+
+
+    /// This function takes an entire DBHeader and a packed_file_entry_count, and encode it to Vec<u8>,
+    /// so it can be written in the disk. It returns a Vec<u8> with the entire DBHeader encoded in it.
+    pub fn save(packed_file_header_decoded: &DBHeader, packed_file_entry_count: u32) -> Vec<u8> {
+        let mut packed_file_header_encoded: Vec<u8> = vec![];
+
+        // First we get the lenght of the GUID (u16 reversed) and the GUID, in a u16 string.
+        let guid_encoded = ::common::coding_helpers::encode_string_u16(packed_file_header_decoded.packed_file_header_packed_file_guid.clone()).to_vec();
+
+        packed_file_header_encoded.extend_from_slice(&GUID_MARKER);
+        packed_file_header_encoded.extend_from_slice(&guid_encoded);
+
+        if packed_file_header_decoded.packed_file_header_packed_file_version_marker {
+            let version_encoded = ::common::u32_to_u8_reverse(packed_file_header_decoded.packed_file_header_packed_file_version).to_vec();
+
+            packed_file_header_encoded.extend_from_slice(&VERSION_MARKER);
+            packed_file_header_encoded.extend_from_slice(&version_encoded);
+        }
+
+        let packed_file_entry_count_encoded = ::common::u32_to_u8_reverse(packed_file_entry_count).to_vec();
+
+        packed_file_header_encoded.push(packed_file_header_decoded.packed_file_header_packed_file_mysterious_byte);
+        packed_file_header_encoded.extend_from_slice(&packed_file_entry_count_encoded);
+
+        packed_file_header_encoded
+    }
 }
+
 
 /// Implementation of "DBData"
 impl DBData {
@@ -226,7 +268,6 @@ impl DBData {
                     },
                 }
             }
-            //println!("{:#?}", packed_file_data_entries_fields);
 
             // Now that we have the structure of the DB PackedFile, we decode his data.
             // First, we get the amount of columns we have.
@@ -282,7 +323,7 @@ impl DBData {
                             _ => {
                                 // If this fires up, the table has a non-implemented field. Current non-
                                 // implemented fields are "string" and "oopstring".
-                                println!("Unkown field_type {}", field_type);
+                                println!("Unkown field_type 4 {}", field_type);
                             }
                         }
                     }
@@ -307,5 +348,54 @@ impl DBData {
             packed_file_data_structure,
             packed_file_data,
         }
+    }
+
+
+    /// This function takes an entire DBData and encode it to Vec<u8>, so it can be written in the disk.
+    /// It returns a tuple with the encoded DBData in a Vec<u8> and the new entry count to update the
+    /// header.
+    pub fn save(packed_file_data_decoded: &DBData) -> (Vec<u8>, u32) {
+
+        let mut packed_file_data_encoded: Vec<u8> = vec![];
+        let mut packed_file_entry_count = 0;
+
+        for row in &packed_file_data_decoded.packed_file_data {
+            for field in row {
+                match *field {
+                    DecodedData::Index(_) => {
+
+                        // We skip the index column, as we only have it for easy manipulation, it has
+                        // nothing to do with the PackedFile.
+                        continue;
+                    },
+                    DecodedData::Boolean(data) => {
+                        let mut encoded_data = helpers::encode_bool(data.clone());
+                        packed_file_data_encoded.append(&mut encoded_data);
+                    },
+                    DecodedData::String(ref data) => {
+                        let mut encoded_data = helpers::encode_string_u8(data.clone());
+                        packed_file_data_encoded.append(&mut encoded_data);
+                    },
+                    DecodedData::OptionalString(ref data) => {
+                        let mut encoded_data = helpers::encode_optional_string_u8(data.clone());
+                        packed_file_data_encoded.append(&mut encoded_data);
+                    },
+                    DecodedData::Integer(data) => {
+                        let mut encoded_data = helpers::encode_integer_u32(data.clone());
+                        packed_file_data_encoded.append(&mut encoded_data);
+                    },
+                    DecodedData::Float(data) => {
+                        let mut encoded_data = helpers::encode_float_f32(data.clone());
+                        packed_file_data_encoded.append(&mut encoded_data);
+                    },
+                    DecodedData::RawData(_) => {
+                        // If this is reached, we fucked it up somewhere. For now, just print a warning.
+                        println!("Error, trying to write a RawData DB field.")
+                    },
+                }
+            }
+            packed_file_entry_count += 1;
+        }
+        (packed_file_data_encoded, packed_file_entry_count)
     }
 }

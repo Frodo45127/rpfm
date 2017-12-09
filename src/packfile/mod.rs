@@ -14,6 +14,7 @@ use std::io::{
 use std::error::Error;
 
 use ::packedfile::loc::Loc;
+use ::packedfile::db::DB;
 
 pub mod packfile;
 
@@ -479,9 +480,9 @@ pub fn rename_packed_file(
 --------------------------------------------------------
 */
 
-/// This function saves the data of the edited PackedFile in the main PackFile after a change has
+/// This function saves the data of the edited Loc PackedFile in the main PackFile after a change has
 /// been done by the user. Checking for valid characters is done before this, so be careful to not break it.
-pub fn update_packed_file_data(
+pub fn update_packed_file_data_loc(
     packed_file_data_decoded: &Loc,
     pack_file: &mut packfile::PackFile,
     index: usize,
@@ -495,6 +496,22 @@ pub fn update_packed_file_data(
     pack_file.pack_file_data.packed_files[index].packed_file_size = packed_file_data_encoded_size;
 }
 
+
+/// This function saves the data of the edited DB PackedFile in the main PackFile after a change has
+/// been done by the user. Checking for valid characters is done before this, so be careful to not break it.
+pub fn update_packed_file_data_db(
+    packed_file_data_decoded: &DB,
+    pack_file: &mut packfile::PackFile,
+    index: usize,
+) {
+    let mut packed_file_data_encoded = DB::save(&packed_file_data_decoded).to_vec();
+    let packed_file_data_encoded_size = packed_file_data_encoded.len() as u32;
+
+    // Replace the old raw data of the PackedFile with the new one, and update his size.
+    &pack_file.pack_file_data.packed_files[index].packed_file_data.clear();
+    &pack_file.pack_file_data.packed_files[index].packed_file_data.append(&mut packed_file_data_encoded);
+    pack_file.pack_file_data.packed_files[index].packed_file_size = packed_file_data_encoded_size;
+}
 
 /*
 --------------------------------------------------------
