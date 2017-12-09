@@ -5,7 +5,7 @@
 The lastest released version can (only for TW:Warhammer 2 for now):
 - [x] ***Manipulate PackFiles*** (create, open and save).
 - [x] ***Manipulate PackedFiles*** (add, extract, rename, delete).
-- [ ] ***Edit DB PackedFiles***.
+- [x] ***Edit DB PackedFiles***.
 - [x] ***Edit Localisation PackedFiles***.
 
 In addition to that, it has some special features:
@@ -42,7 +42,8 @@ cargo build --target=x86_64-unknown-linux-gnu --release
 - **Why the code quality is not the very best?**: because I'm using this project to learn Rust, and I'm constantly rewriting code as I find new and better ways to write it.
 
 # Known bugs
-- If you order the entries of a Loc PackedFile by the first column, you'll get a weird order.
+- Float fields in DB PackedFiles have trailing zeros.
+- Sometimes when selecting a DB PackedFile after having another one selected, the scrollbar disappear.
 - Decoding of big Loc files (like the vanilla localisation file) is SLOOOOWWWWWW. Need to improve his decoding in the future.
 
 # Credits
