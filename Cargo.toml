@@ -1,6 +1,6 @@
 [package]
 name = "rpfm-code"
-version = "0.0.5"
+version = "0.0.6"
 authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
 build = "build.rs"
 
@@ -11,13 +11,17 @@ csv = "1.0.0-beta.5"
 serde = "1.0.20"
 serde_derive = "1.0.20"
 unescape = "0.1.0"
+ordermap = "0.3.2"
 
 [dependencies.gtk]
-version = "0.2.0"
+version = "0.3.0"
 features = ["v3_22"]
 
 [dependencies.gdk]
-version = "0.6.0"
+version = "0.7.0"
+
+[dependencies.glib]
+version = "0.4.0"
 
 [target.x86_64-pc-windows-gnu.build-dependencies]
 winres = "0.1"
