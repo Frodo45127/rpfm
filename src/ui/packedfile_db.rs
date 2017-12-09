@@ -9,8 +9,6 @@ use gtk::{
     CellRendererText, TreeViewColumn, CellRendererToggle, Type
 };
 
-use self::ordermap::OrderMap;
-
 /// Struct PackedFileDBTreeView: contains all the stuff we need to give to the program to show a
 /// TreeView with the data of a DB PackedFile, allowing us to manipulate it.
 #[derive(Clone)]
@@ -22,19 +20,6 @@ pub struct PackedFileDBTreeView {
     pub packed_file_tree_view_cell_optional_string: Vec<CellRendererText>,
     pub packed_file_tree_view_cell_integer: Vec<CellRendererText>,
     pub packed_file_tree_view_cell_float: Vec<CellRendererText>,
-}
-
-/// Enum DecodedData: This enum is used to store the data from the different fields of a row of a DB
-/// table.
-/// TODO: Put this shit into the db tables files, not in the ui files.
-#[derive(Clone, Debug)]
-pub enum DecodedData {
-    Index(String),
-    Boolean(bool),
-    String(String),
-    OptionalString(String),
-    Integer(u32),
-    Float(f32)
 }
 
 /// Implementation of "PackedFileDBTreeView".
@@ -95,15 +80,12 @@ impl PackedFileDBTreeView{
         column_index.pack_start(&cell_index, true);
         column_index.add_attribute(&cell_index, "text", 0);
         packed_file_tree_view.append_column(&column_index);
-
-
+        
         let mut packed_file_tree_view_cell_bool = vec![];
         let mut packed_file_tree_view_cell_string = vec![];
         let mut packed_file_tree_view_cell_optional_string = vec![];
         let mut packed_file_tree_view_cell_integer = vec![];
         let mut packed_file_tree_view_cell_float = vec![];
-
-
 
         let mut index = 1;
         for (name, field_type) in packed_file_structure.iter() {
@@ -214,109 +196,92 @@ impl PackedFileDBTreeView{
 
     /// This function decodes the data of a DB PackedFile and loads it into a TreeView.
     pub fn load_data_to_tree_view(
-        packed_file_data: Vec<u8>,
-        packed_file_data_structure: &Option<OrderMap<String, String>>,
-        packed_file_tree_view: &TreeView,
+        packed_file_data: Vec<Vec<::packedfile::db::DecodedData>>,
         packed_file_list_store: &ListStore,
-        packed_file_data_entry_count: u32
     ) {
-
-        let packed_file_structure = packed_file_data_structure.clone().unwrap();
 
         // First, we delete all the data from the ListStore.
         packed_file_list_store.clear();
 
-        // Second, we create the array for the positions in the ListStore.
-        let mut column_numbers: Vec<u32> = vec![];
-        for i in 0..packed_file_tree_view.get_n_columns() {
-            column_numbers.push(i.clone());
-        }
-
-        // Third, we decode the values from the raw data to the ListStore.
-        let mut entries: Vec<Vec<DecodedData>> = vec![];
-        let mut entry: Vec<DecodedData> = vec![];
-
-        let mut index = 0;
-
-        // And fourth, we go cell by cell, row by row putting data into the cells. Because it's a mess
-        // of epic proportions to do it row by row.
-        // TODO: This shoudn't be done here, at least not all this.
-        for i in 0..packed_file_data_entry_count {
-            for j in column_numbers.iter() {
-
-                // First column it's always the index.
-                if *j == 0 {
-                    let entry_index = DecodedData::Index(format!("{:0count$}", (i + 1), count = (packed_file_data_entry_count.to_string().len() + 1)));
-                    entry.push(entry_index);
-                }
-
-                // The rest of the columns, we decode them based on his type and store them in a DecodedData
-                // enum, as enums are the only thing I found that can store them.
-                else {
-                    let field = packed_file_structure.get_index((*j as usize) - 1).unwrap();
-                    let field_type = field.1;
-
-                    match &**field_type {
-                        "boolean" => {
-                            let data = ::packedfile::db::helpers::decode_bool(packed_file_data.to_vec(), index);
-                            index = data.1;
-                            entry.push(DecodedData::Boolean(data.0));
-                        }
-                        "string_ascii" => {
-                            let data = ::packedfile::db::helpers::decode_string_u8(packed_file_data.to_vec(), index);
-                            index = data.1;
-                            entry.push(DecodedData::String(data.0));
-                        }
-                        "optstring_ascii" => {
-                            let data = ::packedfile::db::helpers::decode_optional_string_u8(packed_file_data.to_vec(), index);
-                            index = data.1;
-                            entry.push(DecodedData::OptionalString(data.0));
-                        }
-                        "int" => {
-                            let data = ::packedfile::db::helpers::decode_integer_u32(packed_file_data.to_vec(), index);
-                            index = data.1;
-                            entry.push(DecodedData::Integer(data.0));
-                        }
-                        "float" => {
-                            let data = ::packedfile::db::helpers::decode_float_u32(packed_file_data.to_vec(), index);
-                            index = data.1;
-                            entry.push(DecodedData::Float(data.0));
-                        }
-                        _ => {
-                            // If this fires up, the table has a non-implemented field. Current non-
-                            // implemented fields are "string" and "oopstring".
-                            println!("Unkown field_type {}", field_type);
-                        }
-
-                    }
-                }
-            }
-            entries.push(entry.clone());
-            entry.clear();
-        }
-
         // Then we add every line to the ListStore.
-        for entry in entries {
+        for row in packed_file_data {
             let mut index = 0;
 
             // Due to issues with types and gtk-rs, we need to create an empty line and then add the
             // values to it, one by one.
             let current_row = packed_file_list_store.append();
 
-            for field in entry {
+            for field in row {
                 let gtk_value_field;
                 match field {
-                    DecodedData::Index(data) => gtk_value_field = gtk::ToValue::to_value(&data),
-                    DecodedData::Boolean(data) => gtk_value_field = gtk::ToValue::to_value(&data),
-                    DecodedData::String(data) => gtk_value_field = gtk::ToValue::to_value(&data),
-                    DecodedData::OptionalString(data) => gtk_value_field = gtk::ToValue::to_value(&data),
-                    DecodedData::Integer(data) => gtk_value_field = gtk::ToValue::to_value(&data),
-                    DecodedData::Float(data) => gtk_value_field = gtk::ToValue::to_value(&data),
+                    ::packedfile::db::DecodedData::Index(data) => gtk_value_field = gtk::ToValue::to_value(&data),
+                    ::packedfile::db::DecodedData::Boolean(data) => gtk_value_field = gtk::ToValue::to_value(&data),
+                    ::packedfile::db::DecodedData::String(data) => gtk_value_field = gtk::ToValue::to_value(&data),
+                    ::packedfile::db::DecodedData::OptionalString(data) => gtk_value_field = gtk::ToValue::to_value(&data),
+                    ::packedfile::db::DecodedData::Integer(data) => gtk_value_field = gtk::ToValue::to_value(&data),
+                    ::packedfile::db::DecodedData::Float(data) => gtk_value_field = gtk::ToValue::to_value(&data),
+                    ::packedfile::db::DecodedData::RawData(_) => gtk_value_field = gtk::ToValue::to_value("Error"),
                 }
-
                 packed_file_list_store.set_value(&current_row, index, &gtk_value_field);
                 index += 1;
             }
         }
     }
+/*
+    /// This function returns a Vec<DataDecoded> with all the stuff in the table. We need for it the
+    /// ListStore, and it'll return a Vec<DataDecoded> with all the stuff from the table.
+    pub fn return_data_from_tree_view(
+        packed_file_data_structure: &Option<OrderMap<String, String>>,
+        packed_file_list_store: &ListStore,
+    ) -> Vec<Vec<::packedfile::db::DecodedData>> {
+
+        let mut packed_file_data_from_tree_view: Vec<Vec<::packedfile::db::DecodedData>> = vec![];
+
+        // Only in case we have any line in the ListStore we try to get it. Otherwise we return an
+        // empty vector.
+        if let Some(current_line) = packed_file_list_store.get_iter_first() {
+            let columns = packed_file_list_store.get_n_columns();
+
+            // Foreach row in the DB PackedFile.
+            let mut done = false;
+            while !done {
+
+                let mut packed_file_data_from_tree_view_entry: Vec<::packedfile::db::DecodedData> = vec![];
+
+                for column in 1..columns {
+                    let data = packed_file_list_store.get_value(&current_line, column).get().unwrap();
+                    let field = packed_file_structure.get_index(column - 1).unwrap();
+                    let field_type = field.1;
+                    match &**field_type {
+                        "boolean" => {
+                            packed_file_data_from_tree_view_entry.push(::packedfile::db::DecodedData::Boolean(data.0));
+                        }
+                        "string_ascii" => {
+                            packed_file_data_from_tree_view_entry.push(::packedfile::db::DecodedData::String(data.0));
+                        }
+                        "optstring_ascii" => {
+                            packed_file_data_from_tree_view_entry.push(::packedfile::db::DecodedData::OptionalString(data.0));
+                        }
+                        "int" => {
+                            packed_file_data_from_tree_view_entry.push(::packedfile::db::DecodedData::Integer(data.0));
+                        }
+                        "float" => {
+                            packed_file_data_from_tree_view_entry.push(::packedfile::db::DecodedData::Float(data.0));
+                        }
+                        _ => {
+                            // If this fires up, the table has a non-implemented field. Current non-
+                            // implemented fields are "string" and "oopstring".
+                            println!("Unkown field_type {}", field_type);
+                        }
+                    }
+                }
+                packed_file_data_from_tree_view.push(packed_file_data_from_tree_view_entry);
+
+                if !packed_file_list_store.iter_next(&current_line) {
+                    done = true;
+                }
+            }
+        }
+        packed_file_data_from_tree_view
+    }*/
 }

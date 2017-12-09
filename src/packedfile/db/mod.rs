@@ -54,9 +54,21 @@ pub struct DBHeader {
 #[derive(Clone, Debug)]
 pub struct DBData {
     pub packed_file_data_structure: Option<OrderMap<String, String>>,
-    pub packed_file_data: Vec<u8>,
+    pub packed_file_data: Vec<Vec<DecodedData>>,
 }
 
+/// Enum DecodedData: This enum is used to store the data from the different fields of a row of a DB
+/// PackedFile.
+#[derive(Clone, Debug)]
+pub enum DecodedData {
+    Index(String),
+    Boolean(bool),
+    String(String),
+    OptionalString(String),
+    Integer(u32),
+    Float(f32),
+    RawData(Vec<u8>)
+}
 
 /// Implementation of "DB"
 impl DB {
@@ -69,7 +81,8 @@ impl DB {
             packed_file_data[(packed_file_header.1)..].to_vec(),
             packed_file_db_type,
             master_schema,
-            packed_file_header.0.packed_file_header_packed_file_version
+            packed_file_header.0.packed_file_header_packed_file_version,
+            packed_file_header.0.packed_file_header_packed_file_entry_count
         );
 
         DB {
@@ -140,9 +153,11 @@ impl DBData {
         packed_file_data: Vec<u8>,
         packed_file_db_type: &str,
         master_schema: &str,
-        packed_file_header_packed_file_version: u32
+        packed_file_header_packed_file_version: u32,
+        packed_file_header_packed_file_entry_count: u32
     ) -> DBData {
 
+        let packed_file_data_decoded: Vec<Vec<DecodedData>>;
         let packed_file_data_structure: Option<OrderMap<String, String>>;
         let mut packed_file_data_entries_fields: OrderMap<String,String> = OrderMap::new();
 
@@ -185,7 +200,7 @@ impl DBData {
                 match entry.find(&*format!("name=\'")) {
                     Some(mut index_field) => {
 
-                        // We delete from the beggining of the line to the first "'", and keep the text
+                        // We delete from the beginning of the line to the first "'", and keep the text
                         // from there until the next "'". That's our name
                         entry.drain(..(index_field + 6));
                         index_field = entry.find(&*format!("\'")).unwrap();
@@ -212,14 +227,81 @@ impl DBData {
                 }
             }
             //println!("{:#?}", packed_file_data_entries_fields);
-            // We return the structure of the DB PackedFile.
+
+            // Now that we have the structure of the DB PackedFile, we decode his data.
+            // First, we get the amount of columns we have.
+            let column_amount = packed_file_data_entries_fields.len();
+
+            let mut packed_file_data_decoded_rows: Vec<Vec<DecodedData>> = vec![];
+
+            // Then we go field by field putting data into a Vec<DecodedData>, and every row
+            // (Vec<DecodedData) into a Vec<Vec<DecodedData>>.
+            let mut index = 0;
+            for row in 0..packed_file_header_packed_file_entry_count {
+                let mut entry: Vec<DecodedData> = vec![];
+                for column in 0..(column_amount + 1) {
+
+                    // First column it's always the index.
+                    if column == 0 {
+                        let entry_index = DecodedData::Index(format!("{:0count$}", (row + 1), count = (packed_file_header_packed_file_entry_count.to_string().len() + 1)));
+                        entry.push(entry_index);
+                    }
+
+                    // The rest of the columns, we decode them based on his type and store them in a DecodedData
+                    // enum, as enums are the only thing I found that can store them.
+                    else {
+                        let field = packed_file_data_entries_fields.get_index((column as usize) - 1).unwrap();
+                        let field_type = field.1;
+
+                        match &**field_type {
+                            "boolean" => {
+                                let data = helpers::decode_bool(packed_file_data.to_vec(), index);
+                                index = data.1;
+                                entry.push(DecodedData::Boolean(data.0));
+                            }
+                            "string_ascii" => {
+                                let data = helpers::decode_string_u8(packed_file_data.to_vec(), index);
+                                index = data.1;
+                                entry.push(DecodedData::String(data.0));
+                            }
+                            "optstring_ascii" => {
+                                let data = helpers::decode_optional_string_u8(packed_file_data.to_vec(), index);
+                                index = data.1;
+                                entry.push(DecodedData::OptionalString(data.0));
+                            }
+                            "int" => {
+                                let data = helpers::decode_integer_u32(packed_file_data.to_vec(), index);
+                                index = data.1;
+                                entry.push(DecodedData::Integer(data.0));
+                            }
+                            "float" => {
+                                let data = helpers::decode_float_u32(packed_file_data.to_vec(), index);
+                                index = data.1;
+                                entry.push(DecodedData::Float(data.0));
+                            }
+                            _ => {
+                                // If this fires up, the table has a non-implemented field. Current non-
+                                // implemented fields are "string" and "oopstring".
+                                println!("Unkown field_type {}", field_type);
+                            }
+                        }
+                    }
+                }
+                packed_file_data_decoded_rows.push(entry.clone());
+            }
+            // We return the structure of the DB PackedFile and his decoded data.
             packed_file_data_structure = Some(packed_file_data_entries_fields);
+            packed_file_data_decoded = packed_file_data_decoded_rows;
         }
         else {
 
-            // In case we didn't found a definition in the master_schema, we return None.
+            // In case we didn't found a definition in the master_schema, we return None and the RawData
+            // of the DB PackedFile.
             packed_file_data_structure = None;
+            packed_file_data_decoded = vec![vec![DecodedData::RawData(packed_file_data)]];
         }
+
+        let packed_file_data = packed_file_data_decoded;
 
         DBData {
             packed_file_data_structure,

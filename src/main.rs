@@ -1129,7 +1129,10 @@ fn main() {
                     let packed_file_tree_view = packed_file_tree_view_stuff.packed_file_tree_view;
                     let packed_file_list_store = packed_file_tree_view_stuff.packed_file_list_store;
 
-                    ui::packedfile_db::PackedFileDBTreeView::load_data_to_tree_view((&packed_file_data_decoded.borrow().packed_file_data.packed_file_data).to_vec(), &packed_file_data_decoded.borrow().packed_file_data.packed_file_data_structure, &packed_file_tree_view, &packed_file_list_store, packed_file_data_decoded.borrow().packed_file_header.packed_file_header_packed_file_entry_count);
+                    ui::packedfile_db::PackedFileDBTreeView::load_data_to_tree_view(
+                        (&packed_file_data_decoded.borrow().packed_file_data.packed_file_data).to_vec(),
+                        &packed_file_list_store,
+                    );
 
                     // These are the events to save edits in cells, one loop for every type of cell.
                     // This loop takes care of the interaction with string cells.

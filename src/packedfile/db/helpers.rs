@@ -2,7 +2,7 @@
 
 /*
 --------------------------------------------------------
-                    Decoding helpers
+                   Decoding helpers
 --------------------------------------------------------
 */
 
@@ -57,4 +57,21 @@ pub fn decode_bool(packed_file_data: Vec<u8>, mut index: usize) -> (bool, usize)
     let is_true = ::common::coding_helpers::decode_bool(packed_file_data[index]);
     index += 1;
     (is_true, index)
+}
+
+/*
+--------------------------------------------------------
+                   Encoding helpers
+--------------------------------------------------------
+*/
+
+
+
+
+/// This function allow us to encode to Vec<u8> a boolean cell. We return the Vec<u8> and the index
+/// for the next cell's data.
+pub fn encode_bool(bool_decoded: bool, mut index: usize) -> (Vec<u8>, usize) {
+    let bool_encoded = ::common::coding_helpers::encode_bool(bool_decoded);
+    index += 1;
+    (bool_encoded, index)
 }
