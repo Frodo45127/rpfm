@@ -204,12 +204,23 @@ impl DBData {
         let mut packed_file_data_entries_fields: OrderMap<String,String> = OrderMap::new();
 
         // We depend on a very specific string to find the table. This need to be changed to something more... stable.
-        let index_master_schema = master_schema.find(
+        let index_master_schema;
+        if cfg!(target_os = "linux") {
+            index_master_schema = master_schema.find(
                 &*format!("<table table_name='{}'\n         table_version='{}' >",
-                packed_file_db_type,
-                packed_file_header_packed_file_version
-            )
-        );
+                          packed_file_db_type,
+                          packed_file_header_packed_file_version
+                )
+            );
+        }
+        else {
+            index_master_schema = master_schema.find(
+                &*format!("<table table_name='{}'\r\n         table_version='{}' >",
+                          packed_file_db_type,
+                          packed_file_header_packed_file_version
+                )
+            );
+        }
 
         // First, we check if it exists in the master_schema.
         if index_master_schema != None {
