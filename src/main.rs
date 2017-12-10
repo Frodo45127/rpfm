@@ -1377,10 +1377,10 @@ fn main() {
                                                             gtk_value_field = gtk::ToValue::to_value(&format!("New optional string"));
                                                         }
                                                         "int" => {
-                                                            gtk_value_field = gtk::ToValue::to_value(&format!("0"));
+                                                            gtk_value_field = gtk::ToValue::to_value(&0);
                                                         }
                                                         "float" => {
-                                                            gtk_value_field = gtk::ToValue::to_value(&format!("0.0"));
+                                                            gtk_value_field = gtk::ToValue::to_value(&0.0);
                                                         }
                                                         _ => {
                                                             // If this fires up, the table has a non-implemented field. Current non-
@@ -1389,6 +1389,7 @@ fn main() {
                                                         }
                                                     }
                                                 }
+                                                println!("{:?}", gtk_value_field);
                                                 packed_file_list_store.set_value(&current_row, index, &gtk_value_field);
                                                 index += 1;
                                             }
@@ -1449,63 +1450,6 @@ fn main() {
 
                                 Inhibit(false)
                             }));
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
                         }
                         None => {
                             println!("Schema to decode this DB PackedFile Type not yet implemented.")
