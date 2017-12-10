@@ -1255,7 +1255,7 @@
     <property name="type_hint">dialog</property>
     <property name="transient_for">gtk_window</property>
     <property name="program_name">Rusted Pack File Manager</property>
-    <property name="version">0.0.6</property>
+    <property name="version">0.1.0</property>
     <property name="authors">Frodo45127</property>
     <property name="artists">Maruka</property>
     <property name="logo">img/rpfm.png</property>
