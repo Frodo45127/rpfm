@@ -1125,79 +1125,31 @@ fn main() {
                     let packed_file_data_encoded = &*pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data;
                     let packed_file_data_decoded = Rc::new(RefCell::new(DB::read(packed_file_data_encoded.to_vec(), table, master_schema.clone())));
 
-                    let packed_file_tree_view_stuff = ui::packedfile_db::PackedFileDBTreeView::create_tree_view(&packed_file_data_display, &*packed_file_data_decoded.borrow());
-                    let packed_file_tree_view = packed_file_tree_view_stuff.packed_file_tree_view;
-                    let packed_file_list_store = packed_file_tree_view_stuff.packed_file_list_store;
+                    // ONLY if we have found an schema, we decode it, otherwise we do nothing.
+                    let packed_file_data_structure = &packed_file_data_decoded.borrow().packed_file_data.packed_file_data_structure;
+                    match *packed_file_data_structure {
+                        Some(_) => {
+                            let packed_file_tree_view_stuff = ui::packedfile_db::PackedFileDBTreeView::create_tree_view(&packed_file_data_display, &*packed_file_data_decoded.borrow());
+                            let packed_file_tree_view = packed_file_tree_view_stuff.packed_file_tree_view;
+                            let packed_file_list_store = packed_file_tree_view_stuff.packed_file_list_store;
 
-                    ui::packedfile_db::PackedFileDBTreeView::load_data_to_tree_view(
-                        (&packed_file_data_decoded.borrow().packed_file_data.packed_file_data).to_vec(),
-                        &packed_file_list_store,
-                    );
+                            ui::packedfile_db::PackedFileDBTreeView::load_data_to_tree_view(
+                                (&packed_file_data_decoded.borrow().packed_file_data.packed_file_data).to_vec(),
+                                &packed_file_list_store,
+                            );
 
-                    // These are the events to save edits in cells, one loop for every type of cell.
-                    // This loop takes care of the interaction with string cells.
-                    for edited_cell in packed_file_tree_view_stuff.packed_file_tree_view_cell_string.iter() {
-                        edited_cell.connect_edited(clone!(
-                            pack_file_decoded,
-                            packed_file_data_decoded,
-                            packed_file_tree_view,
-                            packed_file_list_store => move |_ ,tree_path , new_text|{
+                            // These are the events to save edits in cells, one loop for every type of cell.
+                            // This loop takes care of the interaction with string cells.
+                            for edited_cell in packed_file_tree_view_stuff.packed_file_tree_view_cell_string.iter() {
+                                edited_cell.connect_edited(clone!(
+                                    pack_file_decoded,
+                                    packed_file_data_decoded,
+                                    packed_file_tree_view,
+                                    packed_file_list_store => move |_ ,tree_path , new_text|{
 
-                            let edited_cell = packed_file_list_store.get_iter(&tree_path);
-                            let edited_cell_column = packed_file_tree_view.get_cursor();
-                            packed_file_list_store.set_value(&edited_cell.unwrap(), edited_cell_column.1.unwrap().get_sort_column_id() as u32, &new_text.to_value());
-
-                            // Get the data from the table and turn it into a Vec<u8> to write it.
-                            let packed_file_data_structure = &packed_file_data_decoded.borrow().packed_file_data.packed_file_data_structure.clone();
-                            packed_file_data_decoded.borrow_mut().packed_file_data.packed_file_data = ui::packedfile_db::PackedFileDBTreeView::return_data_from_tree_view(
-                                &packed_file_data_structure,
-                                &packed_file_list_store);
-                            ::packfile::update_packed_file_data_db(
-                                &*packed_file_data_decoded.borrow_mut(),
-                                &mut *pack_file_decoded.borrow_mut(),
-                                index as usize);
-                        }));
-                    }
-
-                    // This loop takes care of the interaction with optional_string cells.
-                    for edited_cell in packed_file_tree_view_stuff.packed_file_tree_view_cell_optional_string.iter() {
-                        edited_cell.connect_edited(clone!(
-                            pack_file_decoded,
-                            packed_file_data_decoded,
-                            packed_file_tree_view,
-                            packed_file_list_store => move |_ ,tree_path , new_text|{
-
-                            let edited_cell = packed_file_list_store.get_iter(&tree_path);
-                            let edited_cell_column = packed_file_tree_view.get_cursor();
-                            packed_file_list_store.set_value(&edited_cell.unwrap(), edited_cell_column.1.unwrap().get_sort_column_id() as u32, &new_text.to_value());
-
-                            // Get the data from the table and turn it into a Vec<u8> to write it.
-                            let packed_file_data_structure = &packed_file_data_decoded.borrow().packed_file_data.packed_file_data_structure.clone();
-                            packed_file_data_decoded.borrow_mut().packed_file_data.packed_file_data = ui::packedfile_db::PackedFileDBTreeView::return_data_from_tree_view(
-                                &packed_file_data_structure,
-                                &packed_file_list_store);
-                            ::packfile::update_packed_file_data_db(
-                                &*packed_file_data_decoded.borrow_mut(),
-                                &mut *pack_file_decoded.borrow_mut(),
-                                index as usize);
-                        }));
-                    }
-
-                    // This loop takes care of the interaction with U32 cells.
-                    for edited_cell in packed_file_tree_view_stuff.packed_file_tree_view_cell_integer.iter() {
-                        edited_cell.connect_edited(clone!(
-                            pack_file_decoded,
-                            packed_file_data_decoded,
-                            packed_file_tree_view,
-                            packed_file_list_store => move |_ ,tree_path , new_text|{
-
-                            let new_number = new_text.parse();
-                            match new_number {
-                                Ok(new_number) => {
-                                    let new_number: u32 = new_number;
                                     let edited_cell = packed_file_list_store.get_iter(&tree_path);
                                     let edited_cell_column = packed_file_tree_view.get_cursor();
-                                    packed_file_list_store.set_value(&edited_cell.unwrap(), edited_cell_column.1.unwrap().get_sort_column_id() as u32, &new_number.to_value());
+                                    packed_file_list_store.set_value(&edited_cell.unwrap(), edited_cell_column.1.unwrap().get_sort_column_id() as u32, &new_text.to_value());
 
                                     // Get the data from the table and turn it into a Vec<u8> to write it.
                                     let packed_file_data_structure = &packed_file_data_decoded.borrow().packed_file_data.packed_file_data_structure.clone();
@@ -1208,34 +1160,20 @@ fn main() {
                                         &*packed_file_data_decoded.borrow_mut(),
                                         &mut *pack_file_decoded.borrow_mut(),
                                         index as usize);
-                                }
-                                Err(_) => {
-                                    let edited_cell = packed_file_list_store.get_iter(&tree_path).unwrap();
-                                    let edited_cell_column = packed_file_tree_view.get_cursor().1.unwrap().get_sort_column_id();
-                                    let old_number: u32 = packed_file_list_store.get_value(&edited_cell, edited_cell_column as i32).get().unwrap();
-                                    packed_file_list_store.set_value(&edited_cell, edited_cell_column as u32, &old_number.to_value());
-                                }
+                                }));
                             }
 
-                        }));
-                    }
+                            // This loop takes care of the interaction with optional_string cells.
+                            for edited_cell in packed_file_tree_view_stuff.packed_file_tree_view_cell_optional_string.iter() {
+                                edited_cell.connect_edited(clone!(
+                                    pack_file_decoded,
+                                    packed_file_data_decoded,
+                                    packed_file_tree_view,
+                                    packed_file_list_store => move |_ ,tree_path , new_text|{
 
-                    // This loop takes care of the interaction with F32 cells.
-                    // TODO: Delete the trailing zeros.
-                    for edited_cell in packed_file_tree_view_stuff.packed_file_tree_view_cell_float.iter() {
-                        edited_cell.connect_edited(clone!(
-                            pack_file_decoded,
-                            packed_file_data_decoded,
-                            packed_file_tree_view,
-                            packed_file_list_store => move |_ ,tree_path , new_text|{
-
-                            let new_number = new_text.parse();
-                            match new_number {
-                                Ok(new_number) => {
-                                    let new_number: f32 = new_number;
                                     let edited_cell = packed_file_list_store.get_iter(&tree_path);
                                     let edited_cell_column = packed_file_tree_view.get_cursor();
-                                    packed_file_list_store.set_value(&edited_cell.unwrap(), edited_cell_column.1.unwrap().get_sort_column_id() as u32, &new_number.to_value());
+                                    packed_file_list_store.set_value(&edited_cell.unwrap(), edited_cell_column.1.unwrap().get_sort_column_id() as u32, &new_text.to_value());
 
                                     // Get the data from the table and turn it into a Vec<u8> to write it.
                                     let packed_file_data_structure = &packed_file_data_decoded.borrow().packed_file_data.packed_file_data_structure.clone();
@@ -1246,43 +1184,114 @@ fn main() {
                                         &*packed_file_data_decoded.borrow_mut(),
                                         &mut *pack_file_decoded.borrow_mut(),
                                         index as usize);
-                                }
-                                Err(_) => {
-                                    let edited_cell = packed_file_list_store.get_iter(&tree_path).unwrap();
-                                    let edited_cell_column = packed_file_tree_view.get_cursor().1.unwrap().get_sort_column_id();
-                                    let old_number: f32 = packed_file_list_store.get_value(&edited_cell, edited_cell_column as i32).get().unwrap();
-                                    packed_file_list_store.set_value(&edited_cell, edited_cell_column as u32, &old_number.to_value());
-                                }
+                                }));
                             }
-                        }));
-                    }
 
-                    // This loop takes care of the interaction with bool cells.
-                    for edited_cell in packed_file_tree_view_stuff.packed_file_tree_view_cell_bool.iter() {
-                        edited_cell.connect_toggled(clone!(
-                            pack_file_decoded,
-                            packed_file_data_decoded,
-                            packed_file_tree_view,
-                            packed_file_list_store => move |cell, tree_path|{
+                            // This loop takes care of the interaction with U32 cells.
+                            for edited_cell in packed_file_tree_view_stuff.packed_file_tree_view_cell_integer.iter() {
+                                edited_cell.connect_edited(clone!(
+                                    pack_file_decoded,
+                                    packed_file_data_decoded,
+                                    packed_file_tree_view,
+                                    packed_file_list_store => move |_ ,tree_path , new_text|{
 
-                            let tree_iter = packed_file_list_store.get_iter(&tree_path).unwrap();
-                            // Get (Option<TreePath>, Option<TreeViewColumn>)
-                            let edited_cell_column: u32 = packed_file_tree_view.get_cursor().1.unwrap().get_sort_column_id() as u32;
-                            let new_value: bool = packed_file_list_store.get_value(&tree_iter, edited_cell_column as i32).get().unwrap();
-                            let new_value_bool = (!new_value).to_value();
-                            cell.set_active(!new_value);
-                            packed_file_list_store.set_value(&tree_iter, edited_cell_column, &new_value_bool);
+                                    let new_number = new_text.parse();
+                                    match new_number {
+                                        Ok(new_number) => {
+                                            let new_number: u32 = new_number;
+                                            let edited_cell = packed_file_list_store.get_iter(&tree_path);
+                                            let edited_cell_column = packed_file_tree_view.get_cursor();
+                                            packed_file_list_store.set_value(&edited_cell.unwrap(), edited_cell_column.1.unwrap().get_sort_column_id() as u32, &new_number.to_value());
 
-                            // Get the data from the table and turn it into a Vec<u8> to write it.
-                            let packed_file_data_structure = &packed_file_data_decoded.borrow().packed_file_data.packed_file_data_structure.clone();
-                            packed_file_data_decoded.borrow_mut().packed_file_data.packed_file_data = ui::packedfile_db::PackedFileDBTreeView::return_data_from_tree_view(
-                                &packed_file_data_structure,
-                                &packed_file_list_store);
-                            ::packfile::update_packed_file_data_db(
-                                &*packed_file_data_decoded.borrow_mut(),
-                                &mut *pack_file_decoded.borrow_mut(),
-                                index as usize);
-                        }));
+                                            // Get the data from the table and turn it into a Vec<u8> to write it.
+                                            let packed_file_data_structure = &packed_file_data_decoded.borrow().packed_file_data.packed_file_data_structure.clone();
+                                            packed_file_data_decoded.borrow_mut().packed_file_data.packed_file_data = ui::packedfile_db::PackedFileDBTreeView::return_data_from_tree_view(
+                                                &packed_file_data_structure,
+                                                &packed_file_list_store);
+                                            ::packfile::update_packed_file_data_db(
+                                                &*packed_file_data_decoded.borrow_mut(),
+                                                &mut *pack_file_decoded.borrow_mut(),
+                                                index as usize);
+                                        }
+                                        Err(_) => {
+                                            let edited_cell = packed_file_list_store.get_iter(&tree_path).unwrap();
+                                            let edited_cell_column = packed_file_tree_view.get_cursor().1.unwrap().get_sort_column_id();
+                                            let old_number: u32 = packed_file_list_store.get_value(&edited_cell, edited_cell_column as i32).get().unwrap();
+                                            packed_file_list_store.set_value(&edited_cell, edited_cell_column as u32, &old_number.to_value());
+                                        }
+                                    }
+
+                                }));
+                            }
+
+                            // This loop takes care of the interaction with F32 cells.
+                            // TODO: Delete the trailing zeros.
+                            for edited_cell in packed_file_tree_view_stuff.packed_file_tree_view_cell_float.iter() {
+                                edited_cell.connect_edited(clone!(
+                                    pack_file_decoded,
+                                    packed_file_data_decoded,
+                                    packed_file_tree_view,
+                                    packed_file_list_store => move |_ ,tree_path , new_text|{
+
+                                    let new_number = new_text.parse();
+                                    match new_number {
+                                        Ok(new_number) => {
+                                            let new_number: f32 = new_number;
+                                            let edited_cell = packed_file_list_store.get_iter(&tree_path);
+                                            let edited_cell_column = packed_file_tree_view.get_cursor();
+                                            packed_file_list_store.set_value(&edited_cell.unwrap(), edited_cell_column.1.unwrap().get_sort_column_id() as u32, &new_number.to_value());
+
+                                            // Get the data from the table and turn it into a Vec<u8> to write it.
+                                            let packed_file_data_structure = &packed_file_data_decoded.borrow().packed_file_data.packed_file_data_structure.clone();
+                                            packed_file_data_decoded.borrow_mut().packed_file_data.packed_file_data = ui::packedfile_db::PackedFileDBTreeView::return_data_from_tree_view(
+                                                &packed_file_data_structure,
+                                                &packed_file_list_store);
+                                            ::packfile::update_packed_file_data_db(
+                                                &*packed_file_data_decoded.borrow_mut(),
+                                                &mut *pack_file_decoded.borrow_mut(),
+                                                index as usize);
+                                        }
+                                        Err(_) => {
+                                            let edited_cell = packed_file_list_store.get_iter(&tree_path).unwrap();
+                                            let edited_cell_column = packed_file_tree_view.get_cursor().1.unwrap().get_sort_column_id();
+                                            let old_number: f32 = packed_file_list_store.get_value(&edited_cell, edited_cell_column as i32).get().unwrap();
+                                            packed_file_list_store.set_value(&edited_cell, edited_cell_column as u32, &old_number.to_value());
+                                        }
+                                    }
+                                }));
+                            }
+
+                            // This loop takes care of the interaction with bool cells.
+                            for edited_cell in packed_file_tree_view_stuff.packed_file_tree_view_cell_bool.iter() {
+                                edited_cell.connect_toggled(clone!(
+                                    pack_file_decoded,
+                                    packed_file_data_decoded,
+                                    packed_file_tree_view,
+                                    packed_file_list_store => move |cell, tree_path|{
+
+                                    let tree_iter = packed_file_list_store.get_iter(&tree_path).unwrap();
+                                    // Get (Option<TreePath>, Option<TreeViewColumn>)
+                                    let edited_cell_column: u32 = packed_file_tree_view.get_cursor().1.unwrap().get_sort_column_id() as u32;
+                                    let new_value: bool = packed_file_list_store.get_value(&tree_iter, edited_cell_column as i32).get().unwrap();
+                                    let new_value_bool = (!new_value).to_value();
+                                    cell.set_active(!new_value);
+                                    packed_file_list_store.set_value(&tree_iter, edited_cell_column, &new_value_bool);
+
+                                    // Get the data from the table and turn it into a Vec<u8> to write it.
+                                    let packed_file_data_structure = &packed_file_data_decoded.borrow().packed_file_data.packed_file_data_structure.clone();
+                                    packed_file_data_decoded.borrow_mut().packed_file_data.packed_file_data = ui::packedfile_db::PackedFileDBTreeView::return_data_from_tree_view(
+                                        &packed_file_data_structure,
+                                        &packed_file_list_store);
+                                    ::packfile::update_packed_file_data_db(
+                                        &*packed_file_data_decoded.borrow_mut(),
+                                        &mut *pack_file_decoded.borrow_mut(),
+                                        index as usize);
+                                }));
+                            }
+                        }
+                        None => {
+                            println!("Schema to decode this DB PackedFile Type not yet implemented.")
+                        }
                     }
                 }
 
