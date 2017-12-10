@@ -3,7 +3,7 @@
 extern crate byteorder;
 
 use self::byteorder::{
-    ByteOrder, BigEndian, WriteBytesExt
+    ByteOrder, BigEndian
 };
 /*
 --------------------------------------------------------

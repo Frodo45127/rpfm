@@ -42,6 +42,7 @@ cargo build --target=x86_64-unknown-linux-gnu --release
 - **Why the code quality is not the very best?**: because I'm using this project to learn Rust, and I'm constantly rewriting code as I find new and better ways to write it.
 
 # Known bugs
+- DB table titles has no spaces or underscores.
 - Float fields in DB PackedFiles have trailing zeros.
 - Sometimes when selecting a DB PackedFile after having another one selected, the scrollbar disappear.
 - Decoding of big Loc files (like the vanilla localisation file) is SLOOOOWWWWWW. Need to improve his decoding in the future.
