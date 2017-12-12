@@ -3,7 +3,7 @@ extern crate gtk;
 
 use gtk::prelude::*;
 use gtk::{
-    TreeView, TreeSelection, ListStore, ScrolledWindow,
+    Box, TreeView, TreeSelection, ListStore, ScrolledWindow,
     CellRendererText, TreeViewColumn, CellRendererToggle
 };
 
@@ -27,7 +27,7 @@ impl PackedFileLocTreeView{
 
     /// This function creates a new TreeView with "packed_file_data_display" as father and returns a
     /// PackedFileLocTreeView with all his data.
-    pub fn create_tree_view(packed_file_data_display: &ScrolledWindow) -> PackedFileLocTreeView {
+    pub fn create_tree_view(packed_file_data_display: &Box) -> PackedFileLocTreeView {
 
         // First, we create the new ListStore, the new TreeView, and prepare the TreeView to display the data
         let packed_file_tree_view = TreeView::new();
@@ -99,7 +99,9 @@ impl PackedFileLocTreeView{
 
         packed_file_tree_view.set_enable_search(false);
 
-        packed_file_data_display.add(&packed_file_tree_view);
+        let packed_file_data_scroll = ScrolledWindow::new(None, None);
+        packed_file_data_scroll.add(&packed_file_tree_view);
+        packed_file_data_display.pack_end(&packed_file_data_scroll, true, true, 0);
         packed_file_data_display.show_all();
 
         PackedFileLocTreeView {
