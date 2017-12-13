@@ -141,6 +141,12 @@ fn main() {
     folder_tree_view.set_rules_hint(true);
     window.set_position(WindowPosition::Center);
 
+    // Here we set the TreeView as "drag_dest", so we can drag&drop things to it.
+    let targets = vec![
+        gtk::TargetEntry::new("text/uri-list", gtk::TargetFlags::empty(), 80)
+    ];
+    folder_tree_view.drag_dest_set(gtk::DestDefaults::ALL, &targets, gdk::DragAction::COPY);
+
     // We bring up the main window.
     window.show_all();
 
@@ -1542,6 +1548,46 @@ fn main() {
         }
 
         Inhibit(false);
+    }));
+
+    // This allow us to open a PackFile by "Drag&Drop" it into the folder_tree_view.
+    folder_tree_view.connect_drag_data_received(clone!(
+        error_dialog,
+        pack_file_decoded,
+        folder_tree_store,
+        top_menu_file_change_packfile_type_boot,
+        top_menu_file_change_packfile_type_release,
+        top_menu_file_change_packfile_type_patch,
+        top_menu_file_change_packfile_type_mod,
+        top_menu_file_change_packfile_type_movie => move |_, _, _, _, pack_file_path, _, _| {
+        let pack_file_path: PathBuf = PathBuf::from(pack_file_path.get_uris()[0].replace("file:///", "/").replace("%20", " "));
+        match packfile::open_packfile(pack_file_path) {
+            Ok(pack_file_opened) => {
+
+                *pack_file_decoded.borrow_mut() = pack_file_opened;
+                ui::update_tree_view(&folder_tree_store, &*pack_file_decoded.borrow());
+
+                // We choose the right option, depending on our PackFile.
+                if pack_file_decoded.borrow().pack_file_header.pack_file_type == 0u32 {
+                    top_menu_file_change_packfile_type_boot.set_active(true);
+                }
+                else if pack_file_decoded.borrow().pack_file_header.pack_file_type == 1u32{
+                    top_menu_file_change_packfile_type_release.set_active(true);
+                }
+                else if pack_file_decoded.borrow().pack_file_header.pack_file_type == 2u32{
+                    top_menu_file_change_packfile_type_patch.set_active(true);
+                }
+                else if pack_file_decoded.borrow().pack_file_header.pack_file_type == 3u32{
+                    top_menu_file_change_packfile_type_mod.set_active(true);
+                }
+                else if pack_file_decoded.borrow().pack_file_header.pack_file_type == 4u32{
+                    top_menu_file_change_packfile_type_movie.set_active(true);
+                }
+            }
+            Err(e) => {
+                ui::show_dialog(&error_dialog, e);
+            }
+        }
     }));
 
     // We start GTK. Yay
