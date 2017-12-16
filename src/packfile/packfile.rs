@@ -1,14 +1,7 @@
 // In this file are all the Structs and Impls required to decode and encode the PackFiles.
 // For now we only support common TW: Warhammer 2 PackFiles (not loc files, those are different).
 
-extern crate byteorder;
-
-use ::common;
-use std::u32;
-
-use self::byteorder::{
-    ReadBytesExt, BigEndian
-};
+use common::coding_helpers;
 
 /// Struct PackFile: This stores the data of the entire PackFile in memory ('cause fuck lazy-loading),
 /// along with some extra data needed to manipulate the PackFile.
@@ -210,44 +203,13 @@ impl PackFileHeader {
     /// this data in packs of 4 bytes, then we put them together, reverse them and read them.
     pub fn read(header: &[u8]) -> PackFileHeader {
 
-        // ID
-        let pack_file_id = common::latin1_to_string(&header[0..4]);
-
-        // PackFile Type
-        let mut pack_file_type: Vec<u8> = header[4..8].into();
-        pack_file_type.reverse();
-        let mut pack_file_type = &pack_file_type[0..4];
-        let pack_file_type: u32 = pack_file_type.read_u32::<BigEndian>().unwrap();
-
-        // Replaced PackFile count
-        let mut pack_file_count: Vec<u8> = header[8..12].into();
-        pack_file_count.reverse();
-        let mut pack_file_count = &pack_file_count[0..4];
-        let pack_file_count: u32 = pack_file_count.read_u32::<BigEndian>().unwrap();
-
-        // Replaced PackFile size
-        let mut pack_file_index_size: Vec<u8> = header[12..16].into();
-        pack_file_index_size.reverse();
-        let mut pack_file_index_size = &pack_file_index_size[0..4];
-        let pack_file_index_size: u32 = pack_file_index_size.read_u32::<BigEndian>().unwrap();
-
-        // File count
-        let mut packed_file_count: Vec<u8> = header[16..20].into();
-        packed_file_count.reverse();
-        let mut packed_file_count = &packed_file_count[0..4];
-        let packed_file_count: u32 = packed_file_count.read_u32::<BigEndian>().unwrap();
-
-        // Index size
-        let mut packed_file_index_size: Vec<u8> = header[20..24].into();
-        packed_file_index_size.reverse();
-        let mut packed_file_index_size = &packed_file_index_size[0..4];
-        let packed_file_index_size: u32 = packed_file_index_size.read_u32::<BigEndian>().unwrap();
-
-        // Unknown data
-        let mut unknown_data: Vec<u8> = header[24..28].into();
-        unknown_data.reverse();
-        let mut unknown_data = &unknown_data[0..4];
-        let unknown_data: u32 = unknown_data.read_u32::<BigEndian>().unwrap();
+        let pack_file_id = coding_helpers::decode_string_u8((&header[0..4]).to_vec());
+        let pack_file_type: u32 = coding_helpers::decode_integer_u32((&header[4..8]).to_vec());
+        let pack_file_count: u32 = coding_helpers::decode_integer_u32((&header[8..12]).to_vec());
+        let pack_file_index_size: u32 = coding_helpers::decode_integer_u32((&header[12..16]).to_vec());
+        let packed_file_count: u32 = coding_helpers::decode_integer_u32((&header[16..20]).to_vec());
+        let packed_file_index_size: u32 = coding_helpers::decode_integer_u32((&header[20..24]).to_vec());
+        let unknown_data: u32 = coding_helpers::decode_integer_u32((&header[24..28]).to_vec());
 
         PackFileHeader {
             pack_file_id,
@@ -265,21 +227,21 @@ impl PackFileHeader {
     pub fn save(header_decoded: &PackFileHeader, pack_file_index_size: u32, packed_file_index_size: u32) -> Vec<u8> {
         let mut header_encoded = vec![];
 
-        let pack_file_id = &header_decoded.pack_file_id;
-        let pack_file_type = common::u32_to_u8_reverse(header_decoded.pack_file_type);
-        let pack_file_count = common::u32_to_u8_reverse(header_decoded.pack_file_count);
-        let pack_file_index_size = common::u32_to_u8_reverse(pack_file_index_size);
-        let packed_file_count = common::u32_to_u8_reverse(header_decoded.packed_file_count);
-        let packed_file_index_size = common::u32_to_u8_reverse(packed_file_index_size);
-        let unknown_data = common::u32_to_u8_reverse(header_decoded.unknown_data);
+        let mut pack_file_id = coding_helpers::encode_string_u8(header_decoded.pack_file_id.clone());
+        let mut pack_file_type = coding_helpers::encode_integer_u32(header_decoded.pack_file_type);
+        let mut pack_file_count = coding_helpers::encode_integer_u32(header_decoded.pack_file_count);
+        let mut pack_file_index_size = coding_helpers::encode_integer_u32(pack_file_index_size);
+        let mut packed_file_count = coding_helpers::encode_integer_u32(header_decoded.packed_file_count);
+        let mut packed_file_index_size = coding_helpers::encode_integer_u32(packed_file_index_size);
+        let mut unknown_data = coding_helpers::encode_integer_u32(header_decoded.unknown_data);
 
-        header_encoded.extend_from_slice(&pack_file_id.as_bytes());
-        header_encoded.extend_from_slice(&pack_file_type);
-        header_encoded.extend_from_slice(&pack_file_count);
-        header_encoded.extend_from_slice(&pack_file_index_size);
-        header_encoded.extend_from_slice(&packed_file_count);
-        header_encoded.extend_from_slice(&packed_file_index_size);
-        header_encoded.extend_from_slice(&unknown_data);
+        header_encoded.append(&mut pack_file_id);
+        header_encoded.append(&mut pack_file_type);
+        header_encoded.append(&mut pack_file_count);
+        header_encoded.append(&mut pack_file_index_size);
+        header_encoded.append(&mut packed_file_count);
+        header_encoded.append(&mut packed_file_index_size);
+        header_encoded.append(&mut unknown_data);
         header_encoded
     }
 }
@@ -369,15 +331,12 @@ impl PackFileData {
             }
 
             // We get the size of the PackedFile (bytes 1 to 4 of the index)
-            let mut file_size: Vec<u8> = packed_file_index[
-                ((packed_file_index_offset as usize)
-                    + packed_file_index_file_size_begin_offset as usize)
-                    ..((packed_file_index_offset as usize)
-                    + 4
-                    + (packed_file_index_file_size_begin_offset as usize))].into();
-            file_size.reverse();
-            let mut file_size = &file_size[0..4];
-            let file_size: u32 = file_size.read_u32::<BigEndian>().unwrap();
+            let file_size: u32 = ::common::coding_helpers::decode_integer_u32(
+                packed_file_index[(
+                    (packed_file_index_offset as usize) + packed_file_index_file_size_begin_offset as usize)
+                    ..((packed_file_index_offset as usize) + 4 + (packed_file_index_file_size_begin_offset as usize))
+                    ].to_vec()
+            );
 
             // Then we get the Path, char by char
             let mut packed_file_index_path: Vec<String> = vec![];
@@ -498,7 +457,7 @@ impl PackedFile {
         let mut packed_file_index_entry: Vec<u8> = vec![];
 
         // We get the file_size and add a \u{0} to it.
-        let file_size_in_bytes = common::u32_to_u8_reverse(packed_file_decoded.packed_file_size);
+        let file_size_in_bytes = coding_helpers::encode_integer_u32(packed_file_decoded.packed_file_size);
         packed_file_index_entry.extend_from_slice(&file_size_in_bytes);
         packed_file_index_entry.extend_from_slice("\0".as_bytes());
 

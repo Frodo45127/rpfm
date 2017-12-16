@@ -26,8 +26,9 @@ use sourceview::{
 };
 
 use packfile::packfile::PackFile;
-use ::packedfile::loc::Loc;
-use ::packedfile::db::DB;
+use common::coding_helpers;
+use packedfile::loc::Loc;
+use packedfile::db::DB;
 
 mod common;
 mod ui;
@@ -1521,7 +1522,7 @@ fn main() {
 
                     // Then we push the text to the SourceView Buffer.
                     let packed_file_data_encoded = &*pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data;
-                    packed_file_source_view_buffer.set_text(&*::common::latin1_to_string(&packed_file_data_encoded));
+                    packed_file_source_view_buffer.set_text(&*coding_helpers::decode_string_u8(packed_file_data_encoded.to_vec()));
 
                     // And show everything.
                     packed_file_source_view_scroll.add(&packed_file_source_view);

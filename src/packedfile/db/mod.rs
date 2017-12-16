@@ -10,14 +10,10 @@
 // 1 misteryous byte
 // 4 bytes for the entry count, in u32 reversed.
 
-extern crate byteorder;
 extern crate ordermap;
 
-use std::u32;
-
+use ::common::coding_helpers;
 use self::ordermap::OrderMap;
-
-pub mod helpers;
 
 /// These two const are the markers we need to check in the header of every DB file.
 const GUID_MARKER: &[u8] = &[253, 254, 252, 255];
@@ -121,8 +117,8 @@ impl DBHeader {
 
         // If it has a GUID_MARKER, we get the GUID.
         if &packed_file_header[index..(index + 4)] == GUID_MARKER {
-            let packed_file_header_guid_lenght: u16 = (::common::coding_helpers::decode_integer_u16(packed_file_header[4..6].to_vec())) * 2;
-            packed_file_header_packed_file_guid = ::common::coding_helpers::decode_string_u16(packed_file_header[6..(6 + (packed_file_header_guid_lenght as usize))].to_vec());
+            let packed_file_header_guid_lenght: u16 = (coding_helpers::decode_integer_u16(packed_file_header[4..6].to_vec())) * 2;
+            packed_file_header_packed_file_guid = coding_helpers::decode_string_u16(packed_file_header[6..(6 + (packed_file_header_guid_lenght as usize))].to_vec());
             index = 6 + packed_file_header_guid_lenght as usize;
         }
         else {
@@ -131,7 +127,7 @@ impl DBHeader {
 
         // If it has a VERSION_MARKER, we get the version of the table.
         if &packed_file_header[index..(index + 4)] == VERSION_MARKER {
-            packed_file_header_packed_file_version = ::common::coding_helpers::decode_integer_u32(packed_file_header[(index + 4)..(index + 8)].to_vec());
+            packed_file_header_packed_file_version = coding_helpers::decode_integer_u32(packed_file_header[(index + 4)..(index + 8)].to_vec());
             packed_file_header_packed_file_version_marker = true;
             index = index + 8;
         }
@@ -144,7 +140,7 @@ impl DBHeader {
         let packed_file_header_packed_file_mysterious_byte = packed_file_header[index];
         index += 1;
 
-        let packed_file_header_packed_file_entry_count =  ::common::coding_helpers::decode_integer_u32(packed_file_header[(index)..(index + 4)].to_vec());
+        let packed_file_header_packed_file_entry_count =  coding_helpers::decode_integer_u32(packed_file_header[(index)..(index + 4)].to_vec());
 
         index += 4;
 
@@ -165,19 +161,19 @@ impl DBHeader {
         let mut packed_file_header_encoded: Vec<u8> = vec![];
 
         // First we get the lenght of the GUID (u16 reversed) and the GUID, in a u16 string.
-        let guid_encoded = ::common::coding_helpers::encode_string_u16(packed_file_header_decoded.packed_file_header_packed_file_guid.clone()).to_vec();
+        let guid_encoded = coding_helpers::encode_string_u16(packed_file_header_decoded.packed_file_header_packed_file_guid.clone());
 
         packed_file_header_encoded.extend_from_slice(&GUID_MARKER);
         packed_file_header_encoded.extend_from_slice(&guid_encoded);
 
         if packed_file_header_decoded.packed_file_header_packed_file_version_marker {
-            let version_encoded = ::common::u32_to_u8_reverse(packed_file_header_decoded.packed_file_header_packed_file_version).to_vec();
+            let version_encoded = coding_helpers::encode_integer_u32(packed_file_header_decoded.packed_file_header_packed_file_version);
 
             packed_file_header_encoded.extend_from_slice(&VERSION_MARKER);
             packed_file_header_encoded.extend_from_slice(&version_encoded);
         }
 
-        let packed_file_entry_count_encoded = ::common::u32_to_u8_reverse(packed_file_entry_count).to_vec();
+        let packed_file_entry_count_encoded = coding_helpers::encode_integer_u32(packed_file_entry_count);
 
         packed_file_header_encoded.push(packed_file_header_decoded.packed_file_header_packed_file_mysterious_byte);
         packed_file_header_encoded.extend_from_slice(&packed_file_entry_count_encoded);
@@ -307,27 +303,27 @@ impl DBData {
 
                         match &**field_type {
                             "boolean" => {
-                                let data = helpers::decode_bool(packed_file_data.to_vec(), index);
+                                let data = coding_helpers::decode_packedfile_bool(packed_file_data.to_vec(), index);
                                 index = data.1;
                                 entry.push(DecodedData::Boolean(data.0));
                             }
                             "string_ascii" => {
-                                let data = helpers::decode_string_u8(packed_file_data.to_vec(), index);
+                                let data = coding_helpers::decode_packedfile_string_u8(packed_file_data.to_vec(), index);
                                 index = data.1;
                                 entry.push(DecodedData::String(data.0));
                             }
                             "optstring_ascii" => {
-                                let data = helpers::decode_optional_string_u8(packed_file_data.to_vec(), index);
+                                let data = coding_helpers::decode_packedfile_optional_string_u8(packed_file_data.to_vec(), index);
                                 index = data.1;
                                 entry.push(DecodedData::OptionalString(data.0));
                             }
                             "int" => {
-                                let data = helpers::decode_integer_u32(packed_file_data.to_vec(), index);
+                                let data = coding_helpers::decode_packedfile_integer_u32(packed_file_data.to_vec(), index);
                                 index = data.1;
                                 entry.push(DecodedData::Integer(data.0));
                             }
                             "float" => {
-                                let data = helpers::decode_float_u32(packed_file_data.to_vec(), index);
+                                let data = coding_helpers::decode_packedfile_float_u32(packed_file_data.to_vec(), index);
                                 index = data.1;
                                 entry.push(DecodedData::Float(data.0));
                             }
@@ -380,23 +376,23 @@ impl DBData {
                         continue;
                     },
                     DecodedData::Boolean(data) => {
-                        let mut encoded_data = helpers::encode_bool(data.clone());
+                        let mut encoded_data = coding_helpers::encode_packedfile_bool(data.clone());
                         packed_file_data_encoded.append(&mut encoded_data);
                     },
                     DecodedData::String(ref data) => {
-                        let mut encoded_data = helpers::encode_string_u8(data.clone());
+                        let mut encoded_data = coding_helpers::encode_packedfile_string_u8(data.clone());
                         packed_file_data_encoded.append(&mut encoded_data);
                     },
                     DecodedData::OptionalString(ref data) => {
-                        let mut encoded_data = helpers::encode_optional_string_u8(data.clone());
+                        let mut encoded_data = coding_helpers::encode_packedfile_optional_string_u8(data.clone());
                         packed_file_data_encoded.append(&mut encoded_data);
                     },
                     DecodedData::Integer(data) => {
-                        let mut encoded_data = helpers::encode_integer_u32(data.clone());
+                        let mut encoded_data = coding_helpers::encode_packedfile_integer_u32(data.clone());
                         packed_file_data_encoded.append(&mut encoded_data);
                     },
                     DecodedData::Float(data) => {
-                        let mut encoded_data = helpers::encode_float_f32(data.clone());
+                        let mut encoded_data = coding_helpers::encode_packedfile_float_u32(data.clone());
                         packed_file_data_encoded.append(&mut encoded_data);
                     },
                     DecodedData::RawData(_) => {
