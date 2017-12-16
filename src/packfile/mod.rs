@@ -514,6 +514,22 @@ pub fn update_packed_file_data_db(
     pack_file.pack_file_data.packed_files[index].packed_file_size = packed_file_data_encoded_size;
 }
 
+/// This function saves the data of the edited Text PackedFile in the main PackFile after a change has
+/// been done by the user. Checking for valid characters is done before this, so be careful to not break it.
+pub fn update_packed_file_data_text(
+    packed_file_data_decoded: Vec<u8>,
+    pack_file: &mut packfile::PackFile,
+    index: usize,
+) {
+    let mut packed_file_data_encoded = packed_file_data_decoded.to_vec();
+    let packed_file_data_encoded_size = packed_file_data_encoded.len() as u32;
+
+    // Replace the old raw data of the PackedFile with the new one, and update his size.
+    &pack_file.pack_file_data.packed_files[index].packed_file_data.clear();
+    &pack_file.pack_file_data.packed_files[index].packed_file_data.append(&mut packed_file_data_encoded);
+    pack_file.pack_file_data.packed_files[index].packed_file_size = packed_file_data_encoded_size;
+}
+
 /*
 --------------------------------------------------------
          Special PackedFile-Related Functions

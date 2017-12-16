@@ -1531,10 +1531,15 @@ fn main() {
                     // When we click in the "Save to PackedFile" button
                     packed_file_source_view_save_button.connect_button_release_event(clone!(
                         pack_file_decoded => move |_,_| {
-                        pack_file_decoded.borrow_mut().pack_file_data.packed_files[index as usize].packed_file_data = packed_file_source_view.get_buffer().unwrap().get_slice(
+                        let packed_file_data_decoded = coding_helpers::encode_string_u8(packed_file_source_view.get_buffer().unwrap().get_slice(
                             &packed_file_source_view.get_buffer().unwrap().get_start_iter(),
                             &packed_file_source_view.get_buffer().unwrap().get_end_iter(),
-                            true).unwrap().as_bytes().to_vec();
+                            true).unwrap());
+
+                        ::packfile::update_packed_file_data_text(
+                            packed_file_data_decoded,
+                            &mut *pack_file_decoded.borrow_mut(),
+                            index as usize);
                         Inhibit(false)
                     }));
                 }

@@ -44,7 +44,7 @@ pub fn decode_float_u32(float_encoded: Vec<u8>) -> f32 {
 /// This function allow us to decode an UTF-8 encoded String.
 #[allow(dead_code)]
 pub fn decode_string_u8(string_encoded: Vec<u8>) -> String {
-    let string_decoded = string_encoded.iter().map(|&c| {c as char}).collect();
+    let string_decoded = String::from_utf8(string_encoded).unwrap();
     string_decoded
 }
 
