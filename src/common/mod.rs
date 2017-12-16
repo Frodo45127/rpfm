@@ -10,48 +10,6 @@ use std::path::Path;
 
 pub mod coding_helpers;
 
-/// This function may be a little stupid, but it turn easely some bytes into a readable String.
-#[allow(dead_code)]
-pub fn latin1_to_string(s: &[u8]) -> String {
-    s.iter()
-        .map(|&c| {
-            c as char
-        })
-        .collect()
-}
-
-/// Turn a u32 into an array of 4 u8. For byte conversion.
-#[allow(dead_code)]
-pub fn u32_to_u8(x:u32) -> [u8;4] {
-    let b1 : u8 = ((x >> 24) & 0xff) as u8;
-    let b2 : u8 = ((x >> 16) & 0xff) as u8;
-    let b3 : u8 = ((x >> 8) & 0xff) as u8;
-    let b4 : u8 = (x & 0xff) as u8;
-    return [b1, b2, b3, b4]
-}
-
-/// Turn a u32 into an array of 4 u8, and reverse the array before returning it. For byte conversion.
-#[allow(dead_code)]
-pub fn u32_to_u8_reverse(x:u32) -> [u8;4] {
-    let b1 : u8 = ((x >> 24) & 0xff) as u8;
-    let b2 : u8 = ((x >> 16) & 0xff) as u8;
-    let b3 : u8 = ((x >> 8) & 0xff) as u8;
-    let b4 : u8 = (x & 0xff) as u8;
-    let mut array = [b1, b2, b3, b4];
-    array.reverse();
-    return array
-}
-
-/// Turn a u16 into an array of 2 u8, and reverse the array before returning it. For byte conversion.
-#[allow(dead_code)]
-pub fn u16_to_u8_reverse(x:u16) -> [u8;2] {
-    let b1 : u8 = ((x >> 8) & 0xff) as u8;
-    let b2 : u8 = (x & 0xff) as u8;
-    let mut array = [b1, b2];
-    array.reverse();
-    return array
-}
-
 /// This function takes a PathBuf and turn it into a Vec<String>.
 /// Useful for managing paths more easily.
 #[allow(dead_code)]

@@ -13,8 +13,9 @@ use std::io::{
 
 use std::error::Error;
 
-use ::packedfile::loc::Loc;
-use ::packedfile::db::DB;
+use common::coding_helpers;
+use packedfile::loc::Loc;
+use packedfile::db::DB;
 
 pub mod packfile;
 
@@ -54,7 +55,7 @@ pub fn open_packfile(pack_file_path: PathBuf) -> Result<packfile::PackFile, Stri
         pack_file = Err(format!("The file doesn't even have 4 bytes."));
     }
     // If the header's first 4 bytes are "PFH5", it's a valid file, so we read it.
-    else if ::common::latin1_to_string(&pack_file_buffered[0..4]) == "PFH5"  {
+    else if coding_helpers::decode_string_u8(pack_file_buffered[0..4].to_vec()) == "PFH5"  {
         pack_file = Ok(packfile::PackFile::read(pack_file_buffered, pack_file_name, pack_file_path_string));
     }
     // If we reach this point, the file is not valid.
