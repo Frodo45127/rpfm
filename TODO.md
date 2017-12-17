@@ -1,9 +1,9 @@
 # Shorterm (Probably next update)
 - [x] Implement Encoding/Decoding for plain text files.
 - [ ] Implement some kind-of dependency check for DB PackedFile Tables.
-- [ ] Implement a "Tips" TextView with some controls of RPFM.
-- [ ] Improve the Size/Formatting of cells and his management in DB PackedFile Tables.
-- [ ] Move all the helper functions to the "common" module, so we can use all of them (specially Decoding/Encoding helpers) in more situations.
+- [x] Implement a "Tips" TextView with some controls of RPFM.
+- [x] Improve the Size/Formatting of cells and his management in DB PackedFile Tables.
+- [x] Move all the helper functions to the "common" module, so we can use all of them (specially Decoding/Encoding helpers) in more situations.
 
 # Midterm
 - [x] Implement Encoding/Decoding for DB PackedFile Tables.
