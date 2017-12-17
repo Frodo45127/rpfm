@@ -17,7 +17,7 @@ use std::rc::Rc;
 use gtk::prelude::*;
 use gtk::{
     AboutDialog, Box, Builder, MenuItem, Window, WindowPosition, FileChooserDialog,
-    TreeView, TreeSelection, TreeStore, MessageDialog, ScrolledWindow, Label,
+    TreeView, TreeSelection, TreeStore, MessageDialog, ScrolledWindow,
     CellRendererText, TreeViewColumn, Popover, Entry, CheckMenuItem, Button
 };
 
@@ -147,6 +147,9 @@ fn main() {
         gtk::TargetEntry::new("text/uri-list", gtk::TargetFlags::empty(), 80)
     ];
     folder_tree_view.drag_dest_set(gtk::DestDefaults::ALL, &targets, gdk::DragAction::COPY);
+
+    // Then we display the "Tips" text.
+    ui::display_help_tips(&packed_file_data_display);
 
     // We bring up the main window.
     window.show_all();
@@ -1546,21 +1549,14 @@ fn main() {
                 // If we reach this point, the coding to implement this type of file is not done yet,
                 // so we ignore the file.
                 _ => {
-                    let tips = format!(
-                    "Welcome to Rusted PackFile Manager! Here you have some tips on how to use it:
-                    \n
-                    - You can open a PackFile by dragging it to the big PackFile TreeView (where the PackFile\'s files appear when you open it).\n
-                    - You can rename anything (even the PackFile) by double-clicking it.\n
-                    - You can insta-patch your siege maps (if you're a mapper) with the \"Patch SiegeAI\" feature from the \"Special Stuff\" menu.\n
-                    "
-                    );
-
-                    let packed_file_text_view_label: Label = Label::new(Some(&*tips));
-
-                    packed_file_data_display.pack_start(&packed_file_text_view_label, true, true, 0);
-                    packed_file_data_display.show_all();
+                    ui::display_help_tips(&packed_file_data_display);
                 }
             }
+        }
+
+        // If it's a folder, then we need to display the Tips.
+        else {
+            ui::display_help_tips(&packed_file_data_display);
         }
 
         Inhibit(false);
