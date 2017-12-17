@@ -17,7 +17,7 @@ use std::rc::Rc;
 use gtk::prelude::*;
 use gtk::{
     AboutDialog, Box, Builder, MenuItem, Window, WindowPosition, FileChooserDialog,
-    TreeView, TreeSelection, TreeStore, MessageDialog, ScrolledWindow,
+    TreeView, TreeSelection, TreeStore, MessageDialog, ScrolledWindow, Label,
     CellRendererText, TreeViewColumn, Popover, Entry, CheckMenuItem, Button
 };
 
@@ -1389,10 +1389,10 @@ fn main() {
                                                             gtk_value_field = gtk::ToValue::to_value(&false);
                                                         }
                                                         "string_ascii" => {
-                                                            gtk_value_field = gtk::ToValue::to_value(&format!("New obligatory string"));
+                                                            gtk_value_field = gtk::ToValue::to_value(&String::new());
                                                         }
                                                         "optstring_ascii" => {
-                                                            gtk_value_field = gtk::ToValue::to_value(&format!("New optional string"));
+                                                            gtk_value_field = gtk::ToValue::to_value(&String::new());
                                                         }
                                                         "int" => {
                                                             gtk_value_field = gtk::ToValue::to_value(&0);
@@ -1545,10 +1545,20 @@ fn main() {
                 }
                 // If we reach this point, the coding to implement this type of file is not done yet,
                 // so we ignore the file.
-                // TODO: Here should be code to create a label in the empty ScrolledWindow with
-                // some info about how to use the program.
                 _ => {
-                    println!("PackedFile Type not yet implemented.")
+                    let tips = format!(
+                    "Welcome to Rusted PackFile Manager! Here you have some tips on how to use it:
+                    \n
+                    - You can open a PackFile by dragging it to the big PackFile TreeView (where the PackFile\'s files appear when you open it).\n
+                    - You can rename anything (even the PackFile) by double-clicking it.\n
+                    - You can insta-patch your siege maps (if you're a mapper) with the \"Patch SiegeAI\" feature from the \"Special Stuff\" menu.\n
+                    "
+                    );
+
+                    let packed_file_text_view_label: Label = Label::new(Some(&*tips));
+
+                    packed_file_data_display.pack_start(&packed_file_text_view_label, true, true, 0);
+                    packed_file_data_display.show_all();
                 }
             }
         }

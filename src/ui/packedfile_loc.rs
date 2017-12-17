@@ -73,9 +73,14 @@ impl PackedFileLocTreeView{
         column_text.set_min_width(50);
         column_tooltip.set_min_width(50);
 
-        column_key.set_fixed_width(500);
-        column_text.set_fixed_width(500);
-        column_tooltip.set_fixed_width(50);
+        column_key.set_sizing(gtk::TreeViewColumnSizing::GrowOnly);
+        column_text.set_sizing(gtk::TreeViewColumnSizing::GrowOnly);
+        column_tooltip.set_sizing(gtk::TreeViewColumnSizing::GrowOnly);
+
+        column_index.set_alignment(0.5);
+        column_key.set_alignment(0.5);
+        column_text.set_alignment(0.5);
+        column_tooltip.set_alignment(0.5);
 
         column_index.set_sort_column_id(0);
         column_key.set_sort_column_id(1);

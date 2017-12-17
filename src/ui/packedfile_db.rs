@@ -77,10 +77,13 @@ impl PackedFileDBTreeView{
 
         // Now we create the columns we need for this specific table. Always with an index column first.
         let cell_index = CellRendererText::new();
+        cell_index.set_property_xalign(0.5);
         let column_index = TreeViewColumn::new();
         column_index.set_title("Index");
         column_index.set_clickable(true);
-        column_index.set_max_width(60);
+        column_index.set_min_width(50);
+        column_index.set_sizing(gtk::TreeViewColumnSizing::Autosize);
+        column_index.set_alignment(0.5);
         column_index.set_sort_column_id(0);
         column_index.pack_start(&cell_index, true);
         column_index.add_attribute(&cell_index, "text", 0);
@@ -95,17 +98,38 @@ impl PackedFileDBTreeView{
         let mut index = 1;
         for (name, field_type) in packed_file_structure.iter() {
 
+            // We need to fix the names here, so the column names are not broken.
+            let mut should_be_uppercase = false;
+            let mut new_name: String = String::new();
+            for character in name.chars() {
+                let new_character: char;
+                if new_name.is_empty() || should_be_uppercase {
+                    new_character = character.to_uppercase().to_string().chars().nth(0).unwrap();
+                    should_be_uppercase = false;
+                }
+                else if character == "_".chars().nth(0).unwrap() {
+                    new_character = " ".chars().nth(0).unwrap();
+                    should_be_uppercase = true;
+                }
+                else {
+                    new_character = character;
+                    should_be_uppercase = false;
+                }
+                new_name.push(new_character);
+            }
+            let name = new_name;
+
             // These are the specific declarations of the columns for every type implemented.
-            // FIXME: the name of the columns has no spaces nor underscores.
             match &**field_type {
                 "boolean" => {
                     let cell_bool = CellRendererToggle::new();
                     cell_bool.set_activatable(true);
                     let column_bool = TreeViewColumn::new();
-                    column_bool.set_title(&**name);
+                    column_bool.set_title(&*name);
                     column_bool.set_clickable(true);
                     column_bool.set_min_width(50);
-                    column_bool.set_fixed_width(75);
+                    column_bool.set_sizing(gtk::TreeViewColumnSizing::GrowOnly);
+                    column_bool.set_alignment(0.5);
                     column_bool.set_sort_column_id(index);
                     column_bool.pack_start(&cell_bool, true);
                     column_bool.add_attribute(&cell_bool, "active", index);
@@ -115,12 +139,14 @@ impl PackedFileDBTreeView{
                 "string_ascii" => {
                     let cell_string = CellRendererText::new();
                     cell_string.set_property_editable(true);
+                    cell_string.set_property_placeholder_text(Some("Obligatory String"));
                     let column_string = TreeViewColumn::new();
-                    column_string.set_title(&**name);
+                    column_string.set_title(&*name);
                     column_string.set_clickable(true);
                     column_string.set_resizable(true);
                     column_string.set_min_width(50);
-                    column_string.set_fixed_width(200);
+                    column_string.set_sizing(gtk::TreeViewColumnSizing::GrowOnly);
+                    column_string.set_alignment(0.5);
                     column_string.set_sort_column_id(index);
                     column_string.pack_start(&cell_string, true);
                     column_string.add_attribute(&cell_string, "text", index);
@@ -130,12 +156,14 @@ impl PackedFileDBTreeView{
                 "optstring_ascii" => {
                     let cell_optional_string = CellRendererText::new();
                     cell_optional_string.set_property_editable(true);
+                    cell_optional_string.set_property_placeholder_text(Some("Optional String"));
                     let column_optional_string = TreeViewColumn::new();
-                    column_optional_string.set_title(&**name);
+                    column_optional_string.set_title(&*name);
                     column_optional_string.set_clickable(true);
                     column_optional_string.set_resizable(true);
                     column_optional_string.set_min_width(50);
-                    column_optional_string.set_fixed_width(200);
+                    column_optional_string.set_sizing(gtk::TreeViewColumnSizing::GrowOnly);
+                    column_optional_string.set_alignment(0.5);
                     column_optional_string.set_sort_column_id(index);
                     column_optional_string.pack_start(&cell_optional_string, true);
                     column_optional_string.add_attribute(&cell_optional_string, "text", index);
@@ -145,12 +173,15 @@ impl PackedFileDBTreeView{
                 "int" => {
                     let cell_int = CellRendererText::new();
                     cell_int.set_property_editable(true);
+                    cell_int.set_property_xalign(1.0);
+                    cell_int.set_property_placeholder_text(Some("Integer (2, 3, 6,..)"));
                     let column_int = TreeViewColumn::new();
-                    column_int.set_title(&**name);
+                    column_int.set_title(&*name);
                     column_int.set_clickable(true);
                     column_int.set_resizable(true);
                     column_int.set_min_width(50);
-                    column_int.set_fixed_width(100);
+                    column_int.set_sizing(gtk::TreeViewColumnSizing::GrowOnly);
+                    column_int.set_alignment(0.5);
                     column_int.set_sort_column_id(index);
                     column_int.pack_start(&cell_int, true);
                     column_int.add_attribute(&cell_int, "text", index);
@@ -160,12 +191,15 @@ impl PackedFileDBTreeView{
                 "float" => {
                     let cell_float = CellRendererText::new();
                     cell_float.set_property_editable(true);
+                    cell_float.set_property_xalign(1.0);
+                    cell_float.set_property_placeholder_text(Some("Float (2.54, 3.21, 6.8765,..)"));
                     let column_float = TreeViewColumn::new();
-                    column_float.set_title(&**name);
+                    column_float.set_title(&*name);
                     column_float.set_clickable(true);
                     column_float.set_resizable(true);
                     column_float.set_min_width(50);
-                    column_float.set_fixed_width(100);
+                    column_float.set_sizing(gtk::TreeViewColumnSizing::GrowOnly);
+                    column_float.set_alignment(0.5);
                     column_float.set_sort_column_id(index);
                     column_float.pack_start(&cell_float, true);
                     column_float.add_attribute(&cell_float, "text", index);
