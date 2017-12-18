@@ -1571,8 +1571,14 @@ fn main() {
         top_menu_file_change_packfile_type_release,
         top_menu_file_change_packfile_type_patch,
         top_menu_file_change_packfile_type_mod,
-        top_menu_file_change_packfile_type_movie => move |_, _, _, _, pack_file_path, _, _| {
-        let pack_file_path: PathBuf = PathBuf::from(pack_file_path.get_uris()[0].replace("file:///", "/").replace("%20", " "));
+        top_menu_file_change_packfile_type_movie => move |_, _, _, _, selection_data, _, _| {
+        let pack_file_path: PathBuf;
+        if cfg!(target_os = "linux") {
+            pack_file_path = PathBuf::from(selection_data.get_uris()[0].replace("file:///", "/").replace("%20", " "));
+        }
+        else {
+            pack_file_path = PathBuf::from(selection_data.get_uris()[0].replace("file:///", "").replace("%20", " "));
+        }
         match packfile::open_packfile(pack_file_path) {
             Ok(pack_file_opened) => {
 
