@@ -23,7 +23,7 @@
 - [ ] Implement Theming support (graphically, as the theme can be changed already through a text file).
 - [ ] Split the "master_schema.xml" by game.
 - [ ] Implement some test to ensure the general PackFile creation/reading/saving functions doesn't break.
-- [ ] Rework some of the current functions to make them more... consistent.
+- [x] Rework some of the current functions to make them more... consistent.
 - [ ] Endless UI improving.
 - [ ] Make improvements in the code so the UI doesn't hangs when there is an operation running in the background (maybe with threads?).
 
