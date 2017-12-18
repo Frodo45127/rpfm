@@ -6,6 +6,7 @@
 extern crate serde_derive;
 extern crate gtk;
 extern crate gdk;
+extern crate sourceview;
 extern crate num;
 
 use std::path::PathBuf;
@@ -15,13 +16,19 @@ use std::rc::Rc;
 
 use gtk::prelude::*;
 use gtk::{
-    AboutDialog, Builder, MenuItem, Window, WindowPosition, FileChooserDialog,
+    AboutDialog, Box, Builder, MenuItem, Window, WindowPosition, FileChooserDialog,
     TreeView, TreeSelection, TreeStore, MessageDialog, ScrolledWindow,
     CellRendererText, TreeViewColumn, Popover, Entry, CheckMenuItem, Button
 };
+
+use sourceview::{
+    Buffer, BufferExt, View, ViewExt, Language, LanguageManager, LanguageManagerExt
+};
+
 use packfile::packfile::PackFile;
-use ::packedfile::loc::Loc;
-use ::packedfile::db::DB;
+use common::coding_helpers;
+use packedfile::loc::Loc;
+use packedfile::db::DB;
 
 mod common;
 mod ui;
@@ -62,7 +69,7 @@ fn main() {
 
     let window: Window = builder.get_object("gtk_window").expect("Couldn't get gtk_window");
 
-    let packed_file_data_display: ScrolledWindow = builder.get_object("gtk_packed_file_data_display").expect("Couldn't get gtk_packed_file_data_display");
+    let packed_file_data_display: Box = builder.get_object("gtk_packed_file_data_display").expect("Couldn't get gtk_packed_file_data_display");
 
     let window_about: AboutDialog = builder.get_object("gtk_window_about").expect("Couldn't get gtk_window_about");
     let error_dialog: MessageDialog = builder.get_object("gtk_error_dialog").expect("Couldn't get gtk_error_dialog");
@@ -134,6 +141,15 @@ fn main() {
     folder_tree_view.set_enable_search(false);
     folder_tree_view.set_rules_hint(true);
     window.set_position(WindowPosition::Center);
+
+    // Here we set the TreeView as "drag_dest", so we can drag&drop things to it.
+    let targets = vec![
+        gtk::TargetEntry::new("text/uri-list", gtk::TargetFlags::empty(), 80)
+    ];
+    folder_tree_view.drag_dest_set(gtk::DestDefaults::ALL, &targets, gdk::DragAction::COPY);
+
+    // Then we display the "Tips" text.
+    ui::display_help_tips(&packed_file_data_display);
 
     // We bring up the main window.
     window.show_all();
@@ -793,7 +809,12 @@ fn main() {
             // First, we get his type to decode it properly
             let mut packed_file_type: &str = "None";
             if tree_path.last().unwrap().ends_with(".loc") {
-                packed_file_type = "Loc";
+                packed_file_type = "LOC";
+            }
+            else if tree_path.last().unwrap().ends_with(".txt") ||
+                    tree_path.last().unwrap().ends_with(".xml") ||
+                    tree_path.last().unwrap().ends_with(".lua") {
+                packed_file_type = "TEXT";
             }
             else if tree_path[0] == "db" {
                 packed_file_type = "DB";
@@ -802,7 +823,7 @@ fn main() {
             // Then, depending of his type we decode it properly (if we have it implemented support
             // for his type).
             match packed_file_type {
-                "Loc" => {
+                "LOC" => {
 
                     // First, we create the new TreeView and all the needed stuff, and prepare it to
                     // display the data from the Loc file.
@@ -1371,10 +1392,10 @@ fn main() {
                                                             gtk_value_field = gtk::ToValue::to_value(&false);
                                                         }
                                                         "string_ascii" => {
-                                                            gtk_value_field = gtk::ToValue::to_value(&format!("New obligatory string"));
+                                                            gtk_value_field = gtk::ToValue::to_value(&String::new());
                                                         }
                                                         "optstring_ascii" => {
-                                                            gtk_value_field = gtk::ToValue::to_value(&format!("New optional string"));
+                                                            gtk_value_field = gtk::ToValue::to_value(&String::new());
                                                         }
                                                         "int" => {
                                                             gtk_value_field = gtk::ToValue::to_value(&0);
@@ -1457,17 +1478,134 @@ fn main() {
                     }
                 }
 
+                // If it's a plain text file, we create a source view and try to get highlighting for
+                // his language, if it's an specific language file.
+                "TEXT" => {
+
+                    // First, we create a vertical Box, put a "Save" button in the top part, and left
+                    // the lower part for the SourceView.
+                    let packed_file_source_view_save_button = Button::new_with_label("Save to PackedFile");
+                    packed_file_data_display.add(&packed_file_source_view_save_button);
+
+                    // Second, we create the new SourceView (in a ScrolledWindow) and his buffer,
+                    // get his buffer and put the text in it.
+                    let packed_file_source_view_scroll = ScrolledWindow::new(None, None);
+                    packed_file_data_display.pack_end(&packed_file_source_view_scroll, true, true, 0);
+
+                    let packed_file_source_view_buffer: Buffer = Buffer::new(None);
+                    let packed_file_source_view = View::new_with_buffer(&packed_file_source_view_buffer);
+
+                    // Third, we config the SourceView for our needs.
+                    packed_file_source_view.set_tab_width(4);
+                    packed_file_source_view.set_show_line_numbers(true);
+                    packed_file_source_view.set_indent_on_tab(true);
+                    packed_file_source_view.set_highlight_current_line(true);
+
+                    // Then, we get the Language of the file.
+                    let language_manager = LanguageManager::get_default().unwrap();
+                    let packedfile_language: Option<Language>;
+
+                    if tree_path.last().unwrap().ends_with(".xml") {
+                        packedfile_language = language_manager.get_language("xml");
+                    }
+                    else if tree_path.last().unwrap().ends_with(".lua") {
+                        packedfile_language = language_manager.get_language("lua");
+                    }
+                    else if tree_path.last().unwrap().ends_with(".txt") {
+                        packedfile_language = None;
+                    }
+                    else {
+                        packedfile_language = None;
+                    }
+
+                    // Then we set the Language of the file, if it has one.
+                    if let Some(language) = packedfile_language {
+                        packed_file_source_view_buffer.set_language(&language);
+                    }
+
+                    // Then we push the text to the SourceView Buffer.
+                    let packed_file_data_encoded = &*pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data;
+                    packed_file_source_view_buffer.set_text(&*coding_helpers::decode_string_u8(packed_file_data_encoded.to_vec()));
+
+                    // And show everything.
+                    packed_file_source_view_scroll.add(&packed_file_source_view);
+                    packed_file_data_display.show_all();
+
+                    // When we click in the "Save to PackedFile" button
+                    packed_file_source_view_save_button.connect_button_release_event(clone!(
+                        pack_file_decoded => move |_,_| {
+                        let packed_file_data_decoded = coding_helpers::encode_string_u8(packed_file_source_view.get_buffer().unwrap().get_slice(
+                            &packed_file_source_view.get_buffer().unwrap().get_start_iter(),
+                            &packed_file_source_view.get_buffer().unwrap().get_end_iter(),
+                            true).unwrap());
+
+                        ::packfile::update_packed_file_data_text(
+                            packed_file_data_decoded,
+                            &mut *pack_file_decoded.borrow_mut(),
+                            index as usize);
+                        Inhibit(false)
+                    }));
+                }
                 // If we reach this point, the coding to implement this type of file is not done yet,
                 // so we ignore the file.
-                // TODO: Here should be code to create a label in the empty ScrolledWindow with
-                // some info about how to use the program.
                 _ => {
-                    println!("PackedFile Type not yet implemented.")
+                    ui::display_help_tips(&packed_file_data_display);
                 }
             }
         }
 
+        // If it's a folder, then we need to display the Tips.
+        else {
+            ui::display_help_tips(&packed_file_data_display);
+        }
+
         Inhibit(false);
+    }));
+
+    // This allow us to open a PackFile by "Drag&Drop" it into the folder_tree_view.
+    folder_tree_view.connect_drag_data_received(clone!(
+        error_dialog,
+        pack_file_decoded,
+        folder_tree_store,
+        top_menu_file_change_packfile_type_boot,
+        top_menu_file_change_packfile_type_release,
+        top_menu_file_change_packfile_type_patch,
+        top_menu_file_change_packfile_type_mod,
+        top_menu_file_change_packfile_type_movie => move |_, _, _, _, selection_data, _, _| {
+        let pack_file_path: PathBuf;
+        if cfg!(target_os = "linux") {
+            pack_file_path = PathBuf::from(selection_data.get_uris()[0].replace("file:///", "/").replace("%20", " "));
+        }
+        else {
+            pack_file_path = PathBuf::from(selection_data.get_uris()[0].replace("file:///", "").replace("%20", " "));
+        }
+        match packfile::open_packfile(pack_file_path) {
+            Ok(pack_file_opened) => {
+
+                *pack_file_decoded.borrow_mut() = pack_file_opened;
+                ui::update_tree_view(&folder_tree_store, &*pack_file_decoded.borrow());
+
+                // We choose the right option, depending on our PackFile.
+                if pack_file_decoded.borrow().pack_file_header.pack_file_type == 0u32 {
+                    top_menu_file_change_packfile_type_boot.set_active(true);
+                }
+                else if pack_file_decoded.borrow().pack_file_header.pack_file_type == 1u32{
+                    top_menu_file_change_packfile_type_release.set_active(true);
+                }
+                else if pack_file_decoded.borrow().pack_file_header.pack_file_type == 2u32{
+                    top_menu_file_change_packfile_type_patch.set_active(true);
+                }
+                else if pack_file_decoded.borrow().pack_file_header.pack_file_type == 3u32{
+                    top_menu_file_change_packfile_type_mod.set_active(true);
+                }
+                else if pack_file_decoded.borrow().pack_file_header.pack_file_type == 4u32{
+                    top_menu_file_change_packfile_type_movie.set_active(true);
+                }
+            }
+            Err(e) => {
+                ui::show_dialog(&error_dialog, e);
+            }
+        }
     }));
 
     // We start GTK. Yay

@@ -6,8 +6,8 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::error::Error;
 
-use ::packedfile::loc::LocData;
-use ::packedfile::loc::LocDataEntry;
+use packedfile::loc::LocData;
+use packedfile::loc::LocDataEntry;
 
 pub mod loc;
 pub mod db;

@@ -3,7 +3,7 @@ extern crate num;
 
 use gtk::prelude::*;
 use gtk::{
-    MessageDialog, TreeStore, TreeSelection, TreeView, TreePath, Rectangle
+    MessageDialog, TreeStore, TreeSelection, TreeView, TreePath, Rectangle, Box, Label, Justification
 };
 use std::cmp::Ordering;
 use std::path::PathBuf;
@@ -12,6 +12,22 @@ use packfile::packfile::PackFile;
 
 pub mod packedfile_loc;
 pub mod packedfile_db;
+
+/// This function shows a Message in the specified Box.
+pub fn display_help_tips(packed_file_data_display: &Box) {
+    let tips = format!(
+        "Welcome to Rusted PackFile Manager! Here you have some tips on how to use it:
+        - You can rename anything (even the PackFile) by double-clicking it.
+        - You can open a PackFile by dragging it to the big PackFile Tree View.
+        - You can insta-patch your siege maps (if you're a mapper) with the \"Patch SiegeAI\" feature from the \"Special Stuff\" menu."
+    );
+
+    let packed_file_text_view_label: Label = Label::new(Some(&*tips));
+    packed_file_text_view_label.set_justify(Justification::Left);
+
+    packed_file_data_display.pack_start(&packed_file_text_view_label, true, true, 0);
+    packed_file_data_display.show_all();
+}
 
 /// This function shows a Dialog window with some text. For notification of success and errors.
 /// It requires:

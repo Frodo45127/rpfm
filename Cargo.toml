@@ -1,6 +1,6 @@
 [package]
 name = "rpfm-code"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
 build = "build.rs"
 
@@ -22,6 +22,9 @@ version = "0.7.0"
 
 [dependencies.glib]
 version = "0.4.0"
+
+[dependencies.sourceview]
+version = "0.3.0"
 
 [target.x86_64-pc-windows-gnu.build-dependencies]
 winres = "0.1"

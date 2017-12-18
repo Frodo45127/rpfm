@@ -12,6 +12,78 @@
     <property name="can_focus">False</property>
     <property name="stock">gtk-delete</property>
   </object>
+  <object class="GtkPopover" id="gtk_context_menu_tree_view_packedfile_db">
+    <property name="can_focus">False</property>
+    <child>
+      <object class="GtkBox">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="orientation">vertical</property>
+        <child>
+          <object class="GtkBox">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <child>
+              <object class="GtkButton" id="gtk_context_menu_tree_view_db_packedfile_add_rows">
+                <property name="label" translatable="yes">Add rows:</property>
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="receives_default">True</property>
+                <property name="image">gtk_context_menu_tree_view_db_packedfile_img_add_rows</property>
+                <property name="relief">none</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkEntry" id="gtk_context_menu_tree_view_db_packedfile_add_rows_number">
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="max_length">4</property>
+                <property name="has_frame">False</property>
+                <property name="width_chars">6</property>
+                <property name="text" translatable="yes">1</property>
+                <property name="xalign">1</property>
+                <property name="caps_lock_warning">False</property>
+                <property name="primary_icon_stock">gtk-goto-last</property>
+                <property name="placeholder_text" translatable="yes">1</property>
+                <property name="input_purpose">digits</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkButton" id="gtk_context_menu_tree_view_packedfile_db_delete_row">
+            <property name="label" translatable="yes">Delete row              </property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="receives_default">True</property>
+            <property name="halign">start</property>
+            <property name="image">gtk_context_menu_tree_view_db_packedfile_img_delete_row</property>
+            <property name="relief">none</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">1</property>
+          </packing>
+        </child>
+      </object>
+    </child>
+  </object>
   <object class="GtkImage" id="gtk_context_menu_tree_view_img_add_file">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
@@ -162,78 +234,6 @@
             <property name="expand">False</property>
             <property name="fill">True</property>
             <property name="position">4</property>
-          </packing>
-        </child>
-      </object>
-    </child>
-  </object>
-  <object class="GtkPopover" id="gtk_context_menu_tree_view_packedfile_db">
-    <property name="can_focus">False</property>
-    <child>
-      <object class="GtkBox">
-        <property name="visible">True</property>
-        <property name="can_focus">False</property>
-        <property name="orientation">vertical</property>
-        <child>
-          <object class="GtkBox">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <child>
-              <object class="GtkButton" id="gtk_context_menu_tree_view_db_packedfile_add_rows">
-                <property name="label" translatable="yes">Add rows:</property>
-                <property name="visible">True</property>
-                <property name="can_focus">True</property>
-                <property name="receives_default">True</property>
-                <property name="image">gtk_context_menu_tree_view_db_packedfile_img_add_rows</property>
-                <property name="relief">none</property>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">True</property>
-                <property name="position">0</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkEntry" id="gtk_context_menu_tree_view_db_packedfile_add_rows_number">
-                <property name="visible">True</property>
-                <property name="can_focus">True</property>
-                <property name="max_length">4</property>
-                <property name="has_frame">False</property>
-                <property name="width_chars">6</property>
-                <property name="text" translatable="yes">1</property>
-                <property name="xalign">1</property>
-                <property name="caps_lock_warning">False</property>
-                <property name="primary_icon_stock">gtk-goto-last</property>
-                <property name="placeholder_text" translatable="yes">1</property>
-                <property name="input_purpose">digits</property>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">True</property>
-                <property name="position">1</property>
-              </packing>
-            </child>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="position">0</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkButton" id="gtk_context_menu_tree_view_packedfile_db_delete_row">
-            <property name="label" translatable="yes">Delete row              </property>
-            <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <property name="receives_default">True</property>
-            <property name="halign">start</property>
-            <property name="image">gtk_context_menu_tree_view_db_packedfile_img_delete_row</property>
-            <property name="relief">none</property>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="position">1</property>
           </packing>
         </child>
       </object>
@@ -480,14 +480,10 @@
               </packing>
             </child>
             <child>
-              <object class="GtkScrolledWindow" id="gtk_packed_file_data_display">
+              <object class="GtkBox" id="gtk_packed_file_data_display">
                 <property name="visible">True</property>
-                <property name="can_focus">True</property>
-                <property name="shadow_type">in</property>
-                <property name="min_content_width">200</property>
-                <property name="min_content_height">200</property>
-                <property name="propagate_natural_width">True</property>
-                <property name="propagate_natural_height">True</property>
+                <property name="can_focus">False</property>
+                <property name="orientation">vertical</property>
                 <child>
                   <placeholder/>
                 </child>
@@ -1255,7 +1251,7 @@
     <property name="type_hint">dialog</property>
     <property name="transient_for">gtk_window</property>
     <property name="program_name">Rusted Pack File Manager</property>
-    <property name="version">0.1.0</property>
+    <property name="version">0.2.0</property>
     <property name="authors">Frodo45127</property>
     <property name="artists">Maruka</property>
     <property name="logo">img/rpfm.png</property>

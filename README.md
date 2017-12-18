@@ -7,6 +7,7 @@ The lastest released version can (only for TW:Warhammer 2 for now):
 - [x] ***Manipulate PackedFiles*** (add, extract, rename, delete).
 - [x] ***Edit DB PackedFiles***.
 - [x] ***Edit Localisation PackedFiles***.
+- [x] ***Edit Lua/Xml/Txt PackedFiles***.
 
 In addition to that, it has some special features:
 - [x] ***Patch SiegeAI***: For mappers. It patches the opened PackFile so the Siege AI stuff of your map works properly, delete the useless xml files in your map's folder and save your PackFile.
@@ -42,9 +43,7 @@ cargo build --target=x86_64-unknown-linux-gnu --release
 - **Why the code quality is not the very best?**: because I'm using this project to learn Rust, and I'm constantly rewriting code as I find new and better ways to write it.
 
 # Known bugs
-- DB table titles has no spaces or underscores.
 - Float fields in DB PackedFiles have trailing zeros.
-- Sometimes when selecting a DB PackedFile after having another one selected, the scrollbar disappear.
 - Decoding of big Loc files (like the vanilla localisation file) is SLOOOOWWWWWW. Need to improve his decoding in the future.
 
 # Credits

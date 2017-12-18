@@ -1,26 +1,34 @@
 # Shorterm (Probably next update)
-- [x] Decode and encode LOC files.
-- [x] Implement support for language PackFiles.
-- [x] Replace the Rust icon with a proper icon.
+- [x] Implement Encoding/Decoding for plain text files.
+- [ ] Implement some kind-of dependency check for DB PackedFile Tables.
+- [x] Implement a "Tips" TextView with some controls of RPFM.
+- [x] Improve the Size/Formatting of cells and his management in DB PackedFile Tables.
+- [x] Move all the helper functions to the "common" module, so we can use all of them (specially Decoding/Encoding helpers) in more situations.
 
 # Midterm
-- [x] Decode and encode DB Files.
-- [x] Implement buttons for managing the TreeViews of the PackedFiles.
-- [ ] Implement basic hotkeys.
+- [x] Implement Encoding/Decoding for DB PackedFile Tables.
+- [x] Implement a Right-Click Popover for managing the PackedFiles's TreeViews.
+- [ ] Implement a decoding tool to decode Table's Structure, both from PackFiles and from Assembly Kit's XMLs.
+- [ ] Implement basic hotkeys, like "Supr", "CTRL+C/V",....
 - [ ] Implement more file management stuff, like moving between folders.
-- [ ] Add an option to add files directly from other PackFiles.
-- [ ] Add an option to open the PackedFiles with an external program.
-- [ ] Add an option to create automatically the DB stuff for custom Siege Battles (WH1 and 2).
-- [ ] Add an option to create a prefab from a catchment.
+- [ ] Implement Add/Extract files/folders with drag&drop.
+- [ ] Implement an "Add from another PackFile" feature (maybe with drag&drop support).
+- [ ] Implement an "Open with external tool" feature.
+- [ ] Implement a "Create a Siege Battle PackFile" feature.
+- [ ] Implement a "Convert Catchment to Prefab" feature.
 - [ ] Implement support for TW:Warhammer 1 PackFiles.
-- [ ] Make some test to ensure the general PackFile creation/reading/saving functions doesn't break.
-- [ ] Rework some of the current functions to make them more... consistent.
-- [x] Replace the horrible Adawaita.
+- [ ] Implement Importing/Exporting to .csv for DB PackedFiles.
+- [ ] Implement something like the "MyMod" feature in PFM.
+- [ ] Implement a "Convert to Warhammer format" feature for Attila's building models (yep, I can dream too).
+- [ ] Implement Theming support (graphically, as the theme can be changed already through a text file).
+- [ ] Split the "master_schema.xml" by game.
+- [ ] Implement some test to ensure the general PackFile creation/reading/saving functions doesn't break.
+- [x] Rework some of the current functions to make them more... consistent.
 - [ ] Endless UI improving.
-- [ ] Make improvements in the code so the UI doesn't hangs when there is an operation running in the background.
+- [ ] Make improvements in the code so the UI doesn't hangs when there is an operation running in the background (maybe with threads?).
 
 # Someday, maybe
-- [ ] Add an option to view the PackedFiles in an Hex Editor.
-- [ ] Decode and encode more PackedFile filetypes.
-- [ ] Add an option to enable Lazy-Loading of PackFiles.
+- [ ] Implement a "View in HexEditor" feature for PackedFiles.
+- [ ] Implement Encoding/Decoding for more PackedFiles.
+- [ ] Implement optional Lazy-Loading of PackFiles.
 - [ ] Make the build script to copy the needed extra files to the build directory.

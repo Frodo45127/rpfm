@@ -1,14 +1,7 @@
 // In this file we define the PackedFile type Loc for decoding and encoding it.
 // This is the type used by localisation files.
 
-extern crate byteorder;
-
-use ::common;
-use std::u32;
-
-use self::byteorder::{
-    ReadBytesExt, BigEndian
-};
+use common::coding_helpers;
 
 /// Struct Loc: This stores the data of a decoded Localisation PackedFile in memory.
 /// It stores the PackedFile divided in 2 parts:
@@ -86,22 +79,10 @@ impl LocHeader {
     /// This function creates a new decoded LocHeader from the data of a PackedFile. To see what are
     /// these values, check the LocHeader struct.
     pub fn read(packed_file_header: Vec<u8>) -> LocHeader {
-        let mut packed_file_header_byte_order_mark: Vec<u8> = packed_file_header[0..2].into();
-        packed_file_header_byte_order_mark.reverse();
-        let mut packed_file_header_byte_order_mark = &packed_file_header_byte_order_mark[0..2];
-        let packed_file_header_byte_order_mark: u16 = packed_file_header_byte_order_mark.read_u16::<BigEndian>().unwrap();
-
-        let packed_file_header_packed_file_type = common::latin1_to_string(&packed_file_header[2..5]);
-
-        let mut packed_file_header_packed_file_version: Vec<u8> = packed_file_header[6..10].into();
-        packed_file_header_packed_file_version.reverse();
-        let mut packed_file_header_packed_file_version = &packed_file_header_packed_file_version[0..4];
-        let packed_file_header_packed_file_version: u32 = packed_file_header_packed_file_version.read_u32::<BigEndian>().unwrap();
-
-        let mut packed_file_header_packed_file_entry_count: Vec<u8> = packed_file_header[10..14].into();
-        packed_file_header_packed_file_entry_count.reverse();
-        let mut packed_file_header_packed_file_entry_count = &packed_file_header_packed_file_entry_count[0..4];
-        let packed_file_header_packed_file_entry_count: u32 = packed_file_header_packed_file_entry_count.read_u32::<BigEndian>().unwrap();
+        let packed_file_header_byte_order_mark: u16 = coding_helpers::decode_integer_u16((&packed_file_header[0..2]).to_vec());
+        let packed_file_header_packed_file_type = coding_helpers::decode_string_u8(packed_file_header[2..5].to_vec());
+        let packed_file_header_packed_file_version: u32 = coding_helpers::decode_integer_u32((&packed_file_header[6..10]).to_vec());
+        let packed_file_header_packed_file_entry_count: u32 = coding_helpers::decode_integer_u32((&packed_file_header[10..14]).to_vec());
 
         LocHeader {
             packed_file_header_byte_order_mark,
@@ -116,11 +97,11 @@ impl LocHeader {
     pub fn save(packed_file_header_decoded: &LocHeader, packed_file_entry_count: u32) -> Vec<u8> {
         let mut packed_file_header_encoded: Vec<u8> = vec![];
 
-        packed_file_header_encoded.extend_from_slice(&common::u16_to_u8_reverse(packed_file_header_decoded.packed_file_header_byte_order_mark));
-        packed_file_header_encoded.extend_from_slice(packed_file_header_decoded.packed_file_header_packed_file_type.as_bytes());
+        packed_file_header_encoded.extend_from_slice(&coding_helpers::encode_integer_u16(packed_file_header_decoded.packed_file_header_byte_order_mark));
+        packed_file_header_encoded.extend_from_slice(&coding_helpers::encode_string_u8(packed_file_header_decoded.packed_file_header_packed_file_type.clone()));
         packed_file_header_encoded.extend_from_slice("\0".as_bytes());
-        packed_file_header_encoded.extend_from_slice(&common::u32_to_u8_reverse(packed_file_header_decoded.packed_file_header_packed_file_version));
-        packed_file_header_encoded.extend_from_slice(&common::u32_to_u8_reverse(packed_file_entry_count));
+        packed_file_header_encoded.extend_from_slice(&coding_helpers::encode_integer_u32(packed_file_header_decoded.packed_file_header_packed_file_version));
+        packed_file_header_encoded.extend_from_slice(&coding_helpers::encode_integer_u32(packed_file_entry_count));
 
         packed_file_header_encoded
     }
@@ -162,7 +143,7 @@ impl LocData {
                 // The first 2 bytes of a String is the length of the String in reversed utf-16.
                 if entry_size_byte_offset == 0 && entry_field < 2 {
 
-                    entry_field_size = ::common::coding_helpers::decode_size_string_u16(packed_file_data[(entry_offset as usize)..(entry_offset as usize) + 2].into());
+                    entry_field_size = coding_helpers::decode_integer_u16(packed_file_data[(entry_offset as usize)..(entry_offset as usize) + 2].into());
                     entry_size_byte_offset = 2;
                 }
                 else {
@@ -175,7 +156,7 @@ impl LocData {
                             let string_encoded_begin = (entry_offset + entry_field_offset + entry_size_byte_offset) as usize;
                             let string_encoded_end = (entry_offset + entry_field_offset + entry_size_byte_offset + ((entry_field_size * 2) as u32)) as usize;
                             let string_encoded: Vec<u8> = packed_file_data[string_encoded_begin..string_encoded_end].to_vec();
-                            let string_decoded = ::common::coding_helpers::decode_string_u16(string_encoded);
+                            let string_decoded = coding_helpers::decode_string_u16(string_encoded);
 
                             if entry_field == 0 {
                                 key = string_decoded;
@@ -215,16 +196,13 @@ impl LocData {
         let mut packed_file_entry_count = 0;
 
         for i in &packed_file_data_decoded.packed_file_data_entries {
-            packed_file_data_encoded.append(&mut ::common::coding_helpers::encode_string_u16((i.key).clone()));
-            packed_file_data_encoded.append(&mut ::common::coding_helpers::encode_string_u16((i.text).clone()));
-            packed_file_data_encoded.append(&mut ::common::coding_helpers::encode_bool((i.tooltip).clone()));
+            packed_file_data_encoded.append(&mut coding_helpers::encode_string_u16(i.key.clone()));
+            packed_file_data_encoded.append(&mut coding_helpers::encode_string_u16(i.text.clone()));
+            packed_file_data_encoded.append(&mut coding_helpers::encode_bool(i.tooltip));
             packed_file_entry_count += 1;
         }
-
         (packed_file_data_encoded, packed_file_entry_count)
-
     }
-
 }
 
 /// Implementation of "LocDataEntry"

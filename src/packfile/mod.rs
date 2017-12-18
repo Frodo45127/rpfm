@@ -13,8 +13,9 @@ use std::io::{
 
 use std::error::Error;
 
-use ::packedfile::loc::Loc;
-use ::packedfile::db::DB;
+use common::coding_helpers;
+use packedfile::loc::Loc;
+use packedfile::db::DB;
 
 pub mod packfile;
 
@@ -54,7 +55,7 @@ pub fn open_packfile(pack_file_path: PathBuf) -> Result<packfile::PackFile, Stri
         pack_file = Err(format!("The file doesn't even have 4 bytes."));
     }
     // If the header's first 4 bytes are "PFH5", it's a valid file, so we read it.
-    else if ::common::latin1_to_string(&pack_file_buffered[0..4]) == "PFH5"  {
+    else if coding_helpers::decode_string_u8(pack_file_buffered[0..4].to_vec()) == "PFH5"  {
         pack_file = Ok(packfile::PackFile::read(pack_file_buffered, pack_file_name, pack_file_path_string));
     }
     // If we reach this point, the file is not valid.
@@ -505,6 +506,22 @@ pub fn update_packed_file_data_db(
     index: usize,
 ) {
     let mut packed_file_data_encoded = DB::save(&packed_file_data_decoded).to_vec();
+    let packed_file_data_encoded_size = packed_file_data_encoded.len() as u32;
+
+    // Replace the old raw data of the PackedFile with the new one, and update his size.
+    &pack_file.pack_file_data.packed_files[index].packed_file_data.clear();
+    &pack_file.pack_file_data.packed_files[index].packed_file_data.append(&mut packed_file_data_encoded);
+    pack_file.pack_file_data.packed_files[index].packed_file_size = packed_file_data_encoded_size;
+}
+
+/// This function saves the data of the edited Text PackedFile in the main PackFile after a change has
+/// been done by the user. Checking for valid characters is done before this, so be careful to not break it.
+pub fn update_packed_file_data_text(
+    packed_file_data_decoded: Vec<u8>,
+    pack_file: &mut packfile::PackFile,
+    index: usize,
+) {
+    let mut packed_file_data_encoded = packed_file_data_decoded.to_vec();
     let packed_file_data_encoded_size = packed_file_data_encoded.len() as u32;
 
     // Replace the old raw data of the PackedFile with the new one, and update his size.
