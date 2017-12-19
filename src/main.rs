@@ -29,6 +29,7 @@ use packfile::packfile::PackFile;
 use common::coding_helpers;
 use packedfile::loc::Loc;
 use packedfile::db::DB;
+use packedfile::maps::bmd::Bmd;
 
 mod common;
 mod ui;
@@ -816,6 +817,9 @@ fn main() {
                     tree_path.last().unwrap().ends_with(".lua") {
                 packed_file_type = "TEXT";
             }
+            else if tree_path.last().unwrap().contains("bmd_data.bin") {
+                packed_file_type = "BMD";
+            }
             else if tree_path[0] == "db" {
                 packed_file_type = "DB";
             }
@@ -1545,6 +1549,10 @@ fn main() {
                             index as usize);
                         Inhibit(false)
                     }));
+                }
+                "BMD" => {
+                    println!("File read. Starting decoding...");
+                    let packed_file_data_decoded = Bmd::read((&*pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data).to_vec());
                 }
                 // If we reach this point, the coding to implement this type of file is not done yet,
                 // so we ignore the file.
