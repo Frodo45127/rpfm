@@ -1,6 +1,7 @@
 // In this file are all the Structs and Impls required to decode and encode the PackFiles.
 // For now we only support common TW: Warhammer 2 PackFiles (not loc files, those are different).
 
+use std::io::Error;
 use common::coding_helpers;
 
 /// Struct PackFile: This stores the data of the entire PackFile in memory ('cause fuck lazy-loading),
@@ -106,7 +107,7 @@ impl PackFile {
     /// - pack_file_buffered: a Vec<u8> with the entire PackFile encoded inside it.
     /// - file_name: a String with the name of the PackFile.
     /// - file_path: a String with the path of the PackFile.
-    pub fn read(pack_file_buffered: Vec<u8>, file_name: String, file_path: String) -> PackFile {
+    pub fn read(pack_file_buffered: Vec<u8>, file_name: String, file_path: String) -> Result<PackFile, Error> {
 
         // We save the "Extra data" of the packfile
         let pack_file_extra_data = PackFileExtraData::new_from_file(file_name, file_path);
@@ -114,14 +115,20 @@ impl PackFile {
         // Then we split the PackFile encoded data into Header and Data and decode them.
         let header = &pack_file_buffered[0..28];
         let data = &pack_file_buffered[28..];
-        let pack_file_header = PackFileHeader::read(header);
-        let pack_file_data = PackFileData::read(data, pack_file_header.pack_file_count, pack_file_header.pack_file_index_size, pack_file_header.packed_file_count, pack_file_header.packed_file_index_size);
-
-        // And return the PackFile decoded.
-        PackFile {
-            pack_file_extra_data,
-            pack_file_header,
-            pack_file_data,
+        match PackFileHeader::read(header) {
+            Ok(pack_file_header) => {
+                match PackFileData::read(data, pack_file_header.pack_file_count, pack_file_header.pack_file_index_size, pack_file_header.packed_file_count, pack_file_header.packed_file_index_size) {
+                    Ok(pack_file_data) => {
+                        Ok(PackFile {
+                            pack_file_extra_data,
+                            pack_file_header,
+                            pack_file_data,
+                        })
+                    },
+                    Err(error) => Err(error),
+                }
+            }
+            Err(error) => Err(error),
         }
     }
 
@@ -200,26 +207,47 @@ impl PackFileHeader {
     }
 
     /// This function reads the Header of a PackFile and decode it into a PackFileHeader. We read all
-    /// this data in packs of 4 bytes, then we put them together, reverse them and read them.
-    pub fn read(header: &[u8]) -> PackFileHeader {
+    /// this data in packs of 4 bytes, and read them in LittleEndian.
+    pub fn read(header: &[u8]) -> Result<PackFileHeader, Error> {
 
-        let pack_file_id = coding_helpers::decode_string_u8((&header[0..4]).to_vec());
-        let pack_file_type: u32 = coding_helpers::decode_integer_u32((&header[4..8]).to_vec());
-        let pack_file_count: u32 = coding_helpers::decode_integer_u32((&header[8..12]).to_vec());
-        let pack_file_index_size: u32 = coding_helpers::decode_integer_u32((&header[12..16]).to_vec());
-        let packed_file_count: u32 = coding_helpers::decode_integer_u32((&header[16..20]).to_vec());
-        let packed_file_index_size: u32 = coding_helpers::decode_integer_u32((&header[20..24]).to_vec());
-        let unknown_data: u32 = coding_helpers::decode_integer_u32((&header[24..28]).to_vec());
+        let mut pack_file_header = PackFileHeader::new();
 
-        PackFileHeader {
-            pack_file_id,
-            pack_file_type,
-            pack_file_count,
-            pack_file_index_size,
-            packed_file_count,
-            packed_file_index_size,
-            unknown_data,
+        match coding_helpers::decode_string_u8((&header[0..4]).to_vec()) {
+            Ok(data) => pack_file_header.pack_file_id = data,
+            Err(error) => return Err(error)
         }
+
+        match coding_helpers::decode_integer_u32((&header[4..8]).to_vec()) {
+            Ok(data) => pack_file_header.pack_file_type = data,
+            Err(error) => return Err(error)
+        }
+
+        match coding_helpers::decode_integer_u32((&header[8..12]).to_vec()) {
+            Ok(data) => pack_file_header.pack_file_count = data,
+            Err(error) => return Err(error)
+        }
+
+        match coding_helpers::decode_integer_u32((&header[12..16]).to_vec()) {
+            Ok(data) => pack_file_header.pack_file_index_size = data,
+            Err(error) => return Err(error)
+        }
+
+        match coding_helpers::decode_integer_u32((&header[16..20]).to_vec()) {
+            Ok(data) => pack_file_header.packed_file_count = data,
+            Err(error) => return Err(error)
+        }
+
+        match coding_helpers::decode_integer_u32((&header[20..24]).to_vec()) {
+            Ok(data) => pack_file_header.packed_file_index_size = data,
+            Err(error) => return Err(error)
+        }
+
+        match coding_helpers::decode_integer_u32((&header[24..28]).to_vec()) {
+            Ok(data) => pack_file_header.unknown_data = data,
+            Err(error) => return Err(error)
+        }
+
+        Ok(pack_file_header)
     }
 
     /// This function takes a decoded Header and encode it, so it can be saved in a PackFile file.
@@ -264,6 +292,8 @@ impl PackFileData {
     /// them in a Vec<PackedFile>.
     /// It requires:
     /// - data: the raw data or the PackFile.
+    /// - pack_file_count: the amount of PackFiles inside the PackFile Index. This should come from the header.
+    /// - pack_index_size: the size of the index of PackFiles. This should come from the header.
     /// - packed_file_count: the amount of PackedFiles inside the PackFile. This should come from the header.
     /// - packed_index_size: the size of the index of PackedFiles. This should come from the header.
     pub fn read(
@@ -272,7 +302,7 @@ impl PackFileData {
         pack_file_size: u32,
         packed_file_count: u32,
         packed_index_size: u32
-    ) -> PackFileData {
+    ) -> Result<PackFileData, Error> {
 
         let mut pack_files: Vec<String> = vec![];
         let mut packed_files: Vec<PackedFile> = vec![];
@@ -331,12 +361,14 @@ impl PackFileData {
             }
 
             // We get the size of the PackedFile (bytes 1 to 4 of the index)
-            let file_size: u32 = ::common::coding_helpers::decode_integer_u32(
-                packed_file_index[(
+            let file_size = match coding_helpers::decode_integer_u32(packed_file_index[(
                     (packed_file_index_offset as usize) + packed_file_index_file_size_begin_offset as usize)
                     ..((packed_file_index_offset as usize) + 4 + (packed_file_index_file_size_begin_offset as usize))
                     ].to_vec()
-            );
+            ) {
+                Ok(size) => size,
+                Err(error) => return Err(error)
+            };
 
             // Then we get the Path, char by char
             let mut packed_file_index_path: Vec<String> = vec![];
@@ -385,10 +417,10 @@ impl PackFileData {
             packed_files.push(PackedFile::read(file_size, packed_file_index_path, packed_file_data_file_data));
         }
 
-        PackFileData {
+        Ok(PackFileData {
             pack_files,
             packed_files,
-        }
+        })
     }
 
     /// This function takes a decoded Data and encode it, so it can be saved in a PackFile file.

@@ -1,6 +1,7 @@
 // In this file we define the PackedFile type Loc for decoding and encoding it.
 // This is the type used by localisation files.
 
+use std::io::Error;
 use common::coding_helpers;
 
 /// Struct Loc: This stores the data of a decoded Localisation PackedFile in memory.
@@ -51,14 +52,22 @@ impl Loc {
 
     /// This function creates a new decoded Loc from the data of a PackedFile. Note that this assume
     /// the file is a loc. It'll crash otherwise.
-    pub fn read(packed_file_data: Vec<u8>) -> Loc {
-        let packed_file_header = LocHeader::read(packed_file_data[..14].to_vec());
-        let packed_file_data = LocData::read(packed_file_data[14..].to_vec(), &packed_file_header.packed_file_header_packed_file_entry_count);
-        Loc {
-            packed_file_header,
-            packed_file_data,
+    pub fn read(packed_file_data: Vec<u8>) -> Result<Loc, Error> {
+        match LocHeader::read(packed_file_data[..14].to_vec()) {
+            Ok(packed_file_header) => {
+                match LocData::read(packed_file_data[14..].to_vec(), &packed_file_header.packed_file_header_packed_file_entry_count) {
+                    Ok(packed_file_data) =>
+                        Ok(Loc {
+                            packed_file_header,
+                            packed_file_data,
+                        }),
+                    Err(error) => Err(error)
+                }
+            }
+            Err(error) => Err(error)
         }
     }
+
 
     /// This function takes a LocHeader and a LocData and put them together in a Vec<u8>, encoding an
     /// entire LocFile ready to write on disk.
@@ -78,18 +87,35 @@ impl LocHeader {
 
     /// This function creates a new decoded LocHeader from the data of a PackedFile. To see what are
     /// these values, check the LocHeader struct.
-    pub fn read(packed_file_header: Vec<u8>) -> LocHeader {
-        let packed_file_header_byte_order_mark: u16 = coding_helpers::decode_integer_u16((&packed_file_header[0..2]).to_vec());
-        let packed_file_header_packed_file_type = coding_helpers::decode_string_u8(packed_file_header[2..5].to_vec());
-        let packed_file_header_packed_file_version: u32 = coding_helpers::decode_integer_u32((&packed_file_header[6..10]).to_vec());
-        let packed_file_header_packed_file_entry_count: u32 = coding_helpers::decode_integer_u32((&packed_file_header[10..14]).to_vec());
+    ///
+    /// TODO: Replace this with LocHeader::new()
+    pub fn read(packed_file_header: Vec<u8>) -> Result<LocHeader, Error> {
+        let mut loc_header = LocHeader {
+            packed_file_header_byte_order_mark: 0,
+            packed_file_header_packed_file_type: String::new(),
+            packed_file_header_packed_file_version: 0,
+            packed_file_header_packed_file_entry_count: 0,
+        };
 
-        LocHeader {
-            packed_file_header_byte_order_mark,
-            packed_file_header_packed_file_type,
-            packed_file_header_packed_file_version,
-            packed_file_header_packed_file_entry_count,
+        match coding_helpers::decode_integer_u16((&packed_file_header[0..2]).to_vec()) {
+            Ok(data) => loc_header.packed_file_header_byte_order_mark = data,
+            Err(error) => return Err(error)
         }
+
+        match coding_helpers::decode_string_u8((&packed_file_header[2..5]).to_vec()) {
+            Ok(data) => loc_header.packed_file_header_packed_file_type = data,
+            Err(error) => return Err(error)
+        }
+        match coding_helpers::decode_integer_u32((&packed_file_header[6..10]).to_vec()) {
+            Ok(data) => loc_header.packed_file_header_packed_file_version = data,
+            Err(error) => return Err(error)
+        }
+        match coding_helpers::decode_integer_u32((&packed_file_header[10..14]).to_vec()) {
+            Ok(data) => loc_header.packed_file_header_packed_file_entry_count = data,
+            Err(error) => return Err(error)
+        }
+
+        Ok(loc_header)
     }
 
     /// This function takes a LocHeader and an entry count and creates a Vec<u8> encoded version of
@@ -121,7 +147,7 @@ impl LocData {
     /// This function creates a new decoded LocData from the data of a PackedFile. A LocData is a
     /// Vec<LocDataEntry>. This pass through all the data of the Loc PackedFile and decodes every
     /// entry.
-    pub fn read(packed_file_data: Vec<u8>, packed_file_entry_count: &u32) -> LocData {
+    pub fn read(packed_file_data: Vec<u8>, packed_file_entry_count: &u32) -> Result<LocData, Error> {
         let mut packed_file_data_entries: Vec<LocDataEntry> = vec![];
 
         let mut entry_offset: u32 = 0;
@@ -143,7 +169,10 @@ impl LocData {
                 // The first 2 bytes of a String is the length of the String in reversed utf-16.
                 if entry_size_byte_offset == 0 && entry_field < 2 {
 
-                    entry_field_size = coding_helpers::decode_integer_u16(packed_file_data[(entry_offset as usize)..(entry_offset as usize) + 2].into());
+                    entry_field_size = match coding_helpers::decode_integer_u16(packed_file_data[(entry_offset as usize)..(entry_offset as usize) + 2].into()) {
+                        Ok(data) => data,
+                        Err(error) => return Err(error)
+                    };
                     entry_size_byte_offset = 2;
                 }
                 else {
@@ -156,7 +185,10 @@ impl LocData {
                             let string_encoded_begin = (entry_offset + entry_field_offset + entry_size_byte_offset) as usize;
                             let string_encoded_end = (entry_offset + entry_field_offset + entry_size_byte_offset + ((entry_field_size * 2) as u32)) as usize;
                             let string_encoded: Vec<u8> = packed_file_data[string_encoded_begin..string_encoded_end].to_vec();
-                            let string_decoded = coding_helpers::decode_string_u16(string_encoded);
+                            let string_decoded = match coding_helpers::decode_string_u16(string_encoded) {
+                                Ok(data) => data,
+                                Err(error) => return Err(error)
+                            };
 
                             if entry_field == 0 {
                                 key = string_decoded;
@@ -173,7 +205,10 @@ impl LocData {
 
                         // If it's the boolean, it's a byte, so it doesn't have a size byte offset.
                         _ => {
-                            tooltip = ::common::coding_helpers::decode_bool(packed_file_data[(entry_offset as usize)]);
+                            tooltip = match coding_helpers::decode_bool(packed_file_data[(entry_offset as usize)]){
+                                Ok(data) => data,
+                                Err(error) => return Err(error)
+                            };
                             packed_file_data_entries.push(LocDataEntry::new(key, text, tooltip));
 
                             entry_field = 0;
@@ -184,9 +219,9 @@ impl LocData {
                 }
             }
         }
-        LocData {
+        Ok(LocData {
             packed_file_data_entries,
-        }
+        })
     }
 
     /// This function takes an entire LocData and encode it to Vec<u8> to write it on disk. Also, it
