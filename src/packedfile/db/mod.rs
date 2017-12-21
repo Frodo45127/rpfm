@@ -12,7 +12,10 @@
 
 extern crate ordermap;
 
-use ::common::coding_helpers;
+use std::io::{
+    Error, ErrorKind
+};
+use common::coding_helpers;
 use self::ordermap::OrderMap;
 
 /// These two const are the markers we need to check in the header of every DB file.
@@ -72,34 +75,46 @@ impl DB {
 
     /// This function creates a new decoded DB from a encoded PackedFile. This assumes the PackedFile is
     /// a DB PackedFile. It'll crash otherwise.
-    pub fn read(packed_file_data: Vec<u8>, packed_file_db_type: &str, master_schema: &str) -> DB {
-        let packed_file_header: (DBHeader, usize) = DBHeader::read(packed_file_data.to_vec());
-        let packed_file_data = DBData::read(
-            packed_file_data[(packed_file_header.1)..].to_vec(),
-            packed_file_db_type,
-            master_schema,
-            packed_file_header.0.packed_file_header_packed_file_version,
-            packed_file_header.0.packed_file_header_packed_file_entry_count
-        );
+    pub fn read(packed_file_data: Vec<u8>, packed_file_db_type: &str, master_schema: &str) -> Result<DB, Error> {
 
-        DB {
-            packed_file_db_type: packed_file_db_type.to_string(),
-            packed_file_header: packed_file_header.0,
-            packed_file_data,
+
+        match DBHeader::read(packed_file_data.to_vec()) {
+            Ok(packed_file_header) => {
+                match DBData::read(
+                    packed_file_data[(packed_file_header.1)..].to_vec(),
+                    packed_file_db_type,
+                    master_schema,
+                    packed_file_header.0.packed_file_header_packed_file_version,
+                    packed_file_header.0.packed_file_header_packed_file_entry_count
+                ) {
+                    Ok(packed_file_data) =>
+                        Ok(DB {
+                            packed_file_db_type: packed_file_db_type.to_string(),
+                            packed_file_header: packed_file_header.0,
+                            packed_file_data,
+                        }),
+                    Err(error) => Err(error)
+                }
+            }
+            Err(error) => Err(error)
         }
     }
 
     /// This function takes an entire DB and encode it to Vec<u8>, so it can be written in the disk.
     /// It returns a Vec<u8> with the entire DB encoded in it.
-    pub fn save(packed_file_decoded: &DB) -> Vec<u8> {
+    pub fn save(packed_file_decoded: &DB) -> Result<Vec<u8>, Error> {
 
-        let mut packed_file_data_encoded = DBData::save(&packed_file_decoded.packed_file_data);
+        let mut packed_file_data_encoded = match DBData::save(&packed_file_decoded.packed_file_data) {
+            Ok(data) => data,
+            Err(error) => return Err(error)
+        };
+
         let mut packed_file_header_encoded = DBHeader::save(&packed_file_decoded.packed_file_header, packed_file_data_encoded.1);
 
         let mut packed_file_encoded: Vec<u8> = vec![];
         packed_file_encoded.append(&mut packed_file_header_encoded);
         packed_file_encoded.append(&mut packed_file_data_encoded.0);
-        packed_file_encoded
+        Ok(packed_file_encoded)
     }
 }
 
@@ -109,7 +124,7 @@ impl DBHeader {
 
     /// This function creates a decoded DBHeader from a encoded PackedFile. It also return an index,
     /// to know where the body starts.
-    pub fn read(packed_file_header: Vec<u8>) -> (DBHeader, usize) {
+    pub fn read(packed_file_header: Vec<u8>) -> Result<(DBHeader, usize), Error> {
         let mut index: usize = 0;
         let packed_file_header_packed_file_guid: String;
         let packed_file_header_packed_file_version: u32;
@@ -117,8 +132,14 @@ impl DBHeader {
 
         // If it has a GUID_MARKER, we get the GUID.
         if &packed_file_header[index..(index + 4)] == GUID_MARKER {
-            let packed_file_header_guid_lenght: u16 = (coding_helpers::decode_integer_u16(packed_file_header[4..6].to_vec())) * 2;
-            packed_file_header_packed_file_guid = coding_helpers::decode_string_u16(packed_file_header[6..(6 + (packed_file_header_guid_lenght as usize))].to_vec());
+            let packed_file_header_guid_lenght = match coding_helpers::decode_integer_u16(packed_file_header[4..6].to_vec()) {
+                Ok(data) => data * 2,
+                Err(error) => return Err(error)
+            };
+            packed_file_header_packed_file_guid = match coding_helpers::decode_string_u16(packed_file_header[6..(6 + (packed_file_header_guid_lenght as usize))].to_vec()){
+                Ok(data) => data,
+                Err(error) => return Err(error)
+            };
             index = 6 + packed_file_header_guid_lenght as usize;
         }
         else {
@@ -127,7 +148,10 @@ impl DBHeader {
 
         // If it has a VERSION_MARKER, we get the version of the table.
         if &packed_file_header[index..(index + 4)] == VERSION_MARKER {
-            packed_file_header_packed_file_version = coding_helpers::decode_integer_u32(packed_file_header[(index + 4)..(index + 8)].to_vec());
+            packed_file_header_packed_file_version = match coding_helpers::decode_integer_u32(packed_file_header[(index + 4)..(index + 8)].to_vec()) {
+                Ok(data) => data,
+                Err(error) => return Err(error)
+            };
             packed_file_header_packed_file_version_marker = true;
             index = index + 8;
         }
@@ -140,18 +164,21 @@ impl DBHeader {
         let packed_file_header_packed_file_mysterious_byte = packed_file_header[index];
         index += 1;
 
-        let packed_file_header_packed_file_entry_count =  coding_helpers::decode_integer_u32(packed_file_header[(index)..(index + 4)].to_vec());
+        let packed_file_header_packed_file_entry_count = match coding_helpers::decode_integer_u32(packed_file_header[(index)..(index + 4)].to_vec()) {
+            Ok(data) => data,
+            Err(error) => return Err(error)
+        };
 
         index += 4;
 
-        (DBHeader {
+        Ok((DBHeader {
             packed_file_header_packed_file_guid,
             packed_file_header_packed_file_version,
             packed_file_header_packed_file_version_marker,
             packed_file_header_packed_file_mysterious_byte,
             packed_file_header_packed_file_entry_count,
         },
-        index)
+        index))
     }
 
 
@@ -193,7 +220,7 @@ impl DBData {
         master_schema: &str,
         packed_file_header_packed_file_version: u32,
         packed_file_header_packed_file_entry_count: u32
-    ) -> DBData {
+    ) -> Result<DBData, Error> {
 
         let packed_file_data_decoded: Vec<Vec<DecodedData>>;
         let packed_file_data_structure: Option<OrderMap<String, String>>;
@@ -296,41 +323,63 @@ impl DBData {
                     }
 
                     // The rest of the columns, we decode them based on his type and store them in a DecodedData
-                    // enum, as enums are the only thing I found that can store them.
+                    // enum, as enums are the only thing I found that can store them
+                    //
+                    // NOTE: string/optstring and string_ascii/optstring_ascii are the same thing.
                     else {
                         let field = packed_file_data_entries_fields.get_index((column as usize) - 1).unwrap();
                         let field_type = field.1;
 
                         match &**field_type {
                             "boolean" => {
-                                let data = coding_helpers::decode_packedfile_bool(packed_file_data.to_vec(), index);
-                                index = data.1;
-                                entry.push(DecodedData::Boolean(data.0));
+                                match coding_helpers::decode_packedfile_bool(packed_file_data[index], index) {
+                                    Ok(data) => {
+                                        index = data.1;
+                                        entry.push(DecodedData::Boolean(data.0));
+                                    }
+                                    Err(error) => return Err(error)
+                                };
                             }
-                            "string_ascii" => {
-                                let data = coding_helpers::decode_packedfile_string_u8(packed_file_data.to_vec(), index);
-                                index = data.1;
-                                entry.push(DecodedData::String(data.0));
+                            "string" | "string_ascii" => {
+                                match coding_helpers::decode_packedfile_string_u8(packed_file_data.to_vec(), index) {
+                                    Ok(data) => {
+                                        index = data.1;
+                                        entry.push(DecodedData::String(data.0));
+                                    }
+                                    Err(error) => return Err(error)
+                                };
                             }
-                            "optstring_ascii" => {
-                                let data = coding_helpers::decode_packedfile_optional_string_u8(packed_file_data.to_vec(), index);
-                                index = data.1;
-                                entry.push(DecodedData::OptionalString(data.0));
+                            "optstring" | "optstring_ascii" => {
+                                match coding_helpers::decode_packedfile_optional_string_u8(packed_file_data.to_vec(), index) {
+                                    Ok(data) => {
+                                        index = data.1;
+                                        entry.push(DecodedData::OptionalString(data.0));
+                                    }
+                                    Err(error) => return Err(error)
+                                };
                             }
                             "int" => {
-                                let data = coding_helpers::decode_packedfile_integer_u32(packed_file_data.to_vec(), index);
-                                index = data.1;
-                                entry.push(DecodedData::Integer(data.0));
+                                match coding_helpers::decode_packedfile_integer_u32(packed_file_data.to_vec(), index) {
+                                    Ok(data) => {
+                                        index = data.1;
+                                        entry.push(DecodedData::Integer(data.0));
+                                    }
+                                    Err(error) => return Err(error)
+                                };
                             }
                             "float" => {
-                                let data = coding_helpers::decode_packedfile_float_u32(packed_file_data.to_vec(), index);
-                                index = data.1;
-                                entry.push(DecodedData::Float(data.0));
+                                match coding_helpers::decode_packedfile_float_u32(packed_file_data.to_vec(), index) {
+                                    Ok(data) => {
+                                        index = data.1;
+                                        entry.push(DecodedData::Float(data.0));
+                                    }
+                                    Err(error) => return Err(error)
+                                };
                             }
                             _ => {
-                                // If this fires up, the table has a non-implemented field. Current non-
-                                // implemented fields are "string" and "oopstring".
-                                println!("Unkown field_type 4 {}", field_type);
+                                // If this fires up, the table has a non-implemented field.
+                                return Err(Error::new(ErrorKind::Other, format!("Unkown field_type \"{}\" found while trying to decode a DB Table PackedFile.", field_type)))
+
                             }
                         }
                     }
@@ -351,17 +400,17 @@ impl DBData {
 
         let packed_file_data = packed_file_data_decoded;
 
-        DBData {
+        Ok(DBData {
             packed_file_data_structure,
             packed_file_data,
-        }
+        })
     }
 
 
     /// This function takes an entire DBData and encode it to Vec<u8>, so it can be written in the disk.
     /// It returns a tuple with the encoded DBData in a Vec<u8> and the new entry count to update the
     /// header.
-    pub fn save(packed_file_data_decoded: &DBData) -> (Vec<u8>, u32) {
+    pub fn save(packed_file_data_decoded: &DBData) -> Result<(Vec<u8>, u32), Error> {
 
         let mut packed_file_data_encoded: Vec<u8> = vec![];
         let mut packed_file_entry_count = 0;
@@ -396,13 +445,13 @@ impl DBData {
                         packed_file_data_encoded.append(&mut encoded_data);
                     },
                     DecodedData::RawData(_) => {
-                        // If this is reached, we fucked it up somewhere. For now, just print a warning.
-                        println!("Error, trying to write a RawData DB field.")
+                        // If this is reached, we fucked it up somewhere.
+                        return Err(Error::new(ErrorKind::Other, format!("Error, trying to write a RawData DB field.\nThis should never happen.")))
                     },
                 }
             }
             packed_file_entry_count += 1;
         }
-        (packed_file_data_encoded, packed_file_entry_count)
+        Ok((packed_file_data_encoded, packed_file_entry_count))
     }
 }

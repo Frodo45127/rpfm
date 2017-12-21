@@ -5,7 +5,13 @@
 extern crate unescape;
 extern crate byteorder;
 
-use std::char;
+use std::error;
+use std::io::{
+    Error, ErrorKind
+};
+use std::char::{
+    decode_utf16, REPLACEMENT_CHARACTER
+};
 
 use self::byteorder::{
     ByteOrder, ReadBytesExt, LittleEndian
@@ -20,77 +26,71 @@ use self::byteorder::{
 /// This function allow us to decode an UTF-16 encoded integer. This type of Integers are encoded in
 /// in 2 bytes reversed (LittleEndian).
 #[allow(dead_code)]
-pub fn decode_integer_u16(integer_encoded: Vec<u8>) -> u16 {
-    let integer_decoded: u16 = (&integer_encoded[..]).read_u16::<LittleEndian>().unwrap();
-    integer_decoded
+pub fn decode_integer_u16(integer_encoded: Vec<u8>) -> Result<u16, Error> {
+    (&integer_encoded[..]).read_u16::<LittleEndian>()
 }
 
 /// This function allow us to decode an UTF-32 encoded integer. This type of Integers are encoded in
 /// in 4 bytes reversed (LittleEndian).
 #[allow(dead_code)]
-pub fn decode_integer_u32(integer_encoded: Vec<u8>) -> u32 {
-    let integer_decoded: u32 = (&integer_encoded[..]).read_u32::<LittleEndian>().unwrap();
-    integer_decoded
+pub fn decode_integer_u32(integer_encoded: Vec<u8>) -> Result<u32, Error> {
+    (&integer_encoded[..]).read_u32::<LittleEndian>()
 }
 
 /// This function allow us to decode an UTF-32 encoded float. This type of floats are encoded in
 /// in 4 bytes reversed (LittleEndian).
 #[allow(dead_code)]
-pub fn decode_float_u32(float_encoded: Vec<u8>) -> f32 {
-    let float_decoded: f32 = (&float_encoded[..]).read_f32::<LittleEndian>().unwrap();
-    float_decoded
+pub fn decode_float_u32(float_encoded: Vec<u8>) -> Result<f32, Error> {
+    (&float_encoded[..]).read_f32::<LittleEndian>()
 }
 
 /// This function allow us to decode an UTF-8 encoded String.
 #[allow(dead_code)]
-pub fn decode_string_u8(string_encoded: Vec<u8>) -> String {
-    let string_decoded: String;
-    let string_decoded_result = String::from_utf8(string_encoded);
-    match string_decoded_result {
-        Ok(string_decoded_result) => {
-            string_decoded = string_decoded_result;
-        }
-        Err(e) => {
-            string_decoded = format!("Error decoding String.")
-        }
+pub fn decode_string_u8(string_encoded: Vec<u8>) -> Result<String, Error> {
+    match String::from_utf8(string_encoded) {
+        Ok(string) => Ok(string),
+        Err(error) => Err(Error::new(ErrorKind::Other, error::Error::description(&error).to_string())),
     }
-    string_decoded
 }
 
 /// This function allow us to decode an UTF-16 encoded String. This type of Strings are encoded in
 /// in 2 bytes reversed (LittleEndian). Also, this is extremely slow. Needs a lot of improvements.
+///
+/// NOTE: We return error if the length has returned an error. If a char return an error, we just replace
+///       it, but return success.
 #[allow(dead_code)]
-pub fn decode_string_u16(string_encoded: Vec<u8>) -> String {
+pub fn decode_string_u16(string_encoded: Vec<u8>) -> Result<String, Error> {
     let mut string_decoded: String = String::new();
     let mut offset: usize = 0;
 
     for _ in 0..(string_encoded.len() / 2) {
-        let character_u16: u16 = (&string_encoded[offset..offset + 2]).read_u16::<LittleEndian>().unwrap();
-        let character_u16 = char::decode_utf16(vec![character_u16]
-                .iter()
-                .cloned())
-            .map( | r | r.map_err( | e | e.unpaired_surrogate()))
-            .collect::< Vec < _ >> ();
-        let character_decoded = character_u16[0].unwrap().escape_debug().to_string();
-
-        string_decoded.push_str(&character_decoded);
-        offset += 2;
+        match decode_integer_u16(string_encoded[offset..offset + 2].to_vec()) {
+            Ok(character_u16) => {
+                let character = decode_utf16(vec![character_u16]
+                        .iter()
+                        .cloned())
+                    .map( | r | r.unwrap_or(REPLACEMENT_CHARACTER))
+                    .collect::<Vec<_>>();
+                string_decoded.push_str(&character[0].escape_debug().to_string());
+                offset += 2;
+            }
+            Err(error) => return Err(error)
+        }
     }
-    string_decoded
+    Ok(string_decoded)
 }
 
 /// This function allow us to decode an encoded boolean. This is simple: \u{0} is false, \u{1} is true.
 /// It only uses a byte.
 #[allow(dead_code)]
-pub fn decode_bool(bool_encoded: u8) -> bool {
-    let bool_decoded: bool;
-    if (bool_encoded as char).escape_unicode().to_string() == ("\\u{1}") {
-        bool_decoded = true;
+pub fn decode_bool(bool_encoded: u8) -> Result<bool, Error> {
+    let bool_decoded = (bool_encoded as char).escape_unicode().to_string();
+
+    match &*bool_decoded {
+        "\\u{0}" => Ok(false),
+        "\\u{1}" => Ok(true),
+        _ => Err(Error::new(ErrorKind::Other, "Error:\nTrying to decode a non-boolean value as boolean.")),
     }
-    else {
-        bool_decoded = false;
-    }
-    bool_decoded
 }
 
 /*
@@ -178,30 +178,66 @@ pub fn encode_bool(bool_decoded: bool) -> Vec<u8> {
 /// This function allow us to decode an UTF-32 encoded integer cell. We return the integer and the index
 /// for the next cell's data.
 #[allow(dead_code)]
-pub fn decode_packedfile_integer_u32(packed_file_data: Vec<u8>, mut index: usize) -> (u32, usize) {
-    let number = decode_integer_u32(packed_file_data[index..(index + 4)].to_vec());
-    index += 4;
-    (number, index)
+pub fn decode_packedfile_integer_u32(packed_file_data: Vec<u8>, mut index: usize) -> Result<(u32, usize), Error> {
+    if packed_file_data.len() >= (index + 4) {
+        match decode_integer_u32(packed_file_data[index..(index + 4)].to_vec()) {
+            Ok(number) => {
+                index += 4;
+                Ok((number, index))
+            }
+            Err(error) => Err(error)
+        }
+    }
+    else {
+        return Err(Error::new(ErrorKind::Other, format!("Error: Index out of bounds. Probably some error in the master_schema.")))
+    }
 }
 
 /// This function allow us to decode an UTF-32 encoded float cell. We return the float and the index
 /// for the next cell's data.
 #[allow(dead_code)]
-pub fn decode_packedfile_float_u32(packed_file_data: Vec<u8>, mut index: usize) -> (f32, usize) {
-    let number = decode_float_u32(packed_file_data[index..(index + 4)].to_vec());
-    index += 4;
-    (number, index)
+pub fn decode_packedfile_float_u32(packed_file_data: Vec<u8>, mut index: usize) -> Result<(f32, usize), Error> {
+    if packed_file_data.len() >= (index + 4) {
+        match decode_float_u32(packed_file_data[index..(index + 4)].to_vec()) {
+            Ok(number) => {
+                index += 4;
+                Ok((number, index))
+            }
+            Err(error) => Err(error)
+        }
+    }
+    else {
+        return Err(Error::new(ErrorKind::Other, format!("Error: Index out of bounds. Probably some error in the master_schema.")))
+    }
 }
 
 /// This function allow us to decode an UTF-8 encoded string cell. We return the string and the
 /// index for the next cell's data.
 #[allow(dead_code)]
-pub fn decode_packedfile_string_u8(packed_file_data: Vec<u8>, mut index: usize) -> (String, usize) {
-    let size: usize = decode_integer_u16(packed_file_data[index..(index + 2)].to_vec()) as usize;
-    index += 2;
-    let string = decode_string_u8(packed_file_data[index..(index + size)].to_vec());
-    index += size;
-    (string, index)
+pub fn decode_packedfile_string_u8(packed_file_data: Vec<u8>, mut index: usize) -> Result<(String, usize), Error> {
+    if packed_file_data.len() >= (index + 2) {
+        match decode_integer_u16(packed_file_data[index..(index + 2)].to_vec()) {
+            Ok(size) => {
+                index += 2;
+                if packed_file_data.len() >= (index + size as usize) {
+                    match decode_string_u8(packed_file_data[index..(index + size as usize)].to_vec()) {
+                        Ok(string) => {
+                            index += size as usize;
+                            Ok((string, index))
+                        }
+                        Err(error) => Err(error)
+                    }
+                }
+                else {
+                    return Err(Error::new(ErrorKind::Other, format!("Error: Inddex out of bounds. Probably some error in the master_schema.")))
+                }
+            }
+            Err(error) => Err(error)
+        }
+    }
+    else {
+        return Err(Error::new(ErrorKind::Other, format!("Error: Index aout of bounds. Probably some error in the master_schema.")))
+    }
 }
 
 /// This function allow us to decode an UTF-8 encoded optional string cell. We return the string (or
@@ -209,24 +245,39 @@ pub fn decode_packedfile_string_u8(packed_file_data: Vec<u8>, mut index: usize) 
 ///
 /// NOTE: These strings's first byte it's a boolean that indicates if the string has something.
 #[allow(dead_code)]
-pub fn decode_packedfile_optional_string_u8(packed_file_data: Vec<u8>, mut index: usize) -> (String, usize) {
-    let exists = decode_bool(packed_file_data[index]);
-    index += 1;
-    if exists {
-        decode_packedfile_string_u8(packed_file_data, index)
-    } else {
-        let string = String::new();
-        (string, index)
+pub fn decode_packedfile_optional_string_u8(packed_file_data: Vec<u8>, index: usize) -> Result<(String, usize), Error> {
+    if packed_file_data.len() >= (index) {
+        match decode_packedfile_bool(packed_file_data[index], index) {
+            Ok(result) => {
+                if result.0 {
+                    match decode_packedfile_string_u8(packed_file_data, result.1) {
+                        Ok(result) => Ok(result),
+                        Err(error) => Err(Error::new(ErrorKind::Other, error::Error::description(&error).to_string())),
+                    }
+                }
+                else {
+                    Ok((String::new(), result.1))
+                }
+            }
+            Err(error) => Err(error)
+        }
+    }
+    else {
+        return Err(Error::new(ErrorKind::Other, format!("Error: Insdex out of bounds. Probably some error in the master_schema.")))
     }
 }
 
 /// This function allow us to decode a boolean cell. We return the boolean's value and the index
 /// for the next cell's data.
 #[allow(dead_code)]
-pub fn decode_packedfile_bool(packed_file_data: Vec<u8>, mut index: usize) -> (bool, usize) {
-    let is_true = decode_bool(packed_file_data[index]);
-    index += 1;
-    (is_true, index)
+pub fn decode_packedfile_bool(packed_file_data: u8, mut index: usize) -> Result<(bool, usize), Error> {
+    match decode_bool(packed_file_data) {
+        Ok(value) => {
+            index += 1;
+            Ok((value, index))
+        }
+        Err(error) => Err(error)
+    }
 }
 
 /*

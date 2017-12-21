@@ -11,8 +11,11 @@ use std::io::{
     Read, Write
 };
 
-use std::error::Error;
+use std::io::{
+    Error, ErrorKind
+};
 
+use std::error;
 use common::coding_helpers;
 use packedfile::loc::Loc;
 use packedfile::db::DB;
@@ -34,7 +37,7 @@ pub fn new_packfile(file_name: String) -> packfile::PackFile {
 
 /// This function is used to open the PackFiles. It requires the path of the PackFile to open, and
 /// it returns the PackFile decoded (if success) or an error message (if error).
-pub fn open_packfile(pack_file_path: PathBuf) -> Result<packfile::PackFile, String> {
+pub fn open_packfile(pack_file_path: PathBuf) -> Result<packfile::PackFile, Error> {
 
     // First, we get his name and path.
     let mut pack_file_path_string = pack_file_path.clone();
@@ -47,23 +50,31 @@ pub fn open_packfile(pack_file_path: PathBuf) -> Result<packfile::PackFile, Stri
     let mut pack_file_buffered = vec![];
     file.read_to_end(&mut pack_file_buffered).expect("Error reading file.");
 
-
-    let pack_file: Result<packfile::PackFile, String>;
-
     // If the file has less than 4 bytes, the file is not valid.
     if pack_file_buffered.len() <= 4 {
-        pack_file = Err(format!("The file doesn't even have 4 bytes."));
+        Err(Error::new(ErrorKind::Other, format!("The file doesn't even have 4 bytes.")))
     }
-    // If the header's first 4 bytes are "PFH5", it's a valid file, so we read it.
-    else if coding_helpers::decode_string_u8(pack_file_buffered[0..4].to_vec()) == "PFH5"  {
-        pack_file = Ok(packfile::PackFile::read(pack_file_buffered, pack_file_name, pack_file_path_string));
-    }
-    // If we reach this point, the file is not valid.
     else {
-        pack_file = Err(format!("The file is not a Warhammer 2 PackFile."));
-    }
+        match coding_helpers::decode_string_u8(pack_file_buffered[0..4].to_vec()) {
+            Ok(pack_file_id) => {
 
-    pack_file
+                // If the header's first 4 bytes are "PFH5", it's a valid file, so we read it.
+                if pack_file_id == "PFH5" {
+                    match packfile::PackFile::read(pack_file_buffered, pack_file_name, pack_file_path_string) {
+                        Ok(pack_file) => Ok(pack_file),
+                        Err(error) => Err(error),
+                    }
+                }
+
+                // If we reach this point, the file is not valid.
+                else {
+                    Err(Error::new(ErrorKind::Other, format!("The file is not a Warhammer 2 PackFile.")))
+                }
+            }
+            // If we reach this point, there has been a decoding error.
+            Err(error) => Err(error),
+        }
+    }
 }
 
 
@@ -76,7 +87,7 @@ pub fn open_packfile(pack_file_path: PathBuf) -> Result<packfile::PackFile, Stri
 pub fn save_packfile(
     pack_file: &mut packfile::PackFile,
     new_path: Option<PathBuf>
-) -> Result<String, String> {
+) -> Result<String, Error> {
 
     // If we haven't received a new_path, we assume the path is the original path of the file.
     // If that one is empty too (should never happen), we panic and cry.
@@ -102,25 +113,16 @@ pub fn save_packfile(
 
     // Once we have the destination path saved, we proceed to save the PackedFile to that path and
     // return Ok or one of the 2 possible errors.
-    let save_result: Result<String, String>;
-
     match File::create(pack_file_path) {
         Ok(mut file) => {
             let pack_file_encoded: Vec<u8> = packfile::PackFile::save(pack_file);
             match file.write_all(&pack_file_encoded) {
-                Ok(_) => {
-                    save_result = Ok(format!("File saved succesfuly:\n{}", pack_file_path.display()))
-                }
-                Err(why) => {
-                    save_result = Err(format!("Error while writing the following file to disk:\n{}\n\nThe problem reported is:\n{}", pack_file_path.display(), why.description()))
-                },
+                Ok(_) => Ok(format!("File saved succesfuly:\n{}", pack_file_path.display())),
+                Err(error) => Err(error)
             }
         }
-        Err(why) => {
-            save_result = Err(format!("Error while trying to write the following file to disk:\n{}\n\nThe problem reported is:\n{}", pack_file_path.display(), why.description()))
-        }
+        Err(error) => Err(error)
     }
-    save_result
 }
 
 
@@ -134,9 +136,7 @@ pub fn add_file_to_packfile(
     pack_file: &mut packfile::PackFile,
     file_path: PathBuf,
     tree_path: Vec<String>
-) -> Result<String, String> {
-
-    let result: Result<String, String>;
+) -> Result<String, Error> {
 
     // First we make a quick check to see if the file is already in the PackFile.
     let mut duplicated_file = false;
@@ -160,13 +160,11 @@ pub fn add_file_to_packfile(
         let new_packed_file = packfile::PackedFile::add(file_size, tree_path, file_data);
         pack_file.pack_file_data.packed_files.push(new_packed_file);
 
-        result = Ok(format!("File added."));
+        Ok(format!("File added."))
     }
     else {
-        result = Err(format!("There is already a file with that name in that folder. Delete that file first."));
+        Err(Error::new(ErrorKind::Other, format!("There is already a file with that name in that folder. Delete that file first.")))
     }
-
-    result
 }
 
 
@@ -174,7 +172,7 @@ pub fn add_file_to_packfile(
 /// from the PackFile. We just need the open PackFile and the tree_path of the file/folder to delete.
 pub fn delete_from_packfile(
     pack_file: &mut packfile::PackFile,
-    tree_path: Vec<String>,) {
+    tree_path: Vec<String>) {
 
     let mut index: i32 = 0;
     let mut is_a_file = false;
@@ -238,10 +236,9 @@ pub fn extract_from_packfile(
     pack_file: &packfile::PackFile,
     tree_path: Vec<String>,
     extracted_path: PathBuf
-) -> Result<String, String> {
+) -> Result<String, Error> {
 
-    let result: Result<String, String>;
-    let mut file_result: Result<String, String> = Err(format!("It's a folder, not a file."));
+    let mut error_list: Vec<Error> = vec![];
 
     let mut index: i32 = 0;
     let mut is_a_file = false;
@@ -275,11 +272,11 @@ pub fn extract_from_packfile(
             Ok(mut extracted_file) => {
                 let packed_file_encoded: (Vec<u8>, Vec<u8>) = packfile::PackedFile::save(&pack_file.pack_file_data.packed_files[index as usize]);
                 match extracted_file.write_all(&packed_file_encoded.1) {
-                    Ok(_) => file_result = Ok(format!("File extracted succesfuly:\n{}", extracted_path.display())),
-                    Err(why) => file_result = Err(format!("Error while writing the following file to disk:\n{}\n\nThe problem reported is:\n{}", extracted_path.display(), why.description())),
+                    Ok(_) => Ok(format!("File extracted succesfuly:\n{}", extracted_path.display())),
+                    Err(error) => Err(Error::new(ErrorKind::Other, format!("Error while writing the following file to disk:\n{}\n\nThe problem reported is:\n{}", extracted_path.display(), error::Error::description(&error).to_string())))
                 }
             }
-            Err(why) => file_result = Err(format!("Error while trying to write the following dile to disk:\n{}\n\nThe problem reported is:\n{}", extracted_path.display(), why.description())),
+            Err(error) => Err(Error::new(ErrorKind::Other, format!("Error while trying to write the following dile to disk:\n{}\n\nThe problem reported is:\n{}", extracted_path.display(), error::Error::description(&error).to_string())))
         }
     }
 
@@ -311,10 +308,16 @@ pub fn extract_from_packfile(
                             let packed_file_encoded: (Vec<u8>, Vec<u8>) = packfile::PackedFile::save(&i);
                             match extracted_file.write_all(&packed_file_encoded.1) {
                                 Ok(_) => files_extracted += 1,
-                                Err(_) => files_errors += 1,
+                                Err(error) => {
+                                    error_list.push(error);
+                                    files_errors += 1;
+                                }
                             }
                         }
-                        Err(_) => files_errors += 1,
+                        Err(error) => {
+                            error_list.push(error);
+                            files_errors += 1;
+                        },
                     }
                 }
 
@@ -329,20 +332,16 @@ pub fn extract_from_packfile(
             }
             current_path = base_path.clone();
         }
-    }
-
-    // Here we set the result we are going to return.
-    if is_a_file {
-        result = file_result;
-    }
-    else if files_errors > 0 {
-        result = Err(format!("{} errors extracting files.", files_errors));
+        if files_errors > 0 {
+            Err(Error::new(ErrorKind::Other, format!("{} errors extracting files:\n {:#?}", files_errors, error_list)))
+        }
+        else {
+            Ok(format!("{} files extracted. No errors detected.", files_extracted))
+        }
     }
     else {
-        result = Ok(format!("{} files extracted. No errors detected.", files_extracted));
+        Err(Error::new(ErrorKind::Other, format!("I can't think of a situation that causes this error to show up.")))
     }
-
-    result
 }
 
 
@@ -355,9 +354,7 @@ pub fn rename_packed_file(
     pack_file: &mut packfile::PackFile,
     tree_path: Vec<String>,
     new_name: &String
-) -> Result<String, String> {
-
-    let result: Result<String, String>;
+) -> Result<String, Error> {
 
     let mut index: i32 = 0;
     let mut is_a_file = false;
@@ -366,20 +363,20 @@ pub fn rename_packed_file(
 
     // First we check if the name is valid, and return an error if the new name is invalid.
     if new_name == tree_path.last().unwrap() {
-        result = Err(format!("New name is the same as old name."));
+        Err(Error::new(ErrorKind::Other, format!("New name is the same as old name.")))
     }
     else if new_name.is_empty() {
-        result = Err(format!("Only my hearth can be empty."));
+        Err(Error::new(ErrorKind::Other, format!("Only my hearth can be empty.")))
     }
     else if new_name.contains(" ") {
-        result = Err(format!("Spaces are not valid characters."));
+        Err(Error::new(ErrorKind::Other, format!("Spaces are not valid characters.")))
     }
 
     // If the name is valid, we check the length of the tree_path. If it's 1, we are renaming the
     // PackFile, not a PackedFile.
     else if tree_path.len() == 1 {
         pack_file.pack_file_extra_data.file_name = new_name.clone();
-        result = Ok(format!("PackFile renamed."));
+        Ok(format!("PackFile renamed."))
     }
 
     // If we reach this point, we can rename the file/folder.
@@ -427,10 +424,10 @@ pub fn rename_packed_file(
             if !new_tree_path_already_exist {
                 pack_file.pack_file_data.packed_files[index as usize].packed_file_path.pop();
                 pack_file.pack_file_data.packed_files[index as usize].packed_file_path.push(new_name.clone());
-                result = Ok(format!("File renamed."));
+                Ok(format!("File renamed."))
             }
             else {
-                result = Err(format!("This name is already being used by another file in this path."));
+                Err(Error::new(ErrorKind::Other, format!("This name is already being used by another file in this path.")))
             }
         }
 
@@ -462,17 +459,16 @@ pub fn rename_packed_file(
                     }
                     index += 1;
                 }
-                result = Ok(format!("Folder renamed."));
+                Ok(format!("Folder renamed."))
             }
             else {
-                result = Err(format!("This name is already being used by another folder in this path."));
+                Err(Error::new(ErrorKind::Other, format!("This name is already being used by another folder in this path.")))
             }
         }
         else {
-            result = Err(format!("This should never happend."));
+            Err(Error::new(ErrorKind::Other, format!("This should never happen.")))
         }
     }
-    result
 }
 
 /*
@@ -504,14 +500,18 @@ pub fn update_packed_file_data_db(
     packed_file_data_decoded: &DB,
     pack_file: &mut packfile::PackFile,
     index: usize,
-) {
-    let mut packed_file_data_encoded = DB::save(&packed_file_data_decoded).to_vec();
+) -> Result<(), Error> {
+    let mut packed_file_data_encoded = match DB::save(&packed_file_data_decoded) {
+        Ok(data) => data.to_vec(),
+        Err(error) => return Err(error)
+    };
     let packed_file_data_encoded_size = packed_file_data_encoded.len() as u32;
 
     // Replace the old raw data of the PackedFile with the new one, and update his size.
     &pack_file.pack_file_data.packed_files[index].packed_file_data.clear();
     &pack_file.pack_file_data.packed_files[index].packed_file_data.append(&mut packed_file_data_encoded);
     pack_file.pack_file_data.packed_files[index].packed_file_size = packed_file_data_encoded_size;
+    Ok(())
 }
 
 /// This function saves the data of the edited Text PackedFile in the main PackFile after a change has
@@ -541,9 +541,7 @@ pub fn update_packed_file_data_text(
 /// It requires a mut ref to a decoded PackFile, and returns an String (Result<Success, Error>).
 pub fn patch_siege_ai (
     pack_file: &mut packfile::PackFile
-) -> Result<String, String> {
-
-    let save_result: Result<String, String>;
+) -> Result<String, Error> {
 
     let mut files_patched = 0;
     let mut files_deleted = 0;
@@ -616,18 +614,18 @@ pub fn patch_siege_ai (
 
     // And now we return success or error depending on what happened during the patching process.
     if packfile_is_empty {
-        save_result = Err(format!("This packfile is empty, so we can't patch it."));
+        Err(Error::new(ErrorKind::Other, format!("This packfile is empty, so we can't patch it.")))
     }
     else if files_patched == 0 && files_deleted == 0 {
-        save_result = Err(format!("There are not files in this Packfile that could be patched/deleted."));
+        Err(Error::new(ErrorKind::Other, format!("There are not files in this Packfile that could be patched/deleted.")))
     }
     else if files_patched >= 0 || files_deleted >= 0 {
         if files_patched == 0 {
-            save_result = Ok(format!("No file suitable for patching has been found.\n{} files deleted.", files_deleted));
+            Ok(format!("No file suitable for patching has been found.\n{} files deleted.", files_deleted))
         }
         else if multiple_defensive_hill_hints {
             if files_deleted == 0 {
-                save_result = Ok(format!("{} files patched.\nNo file suitable for deleting has been found.\
+                Ok(format!("{} files patched.\nNo file suitable for deleting has been found.\
                 \n\n\
                 WARNING: Multiple Defensive Hints have been found and we only patched the first one.\
                  If you are using SiegeAI, you should only have one Defensive Hill in the map (the \
@@ -635,10 +633,10 @@ pub fn patch_siege_ai (
                  in the map, normal Defensive Hills will not work anyways, and the only thing they do \
                  is interfere with the patching process. So, if your map doesn't work properly after \
                  patching, delete all the extra Defensive Hill Hints. They are the culprit.",
-                 files_patched));
+                 files_patched))
             }
             else {
-                save_result = Ok(format!("{} files patched.\n{} files deleted.\
+                Ok(format!("{} files patched.\n{} files deleted.\
                 \n\n\
                 WARNING: Multiple Defensive Hints have been found and we only patched the first one.\
                  If you are using SiegeAI, you should only have one Defensive Hill in the map (the \
@@ -646,19 +644,17 @@ pub fn patch_siege_ai (
                  in the map, normal Defensive Hills will not work anyways, and the only thing they do \
                  is interfere with the patching process. So, if your map doesn't work properly after \
                  patching, delete all the extra Defensive Hill Hints. They are the culprit.",
-                files_patched, files_deleted));
+                files_patched, files_deleted))
             }
         }
         else if files_deleted == 0 {
-            save_result = Ok(format!("{} files patched.\nNo file suitable for deleting has been found.", files_patched));
+            Ok(format!("{} files patched.\nNo file suitable for deleting has been found.", files_patched))
         }
         else {
-            save_result = Ok(format!("{} files patched.\n{} files deleted.", files_patched, files_deleted));
+            Ok(format!("{} files patched.\n{} files deleted.", files_patched, files_deleted))
         }
     }
     else {
-        save_result = Err(format!("This should never happend."));
+        Err(Error::new(ErrorKind::Other, format!("This should never happen.")))
     }
-
-    save_result
 }
