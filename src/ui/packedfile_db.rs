@@ -3,6 +3,9 @@ extern crate ordermap;
 extern crate gtk;
 extern crate glib;
 
+use std::io::{
+    Error, ErrorKind
+};
 use gtk::prelude::*;
 use gtk::{
     Box, TreeView, ListStore, ScrolledWindow,
@@ -32,7 +35,7 @@ impl PackedFileDBTreeView{
     pub fn create_tree_view(
         packed_file_data_display: &Box,
         packed_file_decoded: &::packedfile::db::DB
-    ) -> PackedFileDBTreeView {
+    ) -> Result<PackedFileDBTreeView, Error> {
 
         // First, we create the Vec<Type> we are going to use to create the TreeView, based on the structure
         // of the DB PackedFile.
@@ -48,10 +51,10 @@ impl PackedFileDBTreeView{
                 "boolean" => {
                     list_store_structure.push(Type::Bool);
                 }
-                "string_ascii" => {
+                "string" | "string_ascii" => {
                     list_store_structure.push(Type::String);
                 }
-                "optstring_ascii" => {
+                "optstring" | "optstring_ascii" => {
                     list_store_structure.push(Type::String);
                 }
                 "int" => {
@@ -62,8 +65,7 @@ impl PackedFileDBTreeView{
                 }
                 _ => {
                     // This should only fire when we try to open a table with a non-implemented type.
-                    // TODO: implement the types "string" and "oopstring". I guess those are u16 strings.
-                    println!("Unkown field_type 3 {}", field_type);
+                    return Err(Error::new(ErrorKind::Other, format!("Unkown field_type \"{}\" found while trying to guess the column types of a DB PackedFile Table.", field_type)))
                 }
             }
         }
@@ -136,7 +138,7 @@ impl PackedFileDBTreeView{
                     packed_file_tree_view.append_column(&column_bool);
                     packed_file_tree_view_cell_bool.push(cell_bool);
                 }
-                "string_ascii" => {
+                "string" | "string_ascii" => {
                     let cell_string = CellRendererText::new();
                     cell_string.set_property_editable(true);
                     cell_string.set_property_placeholder_text(Some("Obligatory String"));
@@ -153,7 +155,7 @@ impl PackedFileDBTreeView{
                     packed_file_tree_view.append_column(&column_string);
                     packed_file_tree_view_cell_string.push(cell_string);
                 }
-                "optstring_ascii" => {
+                "optstring" | "optstring_ascii" => {
                     let cell_optional_string = CellRendererText::new();
                     cell_optional_string.set_property_editable(true);
                     cell_optional_string.set_property_placeholder_text(Some("Optional String"));
@@ -208,8 +210,7 @@ impl PackedFileDBTreeView{
                 }
                 _ => {
                     // This should only fire when we try to open a table with a non-implemented type.
-                    // TODO: implement the types "string" and "oopstring". I guess those are u16 strings.
-                    println!("Unkown field_type 2 {}", field_type);
+                    return Err(Error::new(ErrorKind::Other, format!("Unkown field_type \"{}\" found while loading data from a PackedFile into a Table.", field_type)))
                 }
             }
             index += 1;
@@ -224,7 +225,7 @@ impl PackedFileDBTreeView{
         packed_file_data_display.pack_end(&packed_file_data_scroll, true, true, 0);
         packed_file_data_display.show_all();
 
-        PackedFileDBTreeView {
+        Ok(PackedFileDBTreeView {
             packed_file_tree_view,
             packed_file_list_store,
             packed_file_tree_view_cell_bool,
@@ -232,14 +233,14 @@ impl PackedFileDBTreeView{
             packed_file_tree_view_cell_optional_string,
             packed_file_tree_view_cell_integer,
             packed_file_tree_view_cell_float,
-        }
+        })
     }
 
     /// This function decodes the data of a DB PackedFile and loads it into a TreeView.
     pub fn load_data_to_tree_view(
         packed_file_data: Vec<Vec<::packedfile::db::DecodedData>>,
         packed_file_list_store: &ListStore,
-    ) {
+    ) -> Result<(), Error>{
 
         // First, we delete all the data from the ListStore.
         packed_file_list_store.clear();
@@ -261,12 +262,13 @@ impl PackedFileDBTreeView{
                     ::packedfile::db::DecodedData::OptionalString(data) => gtk_value_field = gtk::ToValue::to_value(&data),
                     ::packedfile::db::DecodedData::Integer(data) => gtk_value_field = gtk::ToValue::to_value(&data),
                     ::packedfile::db::DecodedData::Float(data) => gtk_value_field = gtk::ToValue::to_value(&data),
-                    ::packedfile::db::DecodedData::RawData(_) => gtk_value_field = gtk::ToValue::to_value("Error"),
+                    ::packedfile::db::DecodedData::RawData(_) => return Err(Error::new(ErrorKind::Other, format!("Error: trying to load RawData into a DB Table PackedFile."))),
                 }
                 packed_file_list_store.set_value(&current_row, index, &gtk_value_field);
                 index += 1;
             }
         }
+        Ok(())
     }
 
     /// This function returns a Vec<DataDecoded> with all the stuff in the table. We need for it the
@@ -274,7 +276,7 @@ impl PackedFileDBTreeView{
     pub fn return_data_from_tree_view(
         packed_file_data_structure: &Option<OrderMap<String, String>>,
         packed_file_list_store: &ListStore,
-    ) -> Vec<Vec<::packedfile::db::DecodedData>> {
+    ) -> Result<Vec<Vec<::packedfile::db::DecodedData>>, Error> {
 
         let mut packed_file_data_from_tree_view: Vec<Vec<::packedfile::db::DecodedData>> = vec![];
 
@@ -297,11 +299,11 @@ impl PackedFileDBTreeView{
                             let data: bool = packed_file_list_store.get_value(&current_line, column).get().unwrap();
                             packed_file_data_from_tree_view_entry.push(::packedfile::db::DecodedData::Boolean(data));
                         }
-                        "string_ascii" => {
+                        "string" | "string_ascii" => {
                             let data: String = packed_file_list_store.get_value(&current_line, column).get().unwrap();
                             packed_file_data_from_tree_view_entry.push(::packedfile::db::DecodedData::String(data));
                         }
-                        "optstring_ascii" => {
+                        "optstring" | "optstring_ascii" => {
                             let data: String = packed_file_list_store.get_value(&current_line, column).get().unwrap();
                             packed_file_data_from_tree_view_entry.push(::packedfile::db::DecodedData::OptionalString(data));
                         }
@@ -315,8 +317,7 @@ impl PackedFileDBTreeView{
                         }
                         _ => {
                             // If this fires up, the table has a non-implemented field. Current non-
-                            // implemented fields are "string" and "oopstring".
-                            println!("Unkown field_type {}", field_type);
+                            return Err(Error::new(ErrorKind::Other, format!("Unkown field_type \"{}\" found while trying to save the data from a Table to a DB Table PackedFile.", field_type)))
                         }
                     }
                 }
@@ -327,6 +328,6 @@ impl PackedFileDBTreeView{
                 }
             }
         }
-        packed_file_data_from_tree_view
+        Ok(packed_file_data_from_tree_view)
     }
 }

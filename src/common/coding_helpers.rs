@@ -179,12 +179,17 @@ pub fn encode_bool(bool_decoded: bool) -> Vec<u8> {
 /// for the next cell's data.
 #[allow(dead_code)]
 pub fn decode_packedfile_integer_u32(packed_file_data: Vec<u8>, mut index: usize) -> Result<(u32, usize), Error> {
-    match decode_integer_u32(packed_file_data[index..(index + 4)].to_vec()) {
-        Ok(number) => {
-            index += 4;
-            Ok((number, index))
+    if packed_file_data.len() >= (index + 4) {
+        match decode_integer_u32(packed_file_data[index..(index + 4)].to_vec()) {
+            Ok(number) => {
+                index += 4;
+                Ok((number, index))
+            }
+            Err(error) => Err(error)
         }
-        Err(error) => Err(error)
+    }
+    else {
+        return Err(Error::new(ErrorKind::Other, format!("Error: Index out of bounds. Probably some error in the master_schema.")))
     }
 }
 
@@ -192,12 +197,17 @@ pub fn decode_packedfile_integer_u32(packed_file_data: Vec<u8>, mut index: usize
 /// for the next cell's data.
 #[allow(dead_code)]
 pub fn decode_packedfile_float_u32(packed_file_data: Vec<u8>, mut index: usize) -> Result<(f32, usize), Error> {
-    match decode_float_u32(packed_file_data[index..(index + 4)].to_vec()) {
-        Ok(number) => {
-            index += 4;
-            Ok((number, index))
+    if packed_file_data.len() >= (index + 4) {
+        match decode_float_u32(packed_file_data[index..(index + 4)].to_vec()) {
+            Ok(number) => {
+                index += 4;
+                Ok((number, index))
+            }
+            Err(error) => Err(error)
         }
-        Err(error) => Err(error)
+    }
+    else {
+        return Err(Error::new(ErrorKind::Other, format!("Error: Index out of bounds. Probably some error in the master_schema.")))
     }
 }
 
@@ -205,18 +215,28 @@ pub fn decode_packedfile_float_u32(packed_file_data: Vec<u8>, mut index: usize) 
 /// index for the next cell's data.
 #[allow(dead_code)]
 pub fn decode_packedfile_string_u8(packed_file_data: Vec<u8>, mut index: usize) -> Result<(String, usize), Error> {
-    match decode_integer_u16(packed_file_data[index..(index + 2)].to_vec()) {
-        Ok(size) => {
-            index += 2;
-            match decode_string_u8(packed_file_data[index..(index + size as usize)].to_vec()) {
-                Ok(string) => {
-                    index += size as usize;
-                    Ok((string, index))
+    if packed_file_data.len() >= (index + 2) {
+        match decode_integer_u16(packed_file_data[index..(index + 2)].to_vec()) {
+            Ok(size) => {
+                index += 2;
+                if packed_file_data.len() >= (index + size as usize) {
+                    match decode_string_u8(packed_file_data[index..(index + size as usize)].to_vec()) {
+                        Ok(string) => {
+                            index += size as usize;
+                            Ok((string, index))
+                        }
+                        Err(error) => Err(error)
+                    }
                 }
-                Err(error) => Err(error)
+                else {
+                    return Err(Error::new(ErrorKind::Other, format!("Error: Inddex out of bounds. Probably some error in the master_schema.")))
+                }
             }
+            Err(error) => Err(error)
         }
-        Err(error) => Err(error)
+    }
+    else {
+        return Err(Error::new(ErrorKind::Other, format!("Error: Index aout of bounds. Probably some error in the master_schema.")))
     }
 }
 
@@ -226,19 +246,24 @@ pub fn decode_packedfile_string_u8(packed_file_data: Vec<u8>, mut index: usize) 
 /// NOTE: These strings's first byte it's a boolean that indicates if the string has something.
 #[allow(dead_code)]
 pub fn decode_packedfile_optional_string_u8(packed_file_data: Vec<u8>, index: usize) -> Result<(String, usize), Error> {
-    match decode_packedfile_bool(packed_file_data[index], index) {
-        Ok(result) => {
-            if result.0 {
-                match decode_packedfile_string_u8(packed_file_data, result.1) {
-                    Ok(result) => Ok(result),
-                    Err(error) => Err(Error::new(ErrorKind::Other, error::Error::description(&error).to_string())),
+    if packed_file_data.len() >= (index) {
+        match decode_packedfile_bool(packed_file_data[index], index) {
+            Ok(result) => {
+                if result.0 {
+                    match decode_packedfile_string_u8(packed_file_data, result.1) {
+                        Ok(result) => Ok(result),
+                        Err(error) => Err(Error::new(ErrorKind::Other, error::Error::description(&error).to_string())),
+                    }
+                }
+                else {
+                    Ok((String::new(), result.1))
                 }
             }
-            else {
-                Ok((String::new(), result.1))
-            }
+            Err(error) => Err(error)
         }
-        Err(error) => Err(error)
+    }
+    else {
+        return Err(Error::new(ErrorKind::Other, format!("Error: Insdex out of bounds. Probably some error in the master_schema.")))
     }
 }
 

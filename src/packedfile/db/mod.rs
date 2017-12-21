@@ -12,7 +12,9 @@
 
 extern crate ordermap;
 
-use std::io::Error;
+use std::io::{
+    Error, ErrorKind
+};
 use common::coding_helpers;
 use self::ordermap::OrderMap;
 
@@ -100,15 +102,19 @@ impl DB {
 
     /// This function takes an entire DB and encode it to Vec<u8>, so it can be written in the disk.
     /// It returns a Vec<u8> with the entire DB encoded in it.
-    pub fn save(packed_file_decoded: &DB) -> Vec<u8> {
+    pub fn save(packed_file_decoded: &DB) -> Result<Vec<u8>, Error> {
 
-        let mut packed_file_data_encoded = DBData::save(&packed_file_decoded.packed_file_data);
+        let mut packed_file_data_encoded = match DBData::save(&packed_file_decoded.packed_file_data) {
+            Ok(data) => data,
+            Err(error) => return Err(error)
+        };
+
         let mut packed_file_header_encoded = DBHeader::save(&packed_file_decoded.packed_file_header, packed_file_data_encoded.1);
 
         let mut packed_file_encoded: Vec<u8> = vec![];
         packed_file_encoded.append(&mut packed_file_header_encoded);
         packed_file_encoded.append(&mut packed_file_data_encoded.0);
-        packed_file_encoded
+        Ok(packed_file_encoded)
     }
 }
 
@@ -317,7 +323,9 @@ impl DBData {
                     }
 
                     // The rest of the columns, we decode them based on his type and store them in a DecodedData
-                    // enum, as enums are the only thing I found that can store them.
+                    // enum, as enums are the only thing I found that can store them
+                    //
+                    // NOTE: string/optstring and string_ascii/optstring_ascii are the same thing.
                     else {
                         let field = packed_file_data_entries_fields.get_index((column as usize) - 1).unwrap();
                         let field_type = field.1;
@@ -332,7 +340,7 @@ impl DBData {
                                     Err(error) => return Err(error)
                                 };
                             }
-                            "string_ascii" => {
+                            "string" | "string_ascii" => {
                                 match coding_helpers::decode_packedfile_string_u8(packed_file_data.to_vec(), index) {
                                     Ok(data) => {
                                         index = data.1;
@@ -341,7 +349,7 @@ impl DBData {
                                     Err(error) => return Err(error)
                                 };
                             }
-                            "optstring_ascii" => {
+                            "optstring" | "optstring_ascii" => {
                                 match coding_helpers::decode_packedfile_optional_string_u8(packed_file_data.to_vec(), index) {
                                     Ok(data) => {
                                         index = data.1;
@@ -369,9 +377,9 @@ impl DBData {
                                 };
                             }
                             _ => {
-                                // If this fires up, the table has a non-implemented field. Current non-
-                                // implemented fields are "string" and "oopstring".
-                                println!("Unkown field_type 4 {}", field_type);
+                                // If this fires up, the table has a non-implemented field.
+                                return Err(Error::new(ErrorKind::Other, format!("Unkown field_type \"{}\" found while trying to decode a DB Table PackedFile.", field_type)))
+
                             }
                         }
                     }
@@ -402,7 +410,7 @@ impl DBData {
     /// This function takes an entire DBData and encode it to Vec<u8>, so it can be written in the disk.
     /// It returns a tuple with the encoded DBData in a Vec<u8> and the new entry count to update the
     /// header.
-    pub fn save(packed_file_data_decoded: &DBData) -> (Vec<u8>, u32) {
+    pub fn save(packed_file_data_decoded: &DBData) -> Result<(Vec<u8>, u32), Error> {
 
         let mut packed_file_data_encoded: Vec<u8> = vec![];
         let mut packed_file_entry_count = 0;
@@ -437,13 +445,13 @@ impl DBData {
                         packed_file_data_encoded.append(&mut encoded_data);
                     },
                     DecodedData::RawData(_) => {
-                        // If this is reached, we fucked it up somewhere. For now, just print a warning.
-                        println!("Error, trying to write a RawData DB field.")
+                        // If this is reached, we fucked it up somewhere.
+                        return Err(Error::new(ErrorKind::Other, format!("Error, trying to write a RawData DB field.\nThis should never happen.")))
                     },
                 }
             }
             packed_file_entry_count += 1;
         }
-        (packed_file_data_encoded, packed_file_entry_count)
+        Ok((packed_file_data_encoded, packed_file_entry_count))
     }
 }
