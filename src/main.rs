@@ -1400,7 +1400,6 @@ fn main() {
                                                                 }
                                                                 _ => {
                                                                     // If this fires up, the table has a non-implemented field.
-                                                                    // TODO: this should stop the entire function, not just throw a warning and continue.
                                                                     error_while_adding_rows = true;
                                                                     error_description = Error::new(ErrorKind::Other, format!("Error while trying to create a new row: Unknown field_type \"{}\".", field_type));
                                                                     break;
