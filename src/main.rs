@@ -32,6 +32,7 @@ use packfile::packfile::PackFile;
 use common::coding_helpers;
 use packedfile::loc::Loc;
 use packedfile::db::DB;
+use packedfile::rigidmodel::RigidModel;
 
 mod common;
 mod ui;
@@ -782,6 +783,9 @@ fn main() {
                     tree_path.last().unwrap().ends_with(".xml") ||
                     tree_path.last().unwrap().ends_with(".lua") {
                 packed_file_type = "TEXT";
+            }
+            else if tree_path.last().unwrap().ends_with(".rigid_model_v2") {
+                packed_file_type = "RIGIDMODEL"
             }
             else if tree_path[0] == "db" {
                 packed_file_type = "DB";
@@ -1566,6 +1570,16 @@ fn main() {
                         Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string()),
                     }
                 }
+
+                // If it's a rigidmodel, for now we decode it. UI will be implemented later.
+                "RIGIDMODEL" => {
+                    println!("Decode in progres...");
+                    let packed_file_data_encoded = &*pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data;
+                    let packed_file_data_decoded = Rc::new(RefCell::new(RigidModel::read(packed_file_data_encoded.to_vec())));
+                    println!("{:#?}", *packed_file_data_decoded.borrow());
+                }
+
+
                 // If we reach this point, the coding to implement this type of file is not done yet,
                 // so we ignore the file.
                 _ => {

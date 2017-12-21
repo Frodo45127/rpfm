@@ -13,6 +13,7 @@ use packedfile::loc::LocDataEntry;
 
 pub mod loc;
 pub mod db;
+pub mod rigidmodel;
 
 /*
 --------------------------------------------------
