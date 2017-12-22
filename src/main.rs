@@ -119,6 +119,7 @@ fn main() {
     let top_menu_file_save_packfile_as: MenuItem = builder.get_object("gtk_top_menu_file_save_packfile_as").expect("Couldn't get gtk_top_menu_file_save_packfile_as");
     let top_menu_file_quit: MenuItem = builder.get_object("gtk_top_menu_file_quit").expect("Couldn't get gtk_top_menu_file_quit");
     let top_menu_special_patch_ai: MenuItem = builder.get_object("gtk_top_menu_special_patch_ai").expect("Couldn't get gtk_top_menu_special_patch_ai");
+    let top_menu_special_patch_rigid_model: MenuItem = builder.get_object("gtk_top_menu_special_patch_rigid_model").expect("Couldn't get gtk_top_menu_special_patch_rigid_model");
     let top_menu_about_about: MenuItem = builder.get_object("gtk_top_menu_about_about").expect("Couldn't get gtk_top_menu_about_about");
 
     let top_menu_file_change_packfile_type: MenuItem = builder.get_object("gtk_top_menu_file_select_packfile_type").expect("Couldn't get gtk_top_menu_file_select_packfile_type");
@@ -1575,8 +1576,23 @@ fn main() {
                 "RIGIDMODEL" => {
                     println!("Decode in progres...");
                     let packed_file_data_encoded = &*pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data;
-                    let packed_file_data_decoded = Rc::new(RefCell::new(RigidModel::read(packed_file_data_encoded.to_vec())));
-                    println!("{:#?}", *packed_file_data_decoded.borrow());
+                    let packed_file_data_decoded = RigidModel::read(packed_file_data_encoded.to_vec());
+                    match packed_file_data_decoded {
+                        Ok(packed_file_data_decoded) => {
+                            let packed_file_data_decoded = Rc::new(RefCell::new(packed_file_data_decoded));
+                            top_menu_special_patch_rigid_model.connect_activate(clone!(
+                            success_dialog,
+                            pack_file_decoded,
+                            packed_file_data_decoded => move |_| {
+
+                                let packed_file_data_decoded = packedfile::rigidmodel::RigidModel::save(&mut *packed_file_data_decoded.borrow_mut());
+                                ::packfile::update_packed_file_data_rigid(packed_file_data_decoded, &mut *pack_file_decoded.borrow_mut(), index as usize);
+                                ui::show_dialog(&success_dialog, format!("RigidModel Patched."));
+                            }));
+                        }
+                        Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string()),
+                    }
+
                 }
 
 

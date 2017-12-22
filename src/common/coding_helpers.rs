@@ -22,6 +22,8 @@ use self::byteorder::{
             Decoding helpers (Common decoders)
 --------------------------------------------------------
 */
+// TODO: Implement decoder for 0-padded strings (strings with a "max" size, and all the bytes from their end to
+// that max size is 00)
 
 /// This function allow us to decode an UTF-16 encoded integer. This type of Integers are encoded in
 /// in 2 bytes reversed (LittleEndian).
