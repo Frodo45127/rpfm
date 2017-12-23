@@ -141,7 +141,7 @@ impl RigidModel {
         }
     }
     pub fn save(rigid_model_data: &mut RigidModel) -> Vec<u8> {
-        let mut packed_file_data_encoded = RigidModelData::save(rigid_model_data.packed_file_data.clone());
+        let mut packed_file_data_encoded = RigidModelData::save(rigid_model_data.packed_file_data.clone(), rigid_model_data.packed_file_header.clone());
         let mut packed_file_header_encoded = RigidModelHeader::save(rigid_model_data.packed_file_header.clone());
 
         let mut packed_file_encoded = vec![];
@@ -223,7 +223,7 @@ impl RigidModelData {
         })
     }
 
-    pub fn save(mut rigid_model_data: RigidModelData) -> Vec<u8> {
+    pub fn save(mut rigid_model_data: RigidModelData, rigid_model_header: RigidModelHeader) -> Vec<u8> {
         let mut packed_file_data = vec![];
 
         let mut patch: Vec<(u32, u32)>;
@@ -237,8 +237,8 @@ impl RigidModelData {
         }
 
         let mut index = 0;
+        let extra_bytes = 8 * rigid_model_header.packed_file_header_lods_count as usize;
         for i in rigid_model_data.packed_file_data_lod_list.iter() {
-            let extra_bytes = 8 * (index + 1);
             packed_file_data.append(&mut RigidModelLod::save(i.clone(), patch[index], extra_bytes));
             index += 1;
         }
@@ -297,7 +297,13 @@ impl RigidModelLod {
         let mut vertex_data_length = coding_helpers::encode_integer_u32(rigid_model_lod.vertex_data_length);
         let mut index_data_length = coding_helpers::encode_integer_u32(rigid_model_lod.index_data_length);
         let mut start_offset = coding_helpers::encode_integer_u32(rigid_model_lod.start_offset + extra_bytes as u32);
-        let mut lod_zoom_factor = coding_helpers::encode_float_u32(rigid_model_lod.lod_zoom_factor);
+        let mut lod_zoom_factor;
+        if extra_bytes == 8 {
+            lod_zoom_factor = coding_helpers::encode_float_u32(1000.0);
+        }
+        else {
+            lod_zoom_factor = coding_helpers::encode_float_u32(rigid_model_lod.lod_zoom_factor);
+        }
         let mut mysterious_data_1 = coding_helpers::encode_integer_u32(patch.0);
         let mut mysterious_data_2 = coding_helpers::encode_integer_u32(patch.1);
 
