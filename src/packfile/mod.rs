@@ -19,6 +19,7 @@ use std::error;
 use common::coding_helpers;
 use packedfile::loc::Loc;
 use packedfile::db::DB;
+use packedfile::rigidmodel::RigidModel;
 
 pub mod packfile;
 
@@ -670,5 +671,36 @@ pub fn patch_siege_ai (
     }
     else {
         Err(Error::new(ErrorKind::Other, format!("This should never happen.")))
+    }
+}
+
+/// This function is used to patch a RigidModel 3D model from Total War: Attila to work in Total War:
+/// Warhammer 1 and 2. The process to patch a RigidModel is simple:
+/// - We update the version of the RigidModel from 6(Attila) to 7(Warhammer 1&2).
+/// - We add 2 u32 to the Lods: a counter starting at 0, and a 0.
+/// - We increase the start_offset of every Lod by (8*amount_of_lods).
+/// - We may need to increase the zoom_factor of the first Lod to 1000.0, because otherwise sometimes the models
+///   disappear when you move the camera far from them.
+/// It requires a mut ref to a decoded PackFile, and returns an String (Result<Success, Error>).
+pub fn patch_rigid_model_attila_to_warhammer (
+    rigid_model: &mut RigidModel
+) -> Result<String, Error> {
+
+    // If the RigidModel is an Attila RigidModel, we continue. Otherwise, return Error.
+    match rigid_model.packed_file_header.packed_file_header_model_type {
+        6 => {
+            // We update his version.
+            rigid_model.packed_file_header.packed_file_header_model_type = 7;
+
+            // Next, we change the needed data for every Lod.
+            for (index, lod) in rigid_model.packed_file_data.packed_file_data_lod_list.iter_mut().enumerate() {
+                lod.mysterious_data_1 = Some(index as u32);
+                lod.mysterious_data_2 = Some(0);
+                lod.start_offset += 8 * rigid_model.packed_file_header.packed_file_header_lods_count;
+            }
+            Ok(format!("RigidModel patched succesfully."))
+        },
+        7 => return Err(Error::new(ErrorKind::Other, format!("This is not an Attila's RigidModel, but a Warhammer one."))),
+        _ => return Err(Error::new(ErrorKind::Other, format!("I don't even know from what game is this RigidModel."))),
     }
 }

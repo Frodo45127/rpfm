@@ -3,84 +3,125 @@
 // take the type in count while processing them.
 
 /*
-4 Bytes [String] - Signature // Should always be "RMV2"!
-4 Bytes [UInt32] - ModelType // 6 for Attila, 7 for Warhammer.
-4 Bytes [UInt32] - LodsCount // Can be any of: 1, 2, 3 and 4
-128 Bytes [0-Padded String] - BaseSkeleton // Used to import the default bones.
+--------------------------------------------------------
+                RigidModel Structure
+--------------------------------------------------------
 
-for (Int32 i = 0; i < LodsCount; ++i)
+------------------------------------
+           Header
+------------------------------------
+- 4 bytes [String]: signature. Should always be "RMV2"!
+- 4 bytes [u32]: model_type. 6 for Attila, 7 for Warhammer 1&2.
+- 4 bytes [u32]: lods_count. Amount of lods in the RigidModel. Usually, there is a max of 5 in buildings. Units have more.
+- 128 bytes [String] (0-Padded): base_skeleton. Used to import the default bones.
+------------------------------------
 
-     4 Bytes [UInt32] - GroupsCount
-     4 Bytes [UInt32] - VerticesData bytes count
-     4 Bytes [UInt32] - IndicesData bytes count
-     4 Bytes [UInt32] - StartOffset // From file's origin to each of lod's beginning.
-     4 Bytes [Float] - ZoomFactor // For 4 LoDs this is always 100.0, 200.0, 400.0, 500.0.
+------------------------------------
+  Lods Headers (One after another)
+------------------------------------
+- 4 bytes [u32]: groups_count. Amount of groups in the Lod.
+- 4 bytes [u32]: vertices_data_length. Length of the "vertices_data" of the Lod in bytes.
+- 4 bytes [u32]: indices_data_length. Length of the "indices_data" of the Lod in bytes.
+- 4 bytes [u32]: start_offset. Bytes from the beginning of the file to the beginning of the Lod's data.
+- 4 bytes [f32]: zoom_factor. Max zoom of the Lod. For 4 Lods, this is always 100.0, 200.0, 400.0, 500.0.
+- 4 bytes [u32]: mysterious_data_1 (only Warhammer 1&2). Seems to be an index (starting at 0) of the lods.
+- 4 bytes [u32]: mysterious_data_2 (only Warhammer 1&2). No idea. Usually is 0 or a 4 byte encoded color (ARGB).
+------------------------------------
 
-for (Int32 i = 0; i < LodsCount; ++i)
-     for (Int32 j = 0; j < Lod[i].GroupsCount; ++j)
+------------------------------------
+   Lods Data (One after another)
+------------------------------------
 
-          4 Bytes [UInt32] - rigid_material ID.
-          4 Bytes [UInt32] - LODBytes count // Amount of bytes per each lod. Some kind of an offset.
-          4 Bytes [UInt32] - LODBytes count without Vertices and Indices bytes count. // LODBytes count - (VerticesData count + IndicesData count)
-          4 Bytes [UInt32] - VerticesCount
-          4 Bytes [UInt32] - LODBytes count without Indices bytes count. // LODBytes count - IndicesData count.
-          4 Bytes [UInt32] - IndicesCount
-          4 Bytes [Float] - GroupMinimumX
-          4 Bytes [Float] - GroupMinimumY
-          4 Bytes [Float] - GroupMinimumZ
-          4 Bytes [Float] - GroupMaximumX
-          4 Bytes [Float] - GroupMaximumY
-          4 Bytes [Float] - GroupMaximumZ
-          32 Bytes [0-Padded String] - ShaderName // After default_dry there are absolutely random information recorded. Even if you export and covert EXACTLY the same file few times, these values will be always different. Seems like they make no effect and are a part of a shader name's bytes.
-          2 Bytes [UInt32] - ? // Probably ID? It's always 3 at the moment.
-          32 Bytes [0-Padded String] - GroupName
-          256 Bytes [0-Padded String] - TexturesDirectory
-          422 Bytes - ? // 422 bytes of perplexity... shader settings? 4 bytes in the middle of this block change if
-                           I scale the whole model so it's probably not a single block!
-          4 Bytes [UInt32] - SupplementarBonesCount
-          4 Bytes [UInt32] - TexturesCount
-          140 Bytes - ? // No idea.
+////------------------------------------
+       Lod Groups (One after another)
+////------------------------------------
+    - 4 bytes [u32]: rigid_material ID.
+    - 4 bytes [u32]: lod_group_length. Length of the current Lod Group in bytes.
+    - 4 bytes [u32]: lod_group_length_without_vertices_and_indices_data. Same as before minus the length in bytes of the "vertices_data" and "indices_data" sections.
+    - 4 bytes [u32]: vertices_count. Amount of vertices in the Lod.
+    - 4 bytes [u32]: lod_group_length_without_indices_data. Same as lod_group_length, minus the length of the "indices_data" section in bytes.
+    - 4 bytes [u32]: indices_count. Amount of indices in the Lod.
+    - 4 bytes [f32]: group_min_x.
+    - 4 bytes [f32]: group_min_y.
+    - 4 bytes [f32]: group_min_z.
+    - 4 bytes [f32]: group_max_x.
+    - 4 bytes [f32]: group_max_y.
+    - 4 bytes [f32]: group_max_z.
+    - 32 bytes [String] (0-Padded): shader_name. It's usually "default_dry". It usually stores some random useless info, we don't know why.
+    - 2 bytes [u16]: No idea about this one. Sometimes it's 3, sometimes it's 0.
+    - 32 bytes [String] (0-Padded): group_name. Name of the current group.
+    - 256 bytes [String] (0-Padded): texture_directory. Directory for the textures.
+    - 422 bytes [Vec<u8>]: No idea (maybe some shader stuff?), so we just store it in a Vec<u8>.
+    - 4 bytes [u32]: supplementary_bones_count. Amount of "supplementary_bones" in the Lod.
+    - 4 bytes [u32]: textures_count. Amount of "textures" in the Lod.
+    - 140 bytes [Vec<u8>]: No idea, so we just store it in a Vec<u8>.
 
-          for (Int32 y = 0; y < SupplementarBonesCount; ++y)
-               32 Bytes [0-Padded String] - SupplementarBoneName
-               48 Bytes - ? // Probably position, rotation and other things.
-               4 Bytes [UInt32] - SupplementarBoneID
+////////------------------------------------
+     Supplementary Bones (One after another)
+////////------------------------------------
+        - 32 bytes [String] (0-Padded): bone_name. Name of the current bone.
+        - 48 bytes [Vec<u8>]: No idea. Probably position, rotation and other things.
+        - 4 bytes [u32]: bone_id.
 
-          for (Int32 y = 0; y < TexturesCount; ++y)
-               4 Bytes [UInt32] - TextureType // 0 Diffuse, 1 Normal, 11 Specular, 12 Gloss, Mask 3 or 10
-               256 Bytes [0-Padded String]- TexturePath (TexturesDirectory + FileName)
+////////------------------------------------
 
-          4 Bytes - Separator // It's always 00.00.00.00.
-          4 Bytes - Alpha Mode // 00 00 00 00 - Alpha mode 0 (alpha channel off), 00 00 00 01 - alpha mode 1 (alpha channel on), 00 00 00 02 - alpha mode 2 (alpha channel on). Sometimes it's FF FF FF FF (no idea about this one as of yet).
+////////------------------------------------
+     Supplementary Bones (One after another)
+////////------------------------------------
+        - 4 bytes [u32]: texture_type. The possible types are: 0 (Diffuse), 1 (Normal), 11 (Specular), 12 (Gloss), 3/10 (Mask).
+        - 32 bytes [String] (0-Padded): bone_name. Name of the current bone.
 
-          for (Int32 y = 0; y < VerticesCount; ++y)
-               2 Bytes [Float] - Position X
-               2 Bytes [Float] - Position Y
-               2 Bytes [Float] - Position Z
-               2 Bytes - Separator. It's always 00.00
-               Byte [Unsigned Byte] - First bone ID
-               Byte [Unsigned Byte] - Second bone ID
-               Byte [Unsigned Byte] - Vertex weight // Divide this value on 255 (for example, 127/255 = 0.5f)
-               Byte - Separator. It's always 00
-               Byte [Unsigned Byte] - Vertex normal X // To get a proper value use the formula: (2 * vertex normal / 255) - 1
-               Byte [Unsigned Byte] - Vertex normal Y // To get a proper value use the formula: (2 * vertex normal / 255) - 1
-               Byte [Unsigned Byte] - Vertex normal Z // To get a proper value use the formula: (2 * vertex normal / 255) - 1
-               Byte - Separator. It's always 00
-               2 Bytes [Float] - Position U
-               2 Bytes [Float] - Position V // To get a proper value you have to subtract this value from 1. Example: 1.0f - posV(0.8f) = 0.2f - is a correct V position.
-               Byte [Unsigned Byte] - Vertex tangent X // To get a proper value use the formula: (2 * vertex normal / 255) - 1
-               Byte [Unsigned Byte] - Vertex tangent Y // To get a proper value use the formula: (2 * vertex normal / 255) - 1
-               Byte [Unsigned Byte] - Vertex tangent Z // To get a proper value use the formula: (2 * vertex normal / 255) - 1
-               Byte - Separator. It's always 00
-               Byte [Unsigned Byte] - Vertex binormal X // To get a proper value use the formula: (2 * vertex normal / 255) - 1
-               Byte [Unsigned Byte] - Vertex binormal Y // To get a proper value use the formula: (2 * vertex normal / 255) - 1
-               Byte [Unsigned Byte] - Vertex binormal Z // To get a proper value use the formula: (2 * vertex normal / 255) - 1
-               Byte - Separator. It's always 00
+////////------------------------------------
+    - 4 bytes [u32]: separator. It's always 00 00 00 00, so 0u32.
+    - 4 bytes [u32]: alpha_mode. The alpha mode of the Lod. The possible types are:
+        - 00 00 00 00: Alpha mode 0 (alpha channel off).
+        - 00 00 00 01: Alpha mode 1 (alpha channel on).
+        - 00 00 00 02: Alpha mode 2 (alpha channel on).
+        - FF FF FF FF: no idea about this one.
 
-          for (Int32 y = 0; y < (IndicesCount / 3); ++y)
-               2 Bytes [UInt16] - Index 1
-               2 Bytes [UInt16] - Index 2
-               2 Bytes [UInt16] - Index 3
+////////------------------------------------
+          Vertices Data (One after another)
+////////------------------------------------
+        - 2 bytes [f16]: pos_x. Position X of the current vertice.
+        - 2 bytes [f16]: pos_y. Position Y of the current vertice.
+        - 2 bytes [f16]: pos_z. Position Z of the current vertice.
+        - 2 bytes [u16]: separator. Always 00 00, so 0u16.
+        - 1 bytes [u8]: first_bone_id.
+        - 1 bytes [u8]: second_bone_id.
+        - 1 bytes [u8]: vertex_weight. To get the proper value of this: "vertex_weight" / 255 = X.Xf
+        - 1 bytes [u8]: separator. Always 00, so 0u8.
+        - 1 bytes [u8]: vertex_normal_x. To get the proper value of this: (2 * "vertex_normal_x" / 255) - 1 = X.Xf
+        - 1 bytes [u8]: vertex_normal_y. To get the proper value of this: (2 * "vertex_normal_y" / 255) - 1 = X.Xf
+        - 1 bytes [u8]: vertex_normal_z. To get the proper value of this: (2 * "vertex_normal_z" / 255) - 1 = X.Xf
+        - 1 bytes [u8]: separator. Always 00, so 0u8.
+        - 2 bytes [f16]: pos_u. Position U of the current vertice.
+        - 2 bytes [f16]: pos_v. Position V of the current vertice. To get the proper value of this: 1.0f - pos_v = X.Xf
+        - 1 bytes [u8]: vertex_tangent_x. To get the proper value of this: (2 * "vertex_tangent_x" / 255) - 1 = X.Xf
+        - 1 bytes [u8]: vertex_tangent_y. To get the proper value of this: (2 * "vertex_tangent_y" / 255) - 1 = X.Xf
+        - 1 bytes [u8]: vertex_tangent_z. To get the proper value of this: (2 * "vertex_tangent_z" / 255) - 1 = X.Xf
+        - 1 bytes [u8]: separator. Always 00, so 0u8.
+        - 1 bytes [u8]: vertex_binormal_x. To get the proper value of this: (2 * "vertex_binormal_x" / 255) - 1 = X.Xf
+        - 1 bytes [u8]: vertex_binormal_y. To get the proper value of this: (2 * "vertex_binormal_y" / 255) - 1 = X.Xf
+        - 1 bytes [u8]: vertex_binormal_z. To get the proper value of this: (2 * "vertex_binormal_z" / 255) - 1 = X.Xf
+        - 1 bytes [u8]: separator. Always 00, so 0u8.
+
+////////------------------------------------
+
+////////------------------------------------
+          Indices Data (One after another). These are in packs of 3, so to get them you need to use (indices_count / 3).
+////////------------------------------------
+        - 2 bytes [u16]: index_1.
+        - 2 bytes [u16]: index_2.
+        - 2 bytes [u16]: index_3.
+
+////////------------------------------------
+    - extra_data [Vec<u8>]: bytes from here to the end of the Lod Group are unknown, so we just store them in Vec<u8>.
+
+////------------------------------------
+
+------------------------------------
+
+--------------------------------------------------------
 */
 
 extern crate half;
@@ -92,12 +133,16 @@ use std::io::{
     Error, ErrorKind
 };
 
+/// Struct "RigidModel". For more info about this, check the comment at the start of "packedfile/
+/// rigidmodel/mod.rs".
 #[derive(Clone, Debug)]
 pub struct RigidModel {
     pub packed_file_header: RigidModelHeader,
     pub packed_file_data: RigidModelData,
 }
 
+/// Struct "RigidModelHeader". For more info about this, check the comment at the start of "packedfile/
+/// rigidmodel/mod.rs".
 #[derive(Clone, Debug)]
 pub struct RigidModelHeader {
     pub packed_file_header_signature: String,
@@ -106,29 +151,40 @@ pub struct RigidModelHeader {
     pub packed_file_data_base_skeleton: String,
 }
 
+/// Struct "RigidModelData". For more info about this, check the comment at the start of "packedfile/
+/// rigidmodel/mod.rs".
 #[derive(Clone, Debug)]
 pub struct RigidModelData {
     pub packed_file_data_lod_list: Vec<RigidModelLod>,
     pub extra_data: Vec<u8>,
 }
 
+/// Struct "RigidModelLod". For more info about this, check the comment at the start of "packedfile/
+/// rigidmodel/mod.rs".
 #[derive(Clone, Debug)]
 pub struct RigidModelLod {
     pub groups_count: u32,
     pub vertex_data_length: u32,
     pub index_data_length: u32,
-    pub start_offset: u32, // From file's origin to each of lod's beginning.
+    pub start_offset: u32,
     pub lod_zoom_factor: f32,
-    pub mysterious_data_1: u32, // these two are only in warhammer?
-    pub mysterious_data_2: u32,
+    pub mysterious_data_1: Option<u32>,
+    pub mysterious_data_2: Option<u32>,
 }
 
-
+/// Implementation of "RigidModel"
 impl RigidModel {
+
+    /// This function reads the data from a Vec<u8> and decode it into a RigidModel. This CAN FAIL,
+    /// so we return Result<RigidModel, Error>.
     pub fn read(packed_file_data: Vec<u8>) -> Result<RigidModel, Error> {
         match RigidModelHeader::read(packed_file_data[..140].to_vec()) {
             Ok(packed_file_header) => {
-                match RigidModelData::read(packed_file_data[140..].to_vec(), packed_file_header.packed_file_header_lods_count) {
+                match RigidModelData::read(
+                    packed_file_data[140..].to_vec(),
+                    &packed_file_header.packed_file_header_model_type,
+                    &packed_file_header.packed_file_header_lods_count
+                ) {
                     Ok(packed_file_data) =>
                         Ok(RigidModel {
                             packed_file_header,
@@ -140,8 +196,10 @@ impl RigidModel {
             Err(error) => Err(error)
         }
     }
+
+    /// This function reads the data from a RigidModel and encode it into a Vec<u8>.
     pub fn save(rigid_model_data: &mut RigidModel) -> Vec<u8> {
-        let mut packed_file_data_encoded = RigidModelData::save(rigid_model_data.packed_file_data.clone(), rigid_model_data.packed_file_header.clone());
+        let mut packed_file_data_encoded = RigidModelData::save(rigid_model_data.packed_file_data.clone());
         let mut packed_file_header_encoded = RigidModelHeader::save(rigid_model_data.packed_file_header.clone());
 
         let mut packed_file_encoded = vec![];
@@ -152,8 +210,11 @@ impl RigidModel {
     }
 }
 
-
+/// Implementation of "RigidModelHeader"
 impl RigidModelHeader {
+
+    /// This function reads the data from a Vec<u8> and decode it into a RigidModelHeader. This CAN FAIL,
+    /// so we return Result<RigidModelHeader, Error>.
     pub fn read(packed_file_data: Vec<u8>) -> Result<RigidModelHeader, Error> {
 
         let mut packed_file_header = RigidModelHeader {
@@ -166,6 +227,12 @@ impl RigidModelHeader {
         match coding_helpers::decode_string_u8((&packed_file_data[0..4]).to_vec()) {
             Ok(data) => packed_file_header.packed_file_header_signature = data,
             Err(error) => return Err(error)
+        }
+
+        // We check this, just in case we try to read some malformed file with a string in the first
+        // four bytes (which is not uncommon).
+        if packed_file_header.packed_file_header_signature != "RMV2" {
+            return Err(Error::new(ErrorKind::Other, format!("This is not a RMV2 RigidModel.")))
         }
 
         match coding_helpers::decode_integer_u32((&packed_file_data[4..8]).to_vec()) {
@@ -186,11 +253,12 @@ impl RigidModelHeader {
         Ok(packed_file_header)
     }
 
+    /// This function reads the data from a RigidModelHeader and encode it into a Vec<u8>.
     pub fn save(rigid_model_header: RigidModelHeader) -> Vec<u8> {
         let mut packed_file_data: Vec<u8> = vec![];
 
         let mut packed_file_header_signature = coding_helpers::encode_string_u8(rigid_model_header.packed_file_header_signature);
-        let mut packed_file_header_model_type = coding_helpers::encode_integer_u32(rigid_model_header.packed_file_header_model_type + 1);
+        let mut packed_file_header_model_type = coding_helpers::encode_integer_u32(rigid_model_header.packed_file_header_model_type);
         let mut packed_file_header_lods_count = coding_helpers::encode_integer_u32(rigid_model_header.packed_file_header_lods_count);
         let mut packed_file_data_base_skeleton = coding_helpers::encode_string_u8(rigid_model_header.packed_file_data_base_skeleton);
 
@@ -202,19 +270,31 @@ impl RigidModelHeader {
     }
 }
 
+/// Implementation of "RigidModelData"
 impl RigidModelData {
-    pub fn read(packed_file_data: Vec<u8>, packed_file_header_lods_count: u32) -> Result<RigidModelData, Error> {
-        let mut index: usize = 0;
-        let mut packed_file_data_lod_list: Vec<RigidModelLod> = vec![];
 
-        for _ in 0..packed_file_header_lods_count {
-            let lod = match RigidModelLod::read(packed_file_data[index..(index + 20)].to_vec()) {
+    /// This function reads the data from a Vec<u8> and decode it into a RigidModelData. This CAN FAIL,
+    /// so we return Result<RigidModelData, Error>.
+    pub fn read(packed_file_data: Vec<u8>, packed_file_header_model_type: &u32, packed_file_header_lods_count: &u32) -> Result<RigidModelData, Error> {
+        let mut packed_file_data_lod_list: Vec<RigidModelLod> = vec![];
+        let mut index: usize = 0;
+        let offset: usize = match *packed_file_header_model_type {
+            6 => 20, // Attila
+            7 => 28, // Warhammer 1&2
+            _ => return Err(Error::new(ErrorKind::Other, format!("RigidModel model not yet decodeable.")))
+        };
+
+        // We get the "headers" of every lod.
+        for _ in 0..*packed_file_header_lods_count {
+            let lod = match RigidModelLod::read(packed_file_data[index..(index + offset)].to_vec()) {
                 Ok(data) => data,
                 Err(error) => return Err(error)
             };
             packed_file_data_lod_list.push(lod);
-            index += 20; // 20 in attila
+            index += offset;
         }
+
+        // In the future we want to decode this data properly. For now, we just store it.
         let extra_data = packed_file_data[index..].to_vec();
 
         Ok(RigidModelData {
@@ -223,40 +303,34 @@ impl RigidModelData {
         })
     }
 
-    pub fn save(mut rigid_model_data: RigidModelData, rigid_model_header: RigidModelHeader) -> Vec<u8> {
+    /// This function reads the data from a RigidModelData and encode it into a Vec<u8>.
+    pub fn save(mut rigid_model_data: RigidModelData) -> Vec<u8> {
         let mut packed_file_data = vec![];
 
-        let mut patch: Vec<(u32, u32)>;
-        match rigid_model_data.packed_file_data_lod_list.len() {
-            1 => patch = vec![(0,2)],
-            2 => patch = vec![(0,2),(4,0)],
-            3 => patch = vec![(0,2),(2,0),(4,0)],
-            4 => patch = vec![(0,2),(1,0),(2,0),(4,0)],
-            5 => patch = vec![(0,2),(1,0),(2,0),(3,0),(4,0)],
-            _ => patch = vec![(0,2)],
-        }
-
-        let mut index = 0;
-        let extra_bytes = 8 * rigid_model_header.packed_file_header_lods_count as usize;
-        for i in rigid_model_data.packed_file_data_lod_list.iter() {
-            packed_file_data.append(&mut RigidModelLod::save(i.clone(), patch[index], extra_bytes));
-            index += 1;
+        // For each Lod, we save it, and add it to the "Encoded Data" vector. After that, we add to that
+        // vector the extra data, and return it.
+        for lod in rigid_model_data.packed_file_data_lod_list.iter() {
+            packed_file_data.append(&mut RigidModelLod::save(lod.clone()));
         }
         packed_file_data.append(&mut rigid_model_data.extra_data);
         packed_file_data
     }
 }
 
+/// Implementation of "RigidModelLod"
 impl RigidModelLod {
+
+    /// This function reads the data from a Vec<u8> and decode it into a RigidModelLod. This CAN FAIL,
+    /// so we return Result<RigidModelLod, Error>.
     pub fn read(packed_file_data: Vec<u8>) -> Result<RigidModelLod, Error> {
         let mut header = RigidModelLod {
             groups_count: 0,
             vertex_data_length: 0,
             index_data_length: 0,
-            start_offset: 0, // From file's origin to each of lod's beginning.
+            start_offset: 0,
             lod_zoom_factor: 0.0,
-            mysterious_data_1: 0,
-            mysterious_data_2: 0,
+            mysterious_data_1: None,
+            mysterious_data_2: None,
         };
         match coding_helpers::decode_integer_u32((&packed_file_data[0..4]).to_vec()) {
             Ok(data) => header.groups_count = data,
@@ -278,43 +352,59 @@ impl RigidModelLod {
             Ok(data) => header.lod_zoom_factor = data,
             Err(error) => return Err(error)
         }
-        /*match coding_helpers::decode_integer_u32((&packed_file_data[20..24]).to_vec()) {
-            Ok(data) => header.mysterious_data_1 = data,
-            Err(error) => return Err(error)
+
+        // These two we only decode them if the RigidModel is v7 (Warhammer 1&2), as these doesn't exist
+        // in Attila's RigidModels.
+        if packed_file_data.len() == 28 {
+            match coding_helpers::decode_integer_u32((&packed_file_data[20..24]).to_vec()) {
+                Ok(data) => header.mysterious_data_1 = Some(data),
+                Err(error) => return Err(error)
+            }
+            match coding_helpers::decode_integer_u32((&packed_file_data[24..28]).to_vec()) {
+                Ok(data) => header.mysterious_data_2 = Some(data),
+                Err(error) => return Err(error)
+            }
         }
-        match coding_helpers::decode_integer_u32((&packed_file_data[24..28]).to_vec()) {
-            Ok(data) => header.mysterious_data_2 = data,
-            Err(error) => return Err(error)
-        }
-*/
+
         Ok(header)
     }
 
-    pub fn save(rigid_model_lod: RigidModelLod, patch: (u32, u32), extra_bytes: usize) -> Vec<u8> {
+    /// This function reads the data from a RigidModelLod and encode it into a Vec<u8>.
+    pub fn save(rigid_model_lod: RigidModelLod) -> Vec<u8> {
         let mut packed_file_data: Vec<u8> = vec![];
-        println!("{:?}", patch);
+
         let mut groups_count = coding_helpers::encode_integer_u32(rigid_model_lod.groups_count);
         let mut vertex_data_length = coding_helpers::encode_integer_u32(rigid_model_lod.vertex_data_length);
         let mut index_data_length = coding_helpers::encode_integer_u32(rigid_model_lod.index_data_length);
-        let mut start_offset = coding_helpers::encode_integer_u32(rigid_model_lod.start_offset + extra_bytes as u32);
-        let mut lod_zoom_factor;
-        if extra_bytes == 8 {
-            lod_zoom_factor = coding_helpers::encode_float_u32(1000.0);
-        }
-        else {
-            lod_zoom_factor = coding_helpers::encode_float_u32(rigid_model_lod.lod_zoom_factor);
-        }
-        let mut mysterious_data_1 = coding_helpers::encode_integer_u32(patch.0);
-        let mut mysterious_data_2 = coding_helpers::encode_integer_u32(patch.1);
+        let mut start_offset = coding_helpers::encode_integer_u32(rigid_model_lod.start_offset);
+        let mut lod_zoom_factor = coding_helpers::encode_float_u32(rigid_model_lod.lod_zoom_factor);
+
+        let mysterious_data_1 = match rigid_model_lod.mysterious_data_1 {
+            Some(data) => Some(data),
+            None => None,
+        };
+
+        let mysterious_data_2 = match rigid_model_lod.mysterious_data_2 {
+            Some(data) => Some(data),
+            None => None,
+        };
 
         packed_file_data.append(&mut groups_count);
         packed_file_data.append(&mut vertex_data_length);
         packed_file_data.append(&mut index_data_length);
         packed_file_data.append(&mut start_offset);
         packed_file_data.append(&mut lod_zoom_factor);
-        packed_file_data.append(&mut mysterious_data_1);
-        packed_file_data.append(&mut mysterious_data_2);
-        packed_file_data
 
+        // These two are only added if they are something (Warhammer1&2 RigidModels).
+        if mysterious_data_1 != None {
+            let mut mysterious_data_1 = coding_helpers::encode_integer_u32(mysterious_data_1.unwrap());
+            packed_file_data.append(&mut mysterious_data_1);
+        }
+        if mysterious_data_2 != None {
+            let mut mysterious_data_2 = coding_helpers::encode_integer_u32(mysterious_data_2.unwrap());
+            packed_file_data.append(&mut mysterious_data_2);
+        }
+
+        packed_file_data
     }
 }

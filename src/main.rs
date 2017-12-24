@@ -1581,13 +1581,19 @@ fn main() {
                         Ok(packed_file_data_decoded) => {
                             let packed_file_data_decoded = Rc::new(RefCell::new(packed_file_data_decoded));
                             top_menu_special_patch_rigid_model.connect_activate(clone!(
+                            error_dialog,
                             success_dialog,
                             pack_file_decoded,
                             packed_file_data_decoded => move |_| {
 
-                                let packed_file_data_decoded = packedfile::rigidmodel::RigidModel::save(&mut *packed_file_data_decoded.borrow_mut());
-                                ::packfile::update_packed_file_data_rigid(packed_file_data_decoded, &mut *pack_file_decoded.borrow_mut(), index as usize);
-                                ui::show_dialog(&success_dialog, format!("RigidModel Patched."));
+
+                                match packfile::patch_rigid_model_attila_to_warhammer(&mut *packed_file_data_decoded.borrow_mut()) {
+                                    Ok(result) => ui::show_dialog(&success_dialog, result),
+                                    Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string()),
+                                }
+                                //let packed_file_data_decoded = packedfile::rigidmodel::RigidModel::save(&mut *packed_file_data_decoded.borrow_mut());
+                                //::packfile::update_packed_file_data_rigid(packed_file_data_decoded, &mut *pack_file_decoded.borrow_mut(), index as usize);
+                                //ui::show_dialog(&success_dialog, format!("RigidModel Patched."));
                             }));
                         }
                         Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string()),
