@@ -10,33 +10,6 @@ use std::path::Path;
 
 pub mod coding_helpers;
 
-/// This function takes a PathBuf and turn it into a Vec<String>.
-/// Useful for managing paths more easily.
-#[allow(dead_code)]
-pub fn path_to_vec_strings(path: PathBuf) -> Vec<String> {
-    let mut path_processed: Vec<String> = vec![];
-
-    for i in path.iter() {
-        path_processed.push(i.to_str().unwrap().to_string());
-    }
-
-    path_processed
-}
-
-/// This function takes a Vec<String> and concatenate them into one String.
-/// Useful for managing paths.
-#[allow(dead_code)]
-pub fn vec_strings_to_path_string(vec_strings: Vec<String>) -> String {
-    let mut path_processed: String = String::new();
-
-    for (i, j) in vec_strings.iter().enumerate() {
-        path_processed.push_str(j);
-        if (i + 1) < (vec_strings.len()) {
-            path_processed.push_str("\\");
-        }
-    }
-    path_processed
-}
 /// This function takes a &Path and returns a Vec<PathBuf> with the paths of every file under the
 /// original &Path.
 #[allow(dead_code)]
