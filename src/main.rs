@@ -1574,11 +1574,11 @@ fn main() {
 
                 // If it's a rigidmodel, for now we decode it. UI will be implemented later.
                 "RIGIDMODEL" => {
-                    println!("Decode in progres...");
                     let packed_file_data_encoded = &*pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data;
                     let packed_file_data_decoded = RigidModel::read(packed_file_data_encoded.to_vec());
                     match packed_file_data_decoded {
                         Ok(packed_file_data_decoded) => {
+                            ui::packedfile_rigidmodel::PackedFileRigidModelDataView::create_data_view(&packed_file_data_display, &packed_file_data_decoded);
                             let packed_file_data_decoded = Rc::new(RefCell::new(packed_file_data_decoded));
                             top_menu_special_patch_rigid_model.connect_activate(clone!(
                             error_dialog,
