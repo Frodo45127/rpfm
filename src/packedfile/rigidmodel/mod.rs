@@ -148,7 +148,7 @@ pub struct RigidModelHeader {
     pub packed_file_header_signature: String,
     pub packed_file_header_model_type: u32,
     pub packed_file_header_lods_count: u32,
-    pub packed_file_data_base_skeleton: String,
+    pub packed_file_data_base_skeleton: (String, usize),
 }
 
 /// Struct "RigidModelData". For more info about this, check the comment at the start of "packedfile/
@@ -221,7 +221,7 @@ impl RigidModelHeader {
             packed_file_header_signature: String::new(),
             packed_file_header_model_type: 0,
             packed_file_header_lods_count: 0,
-            packed_file_data_base_skeleton: String::new(),
+            packed_file_data_base_skeleton: (String::new(), 0),
         };
 
         match coding_helpers::decode_string_u8((&packed_file_data[0..4]).to_vec()) {
@@ -245,11 +245,7 @@ impl RigidModelHeader {
             Err(error) => return Err(error)
         }
 
-        match coding_helpers::decode_string_u8((&packed_file_data[12..140]).to_vec()) {
-            Ok(data) => packed_file_header.packed_file_data_base_skeleton = data,
-            Err(error) => return Err(error)
-        }
-
+        packed_file_header.packed_file_data_base_skeleton = coding_helpers::decode_string_u8_0padded((&packed_file_data[12..140]).to_vec());
         Ok(packed_file_header)
     }
 
@@ -260,7 +256,7 @@ impl RigidModelHeader {
         let mut packed_file_header_signature = coding_helpers::encode_string_u8(rigid_model_header.packed_file_header_signature);
         let mut packed_file_header_model_type = coding_helpers::encode_integer_u32(rigid_model_header.packed_file_header_model_type);
         let mut packed_file_header_lods_count = coding_helpers::encode_integer_u32(rigid_model_header.packed_file_header_lods_count);
-        let mut packed_file_data_base_skeleton = coding_helpers::encode_string_u8(rigid_model_header.packed_file_data_base_skeleton);
+        let mut packed_file_data_base_skeleton = coding_helpers::encode_string_u8_0padded(rigid_model_header.packed_file_data_base_skeleton);
 
         packed_file_data.append(&mut packed_file_header_signature);
         packed_file_data.append(&mut packed_file_header_model_type);

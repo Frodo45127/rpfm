@@ -28,7 +28,8 @@ version = "0.4.0"
 version = "0.3.0"
 
 [target.x86_64-pc-windows-gnu.build-dependencies]
-winres = "0.1"
+#winres = "0.1"
+winres = { git = "https://github.com/Frodo45127/winres" }
 
 [profile.release]
 lto = true

@@ -7,7 +7,9 @@ extern crate winres;
 fn main() {
     let mut res = winres::WindowsResource::new();
     res.set_icon("img/rpfm.ico");
-    res.compile().unwrap();
+    if let Err(error) = res.compile() {
+        println!("Error: {}", std::error::Error::description(&error).to_string());
+    }
 }
 
 #[cfg(not(target_os = "windows"))]

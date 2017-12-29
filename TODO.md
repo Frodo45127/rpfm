@@ -19,7 +19,7 @@
 - [ ] Implement support for TW:Warhammer 1 PackFiles.
 - [ ] Implement Importing/Exporting to .csv for DB PackedFiles.
 - [ ] Implement something like the "MyMod" feature in PFM.
-- [ ] Implement a "Convert to Warhammer format" feature for Attila's building models (yep, I can dream too).
+- [x] Implement a "Convert to Warhammer format" feature for Attila's building models (yep, I can dream too).
 - [ ] Implement Theming support (graphically, as the theme can be changed already through a text file).
 - [ ] Split the "master_schema.xml" by game.
 - [ ] Implement some test to ensure the general PackFile creation/reading/saving functions doesn't break.

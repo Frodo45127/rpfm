@@ -55,6 +55,22 @@ pub fn decode_string_u8(string_encoded: Vec<u8>) -> Result<String, Error> {
     }
 }
 
+/// This function allow us to decode an (0-Padded) UTF-8 encoded String. This type of String has a
+/// fixed size and, when the chars ends, it's filled with \u{0} bytes. Also, due to how we are going
+/// to decode them, this type of decoding cannot fail, but it's slower than a normal UTF-8 String decoding.
+/// We use a tuple to store them and his size.
+#[allow(dead_code)]
+pub fn decode_string_u8_0padded(string_encoded: Vec<u8>) -> (String, usize) {
+    let mut string_decoded = String::new();
+    let size = string_encoded.len();
+    for character in string_encoded.iter() {
+        if (*character as char).escape_unicode().to_string() != ("\\u{0}") {
+            string_decoded.push(*character as char);
+        }
+    }
+    (string_decoded, size)
+}
+
 /// This function allow us to decode an UTF-16 encoded String. This type of Strings are encoded in
 /// in 2 bytes reversed (LittleEndian). Also, this is extremely slow. Needs a lot of improvements.
 ///
@@ -131,6 +147,18 @@ pub fn encode_float_u32(float_decoded: f32) -> Vec<u8> {
 #[allow(dead_code)]
 pub fn encode_string_u8(string_decoded: String) -> Vec<u8> {
     let string_encoded = string_decoded.as_bytes().to_vec();
+    string_encoded
+}
+
+/// This function allow us to encode an UTF-8 decoded 0-padded String. This one requires us to provide a
+/// "size", so we encode the String like a normal UTF-8 String and then extend the vector until we
+/// reach the desired size.
+#[allow(dead_code)]
+pub fn encode_string_u8_0padded(string_decoded: (String, usize)) -> Vec<u8> {
+    let mut string_encoded = string_decoded.0.as_bytes().to_vec();
+    let size = string_decoded.1;
+    let extra_zeroes_amount = size - string_encoded.len();
+    string_encoded.reserve_exact(extra_zeroes_amount);
     string_encoded
 }
 
