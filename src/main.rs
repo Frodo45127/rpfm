@@ -119,7 +119,6 @@ fn main() {
     let top_menu_file_save_packfile_as: MenuItem = builder.get_object("gtk_top_menu_file_save_packfile_as").expect("Couldn't get gtk_top_menu_file_save_packfile_as");
     let top_menu_file_quit: MenuItem = builder.get_object("gtk_top_menu_file_quit").expect("Couldn't get gtk_top_menu_file_quit");
     let top_menu_special_patch_ai: MenuItem = builder.get_object("gtk_top_menu_special_patch_ai").expect("Couldn't get gtk_top_menu_special_patch_ai");
-    let top_menu_special_patch_rigid_model: MenuItem = builder.get_object("gtk_top_menu_special_patch_rigid_model").expect("Couldn't get gtk_top_menu_special_patch_rigid_model");
     let top_menu_about_about: MenuItem = builder.get_object("gtk_top_menu_about_about").expect("Couldn't get gtk_top_menu_about_about");
 
     let top_menu_file_change_packfile_type: MenuItem = builder.get_object("gtk_top_menu_file_select_packfile_type").expect("Couldn't get gtk_top_menu_file_select_packfile_type");
@@ -1572,29 +1571,54 @@ fn main() {
                     }
                 }
 
-                // If it's a rigidmodel, for now we decode it. UI will be implemented later.
+                // If it's a rigidmodel, we decode it and take care of his update events.
                 "RIGIDMODEL" => {
                     let packed_file_data_encoded = &*pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data;
                     let packed_file_data_decoded = RigidModel::read(packed_file_data_encoded.to_vec());
                     match packed_file_data_decoded {
                         Ok(packed_file_data_decoded) => {
-                            ui::packedfile_rigidmodel::PackedFileRigidModelDataView::create_data_view(&packed_file_data_display, &packed_file_data_decoded);
+                            let packed_file_data_view_stuff = ui::packedfile_rigidmodel::PackedFileRigidModelDataView::create_data_view(&packed_file_data_display, &packed_file_data_decoded);
+                            let rigid_model_game_patch_button = packed_file_data_view_stuff.rigid_model_game_patch_button;
+                            let rigid_model_game_label = packed_file_data_view_stuff.rigid_model_game_label;
+                            let packed_file_texture_paths = packed_file_data_view_stuff.packed_file_texture_paths;
                             let packed_file_data_decoded = Rc::new(RefCell::new(packed_file_data_decoded));
-                            top_menu_special_patch_rigid_model.connect_activate(clone!(
-                            error_dialog,
-                            success_dialog,
-                            pack_file_decoded,
-                            packed_file_data_decoded => move |_| {
 
+                            // When we hit the "Patch to Warhammer 1&2" button.
+                            rigid_model_game_patch_button.connect_button_release_event(clone!(
+                                error_dialog,
+                                success_dialog,
+                                pack_file_decoded,
+                                packed_file_data_decoded => move |rigid_model_game_patch_button, _| {
 
-                                match packfile::patch_rigid_model_attila_to_warhammer(&mut *packed_file_data_decoded.borrow_mut()) {
-                                    Ok(result) => ui::show_dialog(&success_dialog, result),
+                                let packed_file_data_patch_result = packfile::patch_rigid_model_attila_to_warhammer(&mut *packed_file_data_decoded.borrow_mut());
+                                match packed_file_data_patch_result {
+                                    Ok(result) => {
+                                        rigid_model_game_patch_button.set_sensitive(false);
+                                        rigid_model_game_label.set_text("RigidModel compatible with: \"Warhammer 1&2\".");
+
+                                        ::packfile::update_packed_file_data_rigid(
+                                            &*packed_file_data_decoded.borrow(),
+                                            &mut *pack_file_decoded.borrow_mut(),
+                                            index as usize
+                                        );
+                                        ui::show_dialog(&success_dialog, result);
+                                    },
                                     Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string()),
                                 }
-                                //let packed_file_data_decoded = packedfile::rigidmodel::RigidModel::save(&mut *packed_file_data_decoded.borrow_mut());
-                                //::packfile::update_packed_file_data_rigid(packed_file_data_decoded, &mut *pack_file_decoded.borrow_mut(), index as usize);
-                                //ui::show_dialog(&success_dialog, format!("RigidModel Patched."));
+
+                                Inhibit(false)
                             }));
+/*
+                            // This loop takes care of the editing of the texture paths.
+                            for edited_path in packed_file_texture_paths.iter() {
+                                edited_path.connect_edited(clone!(
+                                    error_dialog,
+                                    pack_file_decoded,
+                                    packed_file_data_decoded => move |_ ,_ , new_text|{
+
+
+                                }));
+                            }*/
                         }
                         Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string()),
                     }

@@ -22,8 +22,6 @@ use self::byteorder::{
             Decoding helpers (Common decoders)
 --------------------------------------------------------
 */
-// TODO: Implement decoder for 0-padded strings (strings with a "max" size, and all the bytes from their end to
-// that max size is 00)
 
 /// This function allow us to decode an UTF-16 encoded integer. This type of Integers are encoded in
 /// in 2 bytes reversed (LittleEndian).
@@ -158,7 +156,9 @@ pub fn encode_string_u8_0padded(string_decoded: (String, usize)) -> Vec<u8> {
     let mut string_encoded = string_decoded.0.as_bytes().to_vec();
     let size = string_decoded.1;
     let extra_zeroes_amount = size - string_encoded.len();
-    string_encoded.reserve_exact(extra_zeroes_amount);
+    for _ in 0..extra_zeroes_amount {
+        string_encoded.extend_from_slice("\0".as_bytes());
+    }
     string_encoded
 }
 
@@ -205,12 +205,30 @@ pub fn encode_bool(bool_decoded: bool) -> Vec<u8> {
 --------------------------------------------------------
 */
 
+/// This function allow us to decode an UTF-16 encoded integer cell. We return the integer and the index
+/// for the next cell's data.
+#[allow(dead_code)]
+pub fn decode_packedfile_integer_u16(packed_file_data: Vec<u8>, mut index: usize) -> Result<(u16, usize), Error> {
+    if packed_file_data.len() >= 2 {
+        match decode_integer_u16(packed_file_data[..2].to_vec()) {
+            Ok(number) => {
+                index += 2;
+                Ok((number, index))
+            }
+            Err(error) => Err(error)
+        }
+    }
+    else {
+        return Err(Error::new(ErrorKind::Other, format!("Error: Index \"{}\" out of bounds (Max length: {}).", index + 2, packed_file_data.len())))
+    }
+}
+
 /// This function allow us to decode an UTF-32 encoded integer cell. We return the integer and the index
 /// for the next cell's data.
 #[allow(dead_code)]
 pub fn decode_packedfile_integer_u32(packed_file_data: Vec<u8>, mut index: usize) -> Result<(u32, usize), Error> {
-    if packed_file_data.len() >= (index + 4) {
-        match decode_integer_u32(packed_file_data[index..(index + 4)].to_vec()) {
+    if packed_file_data.len() >= 4 {
+        match decode_integer_u32(packed_file_data[..4].to_vec()) {
             Ok(number) => {
                 index += 4;
                 Ok((number, index))
@@ -219,7 +237,7 @@ pub fn decode_packedfile_integer_u32(packed_file_data: Vec<u8>, mut index: usize
         }
     }
     else {
-        return Err(Error::new(ErrorKind::Other, format!("Error: Index out of bounds. Probably some error in the master_schema.")))
+        return Err(Error::new(ErrorKind::Other, format!("Error: Index \"{}\" out of bounds (Max length: {}).", index + 2, packed_file_data.len())))
     }
 }
 
@@ -227,8 +245,8 @@ pub fn decode_packedfile_integer_u32(packed_file_data: Vec<u8>, mut index: usize
 /// for the next cell's data.
 #[allow(dead_code)]
 pub fn decode_packedfile_float_u32(packed_file_data: Vec<u8>, mut index: usize) -> Result<(f32, usize), Error> {
-    if packed_file_data.len() >= (index + 4) {
-        match decode_float_u32(packed_file_data[index..(index + 4)].to_vec()) {
+    if packed_file_data.len() >= 4 {
+        match decode_float_u32(packed_file_data[..4].to_vec()) {
             Ok(number) => {
                 index += 4;
                 Ok((number, index))
@@ -237,7 +255,7 @@ pub fn decode_packedfile_float_u32(packed_file_data: Vec<u8>, mut index: usize) 
         }
     }
     else {
-        return Err(Error::new(ErrorKind::Other, format!("Error: Index out of bounds. Probably some error in the master_schema.")))
+        return Err(Error::new(ErrorKind::Other, format!("Error: Index \"{}\" out of bounds (Max length: {}).", index + 2, packed_file_data.len())))
     }
 }
 
@@ -245,12 +263,12 @@ pub fn decode_packedfile_float_u32(packed_file_data: Vec<u8>, mut index: usize) 
 /// index for the next cell's data.
 #[allow(dead_code)]
 pub fn decode_packedfile_string_u8(packed_file_data: Vec<u8>, mut index: usize) -> Result<(String, usize), Error> {
-    if packed_file_data.len() >= (index + 2) {
-        match decode_integer_u16(packed_file_data[index..(index + 2)].to_vec()) {
+    if packed_file_data.len() >= 2 {
+        match decode_integer_u16(packed_file_data[..2].to_vec()) {
             Ok(size) => {
                 index += 2;
-                if packed_file_data.len() >= (index + size as usize) {
-                    match decode_string_u8(packed_file_data[index..(index + size as usize)].to_vec()) {
+                if packed_file_data.len() >= size as usize {
+                    match decode_string_u8(packed_file_data[2..(2 + size as usize)].to_vec()) {
                         Ok(string) => {
                             index += size as usize;
                             Ok((string, index))
@@ -259,14 +277,14 @@ pub fn decode_packedfile_string_u8(packed_file_data: Vec<u8>, mut index: usize) 
                     }
                 }
                 else {
-                    return Err(Error::new(ErrorKind::Other, format!("Error: Inddex out of bounds. Probably some error in the master_schema.")))
+                    return Err(Error::new(ErrorKind::Other, format!("Error: Index \"{}\" out of bounds (Max length: {}).", index + 2, packed_file_data.len())))
                 }
             }
             Err(error) => Err(error)
         }
     }
     else {
-        return Err(Error::new(ErrorKind::Other, format!("Error: Index aout of bounds. Probably some error in the master_schema.")))
+        return Err(Error::new(ErrorKind::Other, format!("Error: Index \"{}\" out of bounds (Max length: {}).", index + 2, packed_file_data.len())))
     }
 }
 
@@ -293,7 +311,7 @@ pub fn decode_packedfile_optional_string_u8(packed_file_data: Vec<u8>, index: us
         }
     }
     else {
-        return Err(Error::new(ErrorKind::Other, format!("Error: Insdex out of bounds. Probably some error in the master_schema.")))
+        return Err(Error::new(ErrorKind::Other, format!("Error: Index \"{}\" out of bounds (Max length: {}).", index + 2, packed_file_data.len())))
     }
 }
 

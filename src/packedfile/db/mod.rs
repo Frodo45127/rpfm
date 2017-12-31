@@ -341,7 +341,7 @@ impl DBData {
                                 };
                             }
                             "string" | "string_ascii" => {
-                                match coding_helpers::decode_packedfile_string_u8(packed_file_data.to_vec(), index) {
+                                match coding_helpers::decode_packedfile_string_u8(packed_file_data[index..].to_vec(), index) {
                                     Ok(data) => {
                                         index = data.1;
                                         entry.push(DecodedData::String(data.0));
@@ -350,7 +350,7 @@ impl DBData {
                                 };
                             }
                             "optstring" | "optstring_ascii" => {
-                                match coding_helpers::decode_packedfile_optional_string_u8(packed_file_data.to_vec(), index) {
+                                match coding_helpers::decode_packedfile_optional_string_u8(packed_file_data[index..].to_vec(), index) {
                                     Ok(data) => {
                                         index = data.1;
                                         entry.push(DecodedData::OptionalString(data.0));
@@ -359,7 +359,7 @@ impl DBData {
                                 };
                             }
                             "int" => {
-                                match coding_helpers::decode_packedfile_integer_u32(packed_file_data.to_vec(), index) {
+                                match coding_helpers::decode_packedfile_integer_u32(packed_file_data[index..(index + 4)].to_vec(), index) {
                                     Ok(data) => {
                                         index = data.1;
                                         entry.push(DecodedData::Integer(data.0));
@@ -368,7 +368,7 @@ impl DBData {
                                 };
                             }
                             "float" => {
-                                match coding_helpers::decode_packedfile_float_u32(packed_file_data.to_vec(), index) {
+                                match coding_helpers::decode_packedfile_float_u32(packed_file_data[index..(index + 4)].to_vec(), index) {
                                     Ok(data) => {
                                         index = data.1;
                                         entry.push(DecodedData::Float(data.0));

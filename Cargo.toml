@@ -12,7 +12,6 @@ serde = "1.0.20"
 serde_derive = "1.0.20"
 unescape = "0.1.0"
 ordermap = "0.3.2"
-half = "1.0.1"
 
 [dependencies.gtk]
 version = "0.3.0"

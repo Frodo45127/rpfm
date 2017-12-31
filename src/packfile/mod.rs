@@ -531,12 +531,14 @@ pub fn update_packed_file_data_text(
     pack_file.pack_file_data.packed_files[index].packed_file_size = packed_file_data_encoded_size;
 }
 
+/// This function saves the data of the edited RigidModel PackedFile in the main PackFile after a change has
+/// been done by the user. Checking for valid characters is done before this, so be careful to not break it.
 pub fn update_packed_file_data_rigid(
-    packed_file_data_decoded: Vec<u8>,
+    packed_file_data_decoded: &RigidModel,
     pack_file: &mut packfile::PackFile,
     index: usize,
 ) {
-    let mut packed_file_data_encoded = packed_file_data_decoded.to_vec();
+    let mut packed_file_data_encoded = RigidModel::save(packed_file_data_decoded).to_vec();
     let packed_file_data_encoded_size = packed_file_data_encoded.len() as u32;
 
     // Replace the old raw data of the PackedFile with the new one, and update his size.
@@ -693,7 +695,7 @@ pub fn patch_rigid_model_attila_to_warhammer (
             rigid_model.packed_file_header.packed_file_header_model_type = 7;
 
             // Next, we change the needed data for every Lod.
-            for (index, lod) in rigid_model.packed_file_data.packed_file_data_lod_list.iter_mut().enumerate() {
+            for (index, lod) in rigid_model.packed_file_data.packed_file_data_lods_header.iter_mut().enumerate() {
                 lod.mysterious_data_1 = Some(index as u32);
                 lod.mysterious_data_2 = Some(0);
                 lod.start_offset += 8 * rigid_model.packed_file_header.packed_file_header_lods_count;

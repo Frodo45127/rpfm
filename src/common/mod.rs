@@ -2,7 +2,6 @@
 // As we may or may not use them, all functions here should have the "#[allow(dead_code)]"
 // var set, so the compiler doesn't spam us every time we try to compile.
 
-use std::string::String;
 use std::path::PathBuf;
 
 use std::fs;

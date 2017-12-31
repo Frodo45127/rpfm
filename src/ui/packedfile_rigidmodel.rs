@@ -2,15 +2,17 @@
 
 use gtk::prelude::*;
 use gtk::{
-    Box, TreeView, ListStore, ScrolledWindow, Orientation, Notebook,
-    CellRendererText, TreeViewColumn, CellRendererToggle, Type, Label
+    Box, ScrolledWindow, Orientation, Button, Expander, TextWindowType, Label, TextView, PolicyType
 };
+
 
 /// Struct PackedFileRigidModelDataView: contains all the stuff we need to give to the program to
 /// show a TreeView with the data of a RigidModel file, allowing us to manipulate it.
 #[derive(Clone)]
 pub struct PackedFileRigidModelDataView {
-    pub packed_file_data_view: Box,
+    pub rigid_model_game_label: Label,
+    pub rigid_model_game_patch_button: Button,
+    pub packed_file_texture_paths: Vec<TextView>,
 }
 
 /// Implementation of "PackedFileRigidModelDataView"
@@ -21,70 +23,155 @@ impl PackedFileRigidModelDataView {
     pub fn create_data_view(
         packed_file_data_display: &Box,
         packed_file_decoded: &::packedfile::rigidmodel::RigidModel
-    ) {
-        let headers_box = Box::new(Orientation::Horizontal, 0);
+    ) -> PackedFileRigidModelDataView {
+        let packed_file_data_display_scroll = ScrolledWindow::new(None, None);
+        let packed_file_data_display_scroll_inner_box = Box::new(Orientation::Vertical, 0);
 
-        let header_box = Box::new(Orientation::Vertical, 0);
-        let header_signature = Label::new(Some(&*packed_file_decoded.packed_file_header.packed_file_header_signature));
-        let header_model_type = Label::new(Some(&*packed_file_decoded.packed_file_header.packed_file_header_model_type.to_string()));
-        let header_lods_count = Label::new(Some(&*packed_file_decoded.packed_file_header.packed_file_header_lods_count.to_string()));
-        let header_base_skeleton = Label::new(Some(&*packed_file_decoded.packed_file_header.packed_file_data_base_skeleton.0));
+        let rigid_model_game_box = Box::new(Orientation::Horizontal, 0);
+        rigid_model_game_box.set_size_request(500, 0);
 
-        header_box.add(&header_signature);
-        header_box.add(&header_model_type);
-        header_box.add(&header_lods_count);
-        header_box.add(&header_base_skeleton);
-
-
-        let lod_headers_notebook = Notebook::new();
-
-        for lod in 0..packed_file_decoded.packed_file_header.packed_file_header_lods_count {
-            let lod_header = packed_file_decoded.packed_file_data.packed_file_data_lod_list[lod as usize].clone();
-            let lod_header_data = Box::new(Orientation::Vertical, 0);
-
-            let group_counts = Label::new(Some(&*lod_header.groups_count.to_string()));
-            let vertex_data_length = Label::new(Some(&*lod_header.vertex_data_length.to_string()));
-            let index_data_length = Label::new(Some(&*lod_header.index_data_length.to_string()));
-            let start_offset = Label::new(Some(&*lod_header.start_offset.to_string()));
-            let lod_zoom_factor = Label::new(Some(&*lod_header.lod_zoom_factor.to_string()));
-            let mut mysterious_data_1 = Label::new(Some(&*lod_header.lod_zoom_factor.to_string()));
-            let mut mysterious_data_2 = Label::new(Some(&*lod_header.lod_zoom_factor.to_string()));
-
-            if packed_file_decoded.packed_file_header.packed_file_header_model_type == 7 {
-                mysterious_data_1 = Label::new(Some(&*lod_header.mysterious_data_1.unwrap().to_string()));
-                mysterious_data_2 = Label::new(Some(&*lod_header.mysterious_data_2.unwrap().to_string()));
+        let rigid_model_game_label = Label::new(Some(
+            if packed_file_decoded.packed_file_header.packed_file_header_model_type == 6 {
+                "RigidModel compatible with: \"Attila\"."
             }
+            else {
+                "RigidModel compatible with: \"Warhammer 1&2\"."
+            }));
+        rigid_model_game_label.set_padding(4, 0);
+        rigid_model_game_label.set_alignment(0.0, 0.5);
 
-            lod_header_data.add(&group_counts);
-            lod_header_data.add(&vertex_data_length);
-            lod_header_data.add(&index_data_length);
-            lod_header_data.add(&start_offset);
-            lod_header_data.add(&lod_zoom_factor);
-            lod_header_data.add(&mysterious_data_1);
-            lod_header_data.add(&mysterious_data_2);
-
-            lod_headers_notebook.append_page(&lod_header_data, Some(&Label::new(Some(&*format!("Lod {}", lod + 1)))));
+        let rigid_model_game_patch_button = Button::new_with_label("Patch to Warhammer 1&2");
+        if packed_file_decoded.packed_file_header.packed_file_header_model_type == 6 {
+            rigid_model_game_patch_button.set_sensitive(true);
+        }
+        else {
+            rigid_model_game_patch_button.set_sensitive(false);
         }
 
-        let lod_data_notebook = Notebook::new();
-
-        for lod in 0..packed_file_decoded.packed_file_header.packed_file_header_lods_count {
-            let lod_header = packed_file_decoded.packed_file_data.packed_file_data_lod_list[lod as usize].clone();
-            let lod_header_data = Box::new(Orientation::Vertical, 0);
-
-            let group_counts = Label::new(Some(&*format!("Lod {}", lod + 1)));
+        rigid_model_game_box.pack_start(&rigid_model_game_label, false, false, 0);
+        rigid_model_game_box.pack_end(&rigid_model_game_patch_button, false, false, 0);
 
 
-            lod_header_data.add(&group_counts);
+        let rigid_model_type_label = Label::new(Some(
+            if !packed_file_decoded.packed_file_header.packed_file_data_base_skeleton.0.is_empty() {
+                "RigidModel Type: \"Unit Model\"."
+            }
+            else if packed_file_decoded.packed_file_data.packed_file_data_lods_header[0].vertices_data_length == 0 {
+                "RigidModel Type: \"Decal Model\"."
+            }
+            else {
+                "RigidModel Type: \"Building/Prop Model\"."
+        }));
+        rigid_model_type_label.set_padding(4, 0);
+        rigid_model_type_label.set_alignment(0.0, 0.5);
 
-            lod_data_notebook.append_page(&lod_header_data, Some(&Label::new(Some(&*format!("Lod {}", lod + 1)))));
+        let rigid_model_textures_label = Label::new(Some("Textures used by this RigidModel:"));
+        rigid_model_textures_label.set_padding(4, 0);
+        rigid_model_textures_label.set_alignment(0.0, 0.5);
+
+        packed_file_data_display_scroll_inner_box.pack_start(&rigid_model_game_box, false, false, 0);
+        packed_file_data_display_scroll_inner_box.pack_start(&rigid_model_type_label, false, false, 0);
+        packed_file_data_display_scroll_inner_box.pack_start(&rigid_model_textures_label, false, false, 0);
+
+        let mut packed_file_texture_paths = vec![];
+        let mut index = 1;
+        for lod in packed_file_decoded.packed_file_data.packed_file_data_lods_data.iter() {
+            let lod_texture_expander = Expander::new(Some(&*format!("Lod {}", index)));
+            let lod_texture_expander_box = Box::new(Orientation::Vertical, 0);
+            lod_texture_expander.add(&lod_texture_expander_box);
+            index += 1;
+
+            match lod.textures_list {
+                Some(ref textures) => {
+                    for texture in textures {
+                        let texture_info_box = Box::new(Orientation::Horizontal, 0);
+                        let texture_type = Label::new(Some(
+                            //0 (Diffuse), 1 (Normal), 11 (Specular), 12 (Gloss), 3/10 (Mask), 5(no idea).
+                            if texture.texture_type == 0 {
+                                "Diffuse:"
+                            }
+                            else if texture.texture_type == 1 {
+                                "Normal:"
+                            }
+                            else if texture.texture_type == 11 {
+                                "Specular:"
+                            }
+                            else if texture.texture_type == 12 {
+                                "Gloss:"
+                            }
+                            else if texture.texture_type == 3 || texture.texture_type == 10 {
+                                "Mask:"
+                            }
+                            else if texture.texture_type == 5 {
+                                "Unknown:"
+                            }
+                            else {
+                                "Error. Unknown mask type."
+                            }
+                        ));
+
+                        texture_type.set_alignment(0.0, 0.5);
+                        texture_type.set_size_request(60, 0);
+
+                        let texture_path = TextView::new();
+                        let texture_path_scroll = ScrolledWindow::new(None, None);
+                        texture_path_scroll.add(&texture_path);
+
+                        texture_path.get_buffer().unwrap().set_text(&*texture.texture_path.0);
+                        texture_path.set_editable(true);
+                        texture_path.set_border_window_size(TextWindowType::Top, 2);
+                        texture_path.set_border_window_size(TextWindowType::Bottom, 2);
+                        texture_path.set_border_window_size(TextWindowType::Left, 2);
+                        texture_path.set_border_width(2);
+
+                        texture_path_scroll.set_size_request(650, 0);
+                        texture_path_scroll.set_policy(PolicyType::External, PolicyType::Never);
+                        texture_path_scroll.set_max_content_width(600);
+
+                        texture_info_box.pack_start(&texture_type, false, false, 10);
+                        texture_info_box.pack_start(&texture_path_scroll, false, false, 0);
+                        lod_texture_expander_box.pack_start(&texture_info_box, false, false, 0);
+
+                        packed_file_texture_paths.push(texture_path);
+                    }
+                }
+                None => {
+                    let texture_info_box = Box::new(Orientation::Horizontal, 0);
+                    let texture_type = Label::new(Some("Texture Directory:"));
+
+                    let texture_path = TextView::new();
+                    let texture_path_scroll = ScrolledWindow::new(None, None);
+                    texture_path_scroll.add(&texture_path);
+
+                    texture_path.get_buffer().unwrap().set_text(&*lod.textures_directory.0);
+                    texture_path.set_editable(true);
+                    texture_path.set_border_window_size(TextWindowType::Top, 2);
+                    texture_path.set_border_window_size(TextWindowType::Bottom, 2);
+                    texture_path.set_border_window_size(TextWindowType::Left, 2);
+                    texture_path.set_border_width(2);
+
+                    texture_path_scroll.set_size_request(600, 0);
+                    texture_path_scroll.set_policy(PolicyType::External, PolicyType::Never);
+                    texture_path_scroll.set_max_content_width(500);
+
+                    texture_info_box.pack_start(&texture_type, false, false, 10);
+                    texture_info_box.pack_start(&texture_path_scroll, false, false, 0);
+                    lod_texture_expander_box.pack_start(&texture_info_box, false, false, 0);
+
+                    packed_file_texture_paths.push(texture_path);
+                }
+            }
+            packed_file_data_display_scroll_inner_box.pack_start(&lod_texture_expander, false, false, 0);
         }
+        packed_file_data_display_scroll.add(&packed_file_data_display_scroll_inner_box);
 
-        headers_box.pack_start(&header_box, true, true, 0);
-        headers_box.pack_end(&lod_headers_notebook, true, true, 0);
-
-        packed_file_data_display.pack_start(&headers_box, true, true, 0);
-        packed_file_data_display.pack_end(&lod_data_notebook, true, true, 0);
+        packed_file_data_display.pack_end(&packed_file_data_display_scroll, true, true, 0);
         packed_file_data_display.show_all();
+
+        PackedFileRigidModelDataView {
+            rigid_model_game_label,
+            rigid_model_game_patch_button,
+            packed_file_texture_paths,
+        }
     }
 }
