@@ -1608,23 +1608,36 @@ fn main() {
 
                                 Inhibit(false)
                             }));
-/*
+
                             // This loop takes care of the editing of the texture paths.
-                            for edited_path in packed_file_texture_paths.iter() {
-                                edited_path.connect_edited(clone!(
-                                    error_dialog,
-                                    pack_file_decoded,
-                                    packed_file_data_decoded => move |_ ,_ , new_text|{
+                            for lod in packed_file_texture_paths.iter() {
+                                for path in lod.iter() {
+                                    path.connect_focus_out_event(clone!(
+                                        error_dialog,
+                                        pack_file_decoded,
+                                        packed_file_texture_paths,
+                                        packed_file_data_decoded => move |_ ,_|{
 
+                                        let new_data = ui::packedfile_rigidmodel::PackedFileRigidModelDataView::return_data_from_data_view(
+                                            packed_file_texture_paths.to_vec(),
+                                            &mut (*packed_file_data_decoded.borrow_mut()).packed_file_data.packed_file_data_lods_data.to_vec()
+                                        );
 
-                                }));
-                            }*/
+                                        packed_file_data_decoded.borrow_mut().packed_file_data.packed_file_data_lods_data = new_data;
+                                        ::packfile::update_packed_file_data_rigid(
+                                            &*packed_file_data_decoded.borrow(),
+                                            &mut *pack_file_decoded.borrow_mut(),
+                                            index as usize
+                                        );
+
+                                        Inhibit(false)
+                                    }));
+                                }
+                            }
                         }
                         Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string()),
                     }
-
                 }
-
 
                 // If we reach this point, the coding to implement this type of file is not done yet,
                 // so we ignore the file.

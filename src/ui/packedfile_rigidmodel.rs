@@ -4,6 +4,7 @@ use gtk::prelude::*;
 use gtk::{
     Box, ScrolledWindow, Orientation, Button, Expander, TextWindowType, Label, TextView, PolicyType
 };
+use packedfile::rigidmodel::RigidModelLodData;
 
 
 /// Struct PackedFileRigidModelDataView: contains all the stuff we need to give to the program to
@@ -12,7 +13,7 @@ use gtk::{
 pub struct PackedFileRigidModelDataView {
     pub rigid_model_game_label: Label,
     pub rigid_model_game_patch_button: Button,
-    pub packed_file_texture_paths: Vec<TextView>,
+    pub packed_file_texture_paths: Vec<Vec<TextView>>,
 }
 
 /// Implementation of "PackedFileRigidModelDataView"
@@ -81,6 +82,8 @@ impl PackedFileRigidModelDataView {
             lod_texture_expander.add(&lod_texture_expander_box);
             index += 1;
 
+            let mut packed_file_texture_paths_lod = vec![];
+
             match lod.textures_list {
                 Some(ref textures) => {
                     for texture in textures {
@@ -132,7 +135,7 @@ impl PackedFileRigidModelDataView {
                         texture_info_box.pack_start(&texture_path_scroll, false, false, 0);
                         lod_texture_expander_box.pack_start(&texture_info_box, false, false, 0);
 
-                        packed_file_texture_paths.push(texture_path);
+                        packed_file_texture_paths_lod.push(texture_path);
                     }
                 }
                 None => {
@@ -158,9 +161,10 @@ impl PackedFileRigidModelDataView {
                     texture_info_box.pack_start(&texture_path_scroll, false, false, 0);
                     lod_texture_expander_box.pack_start(&texture_info_box, false, false, 0);
 
-                    packed_file_texture_paths.push(texture_path);
+                    packed_file_texture_paths_lod.push(texture_path);
                 }
             }
+            packed_file_texture_paths.push(packed_file_texture_paths_lod);
             packed_file_data_display_scroll_inner_box.pack_start(&lod_texture_expander, false, false, 0);
         }
         packed_file_data_display_scroll.add(&packed_file_data_display_scroll_inner_box);
@@ -173,5 +177,38 @@ impl PackedFileRigidModelDataView {
             rigid_model_game_patch_button,
             packed_file_texture_paths,
         }
+    }
+
+    pub fn return_data_from_data_view(
+        packed_file_new_texture_paths: Vec<Vec<TextView>>,
+        packed_file_data_lods_data: &mut Vec<RigidModelLodData>
+    ) -> Vec<RigidModelLodData> {
+        if let Some(_) = packed_file_data_lods_data[0].textures_list {
+            for (index_lod, lod) in packed_file_new_texture_paths.iter().enumerate() {
+                let mut texture_list = packed_file_data_lods_data[index_lod].clone().textures_list.unwrap();
+                for (index_texture, texture) in lod.iter().enumerate() {
+                    texture_list[index_texture].texture_path.0 = texture.get_buffer().unwrap().get_slice(
+                        &texture.get_buffer().unwrap().get_start_iter(),
+                        &texture.get_buffer().unwrap().get_end_iter(),
+                        true
+                    ).unwrap();
+                }
+                packed_file_data_lods_data[index_lod].textures_list = Some(texture_list);
+
+
+            }
+        }
+        else {
+            for (index_lod, lod) in packed_file_new_texture_paths.iter().enumerate() {
+                for (_, texture) in lod.iter().enumerate() {
+                    packed_file_data_lods_data[index_lod].textures_directory.0 = texture.get_buffer().unwrap().get_slice(
+                        &texture.get_buffer().unwrap().get_start_iter(),
+                        &texture.get_buffer().unwrap().get_end_iter(),
+                        true
+                    ).unwrap();
+                }
+            }
+        }
+        packed_file_data_lods_data.to_vec()
     }
 }
