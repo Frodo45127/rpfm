@@ -2,7 +2,7 @@
 
 use gtk::prelude::*;
 use gtk::{
-    Box, ScrolledWindow, Orientation, Button, Expander, TextWindowType, Label, TextView, PolicyType
+    Box, ScrolledWindow, Orientation, Button, Expander, TextWindowType, Label, TextView, PolicyType, Entry
 };
 use packedfile::rigidmodel::RigidModelLodData;
 
@@ -14,7 +14,7 @@ pub struct PackedFileRigidModelDataView {
     pub packed_file_save_button: Button,
     pub rigid_model_game_label: Label,
     pub rigid_model_game_patch_button: Button,
-    pub packed_file_texture_paths: Vec<Vec<TextView>>,
+    pub packed_file_texture_paths: Vec<Vec<Entry>>,
 }
 
 /// Implementation of "PackedFileRigidModelDataView"
@@ -26,6 +26,9 @@ impl PackedFileRigidModelDataView {
         packed_file_data_display: &Box,
         packed_file_decoded: &::packedfile::rigidmodel::RigidModel
     ) -> PackedFileRigidModelDataView {
+
+        // Button for saving the PackedFile. It goes before everything, so it's not included in the
+        // scrolledWindow.
         let packed_file_save_button = Button::new_with_label("Save to PackedFile");
         packed_file_data_display.add(&packed_file_save_button);
 
@@ -120,16 +123,16 @@ impl PackedFileRigidModelDataView {
                         texture_type.set_alignment(0.0, 0.5);
                         texture_type.set_size_request(60, 0);
 
-                        let texture_path = TextView::new();
+                        let texture_path = Entry::new();
                         let texture_path_scroll = ScrolledWindow::new(None, None);
                         texture_path_scroll.add(&texture_path);
 
-                        texture_path.get_buffer().unwrap().set_text(&*texture.texture_path.0);
+                        texture_path.get_buffer().set_text(&*texture.texture_path.0);
                         texture_path.set_editable(true);
-                        texture_path.set_border_window_size(TextWindowType::Top, 2);
-                        texture_path.set_border_window_size(TextWindowType::Bottom, 2);
-                        texture_path.set_border_window_size(TextWindowType::Left, 2);
-                        texture_path.set_border_width(2);
+                        //texture_path.set_border_window_size(TextWindowType::Top, 2);
+                        //texture_path.set_border_window_size(TextWindowType::Bottom, 2);
+                        //texture_path.set_border_window_size(TextWindowType::Left, 2);
+                        //texture_path.set_border_width(2);
 
                         texture_path_scroll.set_size_request(650, 0);
                         texture_path_scroll.set_policy(PolicyType::External, PolicyType::Never);
@@ -146,16 +149,16 @@ impl PackedFileRigidModelDataView {
                     let texture_info_box = Box::new(Orientation::Horizontal, 0);
                     let texture_type = Label::new(Some("Texture Directory:"));
 
-                    let texture_path = TextView::new();
+                    let texture_path = Entry::new();
                     let texture_path_scroll = ScrolledWindow::new(None, None);
                     texture_path_scroll.add(&texture_path);
 
-                    texture_path.get_buffer().unwrap().set_text(&*lod.textures_directory.0);
+                    texture_path.get_buffer().set_text(&*lod.textures_directory.0);
                     texture_path.set_editable(true);
-                    texture_path.set_border_window_size(TextWindowType::Top, 2);
-                    texture_path.set_border_window_size(TextWindowType::Bottom, 2);
-                    texture_path.set_border_window_size(TextWindowType::Left, 2);
-                    texture_path.set_border_width(2);
+                    //texture_path.set_border_window_size(TextWindowType::Top, 2);
+                    //texture_path.set_border_window_size(TextWindowType::Bottom, 2);
+                    //texture_path.set_border_window_size(TextWindowType::Left, 2);
+                    //texture_path.set_border_width(2);
 
                     texture_path_scroll.set_size_request(600, 0);
                     texture_path_scroll.set_policy(PolicyType::External, PolicyType::Never);
@@ -185,18 +188,14 @@ impl PackedFileRigidModelDataView {
     }
 
     pub fn return_data_from_data_view(
-        packed_file_new_texture_paths: Vec<Vec<TextView>>,
+        packed_file_new_texture_paths: Vec<Vec<Entry>>,
         packed_file_data_lods_data: &mut Vec<RigidModelLodData>
     ) -> Vec<RigidModelLodData> {
         if let Some(_) = packed_file_data_lods_data[0].textures_list {
             for (index_lod, lod) in packed_file_new_texture_paths.iter().enumerate() {
                 let mut texture_list = packed_file_data_lods_data[index_lod].clone().textures_list.unwrap();
                 for (index_texture, texture) in lod.iter().enumerate() {
-                    texture_list[index_texture].texture_path.0 = texture.get_buffer().unwrap().get_slice(
-                        &texture.get_buffer().unwrap().get_start_iter(),
-                        &texture.get_buffer().unwrap().get_end_iter(),
-                        true
-                    ).unwrap();
+                    texture_list[index_texture].texture_path.0 = texture.get_text().unwrap();
                 }
                 packed_file_data_lods_data[index_lod].textures_list = Some(texture_list);
 
@@ -206,11 +205,7 @@ impl PackedFileRigidModelDataView {
         else {
             for (index_lod, lod) in packed_file_new_texture_paths.iter().enumerate() {
                 for (_, texture) in lod.iter().enumerate() {
-                    packed_file_data_lods_data[index_lod].textures_directory.0 = texture.get_buffer().unwrap().get_slice(
-                        &texture.get_buffer().unwrap().get_start_iter(),
-                        &texture.get_buffer().unwrap().get_end_iter(),
-                        true
-                    ).unwrap();
+                    packed_file_data_lods_data[index_lod].textures_directory.0 = texture.get_text().unwrap();
                 }
             }
         }
