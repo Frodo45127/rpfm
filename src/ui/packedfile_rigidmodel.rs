@@ -2,7 +2,7 @@
 
 use gtk::prelude::*;
 use gtk::{
-    Box, ScrolledWindow, Orientation, Button, Expander, TextWindowType, Label, TextView, PolicyType, Entry
+    Box, ScrolledWindow, Orientation, Button, Expander, Label, PolicyType, Entry
 };
 use packedfile::rigidmodel::RigidModelLodData;
 
@@ -30,13 +30,14 @@ impl PackedFileRigidModelDataView {
         // Button for saving the PackedFile. It goes before everything, so it's not included in the
         // scrolledWindow.
         let packed_file_save_button = Button::new_with_label("Save to PackedFile");
-        packed_file_data_display.add(&packed_file_save_button);
 
+        // Internal scrolledWindow, so if there are too many lods, we can scroll through them.
+        // Inside it we put a box to fit all the labels and stuff properly.
         let packed_file_data_display_scroll = ScrolledWindow::new(None, None);
         let packed_file_data_display_scroll_inner_box = Box::new(Orientation::Vertical, 0);
 
         let rigid_model_game_box = Box::new(Orientation::Horizontal, 0);
-        rigid_model_game_box.set_size_request(500, 0);
+        rigid_model_game_box.set_size_request(400, 0);
 
         let rigid_model_game_label = Label::new(Some(
             if packed_file_decoded.packed_file_header.packed_file_header_model_type == 6 {
@@ -44,7 +45,8 @@ impl PackedFileRigidModelDataView {
             }
             else {
                 "RigidModel compatible with: \"Warhammer 1&2\"."
-            }));
+            }
+        ));
         rigid_model_game_label.set_padding(4, 0);
         rigid_model_game_label.set_alignment(0.0, 0.5);
 
@@ -59,7 +61,7 @@ impl PackedFileRigidModelDataView {
         rigid_model_game_box.pack_start(&rigid_model_game_label, false, false, 0);
         rigid_model_game_box.pack_end(&rigid_model_game_patch_button, false, false, 0);
 
-
+        // TODO: Improve this. Right now we get this info in a very unreliable way.
         let rigid_model_type_label = Label::new(Some(
             if !packed_file_decoded.packed_file_header.packed_file_data_base_skeleton.0.is_empty() {
                 "RigidModel Type: \"Unit Model\"."
@@ -81,6 +83,8 @@ impl PackedFileRigidModelDataView {
         packed_file_data_display_scroll_inner_box.pack_start(&rigid_model_type_label, false, false, 0);
         packed_file_data_display_scroll_inner_box.pack_start(&rigid_model_textures_label, false, false, 0);
 
+        // TODO: Get this into his own function.
+        // Here we process the Lods's texture paths.
         let mut packed_file_texture_paths = vec![];
         let mut index = 1;
         for lod in packed_file_decoded.packed_file_data.packed_file_data_lods_data.iter() {
@@ -90,10 +94,13 @@ impl PackedFileRigidModelDataView {
             index += 1;
 
             let mut packed_file_texture_paths_lod = vec![];
-
             match lod.textures_list {
                 Some(ref textures) => {
+
+                    // If we have textures (not a decal) we decode their paths one by one
                     for texture in textures {
+
+                        // First, we get it's type.
                         let texture_info_box = Box::new(Orientation::Horizontal, 0);
                         let texture_type = Label::new(Some(
                             //0 (Diffuse), 1 (Normal), 11 (Specular), 12 (Gloss), 3/10 (Mask), 5(no idea).
@@ -123,20 +130,19 @@ impl PackedFileRigidModelDataView {
                         texture_type.set_alignment(0.0, 0.5);
                         texture_type.set_size_request(60, 0);
 
+                        // Then we get it's path, and put it in a gtk::Entry.
                         let texture_path = Entry::new();
-                        let texture_path_scroll = ScrolledWindow::new(None, None);
-                        texture_path_scroll.add(&texture_path);
-
                         texture_path.get_buffer().set_text(&*texture.texture_path.0);
+                        texture_path.get_buffer().set_max_length(Some(texture.texture_path.1 as u16));
                         texture_path.set_editable(true);
-                        //texture_path.set_border_window_size(TextWindowType::Top, 2);
-                        //texture_path.set_border_window_size(TextWindowType::Bottom, 2);
-                        //texture_path.set_border_window_size(TextWindowType::Left, 2);
-                        //texture_path.set_border_width(2);
 
+                        // We need to put a ScrolledWindow around the Entry, so we can move the
+                        // text if it's too long.
+                        let texture_path_scroll = ScrolledWindow::new(None, None);
                         texture_path_scroll.set_size_request(650, 0);
                         texture_path_scroll.set_policy(PolicyType::External, PolicyType::Never);
                         texture_path_scroll.set_max_content_width(600);
+                        texture_path_scroll.add(&texture_path);
 
                         texture_info_box.pack_start(&texture_type, false, false, 10);
                         texture_info_box.pack_start(&texture_path_scroll, false, false, 0);
@@ -148,21 +154,22 @@ impl PackedFileRigidModelDataView {
                 None => {
                     let texture_info_box = Box::new(Orientation::Horizontal, 0);
                     let texture_type = Label::new(Some("Texture Directory:"));
+                    texture_type.set_alignment(0.0, 0.5);
+                    texture_type.set_size_request(60, 0);
 
+                    // Then we get it's path, and put it in a gtk::Entry.
                     let texture_path = Entry::new();
-                    let texture_path_scroll = ScrolledWindow::new(None, None);
-                    texture_path_scroll.add(&texture_path);
-
                     texture_path.get_buffer().set_text(&*lod.textures_directory.0);
+                    texture_path.get_buffer().set_max_length(Some(lod.textures_directory.1 as u16));
                     texture_path.set_editable(true);
-                    //texture_path.set_border_window_size(TextWindowType::Top, 2);
-                    //texture_path.set_border_window_size(TextWindowType::Bottom, 2);
-                    //texture_path.set_border_window_size(TextWindowType::Left, 2);
-                    //texture_path.set_border_width(2);
 
-                    texture_path_scroll.set_size_request(600, 0);
+                    // We need to put a ScrolledWindow around the Entry, so we can move the
+                    // text if it's too long.
+                    let texture_path_scroll = ScrolledWindow::new(None, None);
+                    texture_path_scroll.set_size_request(550, 0);
                     texture_path_scroll.set_policy(PolicyType::External, PolicyType::Never);
                     texture_path_scroll.set_max_content_width(500);
+                    texture_path_scroll.add(&texture_path);
 
                     texture_info_box.pack_start(&texture_type, false, false, 10);
                     texture_info_box.pack_start(&texture_path_scroll, false, false, 0);
@@ -174,8 +181,9 @@ impl PackedFileRigidModelDataView {
             packed_file_texture_paths.push(packed_file_texture_paths_lod);
             packed_file_data_display_scroll_inner_box.pack_start(&lod_texture_expander, false, false, 0);
         }
-        packed_file_data_display_scroll.add(&packed_file_data_display_scroll_inner_box);
 
+        packed_file_data_display_scroll.add(&packed_file_data_display_scroll_inner_box);
+        packed_file_data_display.add(&packed_file_save_button);
         packed_file_data_display.pack_end(&packed_file_data_display_scroll, true, true, 0);
         packed_file_data_display.show_all();
 
@@ -187,10 +195,15 @@ impl PackedFileRigidModelDataView {
         }
     }
 
+    /// This function get the texture path entries of a RigidModel from the UI and saves them into the
+    /// opened RigidModel.
     pub fn return_data_from_data_view(
         packed_file_new_texture_paths: Vec<Vec<Entry>>,
         packed_file_data_lods_data: &mut Vec<RigidModelLodData>
     ) -> Vec<RigidModelLodData> {
+
+        // If there is a texture list in the first lod, this is not a decal, so we try to get the
+        // texture list of every lod.
         if let Some(_) = packed_file_data_lods_data[0].textures_list {
             for (index_lod, lod) in packed_file_new_texture_paths.iter().enumerate() {
                 let mut texture_list = packed_file_data_lods_data[index_lod].clone().textures_list.unwrap();
@@ -202,6 +215,8 @@ impl PackedFileRigidModelDataView {
 
             }
         }
+
+        // If there is no texture list, this is a decal. We just get the texture directory.
         else {
             for (index_lod, lod) in packed_file_new_texture_paths.iter().enumerate() {
                 for (_, texture) in lod.iter().enumerate() {
