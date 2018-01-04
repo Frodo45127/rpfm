@@ -152,14 +152,19 @@ pub fn encode_string_u8(string_decoded: String) -> Vec<u8> {
 /// "size", so we encode the String like a normal UTF-8 String and then extend the vector until we
 /// reach the desired size.
 #[allow(dead_code)]
-pub fn encode_string_u8_0padded(string_decoded: (String, usize)) -> Vec<u8> {
+pub fn encode_string_u8_0padded(string_decoded: (String, usize)) -> Result<Vec<u8>, Error> {
     let mut string_encoded = string_decoded.0.as_bytes().to_vec();
     let size = string_decoded.1;
-    let extra_zeroes_amount = size - string_encoded.len();
-    for _ in 0..extra_zeroes_amount {
-        string_encoded.extend_from_slice("\0".as_bytes());
+    if string_encoded.len() <= size {
+        let extra_zeroes_amount = size - string_encoded.len();
+        for _ in 0..extra_zeroes_amount {
+            string_encoded.extend_from_slice("\0".as_bytes());
+        }
+        Ok(string_encoded)
     }
-    string_encoded
+    else {
+        return Err(Error::new(ErrorKind::Other, format!("Error: String \"{}\" has a lenght of {} chars, but his max length should be {}).", string_decoded.0, string_encoded.len(), size)))
+    }
 }
 
 /// This function allow us to encode an UTF-16 decoded String. This type of Strings are encoded in

@@ -537,14 +537,15 @@ pub fn update_packed_file_data_rigid(
     packed_file_data_decoded: &RigidModel,
     pack_file: &mut packfile::PackFile,
     index: usize,
-) {
-    let mut packed_file_data_encoded = RigidModel::save(packed_file_data_decoded).to_vec();
+) -> Result<String, Error> {
+    let mut packed_file_data_encoded = RigidModel::save(packed_file_data_decoded)?.to_vec();
     let packed_file_data_encoded_size = packed_file_data_encoded.len() as u32;
 
     // Replace the old raw data of the PackedFile with the new one, and update his size.
     &pack_file.pack_file_data.packed_files[index].packed_file_data.clear();
     &pack_file.pack_file_data.packed_files[index].packed_file_data.append(&mut packed_file_data_encoded);
     pack_file.pack_file_data.packed_files[index].packed_file_size = packed_file_data_encoded_size;
+    Ok(format!("RigidModel PackedFile updated successfully."))
 }
 
 /*

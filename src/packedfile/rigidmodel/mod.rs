@@ -241,16 +241,17 @@ impl RigidModel {
         }
     }
 
-    /// This function reads the data from a RigidModel and encode it into a Vec<u8>.
-    pub fn save(rigid_model_data: &RigidModel) -> Vec<u8> {
-        let mut packed_file_data_encoded = RigidModelData::save(rigid_model_data.packed_file_data.clone());
-        let mut packed_file_header_encoded = RigidModelHeader::save(rigid_model_data.packed_file_header.clone());
+    /// This function reads the data from a RigidModel and encode it into a Vec<u8>. This CAN FAIL,
+    /// so we return Result<Vec<u8>, Error>.
+    pub fn save(rigid_model_data: &RigidModel) -> Result<Vec<u8>, Error> {
+        let mut packed_file_data_encoded = RigidModelData::save(rigid_model_data.packed_file_data.clone())?;
+        let mut packed_file_header_encoded = RigidModelHeader::save(rigid_model_data.packed_file_header.clone())?;
 
         let mut packed_file_encoded = vec![];
         packed_file_encoded.append(&mut packed_file_header_encoded);
         packed_file_encoded.append(&mut packed_file_data_encoded);
 
-        packed_file_encoded
+        Ok(packed_file_encoded)
     }
 }
 
@@ -293,20 +294,21 @@ impl RigidModelHeader {
         Ok(packed_file_header)
     }
 
-    /// This function reads the data from a RigidModelHeader and encode it into a Vec<u8>.
-    pub fn save(rigid_model_header: RigidModelHeader) -> Vec<u8> {
+    /// This function reads the data from a RigidModelHeader and encode it into a Vec<u8>. This CAN FAIL,
+    /// so we return Result<Vec<u8>, Error>.
+    pub fn save(rigid_model_header: RigidModelHeader) -> Result<Vec<u8>, Error> {
         let mut packed_file_data: Vec<u8> = vec![];
 
         let mut packed_file_header_signature = coding_helpers::encode_string_u8(rigid_model_header.packed_file_header_signature);
         let mut packed_file_header_model_type = coding_helpers::encode_integer_u32(rigid_model_header.packed_file_header_model_type);
         let mut packed_file_header_lods_count = coding_helpers::encode_integer_u32(rigid_model_header.packed_file_header_lods_count);
-        let mut packed_file_data_base_skeleton = coding_helpers::encode_string_u8_0padded(rigid_model_header.packed_file_data_base_skeleton);
+        let mut packed_file_data_base_skeleton = coding_helpers::encode_string_u8_0padded(rigid_model_header.packed_file_data_base_skeleton)?;
 
         packed_file_data.append(&mut packed_file_header_signature);
         packed_file_data.append(&mut packed_file_header_model_type);
         packed_file_data.append(&mut packed_file_header_lods_count);
         packed_file_data.append(&mut packed_file_data_base_skeleton);
-        packed_file_data
+        Ok(packed_file_data)
     }
 }
 
@@ -350,8 +352,9 @@ impl RigidModelData {
         })
     }
 
-    /// This function reads the data from a RigidModelData and encode it into a Vec<u8>.
-    pub fn save(rigid_model_data: RigidModelData) -> Vec<u8> {
+    /// This function reads the data from a RigidModelData and encode it into a Vec<u8>. This CAN FAIL,
+    /// so we return Result<Vec<u8>, Error>.
+    pub fn save(rigid_model_data: RigidModelData) -> Result<Vec<u8>, Error> {
         let mut packed_file_data = vec![];
 
         // For each Lod, we save it, and add it to the "Encoded Data" vector. After that, we add to that
@@ -361,9 +364,9 @@ impl RigidModelData {
         }
 
         for (index, lod) in rigid_model_data.packed_file_data_lods_data.iter().enumerate() {
-            packed_file_data.append(&mut RigidModelLodData::save(&lod, &rigid_model_data.packed_file_data_lods_header[index]));
+            packed_file_data.append(&mut RigidModelLodData::save(&lod, &rigid_model_data.packed_file_data_lods_header[index])?);
         }
-        packed_file_data
+        Ok(packed_file_data)
     }
 }
 
@@ -738,8 +741,9 @@ impl RigidModelLodData {
         })
     }
 
-    /// This function reads the data from a RigidModelLodDataTexture and encode it into a Vec<u8>.
-    pub fn save(rigid_model_lod_data: &RigidModelLodData, rigid_model_lod_header: &RigidModelLodHeader) -> Vec<u8> {
+    /// This function reads the data from a RigidModelLodDataTexture and encode it into a Vec<u8>. This CAN FAIL,
+    /// so we return Result<Vec<u8>, Error>.
+    pub fn save(rigid_model_lod_data: &RigidModelLodData, rigid_model_lod_header: &RigidModelLodHeader) -> Result<Vec<u8>, Error> {
         let rigid_model_lod_data = rigid_model_lod_data.clone();
         let mut packed_file_data: Vec<u8> = vec![];
 
@@ -756,7 +760,7 @@ impl RigidModelLodData {
         let mut group_max_y = coding_helpers::encode_float_u32(rigid_model_lod_data.group_max_y);
         let mut group_max_z = coding_helpers::encode_float_u32(rigid_model_lod_data.group_max_z);
 
-        let mut shader_name = coding_helpers::encode_string_u8_0padded(rigid_model_lod_data.shader_name);
+        let mut shader_name = coding_helpers::encode_string_u8_0padded(rigid_model_lod_data.shader_name)?;
         let mut mysterious_u32_1 = coding_helpers::encode_integer_u32(rigid_model_lod_data.mysterious_u32_1);
         let mut mysterious_u32_2 = coding_helpers::encode_integer_u32(rigid_model_lod_data.mysterious_u32_2);
         let mut mysterious_data_1 = rigid_model_lod_data.mysterious_data_1.to_vec();
@@ -781,7 +785,7 @@ impl RigidModelLodData {
 
         // If it's a decal.
         if rigid_model_lod_header.vertices_data_length == 0 {
-            let mut textures_directory = coding_helpers::encode_string_u8_0padded(rigid_model_lod_data.textures_directory);
+            let mut textures_directory = coding_helpers::encode_string_u8_0padded(rigid_model_lod_data.textures_directory)?;
             let mut indices_list = rigid_model_lod_data.indices_list.unwrap().to_vec();
 
             packed_file_data.append(&mut textures_directory);
@@ -789,8 +793,8 @@ impl RigidModelLodData {
         }
         else {
             let mut mysterious_id = coding_helpers::encode_integer_u16(rigid_model_lod_data.mysterious_id.unwrap());
-            let mut group_name = coding_helpers::encode_string_u8_0padded(rigid_model_lod_data.group_name.unwrap());
-            let mut textures_directory = coding_helpers::encode_string_u8_0padded(rigid_model_lod_data.textures_directory);
+            let mut group_name = coding_helpers::encode_string_u8_0padded(rigid_model_lod_data.group_name.unwrap())?;
+            let mut textures_directory = coding_helpers::encode_string_u8_0padded(rigid_model_lod_data.textures_directory)?;
             let mut mysterious_data_2 = rigid_model_lod_data.mysterious_data_2.unwrap().to_vec();
             let mut supplementary_bones_count = coding_helpers::encode_integer_u32(rigid_model_lod_data.supplementary_bones_count.unwrap());
             let mut textures_count = coding_helpers::encode_integer_u32(rigid_model_lod_data.textures_count.unwrap());
@@ -813,7 +817,7 @@ impl RigidModelLodData {
             if rigid_model_lod_data.textures_count.unwrap() != 0 {
                 let mut textures_list: Vec<u8> = vec![];
                 for texture in rigid_model_lod_data.textures_list.unwrap().iter() {
-                    textures_list.append(&mut RigidModelLodDataTexture::save(texture));
+                    textures_list.append(&mut RigidModelLodDataTexture::save(texture)?);
                 }
                 packed_file_data.append(&mut textures_list);
             }
@@ -831,7 +835,7 @@ impl RigidModelLodData {
             packed_file_data.append(&mut indices_list);
             packed_file_data.append(&mut extra_bytes);
         }
-        packed_file_data
+        Ok(packed_file_data)
     }
 }
 
@@ -854,17 +858,18 @@ impl RigidModelLodDataTexture {
         })
     }
 
-    /// This function reads the data from a RigidModelLodDataTexture and encode it into a Vec<u8>.
-    pub fn save(rigid_model_lod_texture: &RigidModelLodDataTexture) -> Vec<u8> {
+    /// This function reads the data from a RigidModelLodDataTexture and encode it into a Vec<u8>. This CAN FAIL,
+    /// so we return Result<Vec<u8>, Error>.
+    pub fn save(rigid_model_lod_texture: &RigidModelLodDataTexture) -> Result<Vec<u8>, Error> {
         let rigid_model_lod_texture = rigid_model_lod_texture.clone();
         let mut packed_file_data: Vec<u8> = vec![];
 
         let mut texture_type = coding_helpers::encode_integer_u32(rigid_model_lod_texture.texture_type);
-        let mut texture_path = coding_helpers::encode_string_u8_0padded(rigid_model_lod_texture.texture_path);
+        let mut texture_path = coding_helpers::encode_string_u8_0padded(rigid_model_lod_texture.texture_path)?;
 
         packed_file_data.append(&mut texture_type);
         packed_file_data.append(&mut texture_path);
 
-        packed_file_data
+        Ok(packed_file_data)
     }
 }

@@ -1597,12 +1597,15 @@ fn main() {
                                         rigid_model_game_patch_button.set_sensitive(false);
                                         rigid_model_game_label.set_text("RigidModel compatible with: \"Warhammer 1&2\".");
 
-                                        ::packfile::update_packed_file_data_rigid(
+                                        match ::packfile::update_packed_file_data_rigid(
                                             &*packed_file_data_decoded.borrow(),
                                             &mut *pack_file_decoded.borrow_mut(),
                                             index as usize
-                                        );
-                                        ui::show_dialog(&success_dialog, result);
+                                        ) {
+                                            Ok(_) => ui::show_dialog(&success_dialog, result),
+                                            Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string()),
+                                        }
+
                                     },
                                     Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string()),
                                 }
@@ -1613,6 +1616,7 @@ fn main() {
                             // This loop takes care of the editing of the texture paths.
                                 packed_file_save_button.connect_button_release_event(clone!(
                                     error_dialog,
+                                    success_dialog,
                                     pack_file_decoded,
                                     packed_file_texture_paths,
                                     packed_file_data_decoded => move |_ ,_|{
@@ -1623,11 +1627,15 @@ fn main() {
                                     );
 
                                     packed_file_data_decoded.borrow_mut().packed_file_data.packed_file_data_lods_data = new_data;
-                                    ::packfile::update_packed_file_data_rigid(
+
+                                    match ::packfile::update_packed_file_data_rigid(
                                         &*packed_file_data_decoded.borrow(),
                                         &mut *pack_file_decoded.borrow_mut(),
                                         index as usize
-                                    );
+                                    ) {
+                                        Ok(result) => ui::show_dialog(&success_dialog, result),
+                                        Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string()),
+                                    }
 
                                     Inhibit(false)
                                 }));
