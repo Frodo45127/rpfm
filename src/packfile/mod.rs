@@ -533,6 +533,7 @@ pub fn update_packed_file_data_text(
 
 /// This function saves the data of the edited RigidModel PackedFile in the main PackFile after a change has
 /// been done by the user. Checking for valid characters is done before this, so be careful to not break it.
+/// This can fail in case a 0-Padded String of the RigidModel fails his encoding, so we check that too.
 pub fn update_packed_file_data_rigid(
     packed_file_data_decoded: &RigidModel,
     pack_file: &mut packfile::PackFile,
