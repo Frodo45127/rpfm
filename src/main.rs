@@ -1613,32 +1613,32 @@ fn main() {
                                 Inhibit(false)
                             }));
 
-                            // This loop takes care of the editing of the texture paths.
-                                packed_file_save_button.connect_button_release_event(clone!(
-                                    error_dialog,
-                                    success_dialog,
-                                    pack_file_decoded,
-                                    packed_file_texture_paths,
-                                    packed_file_data_decoded => move |_ ,_|{
+                            // When we hit the "Save to PackFile" button.
+                            packed_file_save_button.connect_button_release_event(clone!(
+                                error_dialog,
+                                success_dialog,
+                                pack_file_decoded,
+                                packed_file_texture_paths,
+                                packed_file_data_decoded => move |_ ,_|{
 
-                                    let new_data = ui::packedfile_rigidmodel::PackedFileRigidModelDataView::return_data_from_data_view(
-                                        packed_file_texture_paths.to_vec(),
-                                        &mut (*packed_file_data_decoded.borrow_mut()).packed_file_data.packed_file_data_lods_data.to_vec()
-                                    );
+                                let new_data = ui::packedfile_rigidmodel::PackedFileRigidModelDataView::return_data_from_data_view(
+                                    packed_file_texture_paths.to_vec(),
+                                    &mut (*packed_file_data_decoded.borrow_mut()).packed_file_data.packed_file_data_lods_data.to_vec()
+                                );
 
-                                    packed_file_data_decoded.borrow_mut().packed_file_data.packed_file_data_lods_data = new_data;
+                                packed_file_data_decoded.borrow_mut().packed_file_data.packed_file_data_lods_data = new_data;
 
-                                    match ::packfile::update_packed_file_data_rigid(
-                                        &*packed_file_data_decoded.borrow(),
-                                        &mut *pack_file_decoded.borrow_mut(),
-                                        index as usize
-                                    ) {
-                                        Ok(result) => ui::show_dialog(&success_dialog, result),
-                                        Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string()),
-                                    }
+                                match ::packfile::update_packed_file_data_rigid(
+                                    &*packed_file_data_decoded.borrow(),
+                                    &mut *pack_file_decoded.borrow_mut(),
+                                    index as usize
+                                ) {
+                                    Ok(result) => ui::show_dialog(&success_dialog, result),
+                                    Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string()),
+                                }
 
-                                    Inhibit(false)
-                                }));
+                                Inhibit(false)
+                            }));
                         }
                         Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string()),
                     }
