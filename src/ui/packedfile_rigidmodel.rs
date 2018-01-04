@@ -11,6 +11,7 @@ use packedfile::rigidmodel::RigidModelLodData;
 /// show a TreeView with the data of a RigidModel file, allowing us to manipulate it.
 #[derive(Clone)]
 pub struct PackedFileRigidModelDataView {
+    pub packed_file_save_button: Button,
     pub rigid_model_game_label: Label,
     pub rigid_model_game_patch_button: Button,
     pub packed_file_texture_paths: Vec<Vec<TextView>>,
@@ -25,6 +26,9 @@ impl PackedFileRigidModelDataView {
         packed_file_data_display: &Box,
         packed_file_decoded: &::packedfile::rigidmodel::RigidModel
     ) -> PackedFileRigidModelDataView {
+        let packed_file_save_button = Button::new_with_label("Save to PackedFile");
+        packed_file_data_display.add(&packed_file_save_button);
+
         let packed_file_data_display_scroll = ScrolledWindow::new(None, None);
         let packed_file_data_display_scroll_inner_box = Box::new(Orientation::Vertical, 0);
 
@@ -173,6 +177,7 @@ impl PackedFileRigidModelDataView {
         packed_file_data_display.show_all();
 
         PackedFileRigidModelDataView {
+            packed_file_save_button,
             rigid_model_game_label,
             rigid_model_game_patch_button,
             packed_file_texture_paths,
