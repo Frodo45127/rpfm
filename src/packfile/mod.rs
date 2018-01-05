@@ -16,6 +16,7 @@ use std::io::{
 };
 
 use std::error;
+use common::TreePathType;
 use common::coding_helpers;
 use packedfile::loc::Loc;
 use packedfile::db::DB;
@@ -128,7 +129,7 @@ pub fn save_packfile(
 
 
 /// This function is used to add a file to a PackFile, processing it and turning it into a PackedFile.
-/// It returns the a success or error message, depending on whether the file has been added, or not.
+/// It returns a success or error message, depending on whether the file has been added, or not.
 /// It requires:
 /// - pack_file: a &mut pack_file::PackFile. It's the PackFile where we are going add the file.
 /// - file_path: a PathBuf with the current path of the file.
@@ -158,7 +159,7 @@ pub fn add_file_to_packfile(
         file.read_to_end(&mut file_data).expect("Error reading file.");
         pack_file.pack_file_header.packed_file_count += 1;
         let file_size = file_data.len() as u32;
-        let new_packed_file = packfile::PackedFile::add(file_size, tree_path, file_data);
+        let new_packed_file = packfile::PackedFile::read(file_size, tree_path, file_data);
         pack_file.pack_file_data.packed_files.push(new_packed_file);
 
         Ok(format!("File added."))
@@ -168,6 +169,188 @@ pub fn add_file_to_packfile(
     }
 }
 
+/// This function is used to add one or many PackedFiles to a PackFile (from another PackFile).
+/// It returns a success or error message, depending on whether the PackedFile has been added, or not.
+/// It requires:
+/// - pack_file_source: a &mut pack_file::PackFile. It's the PackFile from we are going to take the PackedFile.
+/// - pack_file_destination: a &mut pack_file::PackFile. It's the Destination PackFile for the PackedFile.
+/// - tree_path_source: the TreePath of the PackedFile or PackedFiles we want to add. A Vec<String> It is.
+/// - tree_path_destination: the Destination TreePath of the PackedFile/s we want to add.
+pub fn add_packedfile_to_packfile(
+    pack_file_source: &packfile::PackFile,
+    pack_file_destination: &mut packfile::PackFile,
+    tree_path_source: Vec<String>,
+    tree_path_destination: Vec<String>,
+) -> Result<String, Error> {
+
+    // First we need to make some checks to ensure we can add the PackedFile/s to the selected destination.
+    let tree_path_source_type = ::common::get_type_of_selected_tree_path(&tree_path_source, pack_file_source);
+    let tree_path_destination_type = ::common::get_type_of_selected_tree_path(&tree_path_destination, pack_file_destination);
+
+    let is_source_tree_path_valid;
+    match tree_path_source_type {
+        TreePathType::None => is_source_tree_path_valid = false,
+        TreePathType::File(_) | TreePathType::Folder(_) | TreePathType::PackFile => is_source_tree_path_valid = true,
+    }
+
+    let is_destination_tree_path_valid;
+    match tree_path_destination_type {
+        TreePathType::None | TreePathType::File(_) => is_destination_tree_path_valid = false,
+        TreePathType::Folder(_) | TreePathType::PackFile => is_destination_tree_path_valid = true,
+    }
+
+    // If both paths are valid paths...
+    if is_source_tree_path_valid && is_destination_tree_path_valid {
+        match tree_path_destination_type {
+
+            // If the destination is not selected, or it's a file (this should really never happen).
+            TreePathType::None | TreePathType::File(_) => return Err(Error::new(ErrorKind::Other, format!("This situation shouldn't happen, but the compiler will complain otherwise."))),
+
+            // If the destination is the PackFile itself, we just move all the selected stuff from the
+            // extra PackFile to the main one.
+            TreePathType::PackFile => {
+                match tree_path_source_type {
+
+                    // If the source is not selected (this should really never happen).
+                    TreePathType::None => return Err(Error::new(ErrorKind::Other, format!("This situation shouldn't happen, but the compiler will complain otherwise."))),
+
+                    // If the source is the PackFile itself, we just copy every PackedFile from one
+                    // PackFile to the other.
+                    TreePathType::PackFile => {
+                        let new_packed_files = pack_file_source.pack_file_data.packed_files.to_vec();
+
+                        // Here we check for duplicates before adding the files
+                        for packed_file in new_packed_files.iter() {
+                            if pack_file_destination.pack_file_data.packedfile_exists(&packed_file.packed_file_path) {
+                                return Err(Error::new(ErrorKind::Other, format!("One or more of the files we want to add already exists in the Destination PackFile. Aborted.")))
+                            }
+                        }
+                        pack_file_destination.add_packedfiles(new_packed_files);
+                        Ok(format!("The entire PackFile \"{}\" has been added sucessfully to \"{}\"", tree_path_source[0], tree_path_destination[0]))
+                    },
+
+                    // If the source is a single PackedFile, we add it to the PackFile and replace his
+                    // path with his name, making it as direct child of our PackFile.
+                    TreePathType::File(packed_file_data) => {
+                        let mut new_packed_files = vec![pack_file_source.pack_file_data.packed_files[packed_file_data.1].clone()];
+                        new_packed_files[0].packed_file_path = vec![new_packed_files[0].packed_file_path.last().unwrap().clone()];
+
+                        // Here we check for duplicates before adding the files
+                        for packed_file in new_packed_files.iter() {
+                            if pack_file_destination.pack_file_data.packedfile_exists(&packed_file.packed_file_path) {
+                                return Err(Error::new(ErrorKind::Other, format!("One or more of the files we want to add already exists in the Destination PackFile. Aborted.")))
+                            }
+                        }
+                        pack_file_destination.add_packedfiles(new_packed_files);
+                        Ok(format!("The PackedFile \"{}\" has been added sucessfully to \"{}\"", tree_path_source.last().unwrap(), tree_path_destination[0]))
+                    }
+
+                    // If the source is a folder, we get all the PackedFiles inside that folder into
+                    // a Vec<PackedFile>, we change their TreePath and then we append that Vector to
+                    // the main PackFile.
+                    TreePathType::Folder(tree_path_source) => {
+                        let mut new_packed_files: Vec<packfile::PackedFile> = vec![];
+                        for packed_file in pack_file_source.pack_file_data.packed_files.iter() {
+                            if packed_file.packed_file_path.starts_with(&tree_path_source) {
+                                let mut packed_file = packed_file.clone();
+                                packed_file.packed_file_path.drain(..(tree_path_source.len() - 1)).collect::<Vec<String>>();
+                                new_packed_files.push(packed_file);
+                            }
+                        }
+
+                        // We check if the list of new PackedFiles is empty. It should never happen, but...
+                        if !new_packed_files.is_empty() {
+
+                            // Here we check for duplicates before adding the files
+                            for packed_file in new_packed_files.iter() {
+                                if pack_file_destination.pack_file_data.packedfile_exists(&packed_file.packed_file_path) {
+                                    return Err(Error::new(ErrorKind::Other, format!("One or more of the files we want to add already exists in the Destination PackFile. Aborted.")))
+                                }
+                            }
+                            pack_file_destination.add_packedfiles(new_packed_files);
+                            Ok(format!("The folder \"{}\" has been added sucessfully to \"{}\"", tree_path_source.last().unwrap(), tree_path_destination[0]))
+                        }
+                        else {
+                            return Err(Error::new(ErrorKind::Other, format!("This situation shouldn't happen, but the compiler will complain otherwise.")))
+                        }
+                    },
+                }
+            }
+
+            // If the destination is a folder.
+            TreePathType::Folder(tree_path_destination) => {
+                match tree_path_source_type {
+
+                    // If the source is not selected (this should really never happen).
+                    TreePathType::None => return Err(Error::new(ErrorKind::Other, format!("This situation shouldn't happen, but the compiler will complain otherwise."))),
+
+                    // If the source is the PackFile itself, we just copy every PackedFile from one
+                    // PackFile to the other and update his TreePath.
+                    TreePathType::PackFile => {
+                        let mut new_packed_files = pack_file_source.pack_file_data.packed_files.to_vec();
+                        for packed_file in new_packed_files.iter_mut() {
+                            packed_file.packed_file_path.splice(0..0, tree_path_destination.iter().cloned());
+                        }
+
+                        // Here we check for duplicates before adding the files
+                        for packed_file in new_packed_files.iter() {
+                            if pack_file_destination.pack_file_data.packedfile_exists(&packed_file.packed_file_path) {
+                                return Err(Error::new(ErrorKind::Other, format!("One or more of the files we want to add already exists in the Destination PackFile. Aborted.")))
+                            }
+                        }
+                        pack_file_destination.add_packedfiles(new_packed_files);
+                        Ok(format!("The entire PackFile \"{}\" has been added sucessfully to \"{}\"", tree_path_source[0], tree_path_destination[0]))
+                    },
+
+                    // If the source is a folder, we get all the PackedFiles inside that folder into
+                    // a Vec<PackedFile>, we change their TreePath and then we append that Vector to
+                    // the main PackFile.
+                    TreePathType::Folder(tree_path_source) => {
+                        let mut new_packed_files: Vec<packfile::PackedFile> = vec![];
+                        for packed_file in pack_file_source.pack_file_data.packed_files.iter() {
+                            if packed_file.packed_file_path.starts_with(&tree_path_source) {
+                                let mut packed_file = packed_file.clone();
+                                packed_file.packed_file_path.drain(..(tree_path_source.len() - 1)).collect::<Vec<String>>();
+                                packed_file.packed_file_path.splice(0..0, tree_path_destination.iter().cloned());
+                                new_packed_files.push(packed_file);
+                            }
+                        }
+
+                        // Here we check for duplicates before adding the files
+                        for packed_file in new_packed_files.iter() {
+                            if pack_file_destination.pack_file_data.packedfile_exists(&packed_file.packed_file_path) {
+                                return Err(Error::new(ErrorKind::Other, format!("One or more of the files we want to add already exists in the Destination PackFile. Aborted.")))
+                            }
+                        }
+                        pack_file_destination.add_packedfiles(new_packed_files);
+                        Ok(format!("The folder \"{}\" has been added sucessfully to \"{}\"", tree_path_source.last().unwrap(), tree_path_destination[0]))
+                    },
+
+                    // If the source is a single PackedFile, we add it to the PackFile and replace his
+                    // path with his new TreePath, making it as direct child of our destination folder.
+                    TreePathType::File(packed_file_data) => {
+                        let mut new_packed_files = vec![pack_file_source.pack_file_data.packed_files[packed_file_data.1].clone()];
+                        new_packed_files[0].packed_file_path = vec![new_packed_files[0].packed_file_path.last().unwrap().clone()];
+                        new_packed_files[0].packed_file_path.splice(0..0, tree_path_destination.iter().cloned());
+
+                        // Here we check for duplicates before adding the files
+                        for packed_file in new_packed_files.iter() {
+                            if pack_file_destination.pack_file_data.packedfile_exists(&packed_file.packed_file_path) {
+                                return Err(Error::new(ErrorKind::Other, format!("One or more of the files we want to add already exists in the Destination PackFile. Aborted.")))
+                            }
+                        }
+                        pack_file_destination.add_packedfiles(new_packed_files);
+                        Ok(format!("The PackedFile \"{}\" has been added sucessfully to \"{}\"", tree_path_source.last().unwrap(), tree_path_destination[0]))
+                    }
+
+                }
+            }
+        }
+    }
+    else {
+        Err(Error::new(ErrorKind::Other, format!("Please, check the logic because this should never been executed.")))
+    }
+}
 
 /// This function is used to delete a PackedFile or a group of PackedFiles under the same tree_path
 /// from the PackFile. We just need the open PackFile and the tree_path of the file/folder to delete.

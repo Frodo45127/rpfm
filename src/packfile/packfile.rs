@@ -10,7 +10,7 @@ use common::coding_helpers;
 /// - pack_file_extra_data: extra data that we need to manipulate the PackFile.
 /// - pack_file_header: header of the PackFile, decoded.
 /// - pack_file_data: data of the PackFile, decoded.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PackFile {
     pub pack_file_extra_data: PackFileExtraData,
     pub pack_file_header: PackFileHeader,
@@ -21,7 +21,7 @@ pub struct PackFile {
 /// - file_name: name of the PackFile.
 /// - file_path: current path of the PackFile in the FileSystem.
 /// - correlation_data: Vector with all the paths that are already in the TreeView. Useful for checking.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PackFileExtraData {
     pub file_name: String,
     pub file_path: String,
@@ -43,7 +43,7 @@ pub struct PackFileExtraData {
 /// - 2 => "Patch",
 /// - 3 => "Mod",
 /// - 4 => "Movie",
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PackFileHeader {
     pub pack_file_id: String,
     pub pack_file_type: u32,
@@ -55,7 +55,7 @@ pub struct PackFileHeader {
 }
 
 /// Struct PackFileData: This struct stores all the PackedFiles inside the PackFile in a vector.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PackFileData {
     pub pack_files: Vec<String>,
     pub packed_files: Vec<PackedFile>,
@@ -65,7 +65,7 @@ pub struct PackFileData {
 /// - packed_file_size: size of the data.
 /// - packed_file_path: path of the PackedFile inside the PackFile.
 /// - packed_file_data: the data of the PackedFile. Temporal, until we implement PackedFileTypes.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PackedFile {
     pub packed_file_size: u32,
     pub packed_file_path: Vec<String>,
@@ -98,6 +98,17 @@ impl PackFile {
             pack_file_extra_data,
             pack_file_header,
             pack_file_data,
+        }
+    }
+
+    /// This function adds one or more PackedFiles to an existing PackFile.
+    /// It requires:
+    /// - self: the PackFile we are going to manipulate.
+    /// - packed_files: a Vec<PackedFile> we are going to add.
+    pub fn add_packedfiles(&mut self, packed_files: Vec<PackedFile>) {
+        for packed_file in packed_files.iter() {
+            self.pack_file_header.packed_file_count += 1;
+            self.pack_file_data.packed_files.push(packed_file.clone());
         }
     }
 
@@ -288,6 +299,19 @@ impl PackFileData {
         }
     }
 
+    /// This function checks if a PackedFile exists in a PackFile.
+    /// It requires:
+    /// - self: a PackFileData to check for the PackedFile.
+    /// - packed_file_paths: the paths of the PackedFiles we want to check.
+    pub fn packedfile_exists(&self, packed_file_path: &Vec<String>) -> bool {
+        for packed_file in self.packed_files.iter() {
+            if &packed_file.packed_file_path == packed_file_path {
+                return true;
+            }
+        }
+        false
+    }
+
     /// This function reads the Data part of a PackFile, get all the files on the PackFile and put
     /// them in a Vec<PackedFile>.
     /// It requires:
@@ -453,19 +477,6 @@ impl PackFileData {
 
 /// Implementation of "PackedFile"
 impl PackedFile {
-
-    /// This function adds a new PackedFile the the PackFile, from his size, path and data.
-    /// It requires:
-    /// - packed_file_size: the size in bytes of the data of the PackedFile.
-    /// - packed_file_path: the path of the PackedFile.
-    /// - packed_file_data: the data of the PackedFile.
-    pub fn add(packed_file_size: u32, packed_file_path: Vec<String>, packed_file_data: Vec<u8>) -> PackedFile {
-        PackedFile {
-            packed_file_size,
-            packed_file_path,
-            packed_file_data,
-        }
-    }
 
     /// This function receive all the info of a PackedFile and creates a PackedFile with it.
     pub fn read(file_size: u32, path: Vec<String>, data: Vec<u8>) -> PackedFile {
