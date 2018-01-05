@@ -126,10 +126,10 @@ pub fn get_tree_path_from_pathbuf(
 /// BEYOND MY COMPREHENSION, so we use this for now.
 /// It requires:
 /// - folder_tree_selection: &TreeSelection of the place of the TreeView we want to know his TreePath.
-/// - is_for_renaming: bool. True when we use this to get a path of something we want to rename.
+/// - include_packfile: bool. True if we want the TreePath to include the PackFile's name.
 pub fn get_tree_path_from_selection(
     folder_tree_selection: &TreeSelection,
-    is_for_renaming: bool
+    include_packfile: bool
 ) -> Vec<String>{
 
     let mut tree_path: Vec<String> = vec![];
@@ -151,8 +151,8 @@ pub fn get_tree_path_from_selection(
             };
         }
 
-        // If we are renaming, we need to keep the name of the PackFile, as we can rename that too.
-        if !is_for_renaming {
+        // We only want to keep the name of the PackFile on specific situations.
+        if !include_packfile {
             tree_path.pop();
         }
         tree_path.reverse();
