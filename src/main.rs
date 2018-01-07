@@ -143,7 +143,6 @@ fn main() {
     column.add_attribute(&cell, "text", 0);
 
     folder_tree_view.append_column(&column);
-    folder_tree_view.set_enable_tree_lines(true);
     folder_tree_view.set_enable_search(false);
     folder_tree_view.set_rules_hint(true);
     window.set_position(WindowPosition::Center);

@@ -113,6 +113,105 @@
     <property name="can_focus">False</property>
     <property name="stock">gtk-undelete</property>
   </object>
+  <object class="GtkPopover" id="gtk_context_menu_tree_view">
+    <property name="can_focus">False</property>
+    <property name="relative_to">gtk_folder_tree_view</property>
+    <property name="position">bottom</property>
+    <property name="constrain_to">none</property>
+    <child>
+      <object class="GtkBox">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="orientation">vertical</property>
+        <property name="homogeneous">True</property>
+        <child>
+          <object class="GtkButton" id="gtk_context_menu_tree_view_add_file">
+            <property name="label" translatable="yes">Add file</property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="receives_default">True</property>
+            <property name="hexpand">True</property>
+            <property name="image">gtk_context_menu_tree_view_img_add_file</property>
+            <property name="relief">none</property>
+            <property name="xalign">0</property>
+          </object>
+          <packing>
+            <property name="expand">True</property>
+            <property name="fill">True</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkButton" id="gtk_context_menu_tree_view_add_folder">
+            <property name="label" translatable="yes">Add folder</property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="receives_default">True</property>
+            <property name="hexpand">False</property>
+            <property name="image">gtk_context_menu_tree_view_img_add_folder</property>
+            <property name="relief">none</property>
+            <property name="xalign">0</property>
+          </object>
+          <packing>
+            <property name="expand">True</property>
+            <property name="fill">True</property>
+            <property name="position">1</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkButton" id="gtk_context_menu_tree_view_add_from_packfile">
+            <property name="label" translatable="yes">Add file/folder from PackFile</property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="receives_default">True</property>
+            <property name="hexpand">True</property>
+            <property name="image">gtk_context_menu_tree_view_img_add_from_packfile</property>
+            <property name="relief">none</property>
+            <property name="xalign">0</property>
+          </object>
+          <packing>
+            <property name="expand">True</property>
+            <property name="fill">True</property>
+            <property name="position">2</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkButton" id="gtk_context_menu_tree_view_delete_file">
+            <property name="label" translatable="yes">Delete file/folder</property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="receives_default">True</property>
+            <property name="hexpand">True</property>
+            <property name="image">gtk_context_menu_tree_view_img_delete_file</property>
+            <property name="relief">none</property>
+            <property name="xalign">0</property>
+          </object>
+          <packing>
+            <property name="expand">True</property>
+            <property name="fill">True</property>
+            <property name="position">3</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkButton" id="gtk_context_menu_tree_view_extract_file">
+            <property name="label" translatable="yes">Extract file/folder</property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="receives_default">True</property>
+            <property name="hexpand">True</property>
+            <property name="image">gtk_context_menu_tree_view_img_extract_file</property>
+            <property name="relief">none</property>
+            <property name="xalign">0</property>
+          </object>
+          <packing>
+            <property name="expand">True</property>
+            <property name="fill">True</property>
+            <property name="position">4</property>
+          </packing>
+        </child>
+      </object>
+    </child>
+  </object>
   <object class="GtkImage" id="gtk_context_menu_tree_view_loc_packedfile_img_add_rows">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
@@ -262,6 +361,32 @@
     <patterns>
       <pattern>*.pack</pattern>
     </patterns>
+  </object>
+  <object class="GtkPopover" id="gtk_rename_popover">
+    <property name="can_focus">False</property>
+    <property name="relative_to">gtk_folder_tree_view</property>
+    <property name="position">bottom</property>
+    <property name="constrain_to">none</property>
+    <child>
+      <object class="GtkBox">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="orientation">vertical</property>
+        <child>
+          <object class="GtkEntry" id="gtk_rename_popover_text_entry">
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="primary_icon_stock">gtk-goto-last</property>
+            <property name="placeholder_text" translatable="yes">New name</property>
+          </object>
+          <packing>
+            <property name="expand">True</property>
+            <property name="fill">True</property>
+            <property name="position">1</property>
+          </packing>
+        </child>
+      </object>
+    </child>
   </object>
   <object class="GtkWindow" id="gtk_window">
     <property name="can_focus">False</property>
@@ -466,21 +591,27 @@
           </packing>
         </child>
         <child>
-          <object class="GtkBox">
+          <object class="GtkPaned">
             <property name="visible">True</property>
-            <property name="can_focus">False</property>
+            <property name="can_focus">True</property>
+            <property name="position">400</property>
+            <property name="position_set">True</property>
             <child>
               <object class="GtkScrolledWindow">
+                <property name="height_request">400</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="shadow_type">in</property>
-                <property name="min_content_width">400</property>
-                <property name="min_content_height">400</property>
+                <property name="min_content_width">0</property>
+                <property name="min_content_height">0</property>
                 <child>
                   <object class="GtkTreeView" id="gtk_folder_tree_view">
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
+                    <property name="vexpand">True</property>
                     <property name="headers_visible">False</property>
+                    <property name="rules_hint">True</property>
+                    <property name="enable_tree_lines">True</property>
                     <child internal-child="selection">
                       <object class="GtkTreeSelection" id="gtk_folder_tree_view_selection"/>
                     </child>
@@ -488,9 +619,8 @@
                 </child>
               </object>
               <packing>
-                <property name="expand">False</property>
-                <property name="fill">True</property>
-                <property name="position">0</property>
+                <property name="resize">False</property>
+                <property name="shrink">True</property>
               </packing>
             </child>
             <child>
@@ -503,14 +633,13 @@
                 </child>
               </object>
               <packing>
-                <property name="expand">True</property>
-                <property name="fill">True</property>
-                <property name="position">1</property>
+                <property name="resize">True</property>
+                <property name="shrink">True</property>
               </packing>
             </child>
           </object>
           <packing>
-            <property name="expand">True</property>
+            <property name="expand">False</property>
             <property name="fill">True</property>
             <property name="position">1</property>
           </packing>
@@ -538,105 +667,6 @@
     </child>
     <child type="titlebar">
       <placeholder/>
-    </child>
-  </object>
-  <object class="GtkPopover" id="gtk_context_menu_tree_view">
-    <property name="can_focus">False</property>
-    <property name="relative_to">gtk_folder_tree_view</property>
-    <property name="position">bottom</property>
-    <property name="constrain_to">none</property>
-    <child>
-      <object class="GtkBox">
-        <property name="visible">True</property>
-        <property name="can_focus">False</property>
-        <property name="orientation">vertical</property>
-        <property name="homogeneous">True</property>
-        <child>
-          <object class="GtkButton" id="gtk_context_menu_tree_view_add_file">
-            <property name="label" translatable="yes">Add file</property>
-            <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <property name="receives_default">True</property>
-            <property name="hexpand">True</property>
-            <property name="image">gtk_context_menu_tree_view_img_add_file</property>
-            <property name="relief">none</property>
-            <property name="xalign">0</property>
-          </object>
-          <packing>
-            <property name="expand">True</property>
-            <property name="fill">True</property>
-            <property name="position">0</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkButton" id="gtk_context_menu_tree_view_add_folder">
-            <property name="label" translatable="yes">Add folder</property>
-            <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <property name="receives_default">True</property>
-            <property name="hexpand">False</property>
-            <property name="image">gtk_context_menu_tree_view_img_add_folder</property>
-            <property name="relief">none</property>
-            <property name="xalign">0</property>
-          </object>
-          <packing>
-            <property name="expand">True</property>
-            <property name="fill">True</property>
-            <property name="position">1</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkButton" id="gtk_context_menu_tree_view_add_from_packfile">
-            <property name="label" translatable="yes">Add file/folder from PackFile</property>
-            <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <property name="receives_default">True</property>
-            <property name="hexpand">True</property>
-            <property name="image">gtk_context_menu_tree_view_img_add_from_packfile</property>
-            <property name="relief">none</property>
-            <property name="xalign">0</property>
-          </object>
-          <packing>
-            <property name="expand">True</property>
-            <property name="fill">True</property>
-            <property name="position">2</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkButton" id="gtk_context_menu_tree_view_delete_file">
-            <property name="label" translatable="yes">Delete file/folder</property>
-            <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <property name="receives_default">True</property>
-            <property name="hexpand">True</property>
-            <property name="image">gtk_context_menu_tree_view_img_delete_file</property>
-            <property name="relief">none</property>
-            <property name="xalign">0</property>
-          </object>
-          <packing>
-            <property name="expand">True</property>
-            <property name="fill">True</property>
-            <property name="position">3</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkButton" id="gtk_context_menu_tree_view_extract_file">
-            <property name="label" translatable="yes">Extract file/folder</property>
-            <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <property name="receives_default">True</property>
-            <property name="hexpand">True</property>
-            <property name="image">gtk_context_menu_tree_view_img_extract_file</property>
-            <property name="relief">none</property>
-            <property name="xalign">0</property>
-          </object>
-          <packing>
-            <property name="expand">True</property>
-            <property name="fill">True</property>
-            <property name="position">4</property>
-          </packing>
-        </child>
-      </object>
     </child>
   </object>
   <object class="GtkMessageDialog" id="gtk_error_dialog">
@@ -1277,32 +1307,6 @@
     </action-widgets>
     <child>
       <placeholder/>
-    </child>
-  </object>
-  <object class="GtkPopover" id="gtk_rename_popover">
-    <property name="can_focus">False</property>
-    <property name="relative_to">gtk_folder_tree_view</property>
-    <property name="position">bottom</property>
-    <property name="constrain_to">none</property>
-    <child>
-      <object class="GtkBox">
-        <property name="visible">True</property>
-        <property name="can_focus">False</property>
-        <property name="orientation">vertical</property>
-        <child>
-          <object class="GtkEntry" id="gtk_rename_popover_text_entry">
-            <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <property name="primary_icon_stock">gtk-goto-last</property>
-            <property name="placeholder_text" translatable="yes">New name</property>
-          </object>
-          <packing>
-            <property name="expand">True</property>
-            <property name="fill">True</property>
-            <property name="position">1</property>
-          </packing>
-        </child>
-      </object>
     </child>
   </object>
   <object class="GtkMessageDialog" id="gtk_success_dialog">
