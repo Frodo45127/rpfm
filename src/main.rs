@@ -277,6 +277,7 @@ fn main() {
 
     // When we hit the "Save PackFile" button
     top_menu_file_save_packfile.connect_activate(clone!(
+        window,
         success_dialog,
         error_dialog,
         pack_file_decoded,
@@ -286,7 +287,7 @@ fn main() {
         file_chooser_save_packfile_dialog => move |_| {
 
         // First, we check if our PackFile has a path. If it doesn't have it, we launch the Save
-        // Dialog and set the current name in the extry of the dialog to his name.
+        // Dialog and set the current name in the entry of the dialog to his name.
         // When we hit "Accept", we get the selected path, encode the PackFile, and save it to that
         // path. After that, we update the TreeView to reflect the name change and hide the dialog.
         let mut pack_file_path: Option<PathBuf> = None;
@@ -294,27 +295,44 @@ fn main() {
             file_chooser_save_packfile_dialog.set_current_name(&pack_file_decoded.borrow().pack_file_extra_data.file_name);
             if file_chooser_save_packfile_dialog.run() == gtk::ResponseType::Ok.into() {
                 pack_file_path = Some(file_chooser_save_packfile_dialog.get_filename().expect("Couldn't open file"));
-                match packfile::save_packfile( &mut *pack_file_decoded.borrow_mut(), pack_file_path) {
-                    Ok(result) => ui::show_dialog(&success_dialog, result),
+
+                let mut success = false;
+                match packfile::save_packfile(&mut *pack_file_decoded.borrow_mut(), pack_file_path) {
+                    Ok(result) => {
+                        success = true;
+                        ui::show_dialog(&success_dialog, result);
+                    },
                     Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string())
                 }
+                if success {
+                    // If saved, we reset the title to unmodified.
+                    window.set_title(&format!("Rusted PackFile Manager -> {}", pack_file_decoded.borrow().pack_file_extra_data.file_name));
+                    ui::update_tree_view_expand_path(
+                        &folder_tree_store,
+                        &*pack_file_decoded.borrow(),
+                        &folder_tree_selection,
+                        &folder_tree_view,
+                        false
+                    );
+                }
 
-                ui::update_tree_view_expand_path(
-                    &folder_tree_store,
-                    &*pack_file_decoded.borrow(),
-                    &folder_tree_selection,
-                    &folder_tree_view,
-                    false
-                );
             }
             file_chooser_save_packfile_dialog.hide_on_delete();
         }
 
         // If the PackFile has a path, we just encode it and save it into that path.
         else {
-            match packfile::save_packfile( &mut *pack_file_decoded.borrow_mut(), pack_file_path) {
-                    Ok(result) => ui::show_dialog(&success_dialog, result),
-                    Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string())
+            let mut success = false;
+            match packfile::save_packfile(&mut *pack_file_decoded.borrow_mut(), pack_file_path) {
+                Ok(result) => {
+                    success = true;
+                    ui::show_dialog(&success_dialog, result);
+                },
+                Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string())
+            }
+            if success {
+                // If saved, we reset the title to unmodified.
+                window.set_title(&format!("Rusted PackFile Manager -> {}", pack_file_decoded.borrow().pack_file_extra_data.file_name));
             }
         }
     }));
@@ -336,20 +354,26 @@ fn main() {
         // the name change and hide the dialog.
         file_chooser_save_packfile_dialog.set_current_name(&pack_file_decoded.borrow().pack_file_extra_data.file_name);
         if file_chooser_save_packfile_dialog.run() == gtk::ResponseType::Ok.into() {
+            let mut success = false;
             match packfile::save_packfile(
-                &mut *pack_file_decoded.borrow_mut(),
+               &mut *pack_file_decoded.borrow_mut(),
                Some(file_chooser_save_packfile_dialog.get_filename().expect("Couldn't open file"))) {
-                    Ok(result) => ui::show_dialog(&success_dialog, result),
+                    Ok(result) => {
+                        success = true;
+                        ui::show_dialog(&success_dialog, result);
+                    },
                     Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string())
             }
-            window.set_title(&format!("Rusted PackFile Manager -> {}", pack_file_decoded.borrow().pack_file_extra_data.file_name));
-            ui::update_tree_view_expand_path(
-                &folder_tree_store,
-                &*pack_file_decoded.borrow(),
-                &folder_tree_selection,
-                &folder_tree_view,
-                false
-            );
+            if success {
+                window.set_title(&format!("Rusted PackFile Manager -> {}", pack_file_decoded.borrow().pack_file_extra_data.file_name));
+                ui::update_tree_view_expand_path(
+                    &folder_tree_store,
+                    &*pack_file_decoded.borrow(),
+                    &folder_tree_selection,
+                    &folder_tree_view,
+                    false
+                );
+            }
         }
         file_chooser_save_packfile_dialog.hide_on_delete();
     }));
@@ -434,17 +458,23 @@ fn main() {
             Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string())
         }
         if sucessful_patching.0 {
+            let mut success = false;
             match packfile::save_packfile( &mut *pack_file_decoded.borrow_mut(), None) {
-                Ok(result) => ui::show_dialog(&success_dialog, format!("{}\n\n{}", sucessful_patching.1, result)),
+                Ok(result) => {
+                    success = true;
+                    ui::show_dialog(&success_dialog, format!("{}\n\n{}", sucessful_patching.1, result));
+                },
                 Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string())
             }
-            ui::update_tree_view_expand_path(
-                &folder_tree_store,
-                &*pack_file_decoded.borrow(),
-                &folder_tree_selection,
-                &folder_tree_view,
-                false
-            );
+            if success {
+                ui::update_tree_view_expand_path(
+                    &folder_tree_store,
+                    &*pack_file_decoded.borrow(),
+                    &folder_tree_selection,
+                    &folder_tree_view,
+                    false
+                );
+            }
         }
     }));
 
@@ -521,6 +551,7 @@ fn main() {
 
     // When we hit the "Add file" button.
     tree_view_add_file.connect_button_release_event(clone!(
+        window,
         error_dialog,
         pack_file_decoded,
         folder_tree_view,
@@ -539,12 +570,13 @@ fn main() {
 
                 //let file_path = file_chooser_add_file_to_packfile.get_filename().expect("Couldn't open file");
                 let tree_path = ui::get_tree_path_from_pathbuf(&path, &folder_tree_selection, true);
-                let mut file_added = false;
+                let mut success = false;
                 match packfile::add_file_to_packfile(&mut *pack_file_decoded.borrow_mut(), path, tree_path) {
-                    Ok(_) => file_added = true,
+                    Ok(_) => success = true,
                     Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string())
                 }
-                if file_added {
+                if success {
+                    window.set_title(&format!("Rusted PackFile Manager -> {}(modified)", pack_file_decoded.borrow().pack_file_extra_data.file_name));
                     ui::update_tree_view_expand_path(
                         &folder_tree_store,
                         &*pack_file_decoded.borrow(),
@@ -563,6 +595,7 @@ fn main() {
 
     // When we hit the "Add folder" button.
     tree_view_add_folder.connect_button_release_event(clone!(
+        window,
         error_dialog,
         pack_file_decoded,
         folder_tree_view,
@@ -588,13 +621,8 @@ fn main() {
                     match i.strip_prefix(&big_parent_prefix) {
                         Ok(filtered_path) => {
                             let tree_path = ui::get_tree_path_from_pathbuf(&filtered_path.to_path_buf(), &folder_tree_selection, false);
-                            match packfile::add_file_to_packfile(&mut *pack_file_decoded.borrow_mut(), &i.to_path_buf(), tree_path) {
-                                Ok(_) => {
-                                    // Do nothing, as we just want to know the errors.
-                                }
-                                Err(_) => {
-                                    file_errors += 1;
-                                }
+                            if let Err(_) = packfile::add_file_to_packfile(&mut *pack_file_decoded.borrow_mut(), &i.to_path_buf(), tree_path) {
+                                file_errors += 1;
                             }
                         }
                         Err(_) => {
@@ -605,6 +633,7 @@ fn main() {
                 if file_errors > 0 {
                     ui::show_dialog(&error_dialog, format!("{} file/s that you wanted to add already exist in the Packfile.", file_errors));
                 }
+                window.set_title(&format!("Rusted PackFile Manager -> {}(modified)", pack_file_decoded.borrow().pack_file_extra_data.file_name));
                 ui::update_tree_view_expand_path(
                     &folder_tree_store,
                     &*pack_file_decoded.borrow(),
@@ -621,6 +650,7 @@ fn main() {
 
     // When we hit the "Add file/folder from PackFile" button.
     tree_view_add_from_packfile.connect_button_release_event(clone!(
+        window,
         error_dialog,
         pack_file_decoded,
         pack_file_decoded_extra,
@@ -717,6 +747,7 @@ fn main() {
 
                     // When we click in the "Copy" button (<=).
                     folder_tree_view_extra_copy_button.connect_button_release_event(clone!(
+                        window,
                         error_dialog,
                         pack_file_decoded,
                         pack_file_decoded_extra,
@@ -738,6 +769,7 @@ fn main() {
                             Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string()),
                         }
                         if packed_file_added {
+                            window.set_title(&format!("Rusted PackFile Manager -> {}(modified)", pack_file_decoded.borrow().pack_file_extra_data.file_name));
                             ui::update_tree_view_expand_path(
                                 &folder_tree_store,
                                 &*pack_file_decoded.borrow(),
@@ -779,6 +811,7 @@ fn main() {
 
     // When we hit the "Delete file/folder" button.
     tree_view_delete_file.connect_button_release_event(clone!(
+        window,
         pack_file_decoded,
         folder_tree_view,
         folder_tree_store,
@@ -791,6 +824,7 @@ fn main() {
 
         let tree_path = ui::get_tree_path_from_selection(&folder_tree_selection, false);
         packfile::delete_from_packfile(&mut *pack_file_decoded.borrow_mut(), tree_path);
+        window.set_title(&format!("Rusted PackFile Manager -> {}(modified)", pack_file_decoded.borrow().pack_file_extra_data.file_name));
         ui::update_tree_view_expand_path(
             &folder_tree_store,
             &*pack_file_decoded.borrow(),
@@ -913,8 +947,7 @@ fn main() {
                         &folder_tree_view,
                         true
                     );
-                    // We reset the Window's title, just in case the renamed file is the PackFile.
-                    window.set_title(&format!("Rusted PackFile Manager -> {}", pack_file_decoded.borrow().pack_file_extra_data.file_name));
+                    window.set_title(&format!("Rusted PackFile Manager -> {}(modified)", pack_file_decoded.borrow().pack_file_extra_data.file_name));
                 }
                 rename_popover_text_entry.get_buffer().set_text("");
             }
@@ -927,6 +960,7 @@ fn main() {
 
     // When you select a file in the TreeView, decode it with his codec, if it's implemented.
     folder_tree_view.connect_cursor_changed(clone!(
+        window,
         error_dialog,
         pack_file_decoded,
         folder_tree_selection,
@@ -937,8 +971,6 @@ fn main() {
         tree_view_packedfile_loc_export_csv,
         is_folder_tree_view_locked,
         context_menu_tree_view_packed_file_loc => move |_| {
-
-//    folder_tree_view.connect_cursor_changed( move |_| {
 
         // Before anything else, we need to check if the TreeView is unlocked. Otherwise we don't
         // execute anything from here.
@@ -1020,6 +1052,7 @@ fn main() {
                                 // This is the key column. Here we need to restrict the String to not having " ",
                                 // be empty or repeated.
                                 packed_file_tree_view_cell_key.connect_edited(clone!(
+                                    window,
                                     error_dialog,
                                     pack_file_decoded,
                                     packed_file_data_decoded,
@@ -1071,12 +1104,14 @@ fn main() {
                                                 &*packed_file_data_decoded.borrow_mut(),
                                                 &mut *pack_file_decoded.borrow_mut(),
                                                 index as usize);
+                                            window.set_title(&format!("Rusted PackFile Manager -> {}(modified)", pack_file_decoded.borrow().pack_file_extra_data.file_name));
                                         }
                                     }
                                 }));
 
 
                                 packed_file_tree_view_cell_text.connect_edited(clone!(
+                                    window,
                                     pack_file_decoded,
                                     packed_file_data_decoded,
                                     packed_file_tree_view,
@@ -1092,10 +1127,12 @@ fn main() {
                                         &*packed_file_data_decoded.borrow_mut(),
                                         &mut *pack_file_decoded.borrow_mut(),
                                         index as usize);
+                                    window.set_title(&format!("Rusted PackFile Manager -> {}(modified)", pack_file_decoded.borrow().pack_file_extra_data.file_name));
                                 }));
 
 
                                 packed_file_tree_view_cell_tooltip.connect_toggled(clone!(
+                                    window,
                                     pack_file_decoded,
                                     packed_file_data_decoded,
                                     packed_file_tree_view,
@@ -1115,6 +1152,7 @@ fn main() {
                                         &*packed_file_data_decoded.borrow_mut(),
                                         &mut *pack_file_decoded.borrow_mut(),
                                         index as usize);
+                                    window.set_title(&format!("Rusted PackFile Manager -> {}(modified)", pack_file_decoded.borrow().pack_file_extra_data.file_name));
                                 }));
 
 
@@ -1146,12 +1184,13 @@ fn main() {
 
                                 // When we hit the "Add row" button.
                                 tree_view_packedfile_loc_add_rows.connect_button_release_event(clone!(
+                                    window,
                                     error_dialog,
                                     pack_file_decoded,
                                     packed_file_data_decoded,
                                     packed_file_list_store,
                                     tree_view_packedfile_loc_add_rows_number,
-                                    context_menu_tree_view_packed_file_loc => move |_,_|{
+                                    context_menu_tree_view_packed_file_loc => move |_,_| {
 
                                     // We hide the context menu, then we get the selected file/folder, delete it and update the
                                     // TreeView. Pretty simple, actually.
@@ -1199,6 +1238,7 @@ fn main() {
                                                 &*packed_file_data_decoded.borrow_mut(),
                                                 &mut *pack_file_decoded.borrow_mut(),
                                                 index as usize);
+                                            window.set_title(&format!("Rusted PackFile Manager -> {}(modified)", pack_file_decoded.borrow().pack_file_extra_data.file_name));
                                         }
                                         Err(error) => ui::show_dialog(&error_dialog, format!("You can only add an \"ENTIRE NUMBER\" of rows. Like 4, or 6. Maybe 5, who knows? But definetly not \"{}\".", error::Error::description(&error).to_string())),
                                     }
@@ -1207,11 +1247,12 @@ fn main() {
 
                                 // When we hit the "Delete row" button.
                                 tree_view_packedfile_loc_delete_row.connect_button_release_event(clone!(
+                                    window,
                                     pack_file_decoded,
                                     packed_file_data_decoded,
                                     packed_file_list_store,
                                     packed_file_tree_view_selection,
-                                    context_menu_tree_view_packed_file_loc => move |_,_|{
+                                    context_menu_tree_view_packed_file_loc => move |_,_| {
 
                                     // We hide the context menu, then we get the selected file/folder, delete it and update the
                                     // TreeView. Pretty simple, actually.
@@ -1238,6 +1279,7 @@ fn main() {
                                             &*packed_file_data_decoded.borrow_mut(),
                                             &mut *pack_file_decoded.borrow_mut(),
                                             index as usize);
+                                        window.set_title(&format!("Rusted PackFile Manager -> {}(modified)", pack_file_decoded.borrow().pack_file_extra_data.file_name));
                                     }
 
                                     Inhibit(false)
@@ -1245,6 +1287,7 @@ fn main() {
 
                                 // When we hit the "Import to CSV" button.
                                 tree_view_packedfile_loc_import_csv.connect_button_release_event(clone!(
+                                    window,
                                     error_dialog,
                                     pack_file_decoded,
                                     packed_file_data_decoded,
@@ -1272,6 +1315,7 @@ fn main() {
                                                     &*packed_file_data_decoded.borrow_mut(),
                                                     &mut *pack_file_decoded.borrow_mut(),
                                                     index as usize);
+                                                window.set_title(&format!("Rusted PackFile Manager -> {}(modified)", pack_file_decoded.borrow().pack_file_extra_data.file_name));
                                             }
                                             Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string())
                                         }
@@ -1350,11 +1394,12 @@ fn main() {
                                         // This loop takes care of the interaction with string cells.
                                         for edited_cell in packed_file_tree_view_stuff.packed_file_tree_view_cell_string.iter() {
                                             edited_cell.connect_edited(clone!(
+                                            window,
                                             error_dialog,
                                             pack_file_decoded,
                                             packed_file_data_decoded,
                                             packed_file_tree_view,
-                                            packed_file_list_store => move |_ ,tree_path , new_text|{
+                                            packed_file_list_store => move |_ ,tree_path , new_text| {
 
                                             let edited_cell = packed_file_list_store.get_iter(&tree_path);
                                             let edited_cell_column = packed_file_tree_view.get_cursor();
@@ -1368,6 +1413,8 @@ fn main() {
                                                     if let Err(error) = ::packfile::update_packed_file_data_db(&*packed_file_data_decoded.borrow_mut(), &mut *pack_file_decoded.borrow_mut(), index as usize) {
                                                         ui::show_dialog(&error_dialog, error::Error::description(&error).to_string());
                                                     }
+                                                    window.set_title(&format!("Rusted PackFile Manager -> {}(modified)", pack_file_decoded.borrow().pack_file_extra_data.file_name));
+
                                                 }
                                                 Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string()),
                                                 }
@@ -1378,6 +1425,7 @@ fn main() {
                                         // This loop takes care of the interaction with optional_string cells.
                                         for edited_cell in packed_file_tree_view_stuff.packed_file_tree_view_cell_optional_string.iter() {
                                             edited_cell.connect_edited(clone!(
+                                            window,
                                             error_dialog,
                                             pack_file_decoded,
                                             packed_file_data_decoded,
@@ -1396,6 +1444,8 @@ fn main() {
                                                     if let Err(error) = ::packfile::update_packed_file_data_db(&*packed_file_data_decoded.borrow_mut(), &mut *pack_file_decoded.borrow_mut(), index as usize) {
                                                         ui::show_dialog(&error_dialog, error::Error::description(&error).to_string());
                                                     }
+                                                    window.set_title(&format!("Rusted PackFile Manager -> {}(modified)", pack_file_decoded.borrow().pack_file_extra_data.file_name));
+
                                                 }
                                                 Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string()),
                                                 }
@@ -1405,6 +1455,7 @@ fn main() {
                                         // This loop takes care of the interaction with U32 cells.
                                         for edited_cell in packed_file_tree_view_stuff.packed_file_tree_view_cell_integer.iter() {
                                             edited_cell.connect_edited(clone!(
+                                            window,
                                             error_dialog,
                                             pack_file_decoded,
                                             packed_file_data_decoded,
@@ -1427,6 +1478,8 @@ fn main() {
                                                                 if let Err(error) = ::packfile::update_packed_file_data_db(&*packed_file_data_decoded.borrow_mut(), &mut *pack_file_decoded.borrow_mut(), index as usize) {
                                                                     ui::show_dialog(&error_dialog, error::Error::description(&error).to_string());
                                                                 }
+                                                                window.set_title(&format!("Rusted PackFile Manager -> {}(modified)", pack_file_decoded.borrow().pack_file_extra_data.file_name));
+
                                                             }
                                                             Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string()),
                                                         }
@@ -1445,6 +1498,7 @@ fn main() {
                                         // TODO: Delete the trailing zeros.
                                         for edited_cell in packed_file_tree_view_stuff.packed_file_tree_view_cell_float.iter() {
                                             edited_cell.connect_edited(clone!(
+                                            window,
                                             error_dialog,
                                             pack_file_decoded,
                                             packed_file_data_decoded,
@@ -1467,6 +1521,8 @@ fn main() {
                                                                 if let Err(error) = ::packfile::update_packed_file_data_db(&*packed_file_data_decoded.borrow_mut(), &mut *pack_file_decoded.borrow_mut(), index as usize) {
                                                                     ui::show_dialog(&error_dialog, error::Error::description(&error).to_string());
                                                                 }
+                                                                window.set_title(&format!("Rusted PackFile Manager -> {}(modified)", pack_file_decoded.borrow().pack_file_extra_data.file_name));
+
                                                             }
                                                             Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string()),
                                                         }
@@ -1484,6 +1540,7 @@ fn main() {
                                         // This loop takes care of the interaction with bool cells.
                                         for edited_cell in packed_file_tree_view_stuff.packed_file_tree_view_cell_bool.iter() {
                                             edited_cell.connect_toggled(clone!(
+                                            window,
                                             error_dialog,
                                             pack_file_decoded,
                                             packed_file_data_decoded,
@@ -1506,6 +1563,8 @@ fn main() {
                                                     if let Err(error) = ::packfile::update_packed_file_data_db(&*packed_file_data_decoded.borrow_mut(), &mut *pack_file_decoded.borrow_mut(), index as usize) {
                                                         ui::show_dialog(&error_dialog, error::Error::description(&error).to_string());
                                                     }
+                                                    window.set_title(&format!("Rusted PackFile Manager -> {}(modified)", pack_file_decoded.borrow().pack_file_extra_data.file_name));
+
                                                 }
                                                 Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string()),
                                                 }
@@ -1540,6 +1599,7 @@ fn main() {
 
                                         // When we hit the "Add row" button.
                                         tree_view_packedfile_db_add_rows.connect_button_release_event(clone!(
+                                            window,
                                             error_dialog,
                                             pack_file_decoded,
                                             packed_file_data_decoded,
@@ -1626,6 +1686,8 @@ fn main() {
                                                                 if let Err(error) = ::packfile::update_packed_file_data_db(&*packed_file_data_decoded.borrow_mut(), &mut *pack_file_decoded.borrow_mut(), index as usize) {
                                                                     ui::show_dialog(&error_dialog, error::Error::description(&error).to_string());
                                                                 }
+                                                                window.set_title(&format!("Rusted PackFile Manager -> {}(modified)", pack_file_decoded.borrow().pack_file_extra_data.file_name));
+
                                                             }
                                                             Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string()),
                                                         }
@@ -1638,6 +1700,7 @@ fn main() {
 
                                         // When we hit the "Delete row" button.
                                         tree_view_packedfile_db_delete_row.connect_button_release_event(clone!(
+                                            window,
                                             error_dialog,
                                             pack_file_decoded,
                                             packed_file_data_decoded,
@@ -1672,6 +1735,8 @@ fn main() {
                                                         if let Err(error) = ::packfile::update_packed_file_data_db(&*packed_file_data_decoded.borrow_mut(), &mut *pack_file_decoded.borrow_mut(), index as usize) {
                                                             ui::show_dialog(&error_dialog, error::Error::description(&error).to_string());
                                                         }
+                                                        window.set_title(&format!("Rusted PackFile Manager -> {}(modified)", pack_file_decoded.borrow().pack_file_extra_data.file_name));
+
                                                     }
                                                     Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string()),
                                                 }
@@ -1748,6 +1813,7 @@ fn main() {
 
                                 // When we click in the "Save to PackedFile" button
                                 packed_file_source_view_save_button.connect_button_release_event(clone!(
+                                    window,
                                     pack_file_decoded => move |_,_| {
                                     let packed_file_data_decoded = coding_helpers::encode_string_u8(packed_file_source_view.get_buffer().unwrap().get_slice(
                                         &packed_file_source_view.get_buffer().unwrap().get_start_iter(),
@@ -1758,6 +1824,9 @@ fn main() {
                                         packed_file_data_decoded,
                                         &mut *pack_file_decoded.borrow_mut(),
                                         index as usize);
+
+                                    window.set_title(&format!("Rusted PackFile Manager -> {}(modified)", pack_file_decoded.borrow().pack_file_extra_data.file_name));
+
                                     Inhibit(false)
                                 }));
                             }
@@ -1780,6 +1849,7 @@ fn main() {
 
                                 // When we hit the "Patch to Warhammer 1&2" button.
                                 rigid_model_game_patch_button.connect_button_release_event(clone!(
+                                    window,
                                     error_dialog,
                                     success_dialog,
                                     pack_file_decoded,
@@ -1791,24 +1861,30 @@ fn main() {
                                             rigid_model_game_patch_button.set_sensitive(false);
                                             rigid_model_game_label.set_text("RigidModel compatible with: \"Warhammer 1&2\".");
 
+                                            let mut success = false;
                                             match ::packfile::update_packed_file_data_rigid(
                                                 &*packed_file_data_decoded.borrow(),
                                                 &mut *pack_file_decoded.borrow_mut(),
                                                 index as usize
                                             ) {
-                                                Ok(_) => ui::show_dialog(&success_dialog, result),
+                                                Ok(_) => {
+                                                    success = true;
+                                                    ui::show_dialog(&success_dialog, result);
+                                                },
                                                 Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string()),
                                             }
-
+                                            if success {
+                                                window.set_title(&format!("Rusted PackFile Manager -> {}(modified)", pack_file_decoded.borrow().pack_file_extra_data.file_name));
+                                            }
                                         },
                                         Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string()),
                                     }
-
                                     Inhibit(false)
                                 }));
 
                                 // When we hit the "Save to PackFile" button.
                                 packed_file_save_button.connect_button_release_event(clone!(
+                                    window,
                                     error_dialog,
                                     success_dialog,
                                     pack_file_decoded,
@@ -1822,15 +1898,21 @@ fn main() {
 
                                     packed_file_data_decoded.borrow_mut().packed_file_data.packed_file_data_lods_data = new_data;
 
+                                    let mut success = false;
                                     match ::packfile::update_packed_file_data_rigid(
                                         &*packed_file_data_decoded.borrow(),
                                         &mut *pack_file_decoded.borrow_mut(),
                                         index as usize
                                     ) {
-                                        Ok(result) => ui::show_dialog(&success_dialog, result),
+                                        Ok(result) => {
+                                            success = true;
+                                            ui::show_dialog(&success_dialog, result)
+                                        },
                                         Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string()),
                                     }
-
+                                    if success {
+                                        window.set_title(&format!("Rusted PackFile Manager -> {}(modified)", pack_file_decoded.borrow().pack_file_extra_data.file_name));
+                                    }
                                     Inhibit(false)
                                 }));
                             }
