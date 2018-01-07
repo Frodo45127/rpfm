@@ -727,22 +727,12 @@ fn main() {
                     folder_tree_selection.connect_changed(clone!(
                     folder_tree_view_extra_copy_button,
                     pack_file_decoded => move |folder_tree_selection| {
-                        let tree_path = ui::get_tree_path_from_selection(&folder_tree_selection, false);
-
-                        let mut is_a_file = false;
-                        for i in &*pack_file_decoded.borrow().pack_file_data.packed_files {
-                            if i.packed_file_path == tree_path {
-                                is_a_file = true;
-                                break;
-                            }
-                        }
+                        let tree_path = ui::get_tree_path_from_selection(&folder_tree_selection, true);
 
                         // Only in case it's not a file, we enable the "Copy" Button.
-                        if !is_a_file {
-                            folder_tree_view_extra_copy_button.set_sensitive(true);
-                        }
-                        else {
-                            folder_tree_view_extra_copy_button.set_sensitive(false);
+                        match get_type_of_selected_tree_path(&tree_path, &*pack_file_decoded.borrow()) {
+                            TreePathType::File(_) => folder_tree_view_extra_copy_button.set_sensitive(false),
+                            TreePathType::Folder(_) | TreePathType::PackFile | TreePathType::None => folder_tree_view_extra_copy_button.set_sensitive(true),
                         }
                     }));
 
@@ -776,7 +766,7 @@ fn main() {
                                 &*pack_file_decoded.borrow(),
                                 &folder_tree_selection,
                                 &folder_tree_view,
-                                true
+                                false
                             );
                         }
 

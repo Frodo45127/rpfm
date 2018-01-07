@@ -181,16 +181,19 @@ pub fn update_tree_view_expand_path(
     // We get the currently selected path in indices (a Vec<i32>). If there is nothing selected,
     // we get the first iter instead (the PackFile).
     let mut tree_path_index: Vec<i32> = vec![];
+    let tree_path_index_selected: Vec<i32>;
     let selected_path = folder_tree_selection.get_selected();
     match selected_path {
         Some(path) => {
             tree_path_index = path.0.get_path(&path.1).unwrap().get_indices();
+            tree_path_index_selected = tree_path_index.to_vec();
             if tree_path_index.len() > 1 && climb_to_parent {
                 tree_path_index.pop();
             }
         }
         None => {
             tree_path_index.push(0);
+            tree_path_index_selected = tree_path_index.to_vec();
         }
 
     }
@@ -198,7 +201,7 @@ pub fn update_tree_view_expand_path(
     // Then we update the TreeView with all the data and expand the path we got before.
     update_tree_view(&folder_tree_store, &pack_file_decoded);
     folder_tree_view.expand_to_path(&TreePath::new_from_indicesv(&tree_path_index));
-
+    folder_tree_selection.select_path(&TreePath::new_from_indicesv(&tree_path_index_selected));
 }
 
 /// This function clears the current TreeView, takes all the data needed for the new one, sort it
