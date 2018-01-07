@@ -16,7 +16,7 @@ use std::io::{
 };
 
 use std::error;
-use common::TreePathType;
+use common::*;
 use common::coding_helpers;
 use packedfile::loc::Loc;
 use packedfile::db::DB;
@@ -108,7 +108,7 @@ pub fn save_packfile(
         pack_file_path_string = format!("{}/{}", pack_file.pack_file_extra_data.file_path, pack_file.pack_file_extra_data.file_name);
     }
     else {
-        panic!("Saving an empty path is almost as bad as dividing by 0. Almost");
+        return Err(Error::new(ErrorKind::Other, format!("Saving a PackFile with an empty path is almost as bad as dividing by 0. Almost")));
     }
 
     let pack_file_path = Path::new(&pack_file_path_string);
@@ -140,28 +140,18 @@ pub fn add_file_to_packfile(
     tree_path: Vec<String>
 ) -> Result<String, Error> {
 
-    // First we make a quick check to see if the file is already in the PackFile.
-    let mut duplicated_file = false;
-    for i in &pack_file.pack_file_data.packed_files {
-        if &i.packed_file_path == &tree_path {
-            duplicated_file = true;
-            break;
-        }
-    }
+    // Before anything, check for duplicates.
+    if !pack_file.pack_file_data.packedfile_exists(&tree_path) {
 
-    // If the file is not already in the PackFile, we add it. To add a file we:
-    // - Increase the amount of files in the header by 1;
-    // - We calculate the size in bytes of the file, and pass it to the decode function.
-    // - We add the new PackedFile to the packed_files Vec<PackedFile> of the PackFile.
-    if !duplicated_file {
+        // We get the data and his size...
         let mut file_data = vec![];
-        let mut file = File::open(&file_path).expect("Couldn't open file");
-        file.read_to_end(&mut file_data).expect("Error reading file.");
-        pack_file.pack_file_header.packed_file_count += 1;
+        let mut file = File::open(&file_path)?;
+        file.read_to_end(&mut file_data)?;
         let file_size = file_data.len() as u32;
-        let new_packed_file = packfile::PackedFile::read(file_size, tree_path, file_data);
-        pack_file.pack_file_data.packed_files.push(new_packed_file);
 
+        // And then we make a PackedFile with it and save it.
+        let packed_files = vec![packfile::PackedFile::read(file_size, tree_path, file_data)];
+        pack_file.add_packedfiles(packed_files);
         Ok(format!("File added."))
     }
     else {
@@ -169,10 +159,11 @@ pub fn add_file_to_packfile(
     }
 }
 
+
 /// This function is used to add one or many PackedFiles to a PackFile (from another PackFile).
 /// It returns a success or error message, depending on whether the PackedFile has been added, or not.
 /// It requires:
-/// - pack_file_source: a &mut pack_file::PackFile. It's the PackFile from we are going to take the PackedFile.
+/// - pack_file_source: a &pack_file::PackFile. It's the PackFile from we are going to take the PackedFile.
 /// - pack_file_destination: a &mut pack_file::PackFile. It's the Destination PackFile for the PackedFile.
 /// - tree_path_source: the TreePath of the PackedFile or PackedFiles we want to add. A Vec<String> It is.
 /// - tree_path_destination: the Destination TreePath of the PackedFile/s we want to add.
@@ -184,8 +175,8 @@ pub fn add_packedfile_to_packfile(
 ) -> Result<String, Error> {
 
     // First we need to make some checks to ensure we can add the PackedFile/s to the selected destination.
-    let tree_path_source_type = ::common::get_type_of_selected_tree_path(&tree_path_source, pack_file_source);
-    let tree_path_destination_type = ::common::get_type_of_selected_tree_path(&tree_path_destination, pack_file_destination);
+    let tree_path_source_type = get_type_of_selected_tree_path(&tree_path_source, pack_file_source);
+    let tree_path_destination_type = get_type_of_selected_tree_path(&tree_path_destination, pack_file_destination);
 
     let is_source_tree_path_valid;
     match tree_path_source_type {
@@ -352,62 +343,37 @@ pub fn add_packedfile_to_packfile(
     }
 }
 
+
 /// This function is used to delete a PackedFile or a group of PackedFiles under the same tree_path
 /// from the PackFile. We just need the open PackFile and the tree_path of the file/folder to delete.
 pub fn delete_from_packfile(
     pack_file: &mut packfile::PackFile,
-    tree_path: Vec<String>) {
-
-    let mut index: i32 = 0;
-    let mut is_a_file = false;
-    let mut is_a_folder = false;
-    let tree_path = tree_path;
-
-    // First, we check if the file is a folder or a file.
-    for i in &pack_file.pack_file_data.packed_files  {
-        if &i.packed_file_path == &tree_path {
-            is_a_file = true;
-            break;
-        }
-        index += 1;
-    }
-
-    if !is_a_file {
-        for i in &pack_file.pack_file_data.packed_files  {
-            if i.packed_file_path.starts_with(&tree_path) {
-                is_a_folder = true;
-                break;
-            }
-        }
-    }
-
-    // If it's a file, in order to delete it we need to:
-    // - Reduce the amount of files in the header.
-    // - We get his index (I think this needs a proper rework) of the PackedFile to delete.
-    // - We remove the PackedFile from the PackFile.
-    if is_a_file {
-        pack_file.pack_file_header.packed_file_count -= 1;
-        pack_file.pack_file_data.packed_files.remove(index as usize);
-    }
-
-    // If it's a folder, we remove all files using that exact tree_path in his own tree_path, one
-    // by one.
-    else if is_a_folder {
-        index = 0;
-        for _i in 0..pack_file.pack_file_data.packed_files.len() {
-            if index as usize <= pack_file.pack_file_data.packed_files.len(){
-                if pack_file.pack_file_data.packed_files[index as usize].packed_file_path.starts_with(&tree_path) {
-                    pack_file.pack_file_header.packed_file_count -= 1;
-                    pack_file.pack_file_data.packed_files.remove(index as usize);
-                    index -= 1;
+    tree_path: Vec<String>
+) -> Result<(), Error> {
+    match get_type_of_selected_tree_path(&tree_path, pack_file) {
+        TreePathType::File(packed_file_data) => pack_file.remove_packedfile(packed_file_data.1),
+        TreePathType::Folder(tree_path) => {
+            let mut index = 0;
+            for _ in 0..pack_file.pack_file_data.packed_files.len() {
+                let mut file_deleted = false;
+                if index as usize <= pack_file.pack_file_data.packed_files.len(){
+                    if pack_file.pack_file_data.packed_files[index as usize].packed_file_path.starts_with(&tree_path) {
+                        pack_file.remove_packedfile(index);
+                        file_deleted = true;
+                    }
+                }
+                else {
+                    break;
+                }
+                if !file_deleted {
+                    index += 1;
                 }
             }
-            else {
-                break;
-            }
-            index += 1;
-        }
+        },
+        TreePathType::PackFile => pack_file.remove_all_packedfiles(),
+        TreePathType::None => return Err(Error::new(ErrorKind::Other, format!("How the hell did you managed to try to delete a non-existant file?"))),
     }
+    Ok(())
 }
 
 
@@ -422,109 +388,85 @@ pub fn extract_from_packfile(
     extracted_path: PathBuf
 ) -> Result<String, Error> {
 
-    let mut error_list: Vec<Error> = vec![];
-
-    let mut index: i32 = 0;
-    let mut is_a_file = false;
-    let mut is_a_folder = false;
-    let tree_path = tree_path;
-
+    // We need these three here to keep track of the files extracted and the errors.
     let mut files_extracted = 0;
     let mut files_errors = 0;
+    let mut error_list: Vec<Error> = vec![];
 
-    // First, we check if the tree_path is a folder or a file.
-    for i in &pack_file.pack_file_data.packed_files {
-        if &i.packed_file_path == &tree_path {
-            is_a_file = true;
-            break;
-        }
-        index += 1;
-    }
-
-    if !is_a_file {
-        for i in &pack_file.pack_file_data.packed_files  {
-            if i.packed_file_path.starts_with(&tree_path) {
-                is_a_folder = true;
-                break;
+    match get_type_of_selected_tree_path(&tree_path, pack_file) {
+        TreePathType::File(packed_file_data) => {
+            let index = packed_file_data.1;
+            match File::create(&extracted_path) {
+                Ok(mut extracted_file) => {
+                    let packed_file_encoded: (Vec<u8>, Vec<u8>) = packfile::PackedFile::save(&pack_file.pack_file_data.packed_files[index]);
+                    match extracted_file.write_all(&packed_file_encoded.1) {
+                        Ok(_) => Ok(format!("File extracted successfully:\n{}", extracted_path.display())),
+                        Err(error) => Err(Error::new(ErrorKind::Other, format!("Error while writing the following file to disk:\n{}\n\nThe problem reported is:\n{}", extracted_path.display(), error::Error::description(&error).to_string())))
+                    }
+                }
+                Err(error) => Err(Error::new(ErrorKind::Other, format!("Error while trying to write the following file to disk:\n{}\n\nThe problem reported is:\n{}", extracted_path.display(), error::Error::description(&error).to_string())))
             }
-        }
-    }
+        },
 
-    // If it's a file, we encode the PackedFile and write it in disk in a file.
-    if is_a_file {
-        match File::create(&extracted_path) {
-            Ok(mut extracted_file) => {
-                let packed_file_encoded: (Vec<u8>, Vec<u8>) = packfile::PackedFile::save(&pack_file.pack_file_data.packed_files[index as usize]);
-                match extracted_file.write_all(&packed_file_encoded.1) {
-                    Ok(_) => Ok(format!("File extracted succesfuly:\n{}", extracted_path.display())),
-                    Err(error) => Err(Error::new(ErrorKind::Other, format!("Error while writing the following file to disk:\n{}\n\nThe problem reported is:\n{}", extracted_path.display(), error::Error::description(&error).to_string())))
+        TreePathType::Folder(tree_path) => {
+            let mut files_to_extract: Vec<packfile::PackedFile> = vec![];
+            for i in &pack_file.pack_file_data.packed_files {
+                if i.packed_file_path.starts_with(&tree_path) {
+                    files_to_extract.push(i.clone());
                 }
             }
-            Err(error) => Err(Error::new(ErrorKind::Other, format!("Error while trying to write the following dile to disk:\n{}\n\nThe problem reported is:\n{}", extracted_path.display(), error::Error::description(&error).to_string())))
-        }
-    }
 
-    // If it's a folder, first we get all the PackedFiles inside that folder.
-    // Then we remove the start of the tree_path of the extracted files, as we only need the folder we
-    // want to extract and his childrens.
-    else if is_a_folder {
-        let mut files_to_extract: Vec<packfile::PackedFile> = vec![];
-        for i in &pack_file.pack_file_data.packed_files {
-            if i.packed_file_path.starts_with(&tree_path) {
-                files_to_extract.push(i.clone());
-            }
-        }
+            let base_path = extracted_path.clone();
+            let mut current_path = base_path.clone();
 
-        let base_path = extracted_path.clone();
-        let mut current_path = base_path.clone();
+            for file_to_extract in files_to_extract.iter_mut() {
+                file_to_extract.packed_file_path.drain(..(tree_path.len() - 1));
 
-        for i in &mut files_to_extract {
-            i.packed_file_path.drain(..(tree_path.len() - 1));
+                for (index, k) in file_to_extract.packed_file_path.iter().enumerate() {
+                    current_path.push(&k);
 
-            for (j, k) in i.packed_file_path.iter().enumerate() {
-                current_path.push(&k);
-
-                // If the current String is the last one of the tree_path, it's a file, so we
-                // write it into the disk.
-                if (j + 1) == i.packed_file_path.len() {
-                    match File::create(&current_path) {
-                        Ok(mut extracted_file) => {
-                            let packed_file_encoded: (Vec<u8>, Vec<u8>) = packfile::PackedFile::save(&i);
-                            match extracted_file.write_all(&packed_file_encoded.1) {
-                                Ok(_) => files_extracted += 1,
-                                Err(error) => {
-                                    error_list.push(error);
-                                    files_errors += 1;
+                    // If the current String is the last one of the tree_path, it's a file, so we
+                    // write it into the disk.
+                    if (index + 1) == file_to_extract.packed_file_path.len() {
+                        match File::create(&current_path) {
+                            Ok(mut extracted_file) => {
+                                let packed_file_encoded: (Vec<u8>, Vec<u8>) = packfile::PackedFile::save(&file_to_extract);
+                                match extracted_file.write_all(&packed_file_encoded.1) {
+                                    Ok(_) => files_extracted += 1,
+                                    Err(error) => {
+                                        error_list.push(error);
+                                        files_errors += 1;
+                                    }
                                 }
                             }
+                            Err(error) => {
+                                error_list.push(error);
+                                files_errors += 1;
+                            },
                         }
-                        Err(error) => {
-                            error_list.push(error);
-                            files_errors += 1;
-                        },
                     }
-                }
 
-                // If it's a folder, we create it and set is as the new parent. If it already exists,
-                // we'll know by an error while creating it.
-                else {
-                    match DirBuilder::new().create(&current_path) {
-                        Ok(_) => continue,
-                        Err(_) => continue,
+                    // If it's a folder, we create it and set is as the new parent. If it already exists,
+                    // it'll throw an error we'll ignore, like good politicians.
+                    else {
+                        match DirBuilder::new().create(&current_path) {
+                            Ok(_) => continue,
+                            Err(_) => continue,
+                        }
                     }
                 }
+                current_path = base_path.clone();
             }
-            current_path = base_path.clone();
-        }
-        if files_errors > 0 {
-            Err(Error::new(ErrorKind::Other, format!("{} errors extracting files:\n {:#?}", files_errors, error_list)))
-        }
-        else {
-            Ok(format!("{} files extracted. No errors detected.", files_extracted))
-        }
-    }
-    else {
-        Err(Error::new(ErrorKind::Other, format!("I can't think of a situation that causes this error to show up.")))
+            if files_errors > 0 {
+                Err(Error::new(ErrorKind::Other, format!("{} errors extracting files:\n {:#?}", files_errors, error_list)))
+            }
+            else {
+                Ok(format!("{} files extracted. No errors detected.", files_extracted))
+            }
+        },
+
+        TreePathType::PackFile => return Err(Error::new(ErrorKind::Other, format!("I can't think of a situation that causes this error to show up."))),
+        TreePathType::None => return Err(Error::new(ErrorKind::Other, format!("How the hell did you managed to try to delete a non-existant file?"))),
     }
 }
 
@@ -538,12 +480,7 @@ pub fn rename_packed_file(
     pack_file: &mut packfile::PackFile,
     tree_path: Vec<String>,
     new_name: &String
-) -> Result<String, Error> {
-
-    let mut index: i32 = 0;
-    let mut is_a_file = false;
-    let mut is_a_folder = false;
-    let mut tree_path = tree_path;
+) -> Result<(), Error> {
 
     // First we check if the name is valid, and return an error if the new name is invalid.
     if new_name == tree_path.last().unwrap() {
@@ -556,101 +493,52 @@ pub fn rename_packed_file(
         Err(Error::new(ErrorKind::Other, format!("Spaces are not valid characters.")))
     }
 
-    // If the name is valid, we check the length of the tree_path. If it's 1, we are renaming the
-    // PackFile, not a PackedFile.
-    else if tree_path.len() == 1 {
-        pack_file.pack_file_extra_data.file_name = new_name.clone();
-        Ok(format!("PackFile renamed."))
-    }
-
     // If we reach this point, we can rename the file/folder.
     else {
-        // First we delete the PackFile name from the tree_path, as we don't have that one stored
-        // in our paths.
-        tree_path.reverse();
-        tree_path.pop();
-        tree_path.reverse();
+        match get_type_of_selected_tree_path(&tree_path, pack_file) {
+            TreePathType::File(packed_file_data) => {
+                // Now we create the new tree_path, while conserving the old one for checks
+                let tree_path = packed_file_data.0;
+                let index = packed_file_data.1;
+                let mut new_tree_path = tree_path.clone();
+                new_tree_path.pop();
+                new_tree_path.push(new_name.clone());
 
-        // Second, we check if the file is a folder or a file.
-        for i in &pack_file.pack_file_data.packed_files {
-            if &i.packed_file_path == &tree_path {
-                is_a_file = true;
-                break;
-            }
-            index += 1;
-        }
-
-        if !is_a_file {
-            for i in &pack_file.pack_file_data.packed_files {
-                if i.packed_file_path.starts_with(&tree_path) {
-                    is_a_folder = true;
-                    break;
+                if !pack_file.pack_file_data.packedfile_exists(&new_tree_path) {
+                    pack_file.pack_file_data.packed_files[index as usize].packed_file_path.pop();
+                    pack_file.pack_file_data.packed_files[index as usize].packed_file_path.push(new_name.clone());
+                    Ok(())
+                }
+                else {
+                    Err(Error::new(ErrorKind::Other, format!("This name is already being used by another file in this path.")))
                 }
             }
-        }
+            TreePathType::Folder(tree_path) => {
+                let mut new_tree_path = tree_path.clone();
+                new_tree_path.pop();
+                new_tree_path.push(new_name.clone());
 
-        // Now we create the new tree_path, while conserving the old one for checks
-        let mut new_tree_path = tree_path.clone();
-        new_tree_path.pop();
-        new_tree_path.push(new_name.clone());
-
-        // If it's a file and it doesn't exist yet, we change the name of the file in the PackedFile
-        // list. Otherwise, return an error.
-        if is_a_file {
-            let mut new_tree_path_already_exist = false;
-            for i in &pack_file.pack_file_data.packed_files {
-                if &i.packed_file_path == &new_tree_path {
-                    new_tree_path_already_exist = true;
-                    break;
-                }
-            }
-
-            if !new_tree_path_already_exist {
-                pack_file.pack_file_data.packed_files[index as usize].packed_file_path.pop();
-                pack_file.pack_file_data.packed_files[index as usize].packed_file_path.push(new_name.clone());
-                Ok(format!("File renamed."))
-            }
-            else {
-                Err(Error::new(ErrorKind::Other, format!("This name is already being used by another file in this path.")))
-            }
-        }
-
-        // If it's a folder, we check first if there is already a folder in the same folder with
-        // that name, in which case we return an error.
-        else if is_a_folder {
-
-            let mut new_folder_already_exist = false;
-            for i in &pack_file.pack_file_data.packed_files {
-                if i.packed_file_path.starts_with(&new_tree_path) && i.packed_file_path.len() > new_tree_path.len() {
-                    new_folder_already_exist = true;
-                    break;
-                }
-            }
-
-            // If the folder doesn't exist yet, we change the name of the folder we want to rename
-            // in the path of every file that starts with his path.
-            if !new_folder_already_exist {
-                index = 0;
-                let index_position = tree_path.len() - 1;
-                for _i in 0..pack_file.pack_file_data.packed_files.len() {
-                    if index as usize <= pack_file.pack_file_data.packed_files.len() {
-                        if pack_file.pack_file_data.packed_files[index as usize].packed_file_path.starts_with(&tree_path) {
-                            pack_file.pack_file_data.packed_files[index as usize].packed_file_path.remove(index_position);
-                            pack_file.pack_file_data.packed_files[index as usize].packed_file_path.insert(index_position, new_name.clone());
+                // If the folder doesn't exist yet, we change the name of the folder we want to rename
+                // in the path of every file that starts with his path.
+                if !pack_file.pack_file_data.folder_exists(&new_tree_path) {
+                    let index_position = tree_path.len() - 1;
+                    for packed_file in pack_file.pack_file_data.packed_files.iter_mut() {
+                        if packed_file.packed_file_path.starts_with(&tree_path) {
+                            packed_file.packed_file_path.remove(index_position);
+                            packed_file.packed_file_path.insert(index_position, new_name.clone());
                         }
-                    } else {
-                        break;
                     }
-                    index += 1;
+                    Ok(())
                 }
-                Ok(format!("Folder renamed."))
+                else {
+                    Err(Error::new(ErrorKind::Other, format!("This name is already being used by another folder in this path.")))
+                }
             }
-            else {
-                Err(Error::new(ErrorKind::Other, format!("This name is already being used by another folder in this path.")))
+            TreePathType::PackFile => {
+                pack_file.pack_file_extra_data.file_name = new_name.clone();
+                Ok(())
             }
-        }
-        else {
-            Err(Error::new(ErrorKind::Other, format!("This should never happen.")))
+            TreePathType::None => return Err(Error::new(ErrorKind::Other, format!("This should never happen."))),
         }
     }
 }
@@ -739,7 +627,7 @@ pub fn update_packed_file_data_rigid(
 */
 
 /// This function is used to patch and clean a PackFile exported with Terry, so the SiegeAI (if there
-/// is SiegeAI inplemented in the map) is patched and the extra useless .xml files are deleted.
+/// is SiegeAI implemented in the map) is patched and the extra useless .xml files are deleted.
 /// It requires a mut ref to a decoded PackFile, and returns an String (Result<Success, Error>).
 pub fn patch_siege_ai (
     pack_file: &mut packfile::PackFile
@@ -808,7 +696,13 @@ pub fn patch_siege_ai (
 
     // If there are files to delete, we delete them.
     if !files_to_delete.is_empty() {
-        for i in files_to_delete.iter() {
+        for i in files_to_delete.iter_mut() {
+
+            // TODO: Fix this shit.
+            // Due to the rework of the "delete_from_packfile" function, we need to give it a complete
+            // path to delete, so we "complete" his path before deleting.
+            let file_name = vec![pack_file.pack_file_extra_data.file_name.clone()];
+            i.splice(0..0, file_name.iter().cloned());
             delete_from_packfile(pack_file, i.to_vec());
             files_deleted += 1;
         }

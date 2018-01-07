@@ -31,7 +31,7 @@ pub fn get_type_of_selected_tree_path(
     let mut tree_path = tree_path.clone();
 
     // First we check if the path is just the PackFile.
-    if tree_path.len() == 1 {
+    if tree_path.len() == 1 && tree_path[0] == pack_file_decoded.pack_file_extra_data.file_name {
         return TreePathType::PackFile
     }
 

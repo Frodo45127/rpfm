@@ -30,6 +30,7 @@ use sourceview::{
 
 use packfile::packfile::PackFile;
 use common::coding_helpers;
+use common::*;
 use packedfile::loc::Loc;
 use packedfile::db::DB;
 use packedfile::rigidmodel::RigidModel;
@@ -812,6 +813,7 @@ fn main() {
     // When we hit the "Delete file/folder" button.
     tree_view_delete_file.connect_button_release_event(clone!(
         window,
+        error_dialog,
         pack_file_decoded,
         folder_tree_view,
         folder_tree_store,
@@ -822,16 +824,23 @@ fn main() {
         // TreeView. Pretty simple, actually.
         context_menu_tree_view.popdown();
 
-        let tree_path = ui::get_tree_path_from_selection(&folder_tree_selection, false);
-        packfile::delete_from_packfile(&mut *pack_file_decoded.borrow_mut(), tree_path);
-        window.set_title(&format!("Rusted PackFile Manager -> {}(modified)", pack_file_decoded.borrow().pack_file_extra_data.file_name));
-        ui::update_tree_view_expand_path(
-            &folder_tree_store,
-            &*pack_file_decoded.borrow(),
-            &folder_tree_selection,
-            &folder_tree_view,
-            true
-        );
+        let tree_path = ui::get_tree_path_from_selection(&folder_tree_selection, true);
+        let mut success = false;
+        match packfile::delete_from_packfile(&mut *pack_file_decoded.borrow_mut(), tree_path) {
+            Ok(_) => success = true,
+            Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string())
+        }
+        if success {
+            window.set_title(&format!("Rusted PackFile Manager -> {}(modified)", pack_file_decoded.borrow().pack_file_extra_data.file_name));
+            ui::update_tree_view_expand_path(
+                &folder_tree_store,
+                &*pack_file_decoded.borrow(),
+                &folder_tree_selection,
+                &folder_tree_view,
+                true
+            );
+        }
+
         Inhibit(false)
     }));
 
@@ -847,43 +856,39 @@ fn main() {
         // First, we hide the context menu.
         context_menu_tree_view.popdown();
 
-        let tree_path = ui::get_tree_path_from_selection(&folder_tree_selection, false);
+        let tree_path = ui::get_tree_path_from_selection(&folder_tree_selection, true);
 
         // Then, we check with the correlation data if the tree_path is a folder or a file.
-        let mut is_a_file = false;
-        for i in &*pack_file_decoded.borrow().pack_file_data.packed_files {
-            if &i.packed_file_path == &tree_path {
-                is_a_file = true;
-                break;
-            }
-        }
-
         // Both (folder and file) are processed in the same way but we need a different
         // FileChooser for files and folders, so we check first what it's.
-        if is_a_file {
-            file_chooser_extract_file.set_current_name(&tree_path.last().unwrap());
-            if file_chooser_extract_file.run() == gtk::ResponseType::Ok.into() {
-                match packfile::extract_from_packfile(
-                    &*pack_file_decoded.borrow(),
-                    tree_path,
-                    file_chooser_extract_file.get_filename().expect("Couldn't open file")) {
-                    Ok(result) => ui::show_dialog(&success_dialog, result),
-                    Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string())
+        match get_type_of_selected_tree_path(&tree_path, &*pack_file_decoded.borrow()) {
+            TreePathType::File(_) => {
+                file_chooser_extract_file.set_current_name(&tree_path.last().unwrap());
+                if file_chooser_extract_file.run() == gtk::ResponseType::Ok.into() {
+                    match packfile::extract_from_packfile(
+                        &*pack_file_decoded.borrow(),
+                        tree_path,
+                        file_chooser_extract_file.get_filename().expect("Couldn't open file")) {
+                        Ok(result) => ui::show_dialog(&success_dialog, result),
+                        Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string())
+                    }
                 }
-            }
-            file_chooser_extract_file.hide_on_delete();
-        }
-        else {
-            if file_chooser_extract_folder.run() == gtk::ResponseType::Ok.into() {
-                match packfile::extract_from_packfile(
-                    &*pack_file_decoded.borrow(),
-                    tree_path,
-                    file_chooser_extract_folder.get_filename().expect("Couldn't open file")) {
-                    Ok(result) => ui::show_dialog(&success_dialog, result),
-                    Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string())
+                file_chooser_extract_file.hide_on_delete();
+            },
+            TreePathType::Folder(_) => {
+                if file_chooser_extract_folder.run() == gtk::ResponseType::Ok.into() {
+                    match packfile::extract_from_packfile(
+                        &*pack_file_decoded.borrow(),
+                        tree_path,
+                        file_chooser_extract_folder.get_filename().expect("Couldn't open file")) {
+                        Ok(result) => ui::show_dialog(&success_dialog, result),
+                        Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string())
+                    }
                 }
+                file_chooser_extract_folder.hide_on_delete();
             }
-            file_chooser_extract_folder.hide_on_delete();
+            TreePathType::PackFile => ui::show_dialog(&error_dialog, format!("Extracting an entire PackFile is not implemented. Yet.")),
+            TreePathType::None => ui::show_dialog(&error_dialog, format!("You can't extract non-existant files.")),
         }
 
         Inhibit(false)

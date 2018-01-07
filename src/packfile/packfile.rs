@@ -113,6 +113,23 @@ impl PackFile {
         }
     }
 
+    /// This function remove a PackedFile from a PackFile.
+    /// It requires:
+    /// - self: the PackFile we are going to manipulate.
+    /// - index: the index of the PackedFile we want to remove from the PackFile.
+    pub fn remove_packedfile(&mut self, index: usize) {
+        self.pack_file_header.packed_file_count -= 1;
+        self.pack_file_data.packed_files.remove(index);
+    }
+
+    /// This function remove all PackedFiles from a PackFile.
+    /// It requires:
+    /// - self: the PackFile we are going to manipulate.
+    pub fn remove_all_packedfiles(&mut self) {
+        self.pack_file_header.packed_file_count = 0;
+        self.pack_file_data.packed_files = vec![];
+    }
+
     /// This function reads the content of a PackFile and returns an struct PackFile with all the
     /// contents of the PackFile decoded.
     /// It requires:
@@ -319,6 +336,20 @@ impl PackFileData {
         false
     }
 
+    /// This function checks if a folder with PackedFiles exists in a PackFile.
+    /// It requires:
+    /// - self: a PackFileData to check for the folder.
+    /// - packed_file_paths: the path of the folder we want to check.
+    pub fn folder_exists(&self, packed_file_path: &Vec<String>) -> bool {
+        for packed_file in self.packed_files.iter() {
+            if packed_file.packed_file_path.starts_with(&packed_file_path)
+                && packed_file.packed_file_path.len() > packed_file_path.len() {
+                return true;
+            }
+        }
+        false
+    }
+
     /// This function reads the Data part of a PackFile, get all the files on the PackFile and put
     /// them in a Vec<PackedFile>.
     /// It requires:
@@ -486,11 +517,7 @@ impl PackFileData {
 impl PackedFile {
 
     /// This function receive all the info of a PackedFile and creates a PackedFile with it.
-    pub fn read(file_size: u32, path: Vec<String>, data: Vec<u8>) -> PackedFile {
-
-        let packed_file_size = file_size;
-        let packed_file_path = path;
-        let packed_file_data = data;
+    pub fn read(packed_file_size: u32, packed_file_path: Vec<String>, packed_file_data: Vec<u8>) -> PackedFile {
 
         PackedFile {
             packed_file_size,
