@@ -25,6 +25,7 @@ pub struct PackFile {
 pub struct PackFileExtraData {
     pub file_name: String,
     pub file_path: String,
+    pub is_modified: bool,
 }
 
 
@@ -169,26 +170,32 @@ impl PackFileExtraData {
     pub fn new() -> PackFileExtraData {
         let file_name = String::new();
         let file_path = String::new();
+        let is_modified = false;
         PackFileExtraData {
             file_name,
             file_path,
+            is_modified,
         }
     }
 
     /// This function creates a PackFileExtraData with just a name.
     pub fn new_with_name(file_name: String) -> PackFileExtraData {
         let file_path = String::new();
+        let is_modified = false;
         PackFileExtraData {
             file_name,
             file_path,
+            is_modified,
         }
     }
 
     /// This function creates a PackFileExtraData with a name and a path.
     pub fn new_from_file(file_name: String, file_path: String) -> PackFileExtraData {
+        let is_modified = false;
         PackFileExtraData {
             file_name,
             file_path,
+            is_modified,
         }
     }
 }

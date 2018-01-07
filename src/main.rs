@@ -212,20 +212,24 @@ fn main() {
 
     // When we hit the "New PackFile" button.
     top_menu_file_new_packfile.connect_activate(clone!(
+        window,
         pack_file_decoded,
         folder_tree_store,
         top_menu_file_change_packfile_type_mod => move |_| {
 
         // We just create a new PackFile with a name, set his type to Mod and update the
         // TreeView to show it.
-        *pack_file_decoded.borrow_mut() = packfile::new_packfile("Unkown.pack".to_string());
+        *pack_file_decoded.borrow_mut() = packfile::new_packfile("unkown.pack".to_string());
         ui::update_tree_view(&folder_tree_store, &*pack_file_decoded.borrow());
+        window.set_title(&format!("Rusted PackFile Manager -> {}", pack_file_decoded.borrow().pack_file_extra_data.file_name));
+
         top_menu_file_change_packfile_type_mod.set_active(true);
     }));
 
 
     // When we hit the "Open PackFile" button.
     top_menu_file_open_packfile.connect_activate(clone!(
+        window,
         error_dialog,
         pack_file_decoded,
         folder_tree_store,
@@ -245,6 +249,7 @@ fn main() {
 
                     *pack_file_decoded.borrow_mut() = pack_file_opened;
                     ui::update_tree_view(&folder_tree_store, &*pack_file_decoded.borrow());
+                    window.set_title(&format!("Rusted PackFile Manager -> {}", pack_file_decoded.borrow().pack_file_extra_data.file_name));
 
                     // We choose the right option, depending on our PackFile.
                     if pack_file_decoded.borrow().pack_file_header.pack_file_type == 0u32 {
@@ -317,6 +322,7 @@ fn main() {
 
     // When we hit the "Save PackFile as" button.
     top_menu_file_save_packfile_as.connect_activate(clone!(
+        window,
         success_dialog,
         error_dialog,
         pack_file_decoded,
@@ -336,7 +342,7 @@ fn main() {
                     Ok(result) => ui::show_dialog(&success_dialog, result),
                     Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string())
             }
-
+            window.set_title(&format!("Rusted PackFile Manager -> {}", pack_file_decoded.borrow().pack_file_extra_data.file_name));
             ui::update_tree_view_expand_path(
                 &folder_tree_store,
                 &*pack_file_decoded.borrow(),
@@ -857,6 +863,7 @@ fn main() {
 
     // When we double-click something in the TreeView (or click something already selected).
     folder_tree_view.connect_row_activated(clone!(
+        window,
         error_dialog,
         pack_file_decoded,
         folder_tree_view,
@@ -876,6 +883,7 @@ fn main() {
         // In that point, we try to rename the file/folder selected. If we success, the TreeView is
         // updated. If not, we get a Dialog saying why.
         rename_popover.connect_key_release_event(clone!(
+            window,
             error_dialog,
             pack_file_decoded,
             folder_tree_view,
@@ -905,6 +913,8 @@ fn main() {
                         &folder_tree_view,
                         true
                     );
+                    // We reset the Window's title, just in case the renamed file is the PackFile.
+                    window.set_title(&format!("Rusted PackFile Manager -> {}", pack_file_decoded.borrow().pack_file_extra_data.file_name));
                 }
                 rename_popover_text_entry.get_buffer().set_text("");
             }
@@ -1846,6 +1856,7 @@ fn main() {
 
     // This allow us to open a PackFile by "Drag&Drop" it into the folder_tree_view.
     folder_tree_view.connect_drag_data_received(clone!(
+        window,
         error_dialog,
         pack_file_decoded,
         folder_tree_store,
@@ -1868,6 +1879,7 @@ fn main() {
 
                         *pack_file_decoded.borrow_mut() = pack_file_opened;
                         ui::update_tree_view(&folder_tree_store, &*pack_file_decoded.borrow());
+                        window.set_title(&format!("Rusted PackFile Manager -> {}", pack_file_decoded.borrow().pack_file_extra_data.file_name));
 
                         // We choose the right option, depending on our PackFile.
                         if pack_file_decoded.borrow().pack_file_header.pack_file_type == 0u32 {
