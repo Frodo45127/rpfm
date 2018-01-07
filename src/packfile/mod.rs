@@ -703,7 +703,7 @@ pub fn patch_siege_ai (
             // path to delete, so we "complete" his path before deleting.
             let file_name = vec![pack_file.pack_file_extra_data.file_name.clone()];
             i.splice(0..0, file_name.iter().cloned());
-            delete_from_packfile(pack_file, i.to_vec());
+            delete_from_packfile(pack_file, i.to_vec())?;
             files_deleted += 1;
         }
     }
