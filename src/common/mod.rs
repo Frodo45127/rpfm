@@ -30,8 +30,12 @@ pub fn get_type_of_selected_tree_path(
 
     let mut tree_path = tree_path.clone();
 
-    // First we check if the path is just the PackFile.
-    if tree_path.len() == 1 && tree_path[0] == pack_file_decoded.pack_file_extra_data.file_name {
+    // First, we check if we even have a TreePath to work with.
+    if tree_path.is_empty() {
+        return TreePathType::None;
+    }
+    // Then we check if the path is just the PackFile.
+    else if tree_path.len() == 1 && tree_path[0] == pack_file_decoded.pack_file_extra_data.file_name {
         return TreePathType::PackFile
     }
 
@@ -61,7 +65,7 @@ pub fn get_type_of_selected_tree_path(
         // If it isn't a file, we check if it's a folder.
         else {
             for i in &pack_file_decoded.pack_file_data.packed_files  {
-                if i.packed_file_path.starts_with(&tree_path) {
+                if i.packed_file_path.starts_with(&tree_path) && i.packed_file_path.len() > tree_path.len() {
                     return TreePathType::Folder(tree_path)
                 }
             }

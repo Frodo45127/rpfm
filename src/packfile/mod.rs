@@ -217,7 +217,7 @@ pub fn add_packedfile_to_packfile(
                             }
                         }
                         pack_file_destination.add_packedfiles(new_packed_files);
-                        Ok(format!("The entire PackFile \"{}\" has been added sucessfully to \"{}\"", tree_path_source[0], tree_path_destination[0]))
+                        Ok(format!("The entire PackFile \"{}\" has been added successfully to \"{}\"", tree_path_source[0], tree_path_destination[0]))
                     },
 
                     // If the source is a single PackedFile, we add it to the PackFile and replace his
@@ -233,7 +233,7 @@ pub fn add_packedfile_to_packfile(
                             }
                         }
                         pack_file_destination.add_packedfiles(new_packed_files);
-                        Ok(format!("The PackedFile \"{}\" has been added sucessfully to \"{}\"", tree_path_source.last().unwrap(), tree_path_destination[0]))
+                        Ok(format!("The PackedFile \"{}\" has been added successfully to \"{}\"", tree_path_source.last().unwrap(), tree_path_destination[0]))
                     }
 
                     // If the source is a folder, we get all the PackedFiles inside that folder into
@@ -259,7 +259,7 @@ pub fn add_packedfile_to_packfile(
                                 }
                             }
                             pack_file_destination.add_packedfiles(new_packed_files);
-                            Ok(format!("The folder \"{}\" has been added sucessfully to \"{}\"", tree_path_source.last().unwrap(), tree_path_destination[0]))
+                            Ok(format!("The folder \"{}\" has been added successfully to \"{}\"", tree_path_source.last().unwrap(), tree_path_destination[0]))
                         }
                         else {
                             return Err(Error::new(ErrorKind::Other, format!("This situation shouldn't happen, but the compiler will complain otherwise.")))
@@ -339,7 +339,7 @@ pub fn add_packedfile_to_packfile(
         }
     }
     else {
-        Err(Error::new(ErrorKind::Other, format!("Please, check the logic because this should never been executed.")))
+        Err(Error::new(ErrorKind::Other, format!("You need to select what and where you want to import BEFORE pressing the button.")))
     }
 }
 
