@@ -224,7 +224,7 @@ pub fn decode_packedfile_integer_u16(packed_file_data: Vec<u8>, mut index: usize
         }
     }
     else {
-        return Err(Error::new(ErrorKind::Other, format!("Error: Index \"{}\" out of bounds (Max length: {}).", index + 2, packed_file_data.len())))
+        return Err(Error::new(ErrorKind::Other, format!("Error decoding an u16: Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len())))
     }
 }
 
@@ -242,7 +242,7 @@ pub fn decode_packedfile_integer_u32(packed_file_data: Vec<u8>, mut index: usize
         }
     }
     else {
-        return Err(Error::new(ErrorKind::Other, format!("Error: Index \"{}\" out of bounds (Max length: {}).", index + 2, packed_file_data.len())))
+        return Err(Error::new(ErrorKind::Other, format!("Error decoding an u32: Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len())))
     }
 }
 
@@ -260,18 +260,19 @@ pub fn decode_packedfile_float_u32(packed_file_data: Vec<u8>, mut index: usize) 
         }
     }
     else {
-        return Err(Error::new(ErrorKind::Other, format!("Error: Index \"{}\" out of bounds (Max length: {}).", index + 2, packed_file_data.len())))
+        return Err(Error::new(ErrorKind::Other, format!("Error decoding a f32: Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len())))
     }
 }
 
 /// This function allow us to decode an UTF-8 encoded string cell. We return the string and the
 /// index for the next cell's data.
 #[allow(dead_code)]
-pub fn decode_packedfile_string_u8(packed_file_data: Vec<u8>, mut index: usize) -> Result<(String, usize), Error> {
+pub fn decode_packedfile_string_u8(packed_file_data: Vec<u8>, index: usize) -> Result<(String, usize), Error> {
     if packed_file_data.len() >= 2 {
-        match decode_integer_u16(packed_file_data[..2].to_vec()) {
-            Ok(size) => {
-                index += 2;
+        match decode_packedfile_integer_u16(packed_file_data[..2].to_vec(), index) {
+            Ok(result) => {
+                let size = result.0;
+                let mut index = result.1;
                 if packed_file_data.len() >= size as usize {
                     match decode_string_u8(packed_file_data[2..(2 + size as usize)].to_vec()) {
                         Ok(string) => {
@@ -282,14 +283,14 @@ pub fn decode_packedfile_string_u8(packed_file_data: Vec<u8>, mut index: usize) 
                     }
                 }
                 else {
-                    return Err(Error::new(ErrorKind::Other, format!("Error: Index \"{}\" out of bounds (Max length: {}).", index + 2, packed_file_data.len())))
+                    return Err(Error::new(ErrorKind::Other, format!("Error decoding an u8 String: Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len())))
                 }
             }
             Err(error) => Err(error)
         }
     }
     else {
-        return Err(Error::new(ErrorKind::Other, format!("Error: Index \"{}\" out of bounds (Max length: {}).", index + 2, packed_file_data.len())))
+        return Err(Error::new(ErrorKind::Other, format!("Error decoding an u16 (String size): Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len())))
     }
 }
 
@@ -299,11 +300,13 @@ pub fn decode_packedfile_string_u8(packed_file_data: Vec<u8>, mut index: usize) 
 /// NOTE: These strings's first byte it's a boolean that indicates if the string has something.
 #[allow(dead_code)]
 pub fn decode_packedfile_optional_string_u8(packed_file_data: Vec<u8>, index: usize) -> Result<(String, usize), Error> {
-    if packed_file_data.len() >= (index) {
-        match decode_packedfile_bool(packed_file_data[index], index) {
+    if packed_file_data.len() >= 1 {
+        match decode_packedfile_bool(packed_file_data[0], index) {
             Ok(result) => {
-                if result.0 {
-                    match decode_packedfile_string_u8(packed_file_data, result.1) {
+                let exist = result.0;
+                let index = result.1;
+                if exist {
+                    match decode_packedfile_string_u8(packed_file_data[1..].to_vec(), index) {
                         Ok(result) => Ok(result),
                         Err(error) => Err(Error::new(ErrorKind::Other, error::Error::description(&error).to_string())),
                     }
@@ -316,7 +319,7 @@ pub fn decode_packedfile_optional_string_u8(packed_file_data: Vec<u8>, index: us
         }
     }
     else {
-        return Err(Error::new(ErrorKind::Other, format!("Error: Index \"{}\" out of bounds (Max length: {}).", index + 2, packed_file_data.len())))
+        return Err(Error::new(ErrorKind::Other, format!("Error decoding an u8 Optional String: Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len())))
     }
 }
 
