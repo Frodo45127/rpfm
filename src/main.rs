@@ -1012,6 +1012,7 @@ fn main() {
                 }
                 else if tree_path.last().unwrap().ends_with(".txt") ||
                         tree_path.last().unwrap().ends_with(".xml") ||
+                        tree_path.last().unwrap().ends_with(".csv") ||
                         tree_path.last().unwrap().ends_with(".lua") {
                     packed_file_type = "TEXT";
                 }
@@ -1791,15 +1792,14 @@ fn main() {
                                 // Then, we get the Language of the file.
                                 let language_manager = LanguageManager::get_default().unwrap();
                                 let packedfile_language: Option<Language>;
-
                                 if tree_path.last().unwrap().ends_with(".xml") {
                                     packedfile_language = language_manager.get_language("xml");
                                 }
                                 else if tree_path.last().unwrap().ends_with(".lua") {
                                     packedfile_language = language_manager.get_language("lua");
                                 }
-                                else if tree_path.last().unwrap().ends_with(".txt") {
-                                    packedfile_language = None;
+                                else if tree_path.last().unwrap().ends_with(".csv") {
+                                    packedfile_language = language_manager.get_language("csv");
                                 }
                                 else {
                                     packedfile_language = None;
