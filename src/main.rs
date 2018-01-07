@@ -528,21 +528,26 @@ fn main() {
         context_menu_tree_view.popdown();
 
         if file_chooser_add_file_to_packfile.run() == gtk::ResponseType::Ok.into() {
-            let file_path = file_chooser_add_file_to_packfile.get_filename().expect("Couldn't open file");
-            let tree_path = ui::get_tree_path_from_pathbuf(&file_path, &folder_tree_selection, true);
-            let mut file_added = false;
-            match packfile::add_file_to_packfile(&mut *pack_file_decoded.borrow_mut(), file_path, tree_path) {
-                Ok(_) => file_added = true,
-                Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string())
-            }
-            if file_added {
-                ui::update_tree_view_expand_path(
-                    &folder_tree_store,
-                    &*pack_file_decoded.borrow(),
-                    &folder_tree_selection,
-                    &folder_tree_view,
-                    false
-                );
+
+            let paths = file_chooser_add_file_to_packfile.get_filenames();
+            for path in paths.iter() {
+
+                //let file_path = file_chooser_add_file_to_packfile.get_filename().expect("Couldn't open file");
+                let tree_path = ui::get_tree_path_from_pathbuf(&path, &folder_tree_selection, true);
+                let mut file_added = false;
+                match packfile::add_file_to_packfile(&mut *pack_file_decoded.borrow_mut(), path, tree_path) {
+                    Ok(_) => file_added = true,
+                    Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string())
+                }
+                if file_added {
+                    ui::update_tree_view_expand_path(
+                        &folder_tree_store,
+                        &*pack_file_decoded.borrow(),
+                        &folder_tree_selection,
+                        &folder_tree_view,
+                        false
+                    );
+                }
             }
         }
         file_chooser_add_file_to_packfile.hide_on_delete();
@@ -567,39 +572,42 @@ fn main() {
         // TreeView.
         context_menu_tree_view.popdown();
         if file_chooser_add_folder_to_packfile.run() == gtk::ResponseType::Ok.into() {
-            let big_parent = file_chooser_add_folder_to_packfile.get_filename().unwrap();
-            let mut big_parent_prefix = big_parent.clone();
-            big_parent_prefix.pop();
-            let file_path_list = ::common::get_files_from_subdir(&big_parent);
-            let mut file_errors = 0;
-            for i in file_path_list {
-                match i.strip_prefix(&big_parent_prefix) {
-                    Ok(filtered_path) => {
-                        let tree_path = ui::get_tree_path_from_pathbuf(&filtered_path.to_path_buf(), &folder_tree_selection, false);
-                        match packfile::add_file_to_packfile(&mut *pack_file_decoded.borrow_mut(), i.to_path_buf(), tree_path) {
-                            Ok(_) => {
-                                // Do nothing, as we just want to know the errors.
-                            }
-                            Err(_) => {
-                                file_errors += 1;
+            let folders = file_chooser_add_folder_to_packfile.get_filenames();
+            for folder in folders.iter() {
+
+                let mut big_parent_prefix = folder.clone();
+                big_parent_prefix.pop();
+                let file_path_list = ::common::get_files_from_subdir(&folder);
+                let mut file_errors = 0;
+                for i in file_path_list {
+                    match i.strip_prefix(&big_parent_prefix) {
+                        Ok(filtered_path) => {
+                            let tree_path = ui::get_tree_path_from_pathbuf(&filtered_path.to_path_buf(), &folder_tree_selection, false);
+                            match packfile::add_file_to_packfile(&mut *pack_file_decoded.borrow_mut(), &i.to_path_buf(), tree_path) {
+                                Ok(_) => {
+                                    // Do nothing, as we just want to know the errors.
+                                }
+                                Err(_) => {
+                                    file_errors += 1;
+                                }
                             }
                         }
-                    }
-                    Err(_) => {
-                        panic!("Error while trying to filter the path. This should never happen unless I break something while I'm getting the paths.");
+                        Err(_) => {
+                            panic!("Error while trying to filter the path. This should never happen unless I break something while I'm getting the paths.");
+                        }
                     }
                 }
+                if file_errors > 0 {
+                    ui::show_dialog(&error_dialog, format!("{} file/s that you wanted to add already exist in the Packfile.", file_errors));
+                }
+                ui::update_tree_view_expand_path(
+                    &folder_tree_store,
+                    &*pack_file_decoded.borrow(),
+                    &folder_tree_selection,
+                    &folder_tree_view,
+                    false
+                );
             }
-            if file_errors > 0 {
-                ui::show_dialog(&error_dialog, format!("{} file/s that you wanted to add already exist in the Packfile.", file_errors));
-            }
-            ui::update_tree_view_expand_path(
-                &folder_tree_store,
-                &*pack_file_decoded.borrow(),
-                &folder_tree_selection,
-                &folder_tree_view,
-                false
-            );
         }
         file_chooser_add_folder_to_packfile.hide_on_delete();
 

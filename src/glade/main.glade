@@ -682,6 +682,7 @@
     <property name="default_height">600</property>
     <property name="type_hint">dialog</property>
     <property name="transient_for">gtk_window</property>
+    <property name="select_multiple">True</property>
     <child internal-child="vbox">
       <object class="GtkBox">
         <property name="width_request">650</property>
@@ -748,6 +749,7 @@
     <property name="type_hint">dialog</property>
     <property name="transient_for">gtk_window</property>
     <property name="action">select-folder</property>
+    <property name="select_multiple">True</property>
     <child internal-child="vbox">
       <object class="GtkBox">
         <property name="width_request">650</property>

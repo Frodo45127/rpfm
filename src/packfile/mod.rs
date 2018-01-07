@@ -136,7 +136,7 @@ pub fn save_packfile(
 /// - tree_path: a Vec<String> with the path in the TreeView where we are going to add the file.
 pub fn add_file_to_packfile(
     pack_file: &mut packfile::PackFile,
-    file_path: PathBuf,
+    file_path: &PathBuf,
     tree_path: Vec<String>
 ) -> Result<String, Error> {
 
