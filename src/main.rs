@@ -179,6 +179,7 @@ fn main() {
     window_about.add_credit_section("Icon by", &["Maruka"]);
     window_about.add_credit_section("RigidModel research by", &["Mr.Jox", "Der Spaten", "Maruka", "Frodo45127"]);
     window_about.add_credit_section("DB Schemas by", &["PFM team"]);
+    window_about.add_credit_section("Special thanks to", &["- PFM team (for providing the community\n   with awesome modding tools).", "- CA (for being a mod-friendly company)."]);
 
     // We bring up the main window.
     window.show_all();
