@@ -247,40 +247,13 @@ impl PackFileHeader {
 
         let mut pack_file_header = PackFileHeader::new();
 
-        match coding_helpers::decode_string_u8((&header[0..4]).to_vec()) {
-            Ok(data) => pack_file_header.pack_file_id = data,
-            Err(error) => return Err(error)
-        }
-
-        match coding_helpers::decode_integer_u32((&header[4..8]).to_vec()) {
-            Ok(data) => pack_file_header.pack_file_type = data,
-            Err(error) => return Err(error)
-        }
-
-        match coding_helpers::decode_integer_u32((&header[8..12]).to_vec()) {
-            Ok(data) => pack_file_header.pack_file_count = data,
-            Err(error) => return Err(error)
-        }
-
-        match coding_helpers::decode_integer_u32((&header[12..16]).to_vec()) {
-            Ok(data) => pack_file_header.pack_file_index_size = data,
-            Err(error) => return Err(error)
-        }
-
-        match coding_helpers::decode_integer_u32((&header[16..20]).to_vec()) {
-            Ok(data) => pack_file_header.packed_file_count = data,
-            Err(error) => return Err(error)
-        }
-
-        match coding_helpers::decode_integer_u32((&header[20..24]).to_vec()) {
-            Ok(data) => pack_file_header.packed_file_index_size = data,
-            Err(error) => return Err(error)
-        }
-
-        match coding_helpers::decode_integer_u32((&header[24..28]).to_vec()) {
-            Ok(data) => pack_file_header.unknown_data = data,
-            Err(error) => return Err(error)
-        }
+        pack_file_header.pack_file_id = coding_helpers::decode_string_u8((&header[0..4]).to_vec())?;
+        pack_file_header.pack_file_type = coding_helpers::decode_integer_u32((&header[4..8]).to_vec())?;
+        pack_file_header.pack_file_count = coding_helpers::decode_integer_u32((&header[8..12]).to_vec())?;
+        pack_file_header.pack_file_index_size = coding_helpers::decode_integer_u32((&header[12..16]).to_vec())?;
+        pack_file_header.packed_file_count = coding_helpers::decode_integer_u32((&header[16..20]).to_vec())?;
+        pack_file_header.packed_file_index_size = coding_helpers::decode_integer_u32((&header[20..24]).to_vec())?;
+        pack_file_header.unknown_data = coding_helpers::decode_integer_u32((&header[24..28]).to_vec())?;
 
         Ok(pack_file_header)
     }
