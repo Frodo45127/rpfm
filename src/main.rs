@@ -58,6 +58,10 @@ macro_rules! clone {
     );
 }
 
+// This constant get the version of the program from the "Cargo.toml", so we don't have to change it
+// in two different places in every update.
+const VERSION: &'static str = env!("CARGO_PKG_VERSION");
+
 /// One Function to rule them all, One Function to find them,
 /// One Function to bring them all and in the darkness bind them.
 fn main() {
@@ -162,6 +166,19 @@ fn main() {
 
     // Then we display the "Tips" text.
     ui::display_help_tips(&packed_file_data_display);
+
+    // Then we set all the stuff of the "About" dialog (except the Icon).
+    window_about.set_program_name("Rusted PackFile Manager");
+    window_about.set_version(VERSION);
+    window_about.set_license_type(gtk::License::MitX11);
+    window_about.set_website("https://github.com/Frodo45127/rpfm");
+    window_about.set_website_label("Source code and more info here:)");
+    window_about.set_comments(Some("Made by modders, for modders."));
+
+    window_about.add_credit_section("Created and Programmed by", &["Frodo45127"]);
+    window_about.add_credit_section("Icon by", &["Maruka"]);
+    window_about.add_credit_section("RigidModel research by", &["Mr.Jox", "Der Spaten", "Maruka", "Frodo45127"]);
+    window_about.add_credit_section("DB Schemas by", &["PFM team"]);
 
     // We bring up the main window.
     window.show_all();
