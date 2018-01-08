@@ -29,8 +29,10 @@
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
+                <property name="hexpand">True</property>
                 <property name="image">gtk_context_menu_tree_view_db_packedfile_img_add_rows</property>
                 <property name="relief">none</property>
+                <property name="xalign">0</property>
               </object>
               <packing>
                 <property name="expand">False</property>
@@ -42,6 +44,7 @@
               <object class="GtkEntry" id="gtk_context_menu_tree_view_db_packedfile_add_rows_number">
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
+                <property name="hexpand">True</property>
                 <property name="max_length">4</property>
                 <property name="has_frame">False</property>
                 <property name="width_chars">6</property>
@@ -67,13 +70,14 @@
         </child>
         <child>
           <object class="GtkButton" id="gtk_context_menu_tree_view_packedfile_db_delete_row">
-            <property name="label" translatable="yes">Delete row              </property>
+            <property name="label" translatable="yes">Delete row</property>
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <property name="receives_default">True</property>
-            <property name="halign">start</property>
+            <property name="hexpand">True</property>
             <property name="image">gtk_context_menu_tree_view_db_packedfile_img_delete_row</property>
             <property name="relief">none</property>
+            <property name="xalign">0</property>
           </object>
           <packing>
             <property name="expand">False</property>
@@ -93,6 +97,11 @@
     <property name="visible">True</property>
     <property name="can_focus">False</property>
     <property name="stock">gtk-add</property>
+  </object>
+  <object class="GtkImage" id="gtk_context_menu_tree_view_img_add_from_packfile">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <property name="stock">gtk-undelete</property>
   </object>
   <object class="GtkImage" id="gtk_context_menu_tree_view_img_delete_file">
     <property name="visible">True</property>
@@ -141,8 +150,10 @@
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
+                <property name="hexpand">True</property>
                 <property name="image">gtk_context_menu_tree_view_loc_packedfile_img_add_rows</property>
                 <property name="relief">none</property>
+                <property name="xalign">0</property>
               </object>
               <packing>
                 <property name="expand">False</property>
@@ -179,13 +190,14 @@
         </child>
         <child>
           <object class="GtkButton" id="gtk_context_menu_tree_view_packedfile_loc_delete_row">
-            <property name="label" translatable="yes">Delete row              </property>
+            <property name="label" translatable="yes">Delete row</property>
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <property name="receives_default">True</property>
-            <property name="halign">start</property>
+            <property name="hexpand">True</property>
             <property name="image">gtk_context_menu_tree_view_loc_packedfile_img_delete_row</property>
             <property name="relief">none</property>
+            <property name="xalign">0</property>
           </object>
           <packing>
             <property name="expand">False</property>
@@ -206,13 +218,14 @@
         </child>
         <child>
           <object class="GtkButton" id="gtk_context_menu_tree_view_packedfile_loc_import_csv">
-            <property name="label" translatable="yes">Import from CSV  </property>
+            <property name="label" translatable="yes">Import from CSV</property>
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <property name="receives_default">True</property>
-            <property name="halign">start</property>
+            <property name="hexpand">True</property>
             <property name="image">gtk_context_menu_tree_view_loc_packedfile_img_import_from_csv</property>
             <property name="relief">none</property>
+            <property name="xalign">0</property>
           </object>
           <packing>
             <property name="expand">False</property>
@@ -222,13 +235,14 @@
         </child>
         <child>
           <object class="GtkButton" id="gtk_context_menu_tree_view_packedfile_loc_export_csv">
-            <property name="label" translatable="yes">Export to CSV        </property>
+            <property name="label" translatable="yes">Export to CSV</property>
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <property name="receives_default">True</property>
-            <property name="halign">start</property>
+            <property name="hexpand">True</property>
             <property name="image">gtk_context_menu_tree_view_loc_packedfile_img_export_to_csv</property>
             <property name="relief">none</property>
+            <property name="xalign">0</property>
           </object>
           <packing>
             <property name="expand">False</property>
@@ -254,7 +268,7 @@
     <property name="is_focus">True</property>
     <property name="can_default">True</property>
     <property name="has_default">True</property>
-    <property name="title" translatable="yes">Rusted Pack File Manager</property>
+    <property name="title" translatable="yes">Rusted PackFile Manager</property>
     <property name="window_position">center</property>
     <property name="icon">img/rpfm.png</property>
     <property name="gravity">center</property>
@@ -452,21 +466,28 @@
           </packing>
         </child>
         <child>
-          <object class="GtkBox">
+          <object class="GtkPaned">
+            <property name="width_request">1100</property>
             <property name="visible">True</property>
-            <property name="can_focus">False</property>
+            <property name="can_focus">True</property>
+            <property name="position">350</property>
+            <property name="position_set">True</property>
             <child>
               <object class="GtkScrolledWindow">
+                <property name="height_request">350</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="shadow_type">in</property>
-                <property name="min_content_width">400</property>
-                <property name="min_content_height">400</property>
+                <property name="min_content_width">0</property>
+                <property name="min_content_height">0</property>
                 <child>
                   <object class="GtkTreeView" id="gtk_folder_tree_view">
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
+                    <property name="vexpand">True</property>
                     <property name="headers_visible">False</property>
+                    <property name="rules_hint">True</property>
+                    <property name="enable_tree_lines">True</property>
                     <child internal-child="selection">
                       <object class="GtkTreeSelection" id="gtk_folder_tree_view_selection"/>
                     </child>
@@ -474,24 +495,25 @@
                 </child>
               </object>
               <packing>
-                <property name="expand">False</property>
-                <property name="fill">True</property>
-                <property name="position">0</property>
+                <property name="resize">False</property>
+                <property name="shrink">True</property>
               </packing>
             </child>
             <child>
               <object class="GtkBox" id="gtk_packed_file_data_display">
+                <property name="width_request">700</property>
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
+                <property name="halign">baseline</property>
+                <property name="hexpand">False</property>
                 <property name="orientation">vertical</property>
                 <child>
                   <placeholder/>
                 </child>
               </object>
               <packing>
-                <property name="expand">True</property>
-                <property name="fill">True</property>
-                <property name="position">1</property>
+                <property name="resize">True</property>
+                <property name="shrink">True</property>
               </packing>
             </child>
           </object>
@@ -522,7 +544,7 @@
         </child>
       </object>
     </child>
-    <child type="titlebar">
+    <child>
       <placeholder/>
     </child>
   </object>
@@ -539,14 +561,14 @@
         <property name="homogeneous">True</property>
         <child>
           <object class="GtkButton" id="gtk_context_menu_tree_view_add_file">
-            <property name="label" translatable="yes">Add file                   </property>
+            <property name="label" translatable="yes">Add file</property>
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <property name="receives_default">True</property>
-            <property name="halign">start</property>
             <property name="hexpand">True</property>
             <property name="image">gtk_context_menu_tree_view_img_add_file</property>
             <property name="relief">none</property>
+            <property name="xalign">0</property>
           </object>
           <packing>
             <property name="expand">True</property>
@@ -556,13 +578,14 @@
         </child>
         <child>
           <object class="GtkButton" id="gtk_context_menu_tree_view_add_folder">
-            <property name="label" translatable="yes">Add folder             </property>
+            <property name="label" translatable="yes">Add folder</property>
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <property name="receives_default">True</property>
-            <property name="halign">start</property>
+            <property name="hexpand">False</property>
             <property name="image">gtk_context_menu_tree_view_img_add_folder</property>
             <property name="relief">none</property>
+            <property name="xalign">0</property>
           </object>
           <packing>
             <property name="expand">True</property>
@@ -571,19 +594,37 @@
           </packing>
         </child>
         <child>
-          <object class="GtkButton" id="gtk_context_menu_tree_view_delete_file">
-            <property name="label" translatable="yes">Delete file/folder </property>
+          <object class="GtkButton" id="gtk_context_menu_tree_view_add_from_packfile">
+            <property name="label" translatable="yes">Add file/folder from PackFile</property>
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <property name="receives_default">True</property>
-            <property name="halign">start</property>
-            <property name="image">gtk_context_menu_tree_view_img_delete_file</property>
+            <property name="hexpand">True</property>
+            <property name="image">gtk_context_menu_tree_view_img_add_from_packfile</property>
             <property name="relief">none</property>
+            <property name="xalign">0</property>
           </object>
           <packing>
-            <property name="expand">False</property>
+            <property name="expand">True</property>
             <property name="fill">True</property>
             <property name="position">2</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkButton" id="gtk_context_menu_tree_view_delete_file">
+            <property name="label" translatable="yes">Delete file/folder</property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="receives_default">True</property>
+            <property name="hexpand">True</property>
+            <property name="image">gtk_context_menu_tree_view_img_delete_file</property>
+            <property name="relief">none</property>
+            <property name="xalign">0</property>
+          </object>
+          <packing>
+            <property name="expand">True</property>
+            <property name="fill">True</property>
+            <property name="position">3</property>
           </packing>
         </child>
         <child>
@@ -592,12 +633,13 @@
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <property name="receives_default">True</property>
-            <property name="halign">start</property>
+            <property name="hexpand">True</property>
             <property name="image">gtk_context_menu_tree_view_img_extract_file</property>
             <property name="relief">none</property>
+            <property name="xalign">0</property>
           </object>
           <packing>
-            <property name="expand">False</property>
+            <property name="expand">True</property>
             <property name="fill">True</property>
             <property name="position">4</property>
           </packing>
@@ -648,8 +690,11 @@
     <property name="default_height">600</property>
     <property name="type_hint">dialog</property>
     <property name="transient_for">gtk_window</property>
+    <property name="select_multiple">True</property>
     <child internal-child="vbox">
       <object class="GtkBox">
+        <property name="width_request">650</property>
+        <property name="height_request">440</property>
         <property name="can_focus">False</property>
         <property name="orientation">vertical</property>
         <property name="spacing">2</property>
@@ -693,9 +738,6 @@
             <property name="position">0</property>
           </packing>
         </child>
-        <child>
-          <placeholder/>
-        </child>
       </object>
     </child>
     <action-widgets>
@@ -715,8 +757,11 @@
     <property name="type_hint">dialog</property>
     <property name="transient_for">gtk_window</property>
     <property name="action">select-folder</property>
+    <property name="select_multiple">True</property>
     <child internal-child="vbox">
       <object class="GtkBox">
+        <property name="width_request">650</property>
+        <property name="height_request">440</property>
         <property name="can_focus">False</property>
         <property name="orientation">vertical</property>
         <property name="spacing">2</property>
@@ -760,14 +805,79 @@
             <property name="position">0</property>
           </packing>
         </child>
-        <child>
-          <placeholder/>
-        </child>
       </object>
     </child>
     <action-widgets>
       <action-widget response="-6">button3</action-widget>
       <action-widget response="-5">button4</action-widget>
+    </action-widgets>
+    <child>
+      <placeholder/>
+    </child>
+  </object>
+  <object class="GtkFileChooserDialog" id="gtk_file_chooser_add_from_packfile">
+    <property name="can_focus">False</property>
+    <property name="hexpand">True</property>
+    <property name="vexpand">True</property>
+    <property name="title" translatable="yes">Open PackFile</property>
+    <property name="window_position">center</property>
+    <property name="default_width">700</property>
+    <property name="default_height">600</property>
+    <property name="type_hint">dialog</property>
+    <property name="transient_for">gtk_window</property>
+    <property name="filter">gtk_file_chooser_packfile_filter</property>
+    <child internal-child="vbox">
+      <object class="GtkBox">
+        <property name="width_request">650</property>
+        <property name="height_request">440</property>
+        <property name="can_focus">False</property>
+        <property name="orientation">vertical</property>
+        <property name="spacing">2</property>
+        <child internal-child="action_area">
+          <object class="GtkButtonBox">
+            <property name="can_focus">False</property>
+            <property name="layout_style">end</property>
+            <child>
+              <object class="GtkButton" id="gtk_file_chooser_add_from_packfile_button_cancel">
+                <property name="label">gtk-cancel</property>
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="receives_default">True</property>
+                <property name="use_stock">True</property>
+              </object>
+              <packing>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkButton" id="gtk_file_chooser_add_from_packfile_button_open">
+                <property name="label">gtk-open</property>
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="can_default">True</property>
+                <property name="receives_default">True</property>
+                <property name="use_stock">True</property>
+              </object>
+              <packing>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">False</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+      </object>
+    </child>
+    <action-widgets>
+      <action-widget response="-6">gtk_file_chooser_add_from_packfile_button_cancel</action-widget>
+      <action-widget response="-5">gtk_file_chooser_add_from_packfile_button_open</action-widget>
     </action-widgets>
     <child>
       <placeholder/>
@@ -785,6 +895,8 @@
     <property name="do_overwrite_confirmation">True</property>
     <child internal-child="vbox">
       <object class="GtkBox">
+        <property name="width_request">650</property>
+        <property name="height_request">440</property>
         <property name="can_focus">False</property>
         <property name="orientation">vertical</property>
         <property name="spacing">2</property>
@@ -828,9 +940,6 @@
             <property name="position">0</property>
           </packing>
         </child>
-        <child>
-          <placeholder/>
-        </child>
       </object>
     </child>
     <action-widgets>
@@ -853,6 +962,8 @@
     <property name="do_overwrite_confirmation">True</property>
     <child internal-child="vbox">
       <object class="GtkBox">
+        <property name="width_request">650</property>
+        <property name="height_request">440</property>
         <property name="can_focus">False</property>
         <property name="orientation">vertical</property>
         <property name="spacing">2</property>
@@ -896,9 +1007,6 @@
             <property name="position">0</property>
           </packing>
         </child>
-        <child>
-          <placeholder/>
-        </child>
       </object>
     </child>
     <action-widgets>
@@ -911,8 +1019,6 @@
   </object>
   <object class="GtkFileChooserDialog" id="gtk_file_chooser_open_packfile">
     <property name="can_focus">False</property>
-    <property name="hexpand">True</property>
-    <property name="vexpand">True</property>
     <property name="title" translatable="yes">Open PackFile</property>
     <property name="window_position">center</property>
     <property name="default_width">700</property>
@@ -922,6 +1028,8 @@
     <property name="filter">gtk_file_chooser_packfile_filter</property>
     <child internal-child="vbox">
       <object class="GtkBox">
+        <property name="width_request">650</property>
+        <property name="height_request">440</property>
         <property name="can_focus">False</property>
         <property name="orientation">vertical</property>
         <property name="spacing">2</property>
@@ -965,9 +1073,6 @@
             <property name="position">0</property>
           </packing>
         </child>
-        <child>
-          <placeholder/>
-        </child>
       </object>
     </child>
     <action-widgets>
@@ -991,6 +1096,8 @@
     <property name="filter">gtk_file_chooser_packedfile_loc_import_csv_filter</property>
     <child internal-child="vbox">
       <object class="GtkBox">
+        <property name="width_request">650</property>
+        <property name="height_request">440</property>
         <property name="can_focus">False</property>
         <property name="orientation">vertical</property>
         <property name="spacing">2</property>
@@ -1034,9 +1141,6 @@
             <property name="position">0</property>
           </packing>
         </child>
-        <child>
-          <placeholder/>
-        </child>
       </object>
     </child>
     <action-widgets>
@@ -1060,6 +1164,8 @@
     <property name="filter">gtk_file_chooser_packedfile_loc_import_csv_filter</property>
     <child internal-child="vbox">
       <object class="GtkBox">
+        <property name="width_request">650</property>
+        <property name="height_request">440</property>
         <property name="can_focus">False</property>
         <property name="orientation">vertical</property>
         <property name="spacing">2</property>
@@ -1103,9 +1209,6 @@
             <property name="position">0</property>
           </packing>
         </child>
-        <child>
-          <placeholder/>
-        </child>
       </object>
     </child>
     <action-widgets>
@@ -1129,6 +1232,8 @@
     <property name="filter">gtk_file_chooser_packfile_filter</property>
     <child internal-child="vbox">
       <object class="GtkBox">
+        <property name="width_request">650</property>
+        <property name="height_request">440</property>
         <property name="can_focus">False</property>
         <property name="orientation">vertical</property>
         <property name="spacing">2</property>
@@ -1171,9 +1276,6 @@
             <property name="fill">False</property>
             <property name="position">0</property>
           </packing>
-        </child>
-        <child>
-          <placeholder/>
         </child>
       </object>
     </child>
@@ -1250,12 +1352,7 @@
     <property name="icon">img/rpfm.png</property>
     <property name="type_hint">dialog</property>
     <property name="transient_for">gtk_window</property>
-    <property name="program_name">Rusted Pack File Manager</property>
-    <property name="version">0.2.0</property>
-    <property name="authors">Frodo45127</property>
-    <property name="artists">Maruka</property>
     <property name="logo">img/rpfm.png</property>
-    <property name="license_type">mit-x11</property>
     <child internal-child="vbox">
       <object class="GtkBox">
         <property name="can_focus">False</property>

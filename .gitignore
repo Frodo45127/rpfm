@@ -1,9 +1,7 @@
+/.idea/
 /target/
 **/*.rs.bk
 Cargo.lock
-.idea/
-release/
-release.zip
 rpfm-code.iml
 .directory
 *.*~

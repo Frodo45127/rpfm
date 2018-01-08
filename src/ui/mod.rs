@@ -12,6 +12,7 @@ use packfile::packfile::PackFile;
 
 pub mod packedfile_loc;
 pub mod packedfile_db;
+pub mod packedfile_rigidmodel;
 
 /// This function shows a Message in the specified Box.
 pub fn display_help_tips(packed_file_data_display: &Box) {
@@ -19,6 +20,7 @@ pub fn display_help_tips(packed_file_data_display: &Box) {
         "Welcome to Rusted PackFile Manager! Here you have some tips on how to use it:
         - You can rename anything (even the PackFile) by double-clicking it.
         - You can open a PackFile by dragging it to the big PackFile Tree View.
+        - To patch an Attila model to work in Warhammer, select it and press \"Patch to Warhammer 1&2\".
         - You can insta-patch your siege maps (if you're a mapper) with the \"Patch SiegeAI\" feature from the \"Special Stuff\" menu."
     );
 
@@ -124,10 +126,10 @@ pub fn get_tree_path_from_pathbuf(
 /// BEYOND MY COMPREHENSION, so we use this for now.
 /// It requires:
 /// - folder_tree_selection: &TreeSelection of the place of the TreeView we want to know his TreePath.
-/// - is_for_renaming: bool. True when we use this to get a path of something we want to rename.
+/// - include_packfile: bool. True if we want the TreePath to include the PackFile's name.
 pub fn get_tree_path_from_selection(
     folder_tree_selection: &TreeSelection,
-    is_for_renaming: bool
+    include_packfile: bool
 ) -> Vec<String>{
 
     let mut tree_path: Vec<String> = vec![];
@@ -149,8 +151,8 @@ pub fn get_tree_path_from_selection(
             };
         }
 
-        // If we are renaming, we need to keep the name of the PackFile, as we can rename that too.
-        if !is_for_renaming {
+        // We only want to keep the name of the PackFile on specific situations.
+        if !include_packfile {
             tree_path.pop();
         }
         tree_path.reverse();
@@ -179,16 +181,19 @@ pub fn update_tree_view_expand_path(
     // We get the currently selected path in indices (a Vec<i32>). If there is nothing selected,
     // we get the first iter instead (the PackFile).
     let mut tree_path_index: Vec<i32> = vec![];
+    let tree_path_index_selected: Vec<i32>;
     let selected_path = folder_tree_selection.get_selected();
     match selected_path {
         Some(path) => {
             tree_path_index = path.0.get_path(&path.1).unwrap().get_indices();
+            tree_path_index_selected = tree_path_index.to_vec();
             if tree_path_index.len() > 1 && climb_to_parent {
                 tree_path_index.pop();
             }
         }
         None => {
             tree_path_index.push(0);
+            tree_path_index_selected = tree_path_index.to_vec();
         }
 
     }
@@ -196,7 +201,7 @@ pub fn update_tree_view_expand_path(
     // Then we update the TreeView with all the data and expand the path we got before.
     update_tree_view(&folder_tree_store, &pack_file_decoded);
     folder_tree_view.expand_to_path(&TreePath::new_from_indicesv(&tree_path_index));
-
+    folder_tree_selection.select_path(&TreePath::new_from_indicesv(&tree_path_index_selected));
 }
 
 /// This function clears the current TreeView, takes all the data needed for the new one, sort it
