@@ -323,6 +323,65 @@ pub fn decode_packedfile_optional_string_u8(packed_file_data: Vec<u8>, index: us
     }
 }
 
+/// This function allow us to decode an UTF-16 encoded string cell. We return the string and the
+/// index for the next cell's data.
+#[allow(dead_code)]
+pub fn decode_packedfile_string_u16(packed_file_data: Vec<u8>, index: usize) -> Result<(String, usize), Error> {
+    if packed_file_data.len() >= 2 {
+        match decode_packedfile_integer_u16(packed_file_data[..2].to_vec(), index) {
+            Ok(result) => {
+                let size = result.0 * 2;
+                let mut index = result.1;
+                if packed_file_data.len() >= size as usize {
+                    match decode_string_u16(packed_file_data[2..(2 + size as usize)].to_vec()) {
+                        Ok(string) => {
+                            index += size as usize;
+                            Ok((string, index))
+                        }
+                        Err(error) => Err(error)
+                    }
+                }
+                    else {
+                        return Err(Error::new(ErrorKind::Other, format!("Error decoding an u8 String: Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len())))
+                    }
+            }
+            Err(error) => Err(error)
+        }
+    }
+    else {
+        return Err(Error::new(ErrorKind::Other, format!("Error decoding an u16 (String size): Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len())))
+    }
+}
+
+/// This function allow us to decode an UTF-16 encoded optional string cell. We return the string (or
+/// an empty string if it doesn't exist) and the index for the next cell's data.
+///
+/// NOTE: These strings's first byte it's a boolean that indicates if the string has something.
+#[allow(dead_code)]
+pub fn decode_packedfile_optional_string_u16(packed_file_data: Vec<u8>, index: usize) -> Result<(String, usize), Error> {
+    if packed_file_data.len() >= 1 {
+        match decode_packedfile_bool(packed_file_data[0], index) {
+            Ok(result) => {
+                let exist = result.0;
+                let index = result.1;
+                if exist {
+                    match decode_packedfile_string_u16(packed_file_data[1..].to_vec(), index) {
+                        Ok(result) => Ok(result),
+                        Err(error) => Err(Error::new(ErrorKind::Other, error::Error::description(&error).to_string())),
+                    }
+                }
+                    else {
+                        Ok((String::new(), result.1))
+                    }
+            }
+            Err(error) => Err(error)
+        }
+    }
+    else {
+        return Err(Error::new(ErrorKind::Other, format!("Error decoding an u8 Optional String: Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len())))
+    }
+}
+
 /// This function allow us to decode a boolean cell. We return the boolean's value and the index
 /// for the next cell's data.
 #[allow(dead_code)]
@@ -389,6 +448,41 @@ pub fn encode_packedfile_optional_string_u8(optional_string_u8_decoded: String) 
     }
 
     optional_string_u8_encoded
+}
+
+/// This function allow us to encode an UTF-16 decoded string cell. We return the Vec<u8> of
+/// the encoded string.
+#[allow(dead_code)]
+pub fn encode_packedfile_string_u16(string_u16_decoded: String) -> Vec<u8> {
+    let mut string_u16_encoded = vec![];
+    let mut string_u16_data = encode_string_u16(string_u16_decoded);
+    //let mut string_u16_lenght = encode_integer_u16(string_u16_data.len() as u16);
+
+    //string_u16_encoded.append(&mut string_u16_lenght);
+    string_u16_encoded.append(&mut string_u16_data);
+
+    string_u16_encoded
+}
+
+/// This function allow us to encode an UTF-8 decoded string cell. We return the Vec<u8> of
+/// the encoded string.
+#[allow(dead_code)]
+pub fn encode_packedfile_optional_string_u16(optional_string_u16_decoded: String) -> Vec<u8> {
+    let mut optional_string_u16_encoded = vec![];
+
+    if optional_string_u16_decoded.is_empty() {
+        optional_string_u16_encoded.append(&mut encode_bool(false));
+    }
+    else {
+        let mut optional_string_u16_data = encode_string_u16(optional_string_u16_decoded);
+        //let mut optional_string_u16_lenght = encode_integer_u16(optional_string_u16_data.len() as u16);
+
+        optional_string_u16_encoded.append(&mut encode_bool(true));
+        //optional_string_u16_encoded.append(&mut optional_string_u16_lenght);
+        optional_string_u16_encoded.append(&mut optional_string_u16_data);
+    }
+
+    optional_string_u16_encoded
 }
 
 /// This function allow us to encode to Vec<u8> a boolean cell. We return the Vec<u8>.
