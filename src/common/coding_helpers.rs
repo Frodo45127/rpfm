@@ -1,6 +1,8 @@
 // In this file are all the helper functions used by the encoding/decoding PackedFiles process.
 // As we may or may not use them, all functions here should have the "#[allow(dead_code)]"
 // var set, so the compiler doesn't spam us every time we try to compile.
+//
+// Note: the specific decoders/encoders usually return some extra data, like sizes of strings.
 
 extern crate unescape;
 extern crate byteorder;
