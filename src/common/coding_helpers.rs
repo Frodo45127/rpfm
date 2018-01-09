@@ -401,27 +401,6 @@ pub fn decode_packedfile_bool(packed_file_data: u8, mut index: usize) -> Result<
 --------------------------------------------------------
 */
 
-/// This function allow us to encode to Vec<u8> an u16 cell. We return the Vec<u8>.
-#[allow(dead_code)]
-pub fn encode_packedfile_integer_u16(integer_u16_decoded: u16) -> Vec<u8> {
-    let integer_u16_encoded = encode_integer_u16(integer_u16_decoded);
-    integer_u16_encoded
-}
-
-/// This function allow us to encode to Vec<u8> an u32 cell. We return the Vec<u8>.
-#[allow(dead_code)]
-pub fn encode_packedfile_integer_u32(integer_u32_decoded: u32) -> Vec<u8> {
-    let integer_u32_encoded = encode_integer_u32(integer_u32_decoded);
-    integer_u32_encoded
-}
-
-/// This function allow us to encode to Vec<u8> an f32 cell. We return the Vec<u8>.
-#[allow(dead_code)]
-pub fn encode_packedfile_float_u32(float_f32_decoded: f32) -> Vec<u8> {
-    let float_f32_encoded = encode_float_u32(float_f32_decoded);
-    float_f32_encoded
-}
-
 /// This function allow us to encode an UTF-8 decoded string cell. We return the Vec<u8> of
 /// the encoded string.
 #[allow(dead_code)]
@@ -490,11 +469,4 @@ pub fn encode_packedfile_optional_string_u16(optional_string_u16_decoded: String
     }
 
     optional_string_u16_encoded
-}
-
-/// This function allow us to encode to Vec<u8> a boolean cell. We return the Vec<u8>.
-#[allow(dead_code)]
-pub fn encode_packedfile_bool(bool_decoded: bool) -> Vec<u8> {
-    let bool_encoded = encode_bool(bool_decoded);
-    bool_encoded
 }

@@ -233,7 +233,7 @@ impl LocData {
         for i in &packed_file_data_decoded.packed_file_data_entries {
             packed_file_data_encoded.append(&mut coding_helpers::encode_packedfile_string_u16(i.key.clone()));
             packed_file_data_encoded.append(&mut coding_helpers::encode_packedfile_string_u16(i.text.clone()));
-            packed_file_data_encoded.append(&mut coding_helpers::encode_packedfile_bool(i.tooltip));
+            packed_file_data_encoded.append(&mut coding_helpers::encode_bool(i.tooltip));
             packed_file_entry_count += 1;
         }
         (packed_file_data_encoded, packed_file_entry_count)

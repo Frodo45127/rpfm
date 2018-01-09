@@ -431,7 +431,7 @@ impl DBData {
                         continue;
                     },
                     DecodedData::Boolean(data) => {
-                        let mut encoded_data = coding_helpers::encode_packedfile_bool(data.clone());
+                        let mut encoded_data = coding_helpers::encode_bool(data.clone());
                         packed_file_data_encoded.append(&mut encoded_data);
                     },
                     DecodedData::StringU8(ref data) => {
@@ -451,11 +451,11 @@ impl DBData {
                         packed_file_data_encoded.append(&mut encoded_data);
                     },
                     DecodedData::Integer(data) => {
-                        let mut encoded_data = coding_helpers::encode_packedfile_integer_u32(data.clone());
+                        let mut encoded_data = coding_helpers::encode_integer_u32(data.clone());
                         packed_file_data_encoded.append(&mut encoded_data);
                     },
                     DecodedData::Float(data) => {
-                        let mut encoded_data = coding_helpers::encode_packedfile_float_u32(data.clone());
+                        let mut encoded_data = coding_helpers::encode_float_u32(data.clone());
                         packed_file_data_encoded.append(&mut encoded_data);
                     },
                     DecodedData::RawData(_) => {
