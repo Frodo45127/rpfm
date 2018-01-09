@@ -19564,8 +19564,9 @@
   </table>
   <table table_name='technology_effects_junction_tables'
          table_version='0' >
-    <field fkey='technologies_tables.key' name='technology' type='string' pk='true' />
-    <field fkey='effects_tables.effect' name='effect' type='string' pk='true' />
+    <field fkey='technologies_tables.key' name='technology' type='string_ascii' pk='true' />
+    <field fkey='effects_tables.effect' name='effect' type='string_ascii' pk='true' />
+      <field fkey='campaign_effect_scopes_tables.key' name='effect_scope' type='string_ascii' />
     <field name='value' type='float' />
   </table>
   <table table_name='technology_effects_junction_tables'
@@ -19688,6 +19689,7 @@
     <field name='research_points_required' type='int' />
     <field name='cost_per_round' type='int' />
     <field name='food_cost' type='int' />
+    <field name='unknown' type='optstring_ascii' />
   </table>
   <table table_name='technology_nodes_tables'
          table_version='2' >

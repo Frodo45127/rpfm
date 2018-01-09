@@ -258,8 +258,10 @@ impl PackedFileDBTreeView{
                 match field {
                     ::packedfile::db::DecodedData::Index(data) => gtk_value_field = gtk::ToValue::to_value(&data),
                     ::packedfile::db::DecodedData::Boolean(data) => gtk_value_field = gtk::ToValue::to_value(&data),
-                    ::packedfile::db::DecodedData::String(data) => gtk_value_field = gtk::ToValue::to_value(&data),
-                    ::packedfile::db::DecodedData::OptionalString(data) => gtk_value_field = gtk::ToValue::to_value(&data),
+                    ::packedfile::db::DecodedData::StringU8(data) => gtk_value_field = gtk::ToValue::to_value(&data),
+                    ::packedfile::db::DecodedData::StringU16(data) => gtk_value_field = gtk::ToValue::to_value(&data),
+                    ::packedfile::db::DecodedData::OptionalStringU8(data) => gtk_value_field = gtk::ToValue::to_value(&data),
+                    ::packedfile::db::DecodedData::OptionalStringU16(data) => gtk_value_field = gtk::ToValue::to_value(&data),
                     ::packedfile::db::DecodedData::Integer(data) => gtk_value_field = gtk::ToValue::to_value(&data),
                     ::packedfile::db::DecodedData::Float(data) => gtk_value_field = gtk::ToValue::to_value(&data),
                     ::packedfile::db::DecodedData::RawData(_) => return Err(Error::new(ErrorKind::Other, format!("Error: trying to load RawData into a DB Table PackedFile."))),
@@ -299,13 +301,21 @@ impl PackedFileDBTreeView{
                             let data: bool = packed_file_list_store.get_value(&current_line, column).get().unwrap();
                             packed_file_data_from_tree_view_entry.push(::packedfile::db::DecodedData::Boolean(data));
                         }
-                        "string" | "string_ascii" => {
+                        "string" => {
                             let data: String = packed_file_list_store.get_value(&current_line, column).get().unwrap();
-                            packed_file_data_from_tree_view_entry.push(::packedfile::db::DecodedData::String(data));
+                            packed_file_data_from_tree_view_entry.push(::packedfile::db::DecodedData::StringU16(data));
                         }
-                        "optstring" | "optstring_ascii" => {
+                        "string_ascii" => {
                             let data: String = packed_file_list_store.get_value(&current_line, column).get().unwrap();
-                            packed_file_data_from_tree_view_entry.push(::packedfile::db::DecodedData::OptionalString(data));
+                            packed_file_data_from_tree_view_entry.push(::packedfile::db::DecodedData::StringU8(data));
+                        }
+                        "optstring" => {
+                            let data: String = packed_file_list_store.get_value(&current_line, column).get().unwrap();
+                            packed_file_data_from_tree_view_entry.push(::packedfile::db::DecodedData::OptionalStringU16(data));
+                        }
+                        "optstring_ascii" => {
+                            let data: String = packed_file_list_store.get_value(&current_line, column).get().unwrap();
+                            packed_file_data_from_tree_view_entry.push(::packedfile::db::DecodedData::OptionalStringU8(data));
                         }
                         "int" => {
                             let data: u32 = packed_file_list_store.get_value(&current_line, column).get().unwrap();
