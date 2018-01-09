@@ -178,8 +178,6 @@ pub fn encode_string_u16(string_decoded: String) -> Vec<u8> {
     // instead \n, \",...
     let string_decoded_unescaped = unescape::unescape(&string_decoded).unwrap();
     let string_decoded_length = string_decoded_unescaped.chars().count() as u16;
-    let mut string_decoded_length_encoded = encode_integer_u16(string_decoded_length);
-    string_encoded.append(&mut string_decoded_length_encoded);
 
     for i in 0..string_decoded_length {
         let mut character_u16_buffer = [0; 1];
@@ -401,6 +399,13 @@ pub fn decode_packedfile_bool(packed_file_data: u8, mut index: usize) -> Result<
 --------------------------------------------------------
 */
 
+/// This function allow us to encode to Vec<u8> an u16 cell. We return the Vec<u8>.
+#[allow(dead_code)]
+pub fn encode_packedfile_integer_u16(integer_u16_decoded: u16) -> Vec<u8> {
+    let integer_u16_encoded = encode_integer_u16(integer_u16_decoded);
+    integer_u16_encoded
+}
+
 /// This function allow us to encode to Vec<u8> an u32 cell. We return the Vec<u8>.
 #[allow(dead_code)]
 pub fn encode_packedfile_integer_u32(integer_u32_decoded: u32) -> Vec<u8> {
@@ -456,9 +461,9 @@ pub fn encode_packedfile_optional_string_u8(optional_string_u8_decoded: String) 
 pub fn encode_packedfile_string_u16(string_u16_decoded: String) -> Vec<u8> {
     let mut string_u16_encoded = vec![];
     let mut string_u16_data = encode_string_u16(string_u16_decoded);
-    //let mut string_u16_lenght = encode_integer_u16(string_u16_data.len() as u16);
+    let mut string_u16_lenght = encode_integer_u16(string_u16_data.len() as u16);
 
-    //string_u16_encoded.append(&mut string_u16_lenght);
+    string_u16_encoded.append(&mut string_u16_lenght);
     string_u16_encoded.append(&mut string_u16_data);
 
     string_u16_encoded
@@ -475,10 +480,10 @@ pub fn encode_packedfile_optional_string_u16(optional_string_u16_decoded: String
     }
     else {
         let mut optional_string_u16_data = encode_string_u16(optional_string_u16_decoded);
-        //let mut optional_string_u16_lenght = encode_integer_u16(optional_string_u16_data.len() as u16);
+        let mut optional_string_u16_lenght = encode_integer_u16(optional_string_u16_data.len() as u16);
 
         optional_string_u16_encoded.append(&mut encode_bool(true));
-        //optional_string_u16_encoded.append(&mut optional_string_u16_lenght);
+        optional_string_u16_encoded.append(&mut optional_string_u16_lenght);
         optional_string_u16_encoded.append(&mut optional_string_u16_data);
     }
 

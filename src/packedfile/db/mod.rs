@@ -175,7 +175,7 @@ impl DBHeader {
         let mut packed_file_header_encoded: Vec<u8> = vec![];
 
         // First we get the lenght of the GUID (u16 reversed) and the GUID, in a u16 string.
-        let guid_encoded = coding_helpers::encode_string_u16(packed_file_header_decoded.packed_file_header_packed_file_guid.0.clone());
+        let guid_encoded = coding_helpers::encode_packedfile_string_u16(packed_file_header_decoded.packed_file_header_packed_file_guid.0.clone());
 
         packed_file_header_encoded.extend_from_slice(&GUID_MARKER);
         packed_file_header_encoded.extend_from_slice(&guid_encoded);
