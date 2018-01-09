@@ -85,35 +85,30 @@ impl Loc {
 /// Implementation of "LocHeader"
 impl LocHeader {
 
+    /// This function creates a new empty LocHeader.
+    pub fn new() -> LocHeader {
+        let packed_file_header_byte_order_mark = 0;
+        let packed_file_header_packed_file_type = String::new();
+        let packed_file_header_packed_file_version = 0;
+        let packed_file_header_packed_file_entry_count = 0;
+
+        LocHeader {
+            packed_file_header_byte_order_mark,
+            packed_file_header_packed_file_type,
+            packed_file_header_packed_file_version,
+            packed_file_header_packed_file_entry_count,
+        }
+    }
+
     /// This function creates a new decoded LocHeader from the data of a PackedFile. To see what are
     /// these values, check the LocHeader struct.
-    ///
-    /// TODO: Replace this with LocHeader::new()
     pub fn read(packed_file_header: Vec<u8>) -> Result<LocHeader, Error> {
-        let mut loc_header = LocHeader {
-            packed_file_header_byte_order_mark: 0,
-            packed_file_header_packed_file_type: String::new(),
-            packed_file_header_packed_file_version: 0,
-            packed_file_header_packed_file_entry_count: 0,
-        };
+        let mut loc_header = LocHeader::new();
 
-        match coding_helpers::decode_integer_u16((&packed_file_header[0..2]).to_vec()) {
-            Ok(data) => loc_header.packed_file_header_byte_order_mark = data,
-            Err(error) => return Err(error)
-        }
-
-        match coding_helpers::decode_string_u8((&packed_file_header[2..5]).to_vec()) {
-            Ok(data) => loc_header.packed_file_header_packed_file_type = data,
-            Err(error) => return Err(error)
-        }
-        match coding_helpers::decode_integer_u32((&packed_file_header[6..10]).to_vec()) {
-            Ok(data) => loc_header.packed_file_header_packed_file_version = data,
-            Err(error) => return Err(error)
-        }
-        match coding_helpers::decode_integer_u32((&packed_file_header[10..14]).to_vec()) {
-            Ok(data) => loc_header.packed_file_header_packed_file_entry_count = data,
-            Err(error) => return Err(error)
-        }
+        loc_header.packed_file_header_byte_order_mark = coding_helpers::decode_integer_u16((&packed_file_header[0..2]).to_vec())?;
+        loc_header.packed_file_header_packed_file_type = coding_helpers::decode_string_u8((&packed_file_header[2..5]).to_vec())?;
+        loc_header.packed_file_header_packed_file_version = coding_helpers::decode_integer_u32((&packed_file_header[6..10]).to_vec())?;
+        loc_header.packed_file_header_packed_file_entry_count = coding_helpers::decode_integer_u32((&packed_file_header[10..14]).to_vec())?;
 
         Ok(loc_header)
     }
@@ -169,10 +164,7 @@ impl LocData {
                 // The first 2 bytes of a String is the length of the String in reversed utf-16.
                 if entry_size_byte_offset == 0 && entry_field < 2 {
 
-                    entry_field_size = match coding_helpers::decode_integer_u16(packed_file_data[(entry_offset as usize)..(entry_offset as usize) + 2].into()) {
-                        Ok(data) => data,
-                        Err(error) => return Err(error)
-                    };
+                    entry_field_size = coding_helpers::decode_integer_u16(packed_file_data[(entry_offset as usize)..(entry_offset as usize) + 2].into())?;
                     entry_size_byte_offset = 2;
                 }
                 else {
@@ -185,10 +177,7 @@ impl LocData {
                             let string_encoded_begin = (entry_offset + entry_field_offset + entry_size_byte_offset) as usize;
                             let string_encoded_end = (entry_offset + entry_field_offset + entry_size_byte_offset + ((entry_field_size * 2) as u32)) as usize;
                             let string_encoded: Vec<u8> = packed_file_data[string_encoded_begin..string_encoded_end].to_vec();
-                            let string_decoded = match coding_helpers::decode_string_u16(string_encoded) {
-                                Ok(data) => data,
-                                Err(error) => return Err(error)
-                            };
+                            let string_decoded = coding_helpers::decode_string_u16(string_encoded)?;
 
                             if entry_field == 0 {
                                 key = string_decoded;
@@ -205,10 +194,7 @@ impl LocData {
 
                         // If it's the boolean, it's a byte, so it doesn't have a size byte offset.
                         _ => {
-                            tooltip = match coding_helpers::decode_bool(packed_file_data[(entry_offset as usize)]){
-                                Ok(data) => data,
-                                Err(error) => return Err(error)
-                            };
+                            tooltip = coding_helpers::decode_bool(packed_file_data[(entry_offset as usize)])?;
                             packed_file_data_entries.push(LocDataEntry::new(key, text, tooltip));
 
                             entry_field = 0;
