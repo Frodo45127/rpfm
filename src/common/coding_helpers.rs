@@ -341,9 +341,9 @@ pub fn decode_packedfile_string_u16(packed_file_data: Vec<u8>, index: usize) -> 
                         Err(error) => Err(error)
                     }
                 }
-                    else {
-                        return Err(Error::new(ErrorKind::Other, format!("Error decoding an u8 String: Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len())))
-                    }
+                else {
+                    return Err(Error::new(ErrorKind::Other, format!("Error decoding an u8 String: Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len())))
+                }
             }
             Err(error) => Err(error)
         }
@@ -370,9 +370,9 @@ pub fn decode_packedfile_optional_string_u16(packed_file_data: Vec<u8>, index: u
                         Err(error) => Err(Error::new(ErrorKind::Other, error::Error::description(&error).to_string())),
                     }
                 }
-                    else {
-                        Ok((String::new(), result.1))
-                    }
+                else {
+                    Ok((String::new(), result.1))
+                }
             }
             Err(error) => Err(error)
         }
@@ -442,7 +442,7 @@ pub fn encode_packedfile_optional_string_u8(optional_string_u8_decoded: String) 
 pub fn encode_packedfile_string_u16(string_u16_decoded: String) -> Vec<u8> {
     let mut string_u16_encoded = vec![];
     let mut string_u16_data = encode_string_u16(string_u16_decoded);
-    let mut string_u16_lenght = encode_integer_u16(string_u16_data.len() as u16);
+    let mut string_u16_lenght = encode_integer_u16((string_u16_data.len() as u16 / 2));
 
     string_u16_encoded.append(&mut string_u16_lenght);
     string_u16_encoded.append(&mut string_u16_data);
