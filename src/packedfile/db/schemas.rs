@@ -143,9 +143,26 @@ impl TableDefinitions {
         None
     }
 
-    /// This functions adds a new TableDefinition to the list.
+    /// This functions adds a new TableDefinition to the list. This checks if that version of the table
+    /// already exists, and replace it in that case.
     pub fn add_table_definition(&mut self, table_definition: TableDefinition) {
-        self.versions.push(table_definition);
+        let version = table_definition.version;
+        let mut index_version = 0;
+        let mut index_found = false;
+        for (index, definition) in self.versions.iter().enumerate() {
+            if definition.version == version {
+                index_version = index;
+                index_found = true;
+                break;
+            }
+        }
+        if index_found {
+            self.versions.remove(index_version);
+            self.versions.insert( index_version, table_definition);
+        }
+        else {
+            self.versions.push(table_definition);
+        }
     }
 }
 
