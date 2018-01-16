@@ -1,6 +1,8 @@
 // In this file are all the helper functions used by the encoding/decoding PackedFiles process.
 // As we may or may not use them, all functions here should have the "#[allow(dead_code)]"
 // var set, so the compiler doesn't spam us every time we try to compile.
+//
+// Note: the specific decoders/encoders usually return some extra data, like sizes of strings.
 
 extern crate unescape;
 extern crate byteorder;
@@ -178,8 +180,6 @@ pub fn encode_string_u16(string_decoded: String) -> Vec<u8> {
     // instead \n, \",...
     let string_decoded_unescaped = unescape::unescape(&string_decoded).unwrap();
     let string_decoded_length = string_decoded_unescaped.chars().count() as u16;
-    let mut string_decoded_length_encoded = encode_integer_u16(string_decoded_length);
-    string_encoded.append(&mut string_decoded_length_encoded);
 
     for i in 0..string_decoded_length {
         let mut character_u16_buffer = [0; 1];
@@ -341,9 +341,9 @@ pub fn decode_packedfile_string_u16(packed_file_data: Vec<u8>, index: usize) -> 
                         Err(error) => Err(error)
                     }
                 }
-                    else {
-                        return Err(Error::new(ErrorKind::Other, format!("Error decoding an u8 String: Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len())))
-                    }
+                else {
+                    return Err(Error::new(ErrorKind::Other, format!("Error decoding an u8 String: Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len())))
+                }
             }
             Err(error) => Err(error)
         }
@@ -370,9 +370,9 @@ pub fn decode_packedfile_optional_string_u16(packed_file_data: Vec<u8>, index: u
                         Err(error) => Err(Error::new(ErrorKind::Other, error::Error::description(&error).to_string())),
                     }
                 }
-                    else {
-                        Ok((String::new(), result.1))
-                    }
+                else {
+                    Ok((String::new(), result.1))
+                }
             }
             Err(error) => Err(error)
         }
@@ -400,20 +400,6 @@ pub fn decode_packedfile_bool(packed_file_data: u8, mut index: usize) -> Result<
           Encoding helpers (Specific decoders)
 --------------------------------------------------------
 */
-
-/// This function allow us to encode to Vec<u8> an u32 cell. We return the Vec<u8>.
-#[allow(dead_code)]
-pub fn encode_packedfile_integer_u32(integer_u32_decoded: u32) -> Vec<u8> {
-    let integer_u32_encoded = encode_integer_u32(integer_u32_decoded);
-    integer_u32_encoded
-}
-
-/// This function allow us to encode to Vec<u8> an f32 cell. We return the Vec<u8>.
-#[allow(dead_code)]
-pub fn encode_packedfile_float_u32(float_f32_decoded: f32) -> Vec<u8> {
-    let float_f32_encoded = encode_float_u32(float_f32_decoded);
-    float_f32_encoded
-}
 
 /// This function allow us to encode an UTF-8 decoded string cell. We return the Vec<u8> of
 /// the encoded string.
@@ -456,9 +442,9 @@ pub fn encode_packedfile_optional_string_u8(optional_string_u8_decoded: String) 
 pub fn encode_packedfile_string_u16(string_u16_decoded: String) -> Vec<u8> {
     let mut string_u16_encoded = vec![];
     let mut string_u16_data = encode_string_u16(string_u16_decoded);
-    //let mut string_u16_lenght = encode_integer_u16(string_u16_data.len() as u16);
+    let mut string_u16_lenght = encode_integer_u16((string_u16_data.len() as u16 / 2));
 
-    //string_u16_encoded.append(&mut string_u16_lenght);
+    string_u16_encoded.append(&mut string_u16_lenght);
     string_u16_encoded.append(&mut string_u16_data);
 
     string_u16_encoded
@@ -475,19 +461,12 @@ pub fn encode_packedfile_optional_string_u16(optional_string_u16_decoded: String
     }
     else {
         let mut optional_string_u16_data = encode_string_u16(optional_string_u16_decoded);
-        //let mut optional_string_u16_lenght = encode_integer_u16(optional_string_u16_data.len() as u16);
+        let mut optional_string_u16_lenght = encode_integer_u16(optional_string_u16_data.len() as u16);
 
         optional_string_u16_encoded.append(&mut encode_bool(true));
-        //optional_string_u16_encoded.append(&mut optional_string_u16_lenght);
+        optional_string_u16_encoded.append(&mut optional_string_u16_lenght);
         optional_string_u16_encoded.append(&mut optional_string_u16_data);
     }
 
     optional_string_u16_encoded
-}
-
-/// This function allow us to encode to Vec<u8> a boolean cell. We return the Vec<u8>.
-#[allow(dead_code)]
-pub fn encode_packedfile_bool(bool_decoded: bool) -> Vec<u8> {
-    let bool_encoded = encode_bool(bool_decoded);
-    bool_encoded
 }
