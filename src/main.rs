@@ -14,12 +14,14 @@ use std::path::PathBuf;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::error;
+use std::fs::File;
+use std::io::Write;
 
 use gtk::prelude::*;
 use gtk::{
     AboutDialog, Box, Builder, MenuItem, Window, WindowPosition, FileChooserDialog,
     TreeView, TreeSelection, TreeStore, MessageDialog, ScrolledWindow, Orientation,
-    CellRendererText, TreeViewColumn, Popover, Entry, CheckMenuItem, Button
+    CellRendererText, TreeViewColumn, Popover, Entry, CheckMenuItem, Button, Image
 };
 
 use sourceview::{
@@ -1040,6 +1042,12 @@ fn main() {
                 }
                 else if tree_path.last().unwrap().ends_with(".rigid_model_v2") {
                     packed_file_type = "RIGIDMODEL"
+                }
+                else if tree_path.last().unwrap().ends_with(".jpg") ||
+                        tree_path.last().unwrap().ends_with(".jpeg") ||
+                        tree_path.last().unwrap().ends_with(".tga") ||
+                        tree_path.last().unwrap().ends_with(".png") {
+                    packed_file_type = "IMAGE"
                 }
                 else if tree_path[0] == "db" {
                     packed_file_type = "DB";
@@ -2156,6 +2164,30 @@ fn main() {
 
                                     Inhibit(false)
                                 }));
+                            }
+                            Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string()),
+                        }
+                    }
+
+                    // If it's an image, we just put it in a box and show it. Or... that was the intention.
+                    // We can't load them from memory, so we need to create them in the temp folder of the
+                    // system and then load them. A mess.
+                    "IMAGE" => {
+                        let mut temporal_file_path = std::env::temp_dir();
+                        temporal_file_path.push(tree_path.last().unwrap());
+                        match File::create(&temporal_file_path) {
+                            Ok(mut temporal_file) => {
+                                if let Err(error) = temporal_file.write_all(&(*pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data.to_vec())) {
+                                    ui::show_dialog(&error_dialog, error::Error::description(&error).to_string());
+                                }
+                                else {
+                                    let image = Image::new_from_file(&temporal_file_path);
+
+                                    let packed_file_source_view_scroll = ScrolledWindow::new(None, None);
+                                    packed_file_source_view_scroll.add(&image);
+                                    packed_file_data_display.pack_start(&packed_file_source_view_scroll, true, true, 0);
+                                    packed_file_data_display.show_all();
+                                }
                             }
                             Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string()),
                         }
