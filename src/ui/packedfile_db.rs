@@ -1,27 +1,20 @@
 // In this file are all the helper functions used by the UI when decoding DB PackedFiles.
-extern crate ordermap;
 extern crate gtk;
 extern crate glib;
 extern crate hex_slice;
-extern crate encoding;
 
 use packedfile::db::*;
 use packedfile::db::schemas::*;
 use common::coding_helpers;
 
-use std::io::{
-    Error, ErrorKind
-};
+use std::io::Error;
 use gtk::prelude::*;
 use gtk::{
     Box, TreeView, ListStore, ScrolledWindow, Button, Orientation, TextView, Label, Entry, ToggleButton,
-    CellRendererText, TreeViewColumn, CellRendererToggle, Type, WrapMode, Justification, TreeStore
+    CellRendererText, TreeViewColumn, CellRendererToggle, Type, WrapMode, Justification
 };
 
-use self::ordermap::OrderMap;
 use self::hex_slice::AsHex;
-use self::encoding::{Encoding, DecoderTrap};
-use self::encoding::all::ISO_8859_1;
 
 /// Struct PackedFileDBTreeView: contains all the stuff we need to give to the program to show a
 /// TreeView with the data of a DB PackedFile, allowing us to manipulate it.
@@ -59,10 +52,13 @@ pub struct PackedFileDBDecoder {
     pub use_string_u16_button: Button,
     pub use_optional_string_u8_button: Button,
     pub use_optional_string_u16_button: Button,
+    pub fields_tree_view: TreeView,
     pub fields_list_store: ListStore,
     pub field_name_entry: Entry,
     pub is_key_field_button: ToggleButton,
     pub save_decoded_schema: Button,
+    pub fields_tree_view_cell_bool: CellRendererToggle,
+    pub fields_tree_view_cell_string: Vec<CellRendererText>,
 }
 
 /// Implementation of "PackedFileDBTreeView".
@@ -292,7 +288,6 @@ impl PackedFileDBTreeView{
                     DecodedData::StringU16(data) => gtk_value_field = gtk::ToValue::to_value(&data),
                     DecodedData::OptionalStringU8(data) => gtk_value_field = gtk::ToValue::to_value(&data),
                     DecodedData::OptionalStringU16(data) => gtk_value_field = gtk::ToValue::to_value(&data),
-                    DecodedData::RawData(_) => return Err(Error::new(ErrorKind::Other, format!("Error: trying to load RawData into a DB Table PackedFile."))),
                 }
                 packed_file_list_store.set_value(&current_row, index, &gtk_value_field);
                 index += 1;
@@ -490,42 +485,58 @@ impl PackedFileDBDecoder {
         let fields_list_store = ListStore::new(&[String::static_type(), String::static_type(), String::static_type(), bool::static_type(), String::static_type(), String::static_type()]);
         fields_tree_view.set_model(Some(&fields_list_store));
 
+        let mut fields_tree_view_cell_string = vec![];
+
         let column_index = TreeViewColumn::new();
         let cell_index = CellRendererText::new();
         column_index.pack_start(&cell_index, true);
         column_index.add_attribute(&cell_index, "text", 0);
+        column_index.set_sort_column_id(0);
         column_index.set_title("Index");
-
 
         let column_name = TreeViewColumn::new();
         let cell_name = CellRendererText::new();
+        cell_name.set_property_editable(true);
         column_name.pack_start(&cell_name, true);
         column_name.add_attribute(&cell_name, "text", 1);
+        column_name.set_sort_column_id(1);
         column_name.set_title("Field name");
+        fields_tree_view_cell_string.push(cell_name);
 
         let column_type = TreeViewColumn::new();
         let cell_type = CellRendererText::new();
+        cell_type.set_property_editable(false);
         column_type.pack_start(&cell_type, true);
         column_type.add_attribute(&cell_type, "text", 2);
+        column_type.set_sort_column_id(2);
         column_type.set_title("Field Type");
 
         let column_key = TreeViewColumn::new();
         let cell_key = CellRendererToggle::new();
+        cell_key.set_activatable(true);
         column_key.pack_start(&cell_key, true);
         column_key.add_attribute(&cell_key, "active", 3);
+        column_key.set_sort_column_id(3);
         column_key.set_title("Is key?");
+        let fields_tree_view_cell_bool = cell_key;
 
         let column_ref_table = TreeViewColumn::new();
         let cell_ref_table = CellRendererText::new();
+        cell_ref_table.set_property_editable(true);
         column_ref_table.pack_start(&cell_ref_table, true);
         column_ref_table.add_attribute(&cell_ref_table, "text", 4);
+        column_ref_table.set_sort_column_id(4);
         column_ref_table.set_title("Ref. to table");
+        fields_tree_view_cell_string.push(cell_ref_table);
 
         let column_ref_column = TreeViewColumn::new();
         let cell_ref_column = CellRendererText::new();
+        cell_ref_column.set_property_editable(true);
         column_ref_column.pack_start(&cell_ref_column, true);
         column_ref_column.add_attribute(&cell_ref_column, "text", 5);
+        column_ref_column.set_sort_column_id(5);
         column_ref_column.set_title("Ref. to column");
+        fields_tree_view_cell_string.push(cell_ref_column);
 
         fields_tree_view.append_column(&column_index);
         fields_tree_view.append_column(&column_name);
@@ -602,10 +613,13 @@ impl PackedFileDBDecoder {
             use_string_u16_button,
             use_optional_string_u8_button,
             use_optional_string_u16_button,
+            fields_tree_view,
             fields_list_store,
             field_name_entry,
             is_key_field_button,
             save_decoded_schema,
+            fields_tree_view_cell_bool,
+            fields_tree_view_cell_string,
         }
     }
 
@@ -795,13 +809,13 @@ impl PackedFileDBDecoder {
         packed_file_decoder.fields_list_store.clear();
         for (index, field) in table_definition.fields.iter().enumerate() {
             let field_type = match field.field_type {
-                FieldType::Boolean => "bool",
-                FieldType::Float => "float",
-                FieldType::Integer => "integer",
-                FieldType::StringU8 => "string_u8",
-                FieldType::StringU16 => "string_u16",
-                FieldType::OptionalStringU8 => "optional_string_u8",
-                FieldType::OptionalStringU16 => "optional_string_u16",
+                FieldType::Boolean => "Bool",
+                FieldType::Float => "Float",
+                FieldType::Integer => "Integer",
+                FieldType::StringU8 => "StringU8",
+                FieldType::StringU16 => "StringU16",
+                FieldType::OptionalStringU8 => "OptionalStringU8",
+                FieldType::OptionalStringU16 => "OptionalStringU16",
             };
             if let Some(ref reference) = field.field_is_reference {
                 packed_file_decoder.fields_list_store.insert_with_values(
@@ -838,4 +852,45 @@ impl PackedFileDBDecoder {
         packed_file_decoder.is_key_field_button.set_active(false);
     }
 
+    /// This function gets the data from the "Decoder" table, and returns it, so we can save it in a
+    /// TableDefinition.fields.
+    pub fn return_data_from_data_view(&self) -> Vec<Field> {
+        let mut fields = vec![];
+
+        // Only in case we have any line in the ListStore we try to get it. Otherwise we return an
+        // empty LocData.
+        if let Some(current_line) = self.fields_list_store.get_iter_first() {
+            let mut done = false;
+            while !done {
+                let field_name = self.fields_list_store.get_value(&current_line, 1).get().unwrap();
+                let field_is_key = self.fields_list_store.get_value(&current_line, 3).get().unwrap();
+                let ref_table: String = self.fields_list_store.get_value(&current_line, 4).get().unwrap();
+                let ref_column: String = self.fields_list_store.get_value(&current_line, 5).get().unwrap();
+
+                let field_type = match self.fields_list_store.get_value(&current_line, 2).get().unwrap() {
+                    "Bool" => FieldType::Boolean,
+                    "Float" => FieldType::Float,
+                    "Integer" => FieldType::Integer,
+                    "StringU8" => FieldType::StringU8,
+                    "StringU16" => FieldType::StringU16,
+                    "OptionalStringU8" => FieldType::OptionalStringU8,
+                    "OptionalStringU16" => FieldType::OptionalStringU16,
+                    // This is just so the compiler doesn't complain.
+                    _ => FieldType::Boolean,
+                };
+
+                if ref_table.is_empty() {
+                    fields.push(Field::new(field_name, field_type, field_is_key, None));
+                }
+                else {
+                    fields.push(Field::new(field_name, field_type, field_is_key, Some((ref_table, ref_column))));
+                }
+
+                if !self.fields_list_store.iter_next(&current_line) {
+                    done = true;
+                }
+            }
+        }
+        fields
+    }
 }

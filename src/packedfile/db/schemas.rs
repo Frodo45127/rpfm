@@ -182,8 +182,8 @@ impl TableDefinition {
 
     /// This function adds a field to a table. It's just to make it easy to interact with, so we don't
     /// need to call the "Field" stuff manually.
-    pub fn add_field(&mut self, field_name: String, field_is_key: bool, field_is_reference: Option<(String, String)>, field_type: FieldType) {
-        self.fields.push(Field::new(field_name, field_is_key, field_is_reference, field_type));
+    pub fn add_field(&mut self, field_name: String, field_type: FieldType, field_is_key: bool, field_is_reference: Option<(String, String)>) {
+        self.fields.push(Field::new(field_name, field_type, field_is_key, field_is_reference));
     }
 }
 
@@ -192,7 +192,7 @@ impl Field {
 
     /// This function creates a new table definition. We need to call it when we don't have a definition
     /// of the table we are trying to decode with the version we have.
-    pub fn new(field_name: String, field_is_key: bool, field_is_reference: Option<(String, String)>, field_type: FieldType) -> Field {
+    pub fn new(field_name: String, field_type: FieldType, field_is_key: bool, field_is_reference: Option<(String, String)>) -> Field {
 
         Field {
             field_name,

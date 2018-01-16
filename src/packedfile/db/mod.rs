@@ -10,13 +10,10 @@
 // 1 misteryous byte
 // 4 bytes for the entry count, in u32 reversed.
 
-extern crate ordermap;
-
 use std::io::{
     Error, ErrorKind
 };
 use common::coding_helpers;
-use self::ordermap::OrderMap;
 
 pub mod schemas;
 
@@ -71,7 +68,6 @@ pub enum DecodedData {
     OptionalStringU16(String),
     Integer(u32),
     Float(f32),
-    RawData(Vec<u8>)
 }
 
 /// Implementation of "DB"
@@ -245,11 +241,7 @@ impl DBData {
 
                 // The rest of the columns, we decode them based on his type and store them in a DecodedData
                 // enum, as enums are the only thing I found that can store them
-                //
-                // NOTE: string => u16.
-                //       string_ascii => u8.
                 else {
-                    let field_name = &table_definition.fields[column as usize - 1].field_name;
                     let field_type = &table_definition.fields[column as usize - 1].field_type;
 
                     match *field_type {
@@ -375,10 +367,6 @@ impl DBData {
                     DecodedData::Float(data) => {
                         let mut encoded_data = coding_helpers::encode_float_u32(data.clone());
                         packed_file_data_encoded.append(&mut encoded_data);
-                    },
-                    DecodedData::RawData(_) => {
-                        // If this is reached, we fucked it up somewhere.
-                        return Err(Error::new(ErrorKind::Other, format!("Error, trying to write a RawData DB field.\nThis should never happen.")))
                     },
                 }
             }
