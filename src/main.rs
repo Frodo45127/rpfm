@@ -1790,9 +1790,11 @@ fn main() {
                             // We need to disable the button. Otherwise, things will get weird.
                             packed_file_decode_mode_button.set_sensitive(false);
 
-                            // We destroy the table view, so we don't have to deal with resizing it.
-                            let display_childrens = packed_file_data_display.get_children();
-                            display_childrens.last().unwrap().destroy();
+                            // We destroy the table view if exists, so we don't have to deal with resizing it.
+                            let display_last_children = packed_file_data_display.get_children();
+                            if display_last_children.last().unwrap() != packed_file_decode_mode_button {
+                                display_last_children.last().unwrap().destroy();
+                            }
 
                             let packed_file_decoder = ui::packedfile_db::PackedFileDBDecoder::create_decoder_view(&packed_file_data_display);
                             match PackedFileDBDecoder::load_data_to_decoder_view(
