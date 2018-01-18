@@ -1402,28 +1402,16 @@ fn main() {
 
                     // If it's a DB, we try to decode it
                     "DB" => {
-                        let packed_file_data_encoded = &*pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data;
-                        let packed_file_data_header = match DBHeader::read(packed_file_data_encoded.to_vec()){
-                            Ok(db_header) => db_header.0,
-                            Err(error) => return ui::show_dialog(&error_dialog, error::Error::description(&error).to_string()),
-                        };
-
-                        let table_definitions_index: Option<usize> = schema.borrow().get_table_definitions(&*tree_path[1]);
-
-                        let mut table_definition: Option<Rc<RefCell<TableDefinition>>> = None;
-                        if let Some(index_table_definitions) = table_definitions_index {
-                            if let Some(index_table_versions) = schema.borrow().tables_definitions[index_table_definitions].get_table_version(packed_file_data_header.packed_file_header_packed_file_version) {
-                                table_definition = Some(Rc::new(RefCell::new(schema.borrow().tables_definitions[index_table_definitions].versions[index_table_versions].clone())));
-                            }
-                        }
 
                         // Button for enabling the "Decoding" mode.
                         let packed_file_decode_mode_button = Button::new_with_label("Enter decoding mode");
                         packed_file_data_display.add(&packed_file_decode_mode_button);
-                        window.show_all();
+                        packed_file_data_display.show_all();
 
-                        let packed_file_data_decoded = DB::read(packed_file_data_encoded.to_vec(), &*tree_path[1], &schema.borrow().clone());
+                        let packed_file_data_encoded = Rc::new(RefCell::new(pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data.to_vec()));
+                        let packed_file_data_decoded = DB::read(packed_file_data_encoded.borrow().to_vec(), &*tree_path[1], &schema.borrow().clone());
 
+                        // If this returns an error, we just leave the button for the decoder.
                         match packed_file_data_decoded {
                             Ok(packed_file_data_decoded) => {
 
@@ -1788,7 +1776,6 @@ fn main() {
 
                         // From here, we deal we the decoder stuff.
                         packed_file_decode_mode_button.connect_button_release_event(clone!(
-                            table_definition,
                             schema,
                             tree_path,
                             error_dialog,
@@ -1805,298 +1792,425 @@ fn main() {
                                 display_last_children.last().unwrap().destroy();
                             }
 
+                            // Then create the UI..
                             let packed_file_decoder = ui::packedfile_db::PackedFileDBDecoder::create_decoder_view(&packed_file_data_display);
-                            match PackedFileDBDecoder::load_data_to_decoder_view(
-                                &packed_file_decoder,
-                                &*tree_path[1],
-                                &(*pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data).to_vec()
-                            ) {
+
+                            // And only in case the db_header has been decoded, we do the rest.
+                            match DBHeader::read(packed_file_data_encoded.borrow().to_vec()){
                                 Ok(db_header) => {
 
-                                    // The logic here: If exist, we use it. If it doesn't exist, we check if that table's definition section
-                                    // has been created (it exist, just not this version). If exist, we create this version. If it doesn't we create
-                                    // a new TableDefinitions.
-                                    let table_definition = match table_definition {
-                                        Some(ref definition) => definition.clone(),
-                                        None => {
-                                            match table_definitions_index {
-                                                Some(_) => Rc::new(RefCell::new(TableDefinition::new(db_header.0.packed_file_header_packed_file_version))),
-                                                None => {
-                                                    let defs = TableDefinitions::new(&*tree_path[1], db_header.0.packed_file_header_packed_file_version);
-                                                    schema.borrow_mut().add_table_definitions(&defs);
-                                                    Rc::new(RefCell::new(defs.versions[0].clone()))
-                                                },
-                                            }
-                                        }
+                                    // We get the initial index to start decoding.
+                                    let initial_index = db_header.1;
+
+                                    // We get the definition, or create one if we didn't find it.
+                                    let mut table_definition = match DB::get_schema(&*tree_path[1], db_header.0.packed_file_header_packed_file_version, &*schema.borrow()) {
+                                        Some(table_definition) => Rc::new(RefCell::new(table_definition)),
+                                        None => Rc::new(RefCell::new(TableDefinition::new(db_header.0.packed_file_header_packed_file_version)))
                                     };
 
-                                    let index_data = Rc::new(RefCell::new(db_header.1));
-                                    PackedFileDBDecoder::update_decoder_view(
+                                    // If we managed to load all the static data successfully to the "Decoder" view, we set up all the button's events.
+                                    match PackedFileDBDecoder::load_data_to_decoder_view(
                                         &packed_file_decoder,
-                                        pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data.to_vec(),
-                                        &table_definition.borrow(),
-                                        *index_data.borrow()
-                                    );
+                                        &*tree_path[1],
+                                        &packed_file_data_encoded.borrow().to_vec()
+                                    ) {
+                                        Ok(_) => {
 
-                                    // Logic for all the "Use this" buttons. Basically, they just check if it's possible to use their decoder for the bytes we have,
-                                    // and advance the index and add their type to the fields view.
-                                    packed_file_decoder.use_bool_button.connect_button_release_event(clone!(
-                                        table_definition,
-                                        index_data,
-                                        error_dialog,
-                                        pack_file_decoded,
-                                        packed_file_decoder => move |_ ,_|{
-                                        let mut decoding_correct = false;
-                                        let mut decoded_bool = (false, 0usize);
-                                        match coding_helpers::decode_packedfile_bool(
-                                            pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data[*index_data.borrow()],
-                                            *index_data.borrow()
-                                        ) {
-                                            Ok(data) => {
-                                                decoded_bool = data;
-                                                decoding_correct = true;
-                                            },
-                                            Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string()),
-                                        };
-                                        if decoding_correct {
-                                            *index_data.borrow_mut() = decoded_bool.1;
-                                            PackedFileDBDecoder::update_decoder_view(
+                                            // To keep it simple, we'll use the fields TreeView as "list of fields", and we'll only touch the
+                                            // table_definition when getting it or creating it to load the Decoder's View, or saving it.
+                                            // Also, when we are loading the data from a definition (first update with existing definition)
+                                            // we'll return the index of the byte where the definition ends, so we continue decoding from it.
+                                            // If it returns an error, the definition is incorrect, so we clear the TreeView and ignore it.
+                                            let index_data = match PackedFileDBDecoder::update_decoder_view(
                                                 &packed_file_decoder,
-                                                pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data.to_vec(),
+                                                packed_file_data_encoded.borrow().to_vec(),
                                                 &table_definition.borrow(),
-                                                *index_data.borrow()
-                                            );
-                                        }
-                                        Inhibit(false)
-                                    }));
+                                                initial_index,
+                                                true,
+                                            ) {
+                                                Ok(new_index) => Rc::new(RefCell::new(new_index)),
+                                                Err(_) => {
+                                                    packed_file_decoder.fields_list_store.clear();
+                                                    Rc::new(RefCell::new(initial_index))
+                                                }
+                                            };
 
-                                    packed_file_decoder.use_float_button.connect_button_release_event(clone!(
-                                        table_definition,
-                                        index_data,
-                                        error_dialog,
-                                        pack_file_decoded,
-                                        packed_file_decoder => move |_ ,_|{
-                                        let mut decoding_correct = false;
-                                        let mut decoded_float = (0.0, 0usize);
-                                        match coding_helpers::decode_packedfile_float_u32(
-                                            pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data[*index_data.borrow()..(*index_data.borrow() + 4)].to_vec(),
-                                            *index_data.borrow()
-                                        ) {
-                                            Ok(data) => {
-                                                decoded_float = data;
-                                                decoding_correct = true;
-                                            },
-                                            Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string()),
-                                        };
-                                        if decoding_correct {
-                                            *index_data.borrow_mut() = decoded_float.1;
-                                            PackedFileDBDecoder::update_decoder_view(
-                                                &packed_file_decoder,
-                                                pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data.to_vec(),
-                                                &table_definition.borrow(),
-                                                *index_data.borrow()
-                                            );
-                                        }
-                                        Inhibit(false)
-                                    }));
+                                            // Logic for all the "Use this" buttons. Basically, they just check if it's possible to use their decoder for the bytes we have,
+                                            // and advance the index and add their type to the fields view.
+                                            packed_file_decoder.use_bool_button.connect_button_release_event(clone!(
+                                                table_definition,
+                                                index_data,
+                                                error_dialog,
+                                                packed_file_data_encoded,
+                                                packed_file_decoder => move |_ ,_|{
 
-                                    packed_file_decoder.use_integer_button.connect_button_release_event(clone!(
-                                        table_definition,
-                                        index_data,
-                                        error_dialog,
-                                        pack_file_decoded,
-                                        packed_file_decoder => move |_ ,_|{
-                                        let mut decoding_correct = false;
-                                        let mut decoded_integer = (0, 0usize);
-                                        match coding_helpers::decode_packedfile_integer_u32(
-                                            pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data[*index_data.borrow()..(*index_data.borrow() + 4)].to_vec(),
-                                            *index_data.borrow()
-                                        ) {
-                                            Ok(data) => {
-                                                decoded_integer = data;
-                                                decoding_correct = true;
-                                            },
-                                            Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string()),
-                                        };
-                                        if decoding_correct {
-                                            *index_data.borrow_mut() = decoded_integer.1;
-                                            PackedFileDBDecoder::update_decoder_view(
-                                                &packed_file_decoder,
-                                                pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data.to_vec(),
-                                                &table_definition.borrow(),
-                                                *index_data.borrow()
-                                            );
-                                        }
-                                        Inhibit(false)
-                                    }));
+                                                // We are going to check if this is valid when adding the field to the TreeView, so we just add it.
+                                                let index_data_copy = index_data.borrow().clone();
+                                                *index_data.borrow_mut() = match PackedFileDBDecoder::add_field_to_data_view(
+                                                    &packed_file_decoder,
+                                                    packed_file_data_encoded.borrow().to_vec(),
+                                                    &table_definition.borrow(),
+                                                    &packed_file_decoder.field_name_entry.get_buffer().get_text(),
+                                                    FieldType::Boolean,
+                                                    packed_file_decoder.is_key_field_button.get_active(),
+                                                    None,
+                                                    index_data_copy
+                                                ) {
+                                                    Ok(new_index_data) => new_index_data,
+                                                    // In case of error, we don't update the index.
+                                                    Err(error) => index_data_copy,
+                                                };
 
-                                    packed_file_decoder.use_string_u8_button.connect_button_release_event(clone!(
-                                        table_definition,
-                                        index_data,
-                                        error_dialog,
-                                        pack_file_decoded,
-                                        packed_file_decoder => move |_ ,_|{
-                                        let mut decoding_correct = false;
-                                        let mut decoded_string_u8 = (String::new(), 0usize);
-                                        match coding_helpers::decode_packedfile_string_u8(
-                                            pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data[*index_data.borrow()..].to_vec(),
-                                            *index_data.borrow()
-                                        ) {
-                                            Ok(data) => {
-                                                decoded_string_u8 = data;
-                                                decoding_correct = true;
-                                            },
-                                            Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string()),
-                                        };
-                                        if decoding_correct {
-                                            *index_data.borrow_mut() = decoded_string_u8.1;
-                                            PackedFileDBDecoder::update_decoder_view(
-                                                &packed_file_decoder,
-                                                pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data.to_vec(),
-                                                &table_definition.borrow(),
-                                                *index_data.borrow()
-                                            );
-                                        }
-                                        Inhibit(false)
-                                    }));
+                                                PackedFileDBDecoder::update_decoder_view(
+                                                    &packed_file_decoder,
+                                                    packed_file_data_encoded.borrow().to_vec(),
+                                                    &table_definition.borrow(),
+                                                    *index_data.borrow(),
+                                                    false
+                                                );
+                                                packed_file_decoder.delete_all_fields_button.set_sensitive(true);
+                                                packed_file_decoder.delete_last_field_button.set_sensitive(true);
 
-                                    packed_file_decoder.use_string_u16_button.connect_button_release_event(clone!(
-                                        table_definition,
-                                        index_data,
-                                        error_dialog,
-                                        pack_file_decoded,
-                                        packed_file_decoder => move |_ ,_|{
-                                        let mut decoding_correct = false;
-                                        let mut decoded_string_u16 = (String::new(), 0usize);
-                                        match coding_helpers::decode_packedfile_string_u16(
-                                            pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data[*index_data.borrow()..].to_vec(),
-                                            *index_data.borrow()
-                                        ) {
-                                            Ok(data) => {
-                                                decoded_string_u16 = data;
-                                                decoding_correct = true;
-                                            },
-                                            Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string()),
-                                        };
-                                        if decoding_correct {
-                                            *index_data.borrow_mut() = decoded_string_u16.1;
-                                            PackedFileDBDecoder::update_decoder_view(
-                                                &packed_file_decoder,
-                                                pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data.to_vec(),
-                                                &table_definition.borrow(),
-                                                *index_data.borrow()
-                                            );
-                                        }
-                                        Inhibit(false)
-                                    }));
+                                                Inhibit(false)
+                                            }));
 
-                                    packed_file_decoder.use_optional_string_u8_button.connect_button_release_event(clone!(
-                                        table_definition,
-                                        index_data,
-                                        error_dialog,
-                                        pack_file_decoded,
-                                        packed_file_decoder => move |_ ,_|{
-                                        let mut decoding_correct = false;
-                                        let mut decoded_optional_string_u8 = (String::new(), 0usize);
-                                        match coding_helpers::decode_packedfile_optional_string_u8(
-                                            pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data[*index_data.borrow()..].to_vec(),
-                                            *index_data.borrow()
-                                        ) {
-                                            Ok(data) => {
-                                                decoded_optional_string_u8 = data;
-                                                decoding_correct = true;
-                                            },
-                                            Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string()),
-                                        };
-                                        if decoding_correct {
-                                            *index_data.borrow_mut() = decoded_optional_string_u8.1;
-                                            PackedFileDBDecoder::update_decoder_view(
-                                                &packed_file_decoder,
-                                                pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data.to_vec(),
-                                                &table_definition.borrow(),
-                                                *index_data.borrow()
-                                            );
-                                        }
-                                        Inhibit(false)
-                                    }));
+                                            packed_file_decoder.use_float_button.connect_button_release_event(clone!(
+                                                table_definition,
+                                                index_data,
+                                                error_dialog,
+                                                packed_file_data_encoded,
+                                                packed_file_decoder => move |_ ,_|{
 
-                                    packed_file_decoder.use_optional_string_u16_button.connect_button_release_event(clone!(
-                                        table_definition,
-                                        index_data,
-                                        error_dialog,
-                                        pack_file_decoded,
-                                        packed_file_decoder => move |_ ,_|{
-                                        let mut decoding_correct = false;
-                                        let mut decoded_optional_string_u16 = (String::new(), 0usize);
-                                        match coding_helpers::decode_packedfile_optional_string_u16(
-                                            pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data[*index_data.borrow()..].to_vec(),
-                                            *index_data.borrow()
-                                        ) {
-                                            Ok(data) => {
-                                                decoded_optional_string_u16 = data;
-                                                decoding_correct = true;
-                                            },
-                                            Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string()),
-                                        };
-                                        if decoding_correct {
-                                            *index_data.borrow_mut() = decoded_optional_string_u16.1;
-                                            PackedFileDBDecoder::update_decoder_view(
-                                                &packed_file_decoder,
-                                                pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data.to_vec(),
-                                                &table_definition.borrow(),
-                                                *index_data.borrow()
-                                            );
-                                        }
-                                        Inhibit(false)
-                                    }));
+                                                // We are going to check if this is valid when adding the field to the TreeView, so we just add it.
+                                                let index_data_copy = index_data.borrow().clone();
+                                                *index_data.borrow_mut() = match PackedFileDBDecoder::add_field_to_data_view(
+                                                    &packed_file_decoder,
+                                                    packed_file_data_encoded.borrow().to_vec(),
+                                                    &table_definition.borrow(),
+                                                    &packed_file_decoder.field_name_entry.get_buffer().get_text(),
+                                                    FieldType::Float,
+                                                    packed_file_decoder.is_key_field_button.get_active(),
+                                                    None,
+                                                    index_data_copy
+                                                ) {
+                                                    Ok(new_index_data) => new_index_data,
+                                                    // In case of error, we don't update the index.
+                                                    Err(error) => index_data_copy,
+                                                };
 
-                                    // This saves the schema to a file. It takes the "table_definition" we had for this version of our table, and put
-                                    // in it all the fields we have in the fields tree_view.
-                                    packed_file_decoder.save_decoded_schema.connect_button_release_event(clone!(
-                                        schema,
-                                        table_definition,
-                                        tree_path,
-                                        error_dialog,
-                                        success_dialog,
-                                        packed_file_decoder => move |_ ,_|{
+                                                PackedFileDBDecoder::update_decoder_view(
+                                                    &packed_file_decoder,
+                                                    packed_file_data_encoded.borrow().to_vec(),
+                                                    &table_definition.borrow(),
+                                                    *index_data.borrow(),
+                                                    false
+                                                );
+                                                packed_file_decoder.delete_all_fields_button.set_sensitive(true);
+                                                packed_file_decoder.delete_last_field_button.set_sensitive(true);
 
-                                            // We get the index again, just in case we added a new table and the index is invalid.
-                                            let table_definition_index = schema.borrow().get_table_definitions(&*tree_path[1]).unwrap();
-                                            table_definition.borrow_mut().fields = packed_file_decoder.return_data_from_data_view();
-                                            schema.borrow_mut().tables_definitions[table_definition_index].add_table_definition(table_definition.borrow().clone());
-                                            match Schema::save(&*schema.borrow()) {
-                                                Ok(_) => ui::show_dialog(&success_dialog, format!("Schema saved successfully.")),
-                                                Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string()),
+                                                Inhibit(false)
+                                            }));
+
+                                            packed_file_decoder.use_integer_button.connect_button_release_event(clone!(
+                                                table_definition,
+                                                index_data,
+                                                error_dialog,
+                                                packed_file_data_encoded,
+                                                packed_file_decoder => move |_ ,_|{
+
+                                                // We are going to check if this is valid when adding the field to the TreeView, so we just add it.
+                                                let index_data_copy = index_data.borrow().clone();
+                                                *index_data.borrow_mut() = match PackedFileDBDecoder::add_field_to_data_view(
+                                                    &packed_file_decoder,
+                                                    packed_file_data_encoded.borrow().to_vec(),
+                                                    &table_definition.borrow(),
+                                                    &packed_file_decoder.field_name_entry.get_buffer().get_text(),
+                                                    FieldType::Integer,
+                                                    packed_file_decoder.is_key_field_button.get_active(),
+                                                    None,
+                                                    index_data_copy
+                                                ) {
+                                                    Ok(new_index_data) => new_index_data,
+                                                    // In case of error, we don't update the index.
+                                                    Err(error) => index_data_copy,
+                                                };
+
+                                                PackedFileDBDecoder::update_decoder_view(
+                                                    &packed_file_decoder,
+                                                    packed_file_data_encoded.borrow().to_vec(),
+                                                    &table_definition.borrow(),
+                                                    *index_data.borrow(),
+                                                    false
+                                                );
+                                                packed_file_decoder.delete_all_fields_button.set_sensitive(true);
+                                                packed_file_decoder.delete_last_field_button.set_sensitive(true);
+
+                                                Inhibit(false)
+                                            }));
+
+                                            packed_file_decoder.use_string_u8_button.connect_button_release_event(clone!(
+                                                table_definition,
+                                                index_data,
+                                                error_dialog,
+                                                packed_file_data_encoded,
+                                                packed_file_decoder => move |_ ,_|{
+
+                                                // We are going to check if this is valid when adding the field to the TreeView, so we just add it.
+                                                let index_data_copy = index_data.borrow().clone();
+                                                *index_data.borrow_mut() = match PackedFileDBDecoder::add_field_to_data_view(
+                                                    &packed_file_decoder,
+                                                    packed_file_data_encoded.borrow().to_vec(),
+                                                    &table_definition.borrow(),
+                                                    &packed_file_decoder.field_name_entry.get_buffer().get_text(),
+                                                    FieldType::StringU8,
+                                                    packed_file_decoder.is_key_field_button.get_active(),
+                                                    None,
+                                                    index_data_copy
+                                                ) {
+                                                    Ok(new_index_data) => new_index_data,
+                                                    // In case of error, we don't update the index.
+                                                    Err(error) => index_data_copy,
+                                                };
+
+                                                PackedFileDBDecoder::update_decoder_view(
+                                                    &packed_file_decoder,
+                                                    packed_file_data_encoded.borrow().to_vec(),
+                                                    &table_definition.borrow(),
+                                                    *index_data.borrow(),
+                                                    false
+                                                );
+                                                packed_file_decoder.delete_all_fields_button.set_sensitive(true);
+                                                packed_file_decoder.delete_last_field_button.set_sensitive(true);
+
+                                                Inhibit(false)
+                                            }));
+
+                                            packed_file_decoder.use_string_u16_button.connect_button_release_event(clone!(
+                                                table_definition,
+                                                index_data,
+                                                error_dialog,
+                                                packed_file_data_encoded,
+                                                packed_file_decoder => move |_ ,_|{
+
+                                                // We are going to check if this is valid when adding the field to the TreeView, so we just add it.
+                                                let index_data_copy = index_data.borrow().clone();
+                                                *index_data.borrow_mut() = match PackedFileDBDecoder::add_field_to_data_view(
+                                                    &packed_file_decoder,
+                                                    packed_file_data_encoded.borrow().to_vec(),
+                                                    &table_definition.borrow(),
+                                                    &packed_file_decoder.field_name_entry.get_buffer().get_text(),
+                                                    FieldType::StringU16,
+                                                    packed_file_decoder.is_key_field_button.get_active(),
+                                                    None,
+                                                    index_data_copy
+                                                ) {
+                                                    Ok(new_index_data) => new_index_data,
+                                                    // In case of error, we don't update the index.
+                                                    Err(error) => index_data_copy,
+                                                };
+
+                                                PackedFileDBDecoder::update_decoder_view(
+                                                    &packed_file_decoder,
+                                                    packed_file_data_encoded.borrow().to_vec(),
+                                                    &table_definition.borrow(),
+                                                    *index_data.borrow(),
+                                                    false
+                                                );
+                                                packed_file_decoder.delete_all_fields_button.set_sensitive(true);
+                                                packed_file_decoder.delete_last_field_button.set_sensitive(true);
+
+                                                Inhibit(false)
+                                            }));
+
+                                            packed_file_decoder.use_optional_string_u8_button.connect_button_release_event(clone!(
+                                                table_definition,
+                                                index_data,
+                                                error_dialog,
+                                                packed_file_data_encoded,
+                                                packed_file_decoder => move |_ ,_|{
+
+                                                // We are going to check if this is valid when adding the field to the TreeView, so we just add it.
+                                                let index_data_copy = index_data.borrow().clone();
+                                                *index_data.borrow_mut() = match PackedFileDBDecoder::add_field_to_data_view(
+                                                    &packed_file_decoder,
+                                                    packed_file_data_encoded.borrow().to_vec(),
+                                                    &table_definition.borrow(),
+                                                    &packed_file_decoder.field_name_entry.get_buffer().get_text(),
+                                                    FieldType::OptionalStringU8,
+                                                    packed_file_decoder.is_key_field_button.get_active(),
+                                                    None,
+                                                    index_data_copy
+                                                ) {
+                                                    Ok(new_index_data) => new_index_data,
+                                                    // In case of error, we don't update the index.
+                                                    Err(error) => index_data_copy,
+                                                };
+
+                                                PackedFileDBDecoder::update_decoder_view(
+                                                    &packed_file_decoder,
+                                                    packed_file_data_encoded.borrow().to_vec(),
+                                                    &table_definition.borrow(),
+                                                    *index_data.borrow(),
+                                                    false
+                                                );
+                                                packed_file_decoder.delete_all_fields_button.set_sensitive(true);
+                                                packed_file_decoder.delete_last_field_button.set_sensitive(true);
+
+                                                Inhibit(false)
+                                            }));
+
+                                            packed_file_decoder.use_optional_string_u16_button.connect_button_release_event(clone!(
+                                                table_definition,
+                                                index_data,
+                                                error_dialog,
+                                                packed_file_data_encoded,
+                                                packed_file_decoder => move |_ ,_|{
+
+                                                // We are going to check if this is valid when adding the field to the TreeView, so we just add it.
+                                                let index_data_copy = index_data.borrow().clone();
+                                                *index_data.borrow_mut() = match PackedFileDBDecoder::add_field_to_data_view(
+                                                    &packed_file_decoder,
+                                                    packed_file_data_encoded.borrow().to_vec(),
+                                                    &table_definition.borrow(),
+                                                    &packed_file_decoder.field_name_entry.get_buffer().get_text(),
+                                                    FieldType::OptionalStringU16,
+                                                    packed_file_decoder.is_key_field_button.get_active(),
+                                                    None,
+                                                    index_data_copy
+                                                ) {
+                                                    Ok(new_index_data) => new_index_data,
+                                                    // In case of error, we don't update the index.
+                                                    Err(error) => index_data_copy,
+                                                };
+
+                                                PackedFileDBDecoder::update_decoder_view(
+                                                    &packed_file_decoder,
+                                                    packed_file_data_encoded.borrow().to_vec(),
+                                                    &table_definition.borrow(),
+                                                    *index_data.borrow(),
+                                                    false
+                                                );
+                                                packed_file_decoder.delete_all_fields_button.set_sensitive(true);
+                                                packed_file_decoder.delete_last_field_button.set_sensitive(true);
+
+                                                Inhibit(false)
+                                            }));
+
+                                            // These 2 events are for the "Delete last field" and "Delete all fields" buttons.
+          /*                                  packed_file_decoder.delete_last_field_button.connect_button_release_event(clone!(
+                                                table_definition,
+                                                index_list,
+                                                index_data,
+                                                error_dialog,
+                                                pack_file_decoded,
+                                                packed_file_decoder => move |_ ,_|{
+                                                let mut decoding_correct = false;
+                                                let mut decoded_string_u8 = (String::new(), 0usize);
+                                                match coding_helpers::decode_packedfile_string_u8(
+                                                    pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data[*index_data.borrow()..].to_vec(),
+                                                    *index_data.borrow()
+                                                ) {
+                                                    Ok(data) => {
+                                                        decoded_string_u8 = data;
+                                                        decoding_correct = true;
+                                                    },
+                                                    Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string()),
+                                                };
+                                                if decoding_correct {
+                                                    *index_data.borrow_mut() = decoded_string_u8.1;
+                                                    PackedFileDBDecoder::update_decoder_view(
+                                                        &packed_file_decoder,
+                                                        pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data.to_vec(),
+                                                        &table_definition.borrow(),
+                                                        *index_data.borrow()
+                                                    );
+                                                }
+                                                Inhibit(false)
+                                            }));
+*/
+                                            // When we press the "Delete all fields" button, we remove all fields from the field list,
+                                            // we reset the index_data, disable de deletion buttons and update the ui, effectively
+                                            // reseting the entire decoder to a blank state.
+                                            packed_file_decoder.delete_all_fields_button.connect_button_release_event(clone!(
+                                                table_definition,
+                                                index_data,
+                                                packed_file_data_encoded,
+                                                packed_file_decoder => move |delete_all_fields_button ,_|{
+                                                    packed_file_decoder.fields_list_store.clear();
+                                                    *index_data.borrow_mut() = initial_index;
+
+                                                    delete_all_fields_button.set_sensitive(false);
+                                                    packed_file_decoder.delete_last_field_button.set_sensitive(false);
+
+                                                    PackedFileDBDecoder::update_decoder_view(
+                                                        &packed_file_decoder,
+                                                        packed_file_data_encoded.borrow().to_vec(),
+                                                        &table_definition.borrow(),
+                                                        *index_data.borrow(),
+                                                        false
+                                                    );
+                                                Inhibit(false)
+                                            }));
+
+                                            // This saves the schema to a file. It takes the "table_definition" we had for this version of our table, and put
+                                            // in it all the fields we have in the fields tree_view.
+                                            packed_file_decoder.save_decoded_schema.connect_button_release_event(clone!(
+                                                schema,
+                                                table_definition,
+                                                tree_path,
+                                                error_dialog,
+                                                success_dialog,
+                                                packed_file_decoder => move |_ ,_|{
+
+                                                    // We get the index of our table's definitions. In case we find it, we just return it. If it's not
+                                                    // the case, then we create a new table's definitions and return his index. To know if we didn't found
+                                                    // an index, we just return -1 as index.
+                                                    let mut table_definitions_index = match schema.borrow().get_table_definitions(&*tree_path[1]) {
+                                                        Some(table_definitions_index) => table_definitions_index as i32,
+                                                        None => -1i32,
+                                                    };
+
+                                                    if table_definitions_index == -1 {
+                                                        schema.borrow_mut().add_table_definitions(TableDefinitions::new(&packed_file_decoder.table_type_label.get_text().unwrap(), packed_file_decoder.table_version_label.get_text().unwrap().parse::<u32>().unwrap()));
+                                                        table_definitions_index = schema.borrow().get_table_definitions(&*tree_path[1]).unwrap() as i32;
+                                                    }
+                                                    table_definition.borrow_mut().fields = packed_file_decoder.return_data_from_data_view();
+                                                    schema.borrow_mut().tables_definitions[table_definitions_index as usize].add_table_definition(table_definition.borrow().clone());
+                                                    match Schema::save(&*schema.borrow()) {
+                                                        Ok(_) => ui::show_dialog(&success_dialog, format!("Schema saved successfully.")),
+                                                        Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string()),
+                                                    }
+                                                Inhibit(false)
+                                            }));
+
+                                            // This allow us to change a field's data in the TreeView.
+                                            packed_file_decoder.fields_tree_view_cell_bool.connect_toggled(clone!(
+                                                packed_file_decoder => move |cell, tree_path| {
+
+                                                let tree_iter = packed_file_decoder.fields_list_store.get_iter(&tree_path).unwrap();
+                                                let edited_cell_column = packed_file_decoder.fields_tree_view.get_cursor().1.unwrap().get_sort_column_id() as u32;
+                                                let new_value: bool = packed_file_decoder.fields_list_store.get_value(&tree_iter, edited_cell_column as i32).get().unwrap();
+                                                let new_value_bool = (!new_value).to_value();
+                                                cell.set_active(!new_value);
+                                                packed_file_decoder.fields_list_store.set_value(&tree_iter, edited_cell_column, &new_value_bool);
+                                            }));
+
+                                            // This loop takes care of the interaction with string cells.
+                                            for edited_cell in packed_file_decoder.fields_tree_view_cell_string.iter() {
+                                                edited_cell.connect_edited(clone!(
+                                                    packed_file_decoder => move |_ ,tree_path , new_text| {
+
+                                                    let edited_cell = packed_file_decoder.fields_list_store.get_iter(&tree_path);
+                                                    let edited_cell_column = packed_file_decoder.fields_tree_view.get_cursor().1.unwrap().get_sort_column_id() as u32;
+                                                    packed_file_decoder.fields_list_store.set_value(&edited_cell.unwrap(), edited_cell_column, &new_text.to_value());
+                                                }));
                                             }
-                                        Inhibit(false)
-                                    }));
-
-                                    // This allow us to change a field's data in the TreeView.
-                                    packed_file_decoder.fields_tree_view_cell_bool.connect_toggled(clone!(
-                                        packed_file_decoder => move |cell, tree_path| {
-
-                                        let tree_iter = packed_file_decoder.fields_list_store.get_iter(&tree_path).unwrap();
-                                        let edited_cell_column = packed_file_decoder.fields_tree_view.get_cursor().1.unwrap().get_sort_column_id() as u32;
-                                        let new_value: bool = packed_file_decoder.fields_list_store.get_value(&tree_iter, edited_cell_column as i32).get().unwrap();
-                                        let new_value_bool = (!new_value).to_value();
-                                        cell.set_active(!new_value);
-                                        packed_file_decoder.fields_list_store.set_value(&tree_iter, edited_cell_column, &new_value_bool);
-                                    }));
-
-                                    // This loop takes care of the interaction with string cells.
-                                    for edited_cell in packed_file_decoder.fields_tree_view_cell_string.iter() {
-                                        edited_cell.connect_edited(clone!(
-                                            packed_file_decoder => move |_ ,tree_path , new_text| {
-
-                                            let edited_cell = packed_file_decoder.fields_list_store.get_iter(&tree_path);
-                                            let edited_cell_column = packed_file_decoder.fields_tree_view.get_cursor().1.unwrap().get_sort_column_id() as u32;
-                                            packed_file_decoder.fields_list_store.set_value(&edited_cell.unwrap(), edited_cell_column, &new_text.to_value());
-                                        }));
+                                        }
+                                        Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string()),
                                     }
-                                }
+                                },
                                 Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string()),
                             }
-
                             Inhibit(false)
                         }));
                     }

@@ -81,9 +81,27 @@ impl Schema {
         }
     }
 
-    /// This function adds a new TableDefinitions to the schema.
-    pub fn add_table_definitions(&mut self, table_definitions: &TableDefinitions) {
-        self.tables_definitions.push(table_definitions.clone());
+    /// This function adds a new TableDefinitions to the schema. This checks if that table definitions
+    /// already exists, and replace it in that case.
+    pub fn add_table_definitions(&mut self, table_definitions: TableDefinitions) {
+
+        let name = table_definitions.name.to_owned();
+        let mut index_name = 0;
+        let mut index_found = false;
+        for (index, definitions) in self.tables_definitions.iter().enumerate() {
+            if definitions.name == name {
+                index_name = index;
+                index_found = true;
+                break;
+            }
+        }
+        if index_found {
+            self.tables_definitions.remove(index_name);
+            self.tables_definitions.insert(index_name, table_definitions);
+        }
+        else {
+            self.tables_definitions.push(table_definitions);
+        }
     }
 
     /// This functions returns the index of the definitions for a table.
@@ -125,7 +143,7 @@ impl TableDefinitions {
     /// of the table we are trying to decode.
     pub fn new(name: &str, version: u32) -> TableDefinitions {
         let name = name.to_string();
-        let versions = vec![TableDefinition::new(version)];
+        let versions = vec![];
 
         TableDefinitions {
             name,

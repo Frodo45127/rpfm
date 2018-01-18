@@ -6,8 +6,9 @@ extern crate hex_slice;
 use packedfile::db::*;
 use packedfile::db::schemas::*;
 use common::coding_helpers;
-
-use std::io::Error;
+use std::io::{
+    Error, ErrorKind
+};
 use gtk::prelude::*;
 use gtk::{
     Box, TreeView, ListStore, ScrolledWindow, Button, Orientation, TextView, Label, Entry, ToggleButton,
@@ -59,6 +60,8 @@ pub struct PackedFileDBDecoder {
     pub save_decoded_schema: Button,
     pub fields_tree_view_cell_bool: CellRendererToggle,
     pub fields_tree_view_cell_string: Vec<CellRendererText>,
+    pub delete_last_field_button: Button,
+    pub delete_all_fields_button: Button,
 }
 
 /// Implementation of "PackedFileDBTreeView".
@@ -395,94 +398,8 @@ impl PackedFileDBDecoder {
         let packed_file_decoded_data_box = Box::new(Orientation::Vertical, 0);
 
         // Then, the box for all the labels, fields and buttons.
-        let bool_box = Box::new(Orientation::Horizontal, 0);
-        let float_box = Box::new(Orientation::Horizontal, 0);
-        let integer_box = Box::new(Orientation::Horizontal, 0);
-        let string_u8_box = Box::new(Orientation::Horizontal, 0);
-        let string_u16_box = Box::new(Orientation::Horizontal, 0);
-        let optional_string_u8_box = Box::new(Orientation::Horizontal, 0);
-        let optional_string_u16_box = Box::new(Orientation::Horizontal, 0);
-
-        let bool_label = Label::new(Some("Decoded as \"Bool\":"));
-        let float_label = Label::new(Some("Decoded as \"Float\":"));
-        let integer_label = Label::new(Some("Decoded as \"Integer\":"));
-        let string_u8_label = Label::new(Some("Decoded as \"String u8\":"));
-        let string_u16_label = Label::new(Some("Decoded as \"String u16\":"));
-        let optional_string_u8_label = Label::new(Some("Decoded as \"Optional String u8\":"));
-        let optional_string_u16_label = Label::new(Some("Decoded as \"Optional String u16\":"));
-
-        bool_label.set_size_request(200, 0);
-        float_label.set_size_request(200, 0);
-        integer_label.set_size_request(200, 0);
-        string_u8_label.set_size_request(200, 0);
-        string_u16_label.set_size_request(200, 0);
-        optional_string_u8_label.set_size_request(200, 0);
-        optional_string_u16_label.set_size_request(200, 0);
-
-        bool_label.set_alignment(0.0, 0.5);
-        float_label.set_alignment(0.0, 0.5);
-        integer_label.set_alignment(0.0, 0.5);
-        string_u8_label.set_alignment(0.0, 0.5);
-        string_u16_label.set_alignment(0.0, 0.5);
-        optional_string_u8_label.set_alignment(0.0, 0.5);
-        optional_string_u16_label.set_alignment(0.0, 0.5);
-
-        let bool_entry = Entry::new();
-        let float_entry = Entry::new();
-        let integer_entry = Entry::new();
-        let string_u8_entry = Entry::new();
-        let string_u16_entry = Entry::new();
-        let optional_string_u8_entry = Entry::new();
-        let optional_string_u16_entry = Entry::new();
-
-        let use_bool_button = Button::new_with_label("Use this");
-        let use_float_button = Button::new_with_label("Use this");
-        let use_integer_button = Button::new_with_label("Use this");
-        let use_string_u8_button = Button::new_with_label("Use this");
-        let use_string_u16_button = Button::new_with_label("Use this");
-        let use_optional_string_u8_button = Button::new_with_label("Use this");
-        let use_optional_string_u16_button = Button::new_with_label("Use this");
-
-        bool_box.pack_start(&bool_label, false, false, 10);
-        bool_box.pack_start(&bool_entry, false, false, 0);
-        bool_box.pack_start(&use_bool_button, false, false, 0);
-        packed_file_decoded_data_box.pack_start(&bool_box, false, false, 2);
-
-        float_box.pack_start(&float_label, false, false, 10);
-        float_box.pack_start(&float_entry, false, false, 0);
-        float_box.pack_start(&use_float_button, false, false, 0);
-        packed_file_decoded_data_box.pack_start(&float_box, false, false, 2);
-
-        integer_box.pack_start(&integer_label, false, false, 10);
-        integer_box.pack_start(&integer_entry, false, false, 0);
-        integer_box.pack_start(&use_integer_button, false, false, 0);
-        packed_file_decoded_data_box.pack_start(&integer_box, false, false, 2);
-
-        string_u8_box.pack_start(&string_u8_label, false, false, 10);
-        string_u8_box.pack_start(&string_u8_entry, false, false, 0);
-        string_u8_box.pack_start(&use_string_u8_button, false, false, 0);
-        packed_file_decoded_data_box.pack_start(&string_u8_box, false, false, 2);
-
-        string_u16_box.pack_start(&string_u16_label, false, false, 10);
-        string_u16_box.pack_start(&string_u16_entry, false, false, 0);
-        string_u16_box.pack_start(&use_string_u16_button, false, false, 0);
-        packed_file_decoded_data_box.pack_start(&string_u16_box, false, false, 2);
-
-        optional_string_u8_box.pack_start(&optional_string_u8_label, false, false, 10);
-        optional_string_u8_box.pack_start(&optional_string_u8_entry, false, false, 0);
-        optional_string_u8_box.pack_start(&use_optional_string_u8_button, false, false, 0);
-        packed_file_decoded_data_box.pack_start(&optional_string_u8_box, false, false, 2);
-
-        optional_string_u16_box.pack_start(&optional_string_u16_label, false, false, 10);
-        optional_string_u16_box.pack_start(&optional_string_u16_entry, false, false, 0);
-        optional_string_u16_box.pack_start(&use_optional_string_u16_button, false, false, 0);
-        packed_file_decoded_data_box.pack_start(&optional_string_u16_box, false, false, 2);
-
-        // Then, we put another box (boxception) and put in it the data of the table, the buttons
-        // to set the field as "key" and for finishing the decoding.
-        let packed_file_field_settings_box = Box::new(Orientation::Vertical, 0);
         let fields_tree_view = TreeView::new();
-        let fields_list_store = ListStore::new(&[String::static_type(), String::static_type(), String::static_type(), bool::static_type(), String::static_type(), String::static_type()]);
+        let fields_list_store = ListStore::new(&[String::static_type(), String::static_type(), String::static_type(), bool::static_type(), String::static_type(), String::static_type(), String::static_type()]);
         fields_tree_view.set_model(Some(&fields_list_store));
 
         let mut fields_tree_view_cell_string = vec![];
@@ -538,16 +455,145 @@ impl PackedFileDBDecoder {
         column_ref_column.set_title("Ref. to column");
         fields_tree_view_cell_string.push(cell_ref_column);
 
+        let column_decoded = TreeViewColumn::new();
+        let cell_decoded = CellRendererText::new();
+        cell_decoded.set_property_editable(false);
+        column_decoded.pack_start(&cell_decoded, true);
+        column_decoded.add_attribute(&cell_decoded, "text", 6);
+        column_decoded.set_sort_column_id(6);
+        column_decoded.set_title("First row decoded");
+
         fields_tree_view.append_column(&column_index);
         fields_tree_view.append_column(&column_name);
         fields_tree_view.append_column(&column_type);
         fields_tree_view.append_column(&column_key);
         fields_tree_view.append_column(&column_ref_table);
         fields_tree_view.append_column(&column_ref_column);
+        fields_tree_view.append_column(&column_decoded);
 
         let fields_tree_view_scroll = ScrolledWindow::new(None, None);
+        fields_tree_view_scroll.add(&fields_tree_view);
         fields_tree_view_scroll.set_size_request(400, 350);
+        packed_file_decoded_data_box.pack_start(&fields_tree_view_scroll, false, false, 2);
 
+        let bool_box = Box::new(Orientation::Horizontal, 0);
+        let float_box = Box::new(Orientation::Horizontal, 0);
+        let integer_box = Box::new(Orientation::Horizontal, 0);
+        let string_u8_box = Box::new(Orientation::Horizontal, 0);
+        let string_u16_box = Box::new(Orientation::Horizontal, 0);
+        let optional_string_u8_box = Box::new(Orientation::Horizontal, 0);
+        let optional_string_u16_box = Box::new(Orientation::Horizontal, 0);
+
+        let bool_label = Label::new(Some("Decoded as \"Bool\":"));
+        let float_label = Label::new(Some("Decoded as \"Float\":"));
+        let integer_label = Label::new(Some("Decoded as \"Integer\":"));
+        let string_u8_label = Label::new(Some("Decoded as \"String u8\":"));
+        let string_u16_label = Label::new(Some("Decoded as \"String u16\":"));
+        let optional_string_u8_label = Label::new(Some("Decoded as \"Optional String u8\":"));
+        let optional_string_u16_label = Label::new(Some("Decoded as \"Optional String u16\":"));
+
+        bool_label.set_size_request(200, 0);
+        float_label.set_size_request(200, 0);
+        integer_label.set_size_request(200, 0);
+        string_u8_label.set_size_request(200, 0);
+        string_u16_label.set_size_request(200, 0);
+        optional_string_u8_label.set_size_request(200, 0);
+        optional_string_u16_label.set_size_request(200, 0);
+
+        bool_label.set_alignment(0.0, 0.5);
+        float_label.set_alignment(0.0, 0.5);
+        integer_label.set_alignment(0.0, 0.5);
+        string_u8_label.set_alignment(0.0, 0.5);
+        string_u16_label.set_alignment(0.0, 0.5);
+        optional_string_u8_label.set_alignment(0.0, 0.5);
+        optional_string_u16_label.set_alignment(0.0, 0.5);
+
+        let bool_entry = Entry::new();
+        let float_entry = Entry::new();
+        let integer_entry = Entry::new();
+        let string_u8_entry = Entry::new();
+        let string_u16_entry = Entry::new();
+        let optional_string_u8_entry = Entry::new();
+        let optional_string_u16_entry = Entry::new();
+
+        let bool_entry_scroll = ScrolledWindow::new(None, None);
+        let float_entry_scroll = ScrolledWindow::new(None, None);
+        let integer_entry_scroll = ScrolledWindow::new(None, None);
+        let string_u8_entry_scroll = ScrolledWindow::new(None, None);
+        let string_u16_entry_scroll = ScrolledWindow::new(None, None);
+        let optional_string_u8_entry_scroll = ScrolledWindow::new(None, None);
+        let optional_string_u16_entry_scroll = ScrolledWindow::new(None, None);
+
+        bool_entry_scroll.add(&bool_entry);
+        float_entry_scroll.add(&float_entry);
+        integer_entry_scroll.add(&integer_entry);
+        string_u8_entry_scroll.add(&string_u8_entry);
+        string_u16_entry_scroll.add(&string_u16_entry);
+        optional_string_u8_entry_scroll.add(&optional_string_u8_entry);
+        optional_string_u16_entry_scroll.add(&optional_string_u16_entry);
+
+        bool_entry_scroll.set_size_request(400, 0);
+        float_entry_scroll.set_size_request(400, 0);
+        integer_entry_scroll.set_size_request(400, 0);
+        string_u8_entry_scroll.set_size_request(400, 0);
+        string_u16_entry_scroll.set_size_request(400, 0);
+        optional_string_u8_entry_scroll.set_size_request(400, 0);
+        optional_string_u16_entry_scroll.set_size_request(400, 0);
+
+        let use_bool_button = Button::new_with_label("Use this");
+        let use_float_button = Button::new_with_label("Use this");
+        let use_integer_button = Button::new_with_label("Use this");
+        let use_string_u8_button = Button::new_with_label("Use this");
+        let use_string_u16_button = Button::new_with_label("Use this");
+        let use_optional_string_u8_button = Button::new_with_label("Use this");
+        let use_optional_string_u16_button = Button::new_with_label("Use this");
+
+        bool_box.pack_start(&bool_label, false, false, 10);
+        bool_box.pack_end(&use_bool_button, true, false, 0);
+        bool_box.pack_end(&bool_entry_scroll, true, false, 0);
+        packed_file_decoded_data_box.pack_start(&bool_box, false, false, 2);
+
+        float_box.pack_start(&float_label, false, false, 10);
+        float_box.pack_end(&use_float_button, true, false, 0);
+        float_box.pack_end(&float_entry_scroll, true, false, 0);
+        packed_file_decoded_data_box.pack_start(&float_box, false, false, 2);
+
+        integer_box.pack_start(&integer_label, false, false, 10);
+        integer_box.pack_end(&use_integer_button, true, false, 0);
+        integer_box.pack_end(&integer_entry_scroll, true, false, 0);
+        packed_file_decoded_data_box.pack_start(&integer_box, false, false, 2);
+
+        string_u8_box.pack_start(&string_u8_label, false, false, 10);
+        string_u8_box.pack_end(&use_string_u8_button, true, false, 0);
+        string_u8_box.pack_end(&string_u8_entry_scroll, true, false, 0);
+        packed_file_decoded_data_box.pack_start(&string_u8_box, false, false, 2);
+
+        string_u16_box.pack_start(&string_u16_label, false, false, 10);
+        string_u16_box.pack_end(&use_string_u16_button, true, false, 0);
+        string_u16_box.pack_end(&string_u16_entry_scroll, true, false, 0);
+        packed_file_decoded_data_box.pack_start(&string_u16_box, false, false, 2);
+
+        optional_string_u8_box.pack_start(&optional_string_u8_label, false, false, 10);
+        optional_string_u8_box.pack_end(&use_optional_string_u8_button, true, false, 0);
+        optional_string_u8_box.pack_end(&optional_string_u8_entry_scroll, true, false, 0);
+        packed_file_decoded_data_box.pack_start(&optional_string_u8_box, false, false, 2);
+
+        optional_string_u16_box.pack_start(&optional_string_u16_label, false, false, 10);
+        optional_string_u16_box.pack_end(&use_optional_string_u16_button, true, false, 0);
+        optional_string_u16_box.pack_end(&optional_string_u16_entry_scroll, true, false, 0);
+        packed_file_decoded_data_box.pack_start(&optional_string_u16_box, false, false, 2);
+
+        let delete_buttons_box = Box::new(Orientation::Horizontal, 0);
+        let delete_last_field_button = Button::new_with_label("Remove last field");
+        let delete_all_fields_button = Button::new_with_label("Remove all fields");
+        delete_buttons_box.pack_start(&delete_last_field_button, false, true, 2);
+        delete_buttons_box.pack_start(&delete_all_fields_button, false, true, 2);
+        delete_buttons_box.set_homogeneous(true);
+        packed_file_decoded_data_box.pack_start(&delete_buttons_box, false, false, 2);
+
+        // Then, we put another box (boxception) and put in it the data of the table, the buttons
+        // to set the field as "key" and for finishing the decoding.
+        let packed_file_field_settings_box = Box::new(Orientation::Vertical, 0);
         let packed_file_field_settings_box_table_type = Box::new(Orientation::Horizontal, 0);
         let packed_file_decoded_data_table_type_label = Label::new("Table Type:");
         let table_type_label = Label::new("0");
@@ -560,6 +606,7 @@ impl PackedFileDBDecoder {
         let field_name_box = Box::new(Orientation::Horizontal, 0);
         let field_name_label = Label::new("Field Name:");
         let field_name_entry = Entry::new();
+        let field_name_entry_scroll = ScrolledWindow::new(None, None);
 
         let is_key_field_button = ToggleButton::new_with_label("Key field");
         let save_decoded_schema = Button::new_with_label("Finish It!");
@@ -574,10 +621,10 @@ impl PackedFileDBDecoder {
         packed_file_field_settings_box_table_entry_count.pack_start(&table_entry_count_label, false, false, 2);
 
         field_name_box.pack_start(&field_name_label, false, false, 2);
-        field_name_box.pack_start(&field_name_entry, false, false, 2);
+        field_name_entry_scroll.add(&field_name_entry);
+        field_name_entry_scroll.set_size_request(400, 0);
+        field_name_box.pack_start(&field_name_entry_scroll, false, false, 2);
 
-        fields_tree_view_scroll.add(&fields_tree_view);
-        packed_file_field_settings_box.pack_start(&fields_tree_view_scroll, false, false, 2);
         packed_file_field_settings_box.pack_start(&field_name_box, false, false, 2);
         packed_file_field_settings_box.pack_start(&packed_file_field_settings_box_table_type, false, false, 2);
         packed_file_field_settings_box.pack_start(&packed_file_field_settings_box_table_version, false, false, 2);
@@ -620,6 +667,8 @@ impl PackedFileDBDecoder {
             save_decoded_schema,
             fields_tree_view_cell_bool,
             fields_tree_view_cell_string,
+            delete_last_field_button,
+            delete_all_fields_button,
         }
     }
 
@@ -628,7 +677,7 @@ impl PackedFileDBDecoder {
         packed_file_decoder_view: &PackedFileDBDecoder,
         packed_file_table_type: &str,
         packed_file_encoded: &Vec<u8>
-    ) -> Result<(DBHeader, usize), Error> {
+    ) -> Result<(), Error> {
         let db_header = DBHeader::read(packed_file_encoded.to_vec())?;
 
         let hex_lines = (packed_file_encoded.len() / 16) + 1;
@@ -696,11 +745,10 @@ impl PackedFileDBDecoder {
 
         packed_file_decoder_view.raw_data.get_buffer().unwrap().set_text(&hex_raw_data);
 
-
         packed_file_decoder_view.table_type_label.set_text(packed_file_table_type);
         packed_file_decoder_view.table_version_label.set_text(&format!("{}", db_header.0.packed_file_header_packed_file_version));
         packed_file_decoder_view.table_entry_count_label.set_text(&format!("{}", db_header.0.packed_file_header_packed_file_entry_count));
-        Ok(db_header)
+        Ok(())
     }
 
     /// This function updates the data shown in the "Decoder" box when we execute it.
@@ -709,7 +757,8 @@ impl PackedFileDBDecoder {
         packed_file_decoded: Vec<u8>,
         table_definition: &TableDefinition,
         index_data: usize,
-    ) {
+        load_from_existing_definition: bool
+    ) -> Result<usize, Error> {
 
         // We need to get the length of the vector first, to avoid crashes due to non-existant indexes
         let decoded_bool;
@@ -719,6 +768,25 @@ impl PackedFileDBDecoder {
         let decoded_string_u16;
         let decoded_optional_string_u8;
         let decoded_optional_string_u16;
+
+        let mut index_data = index_data.clone();
+        // TODO: Fix index and save button.
+        // If we are loading data to the table for the first time, we'll load to the table all the data
+        // directly from the existing definition and update the initial index for decoding.
+        if load_from_existing_definition && !table_definition.fields.is_empty() {
+            for (index, field) in table_definition.fields.iter().enumerate() {
+                index_data = PackedFileDBDecoder::add_field_to_data_view(
+                    &packed_file_decoder,
+                    packed_file_decoded.to_vec(),
+                    &table_definition,
+                    &field.field_name,
+                    field.field_type.to_owned(),
+                    field.field_is_key,
+                    field.field_is_reference.clone(),
+                    index_data,
+                )?;
+            }
+        }
 
         // Check if the index does even exist, to avoid crashes.
         if index_data < packed_file_decoded.len() {
@@ -805,51 +873,147 @@ impl PackedFileDBDecoder {
         packed_file_decoder.optional_string_u8_entry.get_buffer().set_text(&format!("{:?}", decoded_optional_string_u8));
         packed_file_decoder.optional_string_u16_entry.get_buffer().set_text(&format!("{:?}", decoded_optional_string_u16));
 
-        // We clear the store, then we rebuild it.
-        packed_file_decoder.fields_list_store.clear();
-        for (index, field) in table_definition.fields.iter().enumerate() {
-            let field_type = match field.field_type {
-                FieldType::Boolean => "Bool",
-                FieldType::Float => "Float",
-                FieldType::Integer => "Integer",
-                FieldType::StringU8 => "StringU8",
-                FieldType::StringU16 => "StringU16",
-                FieldType::OptionalStringU8 => "OptionalStringU8",
-                FieldType::OptionalStringU16 => "OptionalStringU16",
-            };
-            if let Some(ref reference) = field.field_is_reference {
-                packed_file_decoder.fields_list_store.insert_with_values(
-                    None,
-                    &[0, 1, 2, 3, 4, 5],
-                    &[&format!(
-                        "{:0count$}", index, count = (table_definition.fields.len().to_string().len() + 1)),
-                        &field.field_name,
-                        &field_type,
-                        &field.field_is_key,
-                        &reference.0,
-                        &reference.1
-                    ]
-                );
-            }
-            else {
-                packed_file_decoder.fields_list_store.insert_with_values(
-                    None,
-                    &[0, 1, 2, 3, 4, 5],
-                    &[
-                        &format!("{:0count$}", index, count = (table_definition.fields.len().to_string().len() + 1)),
-                        &field.field_name,
-                        &field_type,
-                        &field.field_is_key,
-                        &String::new(),
-                        &String::new()
-                    ]
-                );
-            }
-
-        }
         // We reset these two every time we add a field.
-        packed_file_decoder.field_name_entry.get_buffer().set_text("");
+        packed_file_decoder.field_name_entry.get_buffer().set_text(&format!("Unknown {}", index_data));
         packed_file_decoder.is_key_field_button.set_active(false);
+
+        Ok(index_data)
+    }
+
+    /// This function adds fields to the "Decoder" table, so we can do this without depending on the
+    /// updates of the Decoder view. As this has a lot of required data, lets's explain:
+    /// - packed_file_decoder: a PackedFileDBDecoder reference, so we can update the field list.
+    /// - packed_file_decoded: the data to decode.
+    /// - table_definition: needed to get the "index" number properly.
+    /// - field_name: the name of the field.
+    /// - field_type: the type of the field.
+    /// - field_is_key: if the field is key or not.
+    /// - reference: the reference data of the field, if it's a reference to another field.
+    /// - index_data: the index to start decoding from the vector.
+    pub fn add_field_to_data_view(
+        packed_file_decoder: &PackedFileDBDecoder,
+        packed_file_decoded: Vec<u8>,
+        table_definition: &TableDefinition,
+        field_name: &str,
+        field_type: FieldType,
+        field_is_key: bool,
+        field_is_reference: Option<(String, String)>,
+        index_data: usize
+    ) -> Result<usize, Error> {
+
+        let field_index = table_definition.fields.len();
+
+        let decoded_data = match field_type {
+            FieldType::Boolean => {
+                // Check if the index does even exist, to avoid crashes.
+                if index_data < packed_file_decoded.len() {
+                    match coding_helpers::decode_packedfile_bool(packed_file_decoded[index_data], index_data) {
+                        Ok(result) => {
+                            if result.0 {
+                                ("True".to_string(), result.1)
+                            }
+                            else {
+                                ("False".to_string(), result.1)
+                            }
+                        }
+                        Err(error) => return Err(error),
+                    }
+                }
+                else {
+                    return Err(Error::new(ErrorKind::Other, format!("Error while trying to get the first row decoded. If there is at least a row in the file, this is probably a broken definition.")))
+                }
+            },
+            FieldType::Float => {
+                if (index_data + 4) < packed_file_decoded.len() {
+                    match coding_helpers::decode_packedfile_float_u32(packed_file_decoded[index_data..(index_data + 4)].to_vec(), index_data) {
+                        Ok(result) => (result.0.to_string(), result.1),
+                        Err(error) => return Err(error),
+                    }
+                }
+                else {
+                    return Err(Error::new(ErrorKind::Other, format!("Error while trying to get the first row decoded. If there is at least a row in the file, this is probably a broken definition.")))
+                }
+            },
+            FieldType::Integer => {
+                if (index_data + 4) < packed_file_decoded.len() {
+                    match coding_helpers::decode_packedfile_integer_u32(packed_file_decoded[index_data..(index_data + 4)].to_vec(), index_data) {
+                        Ok(result) => (result.0.to_string(), result.1),
+                        Err(error) => return Err(error),
+                    }
+                }
+                else {
+                    return Err(Error::new(ErrorKind::Other, format!("Error while trying to get the first row decoded. If there is at least a row in the file, this is probably a broken definition.")))
+                }
+            },
+            FieldType::StringU8 => {
+                match coding_helpers::decode_packedfile_string_u8(packed_file_decoded[index_data..].to_vec(), index_data) {
+                    Ok(result) => result,
+                    Err(error) => return Err(error),
+                }
+            },
+            FieldType::StringU16 => {
+                match coding_helpers::decode_packedfile_string_u16(packed_file_decoded[index_data..].to_vec(), index_data){
+                    Ok(result) => result,
+                    Err(error) => return Err(error),
+                }
+            },
+            FieldType::OptionalStringU8 => {
+                match coding_helpers::decode_packedfile_optional_string_u8(packed_file_decoded[index_data..].to_vec(), index_data) {
+                    Ok(result) => result,
+                    Err(error) => return Err(error),
+                }
+            },
+            FieldType::OptionalStringU16 => {
+                match coding_helpers::decode_packedfile_optional_string_u16(packed_file_decoded[index_data..].to_vec(), index_data) {
+                    Ok(result) => result,
+                    Err(error) => return Err(error),
+                }
+            },
+        };
+
+        let field_type = match field_type {
+            FieldType::Boolean => "Bool",
+            FieldType::Float => "Float",
+            FieldType::Integer => "Integer",
+            FieldType::StringU8 => "StringU8",
+            FieldType::StringU16 => "StringU16",
+            FieldType::OptionalStringU8 => "OptionalStringU8",
+            FieldType::OptionalStringU16 => "OptionalStringU16",
+        };
+
+        if let Some(ref reference) = field_is_reference {
+            packed_file_decoder.fields_list_store.insert_with_values(
+                None,
+                &[0, 1, 2, 3, 4, 5, 6],
+                &[
+                    &format!("{:0count$}", field_index + 1, count = (field_index.to_string().len() + 1)),
+                    &field_name,
+                    &field_type,
+                    &field_is_key,
+                    &reference.0,
+                    &reference.1,
+                    &decoded_data.0
+                ]
+            );
+        }
+        else {
+            packed_file_decoder.fields_list_store.insert_with_values(
+                None,
+                &[0, 1, 2, 3, 4, 5, 6],
+                &[
+                    &format!("{:0count$}", field_index + 1, count = (field_index.to_string().len() + 1)),
+                    &field_name,
+                    &field_type,
+                    &field_is_key,
+                    &String::new(),
+                    &String::new(),
+                    &decoded_data.0
+                ]
+            );
+        }
+
+        // We return the updated index.
+        Ok( decoded_data.1)
     }
 
     /// This function gets the data from the "Decoder" table, and returns it, so we can save it in a

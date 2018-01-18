@@ -120,9 +120,14 @@ impl DB {
 
     /// This function gets the schema corresponding to the table we passed it, if it exists.
     pub fn get_schema(db_name: &str, version: u32, schema: &schemas::Schema) -> Option<schemas::TableDefinition> {
+        // If we find our table in the TableDefinitions vector...
         if let Some(index_table_definitions) = schema.get_table_definitions(db_name) {
+            // And it has a definition created for our version of the table...
             if let Some(index_table_versions) = schema.tables_definitions[index_table_definitions].get_table_version(version) {
-                return Some(schema.tables_definitions[index_table_definitions].versions[index_table_versions].clone())
+                // And that definition has any fields, we get it.
+                if !schema.tables_definitions[index_table_definitions].versions[index_table_versions].fields.is_empty() {
+                    return Some(schema.tables_definitions[index_table_definitions].versions[index_table_versions].clone())
+                }
             }
         }
         None
