@@ -12,7 +12,7 @@ use std::io::{
 use gtk::prelude::*;
 use gtk::{
     Box, TreeView, ListStore, ScrolledWindow, Button, Orientation, TextView, Label, Entry, ToggleButton,
-    CellRendererText, TreeViewColumn, CellRendererToggle, Type, WrapMode, Justification
+    CellRendererText, TreeViewColumn, CellRendererToggle, Type, WrapMode, Justification, Frame
 };
 
 use self::hex_slice::AsHex;
@@ -395,6 +395,8 @@ impl PackedFileDBDecoder {
         //packed_file_raw_data_scroll.set_max_content_width(400);
 
         // Then, the big box to put all the stuff we need to decode.
+        let packed_file_decoded_data_big_boxx = Box::new(Orientation::Vertical, 0);
+        let packed_file_decoded_data_less_bigger_boxx = Box::new(Orientation::Horizontal, 0);
         let packed_file_decoded_data_box = Box::new(Orientation::Vertical, 0);
 
         // Then, the box for all the labels, fields and buttons.
@@ -463,6 +465,14 @@ impl PackedFileDBDecoder {
         column_decoded.set_sort_column_id(6);
         column_decoded.set_title("First row decoded");
 
+        let column_decoded = TreeViewColumn::new();
+        let cell_decoded = CellRendererText::new();
+        cell_decoded.set_property_editable(false);
+        column_decoded.pack_start(&cell_decoded, true);
+        column_decoded.add_attribute(&cell_decoded, "text", 6);
+        column_decoded.set_sort_column_id(6);
+        column_decoded.set_title("First row decoded");
+
         fields_tree_view.append_column(&column_index);
         fields_tree_view.append_column(&column_name);
         fields_tree_view.append_column(&column_type);
@@ -474,7 +484,6 @@ impl PackedFileDBDecoder {
         let fields_tree_view_scroll = ScrolledWindow::new(None, None);
         fields_tree_view_scroll.add(&fields_tree_view);
         fields_tree_view_scroll.set_size_request(400, 350);
-        packed_file_decoded_data_box.pack_start(&fields_tree_view_scroll, false, false, 2);
 
         let bool_box = Box::new(Orientation::Horizontal, 0);
         let float_box = Box::new(Orientation::Horizontal, 0);
@@ -516,29 +525,13 @@ impl PackedFileDBDecoder {
         let optional_string_u8_entry = Entry::new();
         let optional_string_u16_entry = Entry::new();
 
-        let bool_entry_scroll = ScrolledWindow::new(None, None);
-        let float_entry_scroll = ScrolledWindow::new(None, None);
-        let integer_entry_scroll = ScrolledWindow::new(None, None);
-        let string_u8_entry_scroll = ScrolledWindow::new(None, None);
-        let string_u16_entry_scroll = ScrolledWindow::new(None, None);
-        let optional_string_u8_entry_scroll = ScrolledWindow::new(None, None);
-        let optional_string_u16_entry_scroll = ScrolledWindow::new(None, None);
-
-        bool_entry_scroll.add(&bool_entry);
-        float_entry_scroll.add(&float_entry);
-        integer_entry_scroll.add(&integer_entry);
-        string_u8_entry_scroll.add(&string_u8_entry);
-        string_u16_entry_scroll.add(&string_u16_entry);
-        optional_string_u8_entry_scroll.add(&optional_string_u8_entry);
-        optional_string_u16_entry_scroll.add(&optional_string_u16_entry);
-
-        bool_entry_scroll.set_size_request(400, 0);
-        float_entry_scroll.set_size_request(400, 0);
-        integer_entry_scroll.set_size_request(400, 0);
-        string_u8_entry_scroll.set_size_request(400, 0);
-        string_u16_entry_scroll.set_size_request(400, 0);
-        optional_string_u8_entry_scroll.set_size_request(400, 0);
-        optional_string_u16_entry_scroll.set_size_request(400, 0);
+        bool_entry.set_size_request(400, 0);
+        float_entry.set_size_request(400, 0);
+        integer_entry.set_size_request(400, 0);
+        string_u8_entry.set_size_request(400, 0);
+        string_u16_entry.set_size_request(400, 0);
+        optional_string_u8_entry.set_size_request(400, 0);
+        optional_string_u16_entry.set_size_request(400, 0);
 
         let use_bool_button = Button::new_with_label("Use this");
         let use_float_button = Button::new_with_label("Use this");
@@ -550,37 +543,37 @@ impl PackedFileDBDecoder {
 
         bool_box.pack_start(&bool_label, false, false, 10);
         bool_box.pack_end(&use_bool_button, true, false, 0);
-        bool_box.pack_end(&bool_entry_scroll, true, false, 0);
+        bool_box.pack_end(&bool_entry, true, false, 0);
         packed_file_decoded_data_box.pack_start(&bool_box, false, false, 2);
 
         float_box.pack_start(&float_label, false, false, 10);
         float_box.pack_end(&use_float_button, true, false, 0);
-        float_box.pack_end(&float_entry_scroll, true, false, 0);
+        float_box.pack_end(&float_entry, true, false, 0);
         packed_file_decoded_data_box.pack_start(&float_box, false, false, 2);
 
         integer_box.pack_start(&integer_label, false, false, 10);
         integer_box.pack_end(&use_integer_button, true, false, 0);
-        integer_box.pack_end(&integer_entry_scroll, true, false, 0);
+        integer_box.pack_end(&integer_entry, true, false, 0);
         packed_file_decoded_data_box.pack_start(&integer_box, false, false, 2);
 
         string_u8_box.pack_start(&string_u8_label, false, false, 10);
         string_u8_box.pack_end(&use_string_u8_button, true, false, 0);
-        string_u8_box.pack_end(&string_u8_entry_scroll, true, false, 0);
+        string_u8_box.pack_end(&string_u8_entry, true, false, 0);
         packed_file_decoded_data_box.pack_start(&string_u8_box, false, false, 2);
 
         string_u16_box.pack_start(&string_u16_label, false, false, 10);
         string_u16_box.pack_end(&use_string_u16_button, true, false, 0);
-        string_u16_box.pack_end(&string_u16_entry_scroll, true, false, 0);
+        string_u16_box.pack_end(&string_u16_entry, true, false, 0);
         packed_file_decoded_data_box.pack_start(&string_u16_box, false, false, 2);
 
         optional_string_u8_box.pack_start(&optional_string_u8_label, false, false, 10);
         optional_string_u8_box.pack_end(&use_optional_string_u8_button, true, false, 0);
-        optional_string_u8_box.pack_end(&optional_string_u8_entry_scroll, true, false, 0);
+        optional_string_u8_box.pack_end(&optional_string_u8_entry, true, false, 0);
         packed_file_decoded_data_box.pack_start(&optional_string_u8_box, false, false, 2);
 
         optional_string_u16_box.pack_start(&optional_string_u16_label, false, false, 10);
         optional_string_u16_box.pack_end(&use_optional_string_u16_button, true, false, 0);
-        optional_string_u16_box.pack_end(&optional_string_u16_entry_scroll, true, false, 0);
+        optional_string_u16_box.pack_end(&optional_string_u16_entry, true, false, 0);
         packed_file_decoded_data_box.pack_start(&optional_string_u16_box, false, false, 2);
 
         let delete_buttons_box = Box::new(Orientation::Horizontal, 0);
@@ -594,19 +587,27 @@ impl PackedFileDBDecoder {
         // Then, we put another box (boxception) and put in it the data of the table, the buttons
         // to set the field as "key" and for finishing the decoding.
         let packed_file_field_settings_box = Box::new(Orientation::Vertical, 0);
+
+        // For the frame, we need an internal box, as a frame it seems only can hold one child.
+        let packed_file_table_info_frame = Frame::new(Some("Table info"));
+        let packed_file_field_info_frame_box = Box::new(Orientation::Vertical, 0);
+
         let packed_file_field_settings_box_table_type = Box::new(Orientation::Horizontal, 0);
-        let packed_file_decoded_data_table_type_label = Label::new("Table Type:");
-        let table_type_label = Label::new("0");
         let packed_file_field_settings_box_table_version = Box::new(Orientation::Horizontal, 0);
-        let packed_file_decoded_data_table_version_label = Label::new("Table Version:");
-        let table_version_label = Label::new("1");
         let packed_file_field_settings_box_table_entry_count = Box::new(Orientation::Horizontal, 0);
-        let packed_file_decoded_data_table_entry_count_label = Label::new("Table Entry Count:");
+
+        let packed_file_decoded_data_table_type_label = Label::new("Table type:");
+        let packed_file_decoded_data_table_version_label = Label::new("Table version:");
+        let packed_file_decoded_data_table_entry_count_label = Label::new("Table entry count:");
+
+        let table_type_label = Label::new("0");
+        let table_version_label = Label::new("1");
         let table_entry_count_label = Label::new("2");
+
         let field_name_box = Box::new(Orientation::Horizontal, 0);
         let field_name_label = Label::new("Field Name:");
         let field_name_entry = Entry::new();
-        let field_name_entry_scroll = ScrolledWindow::new(None, None);
+        field_name_entry.set_size_request(400, 0);
 
         let is_key_field_button = ToggleButton::new_with_label("Key field");
         let save_decoded_schema = Button::new_with_label("Finish It!");
@@ -620,22 +621,28 @@ impl PackedFileDBDecoder {
         packed_file_field_settings_box_table_entry_count.pack_start(&packed_file_decoded_data_table_entry_count_label, false, false, 2);
         packed_file_field_settings_box_table_entry_count.pack_start(&table_entry_count_label, false, false, 2);
 
-        field_name_box.pack_start(&field_name_label, false, false, 2);
-        field_name_entry_scroll.add(&field_name_entry);
-        field_name_entry_scroll.set_size_request(400, 0);
-        field_name_box.pack_start(&field_name_entry_scroll, false, false, 2);
+        field_name_box.pack_start(&field_name_label, false, false, 6);
+        field_name_box.pack_end(&field_name_entry, false, true, 4);
 
+        packed_file_field_info_frame_box.pack_start(&packed_file_field_settings_box_table_type, false, false, 2);
+        packed_file_field_info_frame_box.pack_start(&packed_file_field_settings_box_table_version, false, false, 2);
+        packed_file_field_info_frame_box.pack_start(&packed_file_field_settings_box_table_entry_count, false, false, 2);
+        packed_file_table_info_frame.add(&packed_file_field_info_frame_box);
+
+        packed_file_field_settings_box.pack_start(&packed_file_table_info_frame, false, false, 2);
         packed_file_field_settings_box.pack_start(&field_name_box, false, false, 2);
-        packed_file_field_settings_box.pack_start(&packed_file_field_settings_box_table_type, false, false, 2);
-        packed_file_field_settings_box.pack_start(&packed_file_field_settings_box_table_version, false, false, 2);
-        packed_file_field_settings_box.pack_start(&packed_file_field_settings_box_table_entry_count, false, false, 2);
         packed_file_field_settings_box.pack_start(&is_key_field_button, false, false, 2);
         packed_file_field_settings_box.pack_end(&save_decoded_schema, false, false, 2);
 
+        packed_file_decoded_data_less_bigger_boxx.pack_start(&packed_file_decoded_data_box, true, true, 0);
+        packed_file_decoded_data_less_bigger_boxx.pack_end(&packed_file_field_settings_box, true, true, 0);
+
+        packed_file_decoded_data_big_boxx.pack_start(&fields_tree_view_scroll, false, false, 2);
+        packed_file_decoded_data_big_boxx.pack_start(&packed_file_decoded_data_less_bigger_boxx, false, false, 4);
+
         packed_file_raw_data_scroll.add(&raw_data_box);
         decoder_box.add(&packed_file_raw_data_scroll);
-        decoder_box.pack_end(&packed_file_field_settings_box, true, true, 0);
-        decoder_box.pack_end(&packed_file_decoded_data_box, true, true, 0);
+        decoder_box.pack_end(&packed_file_decoded_data_big_boxx, true, true, 0);
 
         packed_file_data_display.show_all();
 
@@ -680,13 +687,16 @@ impl PackedFileDBDecoder {
     ) -> Result<(), Error> {
         let db_header = DBHeader::read(packed_file_encoded.to_vec())?;
 
+        // This creates the "index" column at the left of the hex data.
         let hex_lines = (packed_file_encoded.len() / 16) + 1;
-        let mut hex_lines_text = "00\n".to_string();
-        for hex_line in 1..hex_lines {
+        let mut hex_lines_text = String::new();
+        for hex_line in 0..hex_lines {
             hex_lines_text.push_str(&format!("{:X}\n", hex_line * 16));
         }
         packed_file_decoder_view.raw_data_line_index.set_text(&hex_lines_text);
 
+        // This gets the hex data into place.
+        // FIXME: this is broken for very big files, don't know why.
         let mut hex_raw_data = format!("{:X}", packed_file_encoded.as_hex());
         hex_raw_data.remove(0);
 
@@ -770,7 +780,7 @@ impl PackedFileDBDecoder {
         let decoded_optional_string_u16;
 
         let mut index_data = index_data.clone();
-        // TODO: Fix index and save button.
+        // TODO: Fix index.
         // If we are loading data to the table for the first time, we'll load to the table all the data
         // directly from the existing definition and update the initial index for decoding.
         if load_from_existing_definition && !table_definition.fields.is_empty() {
