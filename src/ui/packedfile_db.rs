@@ -416,7 +416,7 @@ impl PackedFileDBDecoder {
         let fields_tree_view = TreeView::new();
         let fields_list_store = ListStore::new(&[String::static_type(), String::static_type(), String::static_type(), bool::static_type(), String::static_type(), String::static_type(), String::static_type(), String::static_type()]);
         fields_tree_view.set_model(Some(&fields_list_store));
-        // Here we set the TreeView as "drag_dest", so we can drag&drop things to it.
+        // Here we set the TreeView as "drag_dest" and "drag_source", so we can drag&drop things to it.
         let targets = vec![gtk::TargetEntry::new("text/uri-list", gtk::TargetFlags::SAME_WIDGET, 0)];
         fields_tree_view.drag_source_set(gdk::ModifierType::BUTTON1_MASK, &targets, gdk::DragAction::MOVE);
         fields_tree_view.drag_dest_set(gtk::DestDefaults::ALL, &targets, gdk::DragAction::MOVE);
@@ -429,6 +429,7 @@ impl PackedFileDBDecoder {
         column_index.pack_start(&cell_index, true);
         column_index.add_attribute(&cell_index, "text", 0);
         column_index.set_sort_column_id(0);
+        column_index.set_clickable(false);
         column_index.set_title("Index");
 
         let column_name = TreeViewColumn::new();
@@ -437,6 +438,7 @@ impl PackedFileDBDecoder {
         column_name.pack_start(&cell_name, true);
         column_name.add_attribute(&cell_name, "text", 1);
         column_name.set_sort_column_id(1);
+        column_name.set_clickable(false);
         column_name.set_title("Field name");
         fields_tree_view_cell_string.push(cell_name);
 
@@ -457,6 +459,7 @@ impl PackedFileDBDecoder {
         column_type.pack_start(&cell_type, true);
         column_type.add_attribute(&cell_type, "text", 2);
         column_type.set_sort_column_id(2);
+        column_type.set_clickable(false);
         column_type.set_title("Field Type");
         let fields_tree_view_cell_combo = cell_type;
         let fields_tree_view_cell_combo_list_store = cell_type_list_store;
@@ -467,6 +470,7 @@ impl PackedFileDBDecoder {
         column_key.pack_start(&cell_key, true);
         column_key.add_attribute(&cell_key, "active", 3);
         column_key.set_sort_column_id(3);
+        column_key.set_clickable(false);
         column_key.set_title("Is key?");
         let fields_tree_view_cell_bool = cell_key;
 
@@ -476,6 +480,7 @@ impl PackedFileDBDecoder {
         column_ref_table.pack_start(&cell_ref_table, true);
         column_ref_table.add_attribute(&cell_ref_table, "text", 4);
         column_ref_table.set_sort_column_id(4);
+        column_ref_table.set_clickable(false);
         column_ref_table.set_title("Ref. to table");
         fields_tree_view_cell_string.push(cell_ref_table);
 
@@ -485,6 +490,7 @@ impl PackedFileDBDecoder {
         column_ref_column.pack_start(&cell_ref_column, true);
         column_ref_column.add_attribute(&cell_ref_column, "text", 5);
         column_ref_column.set_sort_column_id(5);
+        column_ref_column.set_clickable(false);
         column_ref_column.set_title("Ref. to column");
         fields_tree_view_cell_string.push(cell_ref_column);
 
@@ -494,6 +500,7 @@ impl PackedFileDBDecoder {
         column_decoded.pack_start(&cell_decoded, true);
         column_decoded.add_attribute(&cell_decoded, "text", 6);
         column_decoded.set_sort_column_id(6);
+        column_decoded.set_clickable(false);
         column_decoded.set_title("First row decoded");
 
         let column_description = TreeViewColumn::new();
@@ -502,6 +509,7 @@ impl PackedFileDBDecoder {
         column_description.pack_start(&cell_description, true);
         column_description.add_attribute(&cell_description, "text", 7);
         column_description.set_sort_column_id(7);
+        column_description.set_clickable(false);
         column_description.set_title("Description");
         fields_tree_view_cell_string.push(cell_description);
 
