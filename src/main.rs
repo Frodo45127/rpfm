@@ -2080,6 +2080,20 @@ fn main() {
                                                 Inhibit(false)
                                             }));
 
+                                            // This allow us to remove a field from the list, by selecting it and pressing "Supr".
+                                            packed_file_decoder.fields_tree_view.connect_key_release_event(clone!(
+                                                packed_file_decoder => move |fields_tree_view, key| {
+
+                                                let key_val = key.get_keyval();
+                                                if key_val == 65535 {
+                                                    if let Some(selection) = fields_tree_view.get_selection().get_selected() {
+                                                        packed_file_decoder.fields_list_store.remove(&selection.1);
+                                                    }
+                                                }
+                                                // We need to set this to true to avoid the "Supr" re-fire this event again and again.
+                                                Inhibit(true)
+                                            }));
+
                                             // This saves the schema to a file. It takes the "table_definition" we had for this version of our table, and put
                                             // in it all the fields we have in the fields tree_view.
                                             packed_file_decoder.save_decoded_schema.connect_button_release_event(clone!(
