@@ -227,8 +227,27 @@ impl TableDefinition {
                 continue;
             }
 
+            // We need to fix the names here, so the column names are not broken.
+            let mut new_name: String = String::new();
+            let mut should_be_uppercase = false;
+            for character in field.name.to_owned().chars() {
+                let new_character: char;
+                if new_name.is_empty() || should_be_uppercase {
+                    new_character = character.to_uppercase().to_string().chars().nth(0).unwrap();
+                    should_be_uppercase = false;
+                }
+                else if character == "_".chars().nth(0).unwrap() {
+                    new_character = " ".chars().nth(0).unwrap();
+                    should_be_uppercase = true;
+                }
+                else {
+                    new_character = character;
+                    should_be_uppercase = false;
+                }
+                new_name.push(new_character);
+            }
+            let field_name = new_name;
 
-            let field_name = field.name.to_owned();
             let field_is_key = if field.primary_key == "1" {true} else {false};
 
             let field_is_reference = if field.column_source_table != None {
