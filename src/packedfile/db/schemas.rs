@@ -214,6 +214,7 @@ impl TableDefinition {
                 field.name == "localised_name" ||
                 field.name == "localised_tooltip" ||
                 field.name == "description" ||
+                field.name == "encyclopedia_url" ||
                 field.name == "objectives_team_1" ||
                 field.name == "objectives_team_2" ||
                 field.name == "short_description_text" ||
