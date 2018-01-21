@@ -1835,7 +1835,7 @@ fn main() {
 
                                                 // We are going to check if this is valid when adding the field to the TreeView, so we just add it.
                                                 let index_data_copy = index_data.borrow().clone();
-                                                *index_data.borrow_mut() = match PackedFileDBDecoder::add_field_to_data_view(
+                                                *index_data.borrow_mut() = PackedFileDBDecoder::add_field_to_data_view(
                                                     &packed_file_decoder,
                                                     packed_file_data_encoded.borrow().to_vec(),
                                                     &table_definition.borrow(),
@@ -1845,11 +1845,7 @@ fn main() {
                                                     None,
                                                     String::new(),
                                                     index_data_copy
-                                                ) {
-                                                    Ok(new_index_data) => new_index_data,
-                                                    // In case of error, we don't update the index.
-                                                    Err(_) => index_data_copy,
-                                                };
+                                                );
 
                                                 PackedFileDBDecoder::update_decoder_view(
                                                     &packed_file_decoder,
@@ -1872,7 +1868,7 @@ fn main() {
 
                                                 // We are going to check if this is valid when adding the field to the TreeView, so we just add it.
                                                 let index_data_copy = index_data.borrow().clone();
-                                                *index_data.borrow_mut() = match PackedFileDBDecoder::add_field_to_data_view(
+                                                *index_data.borrow_mut() = PackedFileDBDecoder::add_field_to_data_view(
                                                     &packed_file_decoder,
                                                     packed_file_data_encoded.borrow().to_vec(),
                                                     &table_definition.borrow(),
@@ -1882,11 +1878,7 @@ fn main() {
                                                     None,
                                                     String::new(),
                                                     index_data_copy
-                                                ) {
-                                                    Ok(new_index_data) => new_index_data,
-                                                    // In case of error, we don't update the index.
-                                                    Err(_) => index_data_copy,
-                                                };
+                                                );
 
                                                 PackedFileDBDecoder::update_decoder_view(
                                                     &packed_file_decoder,
@@ -1909,7 +1901,7 @@ fn main() {
 
                                                 // We are going to check if this is valid when adding the field to the TreeView, so we just add it.
                                                 let index_data_copy = index_data.borrow().clone();
-                                                *index_data.borrow_mut() = match PackedFileDBDecoder::add_field_to_data_view(
+                                                *index_data.borrow_mut() = PackedFileDBDecoder::add_field_to_data_view(
                                                     &packed_file_decoder,
                                                     packed_file_data_encoded.borrow().to_vec(),
                                                     &table_definition.borrow(),
@@ -1919,11 +1911,7 @@ fn main() {
                                                     None,
                                                     String::new(),
                                                     index_data_copy
-                                                ) {
-                                                    Ok(new_index_data) => new_index_data,
-                                                    // In case of error, we don't update the index.
-                                                    Err(_) => index_data_copy,
-                                                };
+                                                );
 
                                                 PackedFileDBDecoder::update_decoder_view(
                                                     &packed_file_decoder,
@@ -1946,7 +1934,7 @@ fn main() {
 
                                                 // We are going to check if this is valid when adding the field to the TreeView, so we just add it.
                                                 let index_data_copy = index_data.borrow().clone();
-                                                *index_data.borrow_mut() = match PackedFileDBDecoder::add_field_to_data_view(
+                                                *index_data.borrow_mut() = PackedFileDBDecoder::add_field_to_data_view(
                                                     &packed_file_decoder,
                                                     packed_file_data_encoded.borrow().to_vec(),
                                                     &table_definition.borrow(),
@@ -1956,11 +1944,7 @@ fn main() {
                                                     None,
                                                     String::new(),
                                                     index_data_copy
-                                                ) {
-                                                    Ok(new_index_data) => new_index_data,
-                                                    // In case of error, we don't update the index.
-                                                    Err(_) => index_data_copy,
-                                                };
+                                                );
 
                                                 PackedFileDBDecoder::update_decoder_view(
                                                     &packed_file_decoder,
@@ -1983,7 +1967,7 @@ fn main() {
 
                                                 // We are going to check if this is valid when adding the field to the TreeView, so we just add it.
                                                 let index_data_copy = index_data.borrow().clone();
-                                                *index_data.borrow_mut() = match PackedFileDBDecoder::add_field_to_data_view(
+                                                *index_data.borrow_mut() = PackedFileDBDecoder::add_field_to_data_view(
                                                     &packed_file_decoder,
                                                     packed_file_data_encoded.borrow().to_vec(),
                                                     &table_definition.borrow(),
@@ -1993,11 +1977,7 @@ fn main() {
                                                     None,
                                                     String::new(),
                                                     index_data_copy
-                                                ) {
-                                                    Ok(new_index_data) => new_index_data,
-                                                    // In case of error, we don't update the index.
-                                                    Err(_) => index_data_copy,
-                                                };
+                                                );
 
                                                 PackedFileDBDecoder::update_decoder_view(
                                                     &packed_file_decoder,
@@ -2020,7 +2000,7 @@ fn main() {
 
                                                 // We are going to check if this is valid when adding the field to the TreeView, so we just add it.
                                                 let index_data_copy = index_data.borrow().clone();
-                                                *index_data.borrow_mut() = match PackedFileDBDecoder::add_field_to_data_view(
+                                                *index_data.borrow_mut() = PackedFileDBDecoder::add_field_to_data_view(
                                                     &packed_file_decoder,
                                                     packed_file_data_encoded.borrow().to_vec(),
                                                     &table_definition.borrow(),
@@ -2030,11 +2010,7 @@ fn main() {
                                                     None,
                                                     String::new(),
                                                     index_data_copy
-                                                ) {
-                                                    Ok(new_index_data) => new_index_data,
-                                                    // In case of error, we don't update the index.
-                                                    Err(_) => index_data_copy,
-                                                };
+                                                );
 
                                                 PackedFileDBDecoder::update_decoder_view(
                                                     &packed_file_decoder,
@@ -2057,7 +2033,7 @@ fn main() {
 
                                                 // We are going to check if this is valid when adding the field to the TreeView, so we just add it.
                                                 let index_data_copy = index_data.borrow().clone();
-                                                *index_data.borrow_mut() = match PackedFileDBDecoder::add_field_to_data_view(
+                                                *index_data.borrow_mut() = PackedFileDBDecoder::add_field_to_data_view(
                                                     &packed_file_decoder,
                                                     packed_file_data_encoded.borrow().to_vec(),
                                                     &table_definition.borrow(),
@@ -2067,11 +2043,7 @@ fn main() {
                                                     None,
                                                     String::new(),
                                                     index_data_copy
-                                                ) {
-                                                    Ok(new_index_data) => new_index_data,
-                                                    // In case of error, we don't update the index.
-                                                    Err(_) => index_data_copy,
-                                                };
+                                                );
 
                                                 PackedFileDBDecoder::update_decoder_view(
                                                     &packed_file_decoder,

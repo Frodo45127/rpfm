@@ -809,6 +809,7 @@ impl PackedFileDBDecoder {
         let decoded_optional_string_u8;
         let decoded_optional_string_u16;
 
+        let initial_index = index_data.clone();
         let mut index_data = index_data.clone();
         // TODO: Fix index.
         // If we are loading data to the table for the first time, we'll load to the table all the data
@@ -825,7 +826,7 @@ impl PackedFileDBDecoder {
                     field.field_is_reference.clone(),
                     field.field_description.to_owned(),
                     index_data,
-                )?;
+                );
             }
         }
 
@@ -932,6 +933,9 @@ impl PackedFileDBDecoder {
     /// - field_is_reference: the reference data of the field, if it's a reference to another field.
     /// - field_description: the description of the field. If the field is new, this is just String::new().
     /// - index_data: the index to start decoding from the vector.
+    ///
+    /// NOTE: In case of error, we return the same index, NOT AN ERROR. That way, we deal with the
+    /// possible error here instead on the UI.
     pub fn add_field_to_data_view(
         packed_file_decoder: &PackedFileDBDecoder,
         packed_file_decoded: Vec<u8>,
@@ -942,7 +946,7 @@ impl PackedFileDBDecoder {
         field_is_reference: Option<(String, String)>,
         field_description: String,
         index_data: usize
-    ) -> Result<usize, Error> {
+    ) -> usize {
 
         let field_index = table_definition.fields.len();
 
@@ -959,57 +963,57 @@ impl PackedFileDBDecoder {
                                 ("False".to_string(), result.1)
                             }
                         }
-                        Err(error) => return Err(error),
+                        Err(error) => ("Error".to_owned(), index_data),
                     }
                 }
                 else {
-                    return Err(Error::new(ErrorKind::Other, format!("Error while trying to get the first row decoded. If there is at least a row in the file, this is probably a broken definition.")))
+                    ("Error".to_owned(), index_data)
                 }
             },
             FieldType::Float => {
                 if (index_data + 4) < packed_file_decoded.len() {
                     match coding_helpers::decode_packedfile_float_u32(packed_file_decoded[index_data..(index_data + 4)].to_vec(), index_data) {
                         Ok(result) => (result.0.to_string(), result.1),
-                        Err(error) => return Err(error),
+                        Err(error) => ("Error".to_owned(), index_data),
                     }
                 }
                 else {
-                    return Err(Error::new(ErrorKind::Other, format!("Error while trying to get the first row decoded. If there is at least a row in the file, this is probably a broken definition.")))
+                    ("Error".to_owned(), index_data)
                 }
             },
             FieldType::Integer => {
                 if (index_data + 4) < packed_file_decoded.len() {
                     match coding_helpers::decode_packedfile_integer_u32(packed_file_decoded[index_data..(index_data + 4)].to_vec(), index_data) {
                         Ok(result) => (result.0.to_string(), result.1),
-                        Err(error) => return Err(error),
+                        Err(error) => ("Error".to_owned(), index_data),
                     }
                 }
                 else {
-                    return Err(Error::new(ErrorKind::Other, format!("Error while trying to get the first row decoded. If there is at least a row in the file, this is probably a broken definition.")))
+                    ("Error".to_owned(), index_data)
                 }
             },
             FieldType::StringU8 => {
                 match coding_helpers::decode_packedfile_string_u8(packed_file_decoded[index_data..].to_vec(), index_data) {
                     Ok(result) => result,
-                    Err(error) => return Err(error),
+                    Err(error) => ("Error".to_owned(), index_data),
                 }
             },
             FieldType::StringU16 => {
                 match coding_helpers::decode_packedfile_string_u16(packed_file_decoded[index_data..].to_vec(), index_data){
                     Ok(result) => result,
-                    Err(error) => return Err(error),
+                    Err(error) => ("Error".to_owned(), index_data),
                 }
             },
             FieldType::OptionalStringU8 => {
                 match coding_helpers::decode_packedfile_optional_string_u8(packed_file_decoded[index_data..].to_vec(), index_data) {
                     Ok(result) => result,
-                    Err(error) => return Err(error),
+                    Err(error) => ("Error".to_owned(), index_data),
                 }
             },
             FieldType::OptionalStringU16 => {
                 match coding_helpers::decode_packedfile_optional_string_u16(packed_file_decoded[index_data..].to_vec(), index_data) {
                     Ok(result) => result,
-                    Err(error) => return Err(error),
+                    Err(error) => ("Error".to_owned(), index_data),
                 }
             },
         };
@@ -1058,7 +1062,7 @@ impl PackedFileDBDecoder {
         }
 
         // We return the updated index.
-        Ok( decoded_data.1)
+        decoded_data.1
     }
 
     /// This function gets the data from the "Decoder" table, and returns it, so we can save it in a
