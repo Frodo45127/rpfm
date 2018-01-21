@@ -7,9 +7,7 @@ extern crate hex_slice;
 use packedfile::db::*;
 use packedfile::db::schemas::*;
 use common::coding_helpers;
-use std::io::{
-    Error, ErrorKind
-};
+use std::io::Error;
 use gtk::prelude::*;
 use gtk::{
     Box, TreeView, ListStore, ScrolledWindow, Button, Orientation, TextView, Label, Entry, ToggleButton,
@@ -807,7 +805,7 @@ impl PackedFileDBDecoder {
         table_definition: &TableDefinition,
         index_data: usize,
         load_from_existing_definition: bool
-    ) -> Result<usize, Error> {
+    ) -> usize {
 
         // We need to get the length of the vector first, to avoid crashes due to non-existant indexes
         let decoded_bool;
@@ -835,6 +833,7 @@ impl PackedFileDBDecoder {
                     field.field_is_reference.clone(),
                     field.field_description.to_owned(),
                     index_data,
+                    Some(index)
                 );
             }
         }
@@ -939,7 +938,8 @@ impl PackedFileDBDecoder {
         // In practice, I'm bad at maths.
         let header_char = (initial_index * 3) as i32;
         raw_data_text_buffer.apply_tag(&text_tag_header, &raw_data_text_buffer.get_start_iter(), &raw_data_text_buffer.get_iter_at_line_offset(0, header_char));
-        Ok(index_data)
+
+        index_data
     }
 
     /// This function adds fields to the "Decoder" table, so we can do this without depending on the
@@ -965,10 +965,14 @@ impl PackedFileDBDecoder {
         field_is_key: bool,
         field_is_reference: Option<(String, String)>,
         field_description: String,
-        index_data: usize
+        index_data: usize,
+        index_row: Option<usize>
     ) -> usize {
 
-        let field_index = table_definition.fields.len();
+        let field_index = match index_row {
+            Some(index) => format!("{:0count$}", index + 1, count = (table_definition.fields.len().to_string().len() + 1)),
+            None => format!("New"),
+        };
 
         let decoded_data = match field_type {
             FieldType::Boolean => {
@@ -983,7 +987,7 @@ impl PackedFileDBDecoder {
                                 ("False".to_string(), result.1)
                             }
                         }
-                        Err(error) => ("Error".to_owned(), index_data),
+                        Err(_) => ("Error".to_owned(), index_data),
                     }
                 }
                 else {
@@ -994,7 +998,7 @@ impl PackedFileDBDecoder {
                 if (index_data + 4) < packed_file_decoded.len() {
                     match coding_helpers::decode_packedfile_float_u32(packed_file_decoded[index_data..(index_data + 4)].to_vec(), index_data) {
                         Ok(result) => (result.0.to_string(), result.1),
-                        Err(error) => ("Error".to_owned(), index_data),
+                        Err(_) => ("Error".to_owned(), index_data),
                     }
                 }
                 else {
@@ -1005,7 +1009,7 @@ impl PackedFileDBDecoder {
                 if (index_data + 4) < packed_file_decoded.len() {
                     match coding_helpers::decode_packedfile_integer_u32(packed_file_decoded[index_data..(index_data + 4)].to_vec(), index_data) {
                         Ok(result) => (result.0.to_string(), result.1),
-                        Err(error) => ("Error".to_owned(), index_data),
+                        Err(_) => ("Error".to_owned(), index_data),
                     }
                 }
                 else {
@@ -1015,25 +1019,25 @@ impl PackedFileDBDecoder {
             FieldType::StringU8 => {
                 match coding_helpers::decode_packedfile_string_u8(packed_file_decoded[index_data..].to_vec(), index_data) {
                     Ok(result) => result,
-                    Err(error) => ("Error".to_owned(), index_data),
+                    Err(_) => ("Error".to_owned(), index_data),
                 }
             },
             FieldType::StringU16 => {
                 match coding_helpers::decode_packedfile_string_u16(packed_file_decoded[index_data..].to_vec(), index_data){
                     Ok(result) => result,
-                    Err(error) => ("Error".to_owned(), index_data),
+                    Err(_) => ("Error".to_owned(), index_data),
                 }
             },
             FieldType::OptionalStringU8 => {
                 match coding_helpers::decode_packedfile_optional_string_u8(packed_file_decoded[index_data..].to_vec(), index_data) {
                     Ok(result) => result,
-                    Err(error) => ("Error".to_owned(), index_data),
+                    Err(_) => ("Error".to_owned(), index_data),
                 }
             },
             FieldType::OptionalStringU16 => {
                 match coding_helpers::decode_packedfile_optional_string_u16(packed_file_decoded[index_data..].to_vec(), index_data) {
                     Ok(result) => result,
-                    Err(error) => ("Error".to_owned(), index_data),
+                    Err(_) => ("Error".to_owned(), index_data),
                 }
             },
         };
@@ -1053,7 +1057,7 @@ impl PackedFileDBDecoder {
                 None,
                 &[0, 1, 2, 3, 4, 5, 6, 7],
                 &[
-                    &format!("{:0count$}", field_index + 1, count = (field_index.to_string().len() + 1)),
+                    &field_index,
                     &field_name,
                     &field_type,
                     &field_is_key,
@@ -1069,7 +1073,7 @@ impl PackedFileDBDecoder {
                 None,
                 &[0, 1, 2, 3, 4, 5, 6, 7],
                 &[
-                    &format!("{:0count$}", field_index + 1, count = (field_index.to_string().len() + 1)),
+                    &field_index,
                     &field_name,
                     &field_type,
                     &field_is_key,

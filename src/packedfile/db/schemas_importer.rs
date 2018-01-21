@@ -4,7 +4,9 @@
 extern crate serde_xml_rs;
 
 use std::fs::File;
-use std::io::Read;
+use std::io::{
+    Read, Error
+};
 use std::path::PathBuf;
 
 use self::serde_xml_rs::deserialize;
@@ -13,12 +15,14 @@ use super::schemas::*;
 use ::common;
 
 /// This is the base "table" file. From here we just want to save the field vector.
+#[allow(non_camel_case_types)]
 #[derive(Debug, Deserialize)]
 pub struct root {
     pub field: Vec<field>,
 }
 
 /// This is the "field" fields decoded.
+#[allow(non_camel_case_types)]
 #[derive(Debug, Deserialize)]
 pub struct field {
     pub primary_key: String,
@@ -33,13 +37,20 @@ pub struct field {
 }
 
 /// This function creates an schema, and decodes all the tables from the folder we say it into it.
-pub fn import_schema() {
+/// This is intended to use just after compilation, providing the needed folders as const from the
+/// main.rs file. The paths are:
+/// - assembly_kit_schemas_path: this is the path with the TWaD_*****.xml syntax. They are usually in GameFolder/assembly_kit/raw_data/db/.
+/// - testing_tables_path: this is a path containing all the tables extracted from the game we want the schemas. It should have xxx_table/table.
+pub fn import_schema(
+    assembly_kit_schemas_path: &PathBuf,
+    testing_tables_path: &PathBuf,
+) -> Result<(), Error> {
 
     // We get the new schema.
     let mut schema = Schema::new(format!("TW:Warhammer 2"));
 
     // Then we get all the schema files. We unwrap it, as we want it to crash oon error.
-    let assembly_kit_schemas = common::get_assembly_kit_schemas(&PathBuf::from("/home/frodo45127/schema_stuff/db_schemas/")).unwrap();
+    let assembly_kit_schemas = common::get_assembly_kit_schemas(assembly_kit_schemas_path).unwrap();
 
     // For each file...
     for path in assembly_kit_schemas.iter() {
@@ -48,7 +59,7 @@ pub fn import_schema() {
         println!("{:?}", path);
 
         // We read the file and deserialize it...
-        let mut file = File::open(&path).expect("Couldn't open file");
+        let file = File::open(&path).expect("Couldn't open file");
         let imported_table_definition: root = deserialize(file).unwrap();
 
         // Then we create a new table_definitions, a new imported table definition, and add it to the schema.
@@ -56,7 +67,9 @@ pub fn import_schema() {
         let table_name = format!("{}_tables", file_name.split_off(5));
 
         // We need it's version too, so... We only add it if his table actually exists.
-        match common::get_files_from_subdir(&PathBuf::from(format!("/home/frodo45127/schema_stuff/db_tables/{}/", table_name))) {
+        let mut testing_tables_path = testing_tables_path.clone();
+        testing_tables_path.push(table_name.to_owned());
+        match common::get_files_from_subdir(&testing_tables_path) {
             Ok(db_file_path) => {
 
                 // If we found something...
@@ -86,5 +99,7 @@ pub fn import_schema() {
         }
     }
 
-    Schema::save(&schema);
+    Schema::save(&schema)?;
+
+    Ok(())
 }

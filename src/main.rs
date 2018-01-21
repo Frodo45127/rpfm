@@ -67,6 +67,10 @@ macro_rules! clone {
 // in two different places in every update.
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
+// This constant is to generate a new schema file. We only need this function once per game, so we disable
+// all that stuff this this constant.
+const GENERATE_NEW_SCHEMA: bool = false;
+
 /// One Function to rule them all, One Function to find them,
 /// One Function to bring them all and in the darkness bind them.
 fn main() {
@@ -199,13 +203,24 @@ fn main() {
     let pack_file_decoded = Rc::new(RefCell::new(PackFile::new()));
     let pack_file_decoded_extra = Rc::new(RefCell::new(PackFile::new()));
 
-    // This is to get the new schemas. It's intended to be commented ALWAYS, except for the moment we create the big schema file for a game.
-    packedfile::db::schemas_importer::import_schema();
+    // This is to get the new schemas. It's controlled by a global const.
+    if GENERATE_NEW_SCHEMA {
+        // These are the paths needed for the new schemas.
+        let assembly_kit_schemas_path: PathBuf = PathBuf::from("/home/frodo45127/schema_stuff/db_schemas/");
+        let testing_tables_path: PathBuf = PathBuf::from("/home/frodo45127/schema_stuff/db_tables/");
+        match packedfile::db::schemas_importer::import_schema(
+            &assembly_kit_schemas_path,
+            &testing_tables_path
+        ) {
+            Ok(_) => ui::show_dialog(&success_dialog, format!("Success creating a new DB Schema file.")),
+            Err(error) => return ui::show_dialog(&error_dialog, format!("Error while creating a new DB Schema file:\n{}", error::Error::description(&error).to_string())),
+        }
+    }
 
     // And we import the schema for the DB tables.
     let schema = match Schema::load() {
         Ok(schema) => schema,
-        Err(error) => return ui::show_dialog(&error_dialog, format!("Error while loading DB schema file: {}", error::Error::description(&error).to_string())),
+        Err(error) => return ui::show_dialog(&error_dialog, format!("Error while loading DB Schema file:\n{}", error::Error::description(&error).to_string())),
     };
     let schema = Rc::new(RefCell::new(schema));
 
@@ -1772,7 +1787,6 @@ fn main() {
                             tree_path,
                             error_dialog,
                             success_dialog,
-                            pack_file_decoded,
                             packed_file_data_display => move |packed_file_decode_mode_button ,_|{
 
                             // We need to disable the button. Otherwise, things will get weird.
@@ -1795,7 +1809,7 @@ fn main() {
                                     let initial_index = db_header.1;
 
                                     // We get the definition, or create one if we didn't find it.
-                                    let mut table_definition = match DB::get_schema(&*tree_path[1], db_header.0.packed_file_header_packed_file_version, &*schema.borrow()) {
+                                    let table_definition = match DB::get_schema(&*tree_path[1], db_header.0.packed_file_header_packed_file_version, &*schema.borrow()) {
                                         Some(table_definition) => Rc::new(RefCell::new(table_definition)),
                                         None => Rc::new(RefCell::new(TableDefinition::new(db_header.0.packed_file_header_packed_file_version)))
                                     };
@@ -1812,24 +1826,19 @@ fn main() {
                                             // table_definition when getting it or creating it to load the Decoder's View, or saving it.
                                             // Also, when we are loading the data from a definition (first update with existing definition)
                                             // we'll return the index of the byte where the definition ends, so we continue decoding from it.
-                                            // If it returns an error, the definition is incorrect, so we return the initial index instead.
-                                            let index_data = match PackedFileDBDecoder::update_decoder_view(
+                                            let index_data = Rc::new(RefCell::new(PackedFileDBDecoder::update_decoder_view(
                                                 &packed_file_decoder,
                                                 packed_file_data_encoded.borrow().to_vec(),
                                                 &table_definition.borrow(),
                                                 initial_index,
                                                 true,
-                                            ) {
-                                                Ok(new_index) => Rc::new(RefCell::new(new_index)),
-                                                Err(_) => Rc::new(RefCell::new(initial_index)),
-                                            };
+                                            )));
 
                                             // Logic for all the "Use this" buttons. Basically, they just check if it's possible to use their decoder for the bytes we have,
                                             // and advance the index and add their type to the fields view.
                                             packed_file_decoder.use_bool_button.connect_button_release_event(clone!(
                                                 table_definition,
                                                 index_data,
-                                                error_dialog,
                                                 packed_file_data_encoded,
                                                 packed_file_decoder => move |_ ,_|{
 
@@ -1844,7 +1853,8 @@ fn main() {
                                                     packed_file_decoder.is_key_field_button.get_active(),
                                                     None,
                                                     String::new(),
-                                                    index_data_copy
+                                                    index_data_copy,
+                                                    None
                                                 );
 
                                                 PackedFileDBDecoder::update_decoder_view(
@@ -1862,7 +1872,6 @@ fn main() {
                                             packed_file_decoder.use_float_button.connect_button_release_event(clone!(
                                                 table_definition,
                                                 index_data,
-                                                error_dialog,
                                                 packed_file_data_encoded,
                                                 packed_file_decoder => move |_ ,_|{
 
@@ -1877,7 +1886,8 @@ fn main() {
                                                     packed_file_decoder.is_key_field_button.get_active(),
                                                     None,
                                                     String::new(),
-                                                    index_data_copy
+                                                    index_data_copy,
+                                                    None
                                                 );
 
                                                 PackedFileDBDecoder::update_decoder_view(
@@ -1895,7 +1905,6 @@ fn main() {
                                             packed_file_decoder.use_integer_button.connect_button_release_event(clone!(
                                                 table_definition,
                                                 index_data,
-                                                error_dialog,
                                                 packed_file_data_encoded,
                                                 packed_file_decoder => move |_ ,_|{
 
@@ -1910,7 +1919,8 @@ fn main() {
                                                     packed_file_decoder.is_key_field_button.get_active(),
                                                     None,
                                                     String::new(),
-                                                    index_data_copy
+                                                    index_data_copy,
+                                                    None
                                                 );
 
                                                 PackedFileDBDecoder::update_decoder_view(
@@ -1928,7 +1938,6 @@ fn main() {
                                             packed_file_decoder.use_string_u8_button.connect_button_release_event(clone!(
                                                 table_definition,
                                                 index_data,
-                                                error_dialog,
                                                 packed_file_data_encoded,
                                                 packed_file_decoder => move |_ ,_|{
 
@@ -1943,7 +1952,8 @@ fn main() {
                                                     packed_file_decoder.is_key_field_button.get_active(),
                                                     None,
                                                     String::new(),
-                                                    index_data_copy
+                                                    index_data_copy,
+                                                    None
                                                 );
 
                                                 PackedFileDBDecoder::update_decoder_view(
@@ -1961,7 +1971,6 @@ fn main() {
                                             packed_file_decoder.use_string_u16_button.connect_button_release_event(clone!(
                                                 table_definition,
                                                 index_data,
-                                                error_dialog,
                                                 packed_file_data_encoded,
                                                 packed_file_decoder => move |_ ,_|{
 
@@ -1976,7 +1985,8 @@ fn main() {
                                                     packed_file_decoder.is_key_field_button.get_active(),
                                                     None,
                                                     String::new(),
-                                                    index_data_copy
+                                                    index_data_copy,
+                                                    None
                                                 );
 
                                                 PackedFileDBDecoder::update_decoder_view(
@@ -1994,7 +2004,6 @@ fn main() {
                                             packed_file_decoder.use_optional_string_u8_button.connect_button_release_event(clone!(
                                                 table_definition,
                                                 index_data,
-                                                error_dialog,
                                                 packed_file_data_encoded,
                                                 packed_file_decoder => move |_ ,_|{
 
@@ -2009,7 +2018,8 @@ fn main() {
                                                     packed_file_decoder.is_key_field_button.get_active(),
                                                     None,
                                                     String::new(),
-                                                    index_data_copy
+                                                    index_data_copy,
+                                                    None
                                                 );
 
                                                 PackedFileDBDecoder::update_decoder_view(
@@ -2027,7 +2037,6 @@ fn main() {
                                             packed_file_decoder.use_optional_string_u16_button.connect_button_release_event(clone!(
                                                 table_definition,
                                                 index_data,
-                                                error_dialog,
                                                 packed_file_data_encoded,
                                                 packed_file_decoder => move |_ ,_|{
 
@@ -2042,7 +2051,8 @@ fn main() {
                                                     packed_file_decoder.is_key_field_button.get_active(),
                                                     None,
                                                     String::new(),
-                                                    index_data_copy
+                                                    index_data_copy,
+                                                    None
                                                 );
 
                                                 PackedFileDBDecoder::update_decoder_view(
@@ -2127,7 +2137,7 @@ fn main() {
 
                                             // This allow us to change a field's data type in the TreeView.
                                             packed_file_decoder.fields_tree_view_cell_combo.connect_edited(clone!(
-                                                packed_file_decoder => move |fields_tree_view_cell_combo, tree_path, new_value| {
+                                                packed_file_decoder => move |_, tree_path, new_value| {
 
                                                 let tree_iter = packed_file_decoder.fields_list_store.get_iter(&tree_path).unwrap();
                                                 packed_file_decoder.fields_list_store.set_value(&tree_iter, 2, &new_value.to_value());

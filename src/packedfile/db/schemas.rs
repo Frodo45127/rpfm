@@ -295,12 +295,6 @@ impl TableDefinition {
             fields,
         }
     }
-
-    /// This function adds a field to a table. It's just to make it easy to interact with, so we don't
-    /// need to call the "Field" stuff manually.
-    pub fn add_field(&mut self, field_name: String, field_type: FieldType, field_is_key: bool, field_is_reference: Option<(String, String)>) {
-        self.fields.push(Field::new(field_name, field_type, field_is_key, field_is_reference, String::new()));
-    }
 }
 
 /// Implementation of "Field"
