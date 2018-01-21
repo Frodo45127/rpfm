@@ -13,7 +13,8 @@ use std::io::{
 use gtk::prelude::*;
 use gtk::{
     Box, TreeView, ListStore, ScrolledWindow, Button, Orientation, TextView, Label, Entry, ToggleButton,
-    CellRendererText, TreeViewColumn, CellRendererToggle, Type, WrapMode, Justification, Frame, CellRendererCombo
+    CellRendererText, TreeViewColumn, CellRendererToggle, Type, WrapMode, Justification, Frame, CellRendererCombo,
+    TextTag
 };
 
 use self::hex_slice::AsHex;
@@ -927,6 +928,17 @@ impl PackedFileDBDecoder {
         packed_file_decoder.field_name_entry.get_buffer().set_text(&format!("Unknown {}", index_data));
         packed_file_decoder.is_key_field_button.set_active(false);
 
+        // Then we set the TextTags to paint the hex_data.
+        let raw_data_text_buffer = packed_file_decoder.raw_data.get_buffer().unwrap();
+        let raw_data_text_buffer_tag_table = raw_data_text_buffer.get_tag_table().unwrap();
+        let text_tag_header = TextTag::new(Some("header"));
+        text_tag_header.set_property_background(Some("red"));
+        raw_data_text_buffer_tag_table.add(&text_tag_header);
+
+        // In theory, this should give us the equivalent byte to our index_data.
+        // In practice, I'm bad at maths.
+        let header_char = (initial_index * 3) as i32;
+        raw_data_text_buffer.apply_tag(&text_tag_header, &raw_data_text_buffer.get_start_iter(), &raw_data_text_buffer.get_iter_at_line_offset(0, header_char));
         Ok(index_data)
     }
 
