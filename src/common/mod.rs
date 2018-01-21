@@ -5,6 +5,7 @@
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
+use std::io::Error;
 
 use packfile::packfile::PackFile;
 
@@ -79,28 +80,68 @@ pub fn get_type_of_selected_tree_path(
 /// This function takes a &Path and returns a Vec<PathBuf> with the paths of every file under the
 /// original &Path.
 #[allow(dead_code)]
-pub fn get_files_from_subdir(current_path: &Path) -> Vec<PathBuf> {
+pub fn get_files_from_subdir(current_path: &Path) -> Result<Vec<PathBuf>, Error> {
 
     let mut file_list: Vec<PathBuf> = vec![];
 
     // For every file in this folder
-    for file in fs::read_dir(current_path).unwrap() {
+    match fs::read_dir(current_path) {
+        Ok(files_in_current_path) => {
+            for file in files_in_current_path {
 
-        // Get his path
-        let file_path = file.unwrap().path().clone();
+                // Get his path
+                let file_path = file.unwrap().path().clone();
 
-        // If it's a file, to the file_list it goes
-        if file_path.is_file() {
-            file_list.push(file_path);
+                // If it's a file, to the file_list it goes
+                if file_path.is_file() {
+                    file_list.push(file_path);
+                }
+
+                // If it's a folder, get all the files from it and his subfolders recursively
+                else if file_path.is_dir() {
+                    let mut subfolder_files_path = get_files_from_subdir(&file_path).unwrap();
+                    file_list.append(&mut subfolder_files_path);
+                }
+            }
         }
-
-        // If it's a folder, get all the files from it and his subfolders recursively
-        else if file_path.is_dir() {
-            let mut subfolder_files_path = get_files_from_subdir(&file_path);
-            file_list.append(&mut subfolder_files_path);
-        }
+        Err(error) => return Err(error),
     }
 
     // Return the list of paths
-    file_list
+    Ok(file_list)
+}
+
+/// This function takes a &Path and returns a Vec<PathBuf> with the paths of every file under the
+/// original &Path. This is a modification of the normal "get_files_from_subdir" where we only get
+/// the files in the current folder and with a special beginning.
+#[allow(dead_code)]
+pub fn get_assembly_kit_schemas(current_path: &Path) -> Result<Vec<PathBuf>, Error> {
+
+    let mut file_list: Vec<PathBuf> = vec![];
+
+    // For every file in this folder
+    match fs::read_dir(current_path) {
+        Ok(files_in_current_path) => {
+            for file in files_in_current_path {
+
+                // Get his path
+                let file_path = file.unwrap().path().clone();
+
+                // If it's a file and starts with "TWaD_", to the file_list it goes (except if it's one of those special files).
+                if file_path.is_file() &&
+                    file_path.file_stem().unwrap().to_str().unwrap().to_string().starts_with("TWaD_") &&
+                    file_path.file_stem().unwrap().to_str().unwrap() != "TWaD_schema_validation" &&
+                    file_path.file_stem().unwrap().to_str().unwrap() != "TWaD_relationships" &&
+                    file_path.file_stem().unwrap().to_str().unwrap() != "TWaD_validation" &&
+                    file_path.file_stem().unwrap().to_str().unwrap() != "TWaD_tables" &&
+                    file_path.file_stem().unwrap().to_str().unwrap() != "TWaD_queries" {
+                    file_list.push(file_path);
+                }
+            }
+        }
+        Err(error) => return Err(error),
+    }
+    // Return the list of paths ordered alphabetically
+    file_list.sort();
+    Ok(file_list)
 }

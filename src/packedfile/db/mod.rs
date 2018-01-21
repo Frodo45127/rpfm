@@ -16,6 +16,7 @@ use std::io::{
 use common::coding_helpers;
 
 pub mod schemas;
+pub mod schemas_importer;
 
 /// These two const are the markers we need to check in the header of every DB file.
 const GUID_MARKER: &[u8] = &[253, 254, 252, 255];
@@ -263,7 +264,7 @@ impl DBData {
                             match coding_helpers::decode_packedfile_float_u32(packed_file_data[index..(index + 4)].to_vec(), index) {
                                 Ok(data) => {
                                     index = data.1;
-                                    entry.push(DecodedData::Float(data.0));
+                                    entry.push(DecodedData::Float( data.0));
                                 }
                                 Err(error) => return Err(error)
                             };
@@ -349,6 +350,14 @@ impl DBData {
                         let mut encoded_data = coding_helpers::encode_bool(data.clone());
                         packed_file_data_encoded.append(&mut encoded_data);
                     },
+                    DecodedData::Float(data) => {
+                        let mut encoded_data = coding_helpers::encode_float_u32(data.clone());
+                        packed_file_data_encoded.append(&mut encoded_data);
+                    },
+                    DecodedData::Integer(data) => {
+                        let mut encoded_data = coding_helpers::encode_integer_u32(data.clone());
+                        packed_file_data_encoded.append(&mut encoded_data);
+                    },
                     DecodedData::StringU8(ref data) => {
                         let mut encoded_data = coding_helpers::encode_packedfile_string_u8(data.clone());
                         packed_file_data_encoded.append(&mut encoded_data);
@@ -363,14 +372,6 @@ impl DBData {
                     },
                     DecodedData::OptionalStringU16(ref data) => {
                         let mut encoded_data = coding_helpers::encode_packedfile_optional_string_u16(data.clone());
-                        packed_file_data_encoded.append(&mut encoded_data);
-                    },
-                    DecodedData::Integer(data) => {
-                        let mut encoded_data = coding_helpers::encode_integer_u32(data.clone());
-                        packed_file_data_encoded.append(&mut encoded_data);
-                    },
-                    DecodedData::Float(data) => {
-                        let mut encoded_data = coding_helpers::encode_float_u32(data.clone());
                         packed_file_data_encoded.append(&mut encoded_data);
                     },
                 }

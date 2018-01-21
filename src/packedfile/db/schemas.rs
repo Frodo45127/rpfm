@@ -8,6 +8,8 @@ use std::io::{
     Write, Error, ErrorKind
 };
 
+use super::schemas_importer;
+
 /// This struct holds the entire schema for the currently selected game (by "game" I mean the PackFile
 /// Type).
 /// It has:
@@ -47,9 +49,10 @@ pub struct TableDefinition {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Field {
     pub field_name: String,
+    pub field_type: FieldType,
     pub field_is_key: bool,
     pub field_is_reference: Option<(String, String)>,
-    pub field_type: FieldType,
+    pub field_description: String,
 }
 
 /// Enum FieldType: This enum is used to define the possible types of a field in the schema.
@@ -69,8 +72,7 @@ impl Schema {
 
     /// This function creates a new schema. It should only be needed to create the first table definition
     /// of a game, as the rest will continue using the same schema.
-    pub fn new() -> Schema {
-        let game = format!("Warhammer 2");
+    pub fn new(game: String) -> Schema {
         let version = 1u32;
         let tables_definitions = vec![];
 
@@ -141,7 +143,7 @@ impl TableDefinitions {
 
     /// This function creates a new table definition. We need to call it when we don't have a definition
     /// of the table we are trying to decode.
-    pub fn new(name: &str, version: u32) -> TableDefinitions {
+    pub fn new(name: &str) -> TableDefinitions {
         let name = name.to_string();
         let versions = vec![];
 
@@ -198,10 +200,106 @@ impl TableDefinition {
         }
     }
 
+    /// This function creates a new table definition from an imported definition from the assembly kit.
+    /// Note that this import the loc fields (they need to be removed manually later) and it doesn't
+    /// import the version (this... I think I can do some trick for it).
+    pub fn new_from_assembly_kit(imported_table_definition: schemas_importer::root, version: u32, table_name: String) -> TableDefinition {
+        let mut fields = vec![];
+        for field in imported_table_definition.field.iter() {
+
+            // First, we need to disable a number of known fields that are not in the final tables. We
+            // check if the current field is one of them, and ignore it if it's.
+            if field.name == "game_expansion_key" ||
+                field.name == "localised_text" ||
+                field.name == "localised_name" ||
+                field.name == "localised_tooltip" ||
+                field.name == "description" ||
+                field.name == "objectives_team_1" ||
+                field.name == "objectives_team_2" ||
+                field.name == "short_description_text" ||
+                field.name == "historical_description_text" ||
+                field.name == "strengths_weaknesses_text" ||
+                field.name == "onscreen_name" ||
+                field.name == "onscreen_description" ||
+                field.name == "on_screen_name" ||
+                field.name == "on_screen_description" ||
+                field.name == "on_screen_target" {
+                continue;
+            }
+
+
+            let field_name = field.name.to_owned();
+            let field_is_key = if field.primary_key == "1" {true} else {false};
+
+            let field_is_reference = if field.column_source_table != None {
+                Some((field.column_source_table.clone().unwrap().to_owned(), field.column_source_column.clone().unwrap()[0].to_owned()))
+            }
+            else {None};
+
+            let field_type = match &*field.field_type {
+                "yesno" => FieldType::Boolean,
+                "single" | "decimal" | "double" => FieldType::Float,
+                "integer" | "autonumber" => {
+
+                    // In Warhammer 2 these tables are wrong in the definition schema.
+                    if table_name.starts_with("_kv") {
+                        FieldType::Float
+                    }
+                    else {
+                        FieldType::Integer
+                    }
+                },
+                "text" => {
+
+                    // Key fields are ALWAYS REQUIRED. This fixes it's detection.
+                    if field_name == "key" {
+                        FieldType::StringU8
+                    }
+                    else {
+                        match &*field.required {
+                            "1" => {
+                                // In Warhammer 2 this table has his "value" field broken.
+                                if table_name == "_kv_winds_of_magic_params_tables" && field_name == "value" {
+                                    FieldType::Float
+                                }
+                                else {
+                                    FieldType::StringU8
+                                }
+                            },
+                            "0" => FieldType::OptionalStringU8,
+                            _ => FieldType::Integer,
+                        }
+                    }
+                }
+                _ => FieldType::Integer,
+
+            };
+
+            let field_description = match field.field_description {
+                Some(ref description) => description.to_owned(),
+                None => String::new(),
+            };
+
+            let new_field = Field::new(
+                field_name,
+                field_type,
+                field_is_key,
+                field_is_reference,
+                field_description
+            );
+            fields.push(new_field);
+        }
+
+        TableDefinition {
+            version,
+            fields,
+        }
+    }
+
     /// This function adds a field to a table. It's just to make it easy to interact with, so we don't
     /// need to call the "Field" stuff manually.
     pub fn add_field(&mut self, field_name: String, field_type: FieldType, field_is_key: bool, field_is_reference: Option<(String, String)>) {
-        self.fields.push(Field::new(field_name, field_type, field_is_key, field_is_reference));
+        self.fields.push(Field::new(field_name, field_type, field_is_key, field_is_reference, String::new()));
     }
 }
 
@@ -210,13 +308,14 @@ impl Field {
 
     /// This function creates a new table definition. We need to call it when we don't have a definition
     /// of the table we are trying to decode with the version we have.
-    pub fn new(field_name: String, field_type: FieldType, field_is_key: bool, field_is_reference: Option<(String, String)>) -> Field {
+    pub fn new(field_name: String, field_type: FieldType, field_is_key: bool, field_is_reference: Option<(String, String)>, field_description: String) -> Field {
 
         Field {
             field_name,
+            field_type,
             field_is_key,
             field_is_reference,
-            field_type,
+            field_description
         }
     }
 }

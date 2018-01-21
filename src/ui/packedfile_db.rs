@@ -12,7 +12,7 @@ use std::io::{
 use gtk::prelude::*;
 use gtk::{
     Box, TreeView, ListStore, ScrolledWindow, Button, Orientation, TextView, Label, Entry, ToggleButton,
-    CellRendererText, TreeViewColumn, CellRendererToggle, Type, WrapMode, Justification, Frame
+    CellRendererText, TreeViewColumn, CellRendererToggle, Type, WrapMode, Justification, Frame, CellRendererCombo
 };
 
 use self::hex_slice::AsHex;
@@ -59,8 +59,9 @@ pub struct PackedFileDBDecoder {
     pub is_key_field_button: ToggleButton,
     pub save_decoded_schema: Button,
     pub fields_tree_view_cell_bool: CellRendererToggle,
+    pub fields_tree_view_cell_combo: CellRendererCombo,
+    pub fields_tree_view_cell_combo_list_store: ListStore,
     pub fields_tree_view_cell_string: Vec<CellRendererText>,
-    pub delete_last_field_button: Button,
     pub delete_all_fields_button: Button,
 }
 
@@ -89,7 +90,7 @@ impl PackedFileDBTreeView{
                     list_store_table_definition.push(Type::Bool);
                 }
                 FieldType::Float => {
-                    list_store_table_definition.push(Type::F32);
+                    list_store_table_definition.push(Type::String);
                 }
                 FieldType::Integer => {
                     list_store_table_definition.push(Type::U32);
@@ -237,6 +238,16 @@ impl PackedFileDBTreeView{
             index += 1;
         }
 
+        // This column is to make the last column not go to the end of the table.
+        let cell_fill = CellRendererText::new();
+        let column_fill = TreeViewColumn::new();
+        column_fill.set_min_width(0);
+        column_fill.set_sizing(gtk::TreeViewColumnSizing::GrowOnly);
+        column_fill.set_alignment(0.5);
+        column_fill.set_sort_column_id(index);
+        column_fill.pack_start(&cell_fill, true);
+        packed_file_tree_view.append_column(&column_fill);
+
         // This should put the key columns in order.
         for column in key_columns.iter().rev() {
             packed_file_tree_view.move_column_after(&column, Some(&column_index));
@@ -285,7 +296,7 @@ impl PackedFileDBTreeView{
                 match field {
                     DecodedData::Index(data) => gtk_value_field = gtk::ToValue::to_value(&data),
                     DecodedData::Boolean(data) => gtk_value_field = gtk::ToValue::to_value(&data),
-                    DecodedData::Float(data) => gtk_value_field = gtk::ToValue::to_value(&data),
+                    DecodedData::Float(data) => gtk_value_field = gtk::ToValue::to_value(&format!("{}", data)),
                     DecodedData::Integer(data) => gtk_value_field = gtk::ToValue::to_value(&data),
                     DecodedData::StringU8(data) => gtk_value_field = gtk::ToValue::to_value(&data),
                     DecodedData::StringU16(data) => gtk_value_field = gtk::ToValue::to_value(&data),
@@ -319,7 +330,8 @@ impl PackedFileDBTreeView{
 
                 let mut packed_file_data_from_tree_view_entry: Vec<DecodedData> = vec![];
 
-                for column in 1..columns {
+                // -1 to avoid the filling column.
+                for column in 1..(columns - 1) {
                     let field_type = &table_definition.fields[column as usize - 1].field_type;
                     match *field_type {
                         FieldType::Boolean => {
@@ -327,7 +339,7 @@ impl PackedFileDBTreeView{
                             packed_file_data_from_tree_view_entry.push(DecodedData::Boolean(data));
                         }
                         FieldType::Float => {
-                            let data: f32 = packed_file_list_store.get_value(&current_line, column).get().unwrap();
+                            let data: f32 = packed_file_list_store.get_value(&current_line, column).get::<String>().unwrap().parse::<f32>().unwrap();
                             packed_file_data_from_tree_view_entry.push(DecodedData::Float(data));
                         }
                         FieldType::Integer => {
@@ -401,7 +413,7 @@ impl PackedFileDBDecoder {
 
         // Then, the box for all the labels, fields and buttons.
         let fields_tree_view = TreeView::new();
-        let fields_list_store = ListStore::new(&[String::static_type(), String::static_type(), String::static_type(), bool::static_type(), String::static_type(), String::static_type(), String::static_type()]);
+        let fields_list_store = ListStore::new(&[String::static_type(), String::static_type(), String::static_type(), bool::static_type(), String::static_type(), String::static_type(), String::static_type(), String::static_type()]);
         fields_tree_view.set_model(Some(&fields_list_store));
 
         let mut fields_tree_view_cell_string = vec![];
@@ -422,13 +434,26 @@ impl PackedFileDBDecoder {
         column_name.set_title("Field name");
         fields_tree_view_cell_string.push(cell_name);
 
+        let cell_type_list_store = ListStore::new(&[String::static_type()]);
+        cell_type_list_store.insert_with_values(None, &[0], &[&format!("Bool")]);
+        cell_type_list_store.insert_with_values(None, &[0], &[&format!("Float")]);
+        cell_type_list_store.insert_with_values(None, &[0], &[&format!("Integer")]);
+        cell_type_list_store.insert_with_values(None, &[0], &[&format!("StringU8")]);
+        cell_type_list_store.insert_with_values(None, &[0], &[&format!("StringU16")]);
+        cell_type_list_store.insert_with_values(None, &[0], &[&format!("OptionalStringU8")]);
+        cell_type_list_store.insert_with_values(None, &[0], &[&format!("OptionalStringU16")]);
+
         let column_type = TreeViewColumn::new();
-        let cell_type = CellRendererText::new();
-        cell_type.set_property_editable(false);
+        let cell_type = CellRendererCombo::new();
+        cell_type.set_property_editable(true);
+        cell_type.set_property_model(Some(&cell_type_list_store));
+        cell_type.set_property_text_column(0);
         column_type.pack_start(&cell_type, true);
         column_type.add_attribute(&cell_type, "text", 2);
         column_type.set_sort_column_id(2);
         column_type.set_title("Field Type");
+        let fields_tree_view_cell_combo = cell_type;
+        let fields_tree_view_cell_combo_list_store = cell_type_list_store;
 
         let column_key = TreeViewColumn::new();
         let cell_key = CellRendererToggle::new();
@@ -465,13 +490,14 @@ impl PackedFileDBDecoder {
         column_decoded.set_sort_column_id(6);
         column_decoded.set_title("First row decoded");
 
-        let column_decoded = TreeViewColumn::new();
-        let cell_decoded = CellRendererText::new();
-        cell_decoded.set_property_editable(false);
-        column_decoded.pack_start(&cell_decoded, true);
-        column_decoded.add_attribute(&cell_decoded, "text", 6);
-        column_decoded.set_sort_column_id(6);
-        column_decoded.set_title("First row decoded");
+        let column_description = TreeViewColumn::new();
+        let cell_description = CellRendererText::new();
+        cell_description.set_property_editable(true);
+        column_description.pack_start(&cell_description, true);
+        column_description.add_attribute(&cell_description, "text", 7);
+        column_description.set_sort_column_id(7);
+        column_description.set_title("Description");
+        fields_tree_view_cell_string.push(cell_description);
 
         fields_tree_view.append_column(&column_index);
         fields_tree_view.append_column(&column_name);
@@ -480,6 +506,7 @@ impl PackedFileDBDecoder {
         fields_tree_view.append_column(&column_ref_table);
         fields_tree_view.append_column(&column_ref_column);
         fields_tree_view.append_column(&column_decoded);
+        fields_tree_view.append_column(&column_description);
 
         let fields_tree_view_scroll = ScrolledWindow::new(None, None);
         fields_tree_view_scroll.add(&fields_tree_view);
@@ -576,13 +603,8 @@ impl PackedFileDBDecoder {
         optional_string_u16_box.pack_end(&optional_string_u16_entry, true, false, 0);
         packed_file_decoded_data_box.pack_start(&optional_string_u16_box, false, false, 2);
 
-        let delete_buttons_box = Box::new(Orientation::Horizontal, 0);
-        let delete_last_field_button = Button::new_with_label("Remove last field");
         let delete_all_fields_button = Button::new_with_label("Remove all fields");
-        delete_buttons_box.pack_start(&delete_last_field_button, false, true, 2);
-        delete_buttons_box.pack_start(&delete_all_fields_button, false, true, 2);
-        delete_buttons_box.set_homogeneous(true);
-        packed_file_decoded_data_box.pack_start(&delete_buttons_box, false, false, 2);
+        packed_file_decoded_data_box.pack_end(&delete_all_fields_button, false, true, 2);
 
         // Then, we put another box (boxception) and put in it the data of the table, the buttons
         // to set the field as "key" and for finishing the decoding.
@@ -673,8 +695,9 @@ impl PackedFileDBDecoder {
             is_key_field_button,
             save_decoded_schema,
             fields_tree_view_cell_bool,
+            fields_tree_view_cell_combo,
+            fields_tree_view_cell_combo_list_store,
             fields_tree_view_cell_string,
-            delete_last_field_button,
             delete_all_fields_button,
         }
     }
@@ -736,22 +759,23 @@ impl PackedFileDBDecoder {
         let hex_raw_data = hex_raw_data.replace(" F ", " 0F ");
 
         // This filtering doesn't work with the last char, so we need to pass that one separated.
-        let hex_raw_data = hex_raw_data.replace(" 0]", " 00");
-        let hex_raw_data = hex_raw_data.replace(" 1]", " 01");
-        let hex_raw_data = hex_raw_data.replace(" 2]", " 02");
-        let hex_raw_data = hex_raw_data.replace(" 3]", " 03");
-        let hex_raw_data = hex_raw_data.replace(" 4]", " 04");
-        let hex_raw_data = hex_raw_data.replace(" 5]", " 05");
-        let hex_raw_data = hex_raw_data.replace(" 6]", " 06");
-        let hex_raw_data = hex_raw_data.replace(" 7]", " 07");
-        let hex_raw_data = hex_raw_data.replace(" 8]", " 08");
-        let hex_raw_data = hex_raw_data.replace(" 9]", " 09");
-        let hex_raw_data = hex_raw_data.replace(" A]", " 0A");
-        let hex_raw_data = hex_raw_data.replace(" B]", " 0B");
-        let hex_raw_data = hex_raw_data.replace(" C]", " 0C");
-        let hex_raw_data = hex_raw_data.replace(" D]", " 0D");
-        let hex_raw_data = hex_raw_data.replace(" E]", " 0E");
-        let hex_raw_data = hex_raw_data.replace(" F]", " 0F");
+        let hex_raw_data = hex_raw_data.replace(" 0]", " 00]");
+        let hex_raw_data = hex_raw_data.replace(" 1]", " 01]");
+        let hex_raw_data = hex_raw_data.replace(" 2]", " 02]");
+        let hex_raw_data = hex_raw_data.replace(" 3]", " 03]");
+        let hex_raw_data = hex_raw_data.replace(" 4]", " 04]");
+        let hex_raw_data = hex_raw_data.replace(" 5]", " 05]");
+        let hex_raw_data = hex_raw_data.replace(" 6]", " 06]");
+        let hex_raw_data = hex_raw_data.replace(" 7]", " 07]");
+        let hex_raw_data = hex_raw_data.replace(" 8]", " 08]");
+        let hex_raw_data = hex_raw_data.replace(" 9]", " 09]");
+        let hex_raw_data = hex_raw_data.replace(" A]", " 0A]");
+        let hex_raw_data = hex_raw_data.replace(" B]", " 0B]");
+        let hex_raw_data = hex_raw_data.replace(" C]", " 0C]");
+        let hex_raw_data = hex_raw_data.replace(" D]", " 0D]");
+        let hex_raw_data = hex_raw_data.replace(" E]", " 0E]");
+        let mut hex_raw_data = hex_raw_data.replace(" F]", " 0F]");
+        hex_raw_data.pop();
 
         packed_file_decoder_view.raw_data.get_buffer().unwrap().set_text(&hex_raw_data);
 
@@ -793,6 +817,7 @@ impl PackedFileDBDecoder {
                     field.field_type.to_owned(),
                     field.field_is_key,
                     field.field_is_reference.clone(),
+                    field.field_description.to_owned(),
                     index_data,
                 )?;
             }
@@ -898,7 +923,8 @@ impl PackedFileDBDecoder {
     /// - field_name: the name of the field.
     /// - field_type: the type of the field.
     /// - field_is_key: if the field is key or not.
-    /// - reference: the reference data of the field, if it's a reference to another field.
+    /// - field_is_reference: the reference data of the field, if it's a reference to another field.
+    /// - field_description: the description of the field. If the field is new, this is just String::new().
     /// - index_data: the index to start decoding from the vector.
     pub fn add_field_to_data_view(
         packed_file_decoder: &PackedFileDBDecoder,
@@ -908,6 +934,7 @@ impl PackedFileDBDecoder {
         field_type: FieldType,
         field_is_key: bool,
         field_is_reference: Option<(String, String)>,
+        field_description: String,
         index_data: usize
     ) -> Result<usize, Error> {
 
@@ -994,7 +1021,7 @@ impl PackedFileDBDecoder {
         if let Some(ref reference) = field_is_reference {
             packed_file_decoder.fields_list_store.insert_with_values(
                 None,
-                &[0, 1, 2, 3, 4, 5, 6],
+                &[0, 1, 2, 3, 4, 5, 6, 7],
                 &[
                     &format!("{:0count$}", field_index + 1, count = (field_index.to_string().len() + 1)),
                     &field_name,
@@ -1002,14 +1029,15 @@ impl PackedFileDBDecoder {
                     &field_is_key,
                     &reference.0,
                     &reference.1,
-                    &decoded_data.0
+                    &decoded_data.0,
+                    &field_description,
                 ]
             );
         }
         else {
             packed_file_decoder.fields_list_store.insert_with_values(
                 None,
-                &[0, 1, 2, 3, 4, 5, 6],
+                &[0, 1, 2, 3, 4, 5, 6, 7],
                 &[
                     &format!("{:0count$}", field_index + 1, count = (field_index.to_string().len() + 1)),
                     &field_name,
@@ -1017,7 +1045,8 @@ impl PackedFileDBDecoder {
                     &field_is_key,
                     &String::new(),
                     &String::new(),
-                    &decoded_data.0
+                    &decoded_data.0,
+                    &field_description,
                 ]
             );
         }
@@ -1040,6 +1069,7 @@ impl PackedFileDBDecoder {
                 let field_is_key = self.fields_list_store.get_value(&current_line, 3).get().unwrap();
                 let ref_table: String = self.fields_list_store.get_value(&current_line, 4).get().unwrap();
                 let ref_column: String = self.fields_list_store.get_value(&current_line, 5).get().unwrap();
+                let field_description: String = self.fields_list_store.get_value(&current_line, 7).get().unwrap();
 
                 let field_type = match self.fields_list_store.get_value(&current_line, 2).get().unwrap() {
                     "Bool" => FieldType::Boolean,
@@ -1054,10 +1084,10 @@ impl PackedFileDBDecoder {
                 };
 
                 if ref_table.is_empty() {
-                    fields.push(Field::new(field_name, field_type, field_is_key, None));
+                    fields.push(Field::new(field_name, field_type, field_is_key, None, field_description));
                 }
                 else {
-                    fields.push(Field::new(field_name, field_type, field_is_key, Some((ref_table, ref_column))));
+                    fields.push(Field::new(field_name, field_type, field_is_key, Some((ref_table, ref_column)), field_description));
                 }
 
                 if !self.fields_list_store.iter_next(&current_line) {

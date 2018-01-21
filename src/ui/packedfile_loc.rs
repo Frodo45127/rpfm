@@ -102,6 +102,16 @@ impl PackedFileLocTreeView{
         packed_file_tree_view.append_column(&column_text);
         packed_file_tree_view.append_column(&column_tooltip);
 
+        // This column is to make the last column not go to the end of the table.
+        let cell_fill = CellRendererText::new();
+        let column_fill = TreeViewColumn::new();
+        column_fill.set_min_width(0);
+        column_fill.set_sizing(gtk::TreeViewColumnSizing::GrowOnly);
+        column_fill.set_alignment(0.5);
+        column_fill.set_sort_column_id(4);
+        column_fill.pack_start(&cell_fill, true);
+        packed_file_tree_view.append_column(&column_fill);
+
         packed_file_tree_view.set_enable_search(false);
 
         let packed_file_data_scroll = ScrolledWindow::new(None, None);
