@@ -1,5 +1,6 @@
 // In this file are all the helper functions used by the UI when decoding DB PackedFiles.
 extern crate gtk;
+extern crate gdk;
 extern crate glib;
 extern crate hex_slice;
 
@@ -415,6 +416,11 @@ impl PackedFileDBDecoder {
         let fields_tree_view = TreeView::new();
         let fields_list_store = ListStore::new(&[String::static_type(), String::static_type(), String::static_type(), bool::static_type(), String::static_type(), String::static_type(), String::static_type(), String::static_type()]);
         fields_tree_view.set_model(Some(&fields_list_store));
+        // Here we set the TreeView as "drag_dest", so we can drag&drop things to it.
+        let targets = vec![gtk::TargetEntry::new("text/uri-list", gtk::TargetFlags::SAME_WIDGET, 0)];
+        fields_tree_view.drag_source_set(gdk::ModifierType::BUTTON1_MASK, &targets, gdk::DragAction::MOVE);
+        fields_tree_view.drag_dest_set(gtk::DestDefaults::ALL, &targets, gdk::DragAction::MOVE);
+        fields_tree_view.set_reorderable(true);
 
         let mut fields_tree_view_cell_string = vec![];
 
