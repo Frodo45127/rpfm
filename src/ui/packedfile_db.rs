@@ -907,37 +907,46 @@ impl PackedFileDBDecoder {
             decoded_integer = "Error".to_string();
         }
 
-        decoded_string_u8 = match coding_helpers::decode_packedfile_string_u8(
-            packed_file_decoded[index_data..].to_vec(),
-            index_data
-        ) {
-            Ok(data) => data.0,
-            Err(_) => "Error".to_string()
-        };
+        // Check that the index exist, to avoid crashes.
+        if index_data < packed_file_decoded.len() {
+            decoded_string_u8 = match coding_helpers::decode_packedfile_string_u8(
+                packed_file_decoded[index_data..].to_vec(),
+                index_data
+            ) {
+                Ok(data) => data.0,
+                Err(_) => "Error".to_string()
+            };
 
-        decoded_string_u16 = match coding_helpers::decode_packedfile_string_u16(
-            packed_file_decoded[index_data..].to_vec(),
-            index_data
-        ) {
-            Ok(data) => data.0,
-            Err(_) => "Error".to_string()
-        };
+            decoded_string_u16 = match coding_helpers::decode_packedfile_string_u16(
+                packed_file_decoded[index_data..].to_vec(),
+                index_data
+            ) {
+                Ok(data) => data.0,
+                Err(_) => "Error".to_string()
+            };
 
-        decoded_optional_string_u8 = match coding_helpers::decode_packedfile_optional_string_u8(
-            packed_file_decoded[index_data..].to_vec(),
-            index_data
-        ) {
-            Ok(data) => data.0,
-            Err(_) => "Error".to_string()
-        };
+            decoded_optional_string_u8 = match coding_helpers::decode_packedfile_optional_string_u8(
+                packed_file_decoded[index_data..].to_vec(),
+                index_data
+            ) {
+                Ok(data) => data.0,
+                Err(_) => "Error".to_string()
+            };
 
-        decoded_optional_string_u16 = match coding_helpers::decode_packedfile_optional_string_u16(
-            packed_file_decoded[index_data..].to_vec(),
-            index_data
-        ) {
-            Ok(data) => data.0,
-            Err(_) => "Error".to_string()
-        };
+            decoded_optional_string_u16 = match coding_helpers::decode_packedfile_optional_string_u16(
+                packed_file_decoded[index_data..].to_vec(),
+                index_data
+            ) {
+                Ok(data) => data.0,
+                Err(_) => "Error".to_string()
+            };
+        }
+        else {
+            decoded_string_u8 = "Error".to_string();
+            decoded_string_u16 = "Error".to_string();
+            decoded_optional_string_u8 = "Error".to_string();
+            decoded_optional_string_u16 = "Error".to_string();
+        }
 
         // We update all the decoded entries here.
         packed_file_decoder.bool_entry.get_buffer().set_text(decoded_bool);

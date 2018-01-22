@@ -252,67 +252,104 @@ impl DBData {
 
                     match *field_type {
                         schemas::FieldType::Boolean => {
-                            match coding_helpers::decode_packedfile_bool(packed_file_data[index], index) {
-                                Ok(data) => {
-                                    index = data.1;
-                                    entry.push(DecodedData::Boolean(data.0));
-                                }
-                                Err(error) => return Err(error)
-                            };
+                            if index < packed_file_data.len() {
+                                match coding_helpers::decode_packedfile_bool(packed_file_data[index], index) {
+                                    Ok(data) => {
+                                        index = data.1;
+                                        entry.push(DecodedData::Boolean(data.0));
+                                    }
+                                    Err(error) => return Err(error)
+                                };
+                            }
+                            else {
+                                return Err(Error::new(ErrorKind::Other, format!("Error: trying to decode a bool without a byte.")))
+                            }
                         }
                         schemas::FieldType::Float => {
-                            match coding_helpers::decode_packedfile_float_u32(packed_file_data[index..(index + 4)].to_vec(), index) {
-                                Ok(data) => {
-                                    index = data.1;
-                                    entry.push(DecodedData::Float( data.0));
-                                }
-                                Err(error) => return Err(error)
-                            };
+                            // Check if the index does even exist, to avoid crashes.
+                            if (index + 4) < packed_file_data.len() {
+                                match coding_helpers::decode_packedfile_float_u32(packed_file_data[index..(index + 4)].to_vec(), index) {
+                                    Ok(data) => {
+                                        index = data.1;
+                                        entry.push(DecodedData::Float( data.0));
+                                    }
+                                    Err(error) => return Err(error)
+                                };
+                            }
+                            else {
+                                return Err(Error::new(ErrorKind::Other, format!("Error: trying to decode a Float without enought bytes.")))
+                            }
                         }
                         schemas::FieldType::Integer => {
-                            match coding_helpers::decode_packedfile_integer_u32(packed_file_data[index..(index + 4)].to_vec(), index) {
-                                Ok(data) => {
-                                    index = data.1;
-                                    entry.push(DecodedData::Integer(data.0));
-                                }
-                                Err(error) => return Err(error)
-                            };
+                            // Check if the index does even exist, to avoid crashes.
+                            if (index + 4) < packed_file_data.len() {
+                                match coding_helpers::decode_packedfile_integer_u32(packed_file_data[index..(index + 4)].to_vec(), index) {
+                                    Ok(data) => {
+                                        index = data.1;
+                                        entry.push(DecodedData::Integer(data.0));
+                                    }
+                                    Err(error) => return Err(error)
+                                };
+                            }
+                            else {
+                                return Err(Error::new(ErrorKind::Other, format!("Error: trying to decode an Integer without enought bytes.")))
+                            }
                         }
                         schemas::FieldType::StringU8 => {
-                            match coding_helpers::decode_packedfile_string_u8(packed_file_data[index..].to_vec(), index) {
-                                Ok(data) => {
-                                    index = data.1;
-                                    entry.push(DecodedData::StringU8(data.0));
-                                }
-                                Err(error) => return Err(error)
-                            };
+                            if index < packed_file_data.len() {
+                                match coding_helpers::decode_packedfile_string_u8(packed_file_data[index..].to_vec(), index) {
+                                    Ok(data) => {
+                                        index = data.1;
+                                        entry.push(DecodedData::StringU8(data.0));
+                                    }
+                                    Err(error) => return Err(error)
+                                };
+                            }
+                            else {
+                                return Err(Error::new(ErrorKind::Other, format!("Error: trying to decode a StringU8 without enought bytes.")))
+                            }
                         }
                         schemas::FieldType::StringU16 => {
-                            match coding_helpers::decode_packedfile_string_u16(packed_file_data[index..].to_vec(), index) {
-                                Ok(data) => {
-                                    index = data.1;
-                                    entry.push(DecodedData::StringU16(data.0));
-                                }
-                                Err(error) => return Err(error)
-                            };
+                            if index < packed_file_data.len() {
+                                match coding_helpers::decode_packedfile_string_u16(packed_file_data[index..].to_vec(), index) {
+                                    Ok(data) => {
+                                        index = data.1;
+                                        entry.push(DecodedData::StringU16(data.0));
+                                    }
+                                    Err(error) => return Err(error)
+                                };
+                            }
+                            else {
+                                return Err(Error::new(ErrorKind::Other, format!("Error: trying to decode a StringU16 without enought bytes.")))
+                            }
                         }
                         schemas::FieldType::OptionalStringU8 => {
-                            match coding_helpers::decode_packedfile_optional_string_u8(packed_file_data[index..].to_vec(), index) {
-                                Ok(data) => {
-                                    index = data.1;
-                                    entry.push(DecodedData::OptionalStringU8(data.0));
-                                }
-                                Err(error) => return Err(error)
-                            };
+                            if index < packed_file_data.len() {
+                                match coding_helpers::decode_packedfile_optional_string_u8(packed_file_data[index..].to_vec(), index) {
+                                    Ok(data) => {
+                                        index = data.1;
+                                        entry.push(DecodedData::OptionalStringU8(data.0));
+                                    }
+                                    Err(error) => return Err(error)
+                                };
+                            }
+                            else {
+                                return Err(Error::new(ErrorKind::Other, format!("Error: trying to decode an OptionalStringU8 without enought bytes.")))
+                            }
                         }
                         schemas::FieldType::OptionalStringU16 => {
-                            match coding_helpers::decode_packedfile_optional_string_u16(packed_file_data[index..].to_vec(), index) {
-                                Ok(data) => {
-                                    index = data.1;
-                                    entry.push(DecodedData::OptionalStringU16(data.0));
-                                }
-                                Err(error) => return Err(error)
-                            };
+                            if index < packed_file_data.len() {
+                                match coding_helpers::decode_packedfile_optional_string_u16(packed_file_data[index..].to_vec(), index) {
+                                    Ok(data) => {
+                                        index = data.1;
+                                        entry.push(DecodedData::OptionalStringU16(data.0));
+                                    }
+                                    Err(error) => return Err(error)
+                                };
+                            }
+                            else {
+                                return Err(Error::new(ErrorKind::Other, format!("Error: trying to decode an OptionalStringU16 without enought bytes.")))
+                            }
                         }
                     }
                 }
