@@ -249,7 +249,6 @@ impl TableDefinition {
             let field_name = new_name;
 
             let field_is_key = if field.primary_key == "1" {true} else {false};
-
             let field_is_reference = if field.column_source_table != None {
                 Some((field.column_source_table.clone().unwrap().to_owned(), field.column_source_column.clone().unwrap()[0].to_owned()))
             }
@@ -271,14 +270,14 @@ impl TableDefinition {
                 "text" => {
 
                     // Key fields are ALWAYS REQUIRED. This fixes it's detection.
-                    if field_name == "key" {
+                    if field.name == "key" {
                         FieldType::StringU8
                     }
                     else {
                         match &*field.required {
                             "1" => {
                                 // In Warhammer 2 this table has his "value" field broken.
-                                if table_name == "_kv_winds_of_magic_params_tables" && field_name == "value" {
+                                if table_name == "_kv_winds_of_magic_params_tables" && field.name == "value" {
                                     FieldType::Float
                                 }
                                 else {
@@ -286,11 +285,18 @@ impl TableDefinition {
                                 }
                             },
                             "0" => FieldType::OptionalStringU8,
-                            _ => FieldType::Integer,
+
+                            // If we reach this point, we set it to OptionalStringU16. Not because it is it
+                            // (we don't have a way to distinguis String types) but to know what fields
+                            // reach this point.
+                            _ => FieldType::OptionalStringU16,
                         }
                     }
                 }
-                _ => FieldType::Integer,
+                // If we reach this point, we set it to StringU16. Not because it is it
+                // (we don't have a way to distinguis String types) but to know what fields
+                // reach this point.
+                _ => FieldType::StringU16,
 
             };
 
