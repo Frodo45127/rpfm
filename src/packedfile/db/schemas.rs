@@ -209,7 +209,7 @@ impl TableDefinition {
 
             // First, we need to disable a number of known fields that are not in the final tables. We
             // check if the current field is one of them, and ignore it if it's.
-            if field.name == "game_expansion_key" ||
+            if field.name == "game_expansion_key" || // This one exists in one of the advices tables.
                 field.name == "localised_text" ||
                 field.name == "localised_name" ||
                 field.name == "localised_tooltip" ||
@@ -219,6 +219,7 @@ impl TableDefinition {
                 field.name == "short_description_text" ||
                 field.name == "historical_description_text" ||
                 field.name == "strengths_weaknesses_text" ||
+                field.name == "onscreen_text" ||
                 field.name == "onscreen_name" ||
                 field.name == "onscreen_description" ||
                 field.name == "on_screen_name" ||
