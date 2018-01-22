@@ -330,7 +330,8 @@ pub fn decode_packedfile_string_u16(packed_file_data: Vec<u8>, index: usize) -> 
     if packed_file_data.len() >= 2 {
         match decode_packedfile_integer_u16(packed_file_data[..2].to_vec(), index) {
             Ok(result) => {
-                let size = result.0 * 2;
+                // We wrap this to avoid overflow, as the limit of this is 65,535.
+                let size = result.0.wrapping_mul(2);
                 let mut index = result.1;
                 if packed_file_data.len() >= size as usize {
                     match decode_string_u16(packed_file_data[2..(2 + size as usize)].to_vec()) {
