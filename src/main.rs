@@ -1818,7 +1818,8 @@ fn main() {
                                     match PackedFileDBDecoder::load_data_to_decoder_view(
                                         &packed_file_decoder,
                                         &*tree_path[1],
-                                        &packed_file_data_encoded.borrow().to_vec()
+                                        &packed_file_data_encoded.borrow().to_vec(),
+                                        initial_index
                                     ) {
                                         Ok(_) => {
 

@@ -394,17 +394,32 @@ impl PackedFileDBDecoder {
 
         raw_data_line_index.set_alignment(1.0, 0.0);
         raw_data.set_justification(Justification::Fill);
-        raw_data.set_size_request(280,0);
+        raw_data.set_size_request(290, 0);
         raw_data.set_wrap_mode(WrapMode::Word);
+        raw_data.set_right_margin(4);
+        raw_data.set_left_margin(4);
         //raw_data_decoded.set_wrap_mode(WrapMode::Word);
 
         raw_data_box.pack_start(&raw_data_line_index, false, false, 4);
         raw_data_box.pack_start(&raw_data, false, false, 4);
         //raw_data_box.pack_start(&raw_data_decoded, false, false, 4);
 
+        // Then we set the TextTags to paint the hex_data.
+        let raw_data_text_buffer = raw_data.get_buffer().unwrap();
+        let raw_data_text_buffer_tag_table = raw_data_text_buffer.get_tag_table().unwrap();
+
+        // Tag for the header (Red Background)
+        let text_tag_header = TextTag::new(Some("header"));
+        text_tag_header.set_property_background(Some("red"));
+        raw_data_text_buffer_tag_table.add(&text_tag_header);
+
+        // Tag for the current index (Yellow Background)
+        let text_tag_index = TextTag::new(Some("index"));
+        text_tag_index.set_property_background(Some("yellow"));
+        raw_data_text_buffer_tag_table.add(&text_tag_index);
+
         let packed_file_raw_data_scroll = ScrolledWindow::new(None, None);
-        packed_file_raw_data_scroll.set_size_request(320, 0);
-        //packed_file_raw_data_scroll.set_max_content_width(400);
+        packed_file_raw_data_scroll.set_size_request(350, 0);
 
         // Then, the big box to put all the stuff we need to decode.
         let packed_file_decoded_data_big_boxx = Box::new(Orientation::Vertical, 0);
@@ -719,7 +734,8 @@ impl PackedFileDBDecoder {
     pub fn load_data_to_decoder_view(
         packed_file_decoder_view: &PackedFileDBDecoder,
         packed_file_table_type: &str,
-        packed_file_encoded: &Vec<u8>
+        packed_file_encoded: &Vec<u8>,
+        initial_index: usize
     ) -> Result<(), Error> {
         let db_header = DBHeader::read(packed_file_encoded.to_vec())?;
 
@@ -727,7 +743,7 @@ impl PackedFileDBDecoder {
         let hex_lines = (packed_file_encoded.len() / 16) + 1;
         let mut hex_lines_text = String::new();
         for hex_line in 0..hex_lines {
-            hex_lines_text.push_str(&format!("{:X}\n", hex_line * 16));
+            hex_lines_text.push_str(&format!("{:>0count$X}\n", hex_line * 16, count = 6));
         }
         packed_file_decoder_view.raw_data_line_index.set_text(&hex_lines_text);
 
@@ -792,6 +808,16 @@ impl PackedFileDBDecoder {
 
         packed_file_decoder_view.raw_data.get_buffer().unwrap().set_text(&hex_raw_data);
 
+        // In theory, this should give us the equivalent byte to our index_data.
+        // In practice, I'm bad at maths.
+        let header_char = (initial_index * 3) as i32;
+        packed_file_decoder_view.raw_data.get_buffer().unwrap().apply_tag_by_name(
+            "header",
+            &packed_file_decoder_view.raw_data.get_buffer().unwrap().get_start_iter(),
+            &packed_file_decoder_view.raw_data.get_buffer().unwrap().get_iter_at_line_offset(0, header_char)
+        );
+
+
         packed_file_decoder_view.table_type_label.set_text(packed_file_table_type);
         packed_file_decoder_view.table_version_label.set_text(&format!("{}", db_header.0.packed_file_header_packed_file_version));
         packed_file_decoder_view.table_entry_count_label.set_text(&format!("{}", db_header.0.packed_file_header_packed_file_entry_count));
@@ -816,9 +842,8 @@ impl PackedFileDBDecoder {
         let decoded_optional_string_u8;
         let decoded_optional_string_u16;
 
-        let initial_index = index_data.clone();
         let mut index_data = index_data.clone();
-        // TODO: Fix index.
+
         // If we are loading data to the table for the first time, we'll load to the table all the data
         // directly from the existing definition and update the initial index for decoding.
         if load_from_existing_definition && !table_definition.fields.is_empty() {
@@ -929,15 +954,14 @@ impl PackedFileDBDecoder {
 
         // Then we set the TextTags to paint the hex_data.
         let raw_data_text_buffer = packed_file_decoder.raw_data.get_buffer().unwrap();
-        let raw_data_text_buffer_tag_table = raw_data_text_buffer.get_tag_table().unwrap();
-        let text_tag_header = TextTag::new(Some("header"));
-        text_tag_header.set_property_background(Some("red"));
-        raw_data_text_buffer_tag_table.add(&text_tag_header);
 
-        // In theory, this should give us the equivalent byte to our index_data.
-        // In practice, I'm bad at maths.
-        let header_char = (initial_index * 3) as i32;
-        raw_data_text_buffer.apply_tag(&text_tag_header, &raw_data_text_buffer.get_start_iter(), &raw_data_text_buffer.get_iter_at_line_offset(0, header_char));
+        // Clear the current index tag.
+        raw_data_text_buffer.remove_tag_by_name("index", &raw_data_text_buffer.get_start_iter(), &raw_data_text_buffer.get_end_iter());
+
+        // Set a new index tag.
+        let index_char_start = (index_data * 3) as i32;
+        let index_char_end = ((index_data * 3) + 2) as i32;
+        raw_data_text_buffer.apply_tag_by_name("index", &raw_data_text_buffer.get_iter_at_line_offset(0, index_char_start), &raw_data_text_buffer.get_iter_at_line_offset(0, index_char_end));
 
         index_data
     }
