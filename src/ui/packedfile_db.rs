@@ -24,10 +24,11 @@ pub struct PackedFileDBTreeView {
     pub packed_file_tree_view: TreeView,
     pub packed_file_list_store: ListStore,
     pub packed_file_tree_view_cell_bool: Vec<CellRendererToggle>,
+    pub packed_file_tree_view_cell_float: Vec<CellRendererText>,
+    pub packed_file_tree_view_cell_integer: Vec<CellRendererText>,
+    pub packed_file_tree_view_cell_long_integer: Vec<CellRendererText>,
     pub packed_file_tree_view_cell_string: Vec<CellRendererText>,
     pub packed_file_tree_view_cell_optional_string: Vec<CellRendererText>,
-    pub packed_file_tree_view_cell_integer: Vec<CellRendererText>,
-    pub packed_file_tree_view_cell_float: Vec<CellRendererText>,
 }
 
 /// Struct PackedFileDBDecoder: contains all the stuff we need to return to be able to decode DB PackedFiles.
@@ -42,6 +43,7 @@ pub struct PackedFileDBDecoder {
     pub bool_entry: Entry,
     pub float_entry: Entry,
     pub integer_entry: Entry,
+    pub long_integer_entry: Entry,
     pub string_u8_entry: Entry,
     pub string_u16_entry: Entry,
     pub optional_string_u8_entry: Entry,
@@ -49,6 +51,7 @@ pub struct PackedFileDBDecoder {
     pub use_bool_button: Button,
     pub use_float_button: Button,
     pub use_integer_button: Button,
+    pub use_long_integer_button: Button,
     pub use_string_u8_button: Button,
     pub use_string_u16_button: Button,
     pub use_optional_string_u8_button: Button,
@@ -95,6 +98,9 @@ impl PackedFileDBTreeView{
                 FieldType::Integer => {
                     list_store_table_definition.push(Type::U32);
                 }
+                FieldType::LongInteger => {
+                    list_store_table_definition.push(Type::U64);
+                }
                 FieldType::StringU8 | FieldType::StringU16 | FieldType::OptionalStringU8 | FieldType::OptionalStringU16 => {
                     list_store_table_definition.push(Type::String);
                 }
@@ -123,10 +129,11 @@ impl PackedFileDBTreeView{
         packed_file_tree_view.append_column(&column_index);
 
         let mut packed_file_tree_view_cell_bool = vec![];
+        let mut packed_file_tree_view_cell_float = vec![];
+        let mut packed_file_tree_view_cell_integer = vec![];
+        let mut packed_file_tree_view_cell_long_integer = vec![];
         let mut packed_file_tree_view_cell_string = vec![];
         let mut packed_file_tree_view_cell_optional_string = vec![];
-        let mut packed_file_tree_view_cell_integer = vec![];
-        let mut packed_file_tree_view_cell_float = vec![];
 
         let mut index = 1;
         let mut key_columns = vec![];
@@ -192,6 +199,27 @@ impl PackedFileDBTreeView{
                     packed_file_tree_view_cell_integer.push(cell_int);
                     if field.field_is_key {
                         key_columns.push(column_int);
+                    }
+                }
+                FieldType::LongInteger => {
+                    let cell_long_int = CellRendererText::new();
+                    cell_long_int.set_property_editable(true);
+                    cell_long_int.set_property_xalign(1.0);
+                    cell_long_int.set_property_placeholder_text(Some("Long Integer (2, 3, 6,..)"));
+                    let column_long_int = TreeViewColumn::new();
+                    column_long_int.set_title(&field.field_name);
+                    column_long_int.set_clickable(true);
+                    column_long_int.set_resizable(true);
+                    column_long_int.set_min_width(50);
+                    column_long_int.set_sizing(gtk::TreeViewColumnSizing::GrowOnly);
+                    column_long_int.set_alignment(0.5);
+                    column_long_int.set_sort_column_id(index);
+                    column_long_int.pack_start(&cell_long_int, true);
+                    column_long_int.add_attribute(&cell_long_int, "text", index);
+                    packed_file_tree_view.append_column(&column_long_int);
+                    packed_file_tree_view_cell_long_integer.push(cell_long_int);
+                    if field.field_is_key {
+                        key_columns.push(column_long_int);
                     }
                 }
                 FieldType::StringU8 | FieldType::StringU16 => {
@@ -267,10 +295,11 @@ impl PackedFileDBTreeView{
             packed_file_tree_view,
             packed_file_list_store,
             packed_file_tree_view_cell_bool,
+            packed_file_tree_view_cell_float,
+            packed_file_tree_view_cell_integer,
+            packed_file_tree_view_cell_long_integer,
             packed_file_tree_view_cell_string,
             packed_file_tree_view_cell_optional_string,
-            packed_file_tree_view_cell_integer,
-            packed_file_tree_view_cell_float,
         })
     }
 
@@ -298,6 +327,7 @@ impl PackedFileDBTreeView{
                     DecodedData::Boolean(data) => gtk_value_field = gtk::ToValue::to_value(&data),
                     DecodedData::Float(data) => gtk_value_field = gtk::ToValue::to_value(&format!("{}", data)),
                     DecodedData::Integer(data) => gtk_value_field = gtk::ToValue::to_value(&data),
+                    DecodedData::LongInteger(data) => gtk_value_field = gtk::ToValue::to_value(&data),
                     DecodedData::StringU8(data) => gtk_value_field = gtk::ToValue::to_value(&data),
                     DecodedData::StringU16(data) => gtk_value_field = gtk::ToValue::to_value(&data),
                     DecodedData::OptionalStringU8(data) => gtk_value_field = gtk::ToValue::to_value(&data),
@@ -345,6 +375,10 @@ impl PackedFileDBTreeView{
                         FieldType::Integer => {
                             let data: u32 = packed_file_list_store.get_value(&current_line, column).get().unwrap();
                             packed_file_data_from_tree_view_entry.push(DecodedData::Integer(data));
+                        }
+                        FieldType::LongInteger => {
+                            let data: u64 = packed_file_list_store.get_value(&current_line, column).get().unwrap();
+                            packed_file_data_from_tree_view_entry.push(DecodedData::LongInteger(data));
                         }
                         FieldType::StringU8 => {
                             let data: String = packed_file_list_store.get_value(&current_line, column).get().unwrap();
@@ -460,6 +494,7 @@ impl PackedFileDBDecoder {
         cell_type_list_store.insert_with_values(None, &[0], &[&format!("Bool")]);
         cell_type_list_store.insert_with_values(None, &[0], &[&format!("Float")]);
         cell_type_list_store.insert_with_values(None, &[0], &[&format!("Integer")]);
+        cell_type_list_store.insert_with_values(None, &[0], &[&format!("LongInteger")]);
         cell_type_list_store.insert_with_values(None, &[0], &[&format!("StringU8")]);
         cell_type_list_store.insert_with_values(None, &[0], &[&format!("StringU16")]);
         cell_type_list_store.insert_with_values(None, &[0], &[&format!("OptionalStringU8")]);
@@ -543,6 +578,7 @@ impl PackedFileDBDecoder {
         let bool_box = Box::new(Orientation::Horizontal, 0);
         let float_box = Box::new(Orientation::Horizontal, 0);
         let integer_box = Box::new(Orientation::Horizontal, 0);
+        let long_integer_box = Box::new(Orientation::Horizontal, 0);
         let string_u8_box = Box::new(Orientation::Horizontal, 0);
         let string_u16_box = Box::new(Orientation::Horizontal, 0);
         let optional_string_u8_box = Box::new(Orientation::Horizontal, 0);
@@ -551,6 +587,7 @@ impl PackedFileDBDecoder {
         let bool_label = Label::new(Some("Decoded as \"Bool\":"));
         let float_label = Label::new(Some("Decoded as \"Float\":"));
         let integer_label = Label::new(Some("Decoded as \"Integer\":"));
+        let long_integer_label = Label::new(Some("Decoded as \"Long Integer\":"));
         let string_u8_label = Label::new(Some("Decoded as \"String u8\":"));
         let string_u16_label = Label::new(Some("Decoded as \"String u16\":"));
         let optional_string_u8_label = Label::new(Some("Decoded as \"Optional String u8\":"));
@@ -559,6 +596,7 @@ impl PackedFileDBDecoder {
         bool_label.set_size_request(200, 0);
         float_label.set_size_request(200, 0);
         integer_label.set_size_request(200, 0);
+        long_integer_label.set_size_request(200, 0);
         string_u8_label.set_size_request(200, 0);
         string_u16_label.set_size_request(200, 0);
         optional_string_u8_label.set_size_request(200, 0);
@@ -567,6 +605,7 @@ impl PackedFileDBDecoder {
         bool_label.set_alignment(0.0, 0.5);
         float_label.set_alignment(0.0, 0.5);
         integer_label.set_alignment(0.0, 0.5);
+        long_integer_label.set_alignment(0.0, 0.5);
         string_u8_label.set_alignment(0.0, 0.5);
         string_u16_label.set_alignment(0.0, 0.5);
         optional_string_u8_label.set_alignment(0.0, 0.5);
@@ -575,6 +614,7 @@ impl PackedFileDBDecoder {
         let bool_entry = Entry::new();
         let float_entry = Entry::new();
         let integer_entry = Entry::new();
+        let long_integer_entry = Entry::new();
         let string_u8_entry = Entry::new();
         let string_u16_entry = Entry::new();
         let optional_string_u8_entry = Entry::new();
@@ -583,6 +623,7 @@ impl PackedFileDBDecoder {
         bool_entry.set_size_request(400, 0);
         float_entry.set_size_request(400, 0);
         integer_entry.set_size_request(400, 0);
+        long_integer_entry.set_size_request(400, 0);
         string_u8_entry.set_size_request(400, 0);
         string_u16_entry.set_size_request(400, 0);
         optional_string_u8_entry.set_size_request(400, 0);
@@ -591,6 +632,7 @@ impl PackedFileDBDecoder {
         let use_bool_button = Button::new_with_label("Use this");
         let use_float_button = Button::new_with_label("Use this");
         let use_integer_button = Button::new_with_label("Use this");
+        let use_long_integer_button = Button::new_with_label("Use this");
         let use_string_u8_button = Button::new_with_label("Use this");
         let use_string_u16_button = Button::new_with_label("Use this");
         let use_optional_string_u8_button = Button::new_with_label("Use this");
@@ -610,6 +652,11 @@ impl PackedFileDBDecoder {
         integer_box.pack_end(&use_integer_button, true, false, 0);
         integer_box.pack_end(&integer_entry, true, false, 0);
         packed_file_decoded_data_box.pack_start(&integer_box, false, false, 2);
+
+        long_integer_box.pack_start(&long_integer_label, false, false, 10);
+        long_integer_box.pack_end(&use_long_integer_button, true, false, 0);
+        long_integer_box.pack_end(&long_integer_entry, true, false, 0);
+        packed_file_decoded_data_box.pack_start(&long_integer_box, false, false, 2);
 
         string_u8_box.pack_start(&string_u8_label, false, false, 10);
         string_u8_box.pack_end(&use_string_u8_button, true, false, 0);
@@ -706,6 +753,7 @@ impl PackedFileDBDecoder {
             bool_entry,
             float_entry,
             integer_entry,
+            long_integer_entry,
             string_u8_entry,
             string_u16_entry,
             optional_string_u8_entry,
@@ -713,6 +761,7 @@ impl PackedFileDBDecoder {
             use_bool_button,
             use_float_button,
             use_integer_button,
+            use_long_integer_button,
             use_string_u8_button,
             use_string_u16_button,
             use_optional_string_u8_button,
@@ -837,6 +886,7 @@ impl PackedFileDBDecoder {
         let decoded_bool;
         let decoded_float;
         let decoded_integer;
+        let decoded_long_integer;
         let decoded_string_u8;
         let decoded_string_u16;
         let decoded_optional_string_u8;
@@ -907,6 +957,20 @@ impl PackedFileDBDecoder {
             decoded_integer = "Error".to_string();
         }
 
+        // Check if the index does even exist, to avoid crashes.
+        if (index_data + 8) <= packed_file_decoded.len() {
+            decoded_long_integer = match coding_helpers::decode_packedfile_integer_u64(
+                packed_file_decoded[index_data..(index_data + 8)].to_vec(),
+                index_data
+            ) {
+                Ok(data) => data.0.to_string(),
+                Err(_) => "Error".to_string()
+            };
+        }
+        else {
+            decoded_long_integer = "Error".to_string();
+        }
+
         // Check that the index exist, to avoid crashes.
         if index_data <= packed_file_decoded.len() {
             decoded_string_u8 = match coding_helpers::decode_packedfile_string_u8(
@@ -952,6 +1016,7 @@ impl PackedFileDBDecoder {
         packed_file_decoder.bool_entry.get_buffer().set_text(decoded_bool);
         packed_file_decoder.float_entry.get_buffer().set_text(&*decoded_float);
         packed_file_decoder.integer_entry.get_buffer().set_text(&*decoded_integer);
+        packed_file_decoder.long_integer_entry.get_buffer().set_text(&*decoded_long_integer);
         packed_file_decoder.string_u8_entry.get_buffer().set_text(&format!("{:?}", decoded_string_u8));
         packed_file_decoder.string_u16_entry.get_buffer().set_text(&format!("{:?}", decoded_string_u16));
         packed_file_decoder.optional_string_u8_entry.get_buffer().set_text(&format!("{:?}", decoded_optional_string_u8));
@@ -1049,6 +1114,17 @@ impl PackedFileDBDecoder {
                     ("Error".to_owned(), index_data)
                 }
             },
+            FieldType::LongInteger => {
+                if (index_data + 8) < packed_file_decoded.len() {
+                    match coding_helpers::decode_packedfile_integer_u64(packed_file_decoded[index_data..(index_data + 8)].to_vec(), index_data) {
+                        Ok(result) => (result.0.to_string(), result.1),
+                        Err(_) => ("Error".to_owned(), index_data),
+                    }
+                }
+                else {
+                    ("Error".to_owned(), index_data)
+                }
+            },
             FieldType::StringU8 => {
                 match coding_helpers::decode_packedfile_string_u8(packed_file_decoded[index_data..].to_vec(), index_data) {
                     Ok(result) => result,
@@ -1079,6 +1155,7 @@ impl PackedFileDBDecoder {
             FieldType::Boolean => "Bool",
             FieldType::Float => "Float",
             FieldType::Integer => "Integer",
+            FieldType::LongInteger => "LongInteger",
             FieldType::StringU8 => "StringU8",
             FieldType::StringU16 => "StringU16",
             FieldType::OptionalStringU8 => "OptionalStringU8",
@@ -1142,6 +1219,7 @@ impl PackedFileDBDecoder {
                     "Bool" => FieldType::Boolean,
                     "Float" => FieldType::Float,
                     "Integer" => FieldType::Integer,
+                    "LongInteger" => FieldType::LongInteger,
                     "StringU8" => FieldType::StringU8,
                     "StringU16" => FieldType::StringU16,
                     "OptionalStringU8" => FieldType::OptionalStringU8,

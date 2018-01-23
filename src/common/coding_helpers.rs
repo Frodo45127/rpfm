@@ -39,6 +39,14 @@ pub fn decode_integer_u32(integer_encoded: Vec<u8>) -> Result<u32, Error> {
     (&integer_encoded[..]).read_u32::<LittleEndian>()
 }
 
+/// This function allow us to decode an encoded Long Integer. This type of Integers are encoded in
+/// in 8 bytes reversed (LittleEndian).
+#[allow(dead_code)]
+pub fn decode_integer_u64(integer_encoded: Vec<u8>) -> Result<u64, Error> {
+    (&integer_encoded[..]).read_u64::<LittleEndian>()
+}
+
+
 /// This function allow us to decode an UTF-32 encoded float. This type of floats are encoded in
 /// in 4 bytes reversed (LittleEndian).
 #[allow(dead_code)]
@@ -131,6 +139,15 @@ pub fn encode_integer_u16(integer_decoded: u16) -> Vec<u8> {
 pub fn encode_integer_u32(integer_decoded: u32) -> Vec<u8> {
     let mut integer_encoded: [u8;4] = [0;4];
     LittleEndian::write_u32(&mut integer_encoded, integer_decoded);
+    integer_encoded.to_vec()
+}
+
+/// This function allow us to encode a decoded Long Integer. This type of Integers are encoded in
+/// in 8 bytes reversed (LittleEndian).
+#[allow(dead_code)]
+pub fn encode_integer_u64(integer_decoded: u64) -> Vec<u8> {
+    let mut integer_encoded: [u8;8] = [0;8];
+    LittleEndian::write_u64(&mut integer_encoded, integer_decoded);
     integer_encoded.to_vec()
 }
 
@@ -243,6 +260,24 @@ pub fn decode_packedfile_integer_u32(packed_file_data: Vec<u8>, mut index: usize
     }
     else {
         return Err(Error::new(ErrorKind::Other, format!("Error decoding an u32: Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len())))
+    }
+}
+
+/// This function allow us to decode an encoded Long Integer cell. We return the integer and the index
+/// for the next cell's data.
+#[allow(dead_code)]
+pub fn decode_packedfile_integer_u64(packed_file_data: Vec<u8>, mut index: usize) -> Result<(u64, usize), Error> {
+    if packed_file_data.len() >= 8 {
+        match decode_integer_u64(packed_file_data[..8].to_vec()) {
+            Ok(number) => {
+                index += 8;
+                Ok((number, index))
+            }
+            Err(error) => Err(error)
+        }
+    }
+    else {
+        return Err(Error::new(ErrorKind::Other, format!("Error decoding an u64: Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len())))
     }
 }
 

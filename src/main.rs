@@ -1559,6 +1559,41 @@ fn main() {
                                     }));
                                 }
 
+                                // This loop takes care of the interaction with U64 cells.
+                                for edited_cell in packed_file_tree_view_stuff.packed_file_tree_view_cell_long_integer.iter() {
+                                    edited_cell.connect_edited(clone!(
+                                    table_definition,
+                                    window,
+                                    error_dialog,
+                                    pack_file_decoded,
+                                    packed_file_data_decoded,
+                                    packed_file_tree_view,
+                                    packed_file_list_store => move |_ ,tree_path , new_text|{
+
+                                        match new_text.parse::<u64>() {
+                                            Ok(new_number) => {
+                                                let edited_cell = packed_file_list_store.get_iter(&tree_path);
+                                                let edited_cell_column = packed_file_tree_view.get_cursor();
+                                                packed_file_list_store.set_value(&edited_cell.unwrap(), edited_cell_column.1.unwrap().get_sort_column_id() as u32, &new_number.to_value());
+
+                                                // Get the data from the table and turn it into a Vec<u8> to write it.
+                                                match ui::packedfile_db::PackedFileDBTreeView::return_data_from_tree_view(&*table_definition.borrow() ,&packed_file_list_store) {
+                                                    Ok(data) => {
+                                                        packed_file_data_decoded.borrow_mut().packed_file_data.packed_file_data = data;
+                                                        if let Err(error) = ::packfile::update_packed_file_data_db(&*packed_file_data_decoded.borrow_mut(), &mut *pack_file_decoded.borrow_mut(), index as usize) {
+                                                            ui::show_dialog(&error_dialog, error::Error::description(&error).to_string());
+                                                        }
+                                                        window.set_title(&format!("Rusted PackFile Manager -> {}(modified)", pack_file_decoded.borrow().pack_file_extra_data.file_name));
+
+                                                    }
+                                                    Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string()),
+                                                }
+                                            }
+                                            Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string()),
+                                        }
+                                    }));
+                                }
+
                                 // This loop takes care of the interaction with F32 cells.
                                 for edited_cell in packed_file_tree_view_stuff.packed_file_tree_view_cell_float.iter() {
                                     edited_cell.connect_edited(clone!(
@@ -1700,7 +1735,7 @@ fn main() {
                                                             FieldType::Float => {
                                                                 gtk_value_field = gtk::ToValue::to_value(&0.0);
                                                             }
-                                                            FieldType::Integer => {
+                                                            FieldType::Integer | FieldType::LongInteger => {
                                                                 gtk_value_field = gtk::ToValue::to_value(&0);
                                                             }
                                                             FieldType::StringU8 | FieldType::StringU16 | FieldType::OptionalStringU8 | FieldType::OptionalStringU16 => {
@@ -1935,6 +1970,40 @@ fn main() {
 
                                                 Inhibit(false)
                                             }));
+
+                                            packed_file_decoder.use_long_integer_button.connect_button_release_event(clone!(
+                                                table_definition,
+                                                index_data,
+                                                packed_file_data_encoded,
+                                                packed_file_decoder => move |_ ,_|{
+
+                                                // We are going to check if this is valid when adding the field to the TreeView, so we just add it.
+                                                let index_data_copy = index_data.borrow().clone();
+                                                *index_data.borrow_mut() = PackedFileDBDecoder::add_field_to_data_view(
+                                                    &packed_file_decoder,
+                                                    packed_file_data_encoded.borrow().to_vec(),
+                                                    &table_definition.borrow(),
+                                                    &packed_file_decoder.field_name_entry.get_buffer().get_text(),
+                                                    FieldType::Integer,
+                                                    packed_file_decoder.is_key_field_button.get_active(),
+                                                    None,
+                                                    String::new(),
+                                                    index_data_copy,
+                                                    None
+                                                );
+
+                                                PackedFileDBDecoder::update_decoder_view(
+                                                    &packed_file_decoder,
+                                                    packed_file_data_encoded.borrow().to_vec(),
+                                                    &table_definition.borrow(),
+                                                    *index_data.borrow(),
+                                                    false
+                                                );
+                                                packed_file_decoder.delete_all_fields_button.set_sensitive(true);
+
+                                                Inhibit(false)
+                                            }));
+
 
                                             packed_file_decoder.use_string_u8_button.connect_button_release_event(clone!(
                                                 table_definition,

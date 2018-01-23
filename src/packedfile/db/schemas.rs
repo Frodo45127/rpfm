@@ -61,6 +61,7 @@ pub enum FieldType {
     Boolean,
     Float,
     Integer,
+    LongInteger,
     StringU8,
     StringU16,
     OptionalStringU8,
@@ -259,7 +260,8 @@ impl TableDefinition {
             let field_type = match &*field.field_type {
                 "yesno" => FieldType::Boolean,
                 "single" | "decimal" | "double" => FieldType::Float,
-                "integer" | "autonumber" => {
+                "autonumber" => FieldType::LongInteger, // Not always true, but better than nothing.
+                "integer" => {
 
                     // In Warhammer 2 these tables are wrong in the definition schema.
                     if table_name.starts_with("_kv") {

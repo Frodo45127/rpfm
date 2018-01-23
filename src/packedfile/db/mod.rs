@@ -63,12 +63,13 @@ pub struct DBData {
 pub enum DecodedData {
     Index(String),
     Boolean(bool),
+    Float(f32),
+    Integer(u32),
+    LongInteger(u64),
     StringU8(String),
     StringU16(String),
     OptionalStringU8(String),
     OptionalStringU16(String),
-    Integer(u32),
-    Float(f32),
 }
 
 /// Implementation of "DB"
@@ -294,6 +295,21 @@ impl DBData {
                                 return Err(Error::new(ErrorKind::Other, format!("Error: trying to decode an Integer without enough bytes.")))
                             }
                         }
+                        schemas::FieldType::LongInteger => {
+                            // Check if the index does even exist, to avoid crashes.
+                            if (index + 8) <= packed_file_data.len() {
+                                match coding_helpers::decode_packedfile_integer_u64(packed_file_data[index..(index + 8)].to_vec(), index) {
+                                    Ok(data) => {
+                                        index = data.1;
+                                        entry.push(DecodedData::LongInteger(data.0));
+                                    }
+                                    Err(error) => return Err(error)
+                                };
+                            }
+                            else {
+                                return Err(Error::new(ErrorKind::Other, format!("Error: trying to decode a Long Integer without enough bytes.")))
+                            }
+                        }
                         schemas::FieldType::StringU8 => {
                             if index < packed_file_data.len() {
                                 match coding_helpers::decode_packedfile_string_u8(packed_file_data[index..].to_vec(), index) {
@@ -392,6 +408,10 @@ impl DBData {
                     },
                     DecodedData::Integer(data) => {
                         let mut encoded_data = coding_helpers::encode_integer_u32(data.clone());
+                        packed_file_data_encoded.append(&mut encoded_data);
+                    },
+                    DecodedData::LongInteger(data) => {
+                        let mut encoded_data = coding_helpers::encode_integer_u64(data.clone());
                         packed_file_data_encoded.append(&mut encoded_data);
                     },
                     DecodedData::StringU8(ref data) => {
