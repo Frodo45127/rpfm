@@ -864,7 +864,7 @@ impl PackedFileDBDecoder {
         }
 
         // Check if the index does even exist, to avoid crashes.
-        if index_data < packed_file_decoded.len() {
+        if index_data <= packed_file_decoded.len() {
             decoded_bool = match coding_helpers::decode_packedfile_bool(
                 packed_file_decoded[index_data],
                 index_data
@@ -885,7 +885,7 @@ impl PackedFileDBDecoder {
         }
 
         // Check if the index does even exist, to avoid crashes.
-        if (index_data + 4) < packed_file_decoded.len() {
+        if (index_data + 4) <= packed_file_decoded.len() {
             decoded_float = match coding_helpers::decode_packedfile_float_u32(
                 packed_file_decoded[index_data..(index_data + 4)].to_vec(),
                 index_data
@@ -908,7 +908,7 @@ impl PackedFileDBDecoder {
         }
 
         // Check that the index exist, to avoid crashes.
-        if index_data < packed_file_decoded.len() {
+        if index_data <= packed_file_decoded.len() {
             decoded_string_u8 = match coding_helpers::decode_packedfile_string_u8(
                 packed_file_decoded[index_data..].to_vec(),
                 index_data

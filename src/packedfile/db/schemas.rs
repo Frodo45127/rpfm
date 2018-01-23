@@ -219,6 +219,7 @@ impl TableDefinition {
                 field.name == "short_description_text" ||
                 field.name == "historical_description_text" ||
                 field.name == "strengths_weaknesses_text" ||
+                field.name == "onscreen" ||
                 field.name == "onscreen_text" ||
                 field.name == "onscreen_name" ||
                 field.name == "onscreen_description" ||

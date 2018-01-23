@@ -249,10 +249,9 @@ impl DBData {
                 // enum, as enums are the only thing I found that can store them
                 else {
                     let field_type = &table_definition.fields[column as usize - 1].field_type;
-
                     match *field_type {
                         schemas::FieldType::Boolean => {
-                            if index < packed_file_data.len() {
+                            if index <= packed_file_data.len() {
                                 match coding_helpers::decode_packedfile_bool(packed_file_data[index], index) {
                                     Ok(data) => {
                                         index = data.1;
@@ -267,7 +266,7 @@ impl DBData {
                         }
                         schemas::FieldType::Float => {
                             // Check if the index does even exist, to avoid crashes.
-                            if (index + 4) < packed_file_data.len() {
+                            if (index + 4) <= packed_file_data.len() {
                                 match coding_helpers::decode_packedfile_float_u32(packed_file_data[index..(index + 4)].to_vec(), index) {
                                     Ok(data) => {
                                         index = data.1;
@@ -277,12 +276,12 @@ impl DBData {
                                 };
                             }
                             else {
-                                return Err(Error::new(ErrorKind::Other, format!("Error: trying to decode a Float without enought bytes.")))
+                                return Err(Error::new(ErrorKind::Other, format!("Error: trying to decode a Float without enough bytes.")))
                             }
                         }
                         schemas::FieldType::Integer => {
                             // Check if the index does even exist, to avoid crashes.
-                            if (index + 4) < packed_file_data.len() {
+                            if (index + 4) <= packed_file_data.len() {
                                 match coding_helpers::decode_packedfile_integer_u32(packed_file_data[index..(index + 4)].to_vec(), index) {
                                     Ok(data) => {
                                         index = data.1;
@@ -292,7 +291,7 @@ impl DBData {
                                 };
                             }
                             else {
-                                return Err(Error::new(ErrorKind::Other, format!("Error: trying to decode an Integer without enought bytes.")))
+                                return Err(Error::new(ErrorKind::Other, format!("Error: trying to decode an Integer without enough bytes.")))
                             }
                         }
                         schemas::FieldType::StringU8 => {
@@ -324,7 +323,7 @@ impl DBData {
                             }
                         }
                         schemas::FieldType::OptionalStringU8 => {
-                            if index < packed_file_data.len() {
+                            if index <= packed_file_data.len() {
                                 match coding_helpers::decode_packedfile_optional_string_u8(packed_file_data[index..].to_vec(), index) {
                                     Ok(data) => {
                                         index = data.1;
@@ -338,7 +337,7 @@ impl DBData {
                             }
                         }
                         schemas::FieldType::OptionalStringU16 => {
-                            if index < packed_file_data.len() {
+                            if index <= packed_file_data.len() {
                                 match coding_helpers::decode_packedfile_optional_string_u16(packed_file_data[index..].to_vec(), index) {
                                     Ok(data) => {
                                         index = data.1;
