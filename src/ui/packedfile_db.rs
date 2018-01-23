@@ -573,7 +573,7 @@ impl PackedFileDBDecoder {
 
         let fields_tree_view_scroll = ScrolledWindow::new(None, None);
         fields_tree_view_scroll.add(&fields_tree_view);
-        fields_tree_view_scroll.set_size_request(400, 350);
+        fields_tree_view_scroll.set_size_request(400, 500);
 
         let bool_box = Box::new(Orientation::Horizontal, 0);
         let float_box = Box::new(Orientation::Horizontal, 0);
@@ -914,7 +914,7 @@ impl PackedFileDBDecoder {
         }
 
         // Check if the index does even exist, to avoid crashes.
-        if index_data <= packed_file_decoded.len() {
+        if index_data < packed_file_decoded.len() {
             decoded_bool = match coding_helpers::decode_packedfile_bool(
                 packed_file_decoded[index_data],
                 index_data
@@ -972,7 +972,7 @@ impl PackedFileDBDecoder {
         }
 
         // Check that the index exist, to avoid crashes.
-        if index_data <= packed_file_decoded.len() {
+        if index_data < packed_file_decoded.len() {
             decoded_string_u8 = match coding_helpers::decode_packedfile_string_u8(
                 packed_file_decoded[index_data..].to_vec(),
                 index_data

@@ -252,7 +252,7 @@ impl DBData {
                     let field_type = &table_definition.fields[column as usize - 1].field_type;
                     match *field_type {
                         schemas::FieldType::Boolean => {
-                            if index <= packed_file_data.len() {
+                            if index < packed_file_data.len() {
                                 match coding_helpers::decode_packedfile_bool(packed_file_data[index], index) {
                                     Ok(data) => {
                                         index = data.1;
@@ -369,6 +369,7 @@ impl DBData {
                     }
                 }
             }
+            println!("{:?}", entry);
             packed_file_data_decoded_rows.push(entry.clone());
         }
 
