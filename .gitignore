@@ -4,5 +4,4 @@
 .directory
 Cargo.lock
 rpfm-code.iml
-schema_wh2.json
 *.*~
