@@ -96,10 +96,10 @@ impl PackedFileDBTreeView{
                     list_store_table_definition.push(Type::String);
                 }
                 FieldType::Integer => {
-                    list_store_table_definition.push(Type::U32);
+                    list_store_table_definition.push(Type::I32);
                 }
                 FieldType::LongInteger => {
-                    list_store_table_definition.push(Type::U64);
+                    list_store_table_definition.push(Type::I64);
                 }
                 FieldType::StringU8 | FieldType::StringU16 | FieldType::OptionalStringU8 | FieldType::OptionalStringU16 => {
                     list_store_table_definition.push(Type::String);
@@ -373,11 +373,11 @@ impl PackedFileDBTreeView{
                             packed_file_data_from_tree_view_entry.push(DecodedData::Float(data));
                         }
                         FieldType::Integer => {
-                            let data: u32 = packed_file_list_store.get_value(&current_line, column).get().unwrap();
+                            let data: i32 = packed_file_list_store.get_value(&current_line, column).get().unwrap();
                             packed_file_data_from_tree_view_entry.push(DecodedData::Integer(data));
                         }
                         FieldType::LongInteger => {
-                            let data: u64 = packed_file_list_store.get_value(&current_line, column).get().unwrap();
+                            let data: i64 = packed_file_list_store.get_value(&current_line, column).get().unwrap();
                             packed_file_data_from_tree_view_entry.push(DecodedData::LongInteger(data));
                         }
                         FieldType::StringU8 => {
@@ -944,7 +944,7 @@ impl PackedFileDBDecoder {
                 Err(_) => "Error".to_string()
             };
 
-            decoded_integer = match coding_helpers::decode_packedfile_integer_u32(
+            decoded_integer = match coding_helpers::decode_packedfile_integer_i32(
                 packed_file_decoded[index_data..(index_data + 4)].to_vec(),
                 index_data
             ) {
@@ -959,7 +959,7 @@ impl PackedFileDBDecoder {
 
         // Check if the index does even exist, to avoid crashes.
         if (index_data + 8) <= packed_file_decoded.len() {
-            decoded_long_integer = match coding_helpers::decode_packedfile_integer_u64(
+            decoded_long_integer = match coding_helpers::decode_packedfile_integer_i64(
                 packed_file_decoded[index_data..(index_data + 8)].to_vec(),
                 index_data
             ) {
@@ -1105,7 +1105,7 @@ impl PackedFileDBDecoder {
             },
             FieldType::Integer => {
                 if (index_data + 4) < packed_file_decoded.len() {
-                    match coding_helpers::decode_packedfile_integer_u32(packed_file_decoded[index_data..(index_data + 4)].to_vec(), index_data) {
+                    match coding_helpers::decode_packedfile_integer_i32(packed_file_decoded[index_data..(index_data + 4)].to_vec(), index_data) {
                         Ok(result) => (result.0.to_string(), result.1),
                         Err(_) => ("Error".to_owned(), index_data),
                     }
@@ -1116,7 +1116,7 @@ impl PackedFileDBDecoder {
             },
             FieldType::LongInteger => {
                 if (index_data + 8) < packed_file_decoded.len() {
-                    match coding_helpers::decode_packedfile_integer_u64(packed_file_decoded[index_data..(index_data + 8)].to_vec(), index_data) {
+                    match coding_helpers::decode_packedfile_integer_i64(packed_file_decoded[index_data..(index_data + 8)].to_vec(), index_data) {
                         Ok(result) => (result.0.to_string(), result.1),
                         Err(_) => ("Error".to_owned(), index_data),
                     }

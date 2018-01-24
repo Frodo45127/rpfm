@@ -1535,7 +1535,7 @@ fn main() {
                                     packed_file_tree_view,
                                     packed_file_list_store => move |_ ,tree_path , new_text|{
 
-                                        match new_text.parse::<u32>() {
+                                        match new_text.parse::<i32>() {
                                             Ok(new_number) => {
                                                 let edited_cell = packed_file_list_store.get_iter(&tree_path);
                                                 let edited_cell_column = packed_file_tree_view.get_cursor();
@@ -1570,7 +1570,7 @@ fn main() {
                                     packed_file_tree_view,
                                     packed_file_list_store => move |_ ,tree_path , new_text|{
 
-                                        match new_text.parse::<u64>() {
+                                        match new_text.parse::<i64>() {
                                             Ok(new_number) => {
                                                 let edited_cell = packed_file_list_store.get_iter(&tree_path);
                                                 let edited_cell_column = packed_file_tree_view.get_cursor();

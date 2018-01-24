@@ -64,8 +64,8 @@ pub enum DecodedData {
     Index(String),
     Boolean(bool),
     Float(f32),
-    Integer(u32),
-    LongInteger(u64),
+    Integer(i32),
+    LongInteger(i64),
     StringU8(String),
     StringU16(String),
     OptionalStringU8(String),
@@ -283,7 +283,7 @@ impl DBData {
                         schemas::FieldType::Integer => {
                             // Check if the index does even exist, to avoid crashes.
                             if (index + 4) <= packed_file_data.len() {
-                                match coding_helpers::decode_packedfile_integer_u32(packed_file_data[index..(index + 4)].to_vec(), index) {
+                                match coding_helpers::decode_packedfile_integer_i32(packed_file_data[index..(index + 4)].to_vec(), index) {
                                     Ok(data) => {
                                         index = data.1;
                                         entry.push(DecodedData::Integer(data.0));
@@ -292,13 +292,13 @@ impl DBData {
                                 };
                             }
                             else {
-                                return Err(Error::new(ErrorKind::Other, format!("Error: trying to decode an Integer without enough bytes.")))
+                                return Err(Error::new(ErrorKind::Other, format!("Error: trying to decode a signed Integer without enough bytes.")))
                             }
                         }
                         schemas::FieldType::LongInteger => {
                             // Check if the index does even exist, to avoid crashes.
                             if (index + 8) <= packed_file_data.len() {
-                                match coding_helpers::decode_packedfile_integer_u64(packed_file_data[index..(index + 8)].to_vec(), index) {
+                                match coding_helpers::decode_packedfile_integer_i64(packed_file_data[index..(index + 8)].to_vec(), index) {
                                     Ok(data) => {
                                         index = data.1;
                                         entry.push(DecodedData::LongInteger(data.0));
@@ -307,7 +307,7 @@ impl DBData {
                                 };
                             }
                             else {
-                                return Err(Error::new(ErrorKind::Other, format!("Error: trying to decode a Long Integer without enough bytes.")))
+                                return Err(Error::new(ErrorKind::Other, format!("Error: trying to decode a signed Long Integer without enough bytes.")))
                             }
                         }
                         schemas::FieldType::StringU8 => {
@@ -408,11 +408,11 @@ impl DBData {
                         packed_file_data_encoded.append(&mut encoded_data);
                     },
                     DecodedData::Integer(data) => {
-                        let mut encoded_data = coding_helpers::encode_integer_u32(data.clone());
+                        let mut encoded_data = coding_helpers::encode_integer_i32(data.clone());
                         packed_file_data_encoded.append(&mut encoded_data);
                     },
                     DecodedData::LongInteger(data) => {
-                        let mut encoded_data = coding_helpers::encode_integer_u64(data.clone());
+                        let mut encoded_data = coding_helpers::encode_integer_i64(data.clone());
                         packed_file_data_encoded.append(&mut encoded_data);
                     },
                     DecodedData::StringU8(ref data) => {
