@@ -11507,19 +11507,12 @@
             },
             {
               "field_name": "Commodity",
-              "field_type": "OptionalStringU8",
+              "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
                 "commodities",
                 "key"
               ],
-              "field_description": ""
-            },
-            {
-              "field_name": "Commodity Vol",
-              "field_type": "Integer",
-              "field_is_key": false,
-              "field_is_reference": null,
               "field_description": ""
             },
             {
@@ -11558,6 +11551,13 @@
               "field_description": ""
             },
             {
+              "field_name": "Faction Unique",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
               "field_name": "Religion Requirement",
               "field_type": "OptionalStringU8",
               "field_is_key": false,
@@ -11578,10 +11578,13 @@
               "field_description": ""
             },
             {
-              "field_name": "Faction Unique",
-              "field_type": "Boolean",
+              "field_name": "Resource Requirement",
+              "field_type": "OptionalStringU8",
               "field_is_key": false,
-              "field_is_reference": null,
+              "field_is_reference": [
+                "resources",
+                "key"
+              ],
               "field_description": ""
             },
             {
@@ -11593,7 +11596,7 @@
             },
             {
               "field_name": "Building Instance Key",
-              "field_type": "StringU8",
+              "field_type": "OptionalStringU8",
               "field_is_key": false,
               "field_is_reference": [
                 "building_instances",
@@ -11631,19 +11634,9 @@
             },
             {
               "field_name": "Primary Slot Building Building Level Requirement",
-              "field_type": "StringU8",
+              "field_type": "Integer",
               "field_is_key": false,
               "field_is_reference": null,
-              "field_description": ""
-            },
-            {
-              "field_name": "Resource Requirement",
-              "field_type": "OptionalStringU8",
-              "field_is_key": false,
-              "field_is_reference": [
-                "resources",
-                "key"
-              ],
               "field_description": ""
             },
             {
