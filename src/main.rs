@@ -343,7 +343,7 @@ fn main() {
         // When we hit "Accept", we get the selected path, encode the PackFile, and save it to that
         // path. After that, we update the TreeView to reflect the name change and hide the dialog.
         let mut pack_file_path: Option<PathBuf> = None;
-        if pack_file_decoded.borrow().pack_file_extra_data.file_path.is_empty() {
+        if pack_file_decoded.borrow().pack_file_extra_data.file_path.exists() {
             file_chooser_save_packfile_dialog.set_current_name(&pack_file_decoded.borrow().pack_file_extra_data.file_name);
             if file_chooser_save_packfile_dialog.run() == gtk_response_ok {
                 pack_file_path = Some(file_chooser_save_packfile_dialog.get_filename().expect("Couldn't open file"));

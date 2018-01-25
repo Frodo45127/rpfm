@@ -6,6 +6,7 @@ use self::chrono::{
     NaiveDateTime, Utc
 };
 use std::io::Error;
+use std::path::PathBuf;
 use common::coding_helpers;
 
 /// Struct PackFile: This stores the data of the entire PackFile in memory ('cause fuck lazy-loading),
@@ -23,12 +24,12 @@ pub struct PackFile {
 
 /// Struct PackFileExtraData: This struct stores some extra data we need to manipulate the PackFiles:
 /// - file_name: name of the PackFile.
-/// - file_path: current path of the PackFile in the FileSystem.
+/// - file_path: current full path of the PackFile in the FileSystem.
 /// - correlation_data: Vector with all the paths that are already in the TreeView. Useful for checking.
 #[derive(Clone, Debug)]
 pub struct PackFileExtraData {
     pub file_name: String,
-    pub file_path: String,
+    pub file_path: PathBuf,
     pub is_modified: bool,
 }
 
@@ -139,8 +140,8 @@ impl PackFile {
     /// It requires:
     /// - pack_file_buffered: a Vec<u8> with the entire PackFile encoded inside it.
     /// - file_name: a String with the name of the PackFile.
-    /// - file_path: a String with the path of the PackFile.
-    pub fn read(pack_file_buffered: Vec<u8>, file_name: String, file_path: String) -> Result<PackFile, Error> {
+    /// - file_path: a PathBuf with the path of the PackFile.
+    pub fn read(pack_file_buffered: Vec<u8>, file_name: String, file_path: PathBuf) -> Result<PackFile, Error> {
 
         // We save the "Extra data" of the packfile
         let pack_file_extra_data = PackFileExtraData::new_from_file(file_name, file_path);
@@ -190,7 +191,7 @@ impl PackFileExtraData {
     /// This function creates an empty PackFileExtraData.
     pub fn new() -> PackFileExtraData {
         let file_name = String::new();
-        let file_path = String::new();
+        let file_path = PathBuf::new();
         let is_modified = false;
         PackFileExtraData {
             file_name,
@@ -201,7 +202,7 @@ impl PackFileExtraData {
 
     /// This function creates a PackFileExtraData with just a name.
     pub fn new_with_name(file_name: String) -> PackFileExtraData {
-        let file_path = String::new();
+        let file_path = PathBuf::new();
         let is_modified = false;
         PackFileExtraData {
             file_name,
@@ -211,7 +212,7 @@ impl PackFileExtraData {
     }
 
     /// This function creates a PackFileExtraData with a name and a path.
-    pub fn new_from_file(file_name: String, file_path: String) -> PackFileExtraData {
+    pub fn new_from_file(file_name: String, file_path: PathBuf) -> PackFileExtraData {
         let is_modified = false;
         PackFileExtraData {
             file_name,
