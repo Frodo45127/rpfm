@@ -331,17 +331,20 @@
               "field_description": ""
             },
             {
-              "field_name": "Title",
-              "field_type": "OptionalStringU8",
-              "field_is_key": false,
-              "field_is_reference": null,
-              "field_description": "fghfhgfghfhg"
-            },
-            {
               "field_name": "Steam Id",
               "field_type": "OptionalStringU8",
               "field_is_key": false,
               "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "Game Expansion Owners",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "texc_expansions",
+                "expansion"
+              ],
               "field_description": ""
             }
           ]
@@ -355,13 +358,6 @@
           "version": 1,
           "fields": [
             {
-              "field_name": "Key",
-              "field_type": "StringU8",
-              "field_is_key": true,
-              "field_is_reference": null,
-              "field_description": ""
-            },
-            {
               "field_name": "Actor Effect Bundle",
               "field_type": "StringU8",
               "field_is_key": false,
@@ -369,6 +365,13 @@
                 "effect_bundles",
                 "key"
               ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
               "field_description": ""
             },
             {
@@ -406,21 +409,21 @@
           "version": 3,
           "fields": [
             {
-              "field_name": "Action Result Key",
-              "field_type": "StringU8",
-              "field_is_key": false,
-              "field_is_reference": [
-                "action_results",
-                "key"
-              ],
-              "field_description": ""
-            },
-            {
               "field_name": "Outcome",
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
                 "action_results_additional_outcomes_enums",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Action Result Key",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "action_results",
                 "key"
               ],
               "field_description": ""
@@ -508,18 +511,18 @@
               "field_description": "Persistant entry will stick around until scriptor calls for entry to be removed"
             },
             {
-              "field_name": "Show On Navigate",
-              "field_type": "Boolean",
-              "field_is_key": false,
-              "field_is_reference": null,
-              "field_description": "If true when navigating back to a piece of advisor it will show again"
-            },
-            {
               "field_name": "Show Instant",
               "field_type": "Boolean",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": "If true the info text will appear automatically when advice triggered. If false then it is up to the scriptor to trigger when it appears."
+            },
+            {
+              "field_name": "Show On Navigate",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "If true when navigating back to a piece of advisor it will show again"
             },
             {
               "field_name": "Is Header",
@@ -918,22 +921,19 @@
               "field_description": ""
             },
             {
+              "field_name": "Unique Id",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
               "field_name": "Target Attribute",
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
                 "agent_attributes",
                 "key"
-              ],
-              "field_description": ""
-            },
-            {
-              "field_name": "Voiceover",
-              "field_type": "StringU8",
-              "field_is_key": false,
-              "field_is_reference": [
-                "audio_vo_campaign_special_ability_states",
-                "name"
               ],
               "field_description": ""
             },
@@ -966,10 +966,13 @@
               "field_description": ""
             },
             {
-              "field_name": "Unique Id",
+              "field_name": "Voiceover",
               "field_type": "StringU8",
-              "field_is_key": true,
-              "field_is_reference": null,
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_vo_campaign_special_ability_states",
+                "name"
+              ],
               "field_description": ""
             },
             {
@@ -1272,13 +1275,6 @@
           "version": 9,
           "fields": [
             {
-              "field_name": "Uniform Name",
-              "field_type": "StringU8",
-              "field_is_key": true,
-              "field_is_reference": null,
-              "field_description": ""
-            },
-            {
               "field_name": "Filename",
               "field_type": "StringU8",
               "field_is_key": false,
@@ -1286,6 +1282,13 @@
                 "variants",
                 "variant_name"
               ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Uniform Name",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
               "field_description": ""
             },
             {
@@ -1440,20 +1443,6 @@
               "field_description": ""
             },
             {
-              "field_name": "Fast",
-              "field_type": "Boolean",
-              "field_is_key": false,
-              "field_is_reference": null,
-              "field_description": ""
-            },
-            {
-              "field_name": "Support",
-              "field_type": "Boolean",
-              "field_is_key": false,
-              "field_is_reference": null,
-              "field_description": ""
-            },
-            {
               "field_name": "Ranged Direct",
               "field_type": "Boolean",
               "field_is_key": false,
@@ -1461,7 +1450,21 @@
               "field_description": ""
             },
             {
+              "field_name": "Fast",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
               "field_name": "Flanker",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "Support",
               "field_type": "Boolean",
               "field_is_key": false,
               "field_is_reference": null,
@@ -2219,14 +2222,14 @@
               "field_description": ""
             },
             {
-              "field_name": "Separation",
+              "field_name": "Camera Distance",
               "field_type": "Float",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
             },
             {
-              "field_name": "Camera Distance",
+              "field_name": "Camera Height",
               "field_type": "Float",
               "field_is_key": false,
               "field_is_reference": null,
@@ -2243,14 +2246,14 @@
               "field_description": ""
             },
             {
-              "field_name": "Camera Height",
+              "field_name": "Scale",
               "field_type": "Float",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
             },
             {
-              "field_name": "Scale",
+              "field_name": "Separation",
               "field_type": "Float",
               "field_is_key": false,
               "field_is_reference": null,
@@ -2305,16 +2308,6 @@
               "field_description": "Example: RigidModels/Decals/battle/impact_decal.rigid_model_v2"
             },
             {
-              "field_name": "Vfx Ring",
-              "field_type": "OptionalStringU8",
-              "field_is_key": false,
-              "field_is_reference": [
-                "particle_effects",
-                "key"
-              ],
-              "field_description": "Effect that appears in ring around bounds"
-            },
-            {
               "field_name": "Vfx Central",
               "field_type": "OptionalStringU8",
               "field_is_key": false,
@@ -2323,6 +2316,16 @@
                 "key"
               ],
               "field_description": "Effect that appears in centre"
+            },
+            {
+              "field_name": "Vfx Ring",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "particle_effects",
+                "key"
+              ],
+              "field_description": "Effect that appears in ring around bounds"
             },
             {
               "field_name": "Spline Width",
@@ -2464,22 +2467,22 @@
               "field_description": ""
             },
             {
-              "field_name": "Unit Group",
-              "field_type": "StringU8",
-              "field_is_key": false,
-              "field_is_reference": [
-                "armed_citizenry_unit_groups",
-                "unit_group"
-              ],
-              "field_description": ""
-            },
-            {
               "field_name": "Unit",
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
                 "main_units",
                 "unit"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Unit Group",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "armed_citizenry_unit_groups",
+                "unit_group"
               ],
               "field_description": ""
             }
@@ -2549,6 +2552,13 @@
               "field_description": ""
             },
             {
+              "field_name": "Ui Disable Event",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
               "field_name": "Ui Targetting Event Start",
               "field_type": "OptionalStringU8",
               "field_is_key": false,
@@ -2557,13 +2567,6 @@
             },
             {
               "field_name": "Ui Targetting Event Stop",
-              "field_type": "OptionalStringU8",
-              "field_is_key": false,
-              "field_is_reference": null,
-              "field_description": ""
-            },
-            {
-              "field_name": "Ui Disable Event",
               "field_type": "OptionalStringU8",
               "field_is_key": false,
               "field_is_reference": null,
@@ -2800,21 +2803,21 @@
               "field_description": ""
             },
             {
-              "field_name": "Type",
-              "field_type": "StringU8",
-              "field_is_key": true,
-              "field_is_reference": [
-                "audio_battle_environment_types",
-                "name"
-              ],
-              "field_description": ""
-            },
-            {
               "field_name": "Loop",
               "field_type": "StringU8",
               "field_is_key": true,
               "field_is_reference": [
                 "audio_battle_environment_loops",
+                "name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Type",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "audio_battle_environment_types",
                 "name"
               ],
               "field_description": ""
@@ -2978,7 +2981,14 @@
               "field_description": ""
             },
             {
-              "field_name": "Min Time",
+              "field_name": "Max Distance",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "Max Height",
               "field_type": "Float",
               "field_is_key": false,
               "field_is_reference": null,
@@ -2999,13 +3009,6 @@
               "field_description": ""
             },
             {
-              "field_name": "Max Distance",
-              "field_type": "Float",
-              "field_is_key": false,
-              "field_is_reference": null,
-              "field_description": ""
-            },
-            {
               "field_name": "Min Height",
               "field_type": "Float",
               "field_is_key": false,
@@ -3013,7 +3016,7 @@
               "field_description": ""
             },
             {
-              "field_name": "Max Height",
+              "field_name": "Min Time",
               "field_type": "Float",
               "field_is_key": false,
               "field_is_reference": null,
@@ -3061,22 +3064,22 @@
               "field_description": ""
             },
             {
-              "field_name": "Type",
-              "field_type": "StringU8",
-              "field_is_key": true,
-              "field_is_reference": [
-                "audio_battle_environment_reverb_types",
-                "type"
-              ],
-              "field_description": ""
-            },
-            {
               "field_name": "Reverb",
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
                 "audio_battle_environment_reverbs",
                 "name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Type",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "audio_battle_environment_reverb_types",
+                "type"
               ],
               "field_description": ""
             }
@@ -3136,11 +3139,11 @@
           "version": 0,
           "fields": [
             {
-              "field_name": "Weather",
+              "field_name": "Loop",
               "field_type": "StringU8",
-              "field_is_key": true,
+              "field_is_key": false,
               "field_is_reference": [
-                "audio_battle_environment_weathers",
+                "audio_battle_environment_loops",
                 "name"
               ],
               "field_description": ""
@@ -3148,7 +3151,7 @@
             {
               "field_name": "Type",
               "field_type": "StringU8",
-              "field_is_key": true,
+              "field_is_key": false,
               "field_is_reference": [
                 "audio_battle_environment_types",
                 "name"
@@ -3156,11 +3159,11 @@
               "field_description": ""
             },
             {
-              "field_name": "Loop",
+              "field_name": "Weather",
               "field_type": "StringU8",
               "field_is_key": true,
               "field_is_reference": [
-                "audio_battle_environment_loops",
+                "audio_battle_environment_weathers",
                 "name"
               ],
               "field_description": ""
@@ -3176,11 +3179,11 @@
           "version": 0,
           "fields": [
             {
-              "field_name": "Weather",
+              "field_name": "One Shot",
               "field_type": "StringU8",
-              "field_is_key": true,
+              "field_is_key": false,
               "field_is_reference": [
-                "audio_battle_environment_weathers",
+                "audio_battle_environment_one_shots",
                 "name"
               ],
               "field_description": ""
@@ -3188,7 +3191,7 @@
             {
               "field_name": "Type",
               "field_type": "StringU8",
-              "field_is_key": true,
+              "field_is_key": false,
               "field_is_reference": [
                 "audio_battle_environment_types",
                 "name"
@@ -3196,11 +3199,11 @@
               "field_description": ""
             },
             {
-              "field_name": "One Shot",
+              "field_name": "Weather",
               "field_type": "StringU8",
               "field_is_key": true,
               "field_is_reference": [
-                "audio_battle_environment_one_shots",
+                "audio_battle_environment_weathers",
                 "name"
               ],
               "field_description": ""
@@ -3484,22 +3487,22 @@
           "version": 0,
           "fields": [
             {
-              "field_name": "Sound",
-              "field_type": "StringU8",
-              "field_is_key": true,
-              "field_is_reference": [
-                "audio_campaign_environment_ground_type_sounds",
-                "key"
-              ],
-              "field_description": ""
-            },
-            {
               "field_name": "Ground Type",
               "field_type": "StringU8",
               "field_is_key": true,
               "field_is_reference": [
                 "campaign_ground_types",
                 "type"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Sound",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "audio_campaign_environment_ground_type_sounds",
+                "key"
               ],
               "field_description": ""
             }
@@ -3551,7 +3554,7 @@
           "version": 0,
           "fields": [
             {
-              "field_name": "Sample Range",
+              "field_name": "Grouping Size",
               "field_type": "Float",
               "field_is_key": false,
               "field_is_reference": null,
@@ -3572,7 +3575,7 @@
               "field_description": ""
             },
             {
-              "field_name": "Grouping Size",
+              "field_name": "Sample Range",
               "field_type": "Float",
               "field_is_key": false,
               "field_is_reference": null,
@@ -3754,7 +3757,7 @@
           "version": 0,
           "fields": [
             {
-              "field_name": "Sample Range",
+              "field_name": "Grouping Size",
               "field_type": "Float",
               "field_is_key": false,
               "field_is_reference": null,
@@ -3775,7 +3778,7 @@
               "field_description": ""
             },
             {
-              "field_name": "Grouping Size",
+              "field_name": "Sample Range",
               "field_type": "Float",
               "field_is_key": false,
               "field_is_reference": null,
@@ -3874,16 +3877,16 @@
           "version": 0,
           "fields": [
             {
-              "field_name": "Key",
+              "field_name": "Actor Switch",
               "field_type": "StringU8",
-              "field_is_key": true,
+              "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
             },
             {
-              "field_name": "Actor Switch",
+              "field_name": "Key",
               "field_type": "StringU8",
-              "field_is_key": false,
+              "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
             },
@@ -3933,14 +3936,14 @@
               "field_description": ""
             },
             {
-              "field_name": "Use Reverb",
+              "field_name": "Use Obstruction",
               "field_type": "Boolean",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
             },
             {
-              "field_name": "Use Obstruction",
+              "field_name": "Use Reverb",
               "field_type": "Boolean",
               "field_is_key": false,
               "field_is_reference": null,
@@ -4078,14 +4081,14 @@
           "version": 4,
           "fields": [
             {
-              "field_name": "Near Inside",
+              "field_name": "Far Inside",
               "field_type": "Integer",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
             },
             {
-              "field_name": "Near Outside",
+              "field_name": "Far Outside",
               "field_type": "Integer",
               "field_is_key": false,
               "field_is_reference": null,
@@ -4106,14 +4109,14 @@
               "field_description": ""
             },
             {
-              "field_name": "Far Inside",
+              "field_name": "Near Inside",
               "field_type": "Integer",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
             },
             {
-              "field_name": "Far Outside",
+              "field_name": "Near Outside",
               "field_type": "Integer",
               "field_is_key": false,
               "field_is_reference": null,
@@ -4570,13 +4573,6 @@
               "field_description": ""
             },
             {
-              "field_name": "Rtpc 1 Name",
-              "field_type": "OptionalStringU8",
-              "field_is_key": false,
-              "field_is_reference": null,
-              "field_description": ""
-            },
-            {
               "field_name": "Rtpc 1 Assignment",
               "field_type": "OptionalStringU8",
               "field_is_key": false,
@@ -4584,6 +4580,13 @@
                 "audio_rtpc_assignments",
                 "name"
               ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Rtpc 1 Name",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
               "field_description": ""
             },
             {
@@ -4604,14 +4607,14 @@
           "version": 15,
           "fields": [
             {
-              "field_name": "Spotlight",
+              "field_name": "Distance Scaled",
               "field_type": "Boolean",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
             },
             {
-              "field_name": "Use Reverb",
+              "field_name": "Density Scaled",
               "field_type": "Boolean",
               "field_is_key": false,
               "field_is_reference": null,
@@ -4632,6 +4635,34 @@
               "field_description": ""
             },
             {
+              "field_name": "Grouping Size",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "Max Distance",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "Name",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "Split",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
               "field_name": "Split Close",
               "field_type": "Float",
               "field_is_key": false,
@@ -4646,34 +4677,6 @@
               "field_description": ""
             },
             {
-              "field_name": "Name",
-              "field_type": "StringU8",
-              "field_is_key": true,
-              "field_is_reference": null,
-              "field_description": ""
-            },
-            {
-              "field_name": "Distance Scaled",
-              "field_type": "Boolean",
-              "field_is_key": false,
-              "field_is_reference": null,
-              "field_description": ""
-            },
-            {
-              "field_name": "Min Distance",
-              "field_type": "Float",
-              "field_is_key": false,
-              "field_is_reference": null,
-              "field_description": ""
-            },
-            {
-              "field_name": "Max Distance",
-              "field_type": "Float",
-              "field_is_key": false,
-              "field_is_reference": null,
-              "field_description": ""
-            },
-            {
               "field_name": "Split Offset",
               "field_type": "Float",
               "field_is_key": false,
@@ -4681,22 +4684,15 @@
               "field_description": ""
             },
             {
-              "field_name": "Density Scaled",
+              "field_name": "Spotlight",
               "field_type": "Boolean",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
             },
             {
-              "field_name": "Split",
+              "field_name": "Use Reverb",
               "field_type": "Boolean",
-              "field_is_key": false,
-              "field_is_reference": null,
-              "field_description": ""
-            },
-            {
-              "field_name": "Grouping Size",
-              "field_type": "Float",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
@@ -4710,6 +4706,13 @@
             },
             {
               "field_name": "Max Start Delay Far",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "Stop Delay",
               "field_type": "Float",
               "field_is_key": false,
               "field_is_reference": null,
@@ -4805,14 +4808,14 @@
               "field_description": ""
             },
             {
-              "field_name": "Stop Delay",
+              "field_name": "Size Scaler",
               "field_type": "Float",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
             },
             {
-              "field_name": "Size Scaler",
+              "field_name": "Min Distance",
               "field_type": "Float",
               "field_is_key": false,
               "field_is_reference": null,
@@ -4940,6 +4943,13 @@
               "field_description": ""
             },
             {
+              "field_name": "Distance Campaign",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
               "field_name": "Min Time",
               "field_type": "Float",
               "field_is_key": false,
@@ -4948,13 +4958,6 @@
             },
             {
               "field_name": "Max Time",
-              "field_type": "Float",
-              "field_is_key": false,
-              "field_is_reference": null,
-              "field_description": ""
-            },
-            {
-              "field_name": "Distance Campaign",
               "field_type": "Float",
               "field_is_key": false,
               "field_is_reference": null,
@@ -5047,14 +5050,14 @@
               "field_description": ""
             },
             {
-              "field_name": "Cannot Hit Weapons",
+              "field_name": "Cannot Hit Shields",
               "field_type": "Boolean",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
             },
             {
-              "field_name": "Cannot Hit Shields",
+              "field_name": "Cannot Hit Weapons",
               "field_type": "Boolean",
               "field_is_key": false,
               "field_is_reference": null,
@@ -5081,13 +5084,10 @@
               "field_description": ""
             },
             {
-              "field_name": "Melee Hit Type",
+              "field_name": "Key",
               "field_type": "StringU8",
-              "field_is_key": false,
-              "field_is_reference": [
-                "audio_melee_hit_types",
-                "key"
-              ],
+              "field_is_key": true,
+              "field_is_reference": null,
               "field_description": ""
             },
             {
@@ -5105,10 +5105,13 @@
               "field_description": ""
             },
             {
-              "field_name": "Key",
+              "field_name": "Melee Hit Type",
               "field_type": "StringU8",
-              "field_is_key": true,
-              "field_is_reference": null,
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_melee_hit_types",
+                "key"
+              ],
               "field_description": ""
             }
           ]
@@ -5122,21 +5125,21 @@
           "version": 0,
           "fields": [
             {
-              "field_name": "Entity Type",
-              "field_type": "StringU8",
-              "field_is_key": true,
-              "field_is_reference": [
-                "audio_entity_types",
-                "key"
-              ],
-              "field_description": ""
-            },
-            {
               "field_name": "Metadata Tag",
               "field_type": "StringU8",
               "field_is_key": true,
               "field_is_reference": [
                 "audio_metadata_tags",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Entity Type",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "audio_entity_types",
                 "key"
               ],
               "field_description": ""
@@ -5307,7 +5310,7 @@
               "field_description": ""
             },
             {
-              "field_name": "Is Vocalisation",
+              "field_name": "Requires Cinematic",
               "field_type": "Boolean",
               "field_is_key": false,
               "field_is_reference": null,
@@ -5323,6 +5326,13 @@
             {
               "field_name": "Min Probability",
               "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "Is Vocalisation",
+              "field_type": "Boolean",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
@@ -5434,13 +5444,6 @@
             },
             {
               "field_name": "Cinematic Only",
-              "field_type": "Boolean",
-              "field_is_key": false,
-              "field_is_reference": null,
-              "field_description": ""
-            },
-            {
-              "field_name": "Requires Cinematic",
               "field_type": "Boolean",
               "field_is_key": false,
               "field_is_reference": null,
@@ -5588,14 +5591,14 @@
               "field_description": ""
             },
             {
-              "field_name": "Obstruction Size",
+              "field_name": "Max Attenuation",
               "field_type": "Float",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
             },
             {
-              "field_name": "Max Attenuation",
+              "field_name": "Obstruction Size",
               "field_type": "Float",
               "field_is_key": false,
               "field_is_reference": null,
@@ -5692,6 +5695,13 @@
               "field_description": ""
             },
             {
+              "field_name": "Max Attenuation Impact",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
               "field_name": "Max Attenuation Inflight",
               "field_type": "Float",
               "field_is_key": false,
@@ -5699,14 +5709,7 @@
               "field_description": ""
             },
             {
-              "field_name": "Max Attenuation Idle",
-              "field_type": "Float",
-              "field_is_key": false,
-              "field_is_reference": null,
-              "field_description": ""
-            },
-            {
-              "field_name": "Max Attenuation Impact",
+              "field_name": "Inflight Min Speed",
               "field_type": "Float",
               "field_is_key": false,
               "field_is_reference": null,
@@ -5790,7 +5793,7 @@
               "field_description": ""
             },
             {
-              "field_name": "Inflight Min Speed",
+              "field_name": "Max Attenuation Idle",
               "field_type": "Float",
               "field_is_key": false,
               "field_is_reference": null,
@@ -6085,20 +6088,6 @@
           "version": 0,
           "fields": [
             {
-              "field_name": "Key",
-              "field_type": "StringU8",
-              "field_is_key": true,
-              "field_is_reference": null,
-              "field_description": ""
-            },
-            {
-              "field_name": "Is Reversed",
-              "field_type": "Boolean",
-              "field_is_key": false,
-              "field_is_reference": null,
-              "field_description": ""
-            },
-            {
               "field_name": "Group",
               "field_type": "StringU8",
               "field_is_key": false,
@@ -6109,28 +6098,21 @@
               "field_description": ""
             },
             {
+              "field_name": "Is Reversed",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "Key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
               "field_name": "Max Camera Distance",
-              "field_type": "Float",
-              "field_is_key": false,
-              "field_is_reference": null,
-              "field_description": ""
-            },
-            {
-              "field_name": "Min Camera Distance",
-              "field_type": "Float",
-              "field_is_key": false,
-              "field_is_reference": null,
-              "field_description": ""
-            },
-            {
-              "field_name": "Max Influence Distance",
-              "field_type": "Float",
-              "field_is_key": false,
-              "field_is_reference": null,
-              "field_description": ""
-            },
-            {
-              "field_name": "Min Influence Distance",
               "field_type": "Float",
               "field_is_key": false,
               "field_is_reference": null,
@@ -6144,7 +6126,28 @@
               "field_description": ""
             },
             {
+              "field_name": "Max Influence Distance",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
               "field_name": "Max Visual Attenuation",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "Min Camera Distance",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "Min Influence Distance",
               "field_type": "Float",
               "field_is_key": false,
               "field_is_reference": null,
@@ -6449,6 +6452,16 @@
           "version": 0,
           "fields": [
             {
+              "field_name": "Is Night Battle",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "autoresolver_optional_bool_enums",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
               "field_name": "Battle Type",
               "field_type": "OptionalStringU8",
               "field_is_key": false,
@@ -6459,7 +6472,7 @@
               "field_description": ""
             },
             {
-              "field_name": "Is Night Battle",
+              "field_name": "Is Encampment",
               "field_type": "OptionalStringU8",
               "field_is_key": false,
               "field_is_reference": [
@@ -6473,16 +6486,6 @@
               "field_type": "OptionalStringU8",
               "field_is_key": false,
               "field_is_reference": null,
-              "field_description": ""
-            },
-            {
-              "field_name": "Is Encampment",
-              "field_type": "OptionalStringU8",
-              "field_is_key": false,
-              "field_is_reference": [
-                "autoresolver_optional_bool_enums",
-                "key"
-              ],
               "field_description": ""
             },
             {
@@ -6537,16 +6540,6 @@
               "field_description": ""
             },
             {
-              "field_name": "Player Type",
-              "field_type": "StringU8",
-              "field_is_key": false,
-              "field_is_reference": [
-                "autoresolver_player_types",
-                "key"
-              ],
-              "field_description": ""
-            },
-            {
               "field_name": "Modifier Group Applied",
               "field_type": "StringU8",
               "field_is_key": false,
@@ -6562,6 +6555,16 @@
               "field_is_key": false,
               "field_is_reference": [
                 "autoresolver_modifier_multiplier_mechanic_enums",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Player Type",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "autoresolver_player_types",
                 "key"
               ],
               "field_description": ""
@@ -6594,21 +6597,21 @@
               "field_description": ""
             },
             {
-              "field_name": "Modifier Target",
-              "field_type": "StringU8",
-              "field_is_key": false,
-              "field_is_reference": [
-                "autoresolver_modifier_targets",
-                "key"
-              ],
-              "field_description": ""
-            },
-            {
               "field_name": "Modifier Bonus",
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
                 "autoresolver_modifier_bonus_types",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Modifier Target",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "autoresolver_modifier_targets",
                 "key"
               ],
               "field_description": ""
@@ -43392,6 +43395,66 @@
               "field_type": "Integer",
               "field_is_key": false,
               "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "army_special_abilities_for_faction_junctions_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "Army Special Ablility",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "army_special_abilities",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Faction",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "factions",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "audio_technologies_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "Technology",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "technologies",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "UI Audio",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_ui_categories",
+                "key"
+              ],
               "field_description": ""
             }
           ]
