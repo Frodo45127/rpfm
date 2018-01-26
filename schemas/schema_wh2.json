@@ -6847,16 +6847,6 @@
           "version": 0,
           "fields": [
             {
-              "field_name": "Template",
-              "field_type": "StringU8",
-              "field_is_key": true,
-              "field_is_reference": [
-                "battle_ai_abilities_usage_template_names",
-                "ai_ability_usage_template_key"
-              ],
-              "field_description": "the template this will be a part of"
-            },
-            {
               "field_name": "Parameter",
               "field_type": "StringU8",
               "field_is_key": true,
@@ -6865,6 +6855,16 @@
                 "usage_param"
               ],
               "field_description": "the parameter that is of interest (remember that omitted ones don't influence the effect up/down"
+            },
+            {
+              "field_name": "Template",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "battle_ai_abilities_usage_template_names",
+                "ai_ability_usage_template_key"
+              ],
+              "field_description": "the template this will be a part of"
             },
             {
               "field_name": "Weighting",
@@ -7068,13 +7068,6 @@
               "field_description": ""
             },
             {
-              "field_name": "Min Height",
-              "field_type": "Float",
-              "field_is_key": false,
-              "field_is_reference": null,
-              "field_description": ""
-            },
-            {
               "field_name": "Max Height Small",
               "field_type": "Float",
               "field_is_key": false,
@@ -7096,7 +7089,7 @@
               "field_description": ""
             },
             {
-              "field_name": "Move Speed Min Multiplier",
+              "field_name": "Min Height",
               "field_type": "Float",
               "field_is_key": false,
               "field_is_reference": null,
@@ -7104,6 +7097,13 @@
             },
             {
               "field_name": "Move Speed Max Multiplier",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "Move Speed Min Multiplier",
               "field_type": "Float",
               "field_is_key": false,
               "field_is_reference": null,
@@ -7148,7 +7148,7 @@
               "field_description": ""
             },
             {
-              "field_name": "Red",
+              "field_name": "Blue",
               "field_type": "Integer",
               "field_is_key": false,
               "field_is_reference": null,
@@ -7162,7 +7162,7 @@
               "field_description": ""
             },
             {
-              "field_name": "Blue",
+              "field_name": "Red",
               "field_type": "Integer",
               "field_is_key": false,
               "field_is_reference": null,
@@ -7199,19 +7199,19 @@
               "field_description": ""
             },
             {
-              "field_name": "Defender",
+              "field_name": "Battle Group",
               "field_type": "StringU8",
-              "field_is_key": true,
+              "field_is_key": false,
               "field_is_reference": [
-                "cultures",
-                "key"
+                "battle_catchment_override_groups",
+                "group"
               ],
               "field_description": ""
             },
             {
               "field_name": "Battle Type",
               "field_type": "StringU8",
-              "field_is_key": true,
+              "field_is_key": false,
               "field_is_reference": [
                 "campaign_battle_type_enums",
                 "key"
@@ -7221,7 +7221,7 @@
             {
               "field_name": "Battle Path",
               "field_type": "StringU8",
-              "field_is_key": true,
+              "field_is_key": false,
               "field_is_reference": [
                 "campaign_battle_paths",
                 "path"
@@ -7229,12 +7229,12 @@
               "field_description": ""
             },
             {
-              "field_name": "Battle Group",
+              "field_name": "Defender",
               "field_type": "StringU8",
-              "field_is_key": false,
+              "field_is_key": true,
               "field_is_reference": [
-                "battle_catchment_override_groups",
-                "group"
+                "cultures",
+                "key"
               ],
               "field_description": ""
             }
@@ -7249,6 +7249,13 @@
           "version": 2,
           "fields": [
             {
+              "field_name": "Battle Map Location",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
               "field_name": "Group",
               "field_type": "StringU8",
               "field_is_key": true,
@@ -7256,13 +7263,6 @@
                 "battle_catchment_override_groups",
                 "group"
               ],
-              "field_description": ""
-            },
-            {
-              "field_name": "Battle Map Location",
-              "field_type": "StringU8",
-              "field_is_key": true,
-              "field_is_reference": null,
               "field_description": ""
             },
             {
@@ -7399,10 +7399,13 @@
           "version": 0,
           "fields": [
             {
-              "field_name": "Key",
+              "field_name": "Army Special Ability",
               "field_type": "StringU8",
-              "field_is_key": true,
-              "field_is_reference": null,
+              "field_is_key": false,
+              "field_is_reference": [
+                "army_special_abilities",
+                "army_special_ability"
+              ],
               "field_description": ""
             },
             {
@@ -7416,13 +7419,10 @@
               "field_description": ""
             },
             {
-              "field_name": "Army Special Ability",
+              "field_name": "Key",
               "field_type": "StringU8",
-              "field_is_key": false,
-              "field_is_reference": [
-                "army_special_abilities",
-                "army_special_ability"
-              ],
+              "field_is_key": true,
+              "field_is_reference": null,
               "field_description": ""
             }
           ]
@@ -7436,13 +7436,6 @@
           "version": 0,
           "fields": [
             {
-              "field_name": "Key",
-              "field_type": "StringU8",
-              "field_is_key": true,
-              "field_is_reference": null,
-              "field_description": ""
-            },
-            {
               "field_name": "Battle Context",
               "field_type": "StringU8",
               "field_is_key": false,
@@ -7450,6 +7443,13 @@
                 "campaign_bonus_value_battle_context_specifiers",
                 "key"
               ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
               "field_description": ""
             },
             {
@@ -7525,13 +7525,6 @@
               "field_description": ""
             },
             {
-              "field_name": "Strafe Speed",
-              "field_type": "Float",
-              "field_is_key": false,
-              "field_is_reference": null,
-              "field_description": ""
-            },
-            {
               "field_name": "Charge Distance Commence Run",
               "field_type": "Float",
               "field_is_key": false,
@@ -7553,6 +7546,13 @@
               "field_description": ""
             },
             {
+              "field_name": "Radius",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
               "field_name": "Shape",
               "field_type": "StringU8",
               "field_is_key": false,
@@ -7563,7 +7563,7 @@
               "field_description": ""
             },
             {
-              "field_name": "Radius",
+              "field_name": "Radii Ratio",
               "field_type": "Float",
               "field_is_key": false,
               "field_is_reference": null,
@@ -7650,7 +7650,7 @@
               "field_description": "Size of entity for collision priority and combat"
             },
             {
-              "field_name": "Radii Ratio",
+              "field_name": "Strafe Speed",
               "field_type": "Float",
               "field_is_key": false,
               "field_is_reference": null,
