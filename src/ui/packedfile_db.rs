@@ -1093,7 +1093,7 @@ impl PackedFileDBDecoder {
                 }
             },
             FieldType::Float => {
-                if (index_data + 4) < packed_file_decoded.len() {
+                if (index_data + 4) <= packed_file_decoded.len() {
                     match coding_helpers::decode_packedfile_float_u32(packed_file_decoded[index_data..(index_data + 4)].to_vec(), index_data) {
                         Ok(result) => (result.0.to_string(), result.1),
                         Err(_) => ("Error".to_owned(), index_data),
@@ -1104,7 +1104,7 @@ impl PackedFileDBDecoder {
                 }
             },
             FieldType::Integer => {
-                if (index_data + 4) < packed_file_decoded.len() {
+                if (index_data + 4) <= packed_file_decoded.len() {
                     match coding_helpers::decode_packedfile_integer_i32(packed_file_decoded[index_data..(index_data + 4)].to_vec(), index_data) {
                         Ok(result) => (result.0.to_string(), result.1),
                         Err(_) => ("Error".to_owned(), index_data),
@@ -1115,7 +1115,7 @@ impl PackedFileDBDecoder {
                 }
             },
             FieldType::LongInteger => {
-                if (index_data + 8) < packed_file_decoded.len() {
+                if (index_data + 8) <= packed_file_decoded.len() {
                     match coding_helpers::decode_packedfile_integer_i64(packed_file_decoded[index_data..(index_data + 8)].to_vec(), index_data) {
                         Ok(result) => (result.0.to_string(), result.1),
                         Err(_) => ("Error".to_owned(), index_data),
@@ -1126,27 +1126,47 @@ impl PackedFileDBDecoder {
                 }
             },
             FieldType::StringU8 => {
-                match coding_helpers::decode_packedfile_string_u8(packed_file_decoded[index_data..].to_vec(), index_data) {
-                    Ok(result) => result,
-                    Err(_) => ("Error".to_owned(), index_data),
+                if index_data < packed_file_decoded.len() {
+                    match coding_helpers::decode_packedfile_string_u8(packed_file_decoded[index_data..].to_vec(), index_data) {
+                        Ok(result) => result,
+                        Err(_) => ("Error".to_owned(), index_data),
+                    }
+                }
+                else {
+                    ("Error".to_owned(), index_data)
                 }
             },
             FieldType::StringU16 => {
-                match coding_helpers::decode_packedfile_string_u16(packed_file_decoded[index_data..].to_vec(), index_data){
-                    Ok(result) => result,
-                    Err(_) => ("Error".to_owned(), index_data),
+                if index_data < packed_file_decoded.len() {
+                    match coding_helpers::decode_packedfile_string_u16(packed_file_decoded[index_data..].to_vec(), index_data) {
+                        Ok(result) => result,
+                        Err(_) => ("Error".to_owned(), index_data),
+                    }
+                }
+                else {
+                    ("Error".to_owned(), index_data)
                 }
             },
             FieldType::OptionalStringU8 => {
-                match coding_helpers::decode_packedfile_optional_string_u8(packed_file_decoded[index_data..].to_vec(), index_data) {
-                    Ok(result) => result,
-                    Err(_) => ("Error".to_owned(), index_data),
+                if index_data < packed_file_decoded.len() {
+                    match coding_helpers::decode_packedfile_optional_string_u8(packed_file_decoded[index_data..].to_vec(), index_data) {
+                        Ok(result) => result,
+                        Err(_) => ("Error".to_owned(), index_data),
+                    }
+                }
+                else {
+                    ("Error".to_owned(), index_data)
                 }
             },
             FieldType::OptionalStringU16 => {
-                match coding_helpers::decode_packedfile_optional_string_u16(packed_file_decoded[index_data..].to_vec(), index_data) {
-                    Ok(result) => result,
-                    Err(_) => ("Error".to_owned(), index_data),
+                if index_data < packed_file_decoded.len() {
+                    match coding_helpers::decode_packedfile_optional_string_u16(packed_file_decoded[index_data..].to_vec(), index_data) {
+                        Ok(result) => result,
+                        Err(_) => ("Error".to_owned(), index_data),
+                    }
+                }
+                else {
+                    ("Error".to_owned(), index_data)
                 }
             },
         };
