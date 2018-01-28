@@ -35863,7 +35863,7 @@
             },
             {
               "field_name": "Marksmanship Bonus",
-              "field_type": "Integer",
+              "field_type": "Float",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
@@ -35912,7 +35912,7 @@
             },
             {
               "field_name": "Base Reload Time",
-              "field_type": "Integer",
+              "field_type": "Float",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
@@ -36208,7 +36208,7 @@
             },
             {
               "field_name": "Detonation Radius",
-              "field_type": "Integer",
+              "field_type": "Float",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
@@ -36222,7 +36222,7 @@
             },
             {
               "field_name": "Detonation Speed",
-              "field_type": "Integer",
+              "field_type": "Float",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
@@ -36412,21 +36412,21 @@
           "version": 0,
           "fields": [
             {
-              "field_name": "Province",
-              "field_type": "StringU8",
-              "field_is_key": true,
-              "field_is_reference": [
-                "provinces",
-                "key"
-              ],
-              "field_description": ""
-            },
-            {
               "field_name": "Mercenary Set",
               "field_type": "StringU8",
               "field_is_key": true,
               "field_is_reference": [
                 "mercenary_pools",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Province",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "provinces",
                 "key"
               ],
               "field_description": ""
@@ -36520,21 +36520,21 @@
           "version": 0,
           "fields": [
             {
-              "field_name": "Initiative Record",
-              "field_type": "StringU8",
-              "field_is_key": true,
-              "field_is_reference": [
-                "provincial_initiative_records",
-                "key"
-              ],
-              "field_description": ""
-            },
-            {
               "field_name": "Effect Bundle",
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
                 "effect_bundles",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Initiative Record",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "provincial_initiative_records",
                 "key"
               ],
               "field_description": ""
@@ -36841,21 +36841,21 @@
           "version": 1,
           "fields": [
             {
-              "field_name": "Region",
-              "field_type": "StringU8",
-              "field_is_key": true,
-              "field_is_reference": [
-                "regions",
-                "key"
-              ],
-              "field_description": ""
-            },
-            {
               "field_name": "Province",
               "field_type": "StringU8",
               "field_is_key": true,
               "field_is_reference": [
                 "provinces",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Region",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "regions",
                 "key"
               ],
               "field_description": ""
@@ -37239,22 +37239,22 @@
           "version": 0,
           "fields": [
             {
-              "field_name": "Resource",
-              "field_type": "StringU8",
-              "field_is_key": true,
-              "field_is_reference": [
-                "resources",
-                "key"
-              ],
-              "field_description": ""
-            },
-            {
               "field_name": "Campaign",
               "field_type": "StringU8",
               "field_is_key": true,
               "field_is_reference": [
                 "campaigns",
                 "campaign_name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Resource",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "resources",
+                "key"
               ],
               "field_description": ""
             }
@@ -37325,7 +37325,7 @@
             {
               "field_name": "Culture",
               "field_type": "StringU8",
-              "field_is_key": false,
+              "field_is_key": true,
               "field_is_reference": [
                 "cultures",
                 "key"
@@ -37335,7 +37335,7 @@
             {
               "field_name": "Id",
               "field_type": "StringU8",
-              "field_is_key": true,
+              "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
             }
@@ -37348,6 +37348,25 @@
       "versions": [
         {
           "version": 1,
+          "fields": [
+            {
+              "field_name": "Id",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "Trigger Events",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 2,
           "fields": [
             {
               "field_name": "Id",
@@ -37557,21 +37576,21 @@
           "version": 0,
           "fields": [
             {
-              "field_name": "Payload",
-              "field_type": "StringU8",
-              "field_is_key": true,
-              "field_is_reference": [
-                "ritual_payloads",
-                "key"
-              ],
-              "field_description": ""
-            },
-            {
               "field_name": "Agent Type",
               "field_type": "StringU8",
               "field_is_key": true,
               "field_is_reference": [
                 "agents",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Payload",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "ritual_payloads",
                 "key"
               ],
               "field_description": ""
@@ -37682,9 +37701,16 @@
           "version": 1,
           "fields": [
             {
-              "field_name": "Target Ritual",
-              "field_type": "OptionalStringU8",
+              "field_name": "Once Per Target",
+              "field_type": "Boolean",
               "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "Ritual",
+              "field_type": "StringU8",
+              "field_is_key": true,
               "field_is_reference": [
                 "rituals",
                 "key"
@@ -37694,7 +37720,7 @@
             {
               "field_name": "Target Category",
               "field_type": "OptionalStringU8",
-              "field_is_key": false,
+              "field_is_key": true,
               "field_is_reference": [
                 "ritual_categories",
                 "id"
@@ -37702,10 +37728,13 @@
               "field_description": ""
             },
             {
-              "field_name": "Once Per Target",
-              "field_type": "Boolean",
-              "field_is_key": false,
-              "field_is_reference": null,
+              "field_name": "Target Ritual",
+              "field_type": "OptionalStringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "rituals",
+                "key"
+              ],
               "field_description": ""
             },
             {
@@ -37828,6 +37857,118 @@
             {
               "field_name": "Hostile",
               "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 12,
+          "fields": [
+            {
+              "field_name": "Interruptable",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "Key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "Cast Time",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "Completion Payload",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "ritual_payloads",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Cooldown Time",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "Category",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "ritual_categories",
+                "id"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Slave Cost",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "Global Cooldown Time",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "Start Payload",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "ritual_payloads",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Icon",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "Failure Cooldown Time",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "Hostile",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "Required Resources",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "Expanded Resources",
+              "field_type": "OptionalStringU8",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
@@ -38309,11 +38450,11 @@
           "version": 0,
           "fields": [
             {
-              "field_name": "Slot Template",
+              "field_name": "Building Superchain",
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
-                "slot_templates",
+                "building_superchains",
                 "key"
               ],
               "field_description": ""
@@ -38326,11 +38467,11 @@
               "field_description": ""
             },
             {
-              "field_name": "Building Superchain",
+              "field_name": "Slot Template",
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
-                "building_superchains",
+                "slot_templates",
                 "key"
               ],
               "field_description": ""
@@ -38411,21 +38552,14 @@
               "field_description": ""
             },
             {
-              "field_name": "Max Xp",
-              "field_type": "Integer",
-              "field_is_key": false,
-              "field_is_reference": null,
-              "field_description": ""
-            },
-            {
-              "field_name": "Min Xp",
-              "field_type": "Integer",
-              "field_is_key": false,
-              "field_is_reference": null,
-              "field_description": ""
-            },
-            {
               "field_name": "Max Amount",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "Max Xp",
               "field_type": "Integer",
               "field_is_key": false,
               "field_is_reference": null,
@@ -38439,9 +38573,16 @@
               "field_description": ""
             },
             {
+              "field_name": "Min Xp",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
               "field_name": "Spawnable Force",
               "field_type": "StringU8",
-              "field_is_key": false,
+              "field_is_key": true,
               "field_is_reference": [
                 "spawnable_forces",
                 "key"
@@ -38451,7 +38592,7 @@
             {
               "field_name": "Unit List",
               "field_type": "StringU8",
-              "field_is_key": false,
+              "field_is_key": true,
               "field_is_reference": [
                 "unit_lists",
                 "key"
@@ -38493,16 +38634,6 @@
               "field_description": ""
             },
             {
-              "field_name": "Wind Up Weapon Vfx",
-              "field_type": "OptionalStringU8",
-              "field_is_key": false,
-              "field_is_reference": [
-                "particle_effects",
-                "key"
-              ],
-              "field_description": "This will attempt to override any 'ability weapon' metadata in active animations"
-            },
-            {
               "field_name": "Wind Up Aura Vfx",
               "field_type": "OptionalStringU8",
               "field_is_key": false,
@@ -38511,6 +38642,16 @@
                 "key"
               ],
               "field_description": "This will attempt to override any 'ability aura' metadata in active animations"
+            },
+            {
+              "field_name": "Wind Up Weapon Vfx",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "particle_effects",
+                "key"
+              ],
+              "field_description": "This will attempt to override any 'ability weapon' metadata in active animations"
             }
           ]
         }
@@ -38717,22 +38858,22 @@
           "version": 1,
           "fields": [
             {
-              "field_name": "Phase",
-              "field_type": "StringU8",
-              "field_is_key": true,
-              "field_is_reference": [
-                "special_ability_phases",
-                "id"
-              ],
-              "field_description": ""
-            },
-            {
               "field_name": "Attribute",
               "field_type": "StringU8",
               "field_is_key": true,
               "field_is_reference": [
                 "unit_attributes",
                 "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Phase",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "special_ability_phases",
+                "id"
               ],
               "field_description": ""
             },
@@ -38757,16 +38898,6 @@
           "version": 0,
           "fields": [
             {
-              "field_name": "Banner Vfx",
-              "field_type": "OptionalStringU8",
-              "field_is_key": false,
-              "field_is_reference": [
-                "particle_effects",
-                "key"
-              ],
-              "field_description": "Effect that plays around the base of the banner on all units affect by the phase"
-            },
-            {
               "field_name": "Active Vfx",
               "field_type": "OptionalStringU8",
               "field_is_key": false,
@@ -38775,6 +38906,16 @@
                 "key"
               ],
               "field_description": "Active vfx on the target is shown when phase is active"
+            },
+            {
+              "field_name": "Banner Vfx",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "particle_effects",
+                "key"
+              ],
+              "field_description": "Effect that plays around the base of the banner on all units affect by the phase"
             },
             {
               "field_name": "Entity Vfx",
@@ -39072,22 +39213,22 @@
           "version": 0,
           "fields": [
             {
-              "field_name": "Special Ability",
-              "field_type": "StringU8",
-              "field_is_key": true,
-              "field_is_reference": [
-                "unit_special_abilities",
-                "key"
-              ],
-              "field_description": ""
-            },
-            {
               "field_name": "Deactivate Flag",
               "field_type": "StringU8",
               "field_is_key": true,
               "field_is_reference": [
                 "special_ability_invalid_usage_flags",
                 "flag_key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Special Ability",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "unit_special_abilities",
+                "key"
               ],
               "field_description": ""
             }
@@ -39102,22 +39243,22 @@
           "version": 0,
           "fields": [
             {
-              "field_name": "Special Ability",
-              "field_type": "StringU8",
-              "field_is_key": true,
-              "field_is_reference": [
-                "unit_special_abilities",
-                "key"
-              ],
-              "field_description": ""
-            },
-            {
               "field_name": "Invalid Target",
               "field_type": "StringU8",
               "field_is_key": true,
               "field_is_reference": [
                 "special_ability_invalid_usage_flags",
                 "flag_key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Special Ability",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "unit_special_abilities",
+                "key"
               ],
               "field_description": ""
             }
@@ -39132,22 +39273,22 @@
           "version": 0,
           "fields": [
             {
-              "field_name": "Special Ability",
-              "field_type": "StringU8",
-              "field_is_key": true,
-              "field_is_reference": [
-                "unit_special_abilities",
-                "key"
-              ],
-              "field_description": ""
-            },
-            {
               "field_name": "Invalid Usage Flag",
               "field_type": "StringU8",
               "field_is_key": true,
               "field_is_reference": [
                 "special_ability_invalid_usage_flags",
                 "flag_key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Special Ability",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "unit_special_abilities",
+                "key"
               ],
               "field_description": ""
             }
@@ -39162,22 +39303,22 @@
           "version": 0,
           "fields": [
             {
-              "field_name": "Special Ability",
-              "field_type": "StringU8",
-              "field_is_key": true,
-              "field_is_reference": [
-                "unit_special_abilities",
-                "key"
-              ],
-              "field_description": ""
-            },
-            {
               "field_name": "Recharge Context",
               "field_type": "StringU8",
               "field_is_key": true,
               "field_is_reference": [
                 "special_ability_invalid_usage_flags",
                 "flag_key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Special Ability",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "unit_special_abilities",
+                "key"
               ],
               "field_description": ""
             }
@@ -39199,22 +39340,22 @@
               "field_description": ""
             },
             {
-              "field_name": "Special Ability",
-              "field_type": "StringU8",
-              "field_is_key": true,
-              "field_is_reference": [
-                "unit_special_abilities",
-                "key"
-              ],
-              "field_description": ""
-            },
-            {
               "field_name": "Phase",
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
                 "special_ability_phases",
                 "id"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Special Ability",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "unit_special_abilities",
+                "key"
               ],
               "field_description": ""
             }
@@ -39341,22 +39482,22 @@
           "version": 0,
           "fields": [
             {
-              "field_name": "Subculture",
-              "field_type": "StringU8",
-              "field_is_key": true,
-              "field_is_reference": [
-                "cultures_subcultures",
-                "subculture"
-              ],
-              "field_description": ""
-            },
-            {
               "field_name": "Category",
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
                 "cdir_events_categories",
                 "category_key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Subculture",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "cultures_subcultures",
+                "subculture"
               ],
               "field_description": ""
             }
@@ -40090,6 +40231,113 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 3,
+          "fields": [
+            {
+              "field_name": "Campaign Key",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "campaigns",
+                "campaign_name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Faction Key",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "factions",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Indent",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "Key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "Technology Key",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "technologies",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Technology Node Set",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "technology_node_sets",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Tier",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "Research Points Required",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "Cost Per Round",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "Food Cost",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "Optional Ui Group",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "technology_ui_groups",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Resource Cost",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "resource_costs",
+                "id"
+              ],
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -40188,6 +40436,46 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 6,
+          "fields": [
+            {
+              "field_name": "Key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "Colour Red",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "Colour Green",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "Colour Blue",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "Optional Background Image",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -40220,6 +40508,61 @@
             {
               "field_name": "Bottom Right Node",
               "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "technology_nodes",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 2,
+          "fields": [
+            {
+              "field_name": "Bottom Right Node",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "technology_nodes",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Tech UI Group",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "technology_ui_groups",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Top Left Node",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "technology_nodes",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Optional Top Right Node",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "technology_nodes",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Optional Bottom Left Node",
+              "field_type": "OptionalStringU8",
               "field_is_key": false,
               "field_is_reference": [
                 "technology_nodes",
@@ -40343,7 +40686,7 @@
           "version": 0,
           "fields": [
             {
-              "field_name": "Trait",
+              "field_name": "Antitrait",
               "field_type": "StringU8",
               "field_is_key": true,
               "field_is_reference": [
@@ -40353,7 +40696,7 @@
               "field_description": ""
             },
             {
-              "field_name": "Antitrait",
+              "field_name": "Trait",
               "field_type": "StringU8",
               "field_is_key": true,
               "field_is_reference": [
@@ -40400,14 +40743,14 @@
               "field_description": ""
             },
             {
-              "field_name": "Colour G",
+              "field_name": "Colour B",
               "field_type": "Integer",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
             },
             {
-              "field_name": "Colour B",
+              "field_name": "Colour G",
               "field_type": "Integer",
               "field_is_key": false,
               "field_is_reference": null,
@@ -40578,14 +40921,11 @@
           "version": 2,
           "fields": [
             {
-              "field_name": "Ui Tooltip",
+              "field_name": "Child Id",
               "field_type": "StringU8",
               "field_is_key": true,
-              "field_is_reference": [
-                "ui_tooltips",
-                "key"
-              ],
-              "field_description": "This is the entry in ui tooltips, the layout to use"
+              "field_is_reference": null,
+              "field_description": "This is the child id in the layout to apply this information for"
             },
             {
               "field_name": "Icon Path",
@@ -40595,11 +40935,14 @@
               "field_description": "This is the icon/image path to set for this entry that lives in working_data/ui/skins/default as a png"
             },
             {
-              "field_name": "Child Id",
+              "field_name": "Ui Tooltip",
               "field_type": "StringU8",
               "field_is_key": true,
-              "field_is_reference": null,
-              "field_description": "This is the child id in the layout to apply this information for"
+              "field_is_reference": [
+                "ui_tooltips",
+                "key"
+              ],
+              "field_description": "This is the entry in ui tooltips, the layout to use"
             },
             {
               "field_name": "State Name",
@@ -40711,14 +41054,14 @@
           "version": 0,
           "fields": [
             {
-              "field_name": "Unit Stat",
+              "field_name": "Bullet Point Enum",
               "field_type": "StringU8",
-              "field_is_key": true,
+              "field_is_key": false,
               "field_is_reference": [
-                "ui_unit_stats",
+                "ui_unit_bullet_point_enums",
                 "key"
               ],
-              "field_description": "Unit Stat from ui_unit_stats table"
+              "field_description": "Adjective"
             },
             {
               "field_name": "Should Display",
@@ -40748,14 +41091,14 @@
               "field_description": "Unit Class"
             },
             {
-              "field_name": "Bullet Point Enum",
+              "field_name": "Unit Stat",
               "field_type": "StringU8",
-              "field_is_key": false,
+              "field_is_key": true,
               "field_is_reference": [
-                "ui_unit_bullet_point_enums",
+                "ui_unit_stats",
                 "key"
               ],
-              "field_description": "Adjective"
+              "field_description": "Unit Stat from ui_unit_stats table"
             },
             {
               "field_name": "Unit Stat Threshold",
@@ -40775,16 +41118,16 @@
           "version": 1,
           "fields": [
             {
-              "field_name": "Key",
+              "field_name": "Icon",
               "field_type": "StringU8",
-              "field_is_key": true,
+              "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
             },
             {
-              "field_name": "Icon",
+              "field_name": "Key",
               "field_type": "StringU8",
-              "field_is_key": false,
+              "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
             },
@@ -40813,18 +41156,18 @@
           "version": 1,
           "fields": [
             {
-              "field_name": "Key",
-              "field_type": "StringU8",
-              "field_is_key": true,
-              "field_is_reference": null,
-              "field_description": "The unique id"
-            },
-            {
               "field_name": "Icon",
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": "The icon name, these live in ui/common ui/unit_category_icons/"
+            },
+            {
+              "field_name": "Key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": "The unique id"
             },
             {
               "field_name": "Parent Group",
@@ -41041,22 +41384,22 @@
           "version": 1,
           "fields": [
             {
-              "field_name": "Unique Agent",
-              "field_type": "StringU8",
-              "field_is_key": true,
-              "field_is_reference": [
-                "unique_agents",
-                "agent_subtype"
-              ],
-              "field_description": ""
-            },
-            {
               "field_name": "Component",
               "field_type": "StringU8",
               "field_is_key": true,
               "field_is_reference": [
                 "unique_agent_components",
                 "id"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Unique Agent",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "unique_agents",
+                "agent_subtype"
               ],
               "field_description": ""
             },
@@ -41078,22 +41421,22 @@
           "version": 0,
           "fields": [
             {
-              "field_name": "Unique Agent",
-              "field_type": "StringU8",
-              "field_is_key": true,
-              "field_is_reference": [
-                "unique_agents",
-                "agent_subtype"
-              ],
-              "field_description": ""
-            },
-            {
               "field_name": "Composite Scene",
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
                 "campaign_composite_scenes",
                 "id"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Unique Agent",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "unique_agents",
+                "agent_subtype"
               ],
               "field_description": ""
             }
@@ -41118,7 +41461,7 @@
               "field_description": ""
             },
             {
-              "field_name": "Forename",
+              "field_name": "Surname",
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
@@ -41128,7 +41471,7 @@
               "field_description": ""
             },
             {
-              "field_name": "Surname",
+              "field_name": "Forename",
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
@@ -41504,6 +41847,35 @@
                 "main_units",
                 "unit"
               ],
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "Height Offset",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "Unit Record",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "main_units",
+                "unit"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Campaign Height Offset",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
               "field_description": ""
             }
           ]
@@ -41888,7 +42260,7 @@
               "field_description": ""
             },
             {
-              "field_name": "Theta",
+              "field_name": "Fov",
               "field_type": "Float",
               "field_is_key": false,
               "field_is_reference": null,
@@ -41909,7 +42281,7 @@
               "field_description": ""
             },
             {
-              "field_name": "Fov",
+              "field_name": "Theta",
               "field_type": "Float",
               "field_is_key": false,
               "field_is_reference": null,
@@ -42058,21 +42430,21 @@
               "field_description": ""
             },
             {
-              "field_name": "Unit Set",
-              "field_type": "StringU8",
-              "field_is_key": false,
-              "field_is_reference": [
-                "unit_sets",
-                "key"
-              ],
-              "field_description": ""
-            },
-            {
               "field_name": "Unit Ability",
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
                 "unit_abilities",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Unit Set",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "unit_sets",
                 "key"
               ],
               "field_description": ""
@@ -42095,21 +42467,21 @@
               "field_description": ""
             },
             {
-              "field_name": "Unit Set",
-              "field_type": "StringU8",
-              "field_is_key": false,
-              "field_is_reference": [
-                "unit_sets",
-                "key"
-              ],
-              "field_description": ""
-            },
-            {
               "field_name": "Unit Attribute",
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
                 "unit_attributes",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Unit Set",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "unit_sets",
                 "key"
               ],
               "field_description": ""
@@ -42732,6 +43104,16 @@
           "version": 2,
           "fields": [
             {
+              "field_name": "How",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "unit_stat_modifiers_how_enums",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
               "field_name": "Key",
               "field_type": "StringU8",
               "field_is_key": true,
@@ -42745,16 +43127,6 @@
               "field_is_reference": [
                 "modifiable_unit_stats",
                 "stat_key"
-              ],
-              "field_description": ""
-            },
-            {
-              "field_name": "How",
-              "field_type": "StringU8",
-              "field_is_key": false,
-              "field_is_reference": [
-                "unit_stat_modifiers_how_enums",
-                "key"
               ],
               "field_description": ""
             }
@@ -42887,22 +43259,22 @@
           "version": 0,
           "fields": [
             {
-              "field_name": "Unit List",
-              "field_type": "StringU8",
-              "field_is_key": true,
-              "field_is_reference": [
-                "unit_lists",
-                "key"
-              ],
-              "field_description": ""
-            },
-            {
               "field_name": "Unit",
               "field_type": "StringU8",
               "field_is_key": true,
               "field_is_reference": [
                 "main_units",
                 "unit"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Unit List",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "unit_lists",
+                "key"
               ],
               "field_description": ""
             }
@@ -43108,14 +43480,14 @@
               "field_description": ""
             },
             {
-              "field_name": "Variant",
+              "field_name": "Unit Card",
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
             },
             {
-              "field_name": "Unit Card",
+              "field_name": "Variant",
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": null,
@@ -43805,6 +44177,264 @@
               "field_is_key": false,
               "field_is_reference": [
                 "rituals",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "resource_cost_trade_resource_junctions_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "Resource Cost",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "resource_costs",
+                "id"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Trade Resource",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "resources",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "resource_ui_overrides_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "Override Faction",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "factions",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Override Subculture",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cultures_subculture",
+                "subculture"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Source Resource",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "resources",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Target Resource",
+              "field_type": "OptionalStringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "resources",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ritual_payload_ancillaries_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "Id",
+              "field_type": "LongInteger",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "Payload",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "ritual_payloads",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Ancillary",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "ancillaries",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ritual_payload_spawn_mercenaries_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "Id",
+              "field_type": "LongInteger",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "Payload",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "ritual_payloads",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Spawnable Unit",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "main_units",
+                "unit"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ritual_payload_spawn_storms_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "Max Turns Duration",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "Strength",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "Payload",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "ritual_payloads",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Region",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "regions",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "technology_character_traits_junctions_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "Character Trait",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "character_trait_levels",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Technology Node",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "technology_nodes",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "technology_nodes_to_ancillaries_junctions_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "Ancillary",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "ancillaries",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "Technology Node",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "technology_nodes",
                 "key"
               ],
               "field_description": ""
