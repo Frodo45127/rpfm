@@ -1984,7 +1984,7 @@ fn main() {
                                                     packed_file_data_encoded.borrow().to_vec(),
                                                     &table_definition.borrow(),
                                                     &packed_file_decoder.field_name_entry.get_buffer().get_text(),
-                                                    FieldType::Integer,
+                                                    FieldType::LongInteger,
                                                     packed_file_decoder.is_key_field_button.get_active(),
                                                     None,
                                                     String::new(),
