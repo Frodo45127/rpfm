@@ -297,7 +297,7 @@ impl PackedFileDBTreeView{
         let packed_file_popover_menu_box_add_rows_box = Box::new(Orientation::Horizontal, 0);
 
         let packed_file_popover_menu_add_rows_button = Button::new_with_label("Add rows:");
-        let packed_file_popover_menu_add_rows_button_image = Image::new_from_icon_name(Some("gtk-add"), gtk::IconSize::Button.into());
+        let packed_file_popover_menu_add_rows_button_image = Image::new_from_icon_name(Some("list-add"), gtk::IconSize::Button.into());
         packed_file_popover_menu_add_rows_button.set_image(&packed_file_popover_menu_add_rows_button_image);
         packed_file_popover_menu_add_rows_button.set_image_position(gtk::PositionType::Left);
         packed_file_popover_menu_add_rows_button.set_relief(gtk::ReliefStyle::None);
@@ -312,7 +312,7 @@ impl PackedFileDBTreeView{
         packed_file_popover_menu_add_rows_entry_buffer.set_text("1");
 
         let packed_file_popover_menu_delete_rows_button = Button::new_with_label("Delete row/s");
-        let packed_file_popover_menu_delete_rows_button_image = Image::new_from_icon_name(Some("delete"), gtk::IconSize::Button.into());
+        let packed_file_popover_menu_delete_rows_button_image = Image::new_from_icon_name(Some("edit-delete"), gtk::IconSize::Button.into());
         packed_file_popover_menu_delete_rows_button.set_image(&packed_file_popover_menu_delete_rows_button_image);
         packed_file_popover_menu_delete_rows_button.set_image_position(gtk::PositionType::Left);
         packed_file_popover_menu_delete_rows_button.set_relief(gtk::ReliefStyle::None);
