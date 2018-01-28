@@ -4,9 +4,6 @@
 use std::fs::{
     File, DirBuilder
 };
-use std::path::{
-    Path, PathBuf
-};
 use std::io::{
     Read, Write
 };
@@ -16,6 +13,7 @@ use std::io::{
 };
 
 use std::error;
+use std::path::PathBuf;
 use common::*;
 use common::coding_helpers;
 use packedfile::loc::Loc;
@@ -41,20 +39,17 @@ pub fn new_packfile(file_name: String) -> packfile::PackFile {
 /// it returns the PackFile decoded (if success) or an error message (if error).
 pub fn open_packfile(pack_file_path: PathBuf) -> Result<packfile::PackFile, Error> {
 
-    // First, we get his name and path.
-    let mut pack_file_path_string = pack_file_path.clone();
-    pack_file_path_string.pop();
-    let pack_file_path_string = pack_file_path_string.to_str().unwrap().to_string();
+    // First, we get his name.
     let pack_file_name = pack_file_path.file_name().unwrap().to_str().unwrap().to_string();
 
     // Then we open it, read it, and store his content in raw format.
-    let mut file = File::open(&pack_file_path).expect("Couldn't open file");
+    let mut file = File::open(&pack_file_path)?;
     let mut pack_file_buffered = vec![];
-    file.read_to_end(&mut pack_file_buffered).expect("Error reading file.");
+    file.read_to_end(&mut pack_file_buffered)?;
 
-    // If the file has less than 4 bytes, the file is not valid.
-    if pack_file_buffered.len() <= 4 {
-        Err(Error::new(ErrorKind::Other, format!("The file doesn't even have 4 bytes.")))
+    // If the file has less than 28 bytes (length of an empty PFH5 PackFile), the file is not valid.
+    if pack_file_buffered.len() <= 28 {
+        Err(Error::new(ErrorKind::Other, format!("The file doesn't even have a full header.")))
     }
     else {
         match coding_helpers::decode_string_u8(pack_file_buffered[0..4].to_vec()) {
@@ -62,7 +57,7 @@ pub fn open_packfile(pack_file_path: PathBuf) -> Result<packfile::PackFile, Erro
 
                 // If the header's first 4 bytes are "PFH5", it's a valid file, so we read it.
                 if pack_file_id == "PFH5" {
-                    match packfile::PackFile::read(pack_file_buffered, pack_file_name, pack_file_path_string) {
+                    match packfile::PackFile::read(pack_file_buffered, pack_file_name, pack_file_path) {
                         Ok(pack_file) => Ok(pack_file),
                         Err(error) => Err(error),
                     }
@@ -93,29 +88,25 @@ pub fn save_packfile(
 
     // If we haven't received a new_path, we assume the path is the original path of the file.
     // If that one is empty too (should never happen), we panic and cry.
-    if new_path != None {
-        let mut pack_file_path = new_path.clone().unwrap();
-        pack_file_path.pop();
-        let pack_file_path_string = pack_file_path.to_str().unwrap().to_string();
-        let pack_file_name_string = new_path.unwrap().file_name().unwrap().to_str().unwrap().to_string();
-
-        pack_file.pack_file_extra_data.file_path = pack_file_path_string;
-        pack_file.pack_file_extra_data.file_name = pack_file_name_string;
-    }
-
-    let pack_file_path_string;
-    if !pack_file.pack_file_extra_data.file_path.is_empty() {
-        pack_file_path_string = format!("{}/{}", pack_file.pack_file_extra_data.file_path, pack_file.pack_file_extra_data.file_name);
-    }
-    else {
-        return Err(Error::new(ErrorKind::Other, format!("Saving a PackFile with an empty path is almost as bad as dividing by 0. Almost")));
-    }
-
-    let pack_file_path = Path::new(&pack_file_path_string);
+    let pack_file_path = match new_path {
+        Some(new_path) => {
+            pack_file.pack_file_extra_data.file_name = new_path.file_name().unwrap().to_str().unwrap().to_string();
+            pack_file.pack_file_extra_data.file_path = new_path;
+            pack_file.pack_file_extra_data.file_path.clone()
+        },
+        None => {
+            if pack_file.pack_file_extra_data.file_path.exists() {
+                pack_file.pack_file_extra_data.file_path.clone()
+            }
+            else {
+                return Err(Error::new(ErrorKind::Other, format!("Saving a PackFile with an empty path is almost as bad as dividing by 0. Almost.")))
+            }
+        }
+    };
 
     // Once we have the destination path saved, we proceed to save the PackedFile to that path and
     // return Ok or one of the 2 possible errors.
-    match File::create(pack_file_path) {
+    match File::create(&pack_file_path) {
         Ok(mut file) => {
             let pack_file_encoded: Vec<u8> = packfile::PackFile::save(pack_file);
             match file.write_all(&pack_file_encoded) {

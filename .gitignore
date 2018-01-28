@@ -1,7 +1,7 @@
 /.idea/
 /target/
 **/*.rs.bk
+.directory
 Cargo.lock
 rpfm-code.iml
-.directory
 *.*~

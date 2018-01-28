@@ -6,8 +6,8 @@
 
 # Midterm
 - [ ] Implement some sort of user settings.
-- [ ] Implement priority columns for DB tables.
-- [ ] Implement a decoding tool to decode Table's Structure, both from PackFiles and from Assembly Kit's XMLs.
+- [x] Implement priority columns for DB tables.
+- [x] Implement a decoding tool to decode Table's Structure, both from PackFiles and from Assembly Kit's XMLs.
 - [ ] Implement basic hotkeys, like "Supr", "CTRL+C/V",....
 - [ ] Implement more file management stuff, like moving between folders.
 - [ ] Implement an "Open with external tool" feature.
@@ -20,7 +20,7 @@
 - [ ] Implement Theming support (graphically, as the theme can be changed already through a text file).
 - [ ] Implement some sort of font scaling.
 - [ ] Use native file chooser dialogs instead of the GTK ones.
-- [ ] Split the "master_schema.xml" by game.
+- [x] Split the "master_schema.xml" by game.
 - [ ] Implement some test to ensure the general PackFile creation/reading/saving functions doesn't break.
 - [ ] Endless UI improving.
 - [ ] Make improvements in the code so the UI doesn't hangs when there is an operation running in the background (maybe with threads?).

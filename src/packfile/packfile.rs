@@ -1,7 +1,12 @@
 // In this file are all the Structs and Impls required to decode and encode the PackFiles.
 // For now we only support common TW: Warhammer 2 PackFiles (not loc files, those are different).
+extern crate chrono;
 
+use self::chrono::{
+    NaiveDateTime, Utc
+};
 use std::io::Error;
+use std::path::PathBuf;
 use common::coding_helpers;
 
 /// Struct PackFile: This stores the data of the entire PackFile in memory ('cause fuck lazy-loading),
@@ -19,12 +24,12 @@ pub struct PackFile {
 
 /// Struct PackFileExtraData: This struct stores some extra data we need to manipulate the PackFiles:
 /// - file_name: name of the PackFile.
-/// - file_path: current path of the PackFile in the FileSystem.
+/// - file_path: current full path of the PackFile in the FileSystem.
 /// - correlation_data: Vector with all the paths that are already in the TreeView. Useful for checking.
 #[derive(Clone, Debug)]
 pub struct PackFileExtraData {
     pub file_name: String,
-    pub file_path: String,
+    pub file_path: PathBuf,
     pub is_modified: bool,
 }
 
@@ -32,11 +37,11 @@ pub struct PackFileExtraData {
 /// Struct PackFileHeader: This struct stores all the info we can get from the header of the PackFile:
 /// - pack_file_id: ID of the PackFile, like a version.
 /// - pack_file_type: type of the PackFile (mod, movie,...).
-/// - pack_file_count: amount of files in the PackFile index, at the start of the data.
+/// - pack_file_count: amount of files in the PackFile index, at the start of the data (dependencies).
 /// - pack_file_index_size: size in bytes of the PackFile Index of the file (the first part of the data, if exists).
 /// - packed_file_count: amount of PackedFiles stored inside the PackFile.
 /// - packed_file_index_size: size in bytes of the PackedFile Index of the file (the first part of the data).
-/// - unknown_data: no idea. It was checked in PFM, so we save it, just in case.
+/// - packed_file_creation_time: turns out this is the epoch date of the creation of the PackFile.
 ///
 /// NOTE: to understand the "pack_file_type":
 /// - 0 => "Boot",
@@ -52,7 +57,7 @@ pub struct PackFileHeader {
     pub pack_file_index_size: u32,
     pub packed_file_count: u32,
     pub packed_file_index_size: u32,
-    pub unknown_data: u32,
+    pub packed_file_creation_time: NaiveDateTime,
 }
 
 /// Struct PackFileData: This struct stores all the PackedFiles inside the PackFile in a vector.
@@ -135,8 +140,8 @@ impl PackFile {
     /// It requires:
     /// - pack_file_buffered: a Vec<u8> with the entire PackFile encoded inside it.
     /// - file_name: a String with the name of the PackFile.
-    /// - file_path: a String with the path of the PackFile.
-    pub fn read(pack_file_buffered: Vec<u8>, file_name: String, file_path: String) -> Result<PackFile, Error> {
+    /// - file_path: a PathBuf with the path of the PackFile.
+    pub fn read(pack_file_buffered: Vec<u8>, file_name: String, file_path: PathBuf) -> Result<PackFile, Error> {
 
         // We save the "Extra data" of the packfile
         let pack_file_extra_data = PackFileExtraData::new_from_file(file_name, file_path);
@@ -186,7 +191,7 @@ impl PackFileExtraData {
     /// This function creates an empty PackFileExtraData.
     pub fn new() -> PackFileExtraData {
         let file_name = String::new();
-        let file_path = String::new();
+        let file_path = PathBuf::new();
         let is_modified = false;
         PackFileExtraData {
             file_name,
@@ -197,7 +202,7 @@ impl PackFileExtraData {
 
     /// This function creates a PackFileExtraData with just a name.
     pub fn new_with_name(file_name: String) -> PackFileExtraData {
-        let file_path = String::new();
+        let file_path = PathBuf::new();
         let is_modified = false;
         PackFileExtraData {
             file_name,
@@ -207,7 +212,7 @@ impl PackFileExtraData {
     }
 
     /// This function creates a PackFileExtraData with a name and a path.
-    pub fn new_from_file(file_name: String, file_path: String) -> PackFileExtraData {
+    pub fn new_from_file(file_name: String, file_path: PathBuf) -> PackFileExtraData {
         let is_modified = false;
         PackFileExtraData {
             file_name,
@@ -228,7 +233,7 @@ impl PackFileHeader {
         let pack_file_index_size = 0 as u32;
         let packed_file_count = 0 as u32;
         let packed_file_index_size = 0 as u32;
-        let unknown_data = 0 as u32;
+        let packed_file_creation_time = Utc::now().naive_utc();
 
         PackFileHeader {
             pack_file_id,
@@ -237,7 +242,7 @@ impl PackFileHeader {
             pack_file_index_size,
             packed_file_count,
             packed_file_index_size,
-            unknown_data,
+            packed_file_creation_time,
         }
     }
 
@@ -253,7 +258,7 @@ impl PackFileHeader {
         pack_file_header.pack_file_index_size = coding_helpers::decode_integer_u32((&header[12..16]).to_vec())?;
         pack_file_header.packed_file_count = coding_helpers::decode_integer_u32((&header[16..20]).to_vec())?;
         pack_file_header.packed_file_index_size = coding_helpers::decode_integer_u32((&header[20..24]).to_vec())?;
-        pack_file_header.unknown_data = coding_helpers::decode_integer_u32((&header[24..28]).to_vec())?;
+        pack_file_header.packed_file_creation_time = NaiveDateTime::from_timestamp(coding_helpers::decode_integer_u32((&header[24..28]).to_vec())? as i64, 0);
 
         Ok(pack_file_header)
     }
@@ -269,7 +274,12 @@ impl PackFileHeader {
         let mut pack_file_index_size = coding_helpers::encode_integer_u32(pack_file_index_size);
         let mut packed_file_count = coding_helpers::encode_integer_u32(header_decoded.packed_file_count);
         let mut packed_file_index_size = coding_helpers::encode_integer_u32(packed_file_index_size);
-        let mut unknown_data = coding_helpers::encode_integer_u32(header_decoded.unknown_data);
+        let mut packed_file_creation_time = coding_helpers::encode_integer_i64(Utc::now().naive_utc().timestamp());
+
+        // For some reason this returns a reversed i64. We need to truncate it and reverse it before
+        // writing it to the data.
+        packed_file_creation_time.truncate(4);
+        packed_file_creation_time.reverse();
 
         header_encoded.append(&mut pack_file_id);
         header_encoded.append(&mut pack_file_type);
@@ -277,7 +287,7 @@ impl PackFileHeader {
         header_encoded.append(&mut pack_file_index_size);
         header_encoded.append(&mut packed_file_count);
         header_encoded.append(&mut packed_file_index_size);
-        header_encoded.append(&mut unknown_data);
+        header_encoded.append(&mut packed_file_creation_time);
         header_encoded
     }
 }

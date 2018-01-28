@@ -16,13 +16,13 @@ In addition to that, it has some special features:
 
 To see what's being worked on, check the ***TODO.md*** file.
 
-# Requeriments (to use)
+# Requirements (to use)
 To use the ***Linux*** you just need to install **GTK 3.22 or later** and... that's all.
 
 To use the ***Windows*** version, there are no requirements. Just extract it somewhere and execute it.
 
 
-# Requeriments (to build)
+# Requirements (to build)
 To build this project, you need:
 * ***GTK 3.22*** or higher.
 * ***Rust toolchain***.
@@ -41,14 +41,12 @@ cargo build --target=x86_64-unknown-linux-gnu --release
 ```
 
 # FAQ
-- **Why not helping with PFM instead of reimplement it?**: because I wanted to learn a new language, and I already now a bit of C#. Also, where is the fun of that?
+- **Why not helping with PFM instead of reimplementing it?**: because I wanted to learn a new language, and I already now a bit of C#. Also, where is the fun of that?
 - **Why the code quality is not the very best?**: because I'm using this project to learn Rust, and I'm constantly rewriting code as I find new and better ways to write it.
 
 # Known bugs
-- Float fields in DB PackedFiles have trailing zeros.
 - Changing the type of the PackFile doesn't make it show up as "modified" in the window's title bar.
-- Icons in menus and buttons doesn't show up. Don't know why.
-
+- Menu icons are horrible. Trying to get rid of the horrible Adwaita icons, but haven't managed to do it yet.
 
 # Credits
 - ***Frodo45127***: I'm the guy who has made the program.
@@ -59,7 +57,7 @@ cargo build --target=x86_64-unknown-linux-gnu --release
 
 #### Special Thanks to:
 - ***The guys that made PFM***: Most of the decoding stuff would have been very hard to work out without the PFM source code. So many thanks for make the PFM open source!
-- ***The guys at CA***: They make good, easely-moddable games, and are very friendly with the community. Weird company in these times.
+- ***The guys at CA***: They make good, easily-moddable games, and are very friendly with the community. Weird company in these times.
 
 [Rustup download]: https://www.rustup.rs/ "Here you can download it :)"
 [Gtk-rs requeriments]: http://gtk-rs.org/docs-src/requirements.html "Installation Tutorial for GTK3 in Windows"
