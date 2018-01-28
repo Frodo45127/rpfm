@@ -45,10 +45,7 @@ cargo build --target=x86_64-unknown-linux-gnu --release
 - **Why the code quality is not the very best?**: because I'm using this project to learn Rust, and I'm constantly rewriting code as I find new and better ways to write it.
 
 # Known bugs
-- Float fields in DB PackedFiles have trailing zeros.
 - Changing the type of the PackFile doesn't make it show up as "modified" in the window's title bar.
-- Icons in menus and buttons doesn't show up. Don't know why.
-
 
 # Credits
 - ***Frodo45127***: I'm the guy who has made the program.
