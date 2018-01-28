@@ -7,6 +7,9 @@ extern crate winres;
 fn main() {
     let mut res = winres::WindowsResource::new();
     res.set_icon("img/rpfm.ico");
+    res.set("LegalCopyright","Copyright (c) 2017-2018 Ismael Gutiérrez González");
+    res.set("ProductName","Rusted PackFile Manager");
+
     if let Err(error) = res.compile() {
         println!("Error: {}", std::error::Error::description(&error).to_string());
     }
