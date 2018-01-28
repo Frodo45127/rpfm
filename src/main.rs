@@ -1062,7 +1062,8 @@ fn main() {
                         tree_path.last().unwrap().ends_with(".battle_speech_camera") ||
                         tree_path.last().unwrap().ends_with(".bob") ||
                         tree_path.last().unwrap().ends_with(".xml.shader") ||
-                        //tree_path.last().unwrap().ends_with(".benchmark") ||
+                        //tree_path.last().unwrap().ends_with(".benchmark") || // This one needs special decoding/encoding.
+                        tree_path.last().unwrap().ends_with(".variantmeshdefinition") ||
                         tree_path.last().unwrap().ends_with(".xml.material") ||
                         tree_path.last().unwrap().ends_with(".environment") ||
                         tree_path.last().unwrap().ends_with(".inl") ||
@@ -2278,7 +2279,13 @@ fn main() {
                                 // Then, we get the Language of the file.
                                 let language_manager = LanguageManager::get_default().unwrap();
                                 let packedfile_language: Option<Language>;
-                                if tree_path.last().unwrap().ends_with(".xml") {
+                                if tree_path.last().unwrap().ends_with(".xml") ||
+                                    tree_path.last().unwrap().ends_with(".xml.shader") ||
+                                    tree_path.last().unwrap().ends_with(".xml.material") ||
+                                    tree_path.last().unwrap().ends_with(".variantmeshdefinition") ||
+                                    tree_path.last().unwrap().ends_with(".environment") ||
+                                    tree_path.last().unwrap().ends_with(".lighting") ||
+                                    tree_path.last().unwrap().ends_with(".wsmodel") {
                                     packedfile_language = language_manager.get_language("xml");
                                 }
                                 else if tree_path.last().unwrap().ends_with(".lua") {
@@ -2287,23 +2294,8 @@ fn main() {
                                 else if tree_path.last().unwrap().ends_with(".csv") {
                                     packedfile_language = language_manager.get_language("csv");
                                 }
-                                else if tree_path.last().unwrap().ends_with(".xml.shader") {
-                                    packedfile_language = language_manager.get_language("xml");
-                                }
-                                else if tree_path.last().unwrap().ends_with(".xml.material") {
-                                    packedfile_language = language_manager.get_language("xml");
-                                }
-                                else if tree_path.last().unwrap().ends_with(".environment") {
-                                    packedfile_language = language_manager.get_language("xml");
-                                }
                                 else if tree_path.last().unwrap().ends_with(".inl") {
                                     packedfile_language = language_manager.get_language("cpp");
-                                }
-                                else if tree_path.last().unwrap().ends_with(".lighting") {
-                                    packedfile_language = language_manager.get_language("xml");
-                                }
-                                else if tree_path.last().unwrap().ends_with(".wsmodel") {
-                                    packedfile_language = language_manager.get_language("xml");
                                 }
                                 else {
                                     packedfile_language = None;
