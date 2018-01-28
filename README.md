@@ -46,6 +46,7 @@ cargo build --target=x86_64-unknown-linux-gnu --release
 
 # Known bugs
 - Changing the type of the PackFile doesn't make it show up as "modified" in the window's title bar.
+- Menu icons are horrible. Trying to get rid of the horrible Adwaita icons, but haven't managed to do it yet.
 
 # Credits
 - ***Frodo45127***: I'm the guy who has made the program.
