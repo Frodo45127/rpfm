@@ -360,8 +360,7 @@ impl PackedFileDBTreeView{
 
                 let mut packed_file_data_from_tree_view_entry: Vec<DecodedData> = vec![];
 
-                // -1 to avoid the filling column.
-                for column in 1..(columns - 1) {
+                for column in 1..columns {
                     let field_type = &table_definition.fields[column as usize - 1].field_type;
                     match *field_type {
                         FieldType::Boolean => {
