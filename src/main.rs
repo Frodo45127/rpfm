@@ -1474,21 +1474,21 @@ fn main() {
                                     packed_file_tree_view,
                                     packed_file_list_store => move |_ ,tree_path , new_text| {
 
-                                    let edited_cell = packed_file_list_store.get_iter(&tree_path);
-                                    let edited_cell_column = packed_file_tree_view.get_cursor();
-                                    packed_file_list_store.set_value(&edited_cell.unwrap(), edited_cell_column.1.unwrap().get_sort_column_id() as u32, &new_text.to_value());
+                                        let edited_cell = packed_file_list_store.get_iter(&tree_path);
+                                        let edited_cell_column = packed_file_tree_view.get_cursor();
+                                        packed_file_list_store.set_value(&edited_cell.unwrap(), edited_cell_column.1.unwrap().get_sort_column_id() as u32, &new_text.to_value());
 
-                                    // Get the data from the table and turn it into a Vec<u8> to write it.
-                                    match ui::packedfile_db::PackedFileDBTreeView::return_data_from_tree_view(&*table_definition.borrow() ,&packed_file_list_store) {
-                                        Ok(data) => {
-                                            packed_file_data_decoded.borrow_mut().packed_file_data.packed_file_data = data;
-                                            if let Err(error) = ::packfile::update_packed_file_data_db(&*packed_file_data_decoded.borrow_mut(), &mut *pack_file_decoded.borrow_mut(), index as usize) {
-                                                ui::show_dialog(&error_dialog, error::Error::description(&error).to_string());
+                                        // Get the data from the table and turn it into a Vec<u8> to write it.
+                                        match ui::packedfile_db::PackedFileDBTreeView::return_data_from_tree_view(&*table_definition.borrow() ,&packed_file_list_store) {
+                                            Ok(data) => {
+                                                packed_file_data_decoded.borrow_mut().packed_file_data.packed_file_data = data;
+                                                if let Err(error) = ::packfile::update_packed_file_data_db(&*packed_file_data_decoded.borrow_mut(), &mut *pack_file_decoded.borrow_mut(), index as usize) {
+                                                    ui::show_dialog(&error_dialog, error::Error::description(&error).to_string());
+                                                }
+                                                window.set_title(&format!("Rusted PackFile Manager -> {}(modified)", pack_file_decoded.borrow().pack_file_extra_data.file_name));
+
                                             }
-                                            window.set_title(&format!("Rusted PackFile Manager -> {}(modified)", pack_file_decoded.borrow().pack_file_extra_data.file_name));
-
-                                        }
-                                        Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string()),
+                                            Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string()),
                                         }
                                     }));
 
@@ -1505,26 +1505,26 @@ fn main() {
                                     packed_file_tree_view,
                                     packed_file_list_store => move |_ ,tree_path , new_text|{
 
-                                    let edited_cell = packed_file_list_store.get_iter(&tree_path);
-                                    let edited_cell_column = packed_file_tree_view.get_cursor();
-                                    packed_file_list_store.set_value(&edited_cell.unwrap(), edited_cell_column.1.unwrap().get_sort_column_id() as u32, &new_text.to_value());
+                                        let edited_cell = packed_file_list_store.get_iter(&tree_path);
+                                        let edited_cell_column = packed_file_tree_view.get_cursor();
+                                        packed_file_list_store.set_value(&edited_cell.unwrap(), edited_cell_column.1.unwrap().get_sort_column_id() as u32, &new_text.to_value());
 
-                                    // Get the data from the table and turn it into a Vec<u8> to write it.
-                                    match ui::packedfile_db::PackedFileDBTreeView::return_data_from_tree_view(&*table_definition.borrow() ,&packed_file_list_store) {
-                                        Ok(data) => {
-                                            packed_file_data_decoded.borrow_mut().packed_file_data.packed_file_data = data;
-                                            if let Err(error) = ::packfile::update_packed_file_data_db(&*packed_file_data_decoded.borrow_mut(), &mut *pack_file_decoded.borrow_mut(), index as usize) {
-                                                ui::show_dialog(&error_dialog, error::Error::description(&error).to_string());
+                                        // Get the data from the table and turn it into a Vec<u8> to write it.
+                                        match ui::packedfile_db::PackedFileDBTreeView::return_data_from_tree_view(&*table_definition.borrow() ,&packed_file_list_store) {
+                                            Ok(data) => {
+                                                packed_file_data_decoded.borrow_mut().packed_file_data.packed_file_data = data;
+                                                if let Err(error) = ::packfile::update_packed_file_data_db(&*packed_file_data_decoded.borrow_mut(), &mut *pack_file_decoded.borrow_mut(), index as usize) {
+                                                    ui::show_dialog(&error_dialog, error::Error::description(&error).to_string());
+                                                }
+                                                window.set_title(&format!("Rusted PackFile Manager -> {}(modified)", pack_file_decoded.borrow().pack_file_extra_data.file_name));
+
                                             }
-                                            window.set_title(&format!("Rusted PackFile Manager -> {}(modified)", pack_file_decoded.borrow().pack_file_extra_data.file_name));
-
-                                        }
-                                        Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string()),
+                                            Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string()),
                                         }
                                     }));
                                 }
 
-                                // This loop takes care of the interaction with U32 cells.
+                                // This loop takes care of the interaction with I32 cells.
                                 for edited_cell in packed_file_tree_view_stuff.packed_file_tree_view_cell_integer.iter() {
                                     edited_cell.connect_edited(clone!(
                                     table_definition,
@@ -1559,7 +1559,7 @@ fn main() {
                                     }));
                                 }
 
-                                // This loop takes care of the interaction with U64 cells.
+                                // This loop takes care of the interaction with I64 cells.
                                 for edited_cell in packed_file_tree_view_stuff.packed_file_tree_view_cell_long_integer.iter() {
                                     edited_cell.connect_edited(clone!(
                                     table_definition,
@@ -1640,25 +1640,25 @@ fn main() {
                                     packed_file_tree_view,
                                     packed_file_list_store => move |cell, tree_path|{
 
-                                    let tree_iter = packed_file_list_store.get_iter(&tree_path).unwrap();
-                                    // Get (Option<TreePath>, Option<TreeViewColumn>)
-                                    let edited_cell_column: u32 = packed_file_tree_view.get_cursor().1.unwrap().get_sort_column_id() as u32;
-                                    let new_value: bool = packed_file_list_store.get_value(&tree_iter, edited_cell_column as i32).get().unwrap();
-                                    let new_value_bool = (!new_value).to_value();
-                                    cell.set_active(!new_value);
-                                    packed_file_list_store.set_value(&tree_iter, edited_cell_column, &new_value_bool);
+                                        let tree_iter = packed_file_list_store.get_iter(&tree_path).unwrap();
+                                        // Get (Option<TreePath>, Option<TreeViewColumn>)
+                                        let edited_cell_column: u32 = packed_file_tree_view.get_cursor().1.unwrap().get_sort_column_id() as u32;
+                                        let new_value: bool = packed_file_list_store.get_value(&tree_iter, edited_cell_column as i32).get().unwrap();
+                                        let new_value_bool = (!new_value).to_value();
+                                        cell.set_active(!new_value);
+                                        packed_file_list_store.set_value(&tree_iter, edited_cell_column, &new_value_bool);
 
-                                    // Get the data from the table and turn it into a Vec<u8> to write it.
-                                    match ui::packedfile_db::PackedFileDBTreeView::return_data_from_tree_view(&*table_definition.borrow() ,&packed_file_list_store) {
-                                        Ok(data) => {
-                                            packed_file_data_decoded.borrow_mut().packed_file_data.packed_file_data = data;
-                                            if let Err(error) = ::packfile::update_packed_file_data_db(&*packed_file_data_decoded.borrow_mut(), &mut *pack_file_decoded.borrow_mut(), index as usize) {
-                                                ui::show_dialog(&error_dialog, error::Error::description(&error).to_string());
+                                        // Get the data from the table and turn it into a Vec<u8> to write it.
+                                        match ui::packedfile_db::PackedFileDBTreeView::return_data_from_tree_view(&*table_definition.borrow() ,&packed_file_list_store) {
+                                            Ok(data) => {
+                                                packed_file_data_decoded.borrow_mut().packed_file_data.packed_file_data = data;
+                                                if let Err(error) = ::packfile::update_packed_file_data_db(&*packed_file_data_decoded.borrow_mut(), &mut *pack_file_decoded.borrow_mut(), index as usize) {
+                                                    ui::show_dialog(&error_dialog, error::Error::description(&error).to_string());
+                                                }
+                                                window.set_title(&format!("Rusted PackFile Manager -> {}(modified)", pack_file_decoded.borrow().pack_file_extra_data.file_name));
+
                                             }
-                                            window.set_title(&format!("Rusted PackFile Manager -> {}(modified)", pack_file_decoded.borrow().pack_file_extra_data.file_name));
-
-                                        }
-                                        Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string()),
+                                            Err(error) => ui::show_dialog(&error_dialog, error::Error::description(&error).to_string()),
                                         }
                                     }));
                                 }

@@ -369,7 +369,6 @@ impl DBData {
                     }
                 }
             }
-            println!("{:?}", entry);
             packed_file_data_decoded_rows.push(entry.clone());
         }
 
