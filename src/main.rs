@@ -110,24 +110,12 @@ fn main() {
     let top_menu_special_stuff: MenuItem = builder.get_object("gtk_top_menu_special_stuff").expect("Couldn't get gtk_top_menu_special_stuff");
 
     let context_menu_tree_view: Popover = builder.get_object("gtk_context_menu_tree_view").expect("Couldn't get gtk_context_menu_tree_view");
-    let context_menu_tree_view_packed_file_loc: Popover = builder.get_object("gtk_context_menu_tree_view_packedfile_loc").expect("Couldn't get gtk_context_menu_tree_view_packedfile_loc");
-    let context_menu_tree_view_packed_file_db: Popover = builder.get_object("gtk_context_menu_tree_view_packedfile_db").expect("Couldn't get gtk_context_menu_tree_view_packedfile_db");
 
     let tree_view_add_file: Button = builder.get_object("gtk_context_menu_tree_view_add_file").expect("Couldn't get gtk_context_menu_tree_view_add_file");
     let tree_view_add_folder: Button = builder.get_object("gtk_context_menu_tree_view_add_folder").expect("Couldn't get gtk_context_menu_tree_view_add_folder");
     let tree_view_add_from_packfile: Button = builder.get_object("gtk_context_menu_tree_view_add_from_packfile").expect("Couldn't get gtk_context_menu_tree_view_add_from_packfile");
     let tree_view_delete_file: Button = builder.get_object("gtk_context_menu_tree_view_delete_file").expect("Couldn't get gtk_context_menu_tree_view_delete_file");
     let tree_view_extract_file: Button = builder.get_object("gtk_context_menu_tree_view_extract_file").expect("Couldn't get gtk_context_menu_tree_view_extract_file");
-
-    let tree_view_packedfile_loc_add_rows: Button = builder.get_object("gtk_context_menu_tree_view_loc_packedfile_add_rows").expect("Couldn't get gtk_context_menu_tree_view_loc_packedfile_add_rows");
-    let tree_view_packedfile_loc_add_rows_number: Entry = builder.get_object("gtk_context_menu_tree_view_loc_packedfile_add_rows_number").expect("Couldn't get gtk_context_menu_tree_view_loc_packedfile_add_rows_number");
-    let tree_view_packedfile_loc_delete_row: Button = builder.get_object("gtk_context_menu_tree_view_packedfile_loc_delete_row").expect("Couldn't get gtk_context_menu_tree_view_packedfile_loc_delete_row");
-    let tree_view_packedfile_loc_import_csv: Button = builder.get_object("gtk_context_menu_tree_view_packedfile_loc_import_csv").expect("Couldn't get gtk_context_menu_tree_view_packedfile_loc_import_csv");
-    let tree_view_packedfile_loc_export_csv: Button = builder.get_object("gtk_context_menu_tree_view_packedfile_loc_export_csv").expect("Couldn't get gtk_context_menu_tree_view_packedfile_loc_export_csv");
-
-    let tree_view_packedfile_db_add_rows: Button = builder.get_object("gtk_context_menu_tree_view_db_packedfile_add_rows").expect("Couldn't get gtk_context_menu_tree_view_db_packedfile_add_rows");
-    let tree_view_packedfile_db_add_rows_number: Entry = builder.get_object("gtk_context_menu_tree_view_db_packedfile_add_rows_number").expect("Couldn't get gtk_context_menu_tree_view_db_packedfile_add_rows_number");
-    let tree_view_packedfile_db_delete_row: Button = builder.get_object("gtk_context_menu_tree_view_packedfile_db_delete_row").expect("Couldn't get gtk_context_menu_tree_view_packedfile_db_delete_row");
 
     let top_menu_file_new_packfile: MenuItem = builder.get_object("gtk_top_menu_file_new_packfile").expect("Couldn't get gtk_top_menu_file_new_packfile");
     let top_menu_file_open_packfile: MenuItem = builder.get_object("gtk_top_menu_file_open_packfile").expect("Couldn't get gtk_top_menu_file_open_packfile");
@@ -1015,13 +1003,7 @@ fn main() {
         success_dialog,
         pack_file_decoded,
         folder_tree_selection,
-        tree_view_packedfile_loc_add_rows,
-        tree_view_packedfile_loc_add_rows_number,
-        tree_view_packedfile_loc_delete_row,
-        tree_view_packedfile_loc_import_csv,
-        tree_view_packedfile_loc_export_csv,
-        is_folder_tree_view_locked,
-        context_menu_tree_view_packed_file_loc => move |_| {
+        is_folder_tree_view_locked => move |_| {
 
         // Before anything else, we need to check if the TreeView is unlocked. Otherwise we don't
         // execute anything from here.
@@ -1107,11 +1089,15 @@ fn main() {
                                 let packed_file_tree_view_cell_text = packed_file_tree_view_stuff.packed_file_tree_view_cell_text;
                                 let packed_file_tree_view_cell_tooltip = packed_file_tree_view_stuff.packed_file_tree_view_cell_tooltip;
 
+                                let context_menu = packed_file_tree_view_stuff.packed_file_popover_menu;
+                                let context_menu_add_rows_button = packed_file_tree_view_stuff.packed_file_popover_menu_add_rows_button;
+                                let context_menu_add_rows_entry = packed_file_tree_view_stuff.packed_file_popover_menu_add_rows_entry;
+                                let context_menu_delete_rows_button = packed_file_tree_view_stuff.packed_file_popover_menu_delete_rows_button;
+                                let context_menu_import_from_csv_button = packed_file_tree_view_stuff.packed_file_popover_menu_import_from_csv_button;
+                                let context_menu_export_to_csv_button = packed_file_tree_view_stuff.packed_file_popover_menu_export_to_csv_button;
+
                                 // We enable "Multiple" selection mode, so we can do multi-row operations.
                                 packed_file_tree_view_selection.set_mode(gtk::SelectionMode::Multiple);
-
-                                // Now we set the new TreeView as parent of the context menu Popover.
-                                context_menu_tree_view_packed_file_loc.set_relative_to(Some(&packed_file_tree_view));
 
                                 // Then we populate the TreeView with the entries of the Loc PackedFile.
                                 ui::packedfile_loc::PackedFileLocTreeView::load_data_to_tree_view(&packed_file_data_decoded.borrow().packed_file_data, &packed_file_list_store);
@@ -1230,43 +1216,43 @@ fn main() {
                                 // NOTE: REMEMBER, WE OPEN THE POPUP HERE, BUT WE NEED TO CLOSED IT WHEN WE HIT HIS BUTTONS.
                                 packed_file_tree_view.connect_button_release_event(clone!(
                                     packed_file_tree_view_selection,
-                                    tree_view_packedfile_loc_delete_row,
-                                    context_menu_tree_view_packed_file_loc => move |packed_file_tree_view, button| {
+                                    context_menu_delete_rows_button,
+                                    context_menu => move |packed_file_tree_view, button| {
 
                                     let button_val = button.get_button();
                                     if button_val == 3 {
                                         if packed_file_tree_view_selection.count_selected_rows() > 0 {
-                                            tree_view_packedfile_loc_delete_row.set_sensitive(true);
+                                            context_menu_delete_rows_button.set_sensitive(true);
                                         }
                                         else {
-                                            tree_view_packedfile_loc_delete_row.set_sensitive(false);
+                                            context_menu_delete_rows_button.set_sensitive(false);
                                         }
                                         let rect = ui::get_rect_for_popover(&packed_file_tree_view, Some(button.get_position()));
 
-                                        context_menu_tree_view_packed_file_loc.set_pointing_to(&rect);
-                                        context_menu_tree_view_packed_file_loc.popup();
+                                        context_menu.set_pointing_to(&rect);
+                                        context_menu.popup();
                                     }
 
                                     Inhibit(false)
                                 }));
 
                                 // When we hit the "Add row" button.
-                                tree_view_packedfile_loc_add_rows.connect_button_release_event(clone!(
+                                context_menu_add_rows_button.connect_button_release_event(clone!(
                                     window,
                                     error_dialog,
                                     pack_file_decoded,
                                     packed_file_data_decoded,
                                     packed_file_list_store,
-                                    tree_view_packedfile_loc_add_rows_number,
-                                    context_menu_tree_view_packed_file_loc => move |_,_| {
+                                    context_menu_add_rows_entry,
+                                    context_menu => move |_,_| {
 
                                     // We hide the context menu, then we get the selected file/folder, delete it and update the
                                     // TreeView. Pretty simple, actually.
-                                    context_menu_tree_view_packed_file_loc.popdown();
+                                    context_menu.popdown();
 
                                     // First, we check if the input is a valid number, as I'm already seeing people
                                     // trying to add "two" rows.
-                                    let number_rows = tree_view_packedfile_loc_add_rows_number.get_buffer().get_text();
+                                    let number_rows = context_menu_add_rows_entry.get_buffer().get_text();
                                     match number_rows.parse::<u32>() {
                                         Ok(number_rows) => {
                                             // Then we make this the new line's "Key" field unique, so there are no
@@ -1314,17 +1300,17 @@ fn main() {
                                 }));
 
                                 // When we hit the "Delete row" button.
-                                tree_view_packedfile_loc_delete_row.connect_button_release_event(clone!(
+                                context_menu_delete_rows_button.connect_button_release_event(clone!(
                                     window,
                                     pack_file_decoded,
                                     packed_file_data_decoded,
                                     packed_file_list_store,
                                     packed_file_tree_view_selection,
-                                    context_menu_tree_view_packed_file_loc => move |_,_| {
+                                    context_menu => move |_,_| {
 
                                     // We hide the context menu, then we get the selected file/folder, delete it and update the
                                     // TreeView. Pretty simple, actually.
-                                    context_menu_tree_view_packed_file_loc.popdown();
+                                    context_menu.popdown();
 
                                     // (Vec<TreePath>, TreeModel)
                                     let mut selected_rows = packed_file_tree_view_selection.get_selected_rows();
@@ -1354,17 +1340,17 @@ fn main() {
                                 }));
 
                                 // When we hit the "Import to CSV" button.
-                                tree_view_packedfile_loc_import_csv.connect_button_release_event(clone!(
+                                context_menu_import_from_csv_button.connect_button_release_event(clone!(
                                     window,
                                     error_dialog,
                                     pack_file_decoded,
                                     packed_file_data_decoded,
                                     packed_file_list_store,
                                     file_chooser_packedfile_loc_import_csv,
-                                    context_menu_tree_view_packed_file_loc => move |_,_|{
+                                    context_menu => move |_,_|{
 
                                     // We hide the context menu first.
-                                    context_menu_tree_view_packed_file_loc.popdown();
+                                    context_menu.popdown();
 
                                     // First we ask for the file to import.
                                     if file_chooser_packedfile_loc_import_csv.run() == gtk_response_ok {
@@ -1394,16 +1380,16 @@ fn main() {
                                 }));
 
                                 // When we hit the "Export to CSV" button.
-                                tree_view_packedfile_loc_export_csv.connect_button_release_event(clone!(
+                                context_menu_export_to_csv_button.connect_button_release_event(clone!(
                                     error_dialog,
                                     success_dialog,
                                     packed_file_data_decoded,
                                     folder_tree_selection,
                                     file_chooser_packedfile_loc_export_csv,
-                                    context_menu_tree_view_packed_file_loc => move |_,_|{
+                                    context_menu => move |_,_|{
 
                                     // We hide the context menu first.
-                                    context_menu_tree_view_packed_file_loc.popdown();
+                                    context_menu.popdown();
 
                                     let tree_path = ui::get_tree_path_from_selection(&folder_tree_selection, false);
                                     file_chooser_packedfile_loc_export_csv.set_current_name(format!("{}.csv",&tree_path.last().unwrap()));
@@ -1450,11 +1436,14 @@ fn main() {
 
                                 let packed_file_tree_view_selection = packed_file_tree_view.get_selection();
 
+                                // Here we get our right-click menu.
+                                let context_menu = packed_file_tree_view_stuff.packed_file_popover_menu;
+                                let context_menu_add_rows_button = packed_file_tree_view_stuff.packed_file_popover_menu_add_rows_button;
+                                let context_menu_add_rows_entry = packed_file_tree_view_stuff.packed_file_popover_menu_add_rows_entry;
+                                let context_menu_delete_rows_button = packed_file_tree_view_stuff.packed_file_popover_menu_delete_rows_button;
+
                                 // We enable "Multiple" selection mode, so we can do multi-row operations.
                                 packed_file_tree_view_selection.set_mode(gtk::SelectionMode::Multiple);
-
-                                // Now we set the new TreeView as parent of the context menu Popover.
-                                context_menu_tree_view_packed_file_db.set_relative_to(Some(&packed_file_tree_view));
 
                                 if let Err(error) = ui::packedfile_db::PackedFileDBTreeView::load_data_to_tree_view(
                                     (&packed_file_data_decoded.borrow().packed_file_data.packed_file_data).to_vec(),
@@ -1670,44 +1659,44 @@ fn main() {
                                 // NOTE: REMEMBER, WE OPEN THE POPUP HERE, BUT WE NEED TO CLOSED IT WHEN WE HIT HIS BUTTONS.
                                 packed_file_tree_view.connect_button_release_event(clone!(
                                     packed_file_tree_view_selection,
-                                    tree_view_packedfile_db_delete_row,
-                                    context_menu_tree_view_packed_file_db => move |packed_file_tree_view, button| {
+                                    context_menu_delete_rows_button,
+                                    context_menu => move |packed_file_tree_view, button| {
 
                                     let button_val = button.get_button();
                                     if button_val == 3 {
                                         if packed_file_tree_view_selection.count_selected_rows() > 0 {
-                                            tree_view_packedfile_db_delete_row.set_sensitive(true);
+                                            context_menu_delete_rows_button.set_sensitive(true);
                                         }
                                         else {
-                                            tree_view_packedfile_db_delete_row.set_sensitive(false);
+                                            context_menu_delete_rows_button.set_sensitive(false);
                                         }
                                         let rect = ui::get_rect_for_popover(&packed_file_tree_view, Some(button.get_position()));
 
-                                        context_menu_tree_view_packed_file_db.set_pointing_to(&rect);
-                                        context_menu_tree_view_packed_file_db.popup();
+                                        context_menu.set_pointing_to(&rect);
+                                        context_menu.popup();
                                     }
 
                                     Inhibit(false)
                                 }));
 
                                 // When we hit the "Add row" button.
-                                tree_view_packedfile_db_add_rows.connect_button_release_event(clone!(
+                                context_menu_add_rows_button.connect_button_release_event(clone!(
                                     table_definition,
                                     window,
                                     error_dialog,
                                     pack_file_decoded,
                                     packed_file_data_decoded,
                                     packed_file_list_store,
-                                    tree_view_packedfile_db_add_rows_number,
-                                    context_menu_tree_view_packed_file_db => move |_,_|{
+                                    context_menu_add_rows_entry,
+                                    context_menu => move |_,_|{
 
                                     // We hide the context menu, then we get the selected file/folder, delete it and update the
                                     // TreeView. Pretty simple, actually.
-                                    context_menu_tree_view_packed_file_db.popdown();
+                                    context_menu.popdown();
 
                                     // First, we check if the input is a valid number, as I'm already seeing people
                                     // trying to add "two" rows.
-                                    let number_rows = tree_view_packedfile_db_add_rows_number.get_buffer().get_text();
+                                    let number_rows = context_menu_add_rows_entry.get_buffer().get_text();
                                     match number_rows.parse::<u32>() {
                                         Ok(number_rows) => {
 
@@ -1734,7 +1723,7 @@ fn main() {
                                                                 gtk_value_field = gtk::ToValue::to_value(&false);
                                                             }
                                                             FieldType::Float => {
-                                                                gtk_value_field = gtk::ToValue::to_value(&0.0);
+                                                                gtk_value_field = gtk::ToValue::to_value(&0.0f32.to_string());
                                                             }
                                                             FieldType::Integer | FieldType::LongInteger => {
                                                                 gtk_value_field = gtk::ToValue::to_value(&0);
@@ -1768,19 +1757,19 @@ fn main() {
                                 }));
 
                                 // When we hit the "Delete row" button.
-                                tree_view_packedfile_db_delete_row.connect_button_release_event(clone!(
+                                let packed_file_tree_view_selection = packed_file_tree_view_selection.clone();
+                                context_menu_delete_rows_button.connect_button_release_event(clone!(
                                     table_definition,
                                     window,
                                     error_dialog,
                                     pack_file_decoded,
                                     packed_file_data_decoded,
                                     packed_file_list_store,
-                                    packed_file_tree_view_selection,
-                                    context_menu_tree_view_packed_file_db => move |_,_|{
+                                    context_menu => move |_,_|{
 
                                     // We hide the context menu, then we get the selected file/folder, delete it and update the
                                     // TreeView. Pretty simple, actually.
-                                    context_menu_tree_view_packed_file_db.popdown();
+                                    context_menu.popdown();
 
                                     // (Vec<TreePath>, TreeModel)
                                     let mut selected_rows = packed_file_tree_view_selection.get_selected_rows();
