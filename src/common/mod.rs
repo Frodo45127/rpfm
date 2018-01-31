@@ -1,12 +1,13 @@
 // In this file are all the helper functions used by the code (no GTK here)
 // As we may or may not use them, all functions here should have the "#[allow(dead_code)]"
 // var set, so the compiler doesn't spam us every time we try to compile.
+extern crate failure;
 
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
-use std::io::Error;
 
+use self::failure::Error;
 use packfile::packfile::PackFile;
 
 pub mod coding_helpers;
@@ -104,7 +105,7 @@ pub fn get_files_from_subdir(current_path: &Path) -> Result<Vec<PathBuf>, Error>
                 }
             }
         }
-        Err(error) => return Err(error),
+        Err(error) => return Err(From::from(error)),
     }
 
     // Return the list of paths
@@ -139,7 +140,7 @@ pub fn get_assembly_kit_schemas(current_path: &Path) -> Result<Vec<PathBuf>, Err
                 }
             }
         }
-        Err(error) => return Err(error),
+        Err(error) => return Err(From::from(error)),
     }
     // Return the list of paths ordered alphabetically
     file_list.sort();

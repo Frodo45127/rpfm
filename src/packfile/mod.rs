@@ -1,6 +1,8 @@
 // In this file are all the functions that the UI needs to interact with the PackFile logic.
 // As a rule, there should be no GTK-related stuff in this module or his childrens.
 
+extern crate failure;
+
 use std::fs::{
     File, DirBuilder
 };
@@ -8,12 +10,10 @@ use std::io::{
     Read, Write
 };
 
-use std::io::{
-    Error, ErrorKind
-};
-
-use std::error;
 use std::path::PathBuf;
+
+use self::failure::Error;
+
 use common::*;
 use common::coding_helpers;
 use packedfile::loc::Loc;
@@ -49,7 +49,7 @@ pub fn open_packfile(pack_file_path: PathBuf) -> Result<packfile::PackFile, Erro
 
     // If the file has less than 28 bytes (length of an empty PFH5 PackFile), the file is not valid.
     if pack_file_buffered.len() <= 28 {
-        Err(Error::new(ErrorKind::Other, format!("The file doesn't even have a full header.")))
+        Err(format_err!("The file doesn't even have a full header."))
     }
     else {
         match coding_helpers::decode_string_u8(pack_file_buffered[0..4].to_vec()) {
@@ -57,15 +57,12 @@ pub fn open_packfile(pack_file_path: PathBuf) -> Result<packfile::PackFile, Erro
 
                 // If the header's first 4 bytes are "PFH5", it's a valid file, so we read it.
                 if pack_file_id == "PFH5" {
-                    match packfile::PackFile::read(pack_file_buffered, pack_file_name, pack_file_path) {
-                        Ok(pack_file) => Ok(pack_file),
-                        Err(error) => Err(error),
-                    }
+                    packfile::PackFile::read(pack_file_buffered, pack_file_name, pack_file_path).map(|result| result)
                 }
 
                 // If we reach this point, the file is not valid.
                 else {
-                    Err(Error::new(ErrorKind::Other, format!("The file is not a Warhammer 2 PackFile.")))
+                    Err(format_err!("The file is not a Warhammer 2 PackFile."))
                 }
             }
             // If we reach this point, there has been a decoding error.
@@ -99,7 +96,7 @@ pub fn save_packfile(
                 pack_file.pack_file_extra_data.file_path.clone()
             }
             else {
-                return Err(Error::new(ErrorKind::Other, format!("Saving a PackFile with an empty path is almost as bad as dividing by 0. Almost.")))
+                return Err( format_err!("Saving a PackFile with an empty path is almost as bad as dividing by 0. Almost."))
             }
         }
     };
@@ -111,10 +108,10 @@ pub fn save_packfile(
             let pack_file_encoded: Vec<u8> = packfile::PackFile::save(pack_file);
             match file.write_all(&pack_file_encoded) {
                 Ok(_) => Ok(format!("File saved succesfuly:\n{}", pack_file_path.display())),
-                Err(error) => Err(error)
+                Err(error) => Err(From::from(error))
             }
         }
-        Err(error) => Err(error)
+        Err(error) => Err(From::from(error))
     }
 }
 
@@ -146,7 +143,7 @@ pub fn add_file_to_packfile(
         Ok(format!("File added."))
     }
     else {
-        Err(Error::new(ErrorKind::Other, format!("There is already a file with that name in that folder. Delete that file first.")))
+        Err(format_err!("There is already a file with that name in that folder. Delete that file first."))
     }
 }
 
@@ -186,7 +183,7 @@ pub fn add_packedfile_to_packfile(
         match tree_path_destination_type {
 
             // If the destination is not selected, or it's a file (this should really never happen).
-            TreePathType::None | TreePathType::File(_) => return Err(Error::new(ErrorKind::Other, format!("This situation shouldn't happen, but the compiler will complain otherwise."))),
+            TreePathType::None | TreePathType::File(_) => return Err(format_err!("This situation shouldn't happen, but the compiler will complain otherwise.")),
 
             // If the destination is the PackFile itself, we just move all the selected stuff from the
             // extra PackFile to the main one.
@@ -194,7 +191,7 @@ pub fn add_packedfile_to_packfile(
                 match tree_path_source_type {
 
                     // If the source is not selected (this should really never happen).
-                    TreePathType::None => return Err(Error::new(ErrorKind::Other, format!("This situation shouldn't happen, but the compiler will complain otherwise."))),
+                    TreePathType::None => return Err(format_err!("This situation shouldn't happen, but the compiler will complain otherwise.")),
 
                     // If the source is the PackFile itself, we just copy every PackedFile from one
                     // PackFile to the other.
@@ -204,7 +201,7 @@ pub fn add_packedfile_to_packfile(
                         // Here we check for duplicates before adding the files
                         for packed_file in new_packed_files.iter() {
                             if pack_file_destination.pack_file_data.packedfile_exists(&packed_file.packed_file_path) {
-                                return Err(Error::new(ErrorKind::Other, format!("One or more of the files we want to add already exists in the Destination PackFile. Aborted.")))
+                                return Err(format_err!("One or more of the files we want to add already exists in the Destination PackFile. Aborted."))
                             }
                         }
                         pack_file_destination.add_packedfiles(new_packed_files);
@@ -220,7 +217,7 @@ pub fn add_packedfile_to_packfile(
                         // Here we check for duplicates before adding the files
                         for packed_file in new_packed_files.iter() {
                             if pack_file_destination.pack_file_data.packedfile_exists(&packed_file.packed_file_path) {
-                                return Err(Error::new(ErrorKind::Other, format!("One or more of the files we want to add already exists in the Destination PackFile. Aborted.")))
+                                return Err(format_err!("One or more of the files we want to add already exists in the Destination PackFile. Aborted."))
                             }
                         }
                         pack_file_destination.add_packedfiles(new_packed_files);
@@ -246,14 +243,14 @@ pub fn add_packedfile_to_packfile(
                             // Here we check for duplicates before adding the files
                             for packed_file in new_packed_files.iter() {
                                 if pack_file_destination.pack_file_data.packedfile_exists(&packed_file.packed_file_path) {
-                                    return Err(Error::new(ErrorKind::Other, format!("One or more of the files we want to add already exists in the Destination PackFile. Aborted.")))
+                                    return Err(format_err!("One or more of the files we want to add already exists in the Destination PackFile. Aborted."))
                                 }
                             }
                             pack_file_destination.add_packedfiles(new_packed_files);
                             Ok(format!("The folder \"{}\" has been added successfully to \"{}\"", tree_path_source.last().unwrap(), tree_path_destination[0]))
                         }
                         else {
-                            return Err(Error::new(ErrorKind::Other, format!("This situation shouldn't happen, but the compiler will complain otherwise.")))
+                            return Err(format_err!("This situation shouldn't happen, but the compiler will complain otherwise."))
                         }
                     },
                 }
@@ -264,7 +261,7 @@ pub fn add_packedfile_to_packfile(
                 match tree_path_source_type {
 
                     // If the source is not selected (this should really never happen).
-                    TreePathType::None => return Err(Error::new(ErrorKind::Other, format!("This situation shouldn't happen, but the compiler will complain otherwise."))),
+                    TreePathType::None => return Err(format_err!("This situation shouldn't happen, but the compiler will complain otherwise.")),
 
                     // If the source is the PackFile itself, we just copy every PackedFile from one
                     // PackFile to the other and update his TreePath.
@@ -277,7 +274,7 @@ pub fn add_packedfile_to_packfile(
                         // Here we check for duplicates before adding the files
                         for packed_file in new_packed_files.iter() {
                             if pack_file_destination.pack_file_data.packedfile_exists(&packed_file.packed_file_path) {
-                                return Err(Error::new(ErrorKind::Other, format!("One or more of the files we want to add already exists in the Destination PackFile. Aborted.")))
+                                return Err(format_err!("One or more of the files we want to add already exists in the Destination PackFile. Aborted."))
                             }
                         }
                         pack_file_destination.add_packedfiles(new_packed_files);
@@ -301,7 +298,7 @@ pub fn add_packedfile_to_packfile(
                         // Here we check for duplicates before adding the files
                         for packed_file in new_packed_files.iter() {
                             if pack_file_destination.pack_file_data.packedfile_exists(&packed_file.packed_file_path) {
-                                return Err(Error::new(ErrorKind::Other, format!("One or more of the files we want to add already exists in the Destination PackFile. Aborted.")))
+                                return Err(format_err!("One or more of the files we want to add already exists in the Destination PackFile. Aborted."))
                             }
                         }
                         pack_file_destination.add_packedfiles(new_packed_files);
@@ -318,7 +315,7 @@ pub fn add_packedfile_to_packfile(
                         // Here we check for duplicates before adding the files
                         for packed_file in new_packed_files.iter() {
                             if pack_file_destination.pack_file_data.packedfile_exists(&packed_file.packed_file_path) {
-                                return Err(Error::new(ErrorKind::Other, format!("One or more of the files we want to add already exists in the Destination PackFile. Aborted.")))
+                                return Err(format_err!("One or more of the files we want to add already exists in the Destination PackFile. Aborted."))
                             }
                         }
                         pack_file_destination.add_packedfiles(new_packed_files);
@@ -330,7 +327,7 @@ pub fn add_packedfile_to_packfile(
         }
     }
     else {
-        Err(Error::new(ErrorKind::Other, format!("You need to select what and where you want to import BEFORE pressing the button.")))
+        Err(format_err!("You need to select what and where you want to import BEFORE pressing the button."))
     }
 }
 
@@ -362,7 +359,7 @@ pub fn delete_from_packfile(
             }
         },
         TreePathType::PackFile => pack_file.remove_all_packedfiles(),
-        TreePathType::None => return Err(Error::new(ErrorKind::Other, format!("How the hell did you managed to try to delete a non-existant file?"))),
+        TreePathType::None => return Err(format_err!("How the hell did you managed to try to delete a non-existent file?")),
     }
     Ok(())
 }
@@ -392,10 +389,10 @@ pub fn extract_from_packfile(
                     let packed_file_encoded: (Vec<u8>, Vec<u8>) = packfile::PackedFile::save(&pack_file.pack_file_data.packed_files[index]);
                     match extracted_file.write_all(&packed_file_encoded.1) {
                         Ok(_) => Ok(format!("File extracted successfully:\n{}", extracted_path.display())),
-                        Err(error) => Err(Error::new(ErrorKind::Other, format!("Error while writing the following file to disk:\n{}\n\nThe problem reported is:\n{}", extracted_path.display(), error::Error::description(&error).to_string())))
+                        Err(_) => Err(format_err!("Error while writing the following file to disk:\n{}", extracted_path.display()))
                     }
                 }
-                Err(error) => Err(Error::new(ErrorKind::Other, format!("Error while trying to write the following file to disk:\n{}\n\nThe problem reported is:\n{}", extracted_path.display(), error::Error::description(&error).to_string())))
+                Err(_) => Err(format_err!("Error while trying to write the following file to disk:\n{}", extracted_path.display()))
             }
         },
 
@@ -425,12 +422,14 @@ pub fn extract_from_packfile(
                                 match extracted_file.write_all(&packed_file_encoded.1) {
                                     Ok(_) => files_extracted += 1,
                                     Err(error) => {
+                                        let error = From::from(error);
                                         error_list.push(error);
                                         files_errors += 1;
                                     }
                                 }
                             }
                             Err(error) => {
+                                let error = From::from(error);
                                 error_list.push(error);
                                 files_errors += 1;
                             },
@@ -449,15 +448,15 @@ pub fn extract_from_packfile(
                 current_path = base_path.clone();
             }
             if files_errors > 0 {
-                Err(Error::new(ErrorKind::Other, format!("{} errors extracting files:\n {:#?}", files_errors, error_list)))
+                Err(format_err!("{} errors extracting files:\n {:#?}", files_errors, error_list))
             }
             else {
                 Ok(format!("{} files extracted. No errors detected.", files_extracted))
             }
         },
 
-        TreePathType::PackFile => return Err(Error::new(ErrorKind::Other, format!("I can't think of a situation that causes this error to show up."))),
-        TreePathType::None => return Err(Error::new(ErrorKind::Other, format!("How the hell did you managed to try to delete a non-existant file?"))),
+        TreePathType::PackFile => return Err(format_err!("I can't think of a situation that causes this error to show up.")),
+        TreePathType::None => return Err(format_err!("How the hell did you managed to try to delete a non-existant file?")),
     }
 }
 
@@ -475,13 +474,13 @@ pub fn rename_packed_file(
 
     // First we check if the name is valid, and return an error if the new name is invalid.
     if new_name == tree_path.last().unwrap() {
-        Err(Error::new(ErrorKind::Other, format!("New name is the same as old name.")))
+        Err(format_err!("New name is the same as old name."))
     }
     else if new_name.is_empty() {
-        Err(Error::new(ErrorKind::Other, format!("Only my hearth can be empty.")))
+        Err(format_err!("Only my hearth can be empty."))
     }
     else if new_name.contains(" ") {
-        Err(Error::new(ErrorKind::Other, format!("Spaces are not valid characters.")))
+        Err(format_err!("Spaces are not valid characters."))
     }
 
     // If we reach this point, we can rename the file/folder.
@@ -501,7 +500,7 @@ pub fn rename_packed_file(
                     Ok(())
                 }
                 else {
-                    Err(Error::new(ErrorKind::Other, format!("This name is already being used by another file in this path.")))
+                    Err(format_err!("This name is already being used by another file in this path."))
                 }
             }
             TreePathType::Folder(tree_path) => {
@@ -522,14 +521,14 @@ pub fn rename_packed_file(
                     Ok(())
                 }
                 else {
-                    Err(Error::new(ErrorKind::Other, format!("This name is already being used by another folder in this path.")))
+                    Err(format_err!("This name is already being used by another folder in this path."))
                 }
             }
             TreePathType::PackFile => {
                 pack_file.pack_file_extra_data.file_name = new_name.clone();
                 Ok(())
             }
-            TreePathType::None => return Err(Error::new(ErrorKind::Other, format!("This should never happen."))),
+            TreePathType::None => return Err(format_err!("This should never happen.")),
         }
     }
 }
@@ -701,10 +700,10 @@ pub fn patch_siege_ai (
 
     // And now we return success or error depending on what happened during the patching process.
     if packfile_is_empty {
-        Err(Error::new(ErrorKind::Other, format!("This packfile is empty, so we can't patch it.")))
+        Err(format_err!("This packfile is empty, so we can't patch it."))
     }
     else if files_patched == 0 && files_deleted == 0 {
-        Err(Error::new(ErrorKind::Other, format!("There are not files in this Packfile that could be patched/deleted.")))
+        Err(format_err!("There are not files in this Packfile that could be patched/deleted."))
     }
     else if files_patched >= 0 || files_deleted >= 0 {
         if files_patched == 0 {
@@ -742,7 +741,7 @@ pub fn patch_siege_ai (
         }
     }
     else {
-        Err(Error::new(ErrorKind::Other, format!("This should never happen.")))
+        Err(format_err!("This should never happen."))
     }
 }
 
@@ -772,7 +771,7 @@ pub fn patch_rigid_model_attila_to_warhammer (
             }
             Ok(format!("RigidModel patched succesfully."))
         },
-        7 => return Err(Error::new(ErrorKind::Other, format!("This is not an Attila's RigidModel, but a Warhammer one."))),
-        _ => return Err(Error::new(ErrorKind::Other, format!("I don't even know from what game is this RigidModel."))),
+        7 => return Err(format_err!("This is not an Attila's RigidModel, but a Warhammer one.")),
+        _ => return Err(format_err!("I don't even know from what game is this RigidModel.")),
     }
 }

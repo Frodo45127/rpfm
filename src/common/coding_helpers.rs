@@ -3,14 +3,12 @@
 // var set, so the compiler doesn't spam us every time we try to compile.
 //
 // Note: the specific decoders/encoders usually return some extra data, like sizes of strings.
-
+extern crate failure;
 extern crate unescape;
 extern crate byteorder;
 
-use std::error;
-use std::io::{
-    Error, ErrorKind
-};
+use failure::Error;
+
 use std::char::{
     decode_utf16, REPLACEMENT_CHARACTER
 };
@@ -29,51 +27,48 @@ use self::byteorder::{
 /// in 2 bytes reversed (LittleEndian).
 #[allow(dead_code)]
 pub fn decode_integer_u16(integer_encoded: Vec<u8>) -> Result<u16, Error> {
-    (&integer_encoded[..]).read_u16::<LittleEndian>()
+    (&integer_encoded[..]).read_u16::<LittleEndian>().map_err(|error| From::from(error))
 }
 
 /// This function allow us to decode an UTF-32 encoded integer. This type of Integers are encoded in
 /// in 4 bytes reversed (LittleEndian).
 #[allow(dead_code)]
 pub fn decode_integer_u32(integer_encoded: Vec<u8>) -> Result<u32, Error> {
-    (&integer_encoded[..]).read_u32::<LittleEndian>()
+    (&integer_encoded[..]).read_u32::<LittleEndian>().map_err(|error| From::from(error))
 }
 
 /// This function allow us to decode an encoded Long Integer. This type of Integers are encoded in
 /// in 8 bytes reversed (LittleEndian).
 #[allow(dead_code)]
 pub fn decode_integer_u64(integer_encoded: Vec<u8>) -> Result<u64, Error> {
-    (&integer_encoded[..]).read_u64::<LittleEndian>()
+    (&integer_encoded[..]).read_u64::<LittleEndian>().map_err(|error| From::from(error))
 }
 
 /// This function allow us to decode an signed UTF-32 encoded integer. This type of Integers are encoded in
 /// in 4 bytes reversed (LittleEndian).
 #[allow(dead_code)]
 pub fn decode_integer_i32(integer_encoded: Vec<u8>) -> Result<i32, Error> {
-    (&integer_encoded[..]).read_i32::<LittleEndian>()
+    (&integer_encoded[..]).read_i32::<LittleEndian>().map_err(|error| From::from(error))
 }
 
 /// This function allow us to decode an signed encoded Long Integer. This type of Integers are encoded in
 /// in 8 bytes reversed (LittleEndian).
 #[allow(dead_code)]
 pub fn decode_integer_i64(integer_encoded: Vec<u8>) -> Result<i64, Error> {
-    (&integer_encoded[..]).read_i64::<LittleEndian>()
+    (&integer_encoded[..]).read_i64::<LittleEndian>().map_err(|error| From::from(error))
 }
 
 /// This function allow us to decode an UTF-32 encoded float. This type of floats are encoded in
 /// in 4 bytes reversed (LittleEndian).
 #[allow(dead_code)]
 pub fn decode_float_u32(float_encoded: Vec<u8>) -> Result<f32, Error> {
-    (&float_encoded[..]).read_f32::<LittleEndian>()
+    (&float_encoded[..]).read_f32::<LittleEndian>().map_err(|error| From::from(error))
 }
 
 /// This function allow us to decode an UTF-8 encoded String.
 #[allow(dead_code)]
 pub fn decode_string_u8(string_encoded: Vec<u8>) -> Result<String, Error> {
-    match String::from_utf8(string_encoded) {
-        Ok(string) => Ok(string),
-        Err(error) => Err(Error::new(ErrorKind::Other, error::Error::description(&error).to_string())),
-    }
+    String::from_utf8(string_encoded).map_err(|error| From::from(error))
 }
 
 /// This function allow us to decode an (0-Padded) UTF-8 encoded String. This type of String has a
@@ -128,7 +123,7 @@ pub fn decode_bool(bool_encoded: u8) -> Result<bool, Error> {
     match &*bool_decoded {
         "\\u{0}" => Ok(false),
         "\\u{1}" => Ok(true),
-        _ => Err(Error::new(ErrorKind::Other, "Error:\nTrying to decode a non-boolean value as boolean.")),
+        _ => Err(format_err!("Error:\nTrying to decode a non-boolean value as boolean.")),
     }
 }
 
@@ -214,7 +209,7 @@ pub fn encode_string_u8_0padded(string_decoded: (String, usize)) -> Result<Vec<u
         Ok(string_encoded)
     }
     else {
-        return Err(Error::new(ErrorKind::Other, format!("Error: String \"{}\" has a lenght of {} chars, but his max length should be {}).", string_decoded.0, string_encoded.len(), size)))
+        return Err(format_err!("Error: String \"{}\" has a lenght of {} chars, but his max length should be {}).", string_decoded.0, string_encoded.len(), size))
     }
 }
 
@@ -273,7 +268,7 @@ pub fn decode_packedfile_integer_u16(packed_file_data: Vec<u8>, mut index: usize
         }
     }
     else {
-        return Err(Error::new(ErrorKind::Other, format!("Error decoding an u16: Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len())))
+        return Err(format_err!("Error decoding an u16: Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len()))
     }
 }
 
@@ -291,7 +286,7 @@ pub fn decode_packedfile_integer_u32(packed_file_data: Vec<u8>, mut index: usize
         }
     }
     else {
-        return Err(Error::new(ErrorKind::Other, format!("Error decoding an u32: Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len())))
+        return Err(format_err!("Error decoding an u32: Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len()))
     }
 }
 
@@ -309,7 +304,7 @@ pub fn decode_packedfile_integer_u64(packed_file_data: Vec<u8>, mut index: usize
         }
     }
     else {
-        return Err(Error::new(ErrorKind::Other, format!("Error decoding an u64: Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len())))
+        return Err(format_err!("Error decoding an u64: Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len()))
     }
 }
 
@@ -327,7 +322,7 @@ pub fn decode_packedfile_integer_i32(packed_file_data: Vec<u8>, mut index: usize
         }
     }
     else {
-        return Err(Error::new(ErrorKind::Other, format!("Error decoding an i32: Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len())))
+        return Err(format_err!("Error decoding an i32: Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len()))
     }
 }
 
@@ -345,7 +340,7 @@ pub fn decode_packedfile_integer_i64(packed_file_data: Vec<u8>, mut index: usize
         }
     }
     else {
-        return Err(Error::new(ErrorKind::Other, format!("Error decoding an i64: Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len())))
+        return Err(format_err!("Error decoding an i64: Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len()))
     }
 }
 
@@ -363,7 +358,7 @@ pub fn decode_packedfile_float_u32(packed_file_data: Vec<u8>, mut index: usize) 
         }
     }
     else {
-        return Err(Error::new(ErrorKind::Other, format!("Error decoding a f32: Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len())))
+        return Err(format_err!("Error decoding a f32: Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len()))
     }
 }
 
@@ -386,14 +381,14 @@ pub fn decode_packedfile_string_u8(packed_file_data: Vec<u8>, index: usize) -> R
                     }
                 }
                 else {
-                    return Err(Error::new(ErrorKind::Other, format!("Error decoding an u8 String: Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len())))
+                    return Err(format_err!("Error decoding an u8 String: Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len()))
                 }
             }
             Err(error) => Err(error)
         }
     }
     else {
-        return Err(Error::new(ErrorKind::Other, format!("Error decoding an u16 (String size): Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len())))
+        return Err(format_err!("Error decoding an u16 (String size): Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len()))
     }
 }
 
@@ -411,7 +406,7 @@ pub fn decode_packedfile_optional_string_u8(packed_file_data: Vec<u8>, index: us
                 if exist {
                     match decode_packedfile_string_u8(packed_file_data[1..].to_vec(), index) {
                         Ok(result) => Ok(result),
-                        Err(error) => Err(Error::new(ErrorKind::Other, error::Error::description(&error).to_string())),
+                        Err(error) => Err(error),
                     }
                 }
                 else {
@@ -422,7 +417,7 @@ pub fn decode_packedfile_optional_string_u8(packed_file_data: Vec<u8>, index: us
         }
     }
     else {
-        return Err(Error::new(ErrorKind::Other, format!("Error decoding an u8 Optional String: Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len())))
+        return Err(format_err!("Error decoding an u8 Optional String: Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len()))
     }
 }
 
@@ -446,14 +441,14 @@ pub fn decode_packedfile_string_u16(packed_file_data: Vec<u8>, index: usize) -> 
                     }
                 }
                 else {
-                    return Err(Error::new(ErrorKind::Other, format!("Error decoding an u8 String: Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len())))
+                    return Err(format_err!("Error decoding an u8 String: Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len()))
                 }
             }
             Err(error) => Err(error)
         }
     }
     else {
-        return Err(Error::new(ErrorKind::Other, format!("Error decoding an u16 (String size): Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len())))
+        return Err(format_err!("Error decoding an u16 (String size): Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len()))
     }
 }
 
@@ -471,7 +466,7 @@ pub fn decode_packedfile_optional_string_u16(packed_file_data: Vec<u8>, index: u
                 if exist {
                     match decode_packedfile_string_u16(packed_file_data[1..].to_vec(), index) {
                         Ok(result) => Ok(result),
-                        Err(error) => Err(Error::new(ErrorKind::Other, error::Error::description(&error).to_string())),
+                        Err(error) => Err(error),
                     }
                 }
                 else {
@@ -482,7 +477,7 @@ pub fn decode_packedfile_optional_string_u16(packed_file_data: Vec<u8>, index: u
         }
     }
     else {
-        return Err(Error::new(ErrorKind::Other, format!("Error decoding an u8 Optional String: Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len())))
+        return Err(format_err!("Error decoding an u8 Optional String: Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len()))
     }
 }
 

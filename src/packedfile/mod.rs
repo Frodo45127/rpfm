@@ -1,12 +1,12 @@
 // In this file are all the Fn, Structs and Impls common to at least 2 PackedFile types.
 extern crate csv;
+extern crate failure;
 
 use std::fs::File;
-use std::io::{
-    Write, Error, ErrorKind
-};
+use std::io::Write;
 use std::path::PathBuf;
-use std::error;
+
+use self::failure::Error;
 
 use packedfile::loc::LocData;
 use packedfile::loc::LocDataEntry;
@@ -51,10 +51,10 @@ pub fn export_to_csv(
         Ok(mut file) => {
             match file.write_all(&csv_serialized.as_bytes()) {
                 Ok(_) => Ok(format!("Loc PackedFile successfully exported:\n{}", packed_file_path.display())),
-                Err(error) => Err(Error::new(ErrorKind::Other, format!("Error while writing the following file to disk:\n{}\n\nThe problem reported is:\n{}", packed_file_path.display(), error::Error::description(&error).to_string())))
+                Err(_) => Err(format_err!("Error while writing the following file to disk:\n{}", packed_file_path.display()))
             }
         }
-        Err(error) => Err(Error::new(ErrorKind::Other, format!("Error while trying to write the following file to disk:\n{}\n\nThe problem reported is:\n{}", packed_file_path.display(), error::Error::description(&error).to_string())))
+        Err(_) => Err(format_err!("Error while trying to write the following file to disk:\n{}", packed_file_path.display()))
     }
 }
 
@@ -78,12 +78,12 @@ pub fn import_from_csv(
             for i in reader.deserialize() {
                 match i {
                     Ok(entry) => packed_file_data_from_tree_view.packed_file_data_entries.push(entry),
-                    Err(error) => return Err(Error::new(ErrorKind::Other, format!("Error while trying import the csv file:\n{}\n\nThe error reported is:\n{}", &csv_file_path.display(), error::Error::description(&error).to_string())))
+                    Err(_) => return Err(format_err!("Error while trying import the csv file:\n{}", &csv_file_path.display()))
 
                 }
             }
             Ok(packed_file_data_from_tree_view)
         }
-        Err(error) => Err(Error::new(ErrorKind::Other, error::Error::description(&error).to_string()))
+        Err(_) => Err(format_err!("Error while trying to read the csv file \"{}\".", &csv_file_path.display()))
     }
 }

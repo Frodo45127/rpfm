@@ -7,6 +7,7 @@ use gtk::{
 };
 use std::cmp::Ordering;
 use std::path::PathBuf;
+use std::fmt::Display;
 
 use packfile::packfile::PackFile;
 
@@ -35,8 +36,8 @@ pub fn display_help_tips(packed_file_data_display: &Box) {
 /// It requires:
 /// - dialog: &MessageDialog object. It's the dialog windows we are going to use.
 /// - text: String, the text we want to put in the dialog window.
-pub fn show_dialog(dialog: &MessageDialog, text: String) {
-    dialog.set_property_secondary_text(Some(text.as_str()));
+pub fn show_dialog<T: Display>(dialog: &MessageDialog, text: T) {
+    dialog.set_property_secondary_text(Some(&text.to_string()));
     dialog.run();
     dialog.hide_on_delete();
 }

@@ -2,13 +2,13 @@
 // runtime, so we just wired up when we need to create a new schema from scratch.
 
 extern crate serde_xml_rs;
+extern crate failure;
 
 use std::fs::File;
-use std::io::{
-    Read, Error
-};
+use std::io::Read;
 use std::path::PathBuf;
 
+use self::failure::Error;
 use self::serde_xml_rs::deserialize;
 use super::DBHeader;
 use super::schemas::*;

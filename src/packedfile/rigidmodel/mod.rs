@@ -127,11 +127,10 @@
 
 --------------------------------------------------------
 */
+extern crate failure;
 
 use common::coding_helpers;
-use std::io::{
-    Error, ErrorKind
-};
+use self::failure::Error;
 
 /// Struct "RigidModel". For more info about this, check the comment at the start of "packedfile/
 /// rigidmodel/mod.rs".
@@ -277,7 +276,7 @@ impl RigidModelHeader {
         // We check this, just in case we try to read some malformed file with a string in the first
         // four bytes (which is not uncommon).
         if packed_file_header.packed_file_header_signature != "RMV2" {
-            return Err(Error::new(ErrorKind::Other, format!("This is not a RMV2 RigidModel.")))
+            return Err(format_err!("This is not a RMV2 RigidModel."))
         }
 
         match coding_helpers::decode_integer_u32((&packed_file_data[4..8]).to_vec()) {
@@ -324,7 +323,7 @@ impl RigidModelData {
         let offset: usize = match *packed_file_header_model_type {
             6 => 20, // Attila
             7 => 28, // Warhammer 1&2
-            _ => return Err(Error::new(ErrorKind::Other, format!("RigidModel model not yet decodeable.")))
+            _ => return Err(format_err!("RigidModel model not yet decodeable."))
         };
 
         // We get the "headers" of every lod.

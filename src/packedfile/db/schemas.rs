@@ -1,13 +1,12 @@
 // In this file goes all the stuff needed for the schema decoder to work.
 extern crate serde_json;
+extern crate failure;
 
 use std::path::PathBuf;
-use std::error;
 use std::fs::File;
-use std::io::{
-    Write, Error, ErrorKind
-};
+use std::io::Write;
 
+use self::failure::Error;
 use super::schemas_importer;
 
 /// This struct holds the entire schema for the currently selected game (by "game" I mean the PackFile
@@ -131,10 +130,10 @@ impl Schema {
             Ok(mut file) => {
                 match file.write_all(&schema_json.unwrap().as_bytes()) {
                     Ok(_) => Ok(()),
-                    Err(error) => Err(Error::new(ErrorKind::Other, error::Error::description(&error).to_string()))
+                    Err(_) => Err(format_err!("Error while trying to write the schema file.")),
                 }
             },
-            Err(error) => Err(Error::new(ErrorKind::Other, error::Error::description(&error).to_string()))
+            Err(_) => Err(format_err!("Error while trying prepare the schema file to be written."))
         }
     }
 }

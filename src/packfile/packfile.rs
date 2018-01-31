@@ -1,12 +1,15 @@
 // In this file are all the Structs and Impls required to decode and encode the PackFiles.
 // For now we only support common TW: Warhammer 2 PackFiles (not loc files, those are different).
 extern crate chrono;
+extern crate failure;
 
 use self::chrono::{
     NaiveDateTime, Utc
 };
-use std::io::Error;
 use std::path::PathBuf;
+
+use self::failure::Error;
+
 use common::coding_helpers;
 
 /// Struct PackFile: This stores the data of the entire PackFile in memory ('cause fuck lazy-loading),
@@ -406,14 +409,11 @@ impl PackFileData {
             }
 
             // We get the size of the PackedFile (bytes 1 to 4 of the index)
-            let file_size = match coding_helpers::decode_integer_u32(packed_file_index[(
+            let file_size = coding_helpers::decode_integer_u32(packed_file_index[(
                     (packed_file_index_offset as usize) + packed_file_index_file_size_begin_offset as usize)
                     ..((packed_file_index_offset as usize) + 4 + (packed_file_index_file_size_begin_offset as usize))
                     ].to_vec()
-            ) {
-                Ok(size) => size,
-                Err(error) => return Err(error)
-            };
+            )?;
 
             // Then we get the Path, char by char
             let mut packed_file_index_path: Vec<String> = vec![];

@@ -3,11 +3,12 @@ extern crate gtk;
 extern crate gdk;
 extern crate glib;
 extern crate hex_slice;
+extern crate failure;
 
 use packedfile::db::*;
 use packedfile::db::schemas::*;
 use common::coding_helpers;
-use std::io::Error;
+use failure::Error;
 use gtk::prelude::*;
 use gtk::{
     Box, TreeView, ListStore, ScrolledWindow, Button, Orientation, TextView, Label, Entry, ToggleButton,

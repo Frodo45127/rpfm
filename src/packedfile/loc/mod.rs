@@ -1,7 +1,8 @@
 // In this file we define the PackedFile type Loc for decoding and encoding it.
 // This is the type used by localisation files.
+extern crate failure;
 
-use std::io::Error;
+use self::failure::Error;
 use common::coding_helpers;
 
 /// Struct Loc: This stores the data of a decoded Localisation PackedFile in memory.

@@ -10,9 +10,10 @@
 // 1 misteryous byte
 // 4 bytes for the entry count, in u32 reversed.
 
-use std::io::{
-    Error, ErrorKind
-};
+extern crate failure;
+
+use self::failure::Error;
+
 use common::coding_helpers;
 
 pub mod schemas;
@@ -99,7 +100,7 @@ impl DB {
                             Err(error) => Err(error)
                         }
                     }
-                    None => return Err(Error::new(ErrorKind::Other, format!("Schema for this Packedfile not found")))
+                    None => return Err(format_err!("Schema for this Packedfile not found"))
                 }
 
             }
@@ -262,7 +263,7 @@ impl DBData {
                                 };
                             }
                             else {
-                                return Err(Error::new(ErrorKind::Other, format!("Error: trying to decode a bool without a byte.")))
+                                return Err(format_err!("Error: trying to decode a bool without a byte."))
                             }
                         }
                         schemas::FieldType::Float => {
@@ -277,7 +278,7 @@ impl DBData {
                                 };
                             }
                             else {
-                                return Err(Error::new(ErrorKind::Other, format!("Error: trying to decode a Float without enough bytes.")))
+                                return Err(format_err!("Error: trying to decode a Float without enough bytes."))
                             }
                         }
                         schemas::FieldType::Integer => {
@@ -292,7 +293,7 @@ impl DBData {
                                 };
                             }
                             else {
-                                return Err(Error::new(ErrorKind::Other, format!("Error: trying to decode a signed Integer without enough bytes.")))
+                                return Err(format_err!("Error: trying to decode a signed Integer without enough bytes."))
                             }
                         }
                         schemas::FieldType::LongInteger => {
@@ -307,7 +308,7 @@ impl DBData {
                                 };
                             }
                             else {
-                                return Err(Error::new(ErrorKind::Other, format!("Error: trying to decode a signed Long Integer without enough bytes.")))
+                                return Err(format_err!("Error: trying to decode a signed Long Integer without enough bytes."))
                             }
                         }
                         schemas::FieldType::StringU8 => {
@@ -321,7 +322,7 @@ impl DBData {
                                 };
                             }
                             else {
-                                return Err(Error::new(ErrorKind::Other, format!("Error: trying to decode a StringU8 without enought bytes.")))
+                                return Err(format_err!("Error: trying to decode a StringU8 without enought bytes."))
                             }
                         }
                         schemas::FieldType::StringU16 => {
@@ -335,7 +336,7 @@ impl DBData {
                                 };
                             }
                             else {
-                                return Err(Error::new(ErrorKind::Other, format!("Error: trying to decode a StringU16 without enought bytes.")))
+                                return Err(format_err!("Error: trying to decode a StringU16 without enought bytes."))
                             }
                         }
                         schemas::FieldType::OptionalStringU8 => {
@@ -349,7 +350,7 @@ impl DBData {
                                 };
                             }
                             else {
-                                return Err(Error::new(ErrorKind::Other, format!("Error: trying to decode an OptionalStringU8 without enought bytes.")))
+                                return Err(format_err!("Error: trying to decode an OptionalStringU8 without enought bytes."))
                             }
                         }
                         schemas::FieldType::OptionalStringU16 => {
@@ -363,7 +364,7 @@ impl DBData {
                                 };
                             }
                             else {
-                                return Err(Error::new(ErrorKind::Other, format!("Error: trying to decode an OptionalStringU16 without enought bytes.")))
+                                return Err(format_err!("Error: trying to decode an OptionalStringU16 without enought bytes."))
                             }
                         }
                     }
