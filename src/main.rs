@@ -427,38 +427,53 @@ fn main() {
 
     // When changing the type of the PackFile... we just change his pack_file_type variable. Nothing complex.
     top_menu_file_change_packfile_type_boot.connect_toggled(clone!(
+        window,
         top_menu_file_change_packfile_type_boot,
         pack_file_decoded => move |_| {
-        if top_menu_file_change_packfile_type_boot.get_active() {
+        if top_menu_file_change_packfile_type_boot.get_active() &&
+            pack_file_decoded.borrow().pack_file_header.pack_file_type != 0 {
             pack_file_decoded.borrow_mut().pack_file_header.pack_file_type = 0;
+            set_modified(true, &window, &mut *pack_file_decoded.borrow_mut());
         }
     }));
     top_menu_file_change_packfile_type_release.connect_toggled(clone!(
+        window,
         top_menu_file_change_packfile_type_release,
         pack_file_decoded => move |_| {
-        if top_menu_file_change_packfile_type_release.get_active() {
+        if top_menu_file_change_packfile_type_release.get_active() &&
+            pack_file_decoded.borrow().pack_file_header.pack_file_type != 1 {
             pack_file_decoded.borrow_mut().pack_file_header.pack_file_type = 1;
+            set_modified(true, &window, &mut *pack_file_decoded.borrow_mut());
         }
     }));
     top_menu_file_change_packfile_type_patch.connect_toggled(clone!(
+        window,
         top_menu_file_change_packfile_type_patch,
         pack_file_decoded => move |_| {
-        if top_menu_file_change_packfile_type_patch.get_active() {
+        if top_menu_file_change_packfile_type_patch.get_active() &&
+            pack_file_decoded.borrow().pack_file_header.pack_file_type != 2 {
             pack_file_decoded.borrow_mut().pack_file_header.pack_file_type = 2;
+            set_modified(true, &window, &mut *pack_file_decoded.borrow_mut());
         }
     }));
     top_menu_file_change_packfile_type_mod.connect_toggled(clone!(
+        window,
         top_menu_file_change_packfile_type_mod,
         pack_file_decoded => move |_| {
-        if top_menu_file_change_packfile_type_mod.get_active() {
+        if top_menu_file_change_packfile_type_mod.get_active() &&
+            pack_file_decoded.borrow().pack_file_header.pack_file_type != 3 {
             pack_file_decoded.borrow_mut().pack_file_header.pack_file_type = 3;
+            set_modified(true, &window, &mut *pack_file_decoded.borrow_mut());
         }
     }));
     top_menu_file_change_packfile_type_movie.connect_toggled(clone!(
+        window,
         top_menu_file_change_packfile_type_movie,
         pack_file_decoded => move |_| {
-        if top_menu_file_change_packfile_type_movie.get_active() {
+        if top_menu_file_change_packfile_type_movie.get_active() &&
+            pack_file_decoded.borrow().pack_file_header.pack_file_type != 4 {
             pack_file_decoded.borrow_mut().pack_file_header.pack_file_type = 4;
+            set_modified(true, &window, &mut *pack_file_decoded.borrow_mut());
         }
     }));
 
