@@ -35,7 +35,7 @@ pub fn display_help_tips(packed_file_data_display: &Box) {
 /// This function shows a Dialog window with some text. For notification of success and errors.
 /// It requires:
 /// - dialog: &MessageDialog object. It's the dialog windows we are going to use.
-/// - text: String, the text we want to put in the dialog window.
+/// - text: something that implements the trait "Display", so we want to put in the dialog window.
 pub fn show_dialog<T: Display>(dialog: &MessageDialog, text: T) {
     dialog.set_property_secondary_text(Some(&text.to_string()));
     dialog.run();
