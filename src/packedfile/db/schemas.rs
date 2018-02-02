@@ -290,14 +290,14 @@ impl TableDefinition {
                             "0" => FieldType::OptionalStringU8,
 
                             // If we reach this point, we set it to OptionalStringU16. Not because it is it
-                            // (we don't have a way to distinguis String types) but to know what fields
+                            // (we don't have a way to distinguish String types) but to know what fields
                             // reach this point.
                             _ => FieldType::OptionalStringU16,
                         }
                     }
                 }
                 // If we reach this point, we set it to StringU16. Not because it is it
-                // (we don't have a way to distinguis String types) but to know what fields
+                // (we don't have a way to distinguish String types) but to know what fields
                 // reach this point.
                 _ => FieldType::StringU16,
 
