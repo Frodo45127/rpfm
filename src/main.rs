@@ -292,26 +292,18 @@ fn main() {
             let pack_file_path = file_chooser_open_packfile_dialog.get_filename().expect("Couldn't open file");
             match packfile::open_packfile(pack_file_path) {
                 Ok(pack_file_opened) => {
-
                     *pack_file_decoded.borrow_mut() = pack_file_opened;
                     ui::update_tree_view(&folder_tree_store, &*pack_file_decoded.borrow());
                     set_modified(false, &window, &mut *pack_file_decoded.borrow_mut());
 
                     // We choose the right option, depending on our PackFile.
-                    if pack_file_decoded.borrow().pack_file_header.pack_file_type == 0u32 {
-                        top_menu_file_change_packfile_type_boot.set_active(true);
-                    }
-                    else if pack_file_decoded.borrow().pack_file_header.pack_file_type == 1u32{
-                        top_menu_file_change_packfile_type_release.set_active(true);
-                    }
-                    else if pack_file_decoded.borrow().pack_file_header.pack_file_type == 2u32{
-                        top_menu_file_change_packfile_type_patch.set_active(true);
-                    }
-                    else if pack_file_decoded.borrow().pack_file_header.pack_file_type == 3u32{
-                        top_menu_file_change_packfile_type_mod.set_active(true);
-                    }
-                    else if pack_file_decoded.borrow().pack_file_header.pack_file_type == 4u32{
-                        top_menu_file_change_packfile_type_movie.set_active(true);
+                    match pack_file_decoded.borrow().pack_file_header.pack_file_type {
+                        0 => top_menu_file_change_packfile_type_boot.set_active(true),
+                        1 => top_menu_file_change_packfile_type_release.set_active(true),
+                        2 => top_menu_file_change_packfile_type_patch.set_active(true),
+                        3 => top_menu_file_change_packfile_type_mod.set_active(true),
+                        4 => top_menu_file_change_packfile_type_movie.set_active(true),
+                        _ => ui::show_dialog(&error_dialog, format_err!("PackFile Type not valid.")),
                     }
                 }
                 Err(error) => ui::show_dialog(&error_dialog, error.cause()),
@@ -2499,20 +2491,13 @@ fn main() {
                         set_modified(false, &window, &mut *pack_file_decoded.borrow_mut());
 
                         // We choose the right option, depending on our PackFile.
-                        if pack_file_decoded.borrow().pack_file_header.pack_file_type == 0u32 {
-                            top_menu_file_change_packfile_type_boot.set_active(true);
-                        }
-                        else if pack_file_decoded.borrow().pack_file_header.pack_file_type == 1u32{
-                            top_menu_file_change_packfile_type_release.set_active(true);
-                        }
-                        else if pack_file_decoded.borrow().pack_file_header.pack_file_type == 2u32{
-                            top_menu_file_change_packfile_type_patch.set_active(true);
-                        }
-                        else if pack_file_decoded.borrow().pack_file_header.pack_file_type == 3u32{
-                            top_menu_file_change_packfile_type_mod.set_active(true);
-                        }
-                        else if pack_file_decoded.borrow().pack_file_header.pack_file_type == 4u32{
-                            top_menu_file_change_packfile_type_movie.set_active(true);
+                        match pack_file_decoded.borrow().pack_file_header.pack_file_type {
+                            0 => top_menu_file_change_packfile_type_boot.set_active(true),
+                            1 => top_menu_file_change_packfile_type_release.set_active(true),
+                            2 => top_menu_file_change_packfile_type_patch.set_active(true),
+                            3 => top_menu_file_change_packfile_type_mod.set_active(true),
+                            4 => top_menu_file_change_packfile_type_movie.set_active(true),
+                            _ => ui::show_dialog(&error_dialog, format_err!("PackFile Type not valid.")),
                         }
                     }
                     Err(error) => ui::show_dialog(&error_dialog, error.cause()),
