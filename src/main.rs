@@ -25,7 +25,7 @@ use gtk::prelude::*;
 use gtk::{
     AboutDialog, Box, Builder, MenuItem, Window, WindowPosition, FileChooserDialog,
     TreeView, TreeSelection, TreeStore, MessageDialog, ScrolledWindow, Orientation,
-    CellRendererText, TreeViewColumn, Popover, Entry, CheckMenuItem, Button, Image
+    CellRendererText, TreeViewColumn, Popover, Entry, CheckMenuItem, Button, Image,
 };
 
 use sourceview::{
@@ -40,12 +40,14 @@ use packedfile::db::DB;
 use packedfile::db::DBHeader;
 use packedfile::db::schemas::*;
 use packedfile::rigidmodel::RigidModel;
+use settings::*;
 use ui::packedfile_db::*;
 
 mod common;
 mod ui;
 mod packfile;
 mod packedfile;
+mod settings;
 
 /// This macro is used to clone the variables into the closures without the compiler protesting.
 /// TODO: Delete this. Yes, it reduce the code length, but it breaks the sintax highlight in the entire
@@ -90,7 +92,6 @@ fn main() {
     let builder = Builder::new_from_string(glade_design);
 
     let window: Window = builder.get_object("gtk_window").expect("Couldn't get gtk_window");
-
     let packed_file_data_display: Box = builder.get_object("gtk_packed_file_data_display").expect("Couldn't get gtk_packed_file_data_display");
 
     let window_about: AboutDialog = builder.get_object("gtk_window_about").expect("Couldn't get gtk_window_about");
@@ -109,6 +110,7 @@ fn main() {
     let file_chooser_extract_folder: FileChooserDialog = builder.get_object("gtk_file_chooser_extract_folder").expect("Couldn't get gtk_file_chooser_extract_folder");
     let file_chooser_packedfile_loc_import_csv: FileChooserDialog = builder.get_object("gtk_file_chooser_packedfile_loc_import_csv").expect("Couldn't get gtk_file_chooser_packedfile_loc_import_csv");
     let file_chooser_packedfile_loc_export_csv: FileChooserDialog = builder.get_object("gtk_file_chooser_packedfile_loc_export_csv").expect("Couldn't get gtk_file_chooser_packedfile_loc_export_csv");
+    let file_chooser_settings_select_folder: FileChooserDialog = builder.get_object("gtk_file_chooser_settings_select_folder").expect("Couldn't get gtk_file_chooser_settings_select_folder");
 
     let top_menu_file: MenuItem = builder.get_object("gtk_top_menu_file").expect("Couldn't get gtk_top_menu_file");
     let top_menu_special_stuff: MenuItem = builder.get_object("gtk_top_menu_special_stuff").expect("Couldn't get gtk_top_menu_special_stuff");
@@ -125,6 +127,7 @@ fn main() {
     let top_menu_file_open_packfile: MenuItem = builder.get_object("gtk_top_menu_file_open_packfile").expect("Couldn't get gtk_top_menu_file_open_packfile");
     let top_menu_file_save_packfile: MenuItem = builder.get_object("gtk_top_menu_file_save_packfile").expect("Couldn't get gtk_top_menu_file_save_packfile");
     let top_menu_file_save_packfile_as: MenuItem = builder.get_object("gtk_top_menu_file_save_packfile_as").expect("Couldn't get gtk_top_menu_file_save_packfile_as");
+    let top_menu_file_settings: MenuItem = builder.get_object("gtk_top_menu_file_settings").expect("Couldn't get gtk_top_menu_file_settings");
     let top_menu_file_quit: MenuItem = builder.get_object("gtk_top_menu_file_quit").expect("Couldn't get gtk_top_menu_file_quit");
     let top_menu_special_patch_ai: MenuItem = builder.get_object("gtk_top_menu_special_patch_ai").expect("Couldn't get gtk_top_menu_special_patch_ai");
     let top_menu_about_about: MenuItem = builder.get_object("gtk_top_menu_about_about").expect("Couldn't get gtk_top_menu_about_about");
@@ -210,6 +213,9 @@ fn main() {
             Err(error) => return ui::show_dialog(&error_dialog, format!("Error while creating a new DB Schema file:\n{}", error.cause())),
         }
     }
+
+    // We load the settings here, and in case they doesn't exist, we create them.
+    let settings = Rc::new(RefCell::new(Settings::load().unwrap_or(Settings::new())));
 
     // And we import the schema for the DB tables.
     let schema = match Schema::load() {
@@ -469,6 +475,80 @@ fn main() {
         }
     }));
 
+    // When we hit the "Preferences" button.
+    top_menu_file_settings.connect_activate(clone!(
+        error_dialog => move |_| {
+        let settings_stuff = Rc::new(RefCell::new(ui::settings::SettingsWindow::create_settings_window()));
+        settings_stuff.borrow().load_to_settings_window(&*settings.borrow());
+
+        // This fixes the problem with the "Add folder" button closing the prefs window.
+        file_chooser_settings_select_folder.set_transient_for(&settings_stuff.borrow().settings_window);
+
+        // here we set all the events for the preferences window.
+        // TODO: Get this shit outa ere.
+
+        // When we press the "..." buttons.
+        settings_stuff.borrow().settings_path_my_mod_button.connect_button_release_event(clone!(
+            settings,
+            settings_stuff,
+            file_chooser_settings_select_folder => move |_,_| {
+
+            // If we already have a path for it, and said path exists, we use it as base for the next path.
+            if settings.borrow().paths.my_mods_base_path != None {
+                if settings.borrow().clone().paths.my_mods_base_path.unwrap().to_path_buf().is_dir() {
+                    file_chooser_settings_select_folder.set_current_folder(settings.borrow().clone().paths.my_mods_base_path.unwrap().to_path_buf());
+                }
+            }
+            if file_chooser_settings_select_folder.run() == gtk_response_ok {
+                if let Some(new_folder) = file_chooser_settings_select_folder.get_current_folder(){
+                    settings_stuff.borrow_mut().settings_path_my_mod_entry.get_buffer().set_text(&new_folder.to_string_lossy());
+                }
+            }
+            file_chooser_settings_select_folder.hide_on_delete();
+            Inhibit(false)
+        }));
+
+        settings_stuff.borrow().settings_path_warhammer_2_button.connect_button_release_event(clone!(
+            settings,
+            settings_stuff,
+            file_chooser_settings_select_folder => move |_,_| {
+
+            // If we already have a path for it, and said path exists, we use it as base for the next path.
+            if settings.borrow().paths.warhammer_2 != None {
+                if settings.borrow().clone().paths.warhammer_2.unwrap().to_path_buf().is_dir() {
+                    file_chooser_settings_select_folder.set_current_folder(settings.borrow().clone().paths.warhammer_2.unwrap().to_path_buf());
+                }
+            }
+            if file_chooser_settings_select_folder.run() == gtk_response_ok {
+                if let Some(new_folder) = file_chooser_settings_select_folder.get_current_folder() {
+                    settings_stuff.borrow_mut().settings_path_warhammer_2_entry.get_buffer().set_text(&new_folder.to_string_lossy());
+                }
+            }
+            file_chooser_settings_select_folder.hide_on_delete();
+            Inhibit(false)
+        }));
+
+        // When we press the "Accept" button.
+        settings_stuff.borrow().settings_accept.connect_button_release_event(clone!(
+            error_dialog,
+            settings_stuff,
+            settings => move |_,_| {
+            let new_settings = settings_stuff.borrow().save_from_settings_window();
+            *settings.borrow_mut() = new_settings;
+            if let Err(error) = settings.borrow().save() {
+                ui::show_dialog(&error_dialog, error.cause());
+            }
+            settings_stuff.borrow().settings_window.destroy();
+            Inhibit(false)
+        }));
+
+        // When we press the "Cancel" button, we close the window.
+        settings_stuff.borrow().settings_cancel.connect_button_release_event(clone!(
+            settings_stuff => move |_,_| {
+            settings_stuff.borrow().settings_window.destroy();
+            Inhibit(false)
+        }));
+    }));
 
     // When we hit the "Quit" button.
     top_menu_file_quit.connect_activate(|_| {

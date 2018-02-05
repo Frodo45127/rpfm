@@ -3,5 +3,6 @@
 **/*.rs.bk
 .directory
 Cargo.lock
+settings.json
 rpfm-code.iml
 *.*~
