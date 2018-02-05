@@ -14,6 +14,7 @@ use packfile::packfile::PackFile;
 pub mod packedfile_loc;
 pub mod packedfile_db;
 pub mod packedfile_rigidmodel;
+pub mod settings;
 
 /// This function shows a Message in the specified Box.
 pub fn display_help_tips(packed_file_data_display: &Box) {
