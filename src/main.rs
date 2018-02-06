@@ -1041,6 +1041,7 @@ fn main() {
 
         let rect = ui::get_rect_for_popover(&folder_tree_view, None);
         rename_popover.set_pointing_to(&rect);
+        rename_popover_text_entry.get_buffer().set_text(ui::get_tree_path_from_selection(&folder_tree_selection, true).last().unwrap());
         rename_popover.popup();
 
         // Now, in the "New Name" popup, we wait until "Enter" (65293) is hit AND released.
