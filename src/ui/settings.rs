@@ -7,7 +7,7 @@ use std::path::{
 use gtk::prelude::*;
 use gdk::Gravity;
 use gtk::{
-    Entry, Box, Button, Frame, ComboBoxText, ApplicationWindow, WindowType, WindowPosition, Orientation,
+    Entry, Box, Button, Frame, ComboBoxText, ApplicationWindow, WindowPosition, Orientation,
     Label, ButtonBox, ButtonBoxStyle, Application
 };
 use settings::Settings;

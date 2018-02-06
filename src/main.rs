@@ -496,7 +496,11 @@ fn build_ui(application: &Application) {
     // When we hit the "Preferences" button.
     top_menu_file_settings.connect_activate(clone!(
         error_dialog,
-        application => move |_| {
+        application => move |top_menu_file_settings| {
+
+        // We disable the button, so we can't start 2 settings windows at the same time.
+        top_menu_file_settings.set_sensitive(false);
+
         let settings_stuff = Rc::new(RefCell::new(ui::settings::SettingsWindow::create_settings_window(&application)));
         settings_stuff.borrow().load_to_settings_window(&*settings.borrow());
 
@@ -504,8 +508,6 @@ fn build_ui(application: &Application) {
         file_chooser_settings_select_folder.set_transient_for(&settings_stuff.borrow().settings_window);
 
         // here we set all the events for the preferences window.
-        // TODO: Get this shit outa ere.
-
         // When we press the "..." buttons.
         settings_stuff.borrow().settings_path_my_mod_button.connect_button_release_event(clone!(
             settings,
@@ -551,20 +553,32 @@ fn build_ui(application: &Application) {
         settings_stuff.borrow().settings_accept.connect_button_release_event(clone!(
             error_dialog,
             settings_stuff,
-            settings => move |_,_| {
+            settings,
+            top_menu_file_settings => move |_,_| {
             let new_settings = settings_stuff.borrow().save_from_settings_window();
             *settings.borrow_mut() = new_settings;
             if let Err(error) = settings.borrow().save() {
                 ui::show_dialog(&error_dialog, error.cause());
             }
             settings_stuff.borrow().settings_window.destroy();
+            top_menu_file_settings.set_sensitive(true);
             Inhibit(false)
         }));
 
         // When we press the "Cancel" button, we close the window.
         settings_stuff.borrow().settings_cancel.connect_button_release_event(clone!(
-            settings_stuff => move |_,_| {
+            settings_stuff,
+            top_menu_file_settings => move |_,_| {
             settings_stuff.borrow().settings_window.destroy();
+            top_menu_file_settings.set_sensitive(true);
+            Inhibit(false)
+        }));
+
+        // We catch the destroy event to restore the "Preferences" button.
+        settings_stuff.borrow().settings_window.connect_delete_event(clone!(
+            top_menu_file_settings => move |settings_window, _| {
+            settings_window.destroy();
+            top_menu_file_settings.set_sensitive(true);
             Inhibit(false)
         }));
     }));
