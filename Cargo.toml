@@ -28,6 +28,9 @@ version = "0.7.0"
 [dependencies.glib]
 version = "0.4.0"
 
+[dependencies.gio]
+version = "*"
+
 [dependencies.sourceview]
 version = "0.3.0"
 

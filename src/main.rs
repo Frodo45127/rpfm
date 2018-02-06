@@ -10,6 +10,7 @@ extern crate serde_json;
 extern crate failure;
 extern crate gtk;
 extern crate gdk;
+extern crate gio;
 extern crate sourceview;
 extern crate num;
 
@@ -18,15 +19,17 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::fs::File;
 use std::io::Write;
+use std::env::args;
 
 use failure::Error;
 
 use gdk::Gravity;
+use gio::prelude::*;
 use gtk::prelude::*;
 use gtk::{
-    AboutDialog, Box, Builder, MenuItem, Window, WindowPosition, FileChooserDialog,
-    TreeView, TreeSelection, TreeStore, MessageDialog, ScrolledWindow, Orientation,
-    CellRendererText, TreeViewColumn, Popover, Entry, CheckMenuItem, Button, Image,
+    AboutDialog, Box, Builder, MenuItem, WindowPosition, FileChooserDialog, ApplicationWindow,
+    TreeView, TreeSelection, TreeStore, MessageDialog, ScrolledWindow, Orientation, Application,
+    CellRendererText, TreeViewColumn, Popover, Entry, CheckMenuItem, Button, Image, MenuItemExt
 };
 
 use sourceview::{
@@ -80,19 +83,13 @@ const GENERATE_NEW_SCHEMA: bool = false;
 
 /// One Function to rule them all, One Function to find them,
 /// One Function to bring them all and in the darkness bind them.
-fn main() {
-
-    // Init GTK3. Boilerplate code.
-    if gtk::init().is_err() {
-        println!("Failed to initialize GTK.");
-        return;
-    }
+fn build_ui(application: &Application) {
 
     // We import the Glade design and get all the UI objects into variables.
     let glade_design = include_str!("glade/main.glade");
     let builder = Builder::new_from_string(glade_design);
 
-    let window: Window = builder.get_object("gtk_window").expect("Couldn't get gtk_window");
+    let window: ApplicationWindow = builder.get_object("gtk_window").expect("Couldn't get gtk_window");
     let packed_file_data_display: Box = builder.get_object("gtk_packed_file_data_display").expect("Couldn't get gtk_packed_file_data_display");
 
     let window_about: AboutDialog = builder.get_object("gtk_window_about").expect("Couldn't get gtk_window_about");
@@ -187,6 +184,7 @@ fn main() {
     window_about.add_credit_section("Special thanks to", &["- PFM team (for providing the community\n   with awesome modding tools).", "- CA (for being a mod-friendly company)."]);
 
     // We bring up the main window.
+    window.set_application(Some(application));
     window.show_all();
 
     // We center the window after being loaded, so the load of the display tips don't move it to the left.
@@ -235,10 +233,10 @@ fn main() {
 
 
     // First, we catch the close window event, and close the program when we do it.
-    window.connect_delete_event(|_, _| {
-        gtk::main_quit();
+    window.connect_delete_event(clone!(window => move |_, _| {
+        window.destroy();
         Inhibit(false)
-    });
+    }));
 
     /*
     --------------------------------------------------------
@@ -497,8 +495,9 @@ fn main() {
 
     // When we hit the "Preferences" button.
     top_menu_file_settings.connect_activate(clone!(
-        error_dialog => move |_| {
-        let settings_stuff = Rc::new(RefCell::new(ui::settings::SettingsWindow::create_settings_window()));
+        error_dialog,
+        application => move |_| {
+        let settings_stuff = Rc::new(RefCell::new(ui::settings::SettingsWindow::create_settings_window(&application)));
         settings_stuff.borrow().load_to_settings_window(&*settings.borrow());
 
         // This fixes the problem with the "Add folder" button closing the prefs window.
@@ -571,9 +570,9 @@ fn main() {
     }));
 
     // When we hit the "Quit" button.
-    top_menu_file_quit.connect_activate(|_| {
-        gtk::main_quit();
-    });
+    top_menu_file_quit.connect_activate(clone!(window => move |_| {
+        window.destroy();
+    }));
 
     /*
     --------------------------------------------------------
@@ -2607,17 +2606,14 @@ fn main() {
             _ => ui::show_dialog(&error_dialog, format!("This type of event is not yet used.")),
         }
     }));
-
-    // We start GTK. Yay
-    gtk::main();
 }
 
 //-----------------------------------------------------------------------------
-// From here, there is code that was in the main function, but it was becoming
-// a mess to maintain, and was needed to be split in anticipation for the
-// threads stuff. Basically, the main should only call functions from here,
-// and these should spawn threads to keep the GUI responsible, being
-// intermediates between the GUI and the code.
+// From here, there is code that was in the build_ui function, but it was
+// becoming a mess to maintain, and was needed to be split in anticipation
+// for the threads stuff. Basically, the main should only call functions
+// from here, and these should spawn threads to keep the GUI responsible,
+// being intermediates between the GUI and the code.
 //-----------------------------------------------------------------------------
 
 // This function opens the packfile at the provided path.
@@ -2626,7 +2622,7 @@ fn main() {
 /// and in the title bar, depending on the value of the "is_modified" boolean.
 pub fn set_modified(
     is_modified: bool,
-    window: &Window,
+    window: &ApplicationWindow,
     pack_file_decoded: &mut PackFile,
 ) {
     if is_modified {
@@ -2637,4 +2633,22 @@ pub fn set_modified(
         pack_file_decoded.pack_file_extra_data.is_modified = false;
         window.set_title(&format!("Rusted PackFile Manager -> {}", pack_file_decoded.pack_file_extra_data.file_name));
     }
+}
+
+/// Main function.
+fn main() {
+
+    // We create the application.
+    let application = Application::new("com.elturkogames.rpfm", gio::ApplicationFlags::empty()).expect("Initialization failed...");
+
+    // We initialize it.
+    application.connect_startup(move |app| {
+        build_ui(app);
+    });
+
+    // We start GTK. Yay.
+    application.connect_activate(|_| {});
+
+    // And we run for our lives before it explodes.
+    application.run(&args().collect::<Vec<_>>());
 }

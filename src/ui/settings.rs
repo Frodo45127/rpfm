@@ -7,15 +7,15 @@ use std::path::{
 use gtk::prelude::*;
 use gdk::Gravity;
 use gtk::{
-    Entry, Box, Button, Frame, ComboBoxText, Window, WindowType, WindowPosition, Orientation,
-    Label, ButtonBox, ButtonBoxStyle
+    Entry, Box, Button, Frame, ComboBoxText, ApplicationWindow, WindowType, WindowPosition, Orientation,
+    Label, ButtonBox, ButtonBoxStyle, Application
 };
 use settings::Settings;
 
 /// This struct holds all the relevant stuff for the Settings Window.
 #[derive(Clone, Debug)]
 pub struct SettingsWindow {
-    pub settings_window: Window,
+    pub settings_window: ApplicationWindow,
     pub settings_path_my_mod_entry: Entry,
     pub settings_path_my_mod_button: Button,
     pub settings_path_warhammer_2_entry: Entry,
@@ -28,10 +28,11 @@ pub struct SettingsWindow {
 /// Implementation of SettingsWindow.
 impl SettingsWindow {
 
-    /// This function creates the entire settings window.
-    pub fn create_settings_window() -> SettingsWindow {
+    /// This function creates the entire settings window. It requires the application object to pass
+    /// the window to.
+    pub fn create_settings_window(application: &Application) -> SettingsWindow {
 
-        let settings_window = Window::new(WindowType::Toplevel);
+        let settings_window = ApplicationWindow::new(application);
         settings_window.set_size_request(550, 0);
         settings_window.set_gravity(Gravity::Center);
         settings_window.set_position(WindowPosition::Center);
