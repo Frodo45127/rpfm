@@ -21,6 +21,7 @@ use std::io::Write;
 
 use failure::Error;
 
+use gdk::Gravity;
 use gtk::prelude::*;
 use gtk::{
     AboutDialog, Box, Builder, MenuItem, Window, WindowPosition, FileChooserDialog,
@@ -190,6 +191,7 @@ fn main() {
 
     // We center the window after being loaded, so the load of the display tips don't move it to the left.
     window.set_position(WindowPosition::Center);
+    window.set_gravity(Gravity::Center);
 
     // Here we define the "ok" response for GTK, as it seems restson causes it to fail to compile if
     // we get the "ok" i32 directly in the if statement.
@@ -216,6 +218,10 @@ fn main() {
 
     // We load the settings here, and in case they doesn't exist, we create them.
     let settings = Rc::new(RefCell::new(Settings::load().unwrap_or(Settings::new())));
+
+    // And we prepare the stuff for the default game (paths, and those things).
+    // FIXME: changing paths require to restart the program. This needs to be fixed.
+    let mut game_selected = GameSelected::new(&settings.borrow());
 
     // And we import the schema for the DB tables.
     let schema = match Schema::load() {
@@ -281,6 +287,7 @@ fn main() {
 
     // When we hit the "Open PackFile" button.
     top_menu_file_open_packfile.connect_activate(clone!(
+        game_selected,
         window,
         error_dialog,
         pack_file_decoded,
@@ -290,6 +297,11 @@ fn main() {
         top_menu_file_change_packfile_type_patch,
         top_menu_file_change_packfile_type_mod,
         top_menu_file_change_packfile_type_movie => move |_| {
+
+        // In case we have a default path for the game selected, we use it as base path for opening files.
+        if let Some(ref path) = game_selected.game_path {
+            file_chooser_open_packfile_dialog.set_current_folder(&path);
+        }
 
         // When we select the file to open, we get his path, open it and, if there has been no
         // errors, decode it, update the TreeView to show it and check his type for the Change PackFile
@@ -321,6 +333,7 @@ fn main() {
 
     // When we hit the "Save PackFile" button
     top_menu_file_save_packfile.connect_activate(clone!(
+        game_selected,
         window,
         success_dialog,
         error_dialog,
@@ -337,6 +350,12 @@ fn main() {
         let mut pack_file_path: Option<PathBuf> = None;
         if !pack_file_decoded.borrow().pack_file_extra_data.file_path.exists() {
             file_chooser_save_packfile_dialog.set_current_name(&pack_file_decoded.borrow().pack_file_extra_data.file_name);
+
+            // In case we have a default path for the game selected, we use it as base path for saving files.
+            if let Some(ref path) = game_selected.game_path {
+                file_chooser_save_packfile_dialog.set_current_folder(path);
+            }
+
             if file_chooser_save_packfile_dialog.run() == gtk_response_ok {
                 pack_file_path = Some(file_chooser_save_packfile_dialog.get_filename().expect("Couldn't open file"));
 
@@ -397,6 +416,7 @@ fn main() {
         // encode it and save it in the path selected. After that, we update the TreeView to reflect
         // the name change and hide the dialog.
         file_chooser_save_packfile_dialog.set_current_name(&pack_file_decoded.borrow().pack_file_extra_data.file_name);
+        file_chooser_save_packfile_dialog.set_current_folder(&pack_file_decoded.borrow().pack_file_extra_data.file_path);
         if file_chooser_save_packfile_dialog.run() == gtk_response_ok {
             let mut success = false;
             match packfile::save_packfile(
