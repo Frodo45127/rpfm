@@ -13,7 +13,7 @@ use gtk::prelude::*;
 use gtk::{
     Box, TreeView, ListStore, ScrolledWindow, Button, Orientation, TextView, Label, Entry, ToggleButton,
     CellRendererText, TreeViewColumn, CellRendererToggle, Type, WrapMode, Justification, Frame, CellRendererCombo,
-    TextTag, Popover, ModelButton
+    TextTag, Popover, ModelButton, Paned
 };
 
 use self::hex_slice::AsHex;
@@ -496,7 +496,6 @@ impl PackedFileDBDecoder {
         packed_file_raw_data_scroll.set_size_request(350, 0);
 
         // Then, the big box to put all the stuff we need to decode.
-        let packed_file_decoded_data_big_boxx = Box::new(Orientation::Vertical, 0);
         let packed_file_decoded_data_less_bigger_boxx = Box::new(Orientation::Horizontal, 0);
         let packed_file_decoded_data_box = Box::new(Orientation::Vertical, 0);
 
@@ -613,7 +612,7 @@ impl PackedFileDBDecoder {
 
         let fields_tree_view_scroll = ScrolledWindow::new(None, None);
         fields_tree_view_scroll.add(&fields_tree_view);
-        fields_tree_view_scroll.set_size_request(400, 500);
+        fields_tree_view_scroll.set_size_request(400, 200);
 
         let bool_box = Box::new(Orientation::Horizontal, 0);
         let float_box = Box::new(Orientation::Horizontal, 0);
@@ -774,12 +773,13 @@ impl PackedFileDBDecoder {
         packed_file_decoded_data_less_bigger_boxx.pack_start(&packed_file_decoded_data_box, true, true, 0);
         packed_file_decoded_data_less_bigger_boxx.pack_end(&packed_file_field_settings_box, true, true, 0);
 
-        packed_file_decoded_data_big_boxx.pack_start(&fields_tree_view_scroll, false, false, 2);
-        packed_file_decoded_data_big_boxx.pack_start(&packed_file_decoded_data_less_bigger_boxx, false, false, 4);
+        let paned_big_boxx = Paned::new(Orientation::Vertical);
+        paned_big_boxx.pack1(&fields_tree_view_scroll, false, false);
+        paned_big_boxx.pack2(&packed_file_decoded_data_less_bigger_boxx, false, false);
 
         packed_file_raw_data_scroll.add(&raw_data_box);
         decoder_box.add(&packed_file_raw_data_scroll);
-        decoder_box.pack_end(&packed_file_decoded_data_big_boxx, true, true, 0);
+        decoder_box.pack_end(&paned_big_boxx, true, true, 6);
 
         packed_file_data_display.show_all();
 
