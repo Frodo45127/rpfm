@@ -3,8 +3,8 @@ extern crate gtk;
 
 use gtk::prelude::*;
 use gtk::{
-    Box, TreeView, TreeSelection, ListStore, ScrolledWindow, Popover, Button, Entry,
-    CellRendererText, TreeViewColumn, CellRendererToggle, Separator, Orientation, Image
+    Box, TreeView, TreeSelection, ListStore, ScrolledWindow, Popover, Entry, ModelButton,
+    CellRendererText, TreeViewColumn, CellRendererToggle, Separator, Orientation
 };
 
 use ::packedfile::loc::LocData;
@@ -21,11 +21,7 @@ pub struct PackedFileLocTreeView {
     pub packed_file_tree_view_cell_text: CellRendererText,
     pub packed_file_tree_view_cell_tooltip: CellRendererToggle,
     pub packed_file_popover_menu: Popover,
-    pub packed_file_popover_menu_add_rows_button: Button,
     pub packed_file_popover_menu_add_rows_entry: Entry,
-    pub packed_file_popover_menu_delete_rows_button: Button,
-    pub packed_file_popover_menu_import_from_csv_button: Button,
-    pub packed_file_popover_menu_export_to_csv_button: Button,
 }
 
 /// Implementation of "PackedFileLocTreeView".
@@ -123,47 +119,36 @@ impl PackedFileLocTreeView{
         // Here we create the Popover menu. It's created and destroyed with the table because otherwise
         // it'll start crashing when changing tables and trying to delete stuff. Stupid menu.
         let packed_file_popover_menu = Popover::new(&packed_file_tree_view);
-
         let packed_file_popover_menu_box = Box::new(Orientation::Vertical, 0);
+        packed_file_popover_menu_box.set_border_width(6);
+
         let packed_file_popover_menu_box_add_rows_box = Box::new(Orientation::Horizontal, 0);
 
-        let packed_file_popover_menu_add_rows_button = Button::new_with_label("Add rows:");
-        let packed_file_popover_menu_add_rows_button_image = Image::new_from_icon_name(Some("list-add"), gtk::IconSize::Button.into());
-        packed_file_popover_menu_add_rows_button.set_image(&packed_file_popover_menu_add_rows_button_image);
-        packed_file_popover_menu_add_rows_button.set_image_position(gtk::PositionType::Left);
-        packed_file_popover_menu_add_rows_button.set_relief(gtk::ReliefStyle::None);
-        packed_file_popover_menu_add_rows_button.get_children()[0].set_halign(gtk::Align::Start);
+        let packed_file_popover_menu_add_rows_button = ModelButton::new();
+        packed_file_popover_menu_add_rows_button.set_property_text(Some("Add rows:"));
+        packed_file_popover_menu_add_rows_button.set_action_name("app.packedfile_loc_add_rows");
 
         let packed_file_popover_menu_add_rows_entry = Entry::new();
         let packed_file_popover_menu_add_rows_entry_buffer = packed_file_popover_menu_add_rows_entry.get_buffer();
         packed_file_popover_menu_add_rows_entry.set_alignment(1.0);
         packed_file_popover_menu_add_rows_entry.set_width_chars(8);
         packed_file_popover_menu_add_rows_entry.set_icon_from_stock(gtk::EntryIconPosition::Primary, Some("gtk-goto-last"));
+        packed_file_popover_menu_add_rows_entry.set_has_frame(false);
         packed_file_popover_menu_add_rows_entry_buffer.set_max_length(Some(4));
         packed_file_popover_menu_add_rows_entry_buffer.set_text("1");
 
-        let packed_file_popover_menu_delete_rows_button = Button::new_with_label("Delete row/s");
-        let packed_file_popover_menu_delete_rows_button_image = Image::new_from_icon_name(Some("edit-delete"), gtk::IconSize::Button.into());
-        packed_file_popover_menu_delete_rows_button.set_image(&packed_file_popover_menu_delete_rows_button_image);
-        packed_file_popover_menu_delete_rows_button.set_image_position(gtk::PositionType::Left);
-        packed_file_popover_menu_delete_rows_button.set_relief(gtk::ReliefStyle::None);
-        packed_file_popover_menu_delete_rows_button.get_children()[0].set_halign(gtk::Align::Start);
+        let packed_file_popover_menu_delete_rows_button = ModelButton::new();
+        packed_file_popover_menu_delete_rows_button.set_property_text(Some("Delete row/s"));
+        packed_file_popover_menu_delete_rows_button.set_action_name("app.packedfile_loc_delete_rows");
 
         let separator = Separator::new(Orientation::Vertical);
+        let packed_file_popover_menu_import_from_csv_button = ModelButton::new();
+        packed_file_popover_menu_import_from_csv_button.set_property_text(Some("Import from CSV"));
+        packed_file_popover_menu_import_from_csv_button.set_action_name("app.packedfile_loc_import_from_csv");
 
-        let packed_file_popover_menu_import_from_csv_button = Button::new_with_label("Import from CSV");
-        let packed_file_popover_menu_import_from_csv_button_image = Image::new_from_icon_name(Some("edit-redo"), gtk::IconSize::Button.into());
-        packed_file_popover_menu_import_from_csv_button.set_image(&packed_file_popover_menu_import_from_csv_button_image);
-        packed_file_popover_menu_import_from_csv_button.set_image_position(gtk::PositionType::Left);
-        packed_file_popover_menu_import_from_csv_button.set_relief(gtk::ReliefStyle::None);
-        packed_file_popover_menu_import_from_csv_button.get_children()[0].set_halign(gtk::Align::Start);
-
-        let packed_file_popover_menu_export_to_csv_button = Button::new_with_label("Export to CSV");
-        let packed_file_popover_menu_export_to_csv_button_image = Image::new_from_icon_name(Some("edit-undo"), gtk::IconSize::Button.into());
-        packed_file_popover_menu_export_to_csv_button.set_image(&packed_file_popover_menu_export_to_csv_button_image);
-        packed_file_popover_menu_export_to_csv_button.set_image_position(gtk::PositionType::Left);
-        packed_file_popover_menu_export_to_csv_button.set_relief(gtk::ReliefStyle::None);
-        packed_file_popover_menu_export_to_csv_button.get_children()[0].set_halign(gtk::Align::Start);
+        let packed_file_popover_menu_export_to_csv_button = ModelButton::new();
+        packed_file_popover_menu_export_to_csv_button.set_property_text(Some("Export to CSV"));
+        packed_file_popover_menu_export_to_csv_button.set_action_name("app.packedfile_loc_export_to_csv");
 
         packed_file_popover_menu_box_add_rows_box.pack_start(&packed_file_popover_menu_add_rows_button, true, true, 0);
         packed_file_popover_menu_box_add_rows_box.pack_end(&packed_file_popover_menu_add_rows_entry, true, true, 0);
@@ -192,11 +177,7 @@ impl PackedFileLocTreeView{
             packed_file_tree_view_cell_text: cell_text,
             packed_file_tree_view_cell_tooltip: cell_tooltip,
             packed_file_popover_menu,
-            packed_file_popover_menu_add_rows_button,
             packed_file_popover_menu_add_rows_entry,
-            packed_file_popover_menu_delete_rows_button,
-            packed_file_popover_menu_import_from_csv_button,
-            packed_file_popover_menu_export_to_csv_button,
         }
     }
 

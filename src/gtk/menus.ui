@@ -115,18 +115,15 @@
                         <attribute name="label" translatable="yes">Add _File</attribute>
                         <attribute name="action">app.add-file</attribute>
                         <attribute name="accel">&lt;Primary&gt;a</attribute>
-                        <attribute name="icon">list-add</attribute>
                     </item>
                     <item>
                         <attribute name="label" translatable="yes">Add Fol_der</attribute>
                         <attribute name="action">app.add-folder</attribute>
-                        <attribute name="icon">list-add</attribute>
                         <attribute name="accel">&lt;Shift&gt;f</attribute>
                     </item>
                     <item>
                         <attribute name="label" translatable="yes">Add from _PackFile</attribute>
                         <attribute name="action">app.add-from-packfile</attribute>
-                        <attribute name="icon">list-add</attribute>
                         <attribute name="accel">&lt;Shift&gt;p</attribute>
                     </item>
                 </section>
@@ -134,13 +131,11 @@
             <item>
                 <attribute name="label" translatable="yes">_Delete</attribute>
                 <attribute name="action">app.delete-packedfile</attribute>
-                <attribute name="icon">edit-delete</attribute>
                 <attribute name="accel">Delete</attribute>
             </item>
             <item>
                 <attribute name="label" translatable="yes">_Extract</attribute>
                 <attribute name="action">app.extract-packedfile</attribute>
-                <attribute name="icon">list-add</attribute>
                 <attribute name="accel">&lt;Shift&gt;e</attribute>
             </item>
         </section>
