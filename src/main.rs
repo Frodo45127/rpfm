@@ -10,6 +10,7 @@ extern crate serde_json;
 extern crate failure;
 extern crate gtk;
 extern crate gdk;
+extern crate glib;
 extern crate gio;
 extern crate sourceview;
 extern crate num;
@@ -25,11 +26,15 @@ use failure::Error;
 
 use gdk::Gravity;
 use gio::prelude::*;
+use gio::{
+    SimpleAction, Menu, MenuModel
+};
 use gtk::prelude::*;
 use gtk::{
-    AboutDialog, Box, Builder, MenuItem, WindowPosition, FileChooserDialog, ApplicationWindow,
+    AboutDialog, Box, Builder, WindowPosition, FileChooserDialog, ApplicationWindow,
     TreeView, TreeSelection, TreeStore, MessageDialog, ScrolledWindow, Orientation, Application,
-    CellRendererText, TreeViewColumn, Popover, Entry, CheckMenuItem, Button, Image, MenuItemExt
+    CellRendererText, TreeViewColumn, Popover, Entry, Button, Image,
+    ShortcutsWindow, ToVariant
 };
 
 use sourceview::{
@@ -86,10 +91,23 @@ const GENERATE_NEW_SCHEMA: bool = false;
 fn build_ui(application: &Application) {
 
     // We import the Glade design and get all the UI objects into variables.
-    let glade_design = include_str!("glade/main.glade");
+    let glade_design = include_str!("gtk/main.glade");
+    let help_window = include_str!("gtk/help.ui");
+    let menus = include_str!("gtk/menus.ui");
     let builder = Builder::new_from_string(glade_design);
 
+    // We unwrap these two result and ignore the errors, as they're going to be always read from
+    // data inside the executable and they should never fail.
+    builder.add_from_string(help_window).unwrap();
+    builder.add_from_string(menus).unwrap();
+
+    // Set the main menu bar for the app. This one can appear in all the windows and needs to be
+    // enabled or disabled by window.
+    let menu_bar: Menu = builder.get_object("menubar").expect("Couldn't get menubar");
+    application.set_menubar(&menu_bar);
+
     let window: ApplicationWindow = builder.get_object("gtk_window").expect("Couldn't get gtk_window");
+    let help_overlay: ShortcutsWindow = builder.get_object("shortcuts-main-window").expect("Couldn't get shortcuts-main-window");
     let packed_file_data_display: Box = builder.get_object("gtk_packed_file_data_display").expect("Couldn't get gtk_packed_file_data_display");
 
     let window_about: AboutDialog = builder.get_object("gtk_window_about").expect("Couldn't get gtk_window_about");
@@ -110,35 +128,12 @@ fn build_ui(application: &Application) {
     let file_chooser_packedfile_loc_export_csv: FileChooserDialog = builder.get_object("gtk_file_chooser_packedfile_loc_export_csv").expect("Couldn't get gtk_file_chooser_packedfile_loc_export_csv");
     let file_chooser_settings_select_folder: FileChooserDialog = builder.get_object("gtk_file_chooser_settings_select_folder").expect("Couldn't get gtk_file_chooser_settings_select_folder");
 
-    let top_menu_file: MenuItem = builder.get_object("gtk_top_menu_file").expect("Couldn't get gtk_top_menu_file");
-    let top_menu_special_stuff: MenuItem = builder.get_object("gtk_top_menu_special_stuff").expect("Couldn't get gtk_top_menu_special_stuff");
-
-    let context_menu_tree_view: Popover = builder.get_object("gtk_context_menu_tree_view").expect("Couldn't get gtk_context_menu_tree_view");
-
-    let tree_view_add_file: Button = builder.get_object("gtk_context_menu_tree_view_add_file").expect("Couldn't get gtk_context_menu_tree_view_add_file");
-    let tree_view_add_folder: Button = builder.get_object("gtk_context_menu_tree_view_add_folder").expect("Couldn't get gtk_context_menu_tree_view_add_folder");
-    let tree_view_add_from_packfile: Button = builder.get_object("gtk_context_menu_tree_view_add_from_packfile").expect("Couldn't get gtk_context_menu_tree_view_add_from_packfile");
-    let tree_view_delete_file: Button = builder.get_object("gtk_context_menu_tree_view_delete_file").expect("Couldn't get gtk_context_menu_tree_view_delete_file");
-    let tree_view_extract_file: Button = builder.get_object("gtk_context_menu_tree_view_extract_file").expect("Couldn't get gtk_context_menu_tree_view_extract_file");
-
-    let top_menu_file_new_packfile: MenuItem = builder.get_object("gtk_top_menu_file_new_packfile").expect("Couldn't get gtk_top_menu_file_new_packfile");
-    let top_menu_file_open_packfile: MenuItem = builder.get_object("gtk_top_menu_file_open_packfile").expect("Couldn't get gtk_top_menu_file_open_packfile");
-    let top_menu_file_save_packfile: MenuItem = builder.get_object("gtk_top_menu_file_save_packfile").expect("Couldn't get gtk_top_menu_file_save_packfile");
-    let top_menu_file_save_packfile_as: MenuItem = builder.get_object("gtk_top_menu_file_save_packfile_as").expect("Couldn't get gtk_top_menu_file_save_packfile_as");
-    let top_menu_file_settings: MenuItem = builder.get_object("gtk_top_menu_file_settings").expect("Couldn't get gtk_top_menu_file_settings");
-    let top_menu_file_quit: MenuItem = builder.get_object("gtk_top_menu_file_quit").expect("Couldn't get gtk_top_menu_file_quit");
-    let top_menu_special_patch_ai: MenuItem = builder.get_object("gtk_top_menu_special_patch_ai").expect("Couldn't get gtk_top_menu_special_patch_ai");
-    let top_menu_about_about: MenuItem = builder.get_object("gtk_top_menu_about_about").expect("Couldn't get gtk_top_menu_about_about");
-
-    let top_menu_file_change_packfile_type: MenuItem = builder.get_object("gtk_top_menu_file_select_packfile_type").expect("Couldn't get gtk_top_menu_file_select_packfile_type");
-    let top_menu_file_change_packfile_type_boot: CheckMenuItem = builder.get_object("gtk_top_menu_file_select_packfile_type1").expect("Couldn't get gtk_top_menu_file_select_packfile_type1");
-    let top_menu_file_change_packfile_type_release: CheckMenuItem = builder.get_object("gtk_top_menu_file_select_packfile_type2").expect("Couldn't get gtk_top_menu_file_select_packfile_type2");
-    let top_menu_file_change_packfile_type_patch: CheckMenuItem = builder.get_object("gtk_top_menu_file_select_packfile_type3").expect("Couldn't get gtk_top_menu_file_select_packfile_type3");
-    let top_menu_file_change_packfile_type_mod: CheckMenuItem = builder.get_object("gtk_top_menu_file_select_packfile_type4").expect("Couldn't get gtk_top_menu_file_select_packfile_type4");
-    let top_menu_file_change_packfile_type_movie: CheckMenuItem = builder.get_object("gtk_top_menu_file_select_packfile_type5").expect("Couldn't get gtk_top_menu_file_select_packfile_type5");
-
     let folder_tree_view: TreeView = builder.get_object("gtk_folder_tree_view").expect("Couldn't get gtk_folder_tree_view");
     let folder_tree_selection: TreeSelection = builder.get_object("gtk_folder_tree_view_selection").expect("Couldn't get gtk_folder_tree_view_selection");
+
+    // The context popup for the TreeView is created from a model and linked to the TreeView here.
+    let context_menu_model_tree_view: MenuModel = builder.get_object("context_menu_packfile").expect("Couldn't get context_menu_packfile");
+    let context_menu_tree_view: Popover = Popover::new_from_model(Some(&folder_tree_view), &context_menu_model_tree_view);
 
     // The TreeView's stuff is created manually here, as I had problems creating it in Glade.
     let folder_tree_store = TreeStore::new(&[String::static_type()]);
@@ -152,6 +147,54 @@ fn build_ui(application: &Application) {
     folder_tree_view.append_column(&column);
     folder_tree_view.set_enable_search(false);
     folder_tree_view.set_rules_hint(true);
+
+    // We set here the overlay shortcuts window and bind it to "Ctrl + Shift + H".
+    help_overlay.set_title("Shortcuts");
+    help_overlay.set_size_request(600, 400);
+    window.set_help_overlay(Some(&help_overlay));
+    application.set_accels_for_action("win.show-help-overlay", &["<Primary><Shift>h"]);
+
+    // Here we set all the actions we need in the program.
+    // Main menu actions.
+    let menu_bar_new_packfile = SimpleAction::new("new-packfile", None);
+    let menu_bar_open_packfile = SimpleAction::new("open-packfile", None);
+    let menu_bar_save_packfile = SimpleAction::new("save-packfile", None);
+    let menu_bar_save_packfile_as = SimpleAction::new("save-packfile-as", None);
+    let menu_bar_preferences = SimpleAction::new("preferences", None);
+    let menu_bar_quit = SimpleAction::new("quit", None);
+    let menu_bar_patch_siege_ai = SimpleAction::new("patch-siege-ai", None);
+    let menu_bar_about = SimpleAction::new("about", None);
+    let menu_bar_change_packfile_type = SimpleAction::new_stateful("change-packfile-type", glib::VariantTy::new("s").ok(), &"mod".to_variant());
+
+    application.add_action(&menu_bar_new_packfile);
+    application.add_action(&menu_bar_open_packfile);
+    application.add_action(&menu_bar_save_packfile);
+    application.add_action(&menu_bar_save_packfile_as);
+    application.add_action(&menu_bar_preferences);
+    application.add_action(&menu_bar_quit);
+    application.add_action(&menu_bar_patch_siege_ai);
+    application.add_action(&menu_bar_about);
+    application.add_action(&menu_bar_change_packfile_type);
+
+    // Right-click menu actions.
+    let context_menu_add_file = SimpleAction::new("add-file", None);
+    let context_menu_add_folder = SimpleAction::new("add-folder", None);
+    let context_menu_add_from_packfile = SimpleAction::new("add-from-packfile", None);
+    let context_menu_delete_packedfile = SimpleAction::new("delete-packedfile", None);
+    let context_menu_extract_packedfile = SimpleAction::new("extract-packedfile", None);
+
+    application.add_action(&context_menu_add_file);
+    application.add_action(&context_menu_add_folder);
+    application.add_action(&context_menu_add_from_packfile);
+    application.add_action(&context_menu_delete_packedfile);
+    application.add_action(&context_menu_extract_packedfile);
+
+    // Accels for popovers need to be specified here. Don't know why, but otherwise they do not work.
+    application.set_accels_for_action("app.add-file", &["<Shift>a"]);
+    application.set_accels_for_action("app.add-folder", &["<Shift>d"]);
+    application.set_accels_for_action("app.add-from-packfile", &["<Shift>p"]);
+    application.set_accels_for_action("app.delete-packedfile", &["Delete"]);
+    application.set_accels_for_action("app.extract-packedfile", &["<Shift>e"]);
 
     // This variable is used to "Lock" and "Unlock" the "Decode on select" feature of the TreeView.
     // We need it to lock this feature when we open a secondary PackFile and want to move some folders
@@ -231,12 +274,24 @@ fn build_ui(application: &Application) {
     // End of the "Getting Ready" part.
     // From here, it's all event handling.
 
-
     // First, we catch the close window event, and close the program when we do it.
     window.connect_delete_event(clone!(window => move |_, _| {
         window.destroy();
         Inhibit(false)
     }));
+
+    //By default, these four actions are disabled until a PackFile is created or opened.
+    menu_bar_save_packfile.set_enabled(false);
+    menu_bar_save_packfile_as.set_enabled(false);
+    menu_bar_change_packfile_type.set_enabled(false);
+    menu_bar_patch_siege_ai.set_enabled(false);
+
+    // These needs to be disabled by default at start too.
+    context_menu_add_file.set_enabled(false);
+    context_menu_add_folder.set_enabled(false);
+    context_menu_add_from_packfile.set_enabled(false);
+    context_menu_delete_packedfile.set_enabled(false);
+    context_menu_extract_packedfile.set_enabled(false);
 
     /*
     --------------------------------------------------------
@@ -244,34 +299,15 @@ fn build_ui(application: &Application) {
     --------------------------------------------------------
     */
 
-    // When we open the menu, we check if we need to enable or disable his buttons first.
-    top_menu_file.connect_activate(clone!(
-        top_menu_file_save_packfile,
-        top_menu_file_save_packfile_as,
-        top_menu_file_change_packfile_type,
-        pack_file_decoded => move |_| {
-
-        // If the current PackFile has no name, we haven't open or created one, so disable all the
-        // options that need a PackFile opened. Otherwise enable them.
-        if pack_file_decoded.borrow().pack_file_extra_data.file_name.is_empty() {
-            top_menu_file_save_packfile.set_sensitive(false);
-            top_menu_file_save_packfile_as.set_sensitive(false);
-            top_menu_file_change_packfile_type.set_sensitive(false);
-        }
-        else {
-            top_menu_file_save_packfile.set_sensitive(true);
-            top_menu_file_save_packfile_as.set_sensitive(true);
-            top_menu_file_change_packfile_type.set_sensitive(true);
-        }
-    }));
-
-
     // When we hit the "New PackFile" button.
-    top_menu_file_new_packfile.connect_activate(clone!(
+    menu_bar_new_packfile.connect_activate(clone!(
         window,
         pack_file_decoded,
         folder_tree_store,
-        top_menu_file_change_packfile_type_mod => move |_| {
+        menu_bar_save_packfile,
+        menu_bar_save_packfile_as,
+        menu_bar_change_packfile_type,
+        menu_bar_patch_siege_ai => move |_,_| {
 
         // We just create a new PackFile with a name, set his type to Mod and update the
         // TreeView to show it.
@@ -279,22 +315,24 @@ fn build_ui(application: &Application) {
         ui::update_tree_view(&folder_tree_store, &*pack_file_decoded.borrow());
         set_modified(false, &window, &mut *pack_file_decoded.borrow_mut());
 
-        top_menu_file_change_packfile_type_mod.set_active(true);
+        menu_bar_save_packfile.set_enabled(true);
+        menu_bar_save_packfile_as.set_enabled(true);
+        menu_bar_change_packfile_type.set_enabled(true);
+        menu_bar_patch_siege_ai.set_enabled(true);
     }));
 
 
     // When we hit the "Open PackFile" button.
-    top_menu_file_open_packfile.connect_activate(clone!(
+    menu_bar_open_packfile.connect_activate(clone!(
         game_selected,
         window,
         error_dialog,
         pack_file_decoded,
         folder_tree_store,
-        top_menu_file_change_packfile_type_boot,
-        top_menu_file_change_packfile_type_release,
-        top_menu_file_change_packfile_type_patch,
-        top_menu_file_change_packfile_type_mod,
-        top_menu_file_change_packfile_type_movie => move |_| {
+        menu_bar_save_packfile,
+        menu_bar_save_packfile_as,
+        menu_bar_change_packfile_type,
+        menu_bar_patch_siege_ai => move |_,_| {
 
         // In case we have a default path for the game selected, we use it as base path for opening files.
         if let Some(ref path) = game_selected.game_path {
@@ -314,13 +352,18 @@ fn build_ui(application: &Application) {
 
                     // We choose the right option, depending on our PackFile.
                     match pack_file_decoded.borrow().pack_file_header.pack_file_type {
-                        0 => top_menu_file_change_packfile_type_boot.set_active(true),
-                        1 => top_menu_file_change_packfile_type_release.set_active(true),
-                        2 => top_menu_file_change_packfile_type_patch.set_active(true),
-                        3 => top_menu_file_change_packfile_type_mod.set_active(true),
-                        4 => top_menu_file_change_packfile_type_movie.set_active(true),
+                        0 => menu_bar_change_packfile_type.change_state(&"boot".to_variant()),
+                        1 => menu_bar_change_packfile_type.change_state(&"release".to_variant()),
+                        2 => menu_bar_change_packfile_type.change_state(&"patch".to_variant()),
+                        3 => menu_bar_change_packfile_type.change_state(&"mod".to_variant()),
+                        4 => menu_bar_change_packfile_type.change_state(&"movie".to_variant()),
                         _ => ui::show_dialog(&error_dialog, format_err!("PackFile Type not valid.")),
                     }
+
+                    menu_bar_save_packfile.set_enabled(true);
+                    menu_bar_save_packfile_as.set_enabled(true);
+                    menu_bar_change_packfile_type.set_enabled(true);
+                    menu_bar_patch_siege_ai.set_enabled(true);
                 }
                 Err(error) => ui::show_dialog(&error_dialog, error.cause()),
             }
@@ -330,7 +373,7 @@ fn build_ui(application: &Application) {
 
 
     // When we hit the "Save PackFile" button
-    top_menu_file_save_packfile.connect_activate(clone!(
+    menu_bar_save_packfile.connect_activate(clone!(
         game_selected,
         window,
         success_dialog,
@@ -339,7 +382,7 @@ fn build_ui(application: &Application) {
         folder_tree_view,
         folder_tree_store,
         folder_tree_selection,
-        file_chooser_save_packfile_dialog => move |_| {
+        file_chooser_save_packfile_dialog => move |_,_| {
 
         // First, we check if our PackFile has a path. If it doesn't have it, we launch the Save
         // Dialog and set the current name in the entry of the dialog to his name.
@@ -400,7 +443,7 @@ fn build_ui(application: &Application) {
 
 
     // When we hit the "Save PackFile as" button.
-    top_menu_file_save_packfile_as.connect_activate(clone!(
+    menu_bar_save_packfile_as.connect_activate(clone!(
         window,
         success_dialog,
         error_dialog,
@@ -408,7 +451,7 @@ fn build_ui(application: &Application) {
         folder_tree_view,
         folder_tree_store,
         folder_tree_selection,
-        file_chooser_save_packfile_dialog => move |_| {
+        file_chooser_save_packfile_dialog => move |_,_| {
 
         // We first set the current file of the Save dialog to the PackFile's name. Then we just
         // encode it and save it in the path selected. After that, we update the TreeView to reflect
@@ -440,66 +483,62 @@ fn build_ui(application: &Application) {
         file_chooser_save_packfile_dialog.hide_on_delete();
     }));
 
-
-    // When changing the type of the PackFile... we just change his pack_file_type variable. Nothing complex.
-    top_menu_file_change_packfile_type_boot.connect_toggled(clone!(
+    // When changing the type of the open PackFile.
+    menu_bar_change_packfile_type.connect_activate(clone!(
         window,
-        top_menu_file_change_packfile_type_boot,
-        pack_file_decoded => move |_| {
-        if top_menu_file_change_packfile_type_boot.get_active() &&
-            pack_file_decoded.borrow().pack_file_header.pack_file_type != 0 {
-            pack_file_decoded.borrow_mut().pack_file_header.pack_file_type = 0;
-            set_modified(true, &window, &mut *pack_file_decoded.borrow_mut());
-        }
-    }));
-    top_menu_file_change_packfile_type_release.connect_toggled(clone!(
-        window,
-        top_menu_file_change_packfile_type_release,
-        pack_file_decoded => move |_| {
-        if top_menu_file_change_packfile_type_release.get_active() &&
-            pack_file_decoded.borrow().pack_file_header.pack_file_type != 1 {
-            pack_file_decoded.borrow_mut().pack_file_header.pack_file_type = 1;
-            set_modified(true, &window, &mut *pack_file_decoded.borrow_mut());
-        }
-    }));
-    top_menu_file_change_packfile_type_patch.connect_toggled(clone!(
-        window,
-        top_menu_file_change_packfile_type_patch,
-        pack_file_decoded => move |_| {
-        if top_menu_file_change_packfile_type_patch.get_active() &&
-            pack_file_decoded.borrow().pack_file_header.pack_file_type != 2 {
-            pack_file_decoded.borrow_mut().pack_file_header.pack_file_type = 2;
-            set_modified(true, &window, &mut *pack_file_decoded.borrow_mut());
-        }
-    }));
-    top_menu_file_change_packfile_type_mod.connect_toggled(clone!(
-        window,
-        top_menu_file_change_packfile_type_mod,
-        pack_file_decoded => move |_| {
-        if top_menu_file_change_packfile_type_mod.get_active() &&
-            pack_file_decoded.borrow().pack_file_header.pack_file_type != 3 {
-            pack_file_decoded.borrow_mut().pack_file_header.pack_file_type = 3;
-            set_modified(true, &window, &mut *pack_file_decoded.borrow_mut());
-        }
-    }));
-    top_menu_file_change_packfile_type_movie.connect_toggled(clone!(
-        window,
-        top_menu_file_change_packfile_type_movie,
-        pack_file_decoded => move |_| {
-        if top_menu_file_change_packfile_type_movie.get_active() &&
-            pack_file_decoded.borrow().pack_file_header.pack_file_type != 4 {
-            pack_file_decoded.borrow_mut().pack_file_header.pack_file_type = 4;
-            set_modified(true, &window, &mut *pack_file_decoded.borrow_mut());
+        error_dialog,
+        pack_file_decoded => move |menu_bar_change_packfile_type, selected_type| {
+        if let Some(state) = selected_type.clone() {
+            let new_state: Option<String> = state.get();
+            println!("{:?}", new_state);
+            match &*new_state.unwrap() {
+                "boot" => {
+                    if pack_file_decoded.borrow().pack_file_header.pack_file_type != 0 {
+                        pack_file_decoded.borrow_mut().pack_file_header.pack_file_type = 0;
+                        menu_bar_change_packfile_type.change_state(&"boot".to_variant());
+                        set_modified(true, &window, &mut *pack_file_decoded.borrow_mut());
+                    }
+                }
+                "release" => {
+                    if pack_file_decoded.borrow().pack_file_header.pack_file_type != 1 {
+                        pack_file_decoded.borrow_mut().pack_file_header.pack_file_type = 1;
+                        menu_bar_change_packfile_type.change_state(&"release".to_variant());
+                        set_modified(true, &window, &mut *pack_file_decoded.borrow_mut());
+                    }
+                }
+                "patch" => {
+                    if pack_file_decoded.borrow().pack_file_header.pack_file_type != 2 {
+                        pack_file_decoded.borrow_mut().pack_file_header.pack_file_type = 2;
+                        menu_bar_change_packfile_type.change_state(&"patch".to_variant());
+                        set_modified(true, &window, &mut *pack_file_decoded.borrow_mut());
+                    }
+                }
+                "mod" => {
+                    if pack_file_decoded.borrow().pack_file_header.pack_file_type != 3 {
+                        pack_file_decoded.borrow_mut().pack_file_header.pack_file_type = 3;
+                        menu_bar_change_packfile_type.change_state(&"mod".to_variant());
+                        set_modified(true, &window, &mut *pack_file_decoded.borrow_mut());
+                    }
+                }
+                "movie" => {
+                    if pack_file_decoded.borrow().pack_file_header.pack_file_type != 4 {
+                        pack_file_decoded.borrow_mut().pack_file_header.pack_file_type = 4;
+                        menu_bar_change_packfile_type.change_state(&"movie".to_variant());
+                        set_modified(true, &window, &mut *pack_file_decoded.borrow_mut());
+                    }
+                }
+                _ => ui::show_dialog(&error_dialog, format_err!("PackFile Type not valid.")),
+            }
         }
     }));
 
     // When we hit the "Preferences" button.
-    top_menu_file_settings.connect_activate(clone!(
+    menu_bar_preferences.connect_activate(clone!(
         error_dialog,
-        application => move |top_menu_file_settings| {
+        application => move |menu_bar_preferences,_| {
 
         // We disable the button, so we can't start 2 settings windows at the same time.
-        top_menu_file_settings.set_sensitive(false);
+        menu_bar_preferences.set_enabled(false);
 
         let settings_stuff = Rc::new(RefCell::new(ui::settings::SettingsWindow::create_settings_window(&application)));
         settings_stuff.borrow().load_to_settings_window(&*settings.borrow());
@@ -554,37 +593,37 @@ fn build_ui(application: &Application) {
             error_dialog,
             settings_stuff,
             settings,
-            top_menu_file_settings => move |_,_| {
+            menu_bar_preferences => move |_,_| {
             let new_settings = settings_stuff.borrow().save_from_settings_window();
             *settings.borrow_mut() = new_settings;
             if let Err(error) = settings.borrow().save() {
                 ui::show_dialog(&error_dialog, error.cause());
             }
             settings_stuff.borrow().settings_window.destroy();
-            top_menu_file_settings.set_sensitive(true);
+            menu_bar_preferences.set_enabled(true);
             Inhibit(false)
         }));
 
         // When we press the "Cancel" button, we close the window.
         settings_stuff.borrow().settings_cancel.connect_button_release_event(clone!(
             settings_stuff,
-            top_menu_file_settings => move |_,_| {
+            menu_bar_preferences => move |_,_| {
             settings_stuff.borrow().settings_window.destroy();
-            top_menu_file_settings.set_sensitive(true);
+            menu_bar_preferences.set_enabled(true);
             Inhibit(false)
         }));
 
         // We catch the destroy event to restore the "Preferences" button.
         settings_stuff.borrow().settings_window.connect_delete_event(clone!(
-            top_menu_file_settings => move |settings_window, _| {
+            menu_bar_preferences => move |settings_window, _| {
             settings_window.destroy();
-            top_menu_file_settings.set_sensitive(true);
+            menu_bar_preferences.set_enabled(true);
             Inhibit(false)
         }));
     }));
 
     // When we hit the "Quit" button.
-    top_menu_file_quit.connect_activate(clone!(window => move |_| {
+    menu_bar_quit.connect_activate(clone!(window => move |_,_| {
         window.destroy();
     }));
 
@@ -594,27 +633,14 @@ fn build_ui(application: &Application) {
     --------------------------------------------------------
     */
 
-    // When we open the menu, we check if we need to enable or disable his buttons first.
-    top_menu_special_stuff.connect_activate(clone!(
-        top_menu_special_patch_ai,
-        pack_file_decoded => move |_| {
-        if pack_file_decoded.borrow().pack_file_extra_data.file_name.is_empty() {
-            top_menu_special_patch_ai.set_sensitive(false);
-        }
-        else {
-            top_menu_special_patch_ai.set_sensitive(true);
-        }
-    }));
-
-
     // When we hit the "Patch SiegeAI" button.
-    top_menu_special_patch_ai.connect_activate(clone!(
+    menu_bar_patch_siege_ai.connect_activate(clone!(
     success_dialog,
     error_dialog,
     pack_file_decoded,
     folder_tree_view,
     folder_tree_store,
-    folder_tree_selection => move |_| {
+    folder_tree_selection => move |_,_| {
 
         // First, we try to patch the PackFile. If there are no errors, we save the result in a tuple.
         // Then we check that tuple and, if it's a success, we save the PackFile and update the TreeView.
@@ -651,7 +677,7 @@ fn build_ui(application: &Application) {
     */
 
     // When we hit the "About" button.
-    top_menu_about_about.connect_activate(move |_| {
+    menu_bar_about.connect_activate(move |_,_| {
         window_about.run();
         window_about.hide_on_delete();
     });
@@ -663,49 +689,15 @@ fn build_ui(application: &Application) {
     --------------------------------------------------------
     */
 
-    // When we right-click the TreeView, we check if we need to enable or disable his buttons first.
-    // Then we calculate the position where the popup must aim, and show it.
+    // When we right-click the TreeView, we calculate the position where the popup must aim, and show it.
     //
-    // NOTE: REMEMBER, WE OPEN THE POPUP HERE, BUT WE NEED TO CLOSED IT WHEN WE HIT HIS BUTTONS.
+    // NOTE: REMEMBER, WE OPEN THE POPUP HERE, BUT WE NEED TO CLOSE IT WHEN WE HIT HIS BUTTONS.
     folder_tree_view.connect_button_release_event(clone!(
-        pack_file_decoded,
         folder_tree_view,
         folder_tree_selection,
-        tree_view_add_file,
-        tree_view_add_folder,
-        tree_view_add_from_packfile,
-        tree_view_extract_file,
-        tree_view_delete_file,
-        context_menu_tree_view => move |_, button| {
+        context_menu_tree_view => move |_,button| {
 
-        let button_val = button.get_button();
-        if button_val == 3 && folder_tree_selection.count_selected_rows() > 0 {
-            let tree_path = ui::get_tree_path_from_selection(&folder_tree_selection, false);
-            for i in &*pack_file_decoded.borrow().pack_file_data.packed_files {
-                // If the selected thing is a file
-                if i.packed_file_path == tree_path {
-                    tree_view_add_file.set_sensitive(false);
-                    tree_view_add_folder.set_sensitive(false);
-                    tree_view_add_from_packfile.set_sensitive(false);
-                    tree_view_extract_file.set_sensitive(true);
-                    tree_view_delete_file.set_sensitive(true);
-                    break;
-                }
-                else {
-                    tree_view_add_file.set_sensitive(true);
-                    tree_view_add_folder.set_sensitive(true);
-                    tree_view_add_from_packfile.set_sensitive(true);
-                    tree_view_extract_file.set_sensitive(true);
-                    tree_view_delete_file.set_sensitive(true);
-                }
-            }
-            if tree_path.len() == 0 {
-                tree_view_add_file.set_sensitive(true);
-                tree_view_add_folder.set_sensitive(true);
-                tree_view_add_from_packfile.set_sensitive(true);
-                tree_view_extract_file.set_sensitive(false);
-                tree_view_delete_file.set_sensitive(false);
-            }
+        if button.get_button() == 3 && folder_tree_selection.count_selected_rows() > 0 {
             let rect = ui::get_rect_for_popover(&folder_tree_view, Some(button.get_position()));
 
             context_menu_tree_view.set_pointing_to(&rect);
@@ -714,92 +706,79 @@ fn build_ui(application: &Application) {
         Inhibit(false)
     }));
 
+    // We check every action possible for the selected file when changing the cursor.
+    folder_tree_view.connect_cursor_changed(clone!(
+        pack_file_decoded,
+        folder_tree_selection,
+        context_menu_add_file,
+        context_menu_add_folder,
+        context_menu_add_from_packfile,
+        context_menu_delete_packedfile,
+        context_menu_extract_packedfile => move |_| {
+        let tree_path = ui::get_tree_path_from_selection(&folder_tree_selection, false);
+        for i in &*pack_file_decoded.borrow().pack_file_data.packed_files {
+
+            // If the selection is a file.
+            if i.packed_file_path == tree_path {
+                context_menu_add_file.set_enabled(false);
+                context_menu_add_folder.set_enabled(false);
+                context_menu_add_from_packfile.set_enabled(false);
+                context_menu_delete_packedfile.set_enabled(true);
+                context_menu_extract_packedfile.set_enabled(true);
+                break;
+            }
+        }
+
+        // If it's the PackFile.
+        if tree_path.len() == 0 {
+            context_menu_add_file.set_enabled(true);
+            context_menu_add_folder.set_enabled(true);
+            context_menu_add_from_packfile.set_enabled(true);
+            context_menu_delete_packedfile.set_enabled(false);
+            context_menu_extract_packedfile.set_enabled(false);
+        }
+
+        // If this is triggered, the selection is a folder.
+        else {
+            context_menu_add_file.set_enabled(true);
+            context_menu_add_folder.set_enabled(true);
+            context_menu_add_from_packfile.set_enabled(true);
+            context_menu_delete_packedfile.set_enabled(true);
+            context_menu_extract_packedfile.set_enabled(true);
+        }
+    }));
 
     // When we hit the "Add file" button.
-    tree_view_add_file.connect_button_release_event(clone!(
+    context_menu_add_file.connect_activate(clone!(
         window,
         error_dialog,
         pack_file_decoded,
         folder_tree_view,
         folder_tree_store,
         folder_tree_selection,
+        file_chooser_add_file_to_packfile,
         context_menu_tree_view => move |_,_| {
 
         // First, we hide the context menu, then we pick the file selected and add it to the Packfile.
         // After that, we update the TreeView.
         context_menu_tree_view.popdown();
 
-        if file_chooser_add_file_to_packfile.run() == gtk_response_ok {
+        // We only do something in case the focus is in the TreeView. This should stop problems with
+        // the accels working everywhere.
+        if folder_tree_view.has_focus() {
+            if file_chooser_add_file_to_packfile.run() == gtk_response_ok {
 
-            let paths = file_chooser_add_file_to_packfile.get_filenames();
-            for path in paths.iter() {
+                let paths = file_chooser_add_file_to_packfile.get_filenames();
+                for path in paths.iter() {
 
-                //let file_path = file_chooser_add_file_to_packfile.get_filename().expect("Couldn't open file");
-                let tree_path = ui::get_tree_path_from_pathbuf(&path, &folder_tree_selection, true);
-                let mut success = false;
-                match packfile::add_file_to_packfile(&mut *pack_file_decoded.borrow_mut(), path, tree_path) {
-                    Ok(_) => success = true,
-                    Err(error) => ui::show_dialog(&error_dialog, error.cause())
-                }
-                if success {
-                    set_modified(false, &window, &mut *pack_file_decoded.borrow_mut());
-                    ui::update_tree_view_expand_path(
-                        &folder_tree_store,
-                        &*pack_file_decoded.borrow(),
-                        &folder_tree_selection,
-                        &folder_tree_view,
-                        false
-                    );
-                }
-            }
-        }
-        file_chooser_add_file_to_packfile.hide_on_delete();
-
-        Inhibit(false)
-    }));
-
-
-    // When we hit the "Add folder" button.
-    tree_view_add_folder.connect_button_release_event(clone!(
-        window,
-        error_dialog,
-        pack_file_decoded,
-        folder_tree_view,
-        folder_tree_store,
-        folder_tree_selection,
-        context_menu_tree_view => move |_,_| {
-
-        // First, we hide the context menu. Then we get the folder selected and we get all the files
-        // in him and his subfolders. After that, for every one of those files, we strip his path,
-        // leaving then with only the part that will be added to the PackedFile and we add it to the
-        // PackFile. After all that, if we added any of the files to the PackFile, we update the
-        // TreeView.
-        context_menu_tree_view.popdown();
-        if file_chooser_add_folder_to_packfile.run() == gtk_response_ok {
-            let folders = file_chooser_add_folder_to_packfile.get_filenames();
-            for folder in folders.iter() {
-                let mut big_parent_prefix = folder.clone();
-                big_parent_prefix.pop();
-                match ::common::get_files_from_subdir(&folder) {
-                    Ok(file_path_list) => {
-                        let mut file_errors = 0;
-                        for i in file_path_list {
-                            match i.strip_prefix(&big_parent_prefix) {
-                                Ok(filtered_path) => {
-                                    let tree_path = ui::get_tree_path_from_pathbuf(&filtered_path.to_path_buf(), &folder_tree_selection, false);
-                                    if let Err(_) = packfile::add_file_to_packfile(&mut *pack_file_decoded.borrow_mut(), &i.to_path_buf(), tree_path) {
-                                        file_errors += 1;
-                                    }
-                                }
-                                Err(_) => {
-                                    panic!("Error while trying to filter the path. This should never happen unless I break something while I'm getting the paths.");
-                                }
-                            }
-                        }
-                        if file_errors > 0 {
-                            ui::show_dialog(&error_dialog, format!("{} file/s that you wanted to add already exist in the Packfile.", file_errors));
-                        }
-                        set_modified(true, &window, &mut *pack_file_decoded.borrow_mut());
+                    let tree_path = ui::get_tree_path_from_pathbuf(&path, &folder_tree_selection, true);
+                    let mut success = false;
+                    match packfile::add_file_to_packfile(&mut *pack_file_decoded.borrow_mut(), path, tree_path) {
+                        Ok(_) => success = true,
+                        Err(error) => ui::show_dialog(&error_dialog, error.cause())
+                    }
+                    if success {
+                        set_modified(false, &window, &mut *pack_file_decoded.borrow_mut());
                         ui::update_tree_view_expand_path(
                             &folder_tree_store,
                             &*pack_file_decoded.borrow(),
@@ -808,126 +787,58 @@ fn build_ui(application: &Application) {
                             false
                         );
                     }
-                    Err(error) => ui::show_dialog(&error_dialog, error.cause()),
                 }
             }
+            file_chooser_add_file_to_packfile.hide_on_delete();
         }
-        file_chooser_add_folder_to_packfile.hide_on_delete();
-
-        Inhibit(false)
     }));
 
-    // When we hit the "Add file/folder from PackFile" button.
-    tree_view_add_from_packfile.connect_button_release_event(clone!(
+
+    // When we hit the "Add folder" button.
+    context_menu_add_folder.connect_activate(clone!(
         window,
         error_dialog,
         pack_file_decoded,
-        pack_file_decoded_extra,
-        packed_file_data_display,
         folder_tree_view,
         folder_tree_store,
         folder_tree_selection,
-        is_folder_tree_view_locked,
+        file_chooser_add_folder_to_packfile,
         context_menu_tree_view => move |_,_| {
 
-        // First, we hide the context menu, then we pick the PackFile selected.
-        // After that, we update the TreeView.
+        // First, we hide the context menu. Then we get the folder selected and we get all the files
+        // in him and his subfolders. After that, for every one of those files, we strip his path,
+        // leaving then with only the part that will be added to the PackedFile and we add it to the
+        // PackFile. After all that, if we added any of the files to the PackFile, we update the
+        // TreeView.
         context_menu_tree_view.popdown();
 
-        // Then, we destroy any children that the packed_file_data_display we use may have, cleaning it.
-        let childrens_to_utterly_destroy = packed_file_data_display.get_children();
-        if !childrens_to_utterly_destroy.is_empty() {
-            for i in childrens_to_utterly_destroy.iter() {
-                i.destroy();
-            }
-        }
-
-        if file_chooser_add_from_packfile_dialog.run() == gtk_response_ok {
-            let pack_file_path = file_chooser_add_from_packfile_dialog.get_filename().expect("Couldn't open file");
-            match packfile::open_packfile(pack_file_path) {
-
-                // If the extra PackFile is valid, we create a box with a button to exit this mode
-                // and a TreeView of the PackFile data.
-                Ok(pack_file_opened) => {
-
-                    // We put a "Save" button in the top part, and left the lower part for an horizontal
-                    // Box with the "Copy" button and the TreeView.
-                    let folder_tree_view_extra_exit_button = Button::new_with_label("Exit \"Add file/folder from PackFile\" mode");
-                    packed_file_data_display.add(&folder_tree_view_extra_exit_button);
-
-                    let packed_file_data_display_horizontal_box = Box::new(Orientation::Horizontal, 0);
-                    packed_file_data_display.pack_end(&packed_file_data_display_horizontal_box, true, true, 0);
-
-                    // First, we create the "Copy" Button.
-                    let folder_tree_view_extra_copy_button = Button::new_with_label("<=");
-                    packed_file_data_display_horizontal_box.add(&folder_tree_view_extra_copy_button);
-
-                    // Second, we create the new TreeView (in a ScrolledWindow) and his TreeStore.
-                    let folder_tree_view_extra = TreeView::new();
-                    let folder_tree_store_extra = TreeStore::new(&[String::static_type()]);
-                    folder_tree_view_extra.set_model(Some(&folder_tree_store_extra));
-
-                    let column_extra = TreeViewColumn::new();
-                    let cell_extra = CellRendererText::new();
-                    column_extra.pack_start(&cell_extra, true);
-                    column_extra.add_attribute(&cell_extra, "text", 0);
-
-                    folder_tree_view_extra.append_column(&column_extra);
-                    folder_tree_view_extra.set_enable_tree_lines(true);
-                    folder_tree_view_extra.set_enable_search(false);
-                    folder_tree_view_extra.set_rules_hint(true);
-                    folder_tree_view_extra.set_headers_visible(false);
-
-                    let folder_tree_view_extra_scroll = ScrolledWindow::new(None, None);
-                    folder_tree_view_extra_scroll.add(&folder_tree_view_extra);
-
-                    packed_file_data_display_horizontal_box.pack_end(&folder_tree_view_extra_scroll, true, true, 0);
-
-                    // And show everything and lock the main PackFile's TreeView.
-                    packed_file_data_display.show_all();
-                    *is_folder_tree_view_locked.borrow_mut() = true;
-
-                    *pack_file_decoded_extra.borrow_mut() = pack_file_opened;
-                    ui::update_tree_view(&folder_tree_store_extra, &*pack_file_decoded_extra.borrow());
-
-                    // We need to check here if the selected destiny is not a file. Otherwise
-                    // we disable the "Copy" button.
-                    folder_tree_selection.connect_changed(clone!(
-                    folder_tree_view_extra_copy_button,
-                    pack_file_decoded => move |folder_tree_selection| {
-                        let tree_path = ui::get_tree_path_from_selection(&folder_tree_selection, true);
-
-                        // Only in case it's not a file, we enable the "Copy" Button.
-                        match get_type_of_selected_tree_path(&tree_path, &*pack_file_decoded.borrow()) {
-                            TreePathType::File(_) => folder_tree_view_extra_copy_button.set_sensitive(false),
-                            TreePathType::Folder(_) | TreePathType::PackFile | TreePathType::None => folder_tree_view_extra_copy_button.set_sensitive(true),
-                        }
-                    }));
-
-                    // When we click in the "Copy" button (<=).
-                    folder_tree_view_extra_copy_button.connect_button_release_event(clone!(
-                        window,
-                        error_dialog,
-                        pack_file_decoded,
-                        pack_file_decoded_extra,
-                        folder_tree_view,
-                        folder_tree_store,
-                        folder_tree_selection,
-                        folder_tree_view_extra => move |_,_| {
-
-                        let tree_path_source = ui::get_tree_path_from_selection(&folder_tree_view_extra.get_selection(), true);
-                        let tree_path_destination = ui::get_tree_path_from_selection(&folder_tree_selection, true);
-                        let mut packed_file_added = false;
-                        match packfile::add_packedfile_to_packfile(
-                            &*pack_file_decoded_extra.borrow(),
-                            &mut *pack_file_decoded.borrow_mut(),
-                            tree_path_source,
-                            tree_path_destination,
-                        ) {
-                            Ok(_) => packed_file_added = true,
-                            Err(error) => ui::show_dialog(&error_dialog, error.cause()),
-                        }
-                        if packed_file_added {
+        // We only do something in case the focus is in the TreeView. This should stop problems with
+        // the accels working everywhere.
+        if folder_tree_view.has_focus() {
+            if file_chooser_add_folder_to_packfile.run() == gtk_response_ok {
+                let folders = file_chooser_add_folder_to_packfile.get_filenames();
+                for folder in folders.iter() {
+                    let mut big_parent_prefix = folder.clone();
+                    big_parent_prefix.pop();
+                    match ::common::get_files_from_subdir(&folder) {
+                        Ok(file_path_list) => {
+                            let mut file_errors = 0;
+                            for i in file_path_list {
+                                match i.strip_prefix(&big_parent_prefix) {
+                                    Ok(filtered_path) => {
+                                        let tree_path = ui::get_tree_path_from_pathbuf(&filtered_path.to_path_buf(), &folder_tree_selection, false);
+                                        if let Err(_) = packfile::add_file_to_packfile(&mut *pack_file_decoded.borrow_mut(), &i.to_path_buf(), tree_path) {
+                                            file_errors += 1;
+                                        }
+                                    }
+                                    Err(_) => {
+                                        panic!("Error while trying to filter the path. This should never happen unless I break something while I'm getting the paths.");
+                                    }
+                                }
+                            }
+                            if file_errors > 0 {
+                                ui::show_dialog(&error_dialog, format!("{} file/s that you wanted to add already exist in the Packfile.", file_errors));
+                            }
                             set_modified(true, &window, &mut *pack_file_decoded.borrow_mut());
                             ui::update_tree_view_expand_path(
                                 &folder_tree_store,
@@ -937,39 +848,171 @@ fn build_ui(application: &Application) {
                                 false
                             );
                         }
-
-                        Inhibit(false)
-                    }));
-
-                    // When we click in the "Exit "Add file/folder from PackFile" mode" button.
-                    folder_tree_view_extra_exit_button.connect_button_release_event(clone!(
-                        packed_file_data_display,
-                        is_folder_tree_view_locked => move |_,_| {
-                        *is_folder_tree_view_locked.borrow_mut() = false;
-
-                        // We need to destroy any children that the packed_file_data_display we use may have, cleaning it.
-                        let children_to_utterly_destroy = packed_file_data_display.get_children();
-                        if !children_to_utterly_destroy.is_empty() {
-                            for i in children_to_utterly_destroy.iter() {
-                                i.destroy();
-                            }
-                        }
-                        ui::display_help_tips(&packed_file_data_display);
-
-                        Inhibit(false)
-                    }));
-
+                        Err(error) => ui::show_dialog(&error_dialog, error.cause()),
+                    }
                 }
-                Err(error) => ui::show_dialog(&error_dialog, error.cause()),
             }
+            file_chooser_add_folder_to_packfile.hide_on_delete();
         }
-        file_chooser_add_from_packfile_dialog.hide_on_delete();
+    }));
 
-        Inhibit(false)
+    // When we hit the "Add file/folder from PackFile" button.
+    context_menu_add_from_packfile.connect_activate(clone!(
+        window,
+        error_dialog,
+        pack_file_decoded,
+        pack_file_decoded_extra,
+        packed_file_data_display,
+        folder_tree_view,
+        folder_tree_store,
+        folder_tree_selection,
+        is_folder_tree_view_locked,
+        file_chooser_add_from_packfile_dialog,
+        context_menu_tree_view => move |_,_| {
+
+        // First, we hide the context menu, then we pick the PackFile selected.
+        // After that, we update the TreeView.
+        context_menu_tree_view.popdown();
+
+        // We only do something in case the focus is in the TreeView. This should stop problems with
+        // the accels working everywhere.
+        if folder_tree_view.has_focus() {
+
+            // Then, we destroy any children that the packed_file_data_display we use may have, cleaning it.
+            let childrens_to_utterly_destroy = packed_file_data_display.get_children();
+            if !childrens_to_utterly_destroy.is_empty() {
+                for i in childrens_to_utterly_destroy.iter() {
+                    i.destroy();
+                }
+            }
+
+            if file_chooser_add_from_packfile_dialog.run() == gtk_response_ok {
+                let pack_file_path = file_chooser_add_from_packfile_dialog.get_filename().expect("Couldn't open file");
+                match packfile::open_packfile(pack_file_path) {
+
+                    // If the extra PackFile is valid, we create a box with a button to exit this mode
+                    // and a TreeView of the PackFile data.
+                    Ok(pack_file_opened) => {
+
+                        // We put a "Save" button in the top part, and left the lower part for an horizontal
+                        // Box with the "Copy" button and the TreeView.
+                        let folder_tree_view_extra_exit_button = Button::new_with_label("Exit \"Add file/folder from PackFile\" mode");
+                        packed_file_data_display.add(&folder_tree_view_extra_exit_button);
+
+                        let packed_file_data_display_horizontal_box = Box::new(Orientation::Horizontal, 0);
+                        packed_file_data_display.pack_end(&packed_file_data_display_horizontal_box, true, true, 0);
+
+                        // First, we create the "Copy" Button.
+                        let folder_tree_view_extra_copy_button = Button::new_with_label("<=");
+                        packed_file_data_display_horizontal_box.add(&folder_tree_view_extra_copy_button);
+
+                        // Second, we create the new TreeView (in a ScrolledWindow) and his TreeStore.
+                        let folder_tree_view_extra = TreeView::new();
+                        let folder_tree_store_extra = TreeStore::new(&[String::static_type()]);
+                        folder_tree_view_extra.set_model(Some(&folder_tree_store_extra));
+
+                        let column_extra = TreeViewColumn::new();
+                        let cell_extra = CellRendererText::new();
+                        column_extra.pack_start(&cell_extra, true);
+                        column_extra.add_attribute(&cell_extra, "text", 0);
+
+                        folder_tree_view_extra.append_column(&column_extra);
+                        folder_tree_view_extra.set_enable_tree_lines(true);
+                        folder_tree_view_extra.set_enable_search(false);
+                        folder_tree_view_extra.set_rules_hint(true);
+                        folder_tree_view_extra.set_headers_visible(false);
+
+                        let folder_tree_view_extra_scroll = ScrolledWindow::new(None, None);
+                        folder_tree_view_extra_scroll.add(&folder_tree_view_extra);
+
+                        packed_file_data_display_horizontal_box.pack_end(&folder_tree_view_extra_scroll, true, true, 0);
+
+                        // And show everything and lock the main PackFile's TreeView.
+                        packed_file_data_display.show_all();
+                        *is_folder_tree_view_locked.borrow_mut() = true;
+
+                        *pack_file_decoded_extra.borrow_mut() = pack_file_opened;
+                        ui::update_tree_view(&folder_tree_store_extra, &*pack_file_decoded_extra.borrow());
+
+                        // We need to check here if the selected destiny is not a file. Otherwise
+                        // we disable the "Copy" button.
+                        folder_tree_selection.connect_changed(clone!(
+                        folder_tree_view_extra_copy_button,
+                        pack_file_decoded => move |folder_tree_selection| {
+                            let tree_path = ui::get_tree_path_from_selection(&folder_tree_selection, true);
+
+                            // Only in case it's not a file, we enable the "Copy" Button.
+                            match get_type_of_selected_tree_path(&tree_path, &*pack_file_decoded.borrow()) {
+                                TreePathType::File(_) => folder_tree_view_extra_copy_button.set_sensitive(false),
+                                TreePathType::Folder(_) | TreePathType::PackFile | TreePathType::None => folder_tree_view_extra_copy_button.set_sensitive(true),
+                            }
+                        }));
+
+                        // When we click in the "Copy" button (<=).
+                        folder_tree_view_extra_copy_button.connect_button_release_event(clone!(
+                            window,
+                            error_dialog,
+                            pack_file_decoded,
+                            pack_file_decoded_extra,
+                            folder_tree_view,
+                            folder_tree_store,
+                            folder_tree_selection,
+                            folder_tree_view_extra => move |_,_| {
+
+                            let tree_path_source = ui::get_tree_path_from_selection(&folder_tree_view_extra.get_selection(), true);
+                            let tree_path_destination = ui::get_tree_path_from_selection(&folder_tree_selection, true);
+                            let mut packed_file_added = false;
+                            match packfile::add_packedfile_to_packfile(
+                                &*pack_file_decoded_extra.borrow(),
+                                &mut *pack_file_decoded.borrow_mut(),
+                                tree_path_source,
+                                tree_path_destination,
+                            ) {
+                                Ok(_) => packed_file_added = true,
+                                Err(error) => ui::show_dialog(&error_dialog, error.cause()),
+                            }
+                            if packed_file_added {
+                                set_modified(true, &window, &mut *pack_file_decoded.borrow_mut());
+                                ui::update_tree_view_expand_path(
+                                    &folder_tree_store,
+                                    &*pack_file_decoded.borrow(),
+                                    &folder_tree_selection,
+                                    &folder_tree_view,
+                                    false
+                                );
+                            }
+
+                            Inhibit(false)
+                        }));
+
+                        // When we click in the "Exit "Add file/folder from PackFile" mode" button.
+                        folder_tree_view_extra_exit_button.connect_button_release_event(clone!(
+                            packed_file_data_display,
+                            is_folder_tree_view_locked => move |_,_| {
+                            *is_folder_tree_view_locked.borrow_mut() = false;
+
+                            // We need to destroy any children that the packed_file_data_display we use may have, cleaning it.
+                            let children_to_utterly_destroy = packed_file_data_display.get_children();
+                            if !children_to_utterly_destroy.is_empty() {
+                                for i in children_to_utterly_destroy.iter() {
+                                    i.destroy();
+                                }
+                            }
+                            ui::display_help_tips(&packed_file_data_display);
+
+                            Inhibit(false)
+                        }));
+
+                    }
+                    Err(error) => ui::show_dialog(&error_dialog, error.cause()),
+                }
+            }
+            file_chooser_add_from_packfile_dialog.hide_on_delete();
+        }
     }));
 
     // When we hit the "Delete file/folder" button.
-    tree_view_delete_file.connect_button_release_event(clone!(
+    context_menu_delete_packedfile.connect_activate(clone!(
         window,
         error_dialog,
         pack_file_decoded,
@@ -982,74 +1025,82 @@ fn build_ui(application: &Application) {
         // TreeView. Pretty simple, actually.
         context_menu_tree_view.popdown();
 
-        let tree_path = ui::get_tree_path_from_selection(&folder_tree_selection, true);
-        let mut success = false;
-        match packfile::delete_from_packfile(&mut *pack_file_decoded.borrow_mut(), tree_path) {
-            Ok(_) => success = true,
-            Err(error) => ui::show_dialog(&error_dialog, error.cause())
-        }
-        if success {
-            set_modified(true, &window, &mut *pack_file_decoded.borrow_mut());
-            ui::update_tree_view_expand_path(
-                &folder_tree_store,
-                &*pack_file_decoded.borrow(),
-                &folder_tree_selection,
-                &folder_tree_view,
-                true
-            );
-        }
+        // We only do something in case the focus is in the TreeView. This should stop problems with
+        // the accels working everywhere.
+        if folder_tree_view.has_focus() {
 
-        Inhibit(false)
+            let tree_path = ui::get_tree_path_from_selection(&folder_tree_selection, true);
+            let mut success = false;
+            match packfile::delete_from_packfile(&mut *pack_file_decoded.borrow_mut(), tree_path) {
+                Ok(_) => success = true,
+                Err(error) => ui::show_dialog(&error_dialog, error.cause())
+            }
+            if success {
+                set_modified(true, &window, &mut *pack_file_decoded.borrow_mut());
+                ui::update_tree_view_expand_path(
+                    &folder_tree_store,
+                    &*pack_file_decoded.borrow(),
+                    &folder_tree_selection,
+                    &folder_tree_view,
+                    true
+                );
+            }
+        }
     }));
 
 
     // When we hit the "Extract file/folder" button.
-    tree_view_extract_file.connect_button_release_event(clone!(
+    context_menu_extract_packedfile.connect_activate(clone!(
         success_dialog,
         error_dialog,
         pack_file_decoded,
+        folder_tree_view,
         folder_tree_selection,
+        file_chooser_extract_file,
+        file_chooser_extract_folder,
         context_menu_tree_view => move |_,_|{
 
         // First, we hide the context menu.
         context_menu_tree_view.popdown();
 
-        let tree_path = ui::get_tree_path_from_selection(&folder_tree_selection, true);
+        // We only do something in case the focus is in the TreeView. This should stop problems with
+        // the accels working everywhere.
+        if folder_tree_view.has_focus() {
+            let tree_path = ui::get_tree_path_from_selection(&folder_tree_selection, true);
 
-        // Then, we check with the correlation data if the tree_path is a folder or a file.
-        // Both (folder and file) are processed in the same way but we need a different
-        // FileChooser for files and folders, so we check first what it's.
-        match get_type_of_selected_tree_path(&tree_path, &*pack_file_decoded.borrow()) {
-            TreePathType::File(_) => {
-                file_chooser_extract_file.set_current_name(&tree_path.last().unwrap());
-                if file_chooser_extract_file.run() == gtk_response_ok {
-                    match packfile::extract_from_packfile(
-                        &*pack_file_decoded.borrow(),
-                        tree_path,
-                        file_chooser_extract_file.get_filename().expect("Couldn't open file")) {
-                        Ok(result) => ui::show_dialog(&success_dialog, result),
-                        Err(error) => ui::show_dialog(&error_dialog, error.cause())
+            // Then, we check with the correlation data if the tree_path is a folder or a file.
+            // Both (folder and file) are processed in the same way but we need a different
+            // FileChooser for files and folders, so we check first what it's.
+            match get_type_of_selected_tree_path(&tree_path, &*pack_file_decoded.borrow()) {
+                TreePathType::File(_) => {
+                    file_chooser_extract_file.set_current_name(&tree_path.last().unwrap());
+                    if file_chooser_extract_file.run() == gtk_response_ok {
+                        match packfile::extract_from_packfile(
+                            &*pack_file_decoded.borrow(),
+                            tree_path,
+                            file_chooser_extract_file.get_filename().expect("Couldn't open file")) {
+                            Ok(result) => ui::show_dialog(&success_dialog, result),
+                            Err(error) => ui::show_dialog(&error_dialog, error.cause())
+                        }
                     }
-                }
-                file_chooser_extract_file.hide_on_delete();
-            },
-            TreePathType::Folder(_) => {
-                if file_chooser_extract_folder.run() == gtk_response_ok {
-                    match packfile::extract_from_packfile(
-                        &*pack_file_decoded.borrow(),
-                        tree_path,
-                        file_chooser_extract_folder.get_filename().expect("Couldn't open file")) {
-                        Ok(result) => ui::show_dialog(&success_dialog, result),
-                        Err(error) => ui::show_dialog(&error_dialog, error.cause())
+                    file_chooser_extract_file.hide_on_delete();
+                },
+                TreePathType::Folder(_) => {
+                    if file_chooser_extract_folder.run() == gtk_response_ok {
+                        match packfile::extract_from_packfile(
+                            &*pack_file_decoded.borrow(),
+                            tree_path,
+                            file_chooser_extract_folder.get_filename().expect("Couldn't open file")) {
+                            Ok(result) => ui::show_dialog(&success_dialog, result),
+                            Err(error) => ui::show_dialog(&error_dialog, error.cause())
+                        }
                     }
+                    file_chooser_extract_folder.hide_on_delete();
                 }
-                file_chooser_extract_folder.hide_on_delete();
+                TreePathType::PackFile => ui::show_dialog(&error_dialog, format!("Extracting an entire PackFile is not implemented. Yet.")),
+                TreePathType::None => ui::show_dialog(&error_dialog, format!("You can't extract non-existent files.")),
             }
-            TreePathType::PackFile => ui::show_dialog(&error_dialog, format!("Extracting an entire PackFile is not implemented. Yet.")),
-            TreePathType::None => ui::show_dialog(&error_dialog, format!("You can't extract non-existent files.")),
         }
-
-        Inhibit(false)
     }));
 
     /*
@@ -2583,11 +2634,10 @@ fn build_ui(application: &Application) {
         error_dialog,
         pack_file_decoded,
         folder_tree_store,
-        top_menu_file_change_packfile_type_boot,
-        top_menu_file_change_packfile_type_release,
-        top_menu_file_change_packfile_type_patch,
-        top_menu_file_change_packfile_type_mod,
-        top_menu_file_change_packfile_type_movie => move |_, _, _, _, selection_data, info, _| {
+        menu_bar_save_packfile,
+        menu_bar_save_packfile_as,
+        menu_bar_change_packfile_type,
+        menu_bar_patch_siege_ai => move |_, _, _, _, selection_data, info, _| {
         match info {
             0 => {
                 let pack_file_path: PathBuf;
@@ -2606,13 +2656,18 @@ fn build_ui(application: &Application) {
 
                         // We choose the right option, depending on our PackFile.
                         match pack_file_decoded.borrow().pack_file_header.pack_file_type {
-                            0 => top_menu_file_change_packfile_type_boot.set_active(true),
-                            1 => top_menu_file_change_packfile_type_release.set_active(true),
-                            2 => top_menu_file_change_packfile_type_patch.set_active(true),
-                            3 => top_menu_file_change_packfile_type_mod.set_active(true),
-                            4 => top_menu_file_change_packfile_type_movie.set_active(true),
+                            0 => menu_bar_change_packfile_type.change_state(&"boot".to_variant()),
+                            1 => menu_bar_change_packfile_type.change_state(&"release".to_variant()),
+                            2 => menu_bar_change_packfile_type.change_state(&"patch".to_variant()),
+                            3 => menu_bar_change_packfile_type.change_state(&"mod".to_variant()),
+                            4 => menu_bar_change_packfile_type.change_state(&"movie".to_variant()),
                             _ => ui::show_dialog(&error_dialog, format_err!("PackFile Type not valid.")),
                         }
+                        
+                        menu_bar_save_packfile.set_enabled(true);
+                        menu_bar_save_packfile_as.set_enabled(true);
+                        menu_bar_change_packfile_type.set_enabled(true);
+                        menu_bar_patch_siege_ai.set_enabled(true);
                     }
                     Err(error) => ui::show_dialog(&error_dialog, error.cause()),
                 }
@@ -2624,17 +2679,12 @@ fn build_ui(application: &Application) {
 
 //-----------------------------------------------------------------------------
 // From here, there is code that was in the build_ui function, but it was
-// becoming a mess to maintain, and was needed to be split in anticipation
-// for the threads stuff. Basically, the main should only call functions
-// from here, and these should spawn threads to keep the GUI responsible,
-// being intermediates between the GUI and the code.
+// becoming a mess to maintain, and was needed to be split.
 //-----------------------------------------------------------------------------
-
-// This function opens the packfile at the provided path.
 
 /// This function sets the currently open PackFile as "modified" or unmodified, both in the PackFile
 /// and in the title bar, depending on the value of the "is_modified" boolean.
-pub fn set_modified(
+fn set_modified(
     is_modified: bool,
     window: &ApplicationWindow,
     pack_file_decoded: &mut PackFile,
@@ -2653,7 +2703,7 @@ pub fn set_modified(
 fn main() {
 
     // We create the application.
-    let application = Application::new("com.elturkogames.rpfm", gio::ApplicationFlags::empty()).expect("Initialization failed...");
+    let application = Application::new("com.github.frodo45127.rpfm", gio::ApplicationFlags::empty()).expect("Initialization failed...");
 
     // We initialize it.
     application.connect_startup(move |app| {

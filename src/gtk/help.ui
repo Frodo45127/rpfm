@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+    <object class="GtkShortcutsWindow" id="shortcuts-main-window">
+        <property name="modal">1</property>
+        <child>
+            <object class="GtkShortcutsSection">
+                <property name="visible">1</property>
+                <property name="section-name">shortcuts</property>
+                <property name="max-height">10</property>
+
+                <!-- Menu Bar shortcuts -->
+                <child>
+                    <object class="GtkShortcutsGroup">
+                        <property name="visible">1</property>
+                        <property name="title" translatable="yes">Menu Bar Buttons</property>
+                        <property name="view">overview</property>
+
+                        <child>
+                            <object class="GtkShortcutsShortcut">
+                                <property name="visible">1</property>
+                                <property name="accelerator">&lt;Ctrl&gt;n</property>
+                                <property name="title" translatable="yes">New PackFile</property>
+                            </object>
+                        </child>
+
+                        <child>
+                            <object class="GtkShortcutsShortcut">
+                                <property name="visible">1</property>
+                                <property name="accelerator">&lt;Ctrl&gt;o</property>
+                                <property name="title" translatable="yes">Open PackFile</property>
+                            </object>
+                        </child>
+
+                        <child>
+                            <object class="GtkShortcutsShortcut">
+                                <property name="visible">1</property>
+                                <property name="accelerator">&lt;Ctrl&gt;s</property>
+                                <property name="title" translatable="yes">Save PackFile</property>
+                            </object>
+                        </child>
+
+                        <child>
+                            <object class="GtkShortcutsShortcut">
+                                <property name="visible">1</property>
+                                <property name="accelerator">&lt;Ctrl&gt;&lt;Shift&gt;s</property>
+                                <property name="title" translatable="yes">Save PackFile As</property>
+                            </object>
+                        </child>
+
+                        <child>
+                            <object class="GtkShortcutsShortcut">
+                                <property name="visible">1</property>
+                                <property name="accelerator">&lt;Ctrl&gt;p</property>
+                                <property name="title" translatable="yes">Preferences</property>
+                            </object>
+                        </child>
+
+                        <child>
+                            <object class="GtkShortcutsShortcut">
+                                <property name="visible">1</property>
+                                <property name="accelerator">&lt;Ctrl&gt;&lt;Shift&gt;h</property>
+                                <property name="title" translatable="yes">Shortcuts</property>
+                            </object>
+                        </child>
+
+                        <child>
+                            <object class="GtkShortcutsShortcut">
+                                <property name="visible">1</property>
+                                <property name="accelerator">&lt;Ctrl&gt;h</property>
+                                <property name="title" translatable="yes">About</property>
+                            </object>
+                        </child>
+
+                        <child>
+                            <object class="GtkShortcutsShortcut">
+                                <property name="visible">1</property>
+                                <property name="accelerator">&lt;Ctrl&gt;q</property>
+                                <property name="title" translatable="yes">Quit</property>
+                            </object>
+                        </child>
+                    </object>
+                </child>
+
+                <!-- PackFile View context menu shortcuts -->
+                <child>
+                    <object class="GtkShortcutsGroup">
+                        <property name="visible">1</property>
+                        <property name="title" translatable="yes">PackFile Management</property>
+                        <property name="view">wizard</property>
+
+                        <!-- LTR -->
+                        <child>
+                            <object class="GtkShortcutsShortcut">
+                                <property name="visible">1</property>
+                                <property name="accelerator">&lt;Shift&gt;a</property>
+                                <property name="title" translatable="yes">Add file</property>
+                            </object>
+                        </child>
+
+                        <child>
+                            <object class="GtkShortcutsShortcut">
+                                <property name="visible">1</property>
+                                <property name="accelerator">&lt;Shift&gt;d</property>
+                                <property name="title" translatable="yes">Add folder</property>
+                            </object>
+                        </child>
+
+                        <child>
+                            <object class="GtkShortcutsShortcut">
+                                <property name="visible">1</property>
+                                <property name="accelerator">&lt;Shift&gt;p</property>
+                                <property name="title" translatable="yes">Add from PackFile</property>
+                            </object>
+                        </child>
+
+                        <child>
+                            <object class="GtkShortcutsShortcut">
+                                <property name="visible">1</property>
+                                <property name="accelerator">Delete</property>
+                                <property name="title" translatable="yes">Delete PackedFile</property>
+                            </object>
+                        </child>
+
+                        <child>
+                            <object class="GtkShortcutsShortcut">
+                                <property name="visible">1</property>
+                                <property name="accelerator">&lt;Shift&gt;e</property>
+                                <property name="title" translatable="yes">Extract PackedFile</property>
+                            </object>
+                        </child>
+
+                    </object>
+                </child>
+
+                <!-- PackedFile shortcuts -->
+
+            </object>
+        </child>
+    </object>
+</interface>
