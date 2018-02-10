@@ -13,7 +13,7 @@ use gtk::prelude::*;
 use gtk::{
     Box, TreeView, ListStore, ScrolledWindow, Button, Orientation, TextView, Label, Entry, ToggleButton,
     CellRendererText, TreeViewColumn, CellRendererToggle, Type, WrapMode, Justification, Frame, CellRendererCombo,
-    TextTag, Popover, Image
+    TextTag, Popover, ModelButton
 };
 
 use self::hex_slice::AsHex;
@@ -31,9 +31,7 @@ pub struct PackedFileDBTreeView {
     pub packed_file_tree_view_cell_string: Vec<CellRendererText>,
     pub packed_file_tree_view_cell_optional_string: Vec<CellRendererText>,
     pub packed_file_popover_menu: Popover,
-    pub packed_file_popover_menu_add_rows_button: Button,
     pub packed_file_popover_menu_add_rows_entry: Entry,
-    pub packed_file_popover_menu_delete_rows_button: Button,
 }
 
 /// Struct PackedFileDBDecoder: contains all the stuff we need to return to be able to decode DB PackedFiles.
@@ -297,27 +295,22 @@ impl PackedFileDBTreeView{
         let packed_file_popover_menu_box = Box::new(Orientation::Vertical, 0);
         let packed_file_popover_menu_box_add_rows_box = Box::new(Orientation::Horizontal, 0);
 
-        let packed_file_popover_menu_add_rows_button = Button::new_with_label("Add rows:");
-        let packed_file_popover_menu_add_rows_button_image = Image::new_from_icon_name(Some("list-add"), gtk::IconSize::Button.into());
-        packed_file_popover_menu_add_rows_button.set_image(&packed_file_popover_menu_add_rows_button_image);
-        packed_file_popover_menu_add_rows_button.set_image_position(gtk::PositionType::Left);
-        packed_file_popover_menu_add_rows_button.set_relief(gtk::ReliefStyle::None);
-        packed_file_popover_menu_add_rows_button.get_children()[0].set_halign(gtk::Align::Start);
+        let packed_file_popover_menu_add_rows_button = ModelButton::new();
+        packed_file_popover_menu_add_rows_button.set_property_text(Some("Add rows:"));
+        packed_file_popover_menu_add_rows_button.set_action_name("app.packedfile_db_add_rows");
 
         let packed_file_popover_menu_add_rows_entry = Entry::new();
         let packed_file_popover_menu_add_rows_entry_buffer = packed_file_popover_menu_add_rows_entry.get_buffer();
         packed_file_popover_menu_add_rows_entry.set_alignment(1.0);
         packed_file_popover_menu_add_rows_entry.set_width_chars(8);
         packed_file_popover_menu_add_rows_entry.set_icon_from_stock(gtk::EntryIconPosition::Primary, Some("gtk-goto-last"));
+        packed_file_popover_menu_add_rows_entry.set_has_frame(false);
         packed_file_popover_menu_add_rows_entry_buffer.set_max_length(Some(4));
         packed_file_popover_menu_add_rows_entry_buffer.set_text("1");
 
-        let packed_file_popover_menu_delete_rows_button = Button::new_with_label("Delete row/s");
-        let packed_file_popover_menu_delete_rows_button_image = Image::new_from_icon_name(Some("edit-delete"), gtk::IconSize::Button.into());
-        packed_file_popover_menu_delete_rows_button.set_image(&packed_file_popover_menu_delete_rows_button_image);
-        packed_file_popover_menu_delete_rows_button.set_image_position(gtk::PositionType::Left);
-        packed_file_popover_menu_delete_rows_button.set_relief(gtk::ReliefStyle::None);
-        packed_file_popover_menu_delete_rows_button.get_children()[0].set_halign(gtk::Align::Start);
+        let packed_file_popover_menu_delete_rows_button = ModelButton::new();
+        packed_file_popover_menu_delete_rows_button.set_property_text(Some("Delete row/s"));
+        packed_file_popover_menu_delete_rows_button.set_action_name("app.packedfile_db_delete_rows");
 
         packed_file_popover_menu_box_add_rows_box.pack_start(&packed_file_popover_menu_add_rows_button, true, true, 0);
         packed_file_popover_menu_box_add_rows_box.pack_end(&packed_file_popover_menu_add_rows_entry, true, true, 0);
@@ -339,9 +332,7 @@ impl PackedFileDBTreeView{
 
         Ok(PackedFileDBTreeView {
             packed_file_popover_menu,
-            packed_file_popover_menu_add_rows_button,
             packed_file_popover_menu_add_rows_entry,
-            packed_file_popover_menu_delete_rows_button,
             packed_file_tree_view,
             packed_file_list_store,
             packed_file_tree_view_cell_bool,
