@@ -11,9 +11,9 @@ use common::coding_helpers;
 use failure::Error;
 use gtk::prelude::*;
 use gtk::{
-    Box, TreeView, ListStore, ScrolledWindow, Button, Orientation, TextView, Label, Entry, ToggleButton,
+    Box, TreeView, ListStore, ScrolledWindow, Button, Orientation, TextView, Label, Entry,
     CellRendererText, TreeViewColumn, CellRendererToggle, Type, WrapMode, Justification, Frame, CellRendererCombo,
-    TextTag, Popover, ModelButton, Paned
+    TextTag, Popover, ModelButton, Paned, Switch
 };
 
 use self::hex_slice::AsHex;
@@ -62,7 +62,7 @@ pub struct PackedFileDBDecoder {
     pub fields_tree_view: TreeView,
     pub fields_list_store: ListStore,
     pub field_name_entry: Entry,
-    pub is_key_field_button: ToggleButton,
+    pub is_key_field_switch: Switch,
     pub save_decoded_schema: Button,
     pub fields_tree_view_cell_bool: CellRendererToggle,
     pub fields_tree_view_cell_combo: CellRendererCombo,
@@ -767,7 +767,9 @@ impl PackedFileDBDecoder {
         let field_name_entry = Entry::new();
         field_name_entry.set_size_request(400, 0);
 
-        let is_key_field_button = ToggleButton::new_with_label("Key field");
+        let field_is_key_box = Box::new(Orientation::Horizontal, 0);
+        let is_key_field_label = Label::new("Key field");
+        let is_key_field_switch = Switch::new();
         let save_decoded_schema = Button::new_with_label("Finish It!");
 
         packed_file_field_settings_box_table_type.pack_start(&packed_file_decoded_data_table_type_label, false, false, 2);
@@ -782,6 +784,9 @@ impl PackedFileDBDecoder {
         field_name_box.pack_start(&field_name_label, false, false, 6);
         field_name_box.pack_end(&field_name_entry, false, true, 4);
 
+        field_is_key_box.pack_start(&is_key_field_label, false, false, 6);
+        field_is_key_box.pack_end(&is_key_field_switch, false, true, 4);
+
         packed_file_field_info_frame_box.pack_start(&packed_file_field_settings_box_table_type, false, false, 2);
         packed_file_field_info_frame_box.pack_start(&packed_file_field_settings_box_table_version, false, false, 2);
         packed_file_field_info_frame_box.pack_start(&packed_file_field_settings_box_table_entry_count, false, false, 2);
@@ -789,11 +794,11 @@ impl PackedFileDBDecoder {
 
         packed_file_field_settings_box.pack_start(&packed_file_table_info_frame, false, false, 2);
         packed_file_field_settings_box.pack_start(&field_name_box, false, false, 2);
-        packed_file_field_settings_box.pack_start(&is_key_field_button, false, false, 2);
+        packed_file_field_settings_box.pack_start(&field_is_key_box, false, false, 2);
         packed_file_field_settings_box.pack_end(&save_decoded_schema, false, false, 2);
 
         packed_file_decoded_data_less_bigger_boxx.pack_start(&packed_file_decoded_data_box, true, true, 0);
-        packed_file_decoded_data_less_bigger_boxx.pack_end(&packed_file_field_settings_box, true, true, 0);
+        packed_file_decoded_data_less_bigger_boxx.pack_end(&packed_file_field_settings_box, true, true, 8);
 
         let paned_big_boxx = Paned::new(Orientation::Vertical);
         paned_big_boxx.pack1(&tree_view_box, false, false);
@@ -831,7 +836,7 @@ impl PackedFileDBDecoder {
             fields_tree_view,
             fields_list_store,
             field_name_entry,
-            is_key_field_button,
+            is_key_field_switch,
             save_decoded_schema,
             fields_tree_view_cell_bool,
             fields_tree_view_cell_combo,
@@ -1086,7 +1091,7 @@ impl PackedFileDBDecoder {
 
         // We reset these two every time we add a field.
         packed_file_decoder.field_name_entry.get_buffer().set_text(&format!("Unknown {}", index_data));
-        packed_file_decoder.is_key_field_button.set_active(false);
+        packed_file_decoder.is_key_field_switch.set_state(false);
 
         // Then we set the TextTags to paint the hex_data.
         let raw_data_text_buffer = packed_file_decoder.raw_data.get_buffer().unwrap();
