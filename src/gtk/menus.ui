@@ -1,0 +1,143 @@
+<interface>
+    <menu id="menubar">
+        <section>
+            <submenu>
+                <attribute name="label" translatable="yes">_PackFile</attribute>
+                <section>
+                    <item>
+                        <attribute name="label" translatable="yes">_New PackFile</attribute>
+                        <attribute name="action">app.new-packfile</attribute>
+                        <attribute name="icon">document-new</attribute>
+                        <attribute name="accel">&lt;Primary&gt;n</attribute>
+                    </item>
+                    <item>
+                       <attribute name="label" translatable="yes">_Open PackFile</attribute>
+                        <attribute name="action">app.open-packfile</attribute>
+                        <attribute name="icon">document-open</attribute>
+                        <attribute name="accel">&lt;Primary&gt;o</attribute>
+                    </item>
+                    <item>
+                        <attribute name="label" translatable="yes">_Save PackFile</attribute>
+                        <attribute name="action">app.save-packfile</attribute>
+                        <attribute name="icon">document-save</attribute>
+                        <attribute name="accel">&lt;Primary&gt;s</attribute>
+                    </item>
+                    <item>
+                        <attribute name="label" translatable="yes">Save PackFile _As</attribute>
+                        <attribute name="action">app.save-packfile-as</attribute>
+                        <attribute name="icon">document-save-as</attribute>
+                        <attribute name="accel">&lt;Primary&gt;&lt;Shift&gt;s</attribute>
+                    </item>
+                </section>
+                <section>
+                    <submenu>
+                        <attribute name="label" translatable="yes">_Change PackFile Type</attribute>
+                        <section>
+                            <item>
+                                <attribute name="label" translatable="yes">_Boot</attribute>
+                                <attribute name="action">app.change-packfile-type</attribute>
+                                <attribute name="target">boot</attribute>
+                            </item>
+                            <item>
+                                <attribute name="label" translatable="yes">_Release</attribute>
+                                <attribute name="action">app.change-packfile-type</attribute>
+                                <attribute name="target">release</attribute>
+                            </item>
+                            <item>
+                                <attribute name="label" translatable="yes">_Patch</attribute>
+                                <attribute name="action">app.change-packfile-type</attribute>
+                                <attribute name="target">patch</attribute>
+                            </item>
+                            <item>
+                                <attribute name="label" translatable="yes">_Mod</attribute>
+                                <attribute name="action">app.change-packfile-type</attribute>
+                                <attribute name="target">mod</attribute>
+                            </item>
+                            <item>
+                                <attribute name="label" translatable="yes">Mo_vie</attribute>
+                                <attribute name="action">app.change-packfile-type</attribute>
+                                <attribute name="target">movie</attribute>
+                            </item>
+                        </section>
+                    </submenu>
+                </section>
+                <section>
+                    <item>
+                        <attribute name="label" translatable="yes">_Preferences</attribute>
+                        <attribute name="action">app.preferences</attribute>
+                        <attribute name="icon">gtk-preferences</attribute>
+                        <attribute name="accel">&lt;Primary&gt;p</attribute>
+                    </item>
+                    <item>
+                        <attribute name="label" translatable="yes">_Quit</attribute>
+                        <attribute name="action">app.quit</attribute>
+                        <attribute name="icon">application-exit</attribute>
+                        <attribute name="accel">&lt;Primary&gt;q</attribute>
+                    </item>
+                </section>
+            </submenu>
+            <submenu>
+                <attribute name="label" translatable="yes">_Special Stuff</attribute>
+                <section>
+                    <submenu>
+                        <attribute name="label" translatable="yes">_Warhammer 2</attribute>
+                        <section>
+                            <item>
+                                <attribute name="label" translatable="yes">_Patch SiegeAI</attribute>
+                                <attribute name="action">app.patch-siege-ai</attribute>
+                            </item>
+                        </section>
+                    </submenu>
+                </section>
+            </submenu>
+            <submenu>
+                <attribute name="label" translatable="yes">_About</attribute>
+                <item>
+                    <attribute name="label" translatable="yes">_Shortcuts</attribute>
+                    <attribute name="action">win.show-help-overlay</attribute>
+                    <attribute name="icon">help-about</attribute>
+                </item>
+                <item>
+                    <attribute name="label" translatable="yes">_About</attribute>
+                    <attribute name="action">app.about</attribute>
+                    <attribute name="icon">help-about</attribute>
+                    <attribute name="accel">&lt;Primary&gt;h</attribute>
+                </item>
+            </submenu>
+        </section>
+    </menu>
+    <menu id="context_menu_packfile">
+        <section>
+            <submenu>
+                <attribute name="label" translatable="yes">_Add...</attribute>
+                <section>
+                    <item>
+                        <attribute name="label" translatable="yes">Add _File</attribute>
+                        <attribute name="action">app.add-file</attribute>
+                        <attribute name="accel">&lt;Primary&gt;a</attribute>
+                    </item>
+                    <item>
+                        <attribute name="label" translatable="yes">Add Fol_der</attribute>
+                        <attribute name="action">app.add-folder</attribute>
+                        <attribute name="accel">&lt;Shift&gt;f</attribute>
+                    </item>
+                    <item>
+                        <attribute name="label" translatable="yes">Add from _PackFile</attribute>
+                        <attribute name="action">app.add-from-packfile</attribute>
+                        <attribute name="accel">&lt;Shift&gt;p</attribute>
+                    </item>
+                </section>
+            </submenu>
+            <item>
+                <attribute name="label" translatable="yes">_Delete</attribute>
+                <attribute name="action">app.delete-packedfile</attribute>
+                <attribute name="accel">Delete</attribute>
+            </item>
+            <item>
+                <attribute name="label" translatable="yes">_Extract</attribute>
+                <attribute name="action">app.extract-packedfile</attribute>
+                <attribute name="accel">&lt;Shift&gt;e</attribute>
+            </item>
+        </section>
+    </menu>
+</interface>

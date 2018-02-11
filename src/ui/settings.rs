@@ -39,6 +39,9 @@ impl SettingsWindow {
         settings_window.set_title("Settings");
         settings_window.set_icon_from_file(Path::new("img/rpfm.png")).unwrap();
 
+        // Disable the menubar in this window.
+        settings_window.set_show_menubar(false);
+
         let big_boxx = Box::new(Orientation::Vertical, 0);
         big_boxx.set_border_width(7);
 

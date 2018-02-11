@@ -11,9 +11,9 @@ use common::coding_helpers;
 use failure::Error;
 use gtk::prelude::*;
 use gtk::{
-    Box, TreeView, ListStore, ScrolledWindow, Button, Orientation, TextView, Label, Entry, ToggleButton,
+    Box, TreeView, ListStore, ScrolledWindow, Button, Orientation, TextView, Label, Entry,
     CellRendererText, TreeViewColumn, CellRendererToggle, Type, WrapMode, Justification, Frame, CellRendererCombo,
-    TextTag, Popover, Image
+    TextTag, Popover, ModelButton, Paned, Switch
 };
 
 use self::hex_slice::AsHex;
@@ -31,9 +31,7 @@ pub struct PackedFileDBTreeView {
     pub packed_file_tree_view_cell_string: Vec<CellRendererText>,
     pub packed_file_tree_view_cell_optional_string: Vec<CellRendererText>,
     pub packed_file_popover_menu: Popover,
-    pub packed_file_popover_menu_add_rows_button: Button,
     pub packed_file_popover_menu_add_rows_entry: Entry,
-    pub packed_file_popover_menu_delete_rows_button: Button,
 }
 
 /// Struct PackedFileDBDecoder: contains all the stuff we need to return to be able to decode DB PackedFiles.
@@ -64,7 +62,7 @@ pub struct PackedFileDBDecoder {
     pub fields_tree_view: TreeView,
     pub fields_list_store: ListStore,
     pub field_name_entry: Entry,
-    pub is_key_field_button: ToggleButton,
+    pub is_key_field_switch: Switch,
     pub save_decoded_schema: Button,
     pub fields_tree_view_cell_bool: CellRendererToggle,
     pub fields_tree_view_cell_combo: CellRendererCombo,
@@ -297,27 +295,22 @@ impl PackedFileDBTreeView{
         let packed_file_popover_menu_box = Box::new(Orientation::Vertical, 0);
         let packed_file_popover_menu_box_add_rows_box = Box::new(Orientation::Horizontal, 0);
 
-        let packed_file_popover_menu_add_rows_button = Button::new_with_label("Add rows:");
-        let packed_file_popover_menu_add_rows_button_image = Image::new_from_icon_name(Some("list-add"), gtk::IconSize::Button.into());
-        packed_file_popover_menu_add_rows_button.set_image(&packed_file_popover_menu_add_rows_button_image);
-        packed_file_popover_menu_add_rows_button.set_image_position(gtk::PositionType::Left);
-        packed_file_popover_menu_add_rows_button.set_relief(gtk::ReliefStyle::None);
-        packed_file_popover_menu_add_rows_button.get_children()[0].set_halign(gtk::Align::Start);
+        let packed_file_popover_menu_add_rows_button = ModelButton::new();
+        packed_file_popover_menu_add_rows_button.set_property_text(Some("Add rows:"));
+        packed_file_popover_menu_add_rows_button.set_action_name("app.packedfile_db_add_rows");
 
         let packed_file_popover_menu_add_rows_entry = Entry::new();
         let packed_file_popover_menu_add_rows_entry_buffer = packed_file_popover_menu_add_rows_entry.get_buffer();
         packed_file_popover_menu_add_rows_entry.set_alignment(1.0);
         packed_file_popover_menu_add_rows_entry.set_width_chars(8);
         packed_file_popover_menu_add_rows_entry.set_icon_from_stock(gtk::EntryIconPosition::Primary, Some("gtk-goto-last"));
+        packed_file_popover_menu_add_rows_entry.set_has_frame(false);
         packed_file_popover_menu_add_rows_entry_buffer.set_max_length(Some(4));
         packed_file_popover_menu_add_rows_entry_buffer.set_text("1");
 
-        let packed_file_popover_menu_delete_rows_button = Button::new_with_label("Delete row/s");
-        let packed_file_popover_menu_delete_rows_button_image = Image::new_from_icon_name(Some("edit-delete"), gtk::IconSize::Button.into());
-        packed_file_popover_menu_delete_rows_button.set_image(&packed_file_popover_menu_delete_rows_button_image);
-        packed_file_popover_menu_delete_rows_button.set_image_position(gtk::PositionType::Left);
-        packed_file_popover_menu_delete_rows_button.set_relief(gtk::ReliefStyle::None);
-        packed_file_popover_menu_delete_rows_button.get_children()[0].set_halign(gtk::Align::Start);
+        let packed_file_popover_menu_delete_rows_button = ModelButton::new();
+        packed_file_popover_menu_delete_rows_button.set_property_text(Some("Delete row/s"));
+        packed_file_popover_menu_delete_rows_button.set_action_name("app.packedfile_db_delete_rows");
 
         packed_file_popover_menu_box_add_rows_box.pack_start(&packed_file_popover_menu_add_rows_button, true, true, 0);
         packed_file_popover_menu_box_add_rows_box.pack_end(&packed_file_popover_menu_add_rows_entry, true, true, 0);
@@ -339,9 +332,7 @@ impl PackedFileDBTreeView{
 
         Ok(PackedFileDBTreeView {
             packed_file_popover_menu,
-            packed_file_popover_menu_add_rows_button,
             packed_file_popover_menu_add_rows_entry,
-            packed_file_popover_menu_delete_rows_button,
             packed_file_tree_view,
             packed_file_list_store,
             packed_file_tree_view_cell_bool,
@@ -505,7 +496,6 @@ impl PackedFileDBDecoder {
         packed_file_raw_data_scroll.set_size_request(350, 0);
 
         // Then, the big box to put all the stuff we need to decode.
-        let packed_file_decoded_data_big_boxx = Box::new(Orientation::Vertical, 0);
         let packed_file_decoded_data_less_bigger_boxx = Box::new(Orientation::Horizontal, 0);
         let packed_file_decoded_data_box = Box::new(Orientation::Vertical, 0);
 
@@ -513,11 +503,36 @@ impl PackedFileDBDecoder {
         let fields_tree_view = TreeView::new();
         let fields_list_store = ListStore::new(&[String::static_type(), String::static_type(), String::static_type(), bool::static_type(), String::static_type(), String::static_type(), String::static_type(), String::static_type()]);
         fields_tree_view.set_model(Some(&fields_list_store));
-        // Here we set the TreeView as "drag_dest" and "drag_source", so we can drag&drop things to it.
-        let targets = vec![gtk::TargetEntry::new("text/uri-list", gtk::TargetFlags::SAME_WIDGET, 0)];
-        fields_tree_view.drag_source_set(gdk::ModifierType::BUTTON1_MASK, &targets, gdk::DragAction::MOVE);
-        fields_tree_view.drag_dest_set(gtk::DestDefaults::ALL, &targets, gdk::DragAction::MOVE);
-        fields_tree_view.set_reorderable(true);
+
+        // This method of reordering crash the program on windows, so we only enable it for Linux.
+        if cfg!(target_os = "linux") {
+
+            // Here we set the TreeView as "drag_dest" and "drag_source", so we can drag&drop things to it.
+            let targets = vec![gtk::TargetEntry::new("text/uri-list", gtk::TargetFlags::SAME_WIDGET, 0)];
+            fields_tree_view.drag_source_set(gdk::ModifierType::BUTTON1_MASK, &targets, gdk::DragAction::MOVE);
+            fields_tree_view.drag_dest_set(gtk::DestDefaults::ALL, &targets, gdk::DragAction::MOVE);
+            fields_tree_view.set_reorderable(true);
+        }
+
+        // Here we create the buttons to move the decoded rows up&down.
+        let row_up = ModelButton::new();
+        let row_down = ModelButton::new();
+        row_up.set_property_text(Some("Up"));
+        row_down.set_property_text(Some("Down"));
+        row_up.set_action_name("app.move_row_up");
+        row_down.set_action_name("app.move_row_down");
+
+        let button_box = Box::new(Orientation::Vertical, 0);
+        button_box.pack_start(&row_up, true, true, 6);
+        button_box.pack_end(&row_down, true, true, 6);
+
+        let fields_tree_view_scroll = ScrolledWindow::new(None, None);
+        fields_tree_view_scroll.add(&fields_tree_view);
+        fields_tree_view_scroll.set_size_request(400, 200);
+
+        let tree_view_box = Box::new(Orientation::Horizontal, 6);
+        tree_view_box.pack_start(&button_box, false, false, 0);
+        tree_view_box.pack_start(&fields_tree_view_scroll, true, true, 0);
 
         let mut fields_tree_view_cell_string = vec![];
 
@@ -620,9 +635,6 @@ impl PackedFileDBDecoder {
         fields_tree_view.append_column(&column_decoded);
         fields_tree_view.append_column(&column_description);
 
-        let fields_tree_view_scroll = ScrolledWindow::new(None, None);
-        fields_tree_view_scroll.add(&fields_tree_view);
-        fields_tree_view_scroll.set_size_request(400, 500);
 
         let bool_box = Box::new(Orientation::Horizontal, 0);
         let float_box = Box::new(Orientation::Horizontal, 0);
@@ -755,7 +767,9 @@ impl PackedFileDBDecoder {
         let field_name_entry = Entry::new();
         field_name_entry.set_size_request(400, 0);
 
-        let is_key_field_button = ToggleButton::new_with_label("Key field");
+        let field_is_key_box = Box::new(Orientation::Horizontal, 0);
+        let is_key_field_label = Label::new("Key field");
+        let is_key_field_switch = Switch::new();
         let save_decoded_schema = Button::new_with_label("Finish It!");
 
         packed_file_field_settings_box_table_type.pack_start(&packed_file_decoded_data_table_type_label, false, false, 2);
@@ -770,6 +784,9 @@ impl PackedFileDBDecoder {
         field_name_box.pack_start(&field_name_label, false, false, 6);
         field_name_box.pack_end(&field_name_entry, false, true, 4);
 
+        field_is_key_box.pack_start(&is_key_field_label, false, false, 6);
+        field_is_key_box.pack_end(&is_key_field_switch, false, true, 4);
+
         packed_file_field_info_frame_box.pack_start(&packed_file_field_settings_box_table_type, false, false, 2);
         packed_file_field_info_frame_box.pack_start(&packed_file_field_settings_box_table_version, false, false, 2);
         packed_file_field_info_frame_box.pack_start(&packed_file_field_settings_box_table_entry_count, false, false, 2);
@@ -777,18 +794,19 @@ impl PackedFileDBDecoder {
 
         packed_file_field_settings_box.pack_start(&packed_file_table_info_frame, false, false, 2);
         packed_file_field_settings_box.pack_start(&field_name_box, false, false, 2);
-        packed_file_field_settings_box.pack_start(&is_key_field_button, false, false, 2);
+        packed_file_field_settings_box.pack_start(&field_is_key_box, false, false, 2);
         packed_file_field_settings_box.pack_end(&save_decoded_schema, false, false, 2);
 
         packed_file_decoded_data_less_bigger_boxx.pack_start(&packed_file_decoded_data_box, true, true, 0);
-        packed_file_decoded_data_less_bigger_boxx.pack_end(&packed_file_field_settings_box, true, true, 0);
+        packed_file_decoded_data_less_bigger_boxx.pack_end(&packed_file_field_settings_box, true, true, 8);
 
-        packed_file_decoded_data_big_boxx.pack_start(&fields_tree_view_scroll, false, false, 2);
-        packed_file_decoded_data_big_boxx.pack_start(&packed_file_decoded_data_less_bigger_boxx, false, false, 4);
+        let paned_big_boxx = Paned::new(Orientation::Vertical);
+        paned_big_boxx.pack1(&tree_view_box, false, false);
+        paned_big_boxx.pack2(&packed_file_decoded_data_less_bigger_boxx, false, false);
 
         packed_file_raw_data_scroll.add(&raw_data_box);
         decoder_box.add(&packed_file_raw_data_scroll);
-        decoder_box.pack_end(&packed_file_decoded_data_big_boxx, true, true, 0);
+        decoder_box.pack_end(&paned_big_boxx, true, true, 6);
 
         packed_file_data_display.show_all();
 
@@ -818,7 +836,7 @@ impl PackedFileDBDecoder {
             fields_tree_view,
             fields_list_store,
             field_name_entry,
-            is_key_field_button,
+            is_key_field_switch,
             save_decoded_schema,
             fields_tree_view_cell_bool,
             fields_tree_view_cell_combo,
@@ -1073,7 +1091,7 @@ impl PackedFileDBDecoder {
 
         // We reset these two every time we add a field.
         packed_file_decoder.field_name_entry.get_buffer().set_text(&format!("Unknown {}", index_data));
-        packed_file_decoder.is_key_field_button.set_active(false);
+        packed_file_decoder.is_key_field_switch.set_state(false);
 
         // Then we set the TextTags to paint the hex_data.
         let raw_data_text_buffer = packed_file_decoder.raw_data.get_buffer().unwrap();
