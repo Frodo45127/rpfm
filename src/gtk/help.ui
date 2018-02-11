@@ -13,7 +13,6 @@
                     <object class="GtkShortcutsGroup">
                         <property name="visible">1</property>
                         <property name="title" translatable="yes">Menu Bar Buttons</property>
-                        <property name="view">overview</property>
 
                         <child>
                             <object class="GtkShortcutsShortcut">
@@ -86,13 +85,11 @@
                     <object class="GtkShortcutsGroup">
                         <property name="visible">1</property>
                         <property name="title" translatable="yes">PackFile Management</property>
-                        <property name="view">wizard</property>
 
-                        <!-- LTR -->
                         <child>
                             <object class="GtkShortcutsShortcut">
                                 <property name="visible">1</property>
-                                <property name="accelerator">&lt;Shift&gt;a</property>
+                                <property name="accelerator">&lt;Ctrl&gt;a</property>
                                 <property name="title" translatable="yes">Add file</property>
                             </object>
                         </child>
@@ -100,7 +97,7 @@
                         <child>
                             <object class="GtkShortcutsShortcut">
                                 <property name="visible">1</property>
-                                <property name="accelerator">&lt;Shift&gt;d</property>
+                                <property name="accelerator">&lt;Ctrl&gt;d</property>
                                 <property name="title" translatable="yes">Add folder</property>
                             </object>
                         </child>
@@ -108,7 +105,7 @@
                         <child>
                             <object class="GtkShortcutsShortcut">
                                 <property name="visible">1</property>
-                                <property name="accelerator">&lt;Shift&gt;p</property>
+                                <property name="accelerator">&lt;Ctrl&gt;w</property>
                                 <property name="title" translatable="yes">Add from PackFile</property>
                             </object>
                         </child>
@@ -116,7 +113,7 @@
                         <child>
                             <object class="GtkShortcutsShortcut">
                                 <property name="visible">1</property>
-                                <property name="accelerator">Delete</property>
+                                <property name="accelerator">&lt;Ctrl&gt;Delete</property>
                                 <property name="title" translatable="yes">Delete PackedFile</property>
                             </object>
                         </child>
@@ -124,7 +121,7 @@
                         <child>
                             <object class="GtkShortcutsShortcut">
                                 <property name="visible">1</property>
-                                <property name="accelerator">&lt;Shift&gt;e</property>
+                                <property name="accelerator">&lt;Ctrl&gt;e</property>
                                 <property name="title" translatable="yes">Extract PackedFile</property>
                             </object>
                         </child>
@@ -133,7 +130,104 @@
                 </child>
 
                 <!-- PackedFile shortcuts -->
+                <!-- Loc PackedFile View shortcuts -->
+                <child>
+                    <object class="GtkShortcutsGroup">
+                        <property name="visible">1</property>
+                        <property name="title" translatable="yes">Loc PackedFile Management</property>
 
+                        <child>
+                            <object class="GtkShortcutsShortcut">
+                                <property name="visible">1</property>
+                                <property name="accelerator">&lt;Shift&gt;a</property>
+                                <property name="title" translatable="yes">Add row</property>
+                            </object>
+                        </child>
+
+                        <child>
+                            <object class="GtkShortcutsShortcut">
+                                <property name="visible">1</property>
+                                <property name="accelerator">&lt;Shift&gt;Delete</property>
+                                <property name="title" translatable="yes">Delete row</property>
+                            </object>
+                        </child>
+
+                        <child>
+                            <object class="GtkShortcutsShortcut">
+                                <property name="visible">1</property>
+                                <property name="accelerator">&lt;Shift&gt;i</property>
+                                <property name="title" translatable="yes">Import from CSV</property>
+                            </object>
+                        </child>
+
+                        <child>
+                            <object class="GtkShortcutsShortcut">
+                                <property name="visible">1</property>
+                                <property name="accelerator">&lt;Shift&gt;e</property>
+                                <property name="title" translatable="yes">Export to CSV</property>
+                            </object>
+                        </child>
+
+                    </object>
+                </child>
+
+                <!-- DB PackedFile View shortcuts -->
+                <child>
+                    <object class="GtkShortcutsGroup">
+                        <property name="visible">1</property>
+                        <property name="title" translatable="yes">DB PackedFile Management</property>
+
+                        <child>
+                            <object class="GtkShortcutsShortcut">
+                                <property name="visible">1</property>
+                                <property name="accelerator">&lt;Shift&gt;a</property>
+                                <property name="title" translatable="yes">Add row</property>
+                            </object>
+                        </child>
+
+                        <child>
+                            <object class="GtkShortcutsShortcut">
+                                <property name="visible">1</property>
+                                <property name="accelerator">&lt;Shift&gt;Delete</property>
+                                <property name="title" translatable="yes">Delete row</property>
+                            </object>
+                        </child>
+
+                    </object>
+                </child>
+
+                <!-- DB Decoder PackedFile View shortcuts -->
+                <child>
+                    <object class="GtkShortcutsGroup">
+                        <property name="visible">1</property>
+                        <property name="title" translatable="yes">DB Decoder Management</property>
+
+                        <child>
+                            <object class="GtkShortcutsShortcut">
+                                <property name="visible">1</property>
+                                <property name="accelerator">&lt;Shift&gt;Up</property>
+                                <property name="title" translatable="yes">Move row up</property>
+                            </object>
+                        </child>
+
+                        <child>
+                            <object class="GtkShortcutsShortcut">
+                                <property name="visible">1</property>
+                                <property name="accelerator">&lt;Shift&gt;Down</property>
+                                <property name="title" translatable="yes">Move row down</property>
+                            </object>
+                        </child>
+
+                        <child>
+                            <object class="GtkShortcutsShortcut">
+                                <property name="visible">1</property>
+                                <property name="accelerator">&lt;Shift&gt;Delete</property>
+                                <property name="title" translatable="yes">Delete row</property>
+                            </object>
+                        </child>
+
+                    </object>
+                </child>
             </object>
         </child>
     </object>

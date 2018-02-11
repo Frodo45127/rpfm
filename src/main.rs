@@ -190,11 +190,11 @@ fn build_ui(application: &Application) {
     application.add_action(&context_menu_extract_packedfile);
 
     // Accels for popovers need to be specified here. Don't know why, but otherwise they do not work.
-    application.set_accels_for_action("app.add-file", &["<Shift>a"]);
-    application.set_accels_for_action("app.add-folder", &["<Shift>d"]);
-    application.set_accels_for_action("app.add-from-packfile", &["<Shift>p"]);
-    application.set_accels_for_action("app.delete-packedfile", &["Delete"]);
-    application.set_accels_for_action("app.extract-packedfile", &["<Shift>e"]);
+    application.set_accels_for_action("app.add-file", &["<Primary>a"]);
+    application.set_accels_for_action("app.add-folder", &["<Primary>d"]);
+    application.set_accels_for_action("app.add-from-packfile", &["<Primary>w"]);
+    application.set_accels_for_action("app.delete-packedfile", &["<Primary>Delete"]);
+    application.set_accels_for_action("app.extract-packedfile", &["<Primary>e"]);
 
     // This variable is used to "Lock" and "Unlock" the "Decode on select" feature of the TreeView.
     // We need it to lock this feature when we open a secondary PackFile and want to move some folders
@@ -1292,10 +1292,10 @@ fn build_ui(application: &Application) {
                                 application.add_action(&context_menu_packedfile_loc_export_to_csv);
 
                                 // Accels for popovers need to be specified here. Don't know why, but otherwise they do not work.
-                                application.set_accels_for_action("app.packedfile_loc_add_rows", &["<Shift>m"]);
+                                application.set_accels_for_action("app.packedfile_loc_add_rows", &["<Shift>a"]);
                                 application.set_accels_for_action("app.packedfile_loc_delete_rows", &["<Shift>Delete"]);
                                 application.set_accels_for_action("app.packedfile_loc_import_from_csv", &["<Shift>i"]);
-                                application.set_accels_for_action("app.packedfile_loc_export_to_csv", &["<Shift>n"]);
+                                application.set_accels_for_action("app.packedfile_loc_export_to_csv", &["<Shift>e"]);
 
                                 // By default, the delete action should be disabled.
                                 context_menu_packedfile_loc_delete_rows.set_enabled(false);
@@ -1682,7 +1682,7 @@ fn build_ui(application: &Application) {
                                 application.add_action(&context_menu_packedfile_db_delete_rows);
 
                                 // Accels for popovers need to be specified here. Don't know why, but otherwise they do not work.
-                                application.set_accels_for_action("app.packedfile_db_add_rows", &["<Shift>m"]);
+                                application.set_accels_for_action("app.packedfile_db_add_rows", &["<Shift>a"]);
                                 application.set_accels_for_action("app.packedfile_db_delete_rows", &["<Shift>Delete"]);
 
                                 // These are the events to save edits in cells, one loop for every type of cell.
@@ -2450,7 +2450,7 @@ fn build_ui(application: &Application) {
 
                                             // When we press the "Delete all fields" button, we remove all fields from the field list,
                                             // we reset the index_data, disable de deletion buttons and update the ui, effectively
-                                            // reseting the entire decoder to a blank state.
+                                            // resetting the entire decoder to a blank state.
                                             packed_file_decoder.delete_all_fields_button.connect_button_release_event(clone!(
                                                 table_definition,
                                                 index_data,
