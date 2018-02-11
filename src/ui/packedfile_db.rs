@@ -503,11 +503,36 @@ impl PackedFileDBDecoder {
         let fields_tree_view = TreeView::new();
         let fields_list_store = ListStore::new(&[String::static_type(), String::static_type(), String::static_type(), bool::static_type(), String::static_type(), String::static_type(), String::static_type(), String::static_type()]);
         fields_tree_view.set_model(Some(&fields_list_store));
-        // Here we set the TreeView as "drag_dest" and "drag_source", so we can drag&drop things to it.
-        let targets = vec![gtk::TargetEntry::new("text/uri-list", gtk::TargetFlags::SAME_WIDGET, 0)];
-        fields_tree_view.drag_source_set(gdk::ModifierType::BUTTON1_MASK, &targets, gdk::DragAction::MOVE);
-        fields_tree_view.drag_dest_set(gtk::DestDefaults::ALL, &targets, gdk::DragAction::MOVE);
-        fields_tree_view.set_reorderable(true);
+
+        // This method of reordering crash the program on windows, so we only enable it for Linux.
+        if cfg!(target_os = "linux") {
+
+            // Here we set the TreeView as "drag_dest" and "drag_source", so we can drag&drop things to it.
+            let targets = vec![gtk::TargetEntry::new("text/uri-list", gtk::TargetFlags::SAME_WIDGET, 0)];
+            fields_tree_view.drag_source_set(gdk::ModifierType::BUTTON1_MASK, &targets, gdk::DragAction::MOVE);
+            fields_tree_view.drag_dest_set(gtk::DestDefaults::ALL, &targets, gdk::DragAction::MOVE);
+            fields_tree_view.set_reorderable(true);
+        }
+
+        // Here we create the buttons to move the decoded rows up&down.
+        let row_up = ModelButton::new();
+        let row_down = ModelButton::new();
+        row_up.set_property_text(Some("Up"));
+        row_down.set_property_text(Some("Down"));
+        row_up.set_action_name("app.move_row_up");
+        row_down.set_action_name("app.move_row_down");
+
+        let button_box = Box::new(Orientation::Vertical, 0);
+        button_box.pack_start(&row_up, true, true, 6);
+        button_box.pack_end(&row_down, true, true, 6);
+
+        let fields_tree_view_scroll = ScrolledWindow::new(None, None);
+        fields_tree_view_scroll.add(&fields_tree_view);
+        fields_tree_view_scroll.set_size_request(400, 200);
+
+        let tree_view_box = Box::new(Orientation::Horizontal, 6);
+        tree_view_box.pack_start(&button_box, false, false, 0);
+        tree_view_box.pack_start(&fields_tree_view_scroll, true, true, 0);
 
         let mut fields_tree_view_cell_string = vec![];
 
@@ -610,9 +635,6 @@ impl PackedFileDBDecoder {
         fields_tree_view.append_column(&column_decoded);
         fields_tree_view.append_column(&column_description);
 
-        let fields_tree_view_scroll = ScrolledWindow::new(None, None);
-        fields_tree_view_scroll.add(&fields_tree_view);
-        fields_tree_view_scroll.set_size_request(400, 200);
 
         let bool_box = Box::new(Orientation::Horizontal, 0);
         let float_box = Box::new(Orientation::Horizontal, 0);
@@ -774,7 +796,7 @@ impl PackedFileDBDecoder {
         packed_file_decoded_data_less_bigger_boxx.pack_end(&packed_file_field_settings_box, true, true, 0);
 
         let paned_big_boxx = Paned::new(Orientation::Vertical);
-        paned_big_boxx.pack1(&fields_tree_view_scroll, false, false);
+        paned_big_boxx.pack1(&tree_view_box, false, false);
         paned_big_boxx.pack2(&packed_file_decoded_data_less_bigger_boxx, false, false);
 
         packed_file_raw_data_scroll.add(&raw_data_box);

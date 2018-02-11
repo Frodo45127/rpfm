@@ -2056,6 +2056,7 @@ fn build_ui(application: &Application) {
 
                         // From here, we deal we the decoder stuff.
                         packed_file_decode_mode_button.connect_button_release_event(clone!(
+                            application,
                             schema,
                             tree_path,
                             error_dialog,
@@ -2107,6 +2108,63 @@ fn build_ui(application: &Application) {
                                                 initial_index,
                                                 true,
                                             )));
+
+                                            // Clean the accelerators stuff.
+                                            remove_temporal_accelerators(&application);
+
+                                            // Move rows actions.
+                                            let decoder_move_row_up = SimpleAction::new("move_row_up", None);
+                                            let decoder_move_row_down = SimpleAction::new("move_row_down", None);
+
+                                            application.add_action(&decoder_move_row_up);
+                                            application.add_action(&decoder_move_row_down);
+
+                                            // Accels for popovers need to be specified here. Don't know why, but otherwise they do not work.
+                                            application.set_accels_for_action("app.move_row_up", &["<Primary>Up"]);
+                                            application.set_accels_for_action("app.move_row_down", &["<Primary>Down"]);
+
+                                            // By default, these two should be disabled.
+                                            decoder_move_row_up.set_enabled(false);
+                                            decoder_move_row_down.set_enabled(false);
+
+                                            // We check if we can delete something on selection changes.
+                                            packed_file_decoder.fields_tree_view.connect_cursor_changed(clone!(
+                                                decoder_move_row_up,
+                                                decoder_move_row_down,
+                                                packed_file_decoder => move |_| {
+                                                
+                                                // If the Loc PackedFile is empty, disable the delete action.
+                                                if packed_file_decoder.fields_tree_view.get_selection().count_selected_rows() > 0 {
+                                                    decoder_move_row_up.set_enabled(true);
+                                                    decoder_move_row_down.set_enabled(true);
+                                                }
+                                                else {
+                                                    decoder_move_row_up.set_enabled(false);
+                                                    decoder_move_row_down.set_enabled(false);
+                                                }
+                                            }));
+
+                                            // When we press the "Move up" button.
+                                            decoder_move_row_up.connect_activate(clone!(
+                                                packed_file_decoder => move |_,_| {
+                                                let current_iter = packed_file_decoder.fields_tree_view.get_selection().get_selected().unwrap().1;
+                                                let new_iter = current_iter.clone();
+                                                let is_not_first_row = packed_file_decoder.fields_list_store.iter_previous(&new_iter);
+                                                if is_not_first_row {
+                                                    packed_file_decoder.fields_list_store.move_before(&current_iter, &new_iter);
+                                                }
+                                            }));
+
+                                            // When we press the "Move down" button.
+                                            decoder_move_row_down.connect_activate(clone!(
+                                                packed_file_decoder => move |_,_| {
+                                                let current_iter = packed_file_decoder.fields_tree_view.get_selection().get_selected().unwrap().1;
+                                                let new_iter = current_iter.clone();
+                                                let is_not_last_row = packed_file_decoder.fields_list_store.iter_next(&new_iter);
+                                                if is_not_last_row {
+                                                    packed_file_decoder.fields_list_store.move_after(&current_iter, &new_iter);
+                                                }
+                                            }));
 
                                             // Logic for all the "Use this" buttons. Basically, they just check if it's possible to use their decoder for the bytes we have,
                                             // and advance the index and add their type to the fields view.
@@ -2788,6 +2846,12 @@ fn remove_temporal_accelerators(application: &Application) {
     application.set_accels_for_action("packedfile_db_delete_rows", &[]);
     application.remove_action("packedfile_db_add_rows");
     application.remove_action("packedfile_db_delete_rows");
+
+    // Remove stuff of DB decoder View.
+    application.set_accels_for_action("move_row_up", &[]);
+    application.set_accels_for_action("move_row_down", &[]);
+    application.remove_action("move_row_up");
+    application.remove_action("move_row_down");
 }
 
 /// Main function.
