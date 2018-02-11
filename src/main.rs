@@ -2112,16 +2112,19 @@ fn build_ui(application: &Application) {
                                             // Clean the accelerators stuff.
                                             remove_temporal_accelerators(&application);
 
-                                            // Move rows actions.
+                                            // Move and delete row actions.
                                             let decoder_move_row_up = SimpleAction::new("move_row_up", None);
                                             let decoder_move_row_down = SimpleAction::new("move_row_down", None);
+                                            let decoder_delete_row = SimpleAction::new("delete_row", None);
 
                                             application.add_action(&decoder_move_row_up);
                                             application.add_action(&decoder_move_row_down);
+                                            application.add_action(&decoder_delete_row);
 
                                             // Accels for popovers need to be specified here. Don't know why, but otherwise they do not work.
-                                            application.set_accels_for_action("app.move_row_up", &["<Primary>Up"]);
-                                            application.set_accels_for_action("app.move_row_down", &["<Primary>Down"]);
+                                            application.set_accels_for_action("app.move_row_up", &["<Shift>Up"]);
+                                            application.set_accels_for_action("app.move_row_down", &["<Shift>Down"]);
+                                            application.set_accels_for_action("app.delete_row", &["<Shift>Delete"]);
 
                                             // By default, these two should be disabled.
                                             decoder_move_row_up.set_enabled(false);
@@ -2147,22 +2150,34 @@ fn build_ui(application: &Application) {
                                             // When we press the "Move up" button.
                                             decoder_move_row_up.connect_activate(clone!(
                                                 packed_file_decoder => move |_,_| {
-                                                let current_iter = packed_file_decoder.fields_tree_view.get_selection().get_selected().unwrap().1;
-                                                let new_iter = current_iter.clone();
-                                                let is_not_first_row = packed_file_decoder.fields_list_store.iter_previous(&new_iter);
-                                                if is_not_first_row {
-                                                    packed_file_decoder.fields_list_store.move_before(&current_iter, &new_iter);
+
+                                                // We only do something in case the focus is in the TreeView. This should stop problems with
+                                                // the accels working everywhere.
+                                                if packed_file_decoder.fields_tree_view.has_focus() {
+
+                                                    let current_iter = packed_file_decoder.fields_tree_view.get_selection().get_selected().unwrap().1;
+                                                    let new_iter = current_iter.clone();
+                                                    let is_not_first_row = packed_file_decoder.fields_list_store.iter_previous(&new_iter);
+                                                    if is_not_first_row {
+                                                        packed_file_decoder.fields_list_store.move_before(&current_iter, &new_iter);
+                                                    }
                                                 }
                                             }));
 
                                             // When we press the "Move down" button.
                                             decoder_move_row_down.connect_activate(clone!(
                                                 packed_file_decoder => move |_,_| {
-                                                let current_iter = packed_file_decoder.fields_tree_view.get_selection().get_selected().unwrap().1;
-                                                let new_iter = current_iter.clone();
-                                                let is_not_last_row = packed_file_decoder.fields_list_store.iter_next(&new_iter);
-                                                if is_not_last_row {
-                                                    packed_file_decoder.fields_list_store.move_after(&current_iter, &new_iter);
+
+                                                // We only do something in case the focus is in the TreeView. This should stop problems with
+                                                // the accels working everywhere.
+                                                if packed_file_decoder.fields_tree_view.has_focus() {
+
+                                                    let current_iter = packed_file_decoder.fields_tree_view.get_selection().get_selected().unwrap().1;
+                                                    let new_iter = current_iter.clone();
+                                                    let is_not_last_row = packed_file_decoder.fields_list_store.iter_next(&new_iter);
+                                                    if is_not_last_row {
+                                                        packed_file_decoder.fields_list_store.move_after(&current_iter, &new_iter);
+                                                    }
                                                 }
                                             }));
 
@@ -2456,18 +2471,17 @@ fn build_ui(application: &Application) {
                                                 Inhibit(false)
                                             }));
 
-                                            // This allow us to remove a field from the list, by selecting it and pressing "Supr".
-                                            packed_file_decoder.fields_tree_view.connect_key_release_event(clone!(
-                                                packed_file_decoder => move |fields_tree_view, key| {
+                                            // This allow us to remove a field from the list, using the decoder_delete_row action.
+                                            decoder_delete_row.connect_activate(clone!(
+                                                packed_file_decoder => move |_,_| {
 
-                                                let key_val = key.get_keyval();
-                                                if key_val == 65535 {
-                                                    if let Some(selection) = fields_tree_view.get_selection().get_selected() {
+                                                // We only do something in case the focus is in the TreeView. This should stop problems with
+                                                // the accels working everywhere.
+                                                if packed_file_decoder.fields_tree_view.has_focus() {
+                                                    if let Some(selection) = packed_file_decoder.fields_tree_view.get_selection().get_selected() {
                                                         packed_file_decoder.fields_list_store.remove(&selection.1);
                                                     }
                                                 }
-                                                // We need to set this to true to avoid the "Supr" re-fire this event again and again.
-                                                Inhibit(true)
                                             }));
 
                                             // This saves the schema to a file. It takes the "table_definition" we had for this version of our table, and put
@@ -2850,8 +2864,10 @@ fn remove_temporal_accelerators(application: &Application) {
     // Remove stuff of DB decoder View.
     application.set_accels_for_action("move_row_up", &[]);
     application.set_accels_for_action("move_row_down", &[]);
+    application.set_accels_for_action("delete_row", &[]);
     application.remove_action("move_row_up");
     application.remove_action("move_row_down");
+    application.remove_action("delete_row");
 }
 
 /// Main function.
