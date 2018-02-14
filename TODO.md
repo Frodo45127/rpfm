@@ -41,7 +41,7 @@
       - [x] Decode any type of entry.
       - [ ] Load old definitions of an undecoded table.
       - [x] Manipulate decoded columns.
-      - [ ] Update "First row decoded" field on column order change.
+      - [x] Update "First row decoded" field on column order change.
 	- [ ] Others:
 	  - [x] Decode simple text files (with syntax highlight if possible).
 	  - [x] Show images in the program (png, jpeg, jpg, tga).
