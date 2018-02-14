@@ -295,6 +295,8 @@ impl PackedFileDBTreeView{
         let packed_file_popover_menu = Popover::new(&packed_file_tree_view);
 
         let packed_file_popover_menu_box = Box::new(Orientation::Vertical, 0);
+        packed_file_popover_menu_box.set_border_width(6);
+        
         let packed_file_popover_menu_box_add_rows_box = Box::new(Orientation::Horizontal, 0);
 
         let packed_file_popover_menu_add_rows_button = ModelButton::new();
@@ -314,11 +316,16 @@ impl PackedFileDBTreeView{
         packed_file_popover_menu_delete_rows_button.set_property_text(Some("Delete row/s"));
         packed_file_popover_menu_delete_rows_button.set_action_name("app.packedfile_db_delete_rows");
 
+        let packed_file_popover_menu_clone_rows_button = ModelButton::new();
+        packed_file_popover_menu_clone_rows_button.set_property_text(Some("Clone row/s"));
+        packed_file_popover_menu_clone_rows_button.set_action_name("app.packedfile_db_clone_rows");
+
         packed_file_popover_menu_box_add_rows_box.pack_start(&packed_file_popover_menu_add_rows_button, true, true, 0);
         packed_file_popover_menu_box_add_rows_box.pack_end(&packed_file_popover_menu_add_rows_entry, true, true, 0);
 
         packed_file_popover_menu_box.pack_start(&packed_file_popover_menu_box_add_rows_box, true, true, 0);
         packed_file_popover_menu_box.pack_start(&packed_file_popover_menu_delete_rows_button, true, true, 0);
+        packed_file_popover_menu_box.pack_start(&packed_file_popover_menu_clone_rows_button, true, true, 0);
 
         packed_file_popover_menu.add(&packed_file_popover_menu_box);
         packed_file_popover_menu.show_all();

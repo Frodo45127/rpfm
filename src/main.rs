@@ -1676,13 +1676,16 @@ fn build_ui(application: &Application) {
                                 // Right-click menu actions.
                                 let context_menu_packedfile_db_add_rows = SimpleAction::new("packedfile_db_add_rows", None);
                                 let context_menu_packedfile_db_delete_rows = SimpleAction::new("packedfile_db_delete_rows", None);
+                                let context_menu_packedfile_db_clone_rows = SimpleAction::new("packedfile_db_clone_rows", None);
 
                                 application.add_action(&context_menu_packedfile_db_add_rows);
                                 application.add_action(&context_menu_packedfile_db_delete_rows);
+                                application.add_action(&context_menu_packedfile_db_clone_rows);
 
                                 // Accels for popovers need to be specified here. Don't know why, but otherwise they do not work.
                                 application.set_accels_for_action("app.packedfile_db_add_rows", &["<Shift>a"]);
                                 application.set_accels_for_action("app.packedfile_db_delete_rows", &["<Shift>Delete"]);
+                                application.set_accels_for_action("app.packedfile_db_clone_rows", &["<Shift>d"]);
 
                                 // These are the events to save edits in cells, one loop for every type of cell.
                                 // This loop takes care of the interaction with string cells.
@@ -1906,14 +1909,17 @@ fn build_ui(application: &Application) {
                                 // We check if we can delete something on selection changes.
                                 packed_file_tree_view.connect_cursor_changed(clone!(
                                     context_menu_packedfile_db_delete_rows,
+                                    context_menu_packedfile_db_clone_rows,
                                     packed_file_tree_view_selection => move |_| {
 
                                     // If the Loc PackedFile is empty, disable the delete action.
                                     if packed_file_tree_view_selection.count_selected_rows() > 0 {
                                         context_menu_packedfile_db_delete_rows.set_enabled(true);
+                                        context_menu_packedfile_db_clone_rows.set_enabled(true);
                                     }
                                     else {
                                         context_menu_packedfile_db_delete_rows.set_enabled(false);
+                                        context_menu_packedfile_db_clone_rows.set_enabled(false);
                                     }
                                 }));
 
@@ -1928,9 +1934,6 @@ fn build_ui(application: &Application) {
                                     packed_file_list_store,
                                     context_menu_add_rows_entry,
                                     context_menu => move |_,_|{
-
-                                    // We hide the context menu, then we get the selected file/folder, delete it and update the
-                                    // TreeView. Pretty simple, actually.
                                     context_menu.popdown();
 
                                     // We only do something in case the focus is in the TreeView. This should stop problems with
@@ -1949,8 +1952,6 @@ fn build_ui(application: &Application) {
                                                     // Due to issues with types and gtk-rs, we need to create an empty line and then add the
                                                     // values to it, one by one.
                                                     let current_row = packed_file_list_store.append();
-                                                    let mut index = 0;
-
                                                     for column in 0..column_amount {
 
                                                         let gtk_value_field;
@@ -1976,8 +1977,7 @@ fn build_ui(application: &Application) {
                                                                 }
                                                             }
                                                         }
-                                                        packed_file_list_store.set_value(&current_row, index, &gtk_value_field);
-                                                        index += 1;
+                                                        packed_file_list_store.set_value(&current_row, column as u32, &gtk_value_field);
                                                     }
                                                 }
 
@@ -2000,19 +2000,16 @@ fn build_ui(application: &Application) {
                                 }));
 
                                 // When we hit the "Delete row" button.
-                                //let packed_file_tree_view_selection = packed_file_tree_view_selection.clone();
                                 context_menu_packedfile_db_delete_rows.connect_activate(clone!(
                                     table_definition,
                                     window,
                                     error_dialog,
                                     pack_file_decoded,
                                     packed_file_tree_view,
+                                    packed_file_tree_view_selection,
                                     packed_file_data_decoded,
                                     packed_file_list_store,
                                     context_menu => move |_,_|{
-
-                                    // We hide the context menu, then we get the selected file/folder, delete it and update the
-                                    // TreeView. Pretty simple, actually.
                                     context_menu.popdown();
 
                                     // We only do something in case the focus is in the TreeView. This should stop problems with
@@ -2032,6 +2029,63 @@ fn build_ui(application: &Application) {
                                             for i in (0..selected_rows.0.len()).rev() {
                                                 let selected_row_iter = packed_file_list_store.get_iter(&selected_rows.0[i]).unwrap();
                                                 packed_file_list_store.remove(&selected_row_iter);
+                                            }
+
+                                            // Get the data from the table and turn it into a Vec<u8> to write it.
+                                            match ui::packedfile_db::PackedFileDBTreeView::return_data_from_tree_view(&*table_definition.borrow() ,&packed_file_list_store) {
+                                                Ok(data) => {
+                                                    packed_file_data_decoded.borrow_mut().packed_file_data.packed_file_data = data;
+                                                    if let Err(error) = ::packfile::update_packed_file_data_db(&*packed_file_data_decoded.borrow_mut(), &mut *pack_file_decoded.borrow_mut(), index as usize) {
+                                                        ui::show_dialog(&error_dialog, error.cause());
+                                                    }
+                                                    set_modified(true, &window, &mut *pack_file_decoded.borrow_mut());
+
+                                                }
+                                                Err(error) => ui::show_dialog(&error_dialog, Error::from(error).cause()),
+                                            }
+                                        }
+                                    }
+                                }));
+
+                                // When we hit the "Clone row" button.
+                                context_menu_packedfile_db_clone_rows.connect_activate(clone!(
+                                    table_definition,
+                                    window,
+                                    error_dialog,
+                                    pack_file_decoded,
+                                    packed_file_data_decoded,
+                                    packed_file_tree_view,
+                                    packed_file_tree_view_selection,
+                                    packed_file_list_store,
+                                    context_menu => move |_,_|{
+                                    context_menu.popdown();
+
+                                    // We only do something in case the focus is in the TreeView. This should stop problems with
+                                    // the accels working everywhere.
+                                    if packed_file_tree_view.has_focus() {
+
+                                        // (Vec<TreePath>, TreeModel)
+                                        let selected_rows = packed_file_tree_view_selection.get_selected_rows();
+                                        let column_amount = table_definition.borrow().fields.len() + 1;
+
+                                        // If we have something selected...
+                                        if !selected_rows.0.is_empty() {
+                                            for tree_path in selected_rows.0.iter() {
+
+                                                // We create the new iter, store the old one, and "copy" values from one to the other.
+                                                let old_row = packed_file_list_store.get_iter(&tree_path).unwrap();
+                                                let new_row = packed_file_list_store.append();
+
+                                                for column in 0..column_amount {
+
+                                                    // First column it's always the index.
+                                                    if column == 0 {
+                                                        packed_file_list_store.set_value(&new_row, column as u32, &gtk::ToValue::to_value(&format!("New")));
+                                                    }
+                                                    else {
+                                                        packed_file_list_store.set_value(&new_row, column as u32, &packed_file_list_store.get_value(&old_row, column as i32));
+                                                    }
+                                                }
                                             }
 
                                             // Get the data from the table and turn it into a Vec<u8> to write it.
@@ -2859,8 +2913,10 @@ fn remove_temporal_accelerators(application: &Application) {
     // Remove stuff of DB View.
     application.set_accels_for_action("packedfile_db_add_rows", &[]);
     application.set_accels_for_action("packedfile_db_delete_rows", &[]);
+    application.set_accels_for_action("packedfile_db_clone_rows", &[]);
     application.remove_action("packedfile_db_add_rows");
     application.remove_action("packedfile_db_delete_rows");
+    application.remove_action("packedfile_db_clone_rows");
 
     // Remove stuff of DB decoder View.
     application.set_accels_for_action("move_row_up", &[]);

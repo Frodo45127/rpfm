@@ -31,7 +31,7 @@
       - [x] Edit rows.
       - [x] Add rows.
       - [x] Delete rows.
-      - [ ] Clone rows.
+      - [x] Clone rows.
       - [ ] Copy rows.
       - [ ] Cut rows.
       - [ ] Paste rows.

@@ -193,6 +193,14 @@
                             </object>
                         </child>
 
+                        <child>
+                            <object class="GtkShortcutsShortcut">
+                                <property name="visible">1</property>
+                                <property name="accelerator">&lt;Shift&gt;d</property>
+                                <property name="title" translatable="yes">Clone row</property>
+                            </object>
+                        </child>
+
                     </object>
                 </child>
 
