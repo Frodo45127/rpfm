@@ -944,13 +944,19 @@ impl PackedFileDBDecoder {
         Ok(())
     }
 
-    /// This function updates the data shown in the "Decoder" box when we execute it.
+    /// This function updates the data shown in the "Decoder" box when we execute it. It requires:
+    /// - packed_file_decoder: &PackedFileDBDecoder, the decoder object.
+    /// - packed_file_decoded: Vec<u8>, PackedFile's Data to decode.
+    /// - table_definition: Option<&TableDefinition>, a ref to the table definitions. None will
+    ///   skip the load of data to the table.
+    /// - index_data: usize, the index where to start decoding.
+    /// - load_from_existing_definition: bool, if true, then we load the data from a definition.
+    ///   If false, we update the entire table. If false, we just update the text entries.
     pub fn update_decoder_view(
         packed_file_decoder: &PackedFileDBDecoder,
-        packed_file_decoded: Vec<u8>,
-        table_definition: &TableDefinition,
+        packed_file_decoded: &Vec<u8>,
+        table_definition: Option<&TableDefinition>,
         index_data: usize,
-        load_from_existing_definition: bool
     ) -> usize {
 
         // We need to get the length of the vector first, to avoid crashes due to non-existant indexes
@@ -967,7 +973,7 @@ impl PackedFileDBDecoder {
 
         // If we are loading data to the table for the first time, we'll load to the table all the data
         // directly from the existing definition and update the initial index for decoding.
-        if load_from_existing_definition && !table_definition.fields.is_empty() {
+        if let Some(table_definition) = table_definition {
             for (index, field) in table_definition.fields.iter().enumerate() {
                 index_data = PackedFileDBDecoder::add_field_to_data_view(
                     &packed_file_decoder,
@@ -1123,6 +1129,7 @@ impl PackedFileDBDecoder {
     /// - field_description: the description of the field. If the field is new, this is just String::new().
     /// - index_data: the index to start decoding from the vector.
     ///
+    /// We return the index of the next field in the data.
     /// NOTE: In case of error, we return the same index, NOT AN ERROR. That way, we deal with the
     /// possible error here instead on the UI.
     pub fn add_field_to_data_view(
@@ -1143,104 +1150,11 @@ impl PackedFileDBDecoder {
             None => format!("New"),
         };
 
-        let decoded_data = match field_type {
-            FieldType::Boolean => {
-                // Check if the index does even exist, to avoid crashes.
-                if index_data < packed_file_decoded.len() {
-                    match coding_helpers::decode_packedfile_bool(packed_file_decoded[index_data], index_data) {
-                        Ok(result) => {
-                            if result.0 {
-                                ("True".to_string(), result.1)
-                            }
-                            else {
-                                ("False".to_string(), result.1)
-                            }
-                        }
-                        Err(_) => ("Error".to_owned(), index_data),
-                    }
-                }
-                else {
-                    ("Error".to_owned(), index_data)
-                }
-            },
-            FieldType::Float => {
-                if (index_data + 4) <= packed_file_decoded.len() {
-                    match coding_helpers::decode_packedfile_float_u32(packed_file_decoded[index_data..(index_data + 4)].to_vec(), index_data) {
-                        Ok(result) => (result.0.to_string(), result.1),
-                        Err(_) => ("Error".to_owned(), index_data),
-                    }
-                }
-                else {
-                    ("Error".to_owned(), index_data)
-                }
-            },
-            FieldType::Integer => {
-                if (index_data + 4) <= packed_file_decoded.len() {
-                    match coding_helpers::decode_packedfile_integer_i32(packed_file_decoded[index_data..(index_data + 4)].to_vec(), index_data) {
-                        Ok(result) => (result.0.to_string(), result.1),
-                        Err(_) => ("Error".to_owned(), index_data),
-                    }
-                }
-                else {
-                    ("Error".to_owned(), index_data)
-                }
-            },
-            FieldType::LongInteger => {
-                if (index_data + 8) <= packed_file_decoded.len() {
-                    match coding_helpers::decode_packedfile_integer_i64(packed_file_decoded[index_data..(index_data + 8)].to_vec(), index_data) {
-                        Ok(result) => (result.0.to_string(), result.1),
-                        Err(_) => ("Error".to_owned(), index_data),
-                    }
-                }
-                else {
-                    ("Error".to_owned(), index_data)
-                }
-            },
-            FieldType::StringU8 => {
-                if index_data < packed_file_decoded.len() {
-                    match coding_helpers::decode_packedfile_string_u8(packed_file_decoded[index_data..].to_vec(), index_data) {
-                        Ok(result) => result,
-                        Err(_) => ("Error".to_owned(), index_data),
-                    }
-                }
-                else {
-                    ("Error".to_owned(), index_data)
-                }
-            },
-            FieldType::StringU16 => {
-                if index_data < packed_file_decoded.len() {
-                    match coding_helpers::decode_packedfile_string_u16(packed_file_decoded[index_data..].to_vec(), index_data) {
-                        Ok(result) => result,
-                        Err(_) => ("Error".to_owned(), index_data),
-                    }
-                }
-                else {
-                    ("Error".to_owned(), index_data)
-                }
-            },
-            FieldType::OptionalStringU8 => {
-                if index_data < packed_file_decoded.len() {
-                    match coding_helpers::decode_packedfile_optional_string_u8(packed_file_decoded[index_data..].to_vec(), index_data) {
-                        Ok(result) => result,
-                        Err(_) => ("Error".to_owned(), index_data),
-                    }
-                }
-                else {
-                    ("Error".to_owned(), index_data)
-                }
-            },
-            FieldType::OptionalStringU16 => {
-                if index_data < packed_file_decoded.len() {
-                    match coding_helpers::decode_packedfile_optional_string_u16(packed_file_decoded[index_data..].to_vec(), index_data) {
-                        Ok(result) => result,
-                        Err(_) => ("Error".to_owned(), index_data),
-                    }
-                }
-                else {
-                    ("Error".to_owned(), index_data)
-                }
-            },
-        };
+        let decoded_data = decode_data_by_fieldtype(
+            &packed_file_decoded,
+            &field_type,
+            index_data
+        );
 
         let field_type = match field_type {
             FieldType::Boolean => "Bool",
@@ -1332,5 +1246,110 @@ impl PackedFileDBDecoder {
             }
         }
         fields
+    }
+}
+
+
+/// This function is a helper to try to decode data in different formats, returning "Error" in case
+/// of decoding error. It requires the FieldType we want to decode, the data we want to decode
+/// (vec<u8>, being the first u8 the first byte to decode) and the index of the data in the Vec<u8>.
+pub fn decode_data_by_fieldtype(field_data: &Vec<u8>, field_type: &FieldType, index_data: usize) -> (String, usize) {
+    match field_type {
+        &FieldType::Boolean => {
+            // Check if the index does even exist, to avoid crashes.
+            if let Some(_) = field_data.get(index_data) {
+                match coding_helpers::decode_packedfile_bool(field_data[index_data], index_data) {
+                    Ok(result) => {
+                        if result.0 {
+                            ("True".to_string(), result.1)
+                        }
+                        else {
+                            ("False".to_string(), result.1)
+                        }
+                    }
+                    Err(_) => ("Error".to_owned(), index_data),
+                }
+            }
+            else {
+                ("Error".to_owned(), index_data)
+            }
+        },
+        &FieldType::Float => {
+            if let Some(_) = field_data.get(index_data..(index_data + 4)) {
+                match coding_helpers::decode_packedfile_float_u32(field_data[index_data..(index_data + 4)].to_vec(), index_data) {
+                    Ok(result) => (result.0.to_string(), result.1),
+                    Err(_) => ("Error".to_owned(), index_data),
+                }
+            }
+            else {
+                ("Error".to_owned(), index_data)
+            }
+        },
+        &FieldType::Integer => {
+            if let Some(_) = field_data.get(index_data..(index_data + 4)) {
+                match coding_helpers::decode_packedfile_integer_i32(field_data[index_data..(index_data +4)].to_vec(), index_data) {
+                    Ok(result) => (result.0.to_string(), result.1),
+                    Err(_) => ("Error".to_owned(), index_data),
+                }
+            }
+            else {
+                ("Error".to_owned(), index_data)
+            }
+        },
+        &FieldType::LongInteger => {
+            if let Some(_) = field_data.get(index_data..(index_data + 8)) {
+                match coding_helpers::decode_packedfile_integer_i64(field_data[index_data..(index_data +8)].to_vec(), index_data) {
+                    Ok(result) => (result.0.to_string(), result.1),
+                    Err(_) => ("Error".to_owned(), index_data),
+                }
+            }
+            else {
+                ("Error".to_owned(), index_data)
+            }
+        },
+        &FieldType::StringU8 => {
+            if let Some(_) = field_data.get(index_data) {
+                match coding_helpers::decode_packedfile_string_u8(field_data[index_data..].to_vec(), index_data) {
+                    Ok(result) => result,
+                    Err(_) => ("Error".to_owned(), index_data),
+                }
+            }
+            else {
+                ("Error".to_owned(), index_data)
+            }
+        },
+        &FieldType::StringU16 => {
+            if let Some(_) = field_data.get(index_data) {
+                match coding_helpers::decode_packedfile_string_u16(field_data[index_data..].to_vec(), index_data) {
+                    Ok(result) => result,
+                    Err(_) => ("Error".to_owned(), index_data),
+                }
+            }
+            else {
+                ("Error".to_owned(), index_data)
+            }
+        },
+        &FieldType::OptionalStringU8 => {
+            if let Some(_) = field_data.get(index_data) {
+                match coding_helpers::decode_packedfile_optional_string_u8(field_data[index_data..].to_vec(), index_data) {
+                    Ok(result) => result,
+                    Err(_) => ("Error".to_owned(), index_data),
+                }
+            }
+            else {
+                ("Error".to_owned(), index_data)
+            }
+        },
+        &FieldType::OptionalStringU16 => {
+            if let Some(_) = field_data.get(index_data) {
+                match coding_helpers::decode_packedfile_optional_string_u16(field_data[index_data..].to_vec(), index_data) {
+                    Ok(result) => result,
+                    Err(_) => ("Error".to_owned(), index_data),
+                }
+            }
+            else {
+                ("Error".to_owned(), index_data)
+            }
+        },
     }
 }

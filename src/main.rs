@@ -33,7 +33,7 @@ use gtk::prelude::*;
 use gtk::{
     AboutDialog, Box, Builder, WindowPosition, FileChooserDialog, ApplicationWindow,
     TreeView, TreeSelection, TreeStore, MessageDialog, ScrolledWindow, Orientation, Application,
-    CellRendererText, TreeViewColumn, Popover, Entry, Button, Image,
+    CellRendererText, TreeViewColumn, Popover, Entry, Button, Image, ListStore,
     ShortcutsWindow, ToVariant
 };
 
@@ -2102,10 +2102,9 @@ fn build_ui(application: &Application) {
                                             // we'll return the index of the byte where the definition ends, so we continue decoding from it.
                                             let index_data = Rc::new(RefCell::new(PackedFileDBDecoder::update_decoder_view(
                                                 &packed_file_decoder,
-                                                packed_file_data_encoded.borrow().to_vec(),
-                                                &table_definition.borrow(),
+                                                &packed_file_data_encoded.borrow(),
+                                                Some(&table_definition.borrow()),
                                                 initial_index,
-                                                true,
                                             )));
 
                                             // Clean the accelerators stuff.
@@ -2151,6 +2150,9 @@ fn build_ui(application: &Application) {
 
                                             // When we press the "Move up" button.
                                             decoder_move_row_up.connect_activate(clone!(
+                                                initial_index,
+                                                index_data,
+                                                packed_file_data_encoded,
                                                 packed_file_decoder => move |_,_| {
 
                                                 // We only do something in case the focus is in the TreeView or in it's button. This should stop problems with
@@ -2159,15 +2161,18 @@ fn build_ui(application: &Application) {
 
                                                     let current_iter = packed_file_decoder.fields_tree_view.get_selection().get_selected().unwrap().1;
                                                     let new_iter = current_iter.clone();
-                                                    let is_not_first_row = packed_file_decoder.fields_list_store.iter_previous(&new_iter);
-                                                    if is_not_first_row {
+                                                    if packed_file_decoder.fields_list_store.iter_previous(&new_iter) {
                                                         packed_file_decoder.fields_list_store.move_before(&current_iter, &new_iter);
                                                     }
+                                                    *index_data.borrow_mut() = update_first_row_decoded(&packed_file_data_encoded.borrow(), &packed_file_decoder.fields_list_store, &initial_index, &packed_file_decoder);
                                                 }
                                             }));
 
                                             // When we press the "Move down" button.
                                             decoder_move_row_down.connect_activate(clone!(
+                                                initial_index,
+                                                index_data,
+                                                packed_file_data_encoded,
                                                 packed_file_decoder => move |_,_| {
 
                                                 // We only do something in case the focus is in the TreeView or in it's button. This should stop problems with
@@ -2176,10 +2181,10 @@ fn build_ui(application: &Application) {
 
                                                     let current_iter = packed_file_decoder.fields_tree_view.get_selection().get_selected().unwrap().1;
                                                     let new_iter = current_iter.clone();
-                                                    let is_not_last_row = packed_file_decoder.fields_list_store.iter_next(&new_iter);
-                                                    if is_not_last_row {
+                                                    if packed_file_decoder.fields_list_store.iter_next(&new_iter) {
                                                         packed_file_decoder.fields_list_store.move_after(&current_iter, &new_iter);
                                                     }
+                                                    *index_data.borrow_mut() = update_first_row_decoded(&packed_file_data_encoded.borrow(), &packed_file_decoder.fields_list_store, &initial_index, &packed_file_decoder);
                                                 }
                                             }));
 
@@ -2208,10 +2213,9 @@ fn build_ui(application: &Application) {
 
                                                 PackedFileDBDecoder::update_decoder_view(
                                                     &packed_file_decoder,
-                                                    packed_file_data_encoded.borrow().to_vec(),
-                                                    &table_definition.borrow(),
+                                                    &packed_file_data_encoded.borrow(),
+                                                    None,
                                                     *index_data.borrow(),
-                                                    false
                                                 );
                                                 packed_file_decoder.delete_all_fields_button.set_sensitive(true);
 
@@ -2241,10 +2245,9 @@ fn build_ui(application: &Application) {
 
                                                 PackedFileDBDecoder::update_decoder_view(
                                                     &packed_file_decoder,
-                                                    packed_file_data_encoded.borrow().to_vec(),
-                                                    &table_definition.borrow(),
+                                                    &packed_file_data_encoded.borrow(),
+                                                    None,
                                                     *index_data.borrow(),
-                                                    false
                                                 );
                                                 packed_file_decoder.delete_all_fields_button.set_sensitive(true);
 
@@ -2274,10 +2277,9 @@ fn build_ui(application: &Application) {
 
                                                 PackedFileDBDecoder::update_decoder_view(
                                                     &packed_file_decoder,
-                                                    packed_file_data_encoded.borrow().to_vec(),
-                                                    &table_definition.borrow(),
+                                                    &packed_file_data_encoded.borrow(),
+                                                    None,
                                                     *index_data.borrow(),
-                                                    false
                                                 );
                                                 packed_file_decoder.delete_all_fields_button.set_sensitive(true);
 
@@ -2307,10 +2309,9 @@ fn build_ui(application: &Application) {
 
                                                 PackedFileDBDecoder::update_decoder_view(
                                                     &packed_file_decoder,
-                                                    packed_file_data_encoded.borrow().to_vec(),
-                                                    &table_definition.borrow(),
+                                                    &packed_file_data_encoded.borrow(),
+                                                    None,
                                                     *index_data.borrow(),
-                                                    false
                                                 );
                                                 packed_file_decoder.delete_all_fields_button.set_sensitive(true);
 
@@ -2341,10 +2342,9 @@ fn build_ui(application: &Application) {
 
                                                 PackedFileDBDecoder::update_decoder_view(
                                                     &packed_file_decoder,
-                                                    packed_file_data_encoded.borrow().to_vec(),
-                                                    &table_definition.borrow(),
+                                                    &packed_file_data_encoded.borrow(),
+                                                    None,
                                                     *index_data.borrow(),
-                                                    false
                                                 );
                                                 packed_file_decoder.delete_all_fields_button.set_sensitive(true);
 
@@ -2374,10 +2374,9 @@ fn build_ui(application: &Application) {
 
                                                 PackedFileDBDecoder::update_decoder_view(
                                                     &packed_file_decoder,
-                                                    packed_file_data_encoded.borrow().to_vec(),
-                                                    &table_definition.borrow(),
+                                                    &packed_file_data_encoded.borrow(),
+                                                    None,
                                                     *index_data.borrow(),
-                                                    false
                                                 );
                                                 packed_file_decoder.delete_all_fields_button.set_sensitive(true);
 
@@ -2407,10 +2406,9 @@ fn build_ui(application: &Application) {
 
                                                 PackedFileDBDecoder::update_decoder_view(
                                                     &packed_file_decoder,
-                                                    packed_file_data_encoded.borrow().to_vec(),
-                                                    &table_definition.borrow(),
+                                                    &packed_file_data_encoded.borrow(),
+                                                    None,
                                                     *index_data.borrow(),
-                                                    false
                                                 );
                                                 packed_file_decoder.delete_all_fields_button.set_sensitive(true);
 
@@ -2440,10 +2438,9 @@ fn build_ui(application: &Application) {
 
                                                 PackedFileDBDecoder::update_decoder_view(
                                                     &packed_file_decoder,
-                                                    packed_file_data_encoded.borrow().to_vec(),
-                                                    &table_definition.borrow(),
+                                                    &packed_file_data_encoded.borrow(),
+                                                    None,
                                                     *index_data.borrow(),
-                                                    false
                                                 );
                                                 packed_file_decoder.delete_all_fields_button.set_sensitive(true);
 
@@ -2454,7 +2451,6 @@ fn build_ui(application: &Application) {
                                             // we reset the index_data, disable de deletion buttons and update the ui, effectively
                                             // resetting the entire decoder to a blank state.
                                             packed_file_decoder.delete_all_fields_button.connect_button_release_event(clone!(
-                                                table_definition,
                                                 index_data,
                                                 packed_file_data_encoded,
                                                 packed_file_decoder => move |delete_all_fields_button ,_|{
@@ -2465,16 +2461,18 @@ fn build_ui(application: &Application) {
 
                                                     PackedFileDBDecoder::update_decoder_view(
                                                         &packed_file_decoder,
-                                                        packed_file_data_encoded.borrow().to_vec(),
-                                                        &table_definition.borrow(),
+                                                        &packed_file_data_encoded.borrow(),
+                                                        None,
                                                         *index_data.borrow(),
-                                                        false
                                                     );
                                                 Inhibit(false)
                                             }));
 
                                             // This allow us to remove a field from the list, using the decoder_delete_row action.
                                             decoder_delete_row.connect_activate(clone!(
+                                                initial_index,
+                                                index_data,
+                                                packed_file_data_encoded,
                                                 packed_file_decoder => move |_,_| {
 
                                                 // We only do something in case the focus is in the TreeView or in any of the moving buttons. This should stop problems with
@@ -2483,6 +2481,7 @@ fn build_ui(application: &Application) {
                                                     if let Some(selection) = packed_file_decoder.fields_tree_view.get_selection().get_selected() {
                                                         packed_file_decoder.fields_list_store.remove(&selection.1);
                                                     }
+                                                    *index_data.borrow_mut() = update_first_row_decoded(&packed_file_data_encoded.borrow(), &packed_file_decoder.fields_list_store, &initial_index, &packed_file_decoder);
                                                 }
                                             }));
 
@@ -2870,6 +2869,55 @@ fn remove_temporal_accelerators(application: &Application) {
     application.remove_action("move_row_up");
     application.remove_action("move_row_down");
     application.remove_action("delete_row");
+}
+
+/// This function updates the "First row decoded" column in the Decoder View, the current index and
+/// the decoded entries. This should be called in row changes (deletion and moving, not adding).
+fn update_first_row_decoded(packedfile: &Vec<u8>, list_store: &ListStore, index: &usize, decoder: &PackedFileDBDecoder) -> usize {
+    let iter = list_store.get_iter_first();
+    let mut index = index.clone();
+    if let Some(current_iter) = iter {
+        loop {
+            // Get the type from the column...
+            let field_type = match list_store.get_value(&current_iter, 2).get().unwrap() {
+                "Bool" => FieldType::Boolean,
+                "Float" => FieldType::Float,
+                "Integer" => FieldType::Integer,
+                "LongInteger" => FieldType::LongInteger,
+                "StringU8" => FieldType::StringU8,
+                "StringU16" => FieldType::StringU16,
+                "OptionalStringU8" => FieldType::OptionalStringU8,
+                "OptionalStringU16" => FieldType::OptionalStringU16,
+                // This is just so the compiler doesn't complain.
+                _ => FieldType::Boolean,
+            };
+
+            // Get the decoded data using it's type...
+            let decoded_data = decode_data_by_fieldtype(
+                &packedfile,
+                &field_type,
+                index
+            );
+
+            // Update it's index for the next field.
+            index = decoded_data.1;
+
+            // Set the new values.
+            list_store.set_value(&current_iter, 6, &gtk::ToValue::to_value(&decoded_data.0));
+
+            // Break the loop once you run out of rows.
+            if !list_store.iter_next(&current_iter) {
+                break;
+            }
+        }
+    }
+    PackedFileDBDecoder::update_decoder_view(
+        decoder,
+        packedfile,
+        None,
+        index,
+    );
+    index
 }
 
 /// Main function.
