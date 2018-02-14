@@ -69,6 +69,8 @@ pub struct PackedFileDBDecoder {
     pub fields_tree_view_cell_combo_list_store: ListStore,
     pub fields_tree_view_cell_string: Vec<CellRendererText>,
     pub delete_all_fields_button: Button,
+    pub move_up_button: ModelButton,
+    pub move_down_button: ModelButton,
 }
 
 /// Implementation of "PackedFileDBTreeView".
@@ -843,6 +845,8 @@ impl PackedFileDBDecoder {
             fields_tree_view_cell_combo_list_store,
             fields_tree_view_cell_string,
             delete_all_fields_button,
+            move_up_button: row_up,
+            move_down_button: row_down,
         }
     }
 

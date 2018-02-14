@@ -490,7 +490,6 @@ fn build_ui(application: &Application) {
         pack_file_decoded => move |menu_bar_change_packfile_type, selected_type| {
         if let Some(state) = selected_type.clone() {
             let new_state: Option<String> = state.get();
-            println!("{:?}", new_state);
             match &*new_state.unwrap() {
                 "boot" => {
                     if pack_file_decoded.borrow().pack_file_header.pack_file_type != 0 {
@@ -2130,20 +2129,23 @@ fn build_ui(application: &Application) {
                                             decoder_move_row_up.set_enabled(false);
                                             decoder_move_row_down.set_enabled(false);
 
-                                            // We check if we can delete something on selection changes.
+                                            // We check if we can allow actions on selection changes.
                                             packed_file_decoder.fields_tree_view.connect_cursor_changed(clone!(
                                                 decoder_move_row_up,
                                                 decoder_move_row_down,
+                                                decoder_delete_row,
                                                 packed_file_decoder => move |_| {
 
-                                                // If the Loc PackedFile is empty, disable the delete action.
+                                                // If the field list is empty, disable all the actions.
                                                 if packed_file_decoder.fields_tree_view.get_selection().count_selected_rows() > 0 {
                                                     decoder_move_row_up.set_enabled(true);
                                                     decoder_move_row_down.set_enabled(true);
+                                                    decoder_delete_row.set_enabled(true);
                                                 }
                                                 else {
                                                     decoder_move_row_up.set_enabled(false);
                                                     decoder_move_row_down.set_enabled(false);
+                                                    decoder_delete_row.set_enabled(false);
                                                 }
                                             }));
 
@@ -2151,9 +2153,9 @@ fn build_ui(application: &Application) {
                                             decoder_move_row_up.connect_activate(clone!(
                                                 packed_file_decoder => move |_,_| {
 
-                                                // We only do something in case the focus is in the TreeView. This should stop problems with
+                                                // We only do something in case the focus is in the TreeView or in it's button. This should stop problems with
                                                 // the accels working everywhere.
-                                                if packed_file_decoder.fields_tree_view.has_focus() {
+                                                if packed_file_decoder.fields_tree_view.has_focus() || packed_file_decoder.move_up_button.has_focus() {
 
                                                     let current_iter = packed_file_decoder.fields_tree_view.get_selection().get_selected().unwrap().1;
                                                     let new_iter = current_iter.clone();
@@ -2168,9 +2170,9 @@ fn build_ui(application: &Application) {
                                             decoder_move_row_down.connect_activate(clone!(
                                                 packed_file_decoder => move |_,_| {
 
-                                                // We only do something in case the focus is in the TreeView. This should stop problems with
+                                                // We only do something in case the focus is in the TreeView or in it's button. This should stop problems with
                                                 // the accels working everywhere.
-                                                if packed_file_decoder.fields_tree_view.has_focus() {
+                                                if packed_file_decoder.fields_tree_view.has_focus() || packed_file_decoder.move_down_button.has_focus() {
 
                                                     let current_iter = packed_file_decoder.fields_tree_view.get_selection().get_selected().unwrap().1;
                                                     let new_iter = current_iter.clone();
@@ -2475,9 +2477,9 @@ fn build_ui(application: &Application) {
                                             decoder_delete_row.connect_activate(clone!(
                                                 packed_file_decoder => move |_,_| {
 
-                                                // We only do something in case the focus is in the TreeView. This should stop problems with
+                                                // We only do something in case the focus is in the TreeView or in any of the moving buttons. This should stop problems with
                                                 // the accels working everywhere.
-                                                if packed_file_decoder.fields_tree_view.has_focus() {
+                                                if packed_file_decoder.fields_tree_view.has_focus() || packed_file_decoder.move_up_button.has_focus() || packed_file_decoder.move_down_button.has_focus() {
                                                     if let Some(selection) = packed_file_decoder.fields_tree_view.get_selection().get_selected() {
                                                         packed_file_decoder.fields_list_store.remove(&selection.1);
                                                     }
