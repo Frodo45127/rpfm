@@ -400,7 +400,7 @@ impl DBData {
                         continue;
                     },
                     DecodedData::Boolean(data) => {
-                        let mut encoded_data = coding_helpers::encode_bool(data);
+                        let encoded_data = coding_helpers::encode_bool(data);
                         packed_file_data_encoded.push(encoded_data);
                     },
                     DecodedData::Float(data) => {

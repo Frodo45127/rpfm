@@ -49,7 +49,9 @@ use sourceview::{
 use common::coding_helpers;
 use common::*;
 use packfile::packfile::PackFile;
+use packedfile::SerializableToCSV;
 use packedfile::loc::Loc;
+use packedfile::loc::LocData;
 use packedfile::db::DB;
 use packedfile::db::DBHeader;
 use packedfile::db::schemas::*;
@@ -1570,7 +1572,7 @@ fn build_ui(application: &Application) {
 
                                         // First we ask for the file to import.
                                         if file_chooser_packedfile_loc_import_csv.run() == gtk_response_ok {
-                                            match packedfile::import_from_csv(&file_chooser_packedfile_loc_import_csv.get_filename().expect("Couldn't open file")) {
+                                            match SerializableToCSV::import_csv(&file_chooser_packedfile_loc_import_csv.get_filename().expect("Couldn't open file")) {
 
                                                 // If the file we choose has been processed into a LocData, we replace
                                                 // our old LocData with that one, and then re-create the ListStore.
@@ -1615,7 +1617,7 @@ fn build_ui(application: &Application) {
                                         file_chooser_packedfile_loc_export_csv.set_current_name(format!("{}.csv",&tree_path.last().unwrap()));
 
                                         if file_chooser_packedfile_loc_export_csv.run() == gtk_response_ok {
-                                            match packedfile::export_to_csv(&packed_file_data_decoded.borrow_mut().packed_file_data, &file_chooser_packedfile_loc_export_csv.get_filename().expect("Couldn't open file")) {
+                                            match LocData::export_csv(&packed_file_data_decoded.borrow_mut().packed_file_data, &file_chooser_packedfile_loc_export_csv.get_filename().expect("Couldn't open file")) {
                                                 Ok(result) => ui::show_dialog(&success_dialog, result),
                                                 Err(error) => ui::show_dialog(&error_dialog, error.cause())
                                             }
