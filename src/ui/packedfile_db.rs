@@ -92,13 +92,10 @@ impl PackedFileDBTreeView{
         list_store_table_definition.push(Type::String);
 
         // Depending on the type of the field, we push the gtk::Type equivalent to that column.
-        for field in packed_file_table_definition.fields.iter() {
+        for field in &packed_file_table_definition.fields {
             match field.field_type {
                 FieldType::Boolean => {
                     list_store_table_definition.push(Type::Bool);
-                }
-                FieldType::Float => {
-                    list_store_table_definition.push(Type::String);
                 }
                 FieldType::Integer => {
                     list_store_table_definition.push(Type::I32);
@@ -106,7 +103,7 @@ impl PackedFileDBTreeView{
                 FieldType::LongInteger => {
                     list_store_table_definition.push(Type::I64);
                 }
-                FieldType::StringU8 | FieldType::StringU16 | FieldType::OptionalStringU8 | FieldType::OptionalStringU16 => {
+                FieldType::Float | FieldType::StringU8 | FieldType::StringU16 | FieldType::OptionalStringU8 | FieldType::OptionalStringU16 => {
                     list_store_table_definition.push(Type::String);
                 }
             }
@@ -142,7 +139,7 @@ impl PackedFileDBTreeView{
 
         let mut index = 1;
         let mut key_columns = vec![];
-        for field in packed_file_table_definition.fields.iter() {
+        for field in &packed_file_table_definition.fields {
 
             // These are the specific declarations of the columns for every type implemented.
             match field.field_type {
@@ -283,7 +280,7 @@ impl PackedFileDBTreeView{
 
         // This should put the key columns in order.
         for column in key_columns.iter().rev() {
-            packed_file_tree_view.move_column_after(&column, Some(&column_index));
+            packed_file_tree_view.move_column_after(column, Some(&column_index));
         }
 
         // Disabled search. Not sure why I disabled it, but until all the decoding/encoding stuff is
@@ -364,27 +361,25 @@ impl PackedFileDBTreeView{
 
         // Then we add every line to the ListStore.
         for row in packed_file_data {
-            let mut index = 0;
 
             // Due to issues with types and gtk-rs, we need to create an empty line and then add the
             // values to it, one by one.
             let current_row = packed_file_list_store.append();
 
-            for field in row {
+            for (index, field) in row.iter().enumerate() {
                 let gtk_value_field;
-                match field {
-                    DecodedData::Index(data) => gtk_value_field = gtk::ToValue::to_value(&data),
-                    DecodedData::Boolean(data) => gtk_value_field = gtk::ToValue::to_value(&data),
-                    DecodedData::Float(data) => gtk_value_field = gtk::ToValue::to_value(&format!("{}", data)),
-                    DecodedData::Integer(data) => gtk_value_field = gtk::ToValue::to_value(&data),
-                    DecodedData::LongInteger(data) => gtk_value_field = gtk::ToValue::to_value(&data),
-                    DecodedData::StringU8(data) => gtk_value_field = gtk::ToValue::to_value(&data),
-                    DecodedData::StringU16(data) => gtk_value_field = gtk::ToValue::to_value(&data),
-                    DecodedData::OptionalStringU8(data) => gtk_value_field = gtk::ToValue::to_value(&data),
-                    DecodedData::OptionalStringU16(data) => gtk_value_field = gtk::ToValue::to_value(&data),
+                match *field {
+                    DecodedData::Index(ref data) => gtk_value_field = gtk::ToValue::to_value(&data),
+                    DecodedData::Boolean(ref data) => gtk_value_field = gtk::ToValue::to_value(&data),
+                    DecodedData::Float(ref data) => gtk_value_field = gtk::ToValue::to_value(&format!("{}", data)),
+                    DecodedData::Integer(ref data) => gtk_value_field = gtk::ToValue::to_value(&data),
+                    DecodedData::LongInteger(ref data) => gtk_value_field = gtk::ToValue::to_value(&data),
+                    DecodedData::StringU8(ref data) => gtk_value_field = gtk::ToValue::to_value(&data),
+                    DecodedData::StringU16(ref data) => gtk_value_field = gtk::ToValue::to_value(&data),
+                    DecodedData::OptionalStringU8(ref data) => gtk_value_field = gtk::ToValue::to_value(&data),
+                    DecodedData::OptionalStringU16(ref data) => gtk_value_field = gtk::ToValue::to_value(&data),
                 }
-                packed_file_list_store.set_value(&current_row, index, &gtk_value_field);
-                index += 1;
+                packed_file_list_store.set_value(&current_row, index as u32, &gtk_value_field);
             }
         }
         Ok(())
@@ -564,14 +559,14 @@ impl PackedFileDBDecoder {
         fields_tree_view_cell_string.push(cell_name);
 
         let cell_type_list_store = ListStore::new(&[String::static_type()]);
-        cell_type_list_store.insert_with_values(None, &[0], &[&format!("Bool")]);
-        cell_type_list_store.insert_with_values(None, &[0], &[&format!("Float")]);
-        cell_type_list_store.insert_with_values(None, &[0], &[&format!("Integer")]);
-        cell_type_list_store.insert_with_values(None, &[0], &[&format!("LongInteger")]);
-        cell_type_list_store.insert_with_values(None, &[0], &[&format!("StringU8")]);
-        cell_type_list_store.insert_with_values(None, &[0], &[&format!("StringU16")]);
-        cell_type_list_store.insert_with_values(None, &[0], &[&format!("OptionalStringU8")]);
-        cell_type_list_store.insert_with_values(None, &[0], &[&format!("OptionalStringU16")]);
+        cell_type_list_store.insert_with_values(None, &[0], &[&"Bool"]);
+        cell_type_list_store.insert_with_values(None, &[0], &[&"Float"]);
+        cell_type_list_store.insert_with_values(None, &[0], &[&"Integer"]);
+        cell_type_list_store.insert_with_values(None, &[0], &[&"LongInteger"]);
+        cell_type_list_store.insert_with_values(None, &[0], &[&"StringU8"]);
+        cell_type_list_store.insert_with_values(None, &[0], &[&"StringU16"]);
+        cell_type_list_store.insert_with_values(None, &[0], &[&"OptionalStringU8"]);
+        cell_type_list_store.insert_with_values(None, &[0], &[&"OptionalStringU16"]);
 
         let column_type = TreeViewColumn::new();
         let cell_type = CellRendererCombo::new();
@@ -861,7 +856,7 @@ impl PackedFileDBDecoder {
     pub fn load_data_to_decoder_view(
         packed_file_decoder_view: &PackedFileDBDecoder,
         packed_file_table_type: &str,
-        packed_file_encoded: &Vec<u8>,
+        packed_file_encoded: &[u8],
         initial_index: usize
     ) -> Result<(), Error> {
         let db_header = DBHeader::read(packed_file_encoded.to_vec())?;
@@ -961,7 +956,7 @@ impl PackedFileDBDecoder {
     ///   If false, we update the entire table. If false, we just update the text entries.
     pub fn update_decoder_view(
         packed_file_decoder: &PackedFileDBDecoder,
-        packed_file_decoded: &Vec<u8>,
+        packed_file_decoded: &[u8],
         table_definition: Option<&TableDefinition>,
         index_data: usize,
     ) -> usize {

@@ -194,7 +194,7 @@ impl DBHeader {
     pub fn save(packed_file_header_decoded: &DBHeader, packed_file_entry_count: u32) -> Vec<u8> {
         let mut packed_file_header_encoded: Vec<u8> = vec![];
 
-        let guid_encoded = coding_helpers::encode_packedfile_string_u16(packed_file_header_decoded.packed_file_header_packed_file_guid.0.clone());
+        let guid_encoded = coding_helpers::encode_packedfile_string_u16(&packed_file_header_decoded.packed_file_header_packed_file_guid.0);
 
         packed_file_header_encoded.extend_from_slice(&GUID_MARKER);
         packed_file_header_encoded.extend_from_slice(&guid_encoded);
@@ -401,7 +401,7 @@ impl DBData {
                     },
                     DecodedData::Boolean(data) => {
                         let mut encoded_data = coding_helpers::encode_bool(data.clone());
-                        packed_file_data_encoded.append(&mut encoded_data);
+                        packed_file_data_encoded.push(encoded_data);
                     },
                     DecodedData::Float(data) => {
                         let mut encoded_data = coding_helpers::encode_float_u32(data.clone());
@@ -416,19 +416,19 @@ impl DBData {
                         packed_file_data_encoded.append(&mut encoded_data);
                     },
                     DecodedData::StringU8(ref data) => {
-                        let mut encoded_data = coding_helpers::encode_packedfile_string_u8(data.clone());
+                        let mut encoded_data = coding_helpers::encode_packedfile_string_u8(&data);
                         packed_file_data_encoded.append(&mut encoded_data);
                     },
                     DecodedData::StringU16(ref data) => {
-                        let mut encoded_data = coding_helpers::encode_packedfile_string_u16(data.clone());
+                        let mut encoded_data = coding_helpers::encode_packedfile_string_u16(&data);
                         packed_file_data_encoded.append(&mut encoded_data);
                     },
                     DecodedData::OptionalStringU8(ref data) => {
-                        let mut encoded_data = coding_helpers::encode_packedfile_optional_string_u8(data.clone());
+                        let mut encoded_data = coding_helpers::encode_packedfile_optional_string_u8(&data);
                         packed_file_data_encoded.append(&mut encoded_data);
                     },
                     DecodedData::OptionalStringU16(ref data) => {
-                        let mut encoded_data = coding_helpers::encode_packedfile_optional_string_u16(data.clone());
+                        let mut encoded_data = coding_helpers::encode_packedfile_optional_string_u16(&data);
                         packed_file_data_encoded.append(&mut encoded_data);
                     },
                 }

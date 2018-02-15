@@ -190,10 +190,8 @@ impl PackedFileLocTreeView{
         packed_file_list_store.clear();
 
         // Then we add every line to the ListStore.
-        let mut j = 0;
-        for i in &packed_file_data.packed_file_data_entries {
-            j += 1;
-            packed_file_list_store.insert_with_values(None, &[0, 1, 2, 3], &[&format!("{:0count$}", j, count = (packed_file_data.packed_file_data_entries.len().to_string().len() + 1)), &i.key, &i.text, &i.tooltip]);
+        for (j, i) in packed_file_data.packed_file_data_entries.iter().enumerate() {
+            packed_file_list_store.insert_with_values(None, &[0, 1, 2, 3], &[&format!("{:0count$}", j + 1, count = (packed_file_data.packed_file_data_entries.len().to_string().len() + 1)), &i.key, &i.text, &i.tooltip]);
         }
     }
 
@@ -214,7 +212,7 @@ impl PackedFileLocTreeView{
                 let text = packed_file_list_store.get_value(&current_line, 2).get().unwrap();
                 let tooltip = packed_file_list_store.get_value(&current_line, 3).get().unwrap();
 
-                &packed_file_data_from_tree_view.packed_file_data_entries.push(LocDataEntry::new(key, text, tooltip));
+                packed_file_data_from_tree_view.packed_file_data_entries.push(LocDataEntry::new(key, text, tooltip));
 
                 if !packed_file_list_store.iter_next(&current_line) {
                     done = true;

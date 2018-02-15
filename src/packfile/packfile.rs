@@ -271,7 +271,7 @@ impl PackFileHeader {
     pub fn save(header_decoded: &PackFileHeader, pack_file_index_size: u32, packed_file_index_size: u32) -> Vec<u8> {
         let mut header_encoded = vec![];
 
-        let mut pack_file_id = coding_helpers::encode_string_u8(header_decoded.pack_file_id.clone());
+        let mut pack_file_id = coding_helpers::encode_string_u8(&header_decoded.pack_file_id);
         let mut pack_file_type = coding_helpers::encode_integer_u32(header_decoded.pack_file_type);
         let mut pack_file_count = coding_helpers::encode_integer_u32(header_decoded.pack_file_count);
         let mut pack_file_index_size = coding_helpers::encode_integer_u32(pack_file_index_size);

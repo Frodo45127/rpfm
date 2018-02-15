@@ -2685,7 +2685,7 @@ fn build_ui(application: &Application) {
                                 packed_file_source_view_save_button.connect_button_release_event(clone!(
                                     window,
                                     pack_file_decoded => move |_,_| {
-                                    let packed_file_data_decoded = coding_helpers::encode_string_u8(packed_file_source_view.get_buffer().unwrap().get_slice(
+                                    let packed_file_data_decoded = coding_helpers::encode_string_u8(&packed_file_source_view.get_buffer().unwrap().get_slice(
                                         &packed_file_source_view.get_buffer().unwrap().get_start_iter(),
                                         &packed_file_source_view.get_buffer().unwrap().get_end_iter(),
                                         true).unwrap());

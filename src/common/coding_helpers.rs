@@ -189,7 +189,7 @@ pub fn encode_float_u32(float_decoded: f32) -> Vec<u8> {
 
 /// This function allow us to encode an UTF-8 decoded String.
 #[allow(dead_code)]
-pub fn encode_string_u8(string_decoded: String) -> Vec<u8> {
+pub fn encode_string_u8(string_decoded: &str) -> Vec<u8> {
     string_decoded.as_bytes().to_vec()
 }
 
@@ -197,13 +197,13 @@ pub fn encode_string_u8(string_decoded: String) -> Vec<u8> {
 /// "size", so we encode the String like a normal UTF-8 String and then extend the vector until we
 /// reach the desired size.
 #[allow(dead_code)]
-pub fn encode_string_u8_0padded(string_decoded: (String, usize)) -> Result<Vec<u8>, Error> {
+pub fn encode_string_u8_0padded(string_decoded: &(String, usize)) -> Result<Vec<u8>, Error> {
     let mut string_encoded = string_decoded.0.as_bytes().to_vec();
     let size = string_decoded.1;
     if string_encoded.len() <= size {
         let extra_zeroes_amount = size - string_encoded.len();
         for _ in 0..extra_zeroes_amount {
-            string_encoded.extend_from_slice("\0".as_bytes());
+            string_encoded.push(0);
         }
         Ok(string_encoded)
     }
@@ -216,12 +216,12 @@ pub fn encode_string_u8_0padded(string_decoded: (String, usize)) -> Result<Vec<u
 /// in 2 bytes reversed (LittleEndian).
 /// TODO: Improve this.
 #[allow(dead_code)]
-pub fn encode_string_u16(string_decoded: String) -> Vec<u8> {
+pub fn encode_string_u16(string_decoded: &str) -> Vec<u8> {
     let mut string_encoded: Vec<u8> = vec![];
 
     // First we need to "unescape" all the escaped chars in the decoding process, so we write them
     // instead \n, \",...
-    let string_decoded_unescaped = unescape::unescape(&string_decoded).unwrap();
+    let string_decoded_unescaped = unescape::unescape(string_decoded).unwrap();
     let string_decoded_length = string_decoded_unescaped.chars().count() as u16;
 
     for i in 0..string_decoded_length {
@@ -236,15 +236,8 @@ pub fn encode_string_u16(string_decoded: String) -> Vec<u8> {
 /// This function allow us to encode a boolean. This is simple: \u{0} is false, \u{1} is true.
 /// It only uses a byte.
 #[allow(dead_code)]
-pub fn encode_bool(bool_decoded: bool) -> Vec<u8> {
-    let mut bool_encoded: Vec<u8> = vec![];
-    if bool_decoded {
-        bool_encoded.extend_from_slice(("\u{1}").as_bytes());
-    }
-    else {
-        bool_encoded.extend_from_slice(("\u{0}").as_bytes());
-    }
-    bool_encoded
+pub fn encode_bool(bool_decoded: bool) -> u8 {
+    if bool_decoded { 1 } else { 0 }
 }
 
 /*
@@ -502,7 +495,7 @@ pub fn decode_packedfile_bool(packed_file_data: u8, mut index: usize) -> Result<
 /// This function allow us to encode an UTF-8 decoded string cell. We return the Vec<u8> of
 /// the encoded string.
 #[allow(dead_code)]
-pub fn encode_packedfile_string_u8(string_u8_decoded: String) -> Vec<u8> {
+pub fn encode_packedfile_string_u8(string_u8_decoded: &str) -> Vec<u8> {
     let mut string_u8_encoded = vec![];
     let mut string_u8_data = encode_string_u8(string_u8_decoded);
     let mut string_u8_lenght = encode_integer_u16(string_u8_data.len() as u16);
@@ -516,17 +509,17 @@ pub fn encode_packedfile_string_u8(string_u8_decoded: String) -> Vec<u8> {
 /// This function allow us to encode an UTF-8 decoded string cell. We return the Vec<u8> of
 /// the encoded string.
 #[allow(dead_code)]
-pub fn encode_packedfile_optional_string_u8(optional_string_u8_decoded: String) -> Vec<u8> {
+pub fn encode_packedfile_optional_string_u8(optional_string_u8_decoded: &str) -> Vec<u8> {
     let mut optional_string_u8_encoded = vec![];
 
     if optional_string_u8_decoded.is_empty() {
-        optional_string_u8_encoded.append(&mut encode_bool(false));
+        optional_string_u8_encoded.push(encode_bool(false));
     }
     else {
         let mut optional_string_u8_data = encode_string_u8(optional_string_u8_decoded);
         let mut optional_string_u8_lenght = encode_integer_u16(optional_string_u8_data.len() as u16);
 
-        optional_string_u8_encoded.append(&mut encode_bool(true));
+        optional_string_u8_encoded.push(encode_bool(true));
         optional_string_u8_encoded.append(&mut optional_string_u8_lenght);
         optional_string_u8_encoded.append(&mut optional_string_u8_data);
     }
@@ -537,7 +530,7 @@ pub fn encode_packedfile_optional_string_u8(optional_string_u8_decoded: String) 
 /// This function allow us to encode an UTF-16 decoded string cell. We return the Vec<u8> of
 /// the encoded string.
 #[allow(dead_code)]
-pub fn encode_packedfile_string_u16(string_u16_decoded: String) -> Vec<u8> {
+pub fn encode_packedfile_string_u16(string_u16_decoded: &str) -> Vec<u8> {
     let mut string_u16_encoded = vec![];
     let mut string_u16_data = encode_string_u16(string_u16_decoded);
     let mut string_u16_lenght = encode_integer_u16(string_u16_data.len() as u16 / 2);
@@ -551,17 +544,17 @@ pub fn encode_packedfile_string_u16(string_u16_decoded: String) -> Vec<u8> {
 /// This function allow us to encode an UTF-8 decoded string cell. We return the Vec<u8> of
 /// the encoded string.
 #[allow(dead_code)]
-pub fn encode_packedfile_optional_string_u16(optional_string_u16_decoded: String) -> Vec<u8> {
+pub fn encode_packedfile_optional_string_u16(optional_string_u16_decoded: &str) -> Vec<u8> {
     let mut optional_string_u16_encoded = vec![];
 
     if optional_string_u16_decoded.is_empty() {
-        optional_string_u16_encoded.append(&mut encode_bool(false));
+        optional_string_u16_encoded.push(encode_bool(false));
     }
     else {
         let mut optional_string_u16_data = encode_string_u16(optional_string_u16_decoded);
         let mut optional_string_u16_lenght = encode_integer_u16(optional_string_u16_data.len() as u16);
 
-        optional_string_u16_encoded.append(&mut encode_bool(true));
+        optional_string_u16_encoded.push(encode_bool(true));
         optional_string_u16_encoded.append(&mut optional_string_u16_lenght);
         optional_string_u16_encoded.append(&mut optional_string_u16_data);
     }

@@ -120,7 +120,7 @@ impl LocHeader {
         let mut packed_file_header_encoded: Vec<u8> = vec![];
 
         packed_file_header_encoded.extend_from_slice(&coding_helpers::encode_integer_u16(packed_file_header_decoded.packed_file_header_byte_order_mark));
-        packed_file_header_encoded.extend_from_slice(&coding_helpers::encode_string_u8(packed_file_header_decoded.packed_file_header_packed_file_type.clone()));
+        packed_file_header_encoded.extend_from_slice(&coding_helpers::encode_string_u8(&packed_file_header_decoded.packed_file_header_packed_file_type));
         packed_file_header_encoded.extend_from_slice("\0".as_bytes());
         packed_file_header_encoded.extend_from_slice(&coding_helpers::encode_integer_u32(packed_file_header_decoded.packed_file_header_packed_file_version));
         packed_file_header_encoded.extend_from_slice(&coding_helpers::encode_integer_u32(packed_file_entry_count));
@@ -218,9 +218,9 @@ impl LocData {
         let mut packed_file_entry_count = 0;
 
         for i in &packed_file_data_decoded.packed_file_data_entries {
-            packed_file_data_encoded.append(&mut coding_helpers::encode_packedfile_string_u16(i.key.clone()));
-            packed_file_data_encoded.append(&mut coding_helpers::encode_packedfile_string_u16(i.text.clone()));
-            packed_file_data_encoded.append(&mut coding_helpers::encode_bool(i.tooltip));
+            packed_file_data_encoded.append(&mut coding_helpers::encode_packedfile_string_u16(&i.key));
+            packed_file_data_encoded.append(&mut coding_helpers::encode_packedfile_string_u16(&i.text));
+            packed_file_data_encoded.push(coding_helpers::encode_bool(i.tooltip));
             packed_file_entry_count += 1;
         }
         (packed_file_data_encoded, packed_file_entry_count)
