@@ -558,10 +558,9 @@ fn build_ui(application: &Application) {
             file_chooser_settings_select_folder => move |_,_| {
 
             // If we already have a path for it, and said path exists, we use it as base for the next path.
-            if settings.borrow().paths.my_mods_base_path != None {
-                if settings.borrow().clone().paths.my_mods_base_path.unwrap().to_path_buf().is_dir() {
-                    file_chooser_settings_select_folder.set_current_folder(settings.borrow().clone().paths.my_mods_base_path.unwrap().to_path_buf());
-                }
+            if settings.borrow().paths.my_mods_base_path != None &&
+                settings.borrow().clone().paths.my_mods_base_path.unwrap().to_path_buf().is_dir() {
+                file_chooser_settings_select_folder.set_current_folder(settings.borrow().clone().paths.my_mods_base_path.unwrap().to_path_buf());
             }
             if file_chooser_settings_select_folder.run() == gtk_response_ok {
                 if let Some(new_folder) = file_chooser_settings_select_folder.get_current_folder(){
@@ -578,10 +577,9 @@ fn build_ui(application: &Application) {
             file_chooser_settings_select_folder => move |_,_| {
 
             // If we already have a path for it, and said path exists, we use it as base for the next path.
-            if settings.borrow().paths.warhammer_2 != None {
-                if settings.borrow().clone().paths.warhammer_2.unwrap().to_path_buf().is_dir() {
-                    file_chooser_settings_select_folder.set_current_folder(settings.borrow().clone().paths.warhammer_2.unwrap().to_path_buf());
-                }
+            if settings.borrow().paths.warhammer_2 != None &&
+                settings.borrow().clone().paths.warhammer_2.unwrap().to_path_buf().is_dir() {
+                file_chooser_settings_select_folder.set_current_folder(settings.borrow().clone().paths.warhammer_2.unwrap().to_path_buf());
             }
             if file_chooser_settings_select_folder.run() == gtk_response_ok {
                 if let Some(new_folder) = file_chooser_settings_select_folder.get_current_folder() {

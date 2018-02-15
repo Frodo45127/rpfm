@@ -630,54 +630,54 @@ pub fn patch_siege_ai (
     // For every PackedFile in the PackFile we check first if it's in the usual map folder, as we
     // don't want to touch files outside that folder.
     for i in &mut pack_file.pack_file_data.packed_files {
-        if i.packed_file_path.starts_with(&["terrain".to_string(), "tiles".to_string(), "battle".to_string(), "_assembly_kit".to_string()]) {
-            if i.packed_file_path.last() != None {
-                let x = i.packed_file_path.last().unwrap();
-                packfile_is_empty = false;
+        if i.packed_file_path.starts_with(&["terrain".to_string(), "tiles".to_string(), "battle".to_string(), "_assembly_kit".to_string()]) &&
+            i.packed_file_path.last() != None {
 
-                // If it's one of the possible candidates for Patching, we first check if it has
-                // an Area Node in it, as that's the base for SiegeAI. If it has an Area Node,
-                // we search the Defensive Hill and Patch it. After that, we check if there are
-                // more Defensive Hills in the file. If there are more, we return success but
-                // notify the modder that the file should have only one.
-                if x == "bmd_data.bin"
-                    || x == "catchment_01_layer_bmd_data.bin"
-                    || x == "catchment_02_layer_bmd_data.bin"
-                    || x == "catchment_03_layer_bmd_data.bin"
-                    || x == "catchment_04_layer_bmd_data.bin"
-                    || x == "catchment_05_layer_bmd_data.bin"
-                    || x == "catchment_06_layer_bmd_data.bin"
-                    || x == "catchment_07_layer_bmd_data.bin"
-                    || x == "catchment_08_layer_bmd_data.bin"
-                    || x == "catchment_09_layer_bmd_data.bin" {
+            let x = i.packed_file_path.last().unwrap();
+            packfile_is_empty = false;
 
-                    if i.packed_file_data.windows(19).find(|window: &&[u8]
-                            |String::from_utf8_lossy(window) == "AIH_SIEGE_AREA_NODE") != None {
+            // If it's one of the possible candidates for Patching, we first check if it has
+            // an Area Node in it, as that's the base for SiegeAI. If it has an Area Node,
+            // we search the Defensive Hill and Patch it. After that, we check if there are
+            // more Defensive Hills in the file. If there are more, we return success but
+            // notify the modder that the file should have only one.
+            if x == "bmd_data.bin"
+                || x == "catchment_01_layer_bmd_data.bin"
+                || x == "catchment_02_layer_bmd_data.bin"
+                || x == "catchment_03_layer_bmd_data.bin"
+                || x == "catchment_04_layer_bmd_data.bin"
+                || x == "catchment_05_layer_bmd_data.bin"
+                || x == "catchment_06_layer_bmd_data.bin"
+                || x == "catchment_07_layer_bmd_data.bin"
+                || x == "catchment_08_layer_bmd_data.bin"
+                || x == "catchment_09_layer_bmd_data.bin" {
 
-                        let patch = "AIH_FORT_PERIMETER".to_string();
-                        let index = i.packed_file_data.windows(18)
-                            .position(
-                                |window: &[u8]
-                                |String::from_utf8_lossy(window) == "AIH_DEFENSIVE_HILL");
+                if i.packed_file_data.windows(19).find(|window: &&[u8]
+                        |String::from_utf8_lossy(window) == "AIH_SIEGE_AREA_NODE") != None {
 
-                        if index != None {
-                            for j in 0..18 {
-                                i.packed_file_data[index.unwrap() + (j as usize)] = patch.chars().nth(j).unwrap() as u8;
-                            }
-                            files_patched += 1;
+                    let patch = "AIH_FORT_PERIMETER".to_string();
+                    let index = i.packed_file_data.windows(18)
+                        .position(
+                            |window: &[u8]
+                            |String::from_utf8_lossy(window) == "AIH_DEFENSIVE_HILL");
+
+                    if index != None {
+                        for j in 0..18 {
+                            i.packed_file_data[index.unwrap() + (j as usize)] = patch.chars().nth(j).unwrap() as u8;
                         }
-                        if i.packed_file_data.windows(18).find(|window: &&[u8]
-                                |String::from_utf8_lossy(window) == "AIH_DEFENSIVE_HILL") != None {
-                            multiple_defensive_hill_hints = true;
-                        }
+                        files_patched += 1;
+                    }
+                    if i.packed_file_data.windows(18).find(|window: &&[u8]
+                            |String::from_utf8_lossy(window) == "AIH_DEFENSIVE_HILL") != None {
+                        multiple_defensive_hill_hints = true;
                     }
                 }
+            }
 
-                // If it's an xml, we add it to the list of files_to_delete, as all the .xml files
-                // in this folder are useless and only increase the size of the PackFile.
-                else if x.ends_with(".xml") {
-                    files_to_delete.push(i.packed_file_path.to_vec());
-                }
+            // If it's an xml, we add it to the list of files_to_delete, as all the .xml files
+            // in this folder are useless and only increase the size of the PackFile.
+            else if x.ends_with(".xml") {
+                files_to_delete.push(i.packed_file_path.to_vec());
             }
         }
     }
