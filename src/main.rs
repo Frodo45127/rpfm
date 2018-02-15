@@ -1,5 +1,10 @@
 // In this file we create the UI of the RPFM, and control it (events, updates, etc...).
 
+// Disable this specific clippy linter. It has a lot of false positives, and it's a pain in the ass
+// to separate it's results from other more useful linters.
+#![allow(doc_markdown)]
+
+// This disables makes it so it doesn't start a terminal in Windows when executed.
 #![windows_subsystem = "windows"]
 
 #[macro_use]
