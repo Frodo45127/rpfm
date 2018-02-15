@@ -78,14 +78,14 @@ impl DB {
 
     /// This function creates a new decoded DB from a encoded PackedFile. This assumes the PackedFile is
     /// a DB PackedFile. It'll crash otherwise.
-    pub fn read(packed_file_data: Vec<u8>, packed_file_db_type: &str, master_schema: &schemas::Schema) -> Result<DB, Error> {
+    pub fn read(packed_file_data: &[u8], packed_file_db_type: &str, master_schema: &schemas::Schema) -> Result<DB, Error> {
 
-        match DBHeader::read(packed_file_data.to_vec()) {
+        match DBHeader::read(packed_file_data) {
             Ok(packed_file_header) => {
                 match DB::get_schema(packed_file_db_type, packed_file_header.0.packed_file_header_packed_file_version, master_schema) {
                     Some(table_definition) => {
                         match DBData::read(
-                            packed_file_data[(packed_file_header.1)..].to_vec(),
+                            &packed_file_data[(packed_file_header.1)..],
                             &table_definition,
                             packed_file_header.0.packed_file_header_packed_file_entry_count,
                         ) {
@@ -100,7 +100,7 @@ impl DB {
                             Err(error) => Err(error)
                         }
                     }
-                    None => return Err(format_err!("Schema for this Packedfile not found"))
+                    None => Err(format_err!("Schema for this Packedfile not found"))
                 }
 
             }
@@ -160,7 +160,7 @@ impl DBHeader {
 
     /// This function creates a decoded DBHeader from a encoded PackedFile. It also return an index,
     /// to know where the body starts.
-    pub fn read(packed_file_header: Vec<u8>) -> Result<(DBHeader, usize), Error> {
+    pub fn read(packed_file_header: &[u8]) -> Result<(DBHeader, usize), Error> {
 
         let mut packed_file_header_decoded = DBHeader::new();
         let mut index: usize = 0;
@@ -168,22 +168,22 @@ impl DBHeader {
         // If it has a GUID_MARKER, we get the GUID.
         if &packed_file_header[index..(index + 4)] == GUID_MARKER {
             index += 4;
-            packed_file_header_decoded.packed_file_header_packed_file_guid = coding_helpers::decode_packedfile_string_u16(packed_file_header[index..].to_vec(), index)?;
+            packed_file_header_decoded.packed_file_header_packed_file_guid = coding_helpers::decode_packedfile_string_u16(&packed_file_header[index..], index)?;
             index = packed_file_header_decoded.packed_file_header_packed_file_guid.1;
         }
 
         // If it has a VERSION_MARKER, we get the version of the table.
         if &packed_file_header[index..(index + 4)] == VERSION_MARKER {
-            packed_file_header_decoded.packed_file_header_packed_file_version = coding_helpers::decode_integer_u32(packed_file_header[(index + 4)..(index + 8)].to_vec())?;
+            packed_file_header_decoded.packed_file_header_packed_file_version = coding_helpers::decode_integer_u32(&packed_file_header[(index + 4)..(index + 8)])?;
             packed_file_header_decoded.packed_file_header_packed_file_version_marker = true;
-            index = index + 8;
+            index += 8;
         }
 
         // We save a mysterious byte I don't know what it does.
         packed_file_header_decoded.packed_file_header_packed_file_mysterious_byte = packed_file_header[index];
         index += 1;
 
-        packed_file_header_decoded.packed_file_header_packed_file_entry_count = coding_helpers::decode_integer_u32(packed_file_header[(index)..(index + 4)].to_vec())?;
+        packed_file_header_decoded.packed_file_header_packed_file_entry_count = coding_helpers::decode_integer_u32(&packed_file_header[(index)..(index + 4)])?;
         index += 4;
 
         Ok((packed_file_header_decoded, index))
@@ -194,15 +194,15 @@ impl DBHeader {
     pub fn save(packed_file_header_decoded: &DBHeader, packed_file_entry_count: u32) -> Vec<u8> {
         let mut packed_file_header_encoded: Vec<u8> = vec![];
 
-        let guid_encoded = coding_helpers::encode_packedfile_string_u16(packed_file_header_decoded.packed_file_header_packed_file_guid.0.clone());
+        let guid_encoded = coding_helpers::encode_packedfile_string_u16(&packed_file_header_decoded.packed_file_header_packed_file_guid.0);
 
-        packed_file_header_encoded.extend_from_slice(&GUID_MARKER);
+        packed_file_header_encoded.extend_from_slice(GUID_MARKER);
         packed_file_header_encoded.extend_from_slice(&guid_encoded);
 
         if packed_file_header_decoded.packed_file_header_packed_file_version_marker {
             let version_encoded = coding_helpers::encode_integer_u32(packed_file_header_decoded.packed_file_header_packed_file_version);
 
-            packed_file_header_encoded.extend_from_slice(&VERSION_MARKER);
+            packed_file_header_encoded.extend_from_slice(VERSION_MARKER);
             packed_file_header_encoded.extend_from_slice(&version_encoded);
         }
 
@@ -221,7 +221,7 @@ impl DBData {
 
     /// This function creates a decoded DBData from a encoded PackedFile.
     pub fn read(
-        packed_file_data: Vec<u8>,
+        packed_file_data: &[u8],
         table_definition: &schemas::TableDefinition,
         packed_file_header_packed_file_entry_count: u32
     ) -> Result<DBData, Error> {
@@ -269,7 +269,7 @@ impl DBData {
                         schemas::FieldType::Float => {
                             // Check if the index does even exist, to avoid crashes.
                             if (index + 4) <= packed_file_data.len() {
-                                match coding_helpers::decode_packedfile_float_u32(packed_file_data[index..(index + 4)].to_vec(), index) {
+                                match coding_helpers::decode_packedfile_float_u32(&packed_file_data[index..(index + 4)], index) {
                                     Ok(data) => {
                                         index = data.1;
                                         entry.push(DecodedData::Float( data.0));
@@ -284,7 +284,7 @@ impl DBData {
                         schemas::FieldType::Integer => {
                             // Check if the index does even exist, to avoid crashes.
                             if (index + 4) <= packed_file_data.len() {
-                                match coding_helpers::decode_packedfile_integer_i32(packed_file_data[index..(index + 4)].to_vec(), index) {
+                                match coding_helpers::decode_packedfile_integer_i32(&packed_file_data[index..(index + 4)], index) {
                                     Ok(data) => {
                                         index = data.1;
                                         entry.push(DecodedData::Integer(data.0));
@@ -299,7 +299,7 @@ impl DBData {
                         schemas::FieldType::LongInteger => {
                             // Check if the index does even exist, to avoid crashes.
                             if (index + 8) <= packed_file_data.len() {
-                                match coding_helpers::decode_packedfile_integer_i64(packed_file_data[index..(index + 8)].to_vec(), index) {
+                                match coding_helpers::decode_packedfile_integer_i64(&packed_file_data[index..(index + 8)], index) {
                                     Ok(data) => {
                                         index = data.1;
                                         entry.push(DecodedData::LongInteger(data.0));
@@ -313,7 +313,7 @@ impl DBData {
                         }
                         schemas::FieldType::StringU8 => {
                             if index < packed_file_data.len() {
-                                match coding_helpers::decode_packedfile_string_u8(packed_file_data[index..].to_vec(), index) {
+                                match coding_helpers::decode_packedfile_string_u8(&packed_file_data[index..], index) {
                                     Ok(data) => {
                                         index = data.1;
                                         entry.push(DecodedData::StringU8(data.0));
@@ -327,7 +327,7 @@ impl DBData {
                         }
                         schemas::FieldType::StringU16 => {
                             if index < packed_file_data.len() {
-                                match coding_helpers::decode_packedfile_string_u16(packed_file_data[index..].to_vec(), index) {
+                                match coding_helpers::decode_packedfile_string_u16(&packed_file_data[index..], index) {
                                     Ok(data) => {
                                         index = data.1;
                                         entry.push(DecodedData::StringU16(data.0));
@@ -341,7 +341,7 @@ impl DBData {
                         }
                         schemas::FieldType::OptionalStringU8 => {
                             if index <= packed_file_data.len() {
-                                match coding_helpers::decode_packedfile_optional_string_u8(packed_file_data[index..].to_vec(), index) {
+                                match coding_helpers::decode_packedfile_optional_string_u8(&packed_file_data[index..], index) {
                                     Ok(data) => {
                                         index = data.1;
                                         entry.push(DecodedData::OptionalStringU8(data.0));
@@ -355,7 +355,7 @@ impl DBData {
                         }
                         schemas::FieldType::OptionalStringU16 => {
                             if index <= packed_file_data.len() {
-                                match coding_helpers::decode_packedfile_optional_string_u16(packed_file_data[index..].to_vec(), index) {
+                                match coding_helpers::decode_packedfile_optional_string_u16(&packed_file_data[index..], index) {
                                     Ok(data) => {
                                         index = data.1;
                                         entry.push(DecodedData::OptionalStringU16(data.0));
@@ -400,35 +400,35 @@ impl DBData {
                         continue;
                     },
                     DecodedData::Boolean(data) => {
-                        let mut encoded_data = coding_helpers::encode_bool(data.clone());
-                        packed_file_data_encoded.append(&mut encoded_data);
+                        let mut encoded_data = coding_helpers::encode_bool(data);
+                        packed_file_data_encoded.push(encoded_data);
                     },
                     DecodedData::Float(data) => {
-                        let mut encoded_data = coding_helpers::encode_float_u32(data.clone());
+                        let mut encoded_data = coding_helpers::encode_float_u32(data);
                         packed_file_data_encoded.append(&mut encoded_data);
                     },
                     DecodedData::Integer(data) => {
-                        let mut encoded_data = coding_helpers::encode_integer_i32(data.clone());
+                        let mut encoded_data = coding_helpers::encode_integer_i32(data);
                         packed_file_data_encoded.append(&mut encoded_data);
                     },
                     DecodedData::LongInteger(data) => {
-                        let mut encoded_data = coding_helpers::encode_integer_i64(data.clone());
+                        let mut encoded_data = coding_helpers::encode_integer_i64(data);
                         packed_file_data_encoded.append(&mut encoded_data);
                     },
                     DecodedData::StringU8(ref data) => {
-                        let mut encoded_data = coding_helpers::encode_packedfile_string_u8(data.clone());
+                        let mut encoded_data = coding_helpers::encode_packedfile_string_u8(data);
                         packed_file_data_encoded.append(&mut encoded_data);
                     },
                     DecodedData::StringU16(ref data) => {
-                        let mut encoded_data = coding_helpers::encode_packedfile_string_u16(data.clone());
+                        let mut encoded_data = coding_helpers::encode_packedfile_string_u16(data);
                         packed_file_data_encoded.append(&mut encoded_data);
                     },
                     DecodedData::OptionalStringU8(ref data) => {
-                        let mut encoded_data = coding_helpers::encode_packedfile_optional_string_u8(data.clone());
+                        let mut encoded_data = coding_helpers::encode_packedfile_optional_string_u8(data);
                         packed_file_data_encoded.append(&mut encoded_data);
                     },
                     DecodedData::OptionalStringU16(ref data) => {
-                        let mut encoded_data = coding_helpers::encode_packedfile_optional_string_u16(data.clone());
+                        let mut encoded_data = coding_helpers::encode_packedfile_optional_string_u16(data);
                         packed_file_data_encoded.append(&mut encoded_data);
                     },
                 }

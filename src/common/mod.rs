@@ -26,11 +26,11 @@ pub enum TreePathType {
 /// properly.
 #[allow(dead_code)]
 pub fn get_type_of_selected_tree_path(
-    tree_path: &Vec<String>,
+    tree_path: &[String],
     pack_file_decoded: &PackFile
 ) -> TreePathType {
 
-    let mut tree_path = tree_path.clone();
+    let mut tree_path = tree_path.to_owned();
 
     // First, we check if we even have a TreePath to work with.
     if tree_path.is_empty() {
@@ -75,7 +75,7 @@ pub fn get_type_of_selected_tree_path(
     }
 
     // If we reach this, the tree_path we provided does not exist in the tree_view.
-    return TreePathType::None
+    TreePathType::None
 }
 
 /// This function takes a &Path and returns a Vec<PathBuf> with the paths of every file under the

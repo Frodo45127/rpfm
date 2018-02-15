@@ -87,7 +87,7 @@ impl PackedFileRigidModelDataView {
         // Here we process the Lods's texture paths.
         let mut packed_file_texture_paths = vec![];
         let mut index = 1;
-        for lod in packed_file_decoded.packed_file_data.packed_file_data_lods_data.iter() {
+        for lod in &packed_file_decoded.packed_file_data.packed_file_data_lods_data {
             let lod_texture_expander = Expander::new(Some(&*format!("Lod {}", index)));
             let lod_texture_expander_box = Box::new(Orientation::Vertical, 0);
             lod_texture_expander.add(&lod_texture_expander_box);
@@ -198,13 +198,13 @@ impl PackedFileRigidModelDataView {
     /// This function get the texture path entries of a RigidModel from the UI and saves them into the
     /// opened RigidModel.
     pub fn return_data_from_data_view(
-        packed_file_new_texture_paths: Vec<Vec<Entry>>,
+        packed_file_new_texture_paths: &[Vec<Entry>],
         packed_file_data_lods_data: &mut Vec<RigidModelLodData>
     ) -> Vec<RigidModelLodData> {
 
         // If there is a texture list in the first lod, this is not a decal, so we try to get the
         // texture list of every lod.
-        if let Some(_) = packed_file_data_lods_data[0].textures_list {
+        if packed_file_data_lods_data[0].textures_list.is_some() {
             for (index_lod, lod) in packed_file_new_texture_paths.iter().enumerate() {
                 let mut texture_list = packed_file_data_lods_data[index_lod].clone().textures_list.unwrap();
                 for (index_texture, texture) in lod.iter().enumerate() {

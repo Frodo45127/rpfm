@@ -18,13 +18,11 @@ pub mod settings;
 
 /// This function shows a Message in the specified Box.
 pub fn display_help_tips(packed_file_data_display: &Box) {
-    let tips = format!(
-        "Welcome to Rusted PackFile Manager! Here you have some tips on how to use it:
+    let tips = "Welcome to Rusted PackFile Manager! Here you have some tips on how to use it:
         - You can rename anything (even the PackFile) by double-clicking it.
         - You can open a PackFile by dragging it to the big PackFile Tree View.
         - To patch an Attila model to work in Warhammer, select it and press \"Patch to Warhammer 1&2\".
-        - You can insta-patch your siege maps (if you're a mapper) with the \"Patch SiegeAI\" feature from the \"Special Stuff\" menu."
-    );
+        - You can insta-patch your siege maps (if you're a mapper) with the \"Patch SiegeAI\" feature from the \"Special Stuff\" menu.".to_owned();
 
     let packed_file_text_view_label: Label = Label::new(Some(&*tips));
     packed_file_text_view_label.set_justify(Justification::Left);
@@ -54,19 +52,18 @@ pub fn get_rect_for_popover(
     cursor_position: Option<(f64, f64)>
 ) -> Rectangle {
     let cell = folder_tree_view.get_cursor();
-    let mut rect: Rectangle;
-    if let Some(_) = cell.0.clone() {
-        rect = folder_tree_view.get_cell_area(
+    let mut rect: Rectangle = if cell.0.clone().is_some() {
+        folder_tree_view.get_cell_area(
             Some(&cell.0.unwrap()),
             Some(&cell.1.unwrap())
-        );
+        )
     }
     else {
-        rect = folder_tree_view.get_cell_area(
+        folder_tree_view.get_cell_area(
             None,
             None
-        );
-    }
+        )
+    };
 
     let rect_new_coords: (i32, i32) = folder_tree_view.convert_bin_window_to_widget_coords(rect.x, rect.y);
     rect.y = rect_new_coords.1;
@@ -102,11 +99,11 @@ pub fn get_tree_path_from_pathbuf(
     // After that, we reverse the vector, so it's easier to create the full tree_path from it.
     else {
         if cfg!(target_os = "linux") {
-            let mut filtered_path: Vec<String> = file_path.to_str().unwrap().to_string().split("/").map(|s| s.to_string()).collect();
+            let mut filtered_path: Vec<String> = file_path.to_str().unwrap().to_string().split('/').map(|s| s.to_string()).collect();
             tree_path.append(&mut filtered_path);
         }
         else {
-            let mut filtered_path: Vec<String> = file_path.to_str().unwrap().to_string().split("\\").map(|s| s.to_string()).collect();
+            let mut filtered_path: Vec<String> = file_path.to_str().unwrap().to_string().split('\\').map(|s| s.to_string()).collect();
             tree_path.append(&mut filtered_path);
         }
         tree_path.reverse();
@@ -114,7 +111,7 @@ pub fn get_tree_path_from_pathbuf(
 
     // Then we get the selected path, reverse it, append it to the current
     // path, and reverse it again. That should give us the full tree_path in the form we need it.
-    let mut tree_path_from_selection = get_tree_path_from_selection(&folder_tree_selection, false);
+    let mut tree_path_from_selection = get_tree_path_from_selection(folder_tree_selection, false);
     tree_path_from_selection.reverse();
     tree_path.append(&mut tree_path_from_selection);
     tree_path.reverse();
@@ -201,7 +198,7 @@ pub fn update_tree_view_expand_path(
     }
 
     // Then we update the TreeView with all the data and expand the path we got before.
-    update_tree_view(&folder_tree_store, &pack_file_decoded);
+    update_tree_view(folder_tree_store, pack_file_decoded);
     folder_tree_view.expand_to_path(&TreePath::new_from_indicesv(&tree_path_index));
     folder_tree_selection.select_path(&TreePath::new_from_indicesv(&tree_path_index_selected));
 }
@@ -238,72 +235,50 @@ pub fn update_tree_view(
     // - FileB
     sorted_path_list.sort_unstable_by(|a, b| {
         let mut index = 0;
-        let mut result = Ordering::Greater;
-        let ordered = false;
-        while !ordered {
+        loop {
 
             // If both options have the same name.
             if a[index] == b[index] {
 
-                // If A doesn't have more childrens, but B has them, A is a file and B a folder.
+                // If A doesn't have more children, but B has them, A is a file and B a folder.
                 if index == (a.len() - 1) && index < (b.len() - 1) {
-                    result = Ordering::Greater;
-                    break;
+                    return Ordering::Greater
                 }
 
-                // If B doesn't have more childrens, but A has them, B is a file and A a folder.
+                // If B doesn't have more children, but A has them, B is a file and A a folder.
                 else if index < (a.len() - 1) && index == (b.len() - 1) {
-                    result = Ordering::Less;
-                    break;
+                    return Ordering::Less
                 }
 
-                // If both options still has childrens, continue the loop.
+                // If both options still has children, continue the loop.
                 else if index < (a.len() - 1) && index < (b.len() - 1) {
                     index += 1;
                     continue;
                 }
-                else {
-                    panic!("This should never happen, but I'll left this here, just in case.");
-                }
+            }
+            // If both options have different name,...
+            // If both are the same type (both have children, or none have them), doesn't matter if
+            // they are files or folder. Just compare them to see what one it's first.
+            else if (index == (a.len() - 1) && index == (b.len() - 1)) ||
+                (index < (a.len() - 1) && index < (b.len() - 1)) {
+                return a.cmp(b)
+            }
 
-            // If both options are different.
-            } else {
+            // If A doesn't have more children, but B has them, A is a file and B a folder.
+            else if index == (a.len() - 1) && index < (b.len() - 1) {
+                return Ordering::Greater
 
-                // If both have no more childrens, both are files.
-                if index == (a.len() - 1) && index == (b.len() - 1) {
-                    result = a.cmp(b);
-                    break;
-                }
-
-                // If both have more childrens, both are folders
-                else if index < (a.len() - 1) && index < (b.len() - 1) {
-                    result = a.cmp(b);
-                    break;
-
-                }
-
-                // If A doesn't have more childrens, but B has them, A is a file and B a folder.
-                else if index == (a.len() - 1) && index < (b.len() - 1) {
-                    result = Ordering::Greater;
-                    break;
-
-                }
-                // If B doesn't have more childrens, but A has them, B is a file and A a folder.
-                else if index < (a.len() - 1) && index == (b.len() - 1) {
-                    result = Ordering::Less;
-                    break;
-                }
-                else {
-                    panic!("This should never happen, but I'll left this here, just in case.");
-                }
+            }
+            // If B doesn't have more children, but A has them, B is a file and A a folder.
+            else if index < (a.len() - 1) && index == (b.len() - 1) {
+                return Ordering::Less
             }
         }
-        result
     });
 
     // Once we get the entire path list sorted, we add the paths to the TreeStore one by one,
     // skipping duplicate entries.
-    for i in sorted_path_list.iter() {
+    for i in &sorted_path_list {
 
         // First, we reset the parent to the big_parent (the PackFile).
         let mut parent = big_parent.clone();
@@ -319,7 +294,7 @@ pub fn update_tree_view(
             // If it's a folder, we check first if it's already in the TreeStore using the following
             // logic:
             // If the current parent has a child, it should be a folder already in the TreeStore,
-            // so we check all his childrens. If any of them is equal to the current folder we are
+            // so we check all his children. If any of them is equal to the current folder we are
             // trying to add and it has at least one child, it's a folder exactly like the one we are
             // trying to add, so that one becomes our new parent. If there is no equal folder to
             // the one we are trying to add, we add it, turn it into the new parent, and repeat.
@@ -335,7 +310,7 @@ pub fn update_tree_view(
                             duplicate_found = true;
                             break;
                         }
-                        if folder_tree_store.iter_next(&current_child) == false {
+                        if !folder_tree_store.iter_next(&current_child) {
                             no_more_childrens = true;
                         }
                     }

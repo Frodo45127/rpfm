@@ -27,7 +27,7 @@ pub mod rigidmodel;
 /// - packed_file_path: the destination path of the CSV.
 pub fn export_to_csv(
     packed_file_data: &LocData,
-    packed_file_path: PathBuf
+    packed_file_path: &PathBuf
 ) -> Result<String, Error> {
 
     // We want no headers and quotes around the fields, so we need to tweak our writer first.
@@ -49,7 +49,7 @@ pub fn export_to_csv(
 
     match File::create(&packed_file_path) {
         Ok(mut file) => {
-            match file.write_all(&csv_serialized.as_bytes()) {
+            match file.write_all(csv_serialized.as_bytes()) {
                 Ok(_) => Ok(format!("Loc PackedFile successfully exported:\n{}", packed_file_path.display())),
                 Err(_) => Err(format_err!("Error while writing the following file to disk:\n{}", packed_file_path.display()))
             }
@@ -64,7 +64,7 @@ pub fn export_to_csv(
 /// - csv_file_path: the CSV we want to import.
 /// It returns a Result with the new LocData or an Error, depending on what happened.
 pub fn import_from_csv(
-    csv_file_path: PathBuf
+    csv_file_path: &PathBuf
 ) -> Result<LocData, Error> {
 
     let mut packed_file_data_from_tree_view = LocData::new();

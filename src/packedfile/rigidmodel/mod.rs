@@ -220,11 +220,11 @@ impl RigidModel {
 
     /// This function reads the data from a Vec<u8> and decode it into a RigidModel. This CAN FAIL,
     /// so we return Result<RigidModel, Error>.
-    pub fn read(packed_file_data: Vec<u8>) -> Result<RigidModel, Error> {
-        match RigidModelHeader::read(packed_file_data[..140].to_vec()) {
+    pub fn read(packed_file_data: &[u8]) -> Result<RigidModel, Error> {
+        match RigidModelHeader::read(&packed_file_data[..140]) {
             Ok(packed_file_header) => {
                 match RigidModelData::read(
-                    packed_file_data[140..].to_vec(),
+                    &packed_file_data[140..],
                     &packed_file_header.packed_file_header_model_type,
                     &packed_file_header.packed_file_header_lods_count
                 ) {
@@ -243,8 +243,8 @@ impl RigidModel {
     /// This function reads the data from a RigidModel and encode it into a Vec<u8>. This CAN FAIL,
     /// so we return Result<Vec<u8>, Error>.
     pub fn save(rigid_model_data: &RigidModel) -> Result<Vec<u8>, Error> {
-        let mut packed_file_data_encoded = RigidModelData::save(rigid_model_data.packed_file_data.clone())?;
-        let mut packed_file_header_encoded = RigidModelHeader::save(rigid_model_data.packed_file_header.clone())?;
+        let mut packed_file_data_encoded = RigidModelData::save(&rigid_model_data.packed_file_data)?;
+        let mut packed_file_header_encoded = RigidModelHeader::save(&rigid_model_data.packed_file_header)?;
 
         let mut packed_file_encoded = vec![];
         packed_file_encoded.append(&mut packed_file_header_encoded);
@@ -259,7 +259,7 @@ impl RigidModelHeader {
 
     /// This function reads the data from a Vec<u8> and decode it into a RigidModelHeader. This CAN FAIL,
     /// so we return Result<RigidModelHeader, Error>.
-    pub fn read(packed_file_data: Vec<u8>) -> Result<RigidModelHeader, Error> {
+    pub fn read(packed_file_data: &[u8]) -> Result<RigidModelHeader, Error> {
 
         let mut packed_file_header = RigidModelHeader {
             packed_file_header_signature: String::new(),
@@ -268,7 +268,7 @@ impl RigidModelHeader {
             packed_file_data_base_skeleton: (String::new(), 0),
         };
 
-        match coding_helpers::decode_string_u8((&packed_file_data[0..4]).to_vec()) {
+        match coding_helpers::decode_string_u8(&packed_file_data[0..4]) {
             Ok(data) => packed_file_header.packed_file_header_signature = data,
             Err(error) => return Err(error)
         }
@@ -279,29 +279,29 @@ impl RigidModelHeader {
             return Err(format_err!("This is not a RMV2 RigidModel."))
         }
 
-        match coding_helpers::decode_integer_u32((&packed_file_data[4..8]).to_vec()) {
+        match coding_helpers::decode_integer_u32(&packed_file_data[4..8]) {
             Ok(data) => packed_file_header.packed_file_header_model_type = data,
             Err(error) => return Err(error)
         }
 
-        match coding_helpers::decode_integer_u32((&packed_file_data[8..12]).to_vec()) {
+        match coding_helpers::decode_integer_u32(&packed_file_data[8..12]) {
             Ok(data) => packed_file_header.packed_file_header_lods_count = data,
             Err(error) => return Err(error)
         }
 
-        packed_file_header.packed_file_data_base_skeleton = coding_helpers::decode_string_u8_0padded((&packed_file_data[12..140]).to_vec());
+        packed_file_header.packed_file_data_base_skeleton = coding_helpers::decode_string_u8_0padded(&packed_file_data[12..140]);
         Ok(packed_file_header)
     }
 
     /// This function reads the data from a RigidModelHeader and encode it into a Vec<u8>. This CAN FAIL,
     /// so we return Result<Vec<u8>, Error>.
-    pub fn save(rigid_model_header: RigidModelHeader) -> Result<Vec<u8>, Error> {
+    pub fn save(rigid_model_header: &RigidModelHeader) -> Result<Vec<u8>, Error> {
         let mut packed_file_data: Vec<u8> = vec![];
 
-        let mut packed_file_header_signature = coding_helpers::encode_string_u8(rigid_model_header.packed_file_header_signature);
+        let mut packed_file_header_signature = coding_helpers::encode_string_u8(&rigid_model_header.packed_file_header_signature);
         let mut packed_file_header_model_type = coding_helpers::encode_integer_u32(rigid_model_header.packed_file_header_model_type);
         let mut packed_file_header_lods_count = coding_helpers::encode_integer_u32(rigid_model_header.packed_file_header_lods_count);
-        let mut packed_file_data_base_skeleton = coding_helpers::encode_string_u8_0padded(rigid_model_header.packed_file_data_base_skeleton)?;
+        let mut packed_file_data_base_skeleton = coding_helpers::encode_string_u8_0padded(&rigid_model_header.packed_file_data_base_skeleton)?;
 
         packed_file_data.append(&mut packed_file_header_signature);
         packed_file_data.append(&mut packed_file_header_model_type);
@@ -316,7 +316,7 @@ impl RigidModelData {
 
     /// This function reads the data from a Vec<u8> and decode it into a RigidModelData. This CAN FAIL,
     /// so we return Result<RigidModelData, Error>.
-    pub fn read(packed_file_data: Vec<u8>, packed_file_header_model_type: &u32, packed_file_header_lods_count: &u32) -> Result<RigidModelData, Error> {
+    pub fn read(packed_file_data: &[u8], packed_file_header_model_type: &u32, packed_file_header_lods_count: &u32) -> Result<RigidModelData, Error> {
         let mut packed_file_data_lods_header: Vec<RigidModelLodHeader> = vec![];
         let mut packed_file_data_lods_data: Vec<RigidModelLodData> = vec![];
         let mut index: usize = 0;
@@ -328,7 +328,7 @@ impl RigidModelData {
 
         // We get the "headers" of every lod.
         for _ in 0..*packed_file_header_lods_count {
-            let lod_header = match RigidModelLodHeader::read(packed_file_data[index..(index + offset)].to_vec()) {
+            let lod_header = match RigidModelLodHeader::read(&packed_file_data[index..(index + offset)]) {
                 Ok(data) => data,
                 Err(error) => return Err(error)
             };
@@ -337,7 +337,7 @@ impl RigidModelData {
         }
 
         for lod in 0..*packed_file_header_lods_count {
-            let lod_data = match RigidModelLodData::read(packed_file_data[index..].to_vec(), &packed_file_data_lods_header[lod as usize]) {
+            let lod_data = match RigidModelLodData::read(&packed_file_data[index..], &packed_file_data_lods_header[lod as usize]) {
                 Ok(data) => data,
                 Err(error) => return Err(error)
             };
@@ -353,17 +353,17 @@ impl RigidModelData {
 
     /// This function reads the data from a RigidModelData and encode it into a Vec<u8>. This CAN FAIL,
     /// so we return Result<Vec<u8>, Error>.
-    pub fn save(rigid_model_data: RigidModelData) -> Result<Vec<u8>, Error> {
+    pub fn save(rigid_model_data: &RigidModelData) -> Result<Vec<u8>, Error> {
         let mut packed_file_data = vec![];
 
         // For each Lod, we save it, and add it to the "Encoded Data" vector. After that, we add to that
         // vector the extra data, and return it.
-        for lod in rigid_model_data.packed_file_data_lods_header.iter() {
-            packed_file_data.append(&mut RigidModelLodHeader::save(&lod));
+        for lod in &rigid_model_data.packed_file_data_lods_header {
+            packed_file_data.append(&mut RigidModelLodHeader::save(lod));
         }
 
         for (index, lod) in rigid_model_data.packed_file_data_lods_data.iter().enumerate() {
-            packed_file_data.append(&mut RigidModelLodData::save(&lod, &rigid_model_data.packed_file_data_lods_header[index])?);
+            packed_file_data.append(&mut RigidModelLodData::save(lod, &rigid_model_data.packed_file_data_lods_header[index])?);
         }
         Ok(packed_file_data)
     }
@@ -374,7 +374,7 @@ impl RigidModelLodHeader {
 
     /// This function reads the data from a Vec<u8> and decode it into a RigidModelLodHeader. This CAN FAIL,
     /// so we return Result<RigidModelLodHeader, Error>.
-    pub fn read(packed_file_data: Vec<u8>) -> Result<RigidModelLodHeader, Error> {
+    pub fn read(packed_file_data: &[u8]) -> Result<RigidModelLodHeader, Error> {
         let mut header = RigidModelLodHeader {
             groups_count: 0,
             vertices_data_length: 0,
@@ -384,23 +384,23 @@ impl RigidModelLodHeader {
             mysterious_data_1: None,
             mysterious_data_2: None,
         };
-        match coding_helpers::decode_integer_u32((&packed_file_data[0..4]).to_vec()) {
+        match coding_helpers::decode_integer_u32(&packed_file_data[0..4]) {
             Ok(data) => header.groups_count = data,
             Err(error) => return Err(error)
         }
-        match coding_helpers::decode_integer_u32((&packed_file_data[4..8]).to_vec()) {
+        match coding_helpers::decode_integer_u32(&packed_file_data[4..8]) {
             Ok(data) => header.vertices_data_length = data,
             Err(error) => return Err(error)
         }
-        match coding_helpers::decode_integer_u32((&packed_file_data[8..12]).to_vec()) {
+        match coding_helpers::decode_integer_u32(&packed_file_data[8..12]) {
             Ok(data) => header.indices_data_length = data,
             Err(error) => return Err(error)
         }
-        match coding_helpers::decode_integer_u32((&packed_file_data[12..16]).to_vec()) {
+        match coding_helpers::decode_integer_u32(&packed_file_data[12..16]) {
             Ok(data) => header.start_offset = data,
             Err(error) => return Err(error)
         }
-        match coding_helpers::decode_float_u32((&packed_file_data[16..20]).to_vec()) {
+        match coding_helpers::decode_float_u32(&packed_file_data[16..20]) {
             Ok(data) => header.lod_zoom_factor = data,
             Err(error) => return Err(error)
         }
@@ -408,11 +408,11 @@ impl RigidModelLodHeader {
         // These two we only decode them if the RigidModel is v7 (Warhammer 1&2), as these doesn't exist
         // in Attila's RigidModels.
         if packed_file_data.len() == 28 {
-            match coding_helpers::decode_integer_u32((&packed_file_data[20..24]).to_vec()) {
+            match coding_helpers::decode_integer_u32(&packed_file_data[20..24]) {
                 Ok(data) => header.mysterious_data_1 = Some(data),
                 Err(error) => return Err(error)
             }
-            match coding_helpers::decode_integer_u32((&packed_file_data[24..28]).to_vec()) {
+            match coding_helpers::decode_integer_u32(&packed_file_data[24..28]) {
                 Ok(data) => header.mysterious_data_2 = Some(data),
                 Err(error) => return Err(error)
             }
@@ -466,112 +466,112 @@ impl RigidModelLodData {
     /// This function reads the data from a Vec<u8> and decode it into a RigidModelLodData. This CAN FAIL,
     /// so we return Result<RigidModelDataLod, Error>. Also, it needs it's LodHeader to see what type of
     /// model it's.
-    pub fn read(packed_file_data: Vec<u8>, packed_file_lod_header: &RigidModelLodHeader) -> Result<RigidModelLodData, Error> {
+    pub fn read(packed_file_data: &[u8], packed_file_lod_header: &RigidModelLodHeader) -> Result<RigidModelLodData, Error> {
 
         let mut index = 0;
 
-        let rigid_material_id = match coding_helpers::decode_packedfile_integer_u32((&packed_file_data[index..(index + 4)]).to_vec(), index) {
+        let rigid_material_id = match coding_helpers::decode_packedfile_integer_u32(&packed_file_data[index..(index + 4)], index) {
             Ok(data) => {
                 index = data.1;
                 data.0
             },
             Err(error) => return Err(error)
         };
-        let lod_length = match coding_helpers::decode_packedfile_integer_u32((&packed_file_data[index..(index + 4)]).to_vec(), index) {
+        let lod_length = match coding_helpers::decode_packedfile_integer_u32(&packed_file_data[index..(index + 4)], index) {
             Ok(data) => {
                 index = data.1;
                 data.0
             },
             Err(error) => return Err(error)
         };
-        let lod_length_without_vertices_and_indices_length = match coding_helpers::decode_packedfile_integer_u32((&packed_file_data[index..(index + 4)]).to_vec(), index) {
+        let lod_length_without_vertices_and_indices_length = match coding_helpers::decode_packedfile_integer_u32(&packed_file_data[index..(index + 4)], index) {
             Ok(data) => {
                 index = data.1;
                 data.0
             },
             Err(error) => return Err(error)
         };
-        let vertices_count = match coding_helpers::decode_packedfile_integer_u32((&packed_file_data[index..(index + 4)]).to_vec(), index) {
+        let vertices_count = match coding_helpers::decode_packedfile_integer_u32(&packed_file_data[index..(index + 4)], index) {
             Ok(data) => {
                 index = data.1;
                 data.0
             },
             Err(error) => return Err(error)
         };
-        let lod_length_without_indices_length = match coding_helpers::decode_packedfile_integer_u32((&packed_file_data[index..(index + 4)]).to_vec(), index) {
+        let lod_length_without_indices_length = match coding_helpers::decode_packedfile_integer_u32(&packed_file_data[index..(index + 4)], index) {
             Ok(data) => {
                 index = data.1;
                 data.0
             },
             Err(error) => return Err(error)
         };
-        let indices_count = match coding_helpers::decode_packedfile_integer_u32((&packed_file_data[index..(index + 4)]).to_vec(), index) {
+        let indices_count = match coding_helpers::decode_packedfile_integer_u32(&packed_file_data[index..(index + 4)], index) {
             Ok(data) => {
                 index = data.1;
                 data.0
             },
             Err(error) => return Err(error)
         };
-        let group_min_x = match coding_helpers::decode_packedfile_float_u32((&packed_file_data[index..(index + 4)]).to_vec(), index) {
+        let group_min_x = match coding_helpers::decode_packedfile_float_u32(&packed_file_data[index..(index + 4)], index) {
             Ok(data) => {
                 index = data.1;
                 data.0
             },
             Err(error) => return Err(error)
         };
-        let group_min_y = match coding_helpers::decode_packedfile_float_u32((&packed_file_data[index..(index + 4)]).to_vec(), index) {
+        let group_min_y = match coding_helpers::decode_packedfile_float_u32(&packed_file_data[index..(index + 4)], index) {
             Ok(data) => {
                 index = data.1;
                 data.0
             },
             Err(error) => return Err(error)
         };
-        let group_min_z = match coding_helpers::decode_packedfile_float_u32((&packed_file_data[index..(index + 4)]).to_vec(), index) {
+        let group_min_z = match coding_helpers::decode_packedfile_float_u32(&packed_file_data[index..(index + 4)], index) {
             Ok(data) => {
                 index = data.1;
                 data.0
             },
             Err(error) => return Err(error)
         };
-        let group_max_x = match coding_helpers::decode_packedfile_float_u32((&packed_file_data[index..(index + 4)]).to_vec(), index) {
+        let group_max_x = match coding_helpers::decode_packedfile_float_u32(&packed_file_data[index..(index + 4)], index) {
             Ok(data) => {
                 index = data.1;
                 data.0
             },
             Err(error) => return Err(error)
         };
-        let group_max_y = match coding_helpers::decode_packedfile_float_u32((&packed_file_data[index..(index + 4)]).to_vec(), index) {
+        let group_max_y = match coding_helpers::decode_packedfile_float_u32(&packed_file_data[index..(index + 4)], index) {
             Ok(data) => {
                 index = data.1;
                 data.0
             },
             Err(error) => return Err(error)
         };
-        let group_max_z = match coding_helpers::decode_packedfile_float_u32((&packed_file_data[index..(index + 4)]).to_vec(), index) {
+        let group_max_z = match coding_helpers::decode_packedfile_float_u32(&packed_file_data[index..(index + 4)], index) {
             Ok(data) => {
                 index = data.1;
                 data.0
             },
             Err(error) => return Err(error)
         };
-        let shader_name = coding_helpers::decode_string_u8_0padded((&packed_file_data[index..(index + 12)]).to_vec());
+        let shader_name = coding_helpers::decode_string_u8_0padded(&packed_file_data[index..(index + 12)]);
         index += 12;
 
-        let mysterious_u32_1 = match coding_helpers::decode_packedfile_integer_u32((&packed_file_data[index..(index + 4)]).to_vec(), index) {
+        let mysterious_u32_1 = match coding_helpers::decode_packedfile_integer_u32(&packed_file_data[index..(index + 4)], index) {
             Ok(data) => {
                 index = data.1;
                 data.0
             },
             Err(error) => return Err(error)
         };
-        let mysterious_u32_2 = match coding_helpers::decode_packedfile_integer_u32((&packed_file_data[index..(index + 4)]).to_vec(), index) {
+        let mysterious_u32_2 = match coding_helpers::decode_packedfile_integer_u32(&packed_file_data[index..(index + 4)], index) {
             Ok(data) => {
                 index = data.1;
                 data.0
             },
             Err(error) => return Err(error)
         };
-        let mysterious_data_1 = (&packed_file_data[index..(index + 12)]).to_vec();
+        let mysterious_data_1 = packed_file_data[index..(index + 12)].to_vec();
         index += 12;
 
         // From here, everything except textures_directory can return None. It depends on the RigidModel Type.
@@ -594,7 +594,7 @@ impl RigidModelLodData {
         if packed_file_lod_header.vertices_data_length == 0 {
             mysterious_id = None;
             group_name = None;
-            textures_directory = coding_helpers::decode_string_u8_0padded((&packed_file_data[index..(index + 256)]).to_vec());
+            textures_directory = coding_helpers::decode_string_u8_0padded(&packed_file_data[index..(index + 256)]);
             index += 256;
 
             mysterious_data_2 = None;
@@ -612,30 +612,30 @@ impl RigidModelLodData {
 
         // Else, it's a building or unit RigidModel.
         else {
-            mysterious_id = match coding_helpers::decode_packedfile_integer_u16((&packed_file_data[index..(index + 2)]).to_vec(), index) {
+            mysterious_id = match coding_helpers::decode_packedfile_integer_u16(&packed_file_data[index..(index + 2)], index) {
                 Ok(data) => {
                     index = data.1;
                     Some(data.0)
                 },
                 Err(error) => return Err(error)
             };
-            group_name = Some(coding_helpers::decode_string_u8_0padded((&packed_file_data[index..(index + 32)]).to_vec()));
+            group_name = Some(coding_helpers::decode_string_u8_0padded(&packed_file_data[index..(index + 32)]));
             index += group_name.clone().unwrap().1;
 
-            textures_directory = coding_helpers::decode_string_u8_0padded((&packed_file_data[index..(index + 256)]).to_vec());
+            textures_directory = coding_helpers::decode_string_u8_0padded(&packed_file_data[index..(index + 256)]);
             index += textures_directory.1;
 
             mysterious_data_2 = Some(packed_file_data[index..(index + 422)].to_vec());
             index += 422;
 
-            supplementary_bones_count = match coding_helpers::decode_packedfile_integer_u32((&packed_file_data[index..(index + 4)]).to_vec(), index) {
+            supplementary_bones_count = match coding_helpers::decode_packedfile_integer_u32(&packed_file_data[index..(index + 4)], index) {
                 Ok(data) => {
                     index = data.1;
                     Some(data.0)
                 },
                 Err(error) => return Err(error)
             };
-            textures_count = match coding_helpers::decode_packedfile_integer_u32((&packed_file_data[index..(index + 4)]).to_vec(), index) {
+            textures_count = match coding_helpers::decode_packedfile_integer_u32(&packed_file_data[index..(index + 4)], index) {
                 Ok(data) => {
                     index = data.1;
                     Some(data.0)
@@ -657,7 +657,7 @@ impl RigidModelLodData {
             if textures_count.unwrap() > 0 {
                 let mut temp_texture_list = vec![];
                 for _ in 0..textures_count.unwrap() {
-                    match RigidModelLodDataTexture::read((&packed_file_data[index..(index + 260)]).to_vec()){
+                    match RigidModelLodDataTexture::read(&packed_file_data[index..(index + 260)]) {
                         Ok(data) => {
                             temp_texture_list.push(data);
                             index += 260;
@@ -671,14 +671,14 @@ impl RigidModelLodData {
                 textures_list = None;
             }
 
-            separator = match coding_helpers::decode_packedfile_integer_u32((&packed_file_data[index..(index + 4)]).to_vec(), index) {
+            separator = match coding_helpers::decode_packedfile_integer_u32(&packed_file_data[index..(index + 4)], index) {
                 Ok(data) => {
                     index = data.1;
                     Some(data.0)
                 },
                 Err(error) => return Err(error)
             };
-            alpha_mode = match coding_helpers::decode_packedfile_integer_u32((&packed_file_data[index..(index + 4)]).to_vec(), index) {
+            alpha_mode = match coding_helpers::decode_packedfile_integer_u32(&packed_file_data[index..(index + 4)], index) {
                 Ok(data) => {
                     index = data.1;
                     Some(data.0)
@@ -759,7 +759,7 @@ impl RigidModelLodData {
         let mut group_max_y = coding_helpers::encode_float_u32(rigid_model_lod_data.group_max_y);
         let mut group_max_z = coding_helpers::encode_float_u32(rigid_model_lod_data.group_max_z);
 
-        let mut shader_name = coding_helpers::encode_string_u8_0padded(rigid_model_lod_data.shader_name)?;
+        let mut shader_name = coding_helpers::encode_string_u8_0padded(&rigid_model_lod_data.shader_name)?;
         let mut mysterious_u32_1 = coding_helpers::encode_integer_u32(rigid_model_lod_data.mysterious_u32_1);
         let mut mysterious_u32_2 = coding_helpers::encode_integer_u32(rigid_model_lod_data.mysterious_u32_2);
         let mut mysterious_data_1 = rigid_model_lod_data.mysterious_data_1.to_vec();
@@ -784,7 +784,7 @@ impl RigidModelLodData {
 
         // If it's a decal.
         if rigid_model_lod_header.vertices_data_length == 0 {
-            let mut textures_directory = coding_helpers::encode_string_u8_0padded(rigid_model_lod_data.textures_directory)?;
+            let mut textures_directory = coding_helpers::encode_string_u8_0padded(&rigid_model_lod_data.textures_directory)?;
             let mut indices_list = rigid_model_lod_data.indices_list.unwrap().to_vec();
 
             packed_file_data.append(&mut textures_directory);
@@ -792,8 +792,8 @@ impl RigidModelLodData {
         }
         else {
             let mut mysterious_id = coding_helpers::encode_integer_u16(rigid_model_lod_data.mysterious_id.unwrap());
-            let mut group_name = coding_helpers::encode_string_u8_0padded(rigid_model_lod_data.group_name.unwrap())?;
-            let mut textures_directory = coding_helpers::encode_string_u8_0padded(rigid_model_lod_data.textures_directory)?;
+            let mut group_name = coding_helpers::encode_string_u8_0padded(&rigid_model_lod_data.group_name.unwrap())?;
+            let mut textures_directory = coding_helpers::encode_string_u8_0padded(&rigid_model_lod_data.textures_directory)?;
             let mut mysterious_data_2 = rigid_model_lod_data.mysterious_data_2.unwrap().to_vec();
             let mut supplementary_bones_count = coding_helpers::encode_integer_u32(rigid_model_lod_data.supplementary_bones_count.unwrap());
             let mut textures_count = coding_helpers::encode_integer_u32(rigid_model_lod_data.textures_count.unwrap());
@@ -815,7 +815,7 @@ impl RigidModelLodData {
 
             if rigid_model_lod_data.textures_count.unwrap() != 0 {
                 let mut textures_list: Vec<u8> = vec![];
-                for texture in rigid_model_lod_data.textures_list.unwrap().iter() {
+                for texture in &rigid_model_lod_data.textures_list.unwrap() {
                     textures_list.append(&mut RigidModelLodDataTexture::save(texture)?);
                 }
                 packed_file_data.append(&mut textures_list);
@@ -843,13 +843,13 @@ impl RigidModelLodDataTexture {
 
     /// This function reads the data from a Vec<u8> and decode it into a RigidModelLodDataTexture. This CAN FAIL,
     /// so we return Result<RigidModelLodDataTexture, Error>.
-    pub fn read(packed_file_data: Vec<u8>) -> Result<RigidModelLodDataTexture, Error> {
+    pub fn read(packed_file_data: &[u8]) -> Result<RigidModelLodDataTexture, Error> {
 
-        let texture_type = match coding_helpers::decode_integer_u32((&packed_file_data[0..4]).to_vec()) {
+        let texture_type = match coding_helpers::decode_integer_u32(&packed_file_data[0..4]) {
             Ok(data) => data,
             Err(error) => return Err(error)
         };
-        let texture_path = coding_helpers::decode_string_u8_0padded((&packed_file_data[4..260]).to_vec());
+        let texture_path = coding_helpers::decode_string_u8_0padded(&packed_file_data[4..260]);
 
         Ok(RigidModelLodDataTexture {
             texture_type,
@@ -864,7 +864,7 @@ impl RigidModelLodDataTexture {
         let mut packed_file_data: Vec<u8> = vec![];
 
         let mut texture_type = coding_helpers::encode_integer_u32(rigid_model_lod_texture.texture_type);
-        let mut texture_path = coding_helpers::encode_string_u8_0padded(rigid_model_lod_texture.texture_path)?;
+        let mut texture_path = coding_helpers::encode_string_u8_0padded(&rigid_model_lod_texture.texture_path)?;
 
         packed_file_data.append(&mut texture_type);
         packed_file_data.append(&mut texture_path);
