@@ -26,49 +26,49 @@ use self::byteorder::{
 /// This function allow us to decode an UTF-16 encoded integer. This type of Integers are encoded in
 /// in 2 bytes reversed (LittleEndian).
 #[allow(dead_code)]
-pub fn decode_integer_u16(integer_encoded: Vec<u8>) -> Result<u16, Error> {
+pub fn decode_integer_u16(integer_encoded: &[u8]) -> Result<u16, Error> {
     (&integer_encoded[..]).read_u16::<LittleEndian>().map_err(From::from)
 }
 
 /// This function allow us to decode an UTF-32 encoded integer. This type of Integers are encoded in
 /// in 4 bytes reversed (LittleEndian).
 #[allow(dead_code)]
-pub fn decode_integer_u32(integer_encoded: Vec<u8>) -> Result<u32, Error> {
+pub fn decode_integer_u32(integer_encoded: &[u8]) -> Result<u32, Error> {
     (&integer_encoded[..]).read_u32::<LittleEndian>().map_err(From::from)
 }
 
 /// This function allow us to decode an encoded Long Integer. This type of Integers are encoded in
 /// in 8 bytes reversed (LittleEndian).
 #[allow(dead_code)]
-pub fn decode_integer_u64(integer_encoded: Vec<u8>) -> Result<u64, Error> {
+pub fn decode_integer_u64(integer_encoded: &[u8]) -> Result<u64, Error> {
     (&integer_encoded[..]).read_u64::<LittleEndian>().map_err(From::from)
 }
 
 /// This function allow us to decode an signed UTF-32 encoded integer. This type of Integers are encoded in
 /// in 4 bytes reversed (LittleEndian).
 #[allow(dead_code)]
-pub fn decode_integer_i32(integer_encoded: Vec<u8>) -> Result<i32, Error> {
+pub fn decode_integer_i32(integer_encoded: &[u8]) -> Result<i32, Error> {
     (&integer_encoded[..]).read_i32::<LittleEndian>().map_err(From::from)
 }
 
 /// This function allow us to decode an signed encoded Long Integer. This type of Integers are encoded in
 /// in 8 bytes reversed (LittleEndian).
 #[allow(dead_code)]
-pub fn decode_integer_i64(integer_encoded: Vec<u8>) -> Result<i64, Error> {
+pub fn decode_integer_i64(integer_encoded: &[u8]) -> Result<i64, Error> {
     (&integer_encoded[..]).read_i64::<LittleEndian>().map_err(From::from)
 }
 
 /// This function allow us to decode an UTF-32 encoded float. This type of floats are encoded in
 /// in 4 bytes reversed (LittleEndian).
 #[allow(dead_code)]
-pub fn decode_float_u32(float_encoded: Vec<u8>) -> Result<f32, Error> {
+pub fn decode_float_u32(float_encoded: &[u8]) -> Result<f32, Error> {
     (&float_encoded[..]).read_f32::<LittleEndian>().map_err(From::from)
 }
 
 /// This function allow us to decode an UTF-8 encoded String.
 #[allow(dead_code)]
-pub fn decode_string_u8(string_encoded: Vec<u8>) -> Result<String, Error> {
-    String::from_utf8(string_encoded).map_err(From::from)
+pub fn decode_string_u8(string_encoded: &[u8]) -> Result<String, Error> {
+    String::from_utf8(string_encoded.to_vec()).map_err(From::from)
 }
 
 /// This function allow us to decode an (0-Padded) UTF-8 encoded String. This type of String has a
@@ -76,7 +76,7 @@ pub fn decode_string_u8(string_encoded: Vec<u8>) -> Result<String, Error> {
 /// to decode them, this type of decoding cannot fail, but it's slower than a normal UTF-8 String decoding.
 /// We use a tuple to store them and his size.
 #[allow(dead_code)]
-pub fn decode_string_u8_0padded(string_encoded: Vec<u8>) -> (String, usize) {
+pub fn decode_string_u8_0padded(string_encoded: &[u8]) -> (String, usize) {
     let mut string_decoded = String::new();
     let size = string_encoded.len();
     for character in string_encoded.iter() {
@@ -93,12 +93,12 @@ pub fn decode_string_u8_0padded(string_encoded: Vec<u8>) -> (String, usize) {
 /// NOTE: We return error if the length has returned an error. If a char return an error, we just replace
 ///       it, but return success.
 #[allow(dead_code)]
-pub fn decode_string_u16(string_encoded: Vec<u8>) -> Result<String, Error> {
+pub fn decode_string_u16(string_encoded: &[u8]) -> Result<String, Error> {
     let mut string_decoded: String = String::new();
     let mut offset: usize = 0;
 
     for _ in 0..(string_encoded.len() / 2) {
-        match decode_integer_u16(string_encoded[offset..offset + 2].to_vec()) {
+        match decode_integer_u16(&string_encoded[offset..offset + 2]) {
             Ok(character_u16) => {
                 let character = decode_utf16(vec![character_u16]
                         .iter()
@@ -256,9 +256,9 @@ pub fn encode_bool(bool_decoded: bool) -> Vec<u8> {
 /// This function allow us to decode an UTF-16 encoded integer cell. We return the integer and the index
 /// for the next cell's data.
 #[allow(dead_code)]
-pub fn decode_packedfile_integer_u16(packed_file_data: Vec<u8>, mut index: usize) -> Result<(u16, usize), Error> {
+pub fn decode_packedfile_integer_u16(packed_file_data: &[u8], mut index: usize) -> Result<(u16, usize), Error> {
     if packed_file_data.len() >= 2 {
-        match decode_integer_u16(packed_file_data[..2].to_vec()) {
+        match decode_integer_u16(&packed_file_data[..2]) {
             Ok(number) => {
                 index += 2;
                 Ok((number, index))
@@ -274,9 +274,9 @@ pub fn decode_packedfile_integer_u16(packed_file_data: Vec<u8>, mut index: usize
 /// This function allow us to decode an UTF-32 encoded integer cell. We return the integer and the index
 /// for the next cell's data.
 #[allow(dead_code)]
-pub fn decode_packedfile_integer_u32(packed_file_data: Vec<u8>, mut index: usize) -> Result<(u32, usize), Error> {
+pub fn decode_packedfile_integer_u32(packed_file_data: &[u8], mut index: usize) -> Result<(u32, usize), Error> {
     if packed_file_data.len() >= 4 {
-        match decode_integer_u32(packed_file_data[..4].to_vec()) {
+        match decode_integer_u32(&packed_file_data[..4]) {
             Ok(number) => {
                 index += 4;
                 Ok((number, index))
@@ -292,9 +292,9 @@ pub fn decode_packedfile_integer_u32(packed_file_data: Vec<u8>, mut index: usize
 /// This function allow us to decode an encoded Long Integer cell. We return the integer and the index
 /// for the next cell's data.
 #[allow(dead_code)]
-pub fn decode_packedfile_integer_u64(packed_file_data: Vec<u8>, mut index: usize) -> Result<(u64, usize), Error> {
+pub fn decode_packedfile_integer_u64(packed_file_data: &[u8], mut index: usize) -> Result<(u64, usize), Error> {
     if packed_file_data.len() >= 8 {
-        match decode_integer_u64(packed_file_data[..8].to_vec()) {
+        match decode_integer_u64(&packed_file_data[..8]) {
             Ok(number) => {
                 index += 8;
                 Ok((number, index))
@@ -310,9 +310,9 @@ pub fn decode_packedfile_integer_u64(packed_file_data: Vec<u8>, mut index: usize
 /// This function allow us to decode a signed UTF-32 encoded integer cell. We return the integer and the index
 /// for the next cell's data.
 #[allow(dead_code)]
-pub fn decode_packedfile_integer_i32(packed_file_data: Vec<u8>, mut index: usize) -> Result<(i32, usize), Error> {
+pub fn decode_packedfile_integer_i32(packed_file_data: &[u8], mut index: usize) -> Result<(i32, usize), Error> {
     if packed_file_data.len() >= 4 {
-        match decode_integer_i32(packed_file_data[..4].to_vec()) {
+        match decode_integer_i32(&packed_file_data[..4]) {
             Ok(number) => {
                 index += 4;
                 Ok((number, index))
@@ -328,9 +328,9 @@ pub fn decode_packedfile_integer_i32(packed_file_data: Vec<u8>, mut index: usize
 /// This function allow us to decode a signed encoded Long Integer cell. We return the integer and the index
 /// for the next cell's data.
 #[allow(dead_code)]
-pub fn decode_packedfile_integer_i64(packed_file_data: Vec<u8>, mut index: usize) -> Result<(i64, usize), Error> {
+pub fn decode_packedfile_integer_i64(packed_file_data: &[u8], mut index: usize) -> Result<(i64, usize), Error> {
     if packed_file_data.len() >= 8 {
-        match decode_integer_i64(packed_file_data[..8].to_vec()) {
+        match decode_integer_i64(&packed_file_data[..8]) {
             Ok(number) => {
                 index += 8;
                 Ok((number, index))
@@ -346,9 +346,9 @@ pub fn decode_packedfile_integer_i64(packed_file_data: Vec<u8>, mut index: usize
 /// This function allow us to decode an UTF-32 encoded float cell. We return the float and the index
 /// for the next cell's data.
 #[allow(dead_code)]
-pub fn decode_packedfile_float_u32(packed_file_data: Vec<u8>, mut index: usize) -> Result<(f32, usize), Error> {
+pub fn decode_packedfile_float_u32(packed_file_data: &[u8], mut index: usize) -> Result<(f32, usize), Error> {
     if packed_file_data.len() >= 4 {
-        match decode_float_u32(packed_file_data[..4].to_vec()) {
+        match decode_float_u32(&packed_file_data[..4]) {
             Ok(number) => {
                 index += 4;
                 Ok((number, index))
@@ -364,14 +364,14 @@ pub fn decode_packedfile_float_u32(packed_file_data: Vec<u8>, mut index: usize) 
 /// This function allow us to decode an UTF-8 encoded string cell. We return the string and the
 /// index for the next cell's data.
 #[allow(dead_code)]
-pub fn decode_packedfile_string_u8(packed_file_data: Vec<u8>, index: usize) -> Result<(String, usize), Error> {
+pub fn decode_packedfile_string_u8(packed_file_data: &[u8], index: usize) -> Result<(String, usize), Error> {
     if packed_file_data.len() >= 2 {
-        match decode_packedfile_integer_u16(packed_file_data[..2].to_vec(), index) {
+        match decode_packedfile_integer_u16(&packed_file_data[..2], index) {
             Ok(result) => {
                 let size = result.0;
                 let mut index = result.1;
                 if packed_file_data.len() >= (size as usize + 2) {
-                    match decode_string_u8(packed_file_data[2..(2 + size as usize)].to_vec()) {
+                    match decode_string_u8(&packed_file_data[2..(2 + size as usize)]) {
                         Ok(string) => {
                             index += size as usize;
                             Ok((string, index))
@@ -396,14 +396,14 @@ pub fn decode_packedfile_string_u8(packed_file_data: Vec<u8>, index: usize) -> R
 ///
 /// NOTE: These strings's first byte it's a boolean that indicates if the string has something.
 #[allow(dead_code)]
-pub fn decode_packedfile_optional_string_u8(packed_file_data: Vec<u8>, index: usize) -> Result<(String, usize), Error> {
+pub fn decode_packedfile_optional_string_u8(packed_file_data: &[u8], index: usize) -> Result<(String, usize), Error> {
     if packed_file_data.len() >= 1 {
         match decode_packedfile_bool(packed_file_data[0], index) {
             Ok(result) => {
                 let exist = result.0;
                 let index = result.1;
                 if exist {
-                    match decode_packedfile_string_u8(packed_file_data[1..].to_vec(), index) {
+                    match decode_packedfile_string_u8(&packed_file_data[1..], index) {
                         Ok(result) => Ok(result),
                         Err(error) => Err(error),
                     }
@@ -423,15 +423,15 @@ pub fn decode_packedfile_optional_string_u8(packed_file_data: Vec<u8>, index: us
 /// This function allow us to decode an UTF-16 encoded string cell. We return the string and the
 /// index for the next cell's data.
 #[allow(dead_code)]
-pub fn decode_packedfile_string_u16(packed_file_data: Vec<u8>, index: usize) -> Result<(String, usize), Error> {
+pub fn decode_packedfile_string_u16(packed_file_data: &[u8], index: usize) -> Result<(String, usize), Error> {
     if packed_file_data.len() >= 2 {
-        match decode_packedfile_integer_u16(packed_file_data[..2].to_vec(), index) {
+        match decode_packedfile_integer_u16(&packed_file_data[..2], index) {
             Ok(result) => {
                 // We wrap this to avoid overflow, as the limit of this is 65,535.
                 let size = result.0.wrapping_mul(2);
                 let mut index = result.1;
                 if packed_file_data.len() >= (size as usize + 2) {
-                    match decode_string_u16(packed_file_data[2..(2 + size as usize)].to_vec()) {
+                    match decode_string_u16(&packed_file_data[2..(2 + size as usize)]) {
                         Ok(string) => {
                             index += size as usize;
                             Ok((string, index))
@@ -456,14 +456,14 @@ pub fn decode_packedfile_string_u16(packed_file_data: Vec<u8>, index: usize) -> 
 ///
 /// NOTE: These strings's first byte it's a boolean that indicates if the string has something.
 #[allow(dead_code)]
-pub fn decode_packedfile_optional_string_u16(packed_file_data: Vec<u8>, index: usize) -> Result<(String, usize), Error> {
+pub fn decode_packedfile_optional_string_u16(packed_file_data: &[u8], index: usize) -> Result<(String, usize), Error> {
     if packed_file_data.len() >= 1 {
         match decode_packedfile_bool(packed_file_data[0], index) {
             Ok(result) => {
                 let exist = result.0;
                 let index = result.1;
                 if exist {
-                    match decode_packedfile_string_u16(packed_file_data[1..].to_vec(), index) {
+                    match decode_packedfile_string_u16(&packed_file_data[1..], index) {
                         Ok(result) => Ok(result),
                         Err(error) => Err(error),
                     }

@@ -106,10 +106,10 @@ impl LocHeader {
     pub fn read(packed_file_header: Vec<u8>) -> Result<LocHeader, Error> {
         let mut loc_header = LocHeader::new();
 
-        loc_header.packed_file_header_byte_order_mark = coding_helpers::decode_integer_u16((&packed_file_header[0..2]).to_vec())?;
-        loc_header.packed_file_header_packed_file_type = coding_helpers::decode_string_u8((&packed_file_header[2..5]).to_vec())?;
-        loc_header.packed_file_header_packed_file_version = coding_helpers::decode_integer_u32((&packed_file_header[6..10]).to_vec())?;
-        loc_header.packed_file_header_packed_file_entry_count = coding_helpers::decode_integer_u32((&packed_file_header[10..14]).to_vec())?;
+        loc_header.packed_file_header_byte_order_mark = coding_helpers::decode_integer_u16(&packed_file_header[0..2])?;
+        loc_header.packed_file_header_packed_file_type = coding_helpers::decode_string_u8(&packed_file_header[2..5])?;
+        loc_header.packed_file_header_packed_file_version = coding_helpers::decode_integer_u32(&packed_file_header[6..10])?;
+        loc_header.packed_file_header_packed_file_entry_count = coding_helpers::decode_integer_u32(&packed_file_header[10..14])?;
 
         Ok(loc_header)
     }
@@ -178,7 +178,7 @@ impl LocData {
                             let string_encoded_begin = (entry_offset + entry_field_offset + entry_size_byte_offset) as usize;
                             let string_encoded_end = (entry_offset + entry_field_offset + entry_size_byte_offset + ((entry_field_size * 2) as u32)) as usize;
                             let string_encoded: Vec<u8> = packed_file_data[string_encoded_begin..string_encoded_end].to_vec();
-                            let string_decoded = coding_helpers::decode_string_u16(string_encoded)?;
+                            let string_decoded = coding_helpers::decode_string_u16(&string_encoded)?;
 
                             if entry_field == 0 {
                                 key = string_decoded;

@@ -51,7 +51,7 @@ pub fn open_packfile(pack_file_path: PathBuf) -> Result<packfile::PackFile, Erro
         Err(format_err!("The file doesn't even have a full header."))
     }
     else {
-        match coding_helpers::decode_string_u8(pack_file_buffered[0..4].to_vec()) {
+        match coding_helpers::decode_string_u8(&pack_file_buffered[0..4]) {
             Ok(pack_file_id) => {
 
                 // If the header's first 4 bytes are "PFH5", it's a valid file, so we read it.

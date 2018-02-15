@@ -2623,7 +2623,7 @@ fn build_ui(application: &Application) {
                         // Before doing anything, we try to decode the data. Only if we success, we create
                         // the SourceView and add the data to it.
                         let packed_file_data_encoded = &*pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data;
-                        match coding_helpers::decode_string_u8(packed_file_data_encoded.to_vec()) {
+                        match coding_helpers::decode_string_u8(&packed_file_data_encoded) {
                             Ok(string) => {
 
                                 // First, we create a vertical Box, put a "Save" button in the top part, and left

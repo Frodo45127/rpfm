@@ -168,13 +168,13 @@ impl DBHeader {
         // If it has a GUID_MARKER, we get the GUID.
         if &packed_file_header[index..(index + 4)] == GUID_MARKER {
             index += 4;
-            packed_file_header_decoded.packed_file_header_packed_file_guid = coding_helpers::decode_packedfile_string_u16(packed_file_header[index..].to_vec(), index)?;
+            packed_file_header_decoded.packed_file_header_packed_file_guid = coding_helpers::decode_packedfile_string_u16(&packed_file_header[index..], index)?;
             index = packed_file_header_decoded.packed_file_header_packed_file_guid.1;
         }
 
         // If it has a VERSION_MARKER, we get the version of the table.
         if &packed_file_header[index..(index + 4)] == VERSION_MARKER {
-            packed_file_header_decoded.packed_file_header_packed_file_version = coding_helpers::decode_integer_u32(packed_file_header[(index + 4)..(index + 8)].to_vec())?;
+            packed_file_header_decoded.packed_file_header_packed_file_version = coding_helpers::decode_integer_u32(&packed_file_header[(index + 4)..(index + 8)])?;
             packed_file_header_decoded.packed_file_header_packed_file_version_marker = true;
             index = index + 8;
         }
@@ -183,7 +183,7 @@ impl DBHeader {
         packed_file_header_decoded.packed_file_header_packed_file_mysterious_byte = packed_file_header[index];
         index += 1;
 
-        packed_file_header_decoded.packed_file_header_packed_file_entry_count = coding_helpers::decode_integer_u32(packed_file_header[(index)..(index + 4)].to_vec())?;
+        packed_file_header_decoded.packed_file_header_packed_file_entry_count = coding_helpers::decode_integer_u32(&packed_file_header[(index)..(index + 4)])?;
         index += 4;
 
         Ok((packed_file_header_decoded, index))
@@ -269,7 +269,7 @@ impl DBData {
                         schemas::FieldType::Float => {
                             // Check if the index does even exist, to avoid crashes.
                             if (index + 4) <= packed_file_data.len() {
-                                match coding_helpers::decode_packedfile_float_u32(packed_file_data[index..(index + 4)].to_vec(), index) {
+                                match coding_helpers::decode_packedfile_float_u32(&packed_file_data[index..(index + 4)], index) {
                                     Ok(data) => {
                                         index = data.1;
                                         entry.push(DecodedData::Float( data.0));
@@ -284,7 +284,7 @@ impl DBData {
                         schemas::FieldType::Integer => {
                             // Check if the index does even exist, to avoid crashes.
                             if (index + 4) <= packed_file_data.len() {
-                                match coding_helpers::decode_packedfile_integer_i32(packed_file_data[index..(index + 4)].to_vec(), index) {
+                                match coding_helpers::decode_packedfile_integer_i32(&packed_file_data[index..(index + 4)], index) {
                                     Ok(data) => {
                                         index = data.1;
                                         entry.push(DecodedData::Integer(data.0));
@@ -299,7 +299,7 @@ impl DBData {
                         schemas::FieldType::LongInteger => {
                             // Check if the index does even exist, to avoid crashes.
                             if (index + 8) <= packed_file_data.len() {
-                                match coding_helpers::decode_packedfile_integer_i64(packed_file_data[index..(index + 8)].to_vec(), index) {
+                                match coding_helpers::decode_packedfile_integer_i64(&packed_file_data[index..(index + 8)], index) {
                                     Ok(data) => {
                                         index = data.1;
                                         entry.push(DecodedData::LongInteger(data.0));
@@ -313,7 +313,7 @@ impl DBData {
                         }
                         schemas::FieldType::StringU8 => {
                             if index < packed_file_data.len() {
-                                match coding_helpers::decode_packedfile_string_u8(packed_file_data[index..].to_vec(), index) {
+                                match coding_helpers::decode_packedfile_string_u8(&packed_file_data[index..], index) {
                                     Ok(data) => {
                                         index = data.1;
                                         entry.push(DecodedData::StringU8(data.0));
@@ -327,7 +327,7 @@ impl DBData {
                         }
                         schemas::FieldType::StringU16 => {
                             if index < packed_file_data.len() {
-                                match coding_helpers::decode_packedfile_string_u16(packed_file_data[index..].to_vec(), index) {
+                                match coding_helpers::decode_packedfile_string_u16(&packed_file_data[index..], index) {
                                     Ok(data) => {
                                         index = data.1;
                                         entry.push(DecodedData::StringU16(data.0));
@@ -341,7 +341,7 @@ impl DBData {
                         }
                         schemas::FieldType::OptionalStringU8 => {
                             if index <= packed_file_data.len() {
-                                match coding_helpers::decode_packedfile_optional_string_u8(packed_file_data[index..].to_vec(), index) {
+                                match coding_helpers::decode_packedfile_optional_string_u8(&packed_file_data[index..], index) {
                                     Ok(data) => {
                                         index = data.1;
                                         entry.push(DecodedData::OptionalStringU8(data.0));
@@ -355,7 +355,7 @@ impl DBData {
                         }
                         schemas::FieldType::OptionalStringU16 => {
                             if index <= packed_file_data.len() {
-                                match coding_helpers::decode_packedfile_optional_string_u16(packed_file_data[index..].to_vec(), index) {
+                                match coding_helpers::decode_packedfile_optional_string_u16(&packed_file_data[index..], index) {
                                     Ok(data) => {
                                         index = data.1;
                                         entry.push(DecodedData::OptionalStringU16(data.0));
