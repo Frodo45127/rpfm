@@ -61,7 +61,7 @@ impl Settings {
         let settings_json = serde_json::to_string_pretty(self);
         match File::create(PathBuf::from("settings.json")) {
             Ok(mut file) => {
-                match file.write_all(&settings_json.unwrap().as_bytes()) {
+                match file.write_all(settings_json.unwrap().as_bytes()) {
                     Ok(_) => Ok(()),
                     Err(_) => Err(format_err!("Error while trying to write the \"settings.json\" file.")),
                 }

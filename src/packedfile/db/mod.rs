@@ -78,14 +78,14 @@ impl DB {
 
     /// This function creates a new decoded DB from a encoded PackedFile. This assumes the PackedFile is
     /// a DB PackedFile. It'll crash otherwise.
-    pub fn read(packed_file_data: Vec<u8>, packed_file_db_type: &str, master_schema: &schemas::Schema) -> Result<DB, Error> {
+    pub fn read(packed_file_data: &[u8], packed_file_db_type: &str, master_schema: &schemas::Schema) -> Result<DB, Error> {
 
-        match DBHeader::read(packed_file_data.to_vec()) {
+        match DBHeader::read(packed_file_data) {
             Ok(packed_file_header) => {
                 match DB::get_schema(packed_file_db_type, packed_file_header.0.packed_file_header_packed_file_version, master_schema) {
                     Some(table_definition) => {
                         match DBData::read(
-                            packed_file_data[(packed_file_header.1)..].to_vec(),
+                            &packed_file_data[(packed_file_header.1)..],
                             &table_definition,
                             packed_file_header.0.packed_file_header_packed_file_entry_count,
                         ) {
@@ -160,7 +160,7 @@ impl DBHeader {
 
     /// This function creates a decoded DBHeader from a encoded PackedFile. It also return an index,
     /// to know where the body starts.
-    pub fn read(packed_file_header: Vec<u8>) -> Result<(DBHeader, usize), Error> {
+    pub fn read(packed_file_header: &[u8]) -> Result<(DBHeader, usize), Error> {
 
         let mut packed_file_header_decoded = DBHeader::new();
         let mut index: usize = 0;
@@ -176,7 +176,7 @@ impl DBHeader {
         if &packed_file_header[index..(index + 4)] == VERSION_MARKER {
             packed_file_header_decoded.packed_file_header_packed_file_version = coding_helpers::decode_integer_u32(&packed_file_header[(index + 4)..(index + 8)])?;
             packed_file_header_decoded.packed_file_header_packed_file_version_marker = true;
-            index = index + 8;
+            index += 8;
         }
 
         // We save a mysterious byte I don't know what it does.
@@ -196,13 +196,13 @@ impl DBHeader {
 
         let guid_encoded = coding_helpers::encode_packedfile_string_u16(&packed_file_header_decoded.packed_file_header_packed_file_guid.0);
 
-        packed_file_header_encoded.extend_from_slice(&GUID_MARKER);
+        packed_file_header_encoded.extend_from_slice(GUID_MARKER);
         packed_file_header_encoded.extend_from_slice(&guid_encoded);
 
         if packed_file_header_decoded.packed_file_header_packed_file_version_marker {
             let version_encoded = coding_helpers::encode_integer_u32(packed_file_header_decoded.packed_file_header_packed_file_version);
 
-            packed_file_header_encoded.extend_from_slice(&VERSION_MARKER);
+            packed_file_header_encoded.extend_from_slice(VERSION_MARKER);
             packed_file_header_encoded.extend_from_slice(&version_encoded);
         }
 
@@ -221,7 +221,7 @@ impl DBData {
 
     /// This function creates a decoded DBData from a encoded PackedFile.
     pub fn read(
-        packed_file_data: Vec<u8>,
+        packed_file_data: &[u8],
         table_definition: &schemas::TableDefinition,
         packed_file_header_packed_file_entry_count: u32
     ) -> Result<DBData, Error> {
@@ -400,35 +400,35 @@ impl DBData {
                         continue;
                     },
                     DecodedData::Boolean(data) => {
-                        let mut encoded_data = coding_helpers::encode_bool(data.clone());
+                        let mut encoded_data = coding_helpers::encode_bool(data);
                         packed_file_data_encoded.push(encoded_data);
                     },
                     DecodedData::Float(data) => {
-                        let mut encoded_data = coding_helpers::encode_float_u32(data.clone());
+                        let mut encoded_data = coding_helpers::encode_float_u32(data);
                         packed_file_data_encoded.append(&mut encoded_data);
                     },
                     DecodedData::Integer(data) => {
-                        let mut encoded_data = coding_helpers::encode_integer_i32(data.clone());
+                        let mut encoded_data = coding_helpers::encode_integer_i32(data);
                         packed_file_data_encoded.append(&mut encoded_data);
                     },
                     DecodedData::LongInteger(data) => {
-                        let mut encoded_data = coding_helpers::encode_integer_i64(data.clone());
+                        let mut encoded_data = coding_helpers::encode_integer_i64(data);
                         packed_file_data_encoded.append(&mut encoded_data);
                     },
                     DecodedData::StringU8(ref data) => {
-                        let mut encoded_data = coding_helpers::encode_packedfile_string_u8(&data);
+                        let mut encoded_data = coding_helpers::encode_packedfile_string_u8(data);
                         packed_file_data_encoded.append(&mut encoded_data);
                     },
                     DecodedData::StringU16(ref data) => {
-                        let mut encoded_data = coding_helpers::encode_packedfile_string_u16(&data);
+                        let mut encoded_data = coding_helpers::encode_packedfile_string_u16(data);
                         packed_file_data_encoded.append(&mut encoded_data);
                     },
                     DecodedData::OptionalStringU8(ref data) => {
-                        let mut encoded_data = coding_helpers::encode_packedfile_optional_string_u8(&data);
+                        let mut encoded_data = coding_helpers::encode_packedfile_optional_string_u8(data);
                         packed_file_data_encoded.append(&mut encoded_data);
                     },
                     DecodedData::OptionalStringU16(ref data) => {
-                        let mut encoded_data = coding_helpers::encode_packedfile_optional_string_u16(&data);
+                        let mut encoded_data = coding_helpers::encode_packedfile_optional_string_u16(data);
                         packed_file_data_encoded.append(&mut encoded_data);
                     },
                 }

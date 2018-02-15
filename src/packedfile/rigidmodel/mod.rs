@@ -220,11 +220,11 @@ impl RigidModel {
 
     /// This function reads the data from a Vec<u8> and decode it into a RigidModel. This CAN FAIL,
     /// so we return Result<RigidModel, Error>.
-    pub fn read(packed_file_data: Vec<u8>) -> Result<RigidModel, Error> {
-        match RigidModelHeader::read(packed_file_data[..140].to_vec()) {
+    pub fn read(packed_file_data: &[u8]) -> Result<RigidModel, Error> {
+        match RigidModelHeader::read(&packed_file_data[..140]) {
             Ok(packed_file_header) => {
                 match RigidModelData::read(
-                    packed_file_data[140..].to_vec(),
+                    &packed_file_data[140..],
                     &packed_file_header.packed_file_header_model_type,
                     &packed_file_header.packed_file_header_lods_count
                 ) {
@@ -243,8 +243,8 @@ impl RigidModel {
     /// This function reads the data from a RigidModel and encode it into a Vec<u8>. This CAN FAIL,
     /// so we return Result<Vec<u8>, Error>.
     pub fn save(rigid_model_data: &RigidModel) -> Result<Vec<u8>, Error> {
-        let mut packed_file_data_encoded = RigidModelData::save(rigid_model_data.packed_file_data.clone())?;
-        let mut packed_file_header_encoded = RigidModelHeader::save(rigid_model_data.packed_file_header.clone())?;
+        let mut packed_file_data_encoded = RigidModelData::save(&rigid_model_data.packed_file_data)?;
+        let mut packed_file_header_encoded = RigidModelHeader::save(&rigid_model_data.packed_file_header)?;
 
         let mut packed_file_encoded = vec![];
         packed_file_encoded.append(&mut packed_file_header_encoded);
@@ -259,7 +259,7 @@ impl RigidModelHeader {
 
     /// This function reads the data from a Vec<u8> and decode it into a RigidModelHeader. This CAN FAIL,
     /// so we return Result<RigidModelHeader, Error>.
-    pub fn read(packed_file_data: Vec<u8>) -> Result<RigidModelHeader, Error> {
+    pub fn read(packed_file_data: &[u8]) -> Result<RigidModelHeader, Error> {
 
         let mut packed_file_header = RigidModelHeader {
             packed_file_header_signature: String::new(),
@@ -295,7 +295,7 @@ impl RigidModelHeader {
 
     /// This function reads the data from a RigidModelHeader and encode it into a Vec<u8>. This CAN FAIL,
     /// so we return Result<Vec<u8>, Error>.
-    pub fn save(rigid_model_header: RigidModelHeader) -> Result<Vec<u8>, Error> {
+    pub fn save(rigid_model_header: &RigidModelHeader) -> Result<Vec<u8>, Error> {
         let mut packed_file_data: Vec<u8> = vec![];
 
         let mut packed_file_header_signature = coding_helpers::encode_string_u8(&rigid_model_header.packed_file_header_signature);
@@ -316,7 +316,7 @@ impl RigidModelData {
 
     /// This function reads the data from a Vec<u8> and decode it into a RigidModelData. This CAN FAIL,
     /// so we return Result<RigidModelData, Error>.
-    pub fn read(packed_file_data: Vec<u8>, packed_file_header_model_type: &u32, packed_file_header_lods_count: &u32) -> Result<RigidModelData, Error> {
+    pub fn read(packed_file_data: &[u8], packed_file_header_model_type: &u32, packed_file_header_lods_count: &u32) -> Result<RigidModelData, Error> {
         let mut packed_file_data_lods_header: Vec<RigidModelLodHeader> = vec![];
         let mut packed_file_data_lods_data: Vec<RigidModelLodData> = vec![];
         let mut index: usize = 0;
@@ -328,7 +328,7 @@ impl RigidModelData {
 
         // We get the "headers" of every lod.
         for _ in 0..*packed_file_header_lods_count {
-            let lod_header = match RigidModelLodHeader::read(packed_file_data[index..(index + offset)].to_vec()) {
+            let lod_header = match RigidModelLodHeader::read(&packed_file_data[index..(index + offset)]) {
                 Ok(data) => data,
                 Err(error) => return Err(error)
             };
@@ -337,7 +337,7 @@ impl RigidModelData {
         }
 
         for lod in 0..*packed_file_header_lods_count {
-            let lod_data = match RigidModelLodData::read(packed_file_data[index..].to_vec(), &packed_file_data_lods_header[lod as usize]) {
+            let lod_data = match RigidModelLodData::read(&packed_file_data[index..], &packed_file_data_lods_header[lod as usize]) {
                 Ok(data) => data,
                 Err(error) => return Err(error)
             };
@@ -353,17 +353,17 @@ impl RigidModelData {
 
     /// This function reads the data from a RigidModelData and encode it into a Vec<u8>. This CAN FAIL,
     /// so we return Result<Vec<u8>, Error>.
-    pub fn save(rigid_model_data: RigidModelData) -> Result<Vec<u8>, Error> {
+    pub fn save(rigid_model_data: &RigidModelData) -> Result<Vec<u8>, Error> {
         let mut packed_file_data = vec![];
 
         // For each Lod, we save it, and add it to the "Encoded Data" vector. After that, we add to that
         // vector the extra data, and return it.
-        for lod in rigid_model_data.packed_file_data_lods_header.iter() {
-            packed_file_data.append(&mut RigidModelLodHeader::save(&lod));
+        for lod in &rigid_model_data.packed_file_data_lods_header {
+            packed_file_data.append(&mut RigidModelLodHeader::save(lod));
         }
 
         for (index, lod) in rigid_model_data.packed_file_data_lods_data.iter().enumerate() {
-            packed_file_data.append(&mut RigidModelLodData::save(&lod, &rigid_model_data.packed_file_data_lods_header[index])?);
+            packed_file_data.append(&mut RigidModelLodData::save(lod, &rigid_model_data.packed_file_data_lods_header[index])?);
         }
         Ok(packed_file_data)
     }
@@ -374,7 +374,7 @@ impl RigidModelLodHeader {
 
     /// This function reads the data from a Vec<u8> and decode it into a RigidModelLodHeader. This CAN FAIL,
     /// so we return Result<RigidModelLodHeader, Error>.
-    pub fn read(packed_file_data: Vec<u8>) -> Result<RigidModelLodHeader, Error> {
+    pub fn read(packed_file_data: &[u8]) -> Result<RigidModelLodHeader, Error> {
         let mut header = RigidModelLodHeader {
             groups_count: 0,
             vertices_data_length: 0,
@@ -466,7 +466,7 @@ impl RigidModelLodData {
     /// This function reads the data from a Vec<u8> and decode it into a RigidModelLodData. This CAN FAIL,
     /// so we return Result<RigidModelDataLod, Error>. Also, it needs it's LodHeader to see what type of
     /// model it's.
-    pub fn read(packed_file_data: Vec<u8>, packed_file_lod_header: &RigidModelLodHeader) -> Result<RigidModelLodData, Error> {
+    pub fn read(packed_file_data: &[u8], packed_file_lod_header: &RigidModelLodHeader) -> Result<RigidModelLodData, Error> {
 
         let mut index = 0;
 
@@ -657,7 +657,7 @@ impl RigidModelLodData {
             if textures_count.unwrap() > 0 {
                 let mut temp_texture_list = vec![];
                 for _ in 0..textures_count.unwrap() {
-                    match RigidModelLodDataTexture::read((&packed_file_data[index..(index + 260)]).to_vec()){
+                    match RigidModelLodDataTexture::read(&packed_file_data[index..(index + 260)]) {
                         Ok(data) => {
                             temp_texture_list.push(data);
                             index += 260;
@@ -815,7 +815,7 @@ impl RigidModelLodData {
 
             if rigid_model_lod_data.textures_count.unwrap() != 0 {
                 let mut textures_list: Vec<u8> = vec![];
-                for texture in rigid_model_lod_data.textures_list.unwrap().iter() {
+                for texture in &rigid_model_lod_data.textures_list.unwrap() {
                     textures_list.append(&mut RigidModelLodDataTexture::save(texture)?);
                 }
                 packed_file_data.append(&mut textures_list);
@@ -843,7 +843,7 @@ impl RigidModelLodDataTexture {
 
     /// This function reads the data from a Vec<u8> and decode it into a RigidModelLodDataTexture. This CAN FAIL,
     /// so we return Result<RigidModelLodDataTexture, Error>.
-    pub fn read(packed_file_data: Vec<u8>) -> Result<RigidModelLodDataTexture, Error> {
+    pub fn read(packed_file_data: &[u8]) -> Result<RigidModelLodDataTexture, Error> {
 
         let texture_type = match coding_helpers::decode_integer_u32(&packed_file_data[0..4]) {
             Ok(data) => data,

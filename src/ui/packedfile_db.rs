@@ -369,14 +369,16 @@ impl PackedFileDBTreeView{
             for (index, field) in row.iter().enumerate() {
                 let gtk_value_field;
                 match *field {
-                    DecodedData::Index(ref data) => gtk_value_field = gtk::ToValue::to_value(&data),
                     DecodedData::Boolean(ref data) => gtk_value_field = gtk::ToValue::to_value(&data),
                     DecodedData::Float(ref data) => gtk_value_field = gtk::ToValue::to_value(&format!("{}", data)),
                     DecodedData::Integer(ref data) => gtk_value_field = gtk::ToValue::to_value(&data),
                     DecodedData::LongInteger(ref data) => gtk_value_field = gtk::ToValue::to_value(&data),
-                    DecodedData::StringU8(ref data) => gtk_value_field = gtk::ToValue::to_value(&data),
-                    DecodedData::StringU16(ref data) => gtk_value_field = gtk::ToValue::to_value(&data),
-                    DecodedData::OptionalStringU8(ref data) => gtk_value_field = gtk::ToValue::to_value(&data),
+
+                    // All these are Strings, so it can be together,
+                    DecodedData::Index(ref data) |
+                    DecodedData::StringU8(ref data) |
+                    DecodedData::StringU16(ref data) |
+                    DecodedData::OptionalStringU8(ref data) |
                     DecodedData::OptionalStringU16(ref data) => gtk_value_field = gtk::ToValue::to_value(&data),
                 }
                 packed_file_list_store.set_value(&current_row, index as u32, &gtk_value_field);
@@ -859,7 +861,7 @@ impl PackedFileDBDecoder {
         packed_file_encoded: &[u8],
         initial_index: usize
     ) -> Result<(), Error> {
-        let db_header = DBHeader::read(packed_file_encoded.to_vec())?;
+        let db_header = DBHeader::read(packed_file_encoded)?;
 
         // This creates the "index" column at the left of the hex data.
         let hex_lines = (packed_file_encoded.len() / 16) + 1;
@@ -971,21 +973,21 @@ impl PackedFileDBDecoder {
         let decoded_optional_string_u8;
         let decoded_optional_string_u16;
 
-        let mut index_data = index_data.clone();
+        let mut index_data = index_data;
 
         // If we are loading data to the table for the first time, we'll load to the table all the data
         // directly from the existing definition and update the initial index for decoding.
         if let Some(table_definition) = table_definition {
             for (index, field) in table_definition.fields.iter().enumerate() {
                 index_data = PackedFileDBDecoder::add_field_to_data_view(
-                    &packed_file_decoder,
-                    packed_file_decoded.to_vec(),
-                    &table_definition,
+                    packed_file_decoder,
+                    packed_file_decoded,
+                    table_definition,
                     &field.field_name,
                     field.field_type.to_owned(),
                     field.field_is_key,
-                    field.field_is_reference.clone(),
-                    field.field_description.to_owned(),
+                    &field.field_is_reference,
+                    &field.field_description,
                     index_data,
                     Some(index)
                 );
@@ -1136,24 +1138,24 @@ impl PackedFileDBDecoder {
     /// possible error here instead on the UI.
     pub fn add_field_to_data_view(
         packed_file_decoder: &PackedFileDBDecoder,
-        packed_file_decoded: Vec<u8>,
+        packed_file_decoded: &[u8],
         table_definition: &TableDefinition,
         field_name: &str,
         field_type: FieldType,
         field_is_key: bool,
-        field_is_reference: Option<(String, String)>,
-        field_description: String,
+        field_is_reference: &Option<(String, String)>,
+        field_description: &str,
         index_data: usize,
         index_row: Option<usize>
     ) -> usize {
 
         let field_index = match index_row {
             Some(index) => format!("{:0count$}", index + 1, count = (table_definition.fields.len().to_string().len() + 1)),
-            None => format!("New"),
+            None => "New".to_owned(),
         };
 
         let decoded_data = decode_data_by_fieldtype(
-            &packed_file_decoded,
+            packed_file_decoded,
             &field_type,
             index_data
         );
@@ -1169,7 +1171,7 @@ impl PackedFileDBDecoder {
             FieldType::OptionalStringU16 => "OptionalStringU16",
         };
 
-        if let Some(ref reference) = field_is_reference {
+        if let Some(ref reference) = *field_is_reference {
             packed_file_decoder.fields_list_store.insert_with_values(
                 None,
                 &[0, 1, 2, 3, 4, 5, 6, 7],
@@ -1230,9 +1232,7 @@ impl PackedFileDBDecoder {
                     "StringU8" => FieldType::StringU8,
                     "StringU16" => FieldType::StringU16,
                     "OptionalStringU8" => FieldType::OptionalStringU8,
-                    "OptionalStringU16" => FieldType::OptionalStringU16,
-                    // This is just so the compiler doesn't complain.
-                    _ => FieldType::Boolean,
+                    "OptionalStringU16" | _=> FieldType::OptionalStringU16,
                 };
 
                 if ref_table.is_empty() {
@@ -1255,11 +1255,11 @@ impl PackedFileDBDecoder {
 /// This function is a helper to try to decode data in different formats, returning "Error" in case
 /// of decoding error. It requires the FieldType we want to decode, the data we want to decode
 /// (vec<u8>, being the first u8 the first byte to decode) and the index of the data in the Vec<u8>.
-pub fn decode_data_by_fieldtype(field_data: &Vec<u8>, field_type: &FieldType, index_data: usize) -> (String, usize) {
-    match field_type {
-        &FieldType::Boolean => {
+pub fn decode_data_by_fieldtype(field_data: &[u8], field_type: &FieldType, index_data: usize) -> (String, usize) {
+    match *field_type {
+        FieldType::Boolean => {
             // Check if the index does even exist, to avoid crashes.
-            if let Some(_) = field_data.get(index_data) {
+            if field_data.get(index_data).is_some() {
                 match coding_helpers::decode_packedfile_bool(field_data[index_data], index_data) {
                     Ok(result) => {
                         if result.0 {
@@ -1276,8 +1276,8 @@ pub fn decode_data_by_fieldtype(field_data: &Vec<u8>, field_type: &FieldType, in
                 ("Error".to_owned(), index_data)
             }
         },
-        &FieldType::Float => {
-            if let Some(_) = field_data.get(index_data..(index_data + 4)) {
+        FieldType::Float => {
+            if field_data.get(index_data..(index_data + 4)).is_some() {
                 match coding_helpers::decode_packedfile_float_u32(&field_data[index_data..(index_data + 4)], index_data) {
                     Ok(result) => (result.0.to_string(), result.1),
                     Err(_) => ("Error".to_owned(), index_data),
@@ -1287,8 +1287,8 @@ pub fn decode_data_by_fieldtype(field_data: &Vec<u8>, field_type: &FieldType, in
                 ("Error".to_owned(), index_data)
             }
         },
-        &FieldType::Integer => {
-            if let Some(_) = field_data.get(index_data..(index_data + 4)) {
+        FieldType::Integer => {
+            if field_data.get(index_data..(index_data + 4)).is_some() {
                 match coding_helpers::decode_packedfile_integer_i32(&field_data[index_data..(index_data +4)], index_data) {
                     Ok(result) => (result.0.to_string(), result.1),
                     Err(_) => ("Error".to_owned(), index_data),
@@ -1298,8 +1298,8 @@ pub fn decode_data_by_fieldtype(field_data: &Vec<u8>, field_type: &FieldType, in
                 ("Error".to_owned(), index_data)
             }
         },
-        &FieldType::LongInteger => {
-            if let Some(_) = field_data.get(index_data..(index_data + 8)) {
+        FieldType::LongInteger => {
+            if field_data.get(index_data..(index_data + 8)).is_some() {
                 match coding_helpers::decode_packedfile_integer_i64(&field_data[index_data..(index_data +8)], index_data) {
                     Ok(result) => (result.0.to_string(), result.1),
                     Err(_) => ("Error".to_owned(), index_data),
@@ -1309,8 +1309,8 @@ pub fn decode_data_by_fieldtype(field_data: &Vec<u8>, field_type: &FieldType, in
                 ("Error".to_owned(), index_data)
             }
         },
-        &FieldType::StringU8 => {
-            if let Some(_) = field_data.get(index_data) {
+        FieldType::StringU8 => {
+            if field_data.get(index_data).is_some() {
                 match coding_helpers::decode_packedfile_string_u8(&field_data[index_data..], index_data) {
                     Ok(result) => result,
                     Err(_) => ("Error".to_owned(), index_data),
@@ -1320,8 +1320,8 @@ pub fn decode_data_by_fieldtype(field_data: &Vec<u8>, field_type: &FieldType, in
                 ("Error".to_owned(), index_data)
             }
         },
-        &FieldType::StringU16 => {
-            if let Some(_) = field_data.get(index_data) {
+        FieldType::StringU16 => {
+            if field_data.get(index_data).is_some() {
                 match coding_helpers::decode_packedfile_string_u16(&field_data[index_data..], index_data) {
                     Ok(result) => result,
                     Err(_) => ("Error".to_owned(), index_data),
@@ -1331,8 +1331,8 @@ pub fn decode_data_by_fieldtype(field_data: &Vec<u8>, field_type: &FieldType, in
                 ("Error".to_owned(), index_data)
             }
         },
-        &FieldType::OptionalStringU8 => {
-            if let Some(_) = field_data.get(index_data) {
+        FieldType::OptionalStringU8 => {
+            if field_data.get(index_data).is_some() {
                 match coding_helpers::decode_packedfile_optional_string_u8(&field_data[index_data..], index_data) {
                     Ok(result) => result,
                     Err(_) => ("Error".to_owned(), index_data),
@@ -1342,8 +1342,8 @@ pub fn decode_data_by_fieldtype(field_data: &Vec<u8>, field_type: &FieldType, in
                 ("Error".to_owned(), index_data)
             }
         },
-        &FieldType::OptionalStringU16 => {
-            if let Some(_) = field_data.get(index_data) {
+        FieldType::OptionalStringU16 => {
+            if field_data.get(index_data).is_some() {
                 match coding_helpers::decode_packedfile_optional_string_u16(&field_data[index_data..], index_data) {
                     Ok(result) => result,
                     Err(_) => ("Error".to_owned(), index_data),

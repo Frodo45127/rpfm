@@ -53,10 +53,10 @@ impl Loc {
 
     /// This function creates a new decoded Loc from the data of a PackedFile. Note that this assume
     /// the file is a loc. It'll crash otherwise.
-    pub fn read(packed_file_data: Vec<u8>) -> Result<Loc, Error> {
-        match LocHeader::read(packed_file_data[..14].to_vec()) {
+    pub fn read(packed_file_data: &[u8]) -> Result<Loc, Error> {
+        match LocHeader::read(&packed_file_data[..14]) {
             Ok(packed_file_header) => {
-                match LocData::read(packed_file_data[14..].to_vec(), &packed_file_header.packed_file_header_packed_file_entry_count) {
+                match LocData::read(&packed_file_data[14..], &packed_file_header.packed_file_header_packed_file_entry_count) {
                     Ok(packed_file_data) =>
                         Ok(Loc {
                             packed_file_header,
@@ -103,7 +103,7 @@ impl LocHeader {
 
     /// This function creates a new decoded LocHeader from the data of a PackedFile. To see what are
     /// these values, check the LocHeader struct.
-    pub fn read(packed_file_header: Vec<u8>) -> Result<LocHeader, Error> {
+    pub fn read(packed_file_header: &[u8]) -> Result<LocHeader, Error> {
         let mut loc_header = LocHeader::new();
 
         loc_header.packed_file_header_byte_order_mark = coding_helpers::decode_integer_u16(&packed_file_header[0..2])?;
@@ -121,7 +121,7 @@ impl LocHeader {
 
         packed_file_header_encoded.extend_from_slice(&coding_helpers::encode_integer_u16(packed_file_header_decoded.packed_file_header_byte_order_mark));
         packed_file_header_encoded.extend_from_slice(&coding_helpers::encode_string_u8(&packed_file_header_decoded.packed_file_header_packed_file_type));
-        packed_file_header_encoded.extend_from_slice("\0".as_bytes());
+        packed_file_header_encoded.push(0);
         packed_file_header_encoded.extend_from_slice(&coding_helpers::encode_integer_u32(packed_file_header_decoded.packed_file_header_packed_file_version));
         packed_file_header_encoded.extend_from_slice(&coding_helpers::encode_integer_u32(packed_file_entry_count));
 
@@ -143,7 +143,7 @@ impl LocData {
     /// This function creates a new decoded LocData from the data of a PackedFile. A LocData is a
     /// Vec<LocDataEntry>. This pass through all the data of the Loc PackedFile and decodes every
     /// entry.
-    pub fn read(packed_file_data: Vec<u8>, packed_file_entry_count: &u32) -> Result<LocData, Error> {
+    pub fn read(packed_file_data: &[u8], packed_file_entry_count: &u32) -> Result<LocData, Error> {
         let mut packed_file_data_entries: Vec<LocDataEntry> = vec![];
 
         let mut entry_offset: u32 = 0;
@@ -153,7 +153,7 @@ impl LocData {
         let mut entry_field_size: u16 = 0;
 
         // For each entry
-        for _ in 0..packed_file_entry_count.clone() {
+        for _ in 0..*packed_file_entry_count {
 
             let mut key: String = String::new();
             let mut text: String = String::new();
@@ -176,7 +176,7 @@ impl LocData {
                         // utf-16 so they use 2 bytes and need to be reversed before using them.
                         0 | 1 => {
                             let string_encoded_begin = (entry_offset + entry_field_offset + entry_size_byte_offset) as usize;
-                            let string_encoded_end = (entry_offset + entry_field_offset + entry_size_byte_offset + ((entry_field_size * 2) as u32)) as usize;
+                            let string_encoded_end = (entry_offset + entry_field_offset + entry_size_byte_offset + (u32::from(entry_field_size * 2))) as usize;
                             let string_encoded: Vec<u8> = packed_file_data[string_encoded_begin..string_encoded_end].to_vec();
                             let string_decoded = coding_helpers::decode_string_u16(&string_encoded)?;
 
@@ -186,7 +186,7 @@ impl LocData {
                             else {
                                 text = string_decoded;
                             }
-                            entry_field_offset += (entry_field_size * 2) as u32;
+                            entry_field_offset += u32::from(entry_field_size * 2);
 
                             entry_field += 1;
                             entry_offset = entry_offset + entry_size_byte_offset + entry_field_offset;

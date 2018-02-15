@@ -2,7 +2,7 @@
 
 // Disable this specific clippy linter. It has a lot of false positives, and it's a pain in the ass
 // to separate it's results from other more useful linters.
-#![allow(doc_markdown)]
+#![allow(doc_markdown,useless_format)]
 
 // This disables makes it so it doesn't start a terminal in Windows when executed.
 #![windows_subsystem = "windows"]
@@ -263,7 +263,7 @@ fn build_ui(application: &Application) {
     }
 
     // We load the settings here, and in case they doesn't exist, we create them.
-    let settings = Rc::new(RefCell::new(Settings::load().unwrap_or(Settings::new())));
+    let settings = Rc::new(RefCell::new(Settings::load().unwrap_or_else(|_|Settings::new())));
 
     // And we prepare the stuff for the default game (paths, and those things).
     // FIXME: changing paths require to restart the program. This needs to be fixed.
@@ -734,7 +734,7 @@ fn build_ui(application: &Application) {
         }
 
         // If it's the PackFile.
-        if tree_path.len() == 0 {
+        if tree_path.is_empty() {
             context_menu_add_file.set_enabled(true);
             context_menu_add_folder.set_enabled(true);
             context_menu_add_from_packfile.set_enabled(true);
@@ -773,9 +773,9 @@ fn build_ui(application: &Application) {
             if file_chooser_add_file_to_packfile.run() == gtk_response_ok {
 
                 let paths = file_chooser_add_file_to_packfile.get_filenames();
-                for path in paths.iter() {
+                for path in &paths {
 
-                    let tree_path = ui::get_tree_path_from_pathbuf(&path, &folder_tree_selection, true);
+                    let tree_path = ui::get_tree_path_from_pathbuf(path, &folder_tree_selection, true);
                     let mut success = false;
                     match packfile::add_file_to_packfile(&mut *pack_file_decoded.borrow_mut(), path, tree_path) {
                         Ok(_) => success = true,
@@ -821,23 +821,21 @@ fn build_ui(application: &Application) {
         if folder_tree_view.has_focus() {
             if file_chooser_add_folder_to_packfile.run() == gtk_response_ok {
                 let folders = file_chooser_add_folder_to_packfile.get_filenames();
-                for folder in folders.iter() {
+                for folder in &folders {
                     let mut big_parent_prefix = folder.clone();
                     big_parent_prefix.pop();
-                    match ::common::get_files_from_subdir(&folder) {
+                    match ::common::get_files_from_subdir(folder) {
                         Ok(file_path_list) => {
                             let mut file_errors = 0;
                             for i in file_path_list {
                                 match i.strip_prefix(&big_parent_prefix) {
                                     Ok(filtered_path) => {
                                         let tree_path = ui::get_tree_path_from_pathbuf(&filtered_path.to_path_buf(), &folder_tree_selection, false);
-                                        if let Err(_) = packfile::add_file_to_packfile(&mut *pack_file_decoded.borrow_mut(), &i.to_path_buf(), tree_path) {
+                                        if packfile::add_file_to_packfile(&mut *pack_file_decoded.borrow_mut(), &i.to_path_buf(), tree_path).is_err() {
                                             file_errors += 1;
                                         }
                                     }
-                                    Err(_) => {
-                                        panic!("Error while trying to filter the path. This should never happen unless I break something while I'm getting the paths.");
-                                    }
+                                    Err(_) => ui::show_dialog(&error_dialog, format_err!("Error adding file/s to the PackFile")),
                                 }
                             }
                             if file_errors > 0 {
@@ -885,7 +883,7 @@ fn build_ui(application: &Application) {
             // Then, we destroy any children that the packed_file_data_display we use may have, cleaning it.
             let childrens_to_utterly_destroy = packed_file_data_display.get_children();
             if !childrens_to_utterly_destroy.is_empty() {
-                for i in childrens_to_utterly_destroy.iter() {
+                for i in &childrens_to_utterly_destroy {
                     i.destroy();
                 }
             }
@@ -943,7 +941,7 @@ fn build_ui(application: &Application) {
                         folder_tree_selection.connect_changed(clone!(
                         folder_tree_view_extra_copy_button,
                         pack_file_decoded => move |folder_tree_selection| {
-                            let tree_path = ui::get_tree_path_from_selection(&folder_tree_selection, true);
+                            let tree_path = ui::get_tree_path_from_selection(folder_tree_selection, true);
 
                             // Only in case it's not a file, we enable the "Copy" Button.
                             match get_type_of_selected_tree_path(&tree_path, &*pack_file_decoded.borrow()) {
@@ -969,8 +967,8 @@ fn build_ui(application: &Application) {
                             match packfile::add_packedfile_to_packfile(
                                 &*pack_file_decoded_extra.borrow(),
                                 &mut *pack_file_decoded.borrow_mut(),
-                                tree_path_source,
-                                tree_path_destination,
+                                &tree_path_source,
+                                &tree_path_destination,
                             ) {
                                 Ok(_) => packed_file_added = true,
                                 Err(error) => ui::show_dialog(&error_dialog, error.cause()),
@@ -998,7 +996,7 @@ fn build_ui(application: &Application) {
                             // We need to destroy any children that the packed_file_data_display we use may have, cleaning it.
                             let children_to_utterly_destroy = packed_file_data_display.get_children();
                             if !children_to_utterly_destroy.is_empty() {
-                                for i in children_to_utterly_destroy.iter() {
+                                for i in &children_to_utterly_destroy {
                                     i.destroy();
                                 }
                             }
@@ -1035,7 +1033,7 @@ fn build_ui(application: &Application) {
 
             let tree_path = ui::get_tree_path_from_selection(&folder_tree_selection, true);
             let mut success = false;
-            match packfile::delete_from_packfile(&mut *pack_file_decoded.borrow_mut(), tree_path) {
+            match packfile::delete_from_packfile(&mut *pack_file_decoded.borrow_mut(), &tree_path) {
                 Ok(_) => success = true,
                 Err(error) => ui::show_dialog(&error_dialog, error.cause())
             }
@@ -1081,8 +1079,8 @@ fn build_ui(application: &Application) {
                     if file_chooser_extract_file.run() == gtk_response_ok {
                         match packfile::extract_from_packfile(
                             &*pack_file_decoded.borrow(),
-                            tree_path,
-                            file_chooser_extract_file.get_filename().expect("Couldn't open file")) {
+                            &tree_path,
+                            &file_chooser_extract_file.get_filename().expect("Couldn't open file")) {
                             Ok(result) => ui::show_dialog(&success_dialog, result),
                             Err(error) => ui::show_dialog(&error_dialog, error.cause())
                         }
@@ -1093,8 +1091,8 @@ fn build_ui(application: &Application) {
                     if file_chooser_extract_folder.run() == gtk_response_ok {
                         match packfile::extract_from_packfile(
                             &*pack_file_decoded.borrow(),
-                            tree_path,
-                            file_chooser_extract_folder.get_filename().expect("Couldn't open file")) {
+                            &tree_path,
+                            &file_chooser_extract_folder.get_filename().expect("Couldn't open file")) {
                             Ok(result) => ui::show_dialog(&success_dialog, result),
                             Err(error) => ui::show_dialog(&error_dialog, error.cause())
                         }
@@ -1151,7 +1149,7 @@ fn build_ui(application: &Application) {
                 let mut name_changed = false;
                 let tree_path = ui::get_tree_path_from_selection(&folder_tree_selection, true);
                 *new_name.borrow_mut() = rename_popover_text_entry.get_buffer().get_text();
-                match packfile::rename_packed_file(&mut *pack_file_decoded.borrow_mut(), tree_path.to_vec(), &*new_name.borrow()) {
+                match packfile::rename_packed_file(&mut *pack_file_decoded.borrow_mut(), &tree_path, &*new_name.borrow()) {
                     Ok(_) => {
                         rename_popover.popdown();
                         name_changed = true;
@@ -1173,7 +1171,6 @@ fn build_ui(application: &Application) {
             // We need to set this to true to avoid the Enter re-fire this event again and again.
             Inhibit(true)
         }));
-        Inhibit(true);
     }));
 
 
@@ -1195,7 +1192,7 @@ fn build_ui(application: &Application) {
             // First, we destroy any children that the packed_file_data_display we use may have, cleaning it.
             let childrens_to_utterly_destroy = packed_file_data_display.get_children();
             if !childrens_to_utterly_destroy.is_empty() {
-                for i in childrens_to_utterly_destroy.iter() {
+                for i in &childrens_to_utterly_destroy {
                     i.destroy();
                 }
             }
@@ -1257,7 +1254,7 @@ fn build_ui(application: &Application) {
 
                         // We check if it's decodeable before trying it.
                         let packed_file_data_encoded = &*pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data;
-                        let packed_file_data_decoded = Loc::read(packed_file_data_encoded.to_vec());
+                        let packed_file_data_decoded = Loc::read(&packed_file_data_encoded.to_vec());
                         match packed_file_data_decoded {
                             Ok(packed_file_data_decoded) => {
 
@@ -1340,7 +1337,7 @@ fn build_ui(application: &Application) {
                                         if new_text.is_empty() {
                                             ui::show_dialog(&error_dialog, format!("Only my hearth can be empty."));
                                         }
-                                        else if new_text.contains(" ") {
+                                        else if new_text.contains(' ') {
                                             ui::show_dialog(&error_dialog, format!("Spaces are not valid characters."));
                                         }
                                         else if key_already_exists {
@@ -1421,7 +1418,7 @@ fn build_ui(application: &Application) {
 
                                     let button_val = button.get_button();
                                     if button_val == 3 {
-                                        let rect = ui::get_rect_for_popover(&packed_file_tree_view, Some(button.get_position()));
+                                        let rect = ui::get_rect_for_popover(packed_file_tree_view, Some(button.get_position()));
 
                                         context_menu.set_pointing_to(&rect);
                                         context_menu.popup();
@@ -1575,7 +1572,7 @@ fn build_ui(application: &Application) {
 
                                         // First we ask for the file to import.
                                         if file_chooser_packedfile_loc_import_csv.run() == gtk_response_ok {
-                                            match packedfile::import_from_csv(file_chooser_packedfile_loc_import_csv.get_filename().expect("Couldn't open file")) {
+                                            match packedfile::import_from_csv(&file_chooser_packedfile_loc_import_csv.get_filename().expect("Couldn't open file")) {
 
                                                 // If the file we choose has been processed into a LocData, we replace
                                                 // our old LocData with that one, and then re-create the ListStore.
@@ -1620,7 +1617,7 @@ fn build_ui(application: &Application) {
                                         file_chooser_packedfile_loc_export_csv.set_current_name(format!("{}.csv",&tree_path.last().unwrap()));
 
                                         if file_chooser_packedfile_loc_export_csv.run() == gtk_response_ok {
-                                            match packedfile::export_to_csv(&packed_file_data_decoded.borrow_mut().packed_file_data, file_chooser_packedfile_loc_export_csv.get_filename().expect("Couldn't open file")) {
+                                            match packedfile::export_to_csv(&packed_file_data_decoded.borrow_mut().packed_file_data, &file_chooser_packedfile_loc_export_csv.get_filename().expect("Couldn't open file")) {
                                                 Ok(result) => ui::show_dialog(&success_dialog, result),
                                                 Err(error) => ui::show_dialog(&error_dialog, error.cause())
                                             }
@@ -1643,7 +1640,7 @@ fn build_ui(application: &Application) {
                         packed_file_data_display.show_all();
 
                         let packed_file_data_encoded = Rc::new(RefCell::new(pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data.to_vec()));
-                        let packed_file_data_decoded = DB::read(packed_file_data_encoded.borrow().to_vec(), &*tree_path[1], &schema.borrow().clone());
+                        let packed_file_data_decoded = DB::read(&packed_file_data_encoded.borrow(), &*tree_path[1], &schema.borrow().clone());
 
                         // If this returns an error, we just leave the button for the decoder.
                         match packed_file_data_decoded {
@@ -1654,7 +1651,7 @@ fn build_ui(application: &Application) {
                                 let table_definition = Rc::new(RefCell::new(packed_file_data_decoded.borrow().packed_file_data.table_definition.clone()));
                                 let packed_file_tree_view_stuff = match ui::packedfile_db::PackedFileDBTreeView::create_tree_view(&packed_file_data_display, &*packed_file_data_decoded.borrow()) {
                                     Ok(data) => data,
-                                    Err(error) => return ui::show_dialog(&error_dialog, Error::from(error).cause())
+                                    Err(error) => return ui::show_dialog(&error_dialog, error.cause())
                                 };
                                 let packed_file_tree_view = packed_file_tree_view_stuff.packed_file_tree_view;
                                 let packed_file_list_store = packed_file_tree_view_stuff.packed_file_list_store;
@@ -1672,7 +1669,7 @@ fn build_ui(application: &Application) {
                                     (&packed_file_data_decoded.borrow().packed_file_data.packed_file_data).to_vec(),
                                     &packed_file_list_store,
                                 ) {
-                                    return ui::show_dialog(&error_dialog, Error::from(error).cause())
+                                    return ui::show_dialog(&error_dialog, error.cause())
                                 };
 
                                 // Before setting up the actions, we clean the previous ones.
@@ -1694,7 +1691,7 @@ fn build_ui(application: &Application) {
 
                                 // These are the events to save edits in cells, one loop for every type of cell.
                                 // This loop takes care of the interaction with string cells.
-                                for edited_cell in packed_file_tree_view_stuff.packed_file_tree_view_cell_string.iter() {
+                                for edited_cell in &packed_file_tree_view_stuff.packed_file_tree_view_cell_string {
                                     edited_cell.connect_edited(clone!(
                                     table_definition,
                                     window,
@@ -1718,14 +1715,14 @@ fn build_ui(application: &Application) {
                                                 set_modified(true, &window, &mut *pack_file_decoded.borrow_mut());
 
                                             }
-                                            Err(error) => ui::show_dialog(&error_dialog, Error::from(error).cause()),
+                                            Err(error) => ui::show_dialog(&error_dialog, error.cause()),
                                         }
                                     }));
 
                                 }
 
                                 // This loop takes care of the interaction with optional_string cells.
-                                for edited_cell in packed_file_tree_view_stuff.packed_file_tree_view_cell_optional_string.iter() {
+                                for edited_cell in &packed_file_tree_view_stuff.packed_file_tree_view_cell_optional_string {
                                     edited_cell.connect_edited(clone!(
                                     table_definition,
                                     window,
@@ -1749,13 +1746,13 @@ fn build_ui(application: &Application) {
                                                 set_modified(true, &window, &mut *pack_file_decoded.borrow_mut());
 
                                             }
-                                            Err(error) => ui::show_dialog(&error_dialog, Error::from(error).cause()),
+                                            Err(error) => ui::show_dialog(&error_dialog, error.cause()),
                                         }
                                     }));
                                 }
 
                                 // This loop takes care of the interaction with I32 cells.
-                                for edited_cell in packed_file_tree_view_stuff.packed_file_tree_view_cell_integer.iter() {
+                                for edited_cell in &packed_file_tree_view_stuff.packed_file_tree_view_cell_integer {
                                     edited_cell.connect_edited(clone!(
                                     table_definition,
                                     window,
@@ -1781,7 +1778,7 @@ fn build_ui(application: &Application) {
                                                         set_modified(true, &window, &mut *pack_file_decoded.borrow_mut());
 
                                                     }
-                                                    Err(error) => ui::show_dialog(&error_dialog, Error::from(error).cause()),
+                                                    Err(error) => ui::show_dialog(&error_dialog, error.cause()),
                                                 }
                                             }
                                             Err(error) => ui::show_dialog(&error_dialog, Error::from(error).cause()),
@@ -1790,7 +1787,7 @@ fn build_ui(application: &Application) {
                                 }
 
                                 // This loop takes care of the interaction with I64 cells.
-                                for edited_cell in packed_file_tree_view_stuff.packed_file_tree_view_cell_long_integer.iter() {
+                                for edited_cell in &packed_file_tree_view_stuff.packed_file_tree_view_cell_long_integer {
                                     edited_cell.connect_edited(clone!(
                                     table_definition,
                                     window,
@@ -1816,7 +1813,7 @@ fn build_ui(application: &Application) {
                                                         set_modified(true, &window, &mut *pack_file_decoded.borrow_mut());
 
                                                     }
-                                                    Err(error) => ui::show_dialog(&error_dialog, Error::from(error).cause()),
+                                                    Err(error) => ui::show_dialog(&error_dialog, error.cause()),
                                                 }
                                             }
                                             Err(error) => ui::show_dialog(&error_dialog, Error::from(error).cause()),
@@ -1825,7 +1822,7 @@ fn build_ui(application: &Application) {
                                 }
 
                                 // This loop takes care of the interaction with F32 cells.
-                                for edited_cell in packed_file_tree_view_stuff.packed_file_tree_view_cell_float.iter() {
+                                for edited_cell in &packed_file_tree_view_stuff.packed_file_tree_view_cell_float {
                                     edited_cell.connect_edited(clone!(
                                     table_definition,
                                     window,
@@ -1851,7 +1848,7 @@ fn build_ui(application: &Application) {
                                                         set_modified(true, &window, &mut *pack_file_decoded.borrow_mut());
 
                                                     }
-                                                    Err(error) => ui::show_dialog(&error_dialog, Error::from(error).cause()),
+                                                    Err(error) => ui::show_dialog(&error_dialog, error.cause()),
                                                 }
                                             }
                                             Err(error) => ui::show_dialog(&error_dialog, Error::from(error).cause()),
@@ -1860,7 +1857,7 @@ fn build_ui(application: &Application) {
                                 }
 
                                 // This loop takes care of the interaction with bool cells.
-                                for edited_cell in packed_file_tree_view_stuff.packed_file_tree_view_cell_bool.iter() {
+                                for edited_cell in &packed_file_tree_view_stuff.packed_file_tree_view_cell_bool {
                                     edited_cell.connect_toggled(clone!(
                                     table_definition,
                                     window,
@@ -1888,7 +1885,7 @@ fn build_ui(application: &Application) {
                                                 set_modified(true, &window, &mut *pack_file_decoded.borrow_mut());
 
                                             }
-                                            Err(error) => ui::show_dialog(&error_dialog, Error::from(error).cause()),
+                                            Err(error) => ui::show_dialog(&error_dialog, error.cause()),
                                         }
                                     }));
                                 }
@@ -1902,7 +1899,7 @@ fn build_ui(application: &Application) {
 
                                     let button_val = button.get_button();
                                     if button_val == 3 {
-                                        let rect = ui::get_rect_for_popover(&packed_file_tree_view, Some(button.get_position()));
+                                        let rect = ui::get_rect_for_popover(packed_file_tree_view, Some(button.get_position()));
 
                                         context_menu.set_pointing_to(&rect);
                                         context_menu.popup();
@@ -1966,7 +1963,7 @@ fn build_ui(application: &Application) {
                                                             gtk_value_field = gtk::ToValue::to_value(&format!("New"));
                                                         }
                                                         else {
-                                                            let field_type = &table_definition.borrow().fields[column as usize - 1].field_type.clone();
+                                                            let field_type = &table_definition.borrow().fields[column as usize - 1].field_type;
                                                             match *field_type {
                                                                 FieldType::Boolean => {
                                                                     gtk_value_field = gtk::ToValue::to_value(&false);
@@ -1996,7 +1993,7 @@ fn build_ui(application: &Application) {
                                                         set_modified(true, &window, &mut *pack_file_decoded.borrow_mut());
 
                                                     }
-                                                    Err(error) => ui::show_dialog(&error_dialog, Error::from(error).cause()),
+                                                    Err(error) => ui::show_dialog(&error_dialog, error.cause()),
                                                 }
                                             }
                                             Err(_) => ui::show_dialog(&error_dialog, format!("You can only add an \"ENTIRE NUMBER\" of rows. Like 4, or 6. Maybe 5, who knows?")),
@@ -2046,7 +2043,7 @@ fn build_ui(application: &Application) {
                                                     set_modified(true, &window, &mut *pack_file_decoded.borrow_mut());
 
                                                 }
-                                                Err(error) => ui::show_dialog(&error_dialog, Error::from(error).cause()),
+                                                Err(error) => ui::show_dialog(&error_dialog, error.cause()),
                                             }
                                         }
                                     }
@@ -2075,10 +2072,10 @@ fn build_ui(application: &Application) {
 
                                         // If we have something selected...
                                         if !selected_rows.0.is_empty() {
-                                            for tree_path in selected_rows.0.iter() {
+                                            for tree_path in &selected_rows.0 {
 
                                                 // We create the new iter, store the old one, and "copy" values from one to the other.
-                                                let old_row = packed_file_list_store.get_iter(&tree_path).unwrap();
+                                                let old_row = packed_file_list_store.get_iter(tree_path).unwrap();
                                                 let new_row = packed_file_list_store.append();
 
                                                 for column in 0..column_amount {
@@ -2103,7 +2100,7 @@ fn build_ui(application: &Application) {
                                                     set_modified(true, &window, &mut *pack_file_decoded.borrow_mut());
 
                                                 }
-                                                Err(error) => ui::show_dialog(&error_dialog, Error::from(error).cause()),
+                                                Err(error) => ui::show_dialog(&error_dialog, error.cause()),
                                             }
                                         }
                                     }
@@ -2134,7 +2131,7 @@ fn build_ui(application: &Application) {
                             let packed_file_decoder = ui::packedfile_db::PackedFileDBDecoder::create_decoder_view(&packed_file_data_display);
 
                             // And only in case the db_header has been decoded, we do the rest.
-                            match DBHeader::read(packed_file_data_encoded.borrow().to_vec()){
+                            match DBHeader::read(&packed_file_data_encoded.borrow()){
                                 Ok(db_header) => {
 
                                     // We get the initial index to start decoding.
@@ -2256,17 +2253,17 @@ fn build_ui(application: &Application) {
                                                 packed_file_decoder => move |_ ,_|{
 
                                                 // We are going to check if this is valid when adding the field to the TreeView, so we just add it.
-                                                let index_data_copy = index_data.borrow().clone();
+                                                let index_data_copy = index_data.borrow();
                                                 *index_data.borrow_mut() = PackedFileDBDecoder::add_field_to_data_view(
                                                     &packed_file_decoder,
-                                                    packed_file_data_encoded.borrow().to_vec(),
+                                                    &packed_file_data_encoded.borrow(),
                                                     &table_definition.borrow(),
                                                     &packed_file_decoder.field_name_entry.get_buffer().get_text(),
                                                     FieldType::Boolean,
                                                     packed_file_decoder.is_key_field_switch.get_active(),
-                                                    None,
-                                                    String::new(),
-                                                    index_data_copy,
+                                                    &None,
+                                                    &String::new(),
+                                                    *index_data_copy,
                                                     None
                                                 );
 
@@ -2288,17 +2285,17 @@ fn build_ui(application: &Application) {
                                                 packed_file_decoder => move |_ ,_|{
 
                                                 // We are going to check if this is valid when adding the field to the TreeView, so we just add it.
-                                                let index_data_copy = index_data.borrow().clone();
+                                                let index_data_copy = index_data.borrow();
                                                 *index_data.borrow_mut() = PackedFileDBDecoder::add_field_to_data_view(
                                                     &packed_file_decoder,
-                                                    packed_file_data_encoded.borrow().to_vec(),
+                                                    &packed_file_data_encoded.borrow(),
                                                     &table_definition.borrow(),
                                                     &packed_file_decoder.field_name_entry.get_buffer().get_text(),
                                                     FieldType::Float,
                                                     packed_file_decoder.is_key_field_switch.get_active(),
-                                                    None,
-                                                    String::new(),
-                                                    index_data_copy,
+                                                    &None,
+                                                    &String::new(),
+                                                    *index_data_copy,
                                                     None
                                                 );
 
@@ -2320,17 +2317,17 @@ fn build_ui(application: &Application) {
                                                 packed_file_decoder => move |_ ,_|{
 
                                                 // We are going to check if this is valid when adding the field to the TreeView, so we just add it.
-                                                let index_data_copy = index_data.borrow().clone();
+                                                let index_data_copy = index_data.borrow();
                                                 *index_data.borrow_mut() = PackedFileDBDecoder::add_field_to_data_view(
                                                     &packed_file_decoder,
-                                                    packed_file_data_encoded.borrow().to_vec(),
+                                                    &packed_file_data_encoded.borrow(),
                                                     &table_definition.borrow(),
                                                     &packed_file_decoder.field_name_entry.get_buffer().get_text(),
                                                     FieldType::Integer,
                                                     packed_file_decoder.is_key_field_switch.get_active(),
-                                                    None,
-                                                    String::new(),
-                                                    index_data_copy,
+                                                    &None,
+                                                    &String::new(),
+                                                    *index_data_copy,
                                                     None
                                                 );
 
@@ -2352,17 +2349,17 @@ fn build_ui(application: &Application) {
                                                 packed_file_decoder => move |_ ,_|{
 
                                                 // We are going to check if this is valid when adding the field to the TreeView, so we just add it.
-                                                let index_data_copy = index_data.borrow().clone();
+                                                let index_data_copy = index_data.borrow();
                                                 *index_data.borrow_mut() = PackedFileDBDecoder::add_field_to_data_view(
                                                     &packed_file_decoder,
-                                                    packed_file_data_encoded.borrow().to_vec(),
+                                                    &packed_file_data_encoded.borrow(),
                                                     &table_definition.borrow(),
                                                     &packed_file_decoder.field_name_entry.get_buffer().get_text(),
                                                     FieldType::LongInteger,
                                                     packed_file_decoder.is_key_field_switch.get_active(),
-                                                    None,
-                                                    String::new(),
-                                                    index_data_copy,
+                                                    &None,
+                                                    &String::new(),
+                                                    *index_data_copy,
                                                     None
                                                 );
 
@@ -2385,17 +2382,17 @@ fn build_ui(application: &Application) {
                                                 packed_file_decoder => move |_ ,_|{
 
                                                 // We are going to check if this is valid when adding the field to the TreeView, so we just add it.
-                                                let index_data_copy = index_data.borrow().clone();
+                                                let index_data_copy = index_data.borrow();
                                                 *index_data.borrow_mut() = PackedFileDBDecoder::add_field_to_data_view(
                                                     &packed_file_decoder,
-                                                    packed_file_data_encoded.borrow().to_vec(),
+                                                    &packed_file_data_encoded.borrow(),
                                                     &table_definition.borrow(),
                                                     &packed_file_decoder.field_name_entry.get_buffer().get_text(),
                                                     FieldType::StringU8,
                                                     packed_file_decoder.is_key_field_switch.get_active(),
-                                                    None,
-                                                    String::new(),
-                                                    index_data_copy,
+                                                    &None,
+                                                    &String::new(),
+                                                    *index_data_copy,
                                                     None
                                                 );
 
@@ -2417,17 +2414,17 @@ fn build_ui(application: &Application) {
                                                 packed_file_decoder => move |_ ,_|{
 
                                                 // We are going to check if this is valid when adding the field to the TreeView, so we just add it.
-                                                let index_data_copy = index_data.borrow().clone();
+                                                let index_data_copy = index_data.borrow();
                                                 *index_data.borrow_mut() = PackedFileDBDecoder::add_field_to_data_view(
                                                     &packed_file_decoder,
-                                                    packed_file_data_encoded.borrow().to_vec(),
+                                                    &packed_file_data_encoded.borrow(),
                                                     &table_definition.borrow(),
                                                     &packed_file_decoder.field_name_entry.get_buffer().get_text(),
                                                     FieldType::StringU16,
                                                     packed_file_decoder.is_key_field_switch.get_active(),
-                                                    None,
-                                                    String::new(),
-                                                    index_data_copy,
+                                                    &None,
+                                                    &String::new(),
+                                                    *index_data_copy,
                                                     None
                                                 );
 
@@ -2449,17 +2446,17 @@ fn build_ui(application: &Application) {
                                                 packed_file_decoder => move |_ ,_|{
 
                                                 // We are going to check if this is valid when adding the field to the TreeView, so we just add it.
-                                                let index_data_copy = index_data.borrow().clone();
+                                                let index_data_copy = index_data.borrow();
                                                 *index_data.borrow_mut() = PackedFileDBDecoder::add_field_to_data_view(
                                                     &packed_file_decoder,
-                                                    packed_file_data_encoded.borrow().to_vec(),
+                                                    &packed_file_data_encoded.borrow(),
                                                     &table_definition.borrow(),
                                                     &packed_file_decoder.field_name_entry.get_buffer().get_text(),
                                                     FieldType::OptionalStringU8,
                                                     packed_file_decoder.is_key_field_switch.get_active(),
-                                                    None,
-                                                    String::new(),
-                                                    index_data_copy,
+                                                    &None,
+                                                    &String::new(),
+                                                    *index_data_copy,
                                                     None
                                                 );
 
@@ -2481,17 +2478,17 @@ fn build_ui(application: &Application) {
                                                 packed_file_decoder => move |_ ,_|{
 
                                                 // We are going to check if this is valid when adding the field to the TreeView, so we just add it.
-                                                let index_data_copy = index_data.borrow().clone();
+                                                let index_data_copy = index_data.borrow();
                                                 *index_data.borrow_mut() = PackedFileDBDecoder::add_field_to_data_view(
                                                     &packed_file_decoder,
-                                                    packed_file_data_encoded.borrow().to_vec(),
+                                                    &packed_file_data_encoded.borrow(),
                                                     &table_definition.borrow(),
                                                     &packed_file_decoder.field_name_entry.get_buffer().get_text(),
                                                     FieldType::OptionalStringU16,
                                                     packed_file_decoder.is_key_field_switch.get_active(),
-                                                    None,
-                                                    String::new(),
-                                                    index_data_copy,
+                                                    &None,
+                                                    &String::new(),
+                                                    *index_data_copy,
                                                     None
                                                 );
 
@@ -2597,7 +2594,7 @@ fn build_ui(application: &Application) {
                                             }));
 
                                             // This loop takes care of the interaction with string cells.
-                                            for edited_cell in packed_file_decoder.fields_tree_view_cell_string.iter() {
+                                            for edited_cell in &packed_file_decoder.fields_tree_view_cell_string {
                                                 edited_cell.connect_edited(clone!(
                                                     packed_file_decoder => move |_ ,tree_path , new_text| {
 
@@ -2607,10 +2604,10 @@ fn build_ui(application: &Application) {
                                                 }));
                                             }
                                         }
-                                        Err(error) => ui::show_dialog(&error_dialog, Error::from(error).cause()),
+                                        Err(error) => ui::show_dialog(&error_dialog, error.cause()),
                                     }
                                 },
-                                Err(error) => ui::show_dialog(&error_dialog, Error::from(error).cause()),
+                                Err(error) => ui::show_dialog(&error_dialog, error.cause()),
                             }
                             Inhibit(false)
                         }));
@@ -2623,7 +2620,7 @@ fn build_ui(application: &Application) {
                         // Before doing anything, we try to decode the data. Only if we success, we create
                         // the SourceView and add the data to it.
                         let packed_file_data_encoded = &*pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data;
-                        match coding_helpers::decode_string_u8(&packed_file_data_encoded) {
+                        match coding_helpers::decode_string_u8(packed_file_data_encoded) {
                             Ok(string) => {
 
                                 // First, we create a vertical Box, put a "Save" button in the top part, and left
@@ -2691,7 +2688,7 @@ fn build_ui(application: &Application) {
                                         true).unwrap());
 
                                     ::packfile::update_packed_file_data_text(
-                                        packed_file_data_decoded,
+                                        &packed_file_data_decoded,
                                         &mut *pack_file_decoded.borrow_mut(),
                                         index as usize);
 
@@ -2731,7 +2728,7 @@ fn build_ui(application: &Application) {
                     // If it's a rigidmodel, we decode it and take care of his update events.
                     "RIGIDMODEL" => {
                         let packed_file_data_encoded = &*pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data;
-                        let packed_file_data_decoded = RigidModel::read(packed_file_data_encoded.to_vec());
+                        let packed_file_data_decoded = RigidModel::read(packed_file_data_encoded);
                         match packed_file_data_decoded {
                             Ok(packed_file_data_decoded) => {
                                 let packed_file_data_view_stuff = ui::packedfile_rigidmodel::PackedFileRigidModelDataView::create_data_view(&packed_file_data_display, &packed_file_data_decoded);
@@ -2786,7 +2783,7 @@ fn build_ui(application: &Application) {
                                     packed_file_data_decoded => move |_ ,_|{
 
                                     let new_data = ui::packedfile_rigidmodel::PackedFileRigidModelDataView::return_data_from_data_view(
-                                        packed_file_texture_paths.to_vec(),
+                                        &packed_file_texture_paths,
                                         &mut (*packed_file_data_decoded.borrow_mut()).packed_file_data.packed_file_data_lods_data.to_vec()
                                     );
 
@@ -2827,7 +2824,6 @@ fn build_ui(application: &Application) {
                 ui::display_help_tips(&packed_file_data_display);
             }
         }
-        Inhibit(false);
     }));
 
     // This allow us to open a PackFile by "Drag&Drop" it into the folder_tree_view.
@@ -2842,13 +2838,11 @@ fn build_ui(application: &Application) {
         menu_bar_patch_siege_ai => move |_, _, _, _, selection_data, info, _| {
         match info {
             0 => {
-                let pack_file_path: PathBuf;
-                if cfg!(target_os = "linux") {
-                    pack_file_path = PathBuf::from(selection_data.get_uris()[0].replace("file:///", "/").replace("%20", " "));
-                }
-                else {
-                    pack_file_path = PathBuf::from(selection_data.get_uris()[0].replace("file:///", "").replace("%20", " "));
-                }
+                let pack_file_path: PathBuf = if cfg!(target_os = "linux") {
+                    PathBuf::from(selection_data.get_uris()[0].replace("file:///", "/").replace("%20", " "))
+                } else {
+                    PathBuf::from(selection_data.get_uris()[0].replace("file:///", "").replace("%20", " "))
+                };
                 match packfile::open_packfile(pack_file_path) {
                     Ok(pack_file_opened) => {
 
@@ -2934,28 +2928,26 @@ fn remove_temporal_accelerators(application: &Application) {
 
 /// This function updates the "First row decoded" column in the Decoder View, the current index and
 /// the decoded entries. This should be called in row changes (deletion and moving, not adding).
-fn update_first_row_decoded(packedfile: &Vec<u8>, list_store: &ListStore, index: &usize, decoder: &PackedFileDBDecoder) -> usize {
+fn update_first_row_decoded(packedfile: &[u8], list_store: &ListStore, index: &usize, decoder: &PackedFileDBDecoder) -> usize {
     let iter = list_store.get_iter_first();
-    let mut index = index.clone();
+    let mut index = *index;
     if let Some(current_iter) = iter {
         loop {
             // Get the type from the column...
             let field_type = match list_store.get_value(&current_iter, 2).get().unwrap() {
-                "Bool" => FieldType::Boolean,
+                "Bool"=> FieldType::Boolean,
                 "Float" => FieldType::Float,
                 "Integer" => FieldType::Integer,
                 "LongInteger" => FieldType::LongInteger,
                 "StringU8" => FieldType::StringU8,
                 "StringU16" => FieldType::StringU16,
                 "OptionalStringU8" => FieldType::OptionalStringU8,
-                "OptionalStringU16" => FieldType::OptionalStringU16,
-                // This is just so the compiler doesn't complain.
-                _ => FieldType::Boolean,
+                "OptionalStringU16" | _ => FieldType::OptionalStringU16,
             };
 
             // Get the decoded data using it's type...
             let decoded_data = decode_data_by_fieldtype(
-                &packedfile,
+                packedfile,
                 &field_type,
                 index
             );

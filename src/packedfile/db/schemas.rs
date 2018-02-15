@@ -55,7 +55,7 @@ pub struct Field {
 }
 
 /// Enum FieldType: This enum is used to define the possible types of a field in the schema.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub enum FieldType {
     Boolean,
     Float,
@@ -128,7 +128,7 @@ impl Schema {
         let schema_json = serde_json::to_string_pretty(schema);
         match File::create(PathBuf::from("schemas/schema_wh2.json")) {
             Ok(mut file) => {
-                match file.write_all(&schema_json.unwrap().as_bytes()) {
+                match file.write_all(schema_json.unwrap().as_bytes()) {
                     Ok(_) => Ok(()),
                     Err(_) => Err(format_err!("Error while trying to write the schema file.")),
                 }
@@ -203,9 +203,9 @@ impl TableDefinition {
     /// This function creates a new table definition from an imported definition from the assembly kit.
     /// Note that this import the loc fields (they need to be removed manually later) and it doesn't
     /// import the version (this... I think I can do some trick for it).
-    pub fn new_from_assembly_kit(imported_table_definition: schemas_importer::root, version: u32, table_name: String) -> TableDefinition {
+    pub fn new_from_assembly_kit(imported_table_definition: &schemas_importer::root, version: u32, table_name: &str) -> TableDefinition {
         let mut fields = vec![];
-        for field in imported_table_definition.field.iter() {
+        for field in &imported_table_definition.field {
 
             // First, we need to disable a number of known fields that are not in the final tables. We
             // check if the current field is one of them, and ignore it if it's.
@@ -250,7 +250,7 @@ impl TableDefinition {
             }
             let field_name = new_name;
 
-            let field_is_key = if field.primary_key == "1" {true} else {false};
+            let field_is_key = field.primary_key == "1";
             let field_is_reference = if field.column_source_table != None {
                 Some((field.column_source_table.clone().unwrap().to_owned(), field.column_source_column.clone().unwrap()[0].to_owned()))
             }
