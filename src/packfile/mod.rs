@@ -30,8 +30,7 @@ pub mod packfile;
 
 /// This function creates a new PackFile with the name received.
 pub fn new_packfile(file_name: String) -> packfile::PackFile {
-    let pack_file = packfile::PackFile::new_with_name(file_name);
-    pack_file
+    packfile::PackFile::new_with_name(file_name)
 }
 
 
@@ -183,7 +182,7 @@ pub fn add_packedfile_to_packfile(
         match tree_path_destination_type {
 
             // If the destination is not selected, or it's a file (this should really never happen).
-            TreePathType::None | TreePathType::File(_) => return Err(format_err!("This situation shouldn't happen, but the compiler will complain otherwise.")),
+            TreePathType::None | TreePathType::File(_) => Err(format_err!("This situation shouldn't happen, but the compiler will complain otherwise.")),
 
             // If the destination is the PackFile itself, we just move all the selected stuff from the
             // extra PackFile to the main one.
@@ -191,7 +190,7 @@ pub fn add_packedfile_to_packfile(
                 match tree_path_source_type {
 
                     // If the source is not selected (this should really never happen).
-                    TreePathType::None => return Err(format_err!("This situation shouldn't happen, but the compiler will complain otherwise.")),
+                    TreePathType::None => Err(format_err!("This situation shouldn't happen, but the compiler will complain otherwise.")),
 
                     // If the source is the PackFile itself, we just copy every PackedFile from one
                     // PackFile to the other.
@@ -250,7 +249,7 @@ pub fn add_packedfile_to_packfile(
                             Ok(format!("The folder \"{}\" has been added successfully to \"{}\"", tree_path_source.last().unwrap(), tree_path_destination[0]))
                         }
                         else {
-                            return Err(format_err!("This situation shouldn't happen, but the compiler will complain otherwise."))
+                            Err(format_err!("This situation shouldn't happen, but the compiler will complain otherwise."))
                         }
                     },
                 }
@@ -261,7 +260,7 @@ pub fn add_packedfile_to_packfile(
                 match tree_path_source_type {
 
                     // If the source is not selected (this should really never happen).
-                    TreePathType::None => return Err(format_err!("This situation shouldn't happen, but the compiler will complain otherwise.")),
+                    TreePathType::None => Err(format_err!("This situation shouldn't happen, but the compiler will complain otherwise.")),
 
                     // If the source is the PackFile itself, we just copy every PackedFile from one
                     // PackFile to the other and update his TreePath.
@@ -455,8 +454,8 @@ pub fn extract_from_packfile(
             }
         },
 
-        TreePathType::PackFile => return Err(format_err!("I can't think of a situation that causes this error to show up.")),
-        TreePathType::None => return Err(format_err!("How the hell did you managed to try to delete a non-existant file?")),
+        TreePathType::PackFile => Err(format_err!("I can't think of a situation that causes this error to show up.")),
+        TreePathType::None => Err(format_err!("How the hell did you managed to try to delete a non-existant file?")),
     }
 }
 
@@ -528,7 +527,7 @@ pub fn rename_packed_file(
                 pack_file.pack_file_extra_data.file_name = new_name.clone();
                 Ok(())
             }
-            TreePathType::None => return Err(format_err!("This should never happen.")),
+            TreePathType::None => Err(format_err!("This should never happen.")),
         }
     }
 }
@@ -771,7 +770,7 @@ pub fn patch_rigid_model_attila_to_warhammer (
             }
             Ok(format!("RigidModel patched succesfully."))
         },
-        7 => return Err(format_err!("This is not an Attila's RigidModel, but a Warhammer one.")),
-        _ => return Err(format_err!("I don't even know from what game is this RigidModel.")),
+        7 => Err(format_err!("This is not an Attila's RigidModel, but a Warhammer one.")),
+        _ => Err(format_err!("I don't even know from what game is this RigidModel.")),
     }
 }

@@ -85,7 +85,7 @@ macro_rules! clone {
 
 // This constant get the version of the program from the "Cargo.toml", so we don't have to change it
 // in two different places in every update.
-const VERSION: &'static str = env!("CARGO_PKG_VERSION");
+const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 // This constant is to generate a new schema file. We only need this function once per game, so we disable
 // all that stuff this this constant.

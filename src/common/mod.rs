@@ -75,7 +75,7 @@ pub fn get_type_of_selected_tree_path(
     }
 
     // If we reach this, the tree_path we provided does not exist in the tree_view.
-    return TreePathType::None
+    TreePathType::None
 }
 
 /// This function takes a &Path and returns a Vec<PathBuf> with the paths of every file under the

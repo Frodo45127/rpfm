@@ -535,9 +535,7 @@ impl PackedFile {
         // Then, we encode the data
         let packed_file_data_entry: Vec<u8> = packed_file_decoded.packed_file_data.to_vec();
 
-
         // Finally, we put both together and return them.
-        let packed_file_data_encoded = (packed_file_index_entry, packed_file_data_entry);
-        packed_file_data_encoded
+        (packed_file_index_entry, packed_file_data_entry)
     }
 }
