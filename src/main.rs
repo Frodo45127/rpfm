@@ -48,16 +48,19 @@ use sourceview::{
 
 use common::coding_helpers;
 use common::*;
+use packfile::*;
 use packfile::packfile::PackFile;
 use packedfile::SerializableToCSV;
 use packedfile::loc::Loc;
 use packedfile::loc::LocData;
 use packedfile::db::DB;
 use packedfile::db::DBHeader;
+use packedfile::db::DBData;
 use packedfile::db::schemas::*;
 use packedfile::rigidmodel::RigidModel;
 use settings::*;
 use ui::packedfile_db::*;
+use ui::packedfile_loc::*;
 
 mod common;
 mod ui;
@@ -131,8 +134,8 @@ fn build_ui(application: &Application) {
     let file_chooser_add_from_packfile_dialog: FileChooserDialog = builder.get_object("gtk_file_chooser_add_from_packfile").expect("Couldn't get gtk_file_chooser_add_from_packfile");
     let file_chooser_extract_file: FileChooserDialog = builder.get_object("gtk_file_chooser_extract_file").expect("Couldn't get gtk_file_chooser_extract_file");
     let file_chooser_extract_folder: FileChooserDialog = builder.get_object("gtk_file_chooser_extract_folder").expect("Couldn't get gtk_file_chooser_extract_folder");
-    let file_chooser_packedfile_loc_import_csv: FileChooserDialog = builder.get_object("gtk_file_chooser_packedfile_loc_import_csv").expect("Couldn't get gtk_file_chooser_packedfile_loc_import_csv");
-    let file_chooser_packedfile_loc_export_csv: FileChooserDialog = builder.get_object("gtk_file_chooser_packedfile_loc_export_csv").expect("Couldn't get gtk_file_chooser_packedfile_loc_export_csv");
+    let file_chooser_packedfile_import_csv: FileChooserDialog = builder.get_object("gtk_file_chooser_packedfile_import_csv").expect("Couldn't get gtk_file_chooser_packedfile_import_csv");
+    let file_chooser_packedfile_export_csv: FileChooserDialog = builder.get_object("gtk_file_chooser_packedfile_export_csv").expect("Couldn't get gtk_file_chooser_packedfile_export_csv");
     let file_chooser_settings_select_folder: FileChooserDialog = builder.get_object("gtk_file_chooser_settings_select_folder").expect("Couldn't get gtk_file_chooser_settings_select_folder");
 
     let folder_tree_view: TreeView = builder.get_object("gtk_folder_tree_view").expect("Couldn't get gtk_folder_tree_view");
@@ -1284,19 +1287,19 @@ fn build_ui(application: &Application) {
                                 // Right-click menu actions.
                                 let context_menu_packedfile_loc_add_rows = SimpleAction::new("packedfile_loc_add_rows", None);
                                 let context_menu_packedfile_loc_delete_rows = SimpleAction::new("packedfile_loc_delete_rows", None);
-                                let context_menu_packedfile_loc_import_from_csv = SimpleAction::new("packedfile_loc_import_from_csv", None);
-                                let context_menu_packedfile_loc_export_to_csv = SimpleAction::new("packedfile_loc_export_to_csv", None);
+                                let context_menu_packedfile_loc_import_csv = SimpleAction::new("packedfile_loc_import_csv", None);
+                                let context_menu_packedfile_loc_export_csv = SimpleAction::new("packedfile_loc_export_csv", None);
 
                                 application.add_action(&context_menu_packedfile_loc_add_rows);
                                 application.add_action(&context_menu_packedfile_loc_delete_rows);
-                                application.add_action(&context_menu_packedfile_loc_import_from_csv);
-                                application.add_action(&context_menu_packedfile_loc_export_to_csv);
+                                application.add_action(&context_menu_packedfile_loc_import_csv);
+                                application.add_action(&context_menu_packedfile_loc_export_csv);
 
                                 // Accels for popovers need to be specified here. Don't know why, but otherwise they do not work.
                                 application.set_accels_for_action("app.packedfile_loc_add_rows", &["<Shift>a"]);
                                 application.set_accels_for_action("app.packedfile_loc_delete_rows", &["<Shift>Delete"]);
-                                application.set_accels_for_action("app.packedfile_loc_import_from_csv", &["<Shift>i"]);
-                                application.set_accels_for_action("app.packedfile_loc_export_to_csv", &["<Shift>e"]);
+                                application.set_accels_for_action("app.packedfile_loc_import_csv", &["<Shift>i"]);
+                                application.set_accels_for_action("app.packedfile_loc_export_csv", &["<Shift>e"]);
 
                                 // By default, the delete action should be disabled.
                                 context_menu_packedfile_loc_delete_rows.set_enabled(false);
@@ -1553,14 +1556,14 @@ fn build_ui(application: &Application) {
                                 }));
 
                                 // When we hit the "Import to CSV" button.
-                                context_menu_packedfile_loc_import_from_csv.connect_activate(clone!(
+                                context_menu_packedfile_loc_import_csv.connect_activate(clone!(
                                     window,
                                     error_dialog,
                                     pack_file_decoded,
                                     packed_file_data_decoded,
                                     packed_file_tree_view,
                                     packed_file_list_store,
-                                    file_chooser_packedfile_loc_import_csv,
+                                    file_chooser_packedfile_import_csv,
                                     context_menu => move |_,_|{
 
                                     // We hide the context menu first.
@@ -1571,39 +1574,34 @@ fn build_ui(application: &Application) {
                                     if packed_file_tree_view.has_focus() {
 
                                         // First we ask for the file to import.
-                                        if file_chooser_packedfile_loc_import_csv.run() == gtk_response_ok {
-                                            match SerializableToCSV::import_csv(&file_chooser_packedfile_loc_import_csv.get_filename().expect("Couldn't open file")) {
+                                        if file_chooser_packedfile_import_csv.run() == gtk_response_ok {
 
-                                                // If the file we choose has been processed into a LocData, we replace
-                                                // our old LocData with that one, and then re-create the ListStore.
-                                                // After that, we save the PackedFile to memory with the new data.
-                                                Ok(result) => {
-                                                    packed_file_data_decoded.borrow_mut().packed_file_data = result;
-                                                    ui::packedfile_loc::PackedFileLocTreeView::load_data_to_tree_view(&packed_file_data_decoded.borrow().packed_file_data, &packed_file_list_store);
-
-                                                    // Get the data from the table and turn it into a Vec<u8> to write it.
-                                                    packed_file_data_decoded.borrow_mut().packed_file_data = ui::packedfile_loc::PackedFileLocTreeView::return_data_from_tree_view(&packed_file_list_store);
-                                                    ::packfile::update_packed_file_data_loc(
-                                                        &*packed_file_data_decoded.borrow_mut(),
-                                                        &mut *pack_file_decoded.borrow_mut(),
-                                                        index as usize);
-                                                    set_modified(true, &window, &mut *pack_file_decoded.borrow_mut());
-                                                }
-                                                Err(error) => ui::show_dialog(&error_dialog, error.cause())
+                                            // If there is an error importing, we report it.
+                                            if let Err(error) = LocData::import_csv(
+                                                &mut packed_file_data_decoded.borrow_mut().packed_file_data,
+                                                &file_chooser_packedfile_import_csv.get_filename().expect("Couldn't open file")
+                                            ) {
+                                                file_chooser_packedfile_import_csv.hide_on_delete();
+                                                return ui::show_dialog(&error_dialog, error.cause());
                                             }
+
+                                            // Load the data to the TreeView, and save it to the encoded data too.
+                                            PackedFileLocTreeView::load_data_to_tree_view(&packed_file_data_decoded.borrow().packed_file_data, &packed_file_list_store);
+                                            update_packed_file_data_loc(&*packed_file_data_decoded.borrow_mut(), &mut *pack_file_decoded.borrow_mut(), index as usize);
+                                            set_modified(true, &window, &mut *pack_file_decoded.borrow_mut());
                                         }
-                                        file_chooser_packedfile_loc_import_csv.hide_on_delete();
+                                        file_chooser_packedfile_import_csv.hide_on_delete();
                                     }
                                 }));
 
                                 // When we hit the "Export to CSV" button.
-                                context_menu_packedfile_loc_export_to_csv.connect_activate(clone!(
+                                context_menu_packedfile_loc_export_csv.connect_activate(clone!(
                                     error_dialog,
                                     success_dialog,
                                     packed_file_data_decoded,
                                     packed_file_tree_view,
                                     folder_tree_selection,
-                                    file_chooser_packedfile_loc_export_csv,
+                                    file_chooser_packedfile_export_csv,
                                     context_menu => move |_,_|{
 
                                     // We hide the context menu first.
@@ -1614,15 +1612,15 @@ fn build_ui(application: &Application) {
                                     if packed_file_tree_view.has_focus() {
 
                                         let tree_path = ui::get_tree_path_from_selection(&folder_tree_selection, false);
-                                        file_chooser_packedfile_loc_export_csv.set_current_name(format!("{}.csv",&tree_path.last().unwrap()));
+                                        file_chooser_packedfile_export_csv.set_current_name(format!("{}.csv",&tree_path.last().unwrap()));
 
-                                        if file_chooser_packedfile_loc_export_csv.run() == gtk_response_ok {
-                                            match LocData::export_csv(&packed_file_data_decoded.borrow_mut().packed_file_data, &file_chooser_packedfile_loc_export_csv.get_filename().expect("Couldn't open file")) {
+                                        if file_chooser_packedfile_export_csv.run() == gtk_response_ok {
+                                            match LocData::export_csv(&packed_file_data_decoded.borrow_mut().packed_file_data, &file_chooser_packedfile_export_csv.get_filename().expect("Couldn't open file")) {
                                                 Ok(result) => ui::show_dialog(&success_dialog, result),
                                                 Err(error) => ui::show_dialog(&error_dialog, error.cause())
                                             }
                                         }
-                                        file_chooser_packedfile_loc_export_csv.hide_on_delete();
+                                        file_chooser_packedfile_export_csv.hide_on_delete();
                                     }
                                 }));
                             }
@@ -1665,12 +1663,12 @@ fn build_ui(application: &Application) {
                                 // We enable "Multiple" selection mode, so we can do multi-row operations.
                                 packed_file_tree_view_selection.set_mode(gtk::SelectionMode::Multiple);
 
-                                if let Err(error) = ui::packedfile_db::PackedFileDBTreeView::load_data_to_tree_view(
-                                    (&packed_file_data_decoded.borrow().packed_file_data.packed_file_data).to_vec(),
-                                    &packed_file_list_store,
+                                if let Err(error) = PackedFileDBTreeView::load_data_to_tree_view (
+                                    &packed_file_data_decoded.borrow().packed_file_data,
+                                    &packed_file_list_store
                                 ) {
-                                    return ui::show_dialog(&error_dialog, error.cause())
-                                };
+                                    return ui::show_dialog(&error_dialog, error.cause());
+                                }
 
                                 // Before setting up the actions, we clean the previous ones.
                                 remove_temporal_accelerators(&application);
@@ -1679,15 +1677,21 @@ fn build_ui(application: &Application) {
                                 let context_menu_packedfile_db_add_rows = SimpleAction::new("packedfile_db_add_rows", None);
                                 let context_menu_packedfile_db_delete_rows = SimpleAction::new("packedfile_db_delete_rows", None);
                                 let context_menu_packedfile_db_clone_rows = SimpleAction::new("packedfile_db_clone_rows", None);
+                                let context_menu_packedfile_db_import_csv = SimpleAction::new("packedfile_db_import_csv", None);
+                                let context_menu_packedfile_db_export_csv = SimpleAction::new("packedfile_db_export_csv", None);
 
                                 application.add_action(&context_menu_packedfile_db_add_rows);
                                 application.add_action(&context_menu_packedfile_db_delete_rows);
                                 application.add_action(&context_menu_packedfile_db_clone_rows);
+                                application.add_action(&context_menu_packedfile_db_import_csv);
+                                application.add_action(&context_menu_packedfile_db_export_csv);
 
                                 // Accels for popovers need to be specified here. Don't know why, but otherwise they do not work.
                                 application.set_accels_for_action("app.packedfile_db_add_rows", &["<Shift>a"]);
                                 application.set_accels_for_action("app.packedfile_db_delete_rows", &["<Shift>Delete"]);
                                 application.set_accels_for_action("app.packedfile_db_clone_rows", &["<Shift>d"]);
+                                application.set_accels_for_action("app.packedfile_db_import_csv", &["<Shift>i"]);
+                                application.set_accels_for_action("app.packedfile_db_export_csv", &["<Shift>e"]);
 
                                 // These are the events to save edits in cells, one loop for every type of cell.
                                 // This loop takes care of the interaction with string cells.
@@ -2103,6 +2107,88 @@ fn build_ui(application: &Application) {
                                                 Err(error) => ui::show_dialog(&error_dialog, error.cause()),
                                             }
                                         }
+                                    }
+                                }));
+
+                                // When we hit the "Import from CSV" button.
+                                context_menu_packedfile_db_import_csv.connect_activate(clone!(
+                                    window,
+                                    error_dialog,
+                                    pack_file_decoded,
+                                    packed_file_data_decoded,
+                                    packed_file_tree_view,
+                                    packed_file_list_store,
+                                    file_chooser_packedfile_import_csv,
+                                    context_menu => move |_,_|{
+
+                                    // We hide the context menu first.
+                                    context_menu.popdown();
+
+                                    // We only do something in case the focus is in the TreeView. This should stop problems with
+                                    // the accels working everywhere.
+                                    if packed_file_tree_view.has_focus() {
+
+                                        // First we ask for the file to import.
+                                        if file_chooser_packedfile_import_csv.run() == gtk_response_ok {
+
+                                            // If there is an error importing, we report it.
+                                            if let Err(error) = DBData::import_csv(
+                                                &mut packed_file_data_decoded.borrow_mut().packed_file_data,
+                                                &file_chooser_packedfile_import_csv.get_filename().expect("Couldn't open file")
+                                            ) {
+                                                file_chooser_packedfile_import_csv.hide_on_delete();
+                                                return ui::show_dialog(&error_dialog, error.cause());
+                                            }
+
+                                            // If there is an error loading the data (wrong table imported?), report it.
+                                            if let Err(error) = PackedFileDBTreeView::load_data_to_tree_view(&packed_file_data_decoded.borrow().packed_file_data, &packed_file_list_store) {
+                                                file_chooser_packedfile_import_csv.hide_on_delete();
+                                                return ui::show_dialog(&error_dialog, error.cause());
+                                            }
+
+                                            // If the table loaded properly, try to save the data to the encoded file.
+                                            if let Err(error) = ::packfile::update_packed_file_data_db(&*packed_file_data_decoded.borrow_mut(), &mut *pack_file_decoded.borrow_mut(), index as usize) {
+                                                file_chooser_packedfile_import_csv.hide_on_delete();
+                                                return ui::show_dialog(&error_dialog, error.cause());
+                                            }
+
+                                            // If we reached this point, the file has been imported successfully.
+                                            // Get the data from the table and turn it into a Vec<u8> to write it.
+                                            set_modified(true, &window, &mut *pack_file_decoded.borrow_mut());
+                                        }
+                                        file_chooser_packedfile_import_csv.hide_on_delete();
+                                    }
+                                }));
+
+                                // When we hit the "Export to CSV" button.
+                                context_menu_packedfile_db_export_csv.connect_activate(clone!(
+                                    error_dialog,
+                                    success_dialog,
+                                    packed_file_data_decoded,
+                                    packed_file_tree_view,
+                                    folder_tree_selection,
+                                    file_chooser_packedfile_export_csv,
+                                    context_menu => move |_,_|{
+
+                                    // We hide the context menu first.
+                                    context_menu.popdown();
+
+                                    // We only do something in case the focus is in the TreeView. This should stop problems with
+                                    // the accels working everywhere.
+                                    if packed_file_tree_view.has_focus() {
+
+                                        // Get it's tree_path and it's default name (table-table_name.csv)
+                                        let tree_path = ui::get_tree_path_from_selection(&folder_tree_selection, false);
+                                        file_chooser_packedfile_export_csv.set_current_name(format!("{}-{}.csv", &tree_path[1], &tree_path.last().unwrap()));
+
+                                        // When we select the destination file, export it and report success or error.
+                                        if file_chooser_packedfile_export_csv.run() == gtk_response_ok {
+                                            match DBData::export_csv(&packed_file_data_decoded.borrow_mut().packed_file_data, &file_chooser_packedfile_export_csv.get_filename().expect("Couldn't open file")) {
+                                                Ok(result) => ui::show_dialog(&success_dialog, result),
+                                                Err(error) => ui::show_dialog(&error_dialog, error.cause()),
+                                            }
+                                        }
+                                        file_chooser_packedfile_export_csv.hide_on_delete();
                                     }
                                 }));
                             }
@@ -2902,20 +2988,24 @@ fn remove_temporal_accelerators(application: &Application) {
     // Remove stuff of Loc View.
     application.set_accels_for_action("packedfile_loc_add_rows", &[]);
     application.set_accels_for_action("packedfile_loc_delete_rows", &[]);
-    application.set_accels_for_action("packedfile_loc_import_from_csv", &[]);
-    application.set_accels_for_action("packedfile_loc_export_to_csv", &[]);
+    application.set_accels_for_action("packedfile_loc_import_csv", &[]);
+    application.set_accels_for_action("packedfile_loc_export_csv", &[]);
     application.remove_action("packedfile_loc_add_rows");
     application.remove_action("packedfile_loc_delete_rows");
-    application.remove_action("packedfile_loc_import_from_csv");
-    application.remove_action("packedfile_loc_export_to_csv");
+    application.remove_action("packedfile_loc_import_csv");
+    application.remove_action("packedfile_loc_export_csv");
 
     // Remove stuff of DB View.
     application.set_accels_for_action("packedfile_db_add_rows", &[]);
     application.set_accels_for_action("packedfile_db_delete_rows", &[]);
     application.set_accels_for_action("packedfile_db_clone_rows", &[]);
+    application.set_accels_for_action("packedfile_db_import_csv", &[]);
+    application.set_accels_for_action("packedfile_db_export_csv", &[]);
     application.remove_action("packedfile_db_add_rows");
     application.remove_action("packedfile_db_delete_rows");
     application.remove_action("packedfile_db_clone_rows");
+    application.remove_action("packedfile_db_import_csv");
+    application.remove_action("packedfile_db_export_csv");
 
     // Remove stuff of DB decoder View.
     application.set_accels_for_action("move_row_up", &[]);

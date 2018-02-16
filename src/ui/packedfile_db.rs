@@ -13,7 +13,7 @@ use gtk::prelude::*;
 use gtk::{
     Box, TreeView, ListStore, ScrolledWindow, Button, Orientation, TextView, Label, Entry,
     CellRendererText, TreeViewColumn, CellRendererToggle, Type, WrapMode, Justification, Frame, CellRendererCombo,
-    TextTag, Popover, ModelButton, Paned, Switch
+    TextTag, Popover, ModelButton, Paned, Switch, Separator
 };
 
 use self::hex_slice::AsHex;
@@ -317,12 +317,25 @@ impl PackedFileDBTreeView{
         packed_file_popover_menu_clone_rows_button.set_property_text(Some("Clone row/s"));
         packed_file_popover_menu_clone_rows_button.set_action_name("app.packedfile_db_clone_rows");
 
+        let separator = Separator::new(Orientation::Vertical);
+        let packed_file_popover_menu_import_from_csv_button = ModelButton::new();
+        packed_file_popover_menu_import_from_csv_button.set_property_text(Some("Import from CSV"));
+        packed_file_popover_menu_import_from_csv_button.set_action_name("app.packedfile_db_import_csv");
+
+        let packed_file_popover_menu_export_to_csv_button = ModelButton::new();
+        packed_file_popover_menu_export_to_csv_button.set_property_text(Some("Export to CSV"));
+        packed_file_popover_menu_export_to_csv_button.set_action_name("app.packedfile_db_export_csv");
+
         packed_file_popover_menu_box_add_rows_box.pack_start(&packed_file_popover_menu_add_rows_button, true, true, 0);
         packed_file_popover_menu_box_add_rows_box.pack_end(&packed_file_popover_menu_add_rows_entry, true, true, 0);
 
         packed_file_popover_menu_box.pack_start(&packed_file_popover_menu_box_add_rows_box, true, true, 0);
         packed_file_popover_menu_box.pack_start(&packed_file_popover_menu_delete_rows_button, true, true, 0);
         packed_file_popover_menu_box.pack_start(&packed_file_popover_menu_clone_rows_button, true, true, 0);
+
+        packed_file_popover_menu_box.pack_start(&separator, true, true, 0);
+        packed_file_popover_menu_box.pack_start(&packed_file_popover_menu_import_from_csv_button, true, true, 0);
+        packed_file_popover_menu_box.pack_start(&packed_file_popover_menu_export_to_csv_button, true, true, 0);
 
         packed_file_popover_menu.add(&packed_file_popover_menu_box);
         packed_file_popover_menu.show_all();
@@ -352,7 +365,7 @@ impl PackedFileDBTreeView{
 
     /// This function decodes the data of a DB PackedFile and loads it into a TreeView.
     pub fn load_data_to_tree_view(
-        packed_file_data: Vec<Vec<::packedfile::db::DecodedData>>,
+        packed_file_data: &DBData,
         packed_file_list_store: &ListStore,
     ) -> Result<(), Error>{
 
@@ -360,7 +373,7 @@ impl PackedFileDBTreeView{
         packed_file_list_store.clear();
 
         // Then we add every line to the ListStore.
-        for row in packed_file_data {
+        for row in &packed_file_data.packed_file_data {
 
             // Due to issues with types and gtk-rs, we need to create an empty line and then add the
             // values to it, one by one.
@@ -405,7 +418,8 @@ impl PackedFileDBTreeView{
             let mut done = false;
             while !done {
 
-                let mut packed_file_data_from_tree_view_entry: Vec<DecodedData> = vec![];
+                // We return the index too. We deal with it in the save function, so there is no problem
+                let mut packed_file_data_from_tree_view_entry: Vec<DecodedData> = vec![DecodedData::Index(packed_file_list_store.get_value(&current_line, 0).get().unwrap())];
 
                 for column in 1..columns {
                     let field_type = &table_definition.fields[column as usize - 1].field_type;

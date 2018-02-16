@@ -144,11 +144,11 @@ impl PackedFileLocTreeView{
         let separator = Separator::new(Orientation::Vertical);
         let packed_file_popover_menu_import_from_csv_button = ModelButton::new();
         packed_file_popover_menu_import_from_csv_button.set_property_text(Some("Import from CSV"));
-        packed_file_popover_menu_import_from_csv_button.set_action_name("app.packedfile_loc_import_from_csv");
+        packed_file_popover_menu_import_from_csv_button.set_action_name("app.packedfile_loc_import_csv");
 
         let packed_file_popover_menu_export_to_csv_button = ModelButton::new();
         packed_file_popover_menu_export_to_csv_button.set_property_text(Some("Export to CSV"));
-        packed_file_popover_menu_export_to_csv_button.set_action_name("app.packedfile_loc_export_to_csv");
+        packed_file_popover_menu_export_to_csv_button.set_action_name("app.packedfile_loc_export_csv");
 
         packed_file_popover_menu_box_add_rows_box.pack_start(&packed_file_popover_menu_add_rows_button, true, true, 0);
         packed_file_popover_menu_box_add_rows_box.pack_end(&packed_file_popover_menu_add_rows_entry, true, true, 0);

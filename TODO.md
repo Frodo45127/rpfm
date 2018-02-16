@@ -35,8 +35,8 @@
       - [ ] Copy rows.
       - [ ] Cut rows.
       - [ ] Paste rows.
-      - [ ] Import from csv.
-      - [ ] Export to csv.
+      - [x] Import from csv.
+      - [x] Export to csv.
     - [ ] Decoder View:
       - [x] Decode any type of entry.
       - [ ] Load old definitions of an undecoded table.

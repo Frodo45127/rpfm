@@ -201,6 +201,22 @@
                             </object>
                         </child>
 
+                        <child>
+                            <object class="GtkShortcutsShortcut">
+                                <property name="visible">1</property>
+                                <property name="accelerator">&lt;Shift&gt;i</property>
+                                <property name="title" translatable="yes">Import from CSV</property>
+                            </object>
+                        </child>
+
+                        <child>
+                            <object class="GtkShortcutsShortcut">
+                                <property name="visible">1</property>
+                                <property name="accelerator">&lt;Shift&gt;e</property>
+                                <property name="title" translatable="yes">Export to CSV</property>
+                            </object>
+                        </child>
+
                     </object>
                 </child>
 

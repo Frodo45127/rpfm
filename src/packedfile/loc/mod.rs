@@ -252,7 +252,7 @@ impl LocDataEntry {
 /// Implementation of `SerializableToCSV` for `LocData`.
 impl SerializableToCSV for LocData {
 
-    fn import_csv(csv_file_path: &PathBuf) -> Result<LocData, Error> {
+    fn import_csv(&mut self, csv_file_path: &PathBuf) -> Result<(), Error> {
 
         let mut packed_file_data_from_tree_view = LocData::new();
 
@@ -269,7 +269,7 @@ impl SerializableToCSV for LocData {
 
                     }
                 }
-                Ok(packed_file_data_from_tree_view)
+                Ok(())
             }
             Err(_) => Err(format_err!("Error while trying to read the csv file \"{}\".", &csv_file_path.display()))
         }
@@ -281,19 +281,15 @@ impl SerializableToCSV for LocData {
         let mut writer_builder = WriterBuilder::new();
         writer_builder.has_headers(false);
         writer_builder.quote_style(QuoteStyle::Always);
-
         let mut writer = writer_builder.from_writer(vec![]);
 
-        for i in self.packed_file_data_entries.clone() {
-            writer.serialize(LocDataEntry {
-                key: i.key,
-                text: i.text,
-                tooltip: i.tooltip,
-            })?;
+        // For every entry, we serialize every one of it's fields.
+        for entry in &self.packed_file_data_entries {
+            writer.serialize(entry)?;
         }
 
+        // Get it all into an string, and write them to disk.
         let csv_serialized = String::from_utf8(writer.into_inner().unwrap().to_vec()).unwrap();
-
         match File::create(&packed_file_path) {
             Ok(mut file) => {
                 match file.write_all(csv_serialized.as_bytes()) {

@@ -21,9 +21,9 @@ pub mod rigidmodel;
 /// export to and import from a csv file, like `LocData`.
 pub trait SerializableToCSV {
 
-    /// `import_csv`: Requires a `&PathBuf` with the path of the csv file, returns the imported
-    /// struct, or an error.
-    fn import_csv(csv_file_path: &PathBuf) -> Result<Self, Error> where Self: Sized;
+    /// `import_csv`: Requires `&mut self` and `&PathBuf` with the path of the csv file, returns
+    /// success, or an error.
+    fn import_csv(&mut self, csv_file_path: &PathBuf) -> Result<(), Error>;
 
     /// `export_csv`: Requires `&self` and the destination path for the csv file, returns a success
     /// message, or an error.

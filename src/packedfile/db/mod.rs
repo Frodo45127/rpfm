@@ -11,10 +11,19 @@
 // 4 bytes for the entry count, in u32 reversed.
 
 extern crate failure;
+extern crate csv;
+
+use std::fs::File;
+use std::io::Write;
+use std::path::PathBuf;
 
 use self::failure::Error;
-
+use self::csv::{
+    ReaderBuilder, WriterBuilder, QuoteStyle
+};
 use common::coding_helpers;
+use super::SerializableToCSV;
+use self::schemas::FieldType;
 
 pub mod schemas;
 pub mod schemas_importer;
@@ -52,7 +61,7 @@ pub struct DBHeader {
 
 /// Struct DBData: This stores the data of a decoded DB PackedFile in memory.
 /// It stores the PackedFile's data in a Vec<u8> and his structure in an OrderMap, if exists.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DBData {
     pub table_definition: schemas::TableDefinition,
     pub packed_file_data: Vec<Vec<DecodedData>>,
@@ -60,7 +69,7 @@ pub struct DBData {
 
 /// Enum DecodedData: This enum is used to store the data from the different fields of a row of a DB
 /// PackedFile.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum DecodedData {
     Index(String),
     Boolean(bool),
@@ -436,5 +445,84 @@ impl DBData {
             packed_file_entry_count += 1;
         }
         Ok((packed_file_data_encoded, packed_file_entry_count))
+    }
+}
+
+
+/// Implementation of `SerializableToCSV` for `DBData`.
+impl SerializableToCSV for DBData {
+
+    fn import_csv(&mut self, csv_file_path: &PathBuf) -> Result<(), Error> {
+
+        // We expect no headers, so we need to tweak our reader first.
+        let mut reader_builder = ReaderBuilder::new();
+        reader_builder.has_headers(false);
+
+        // Get the file and it's entries.
+        match reader_builder.from_path(&csv_file_path) {
+            Ok(mut reader) => {
+
+                // We create here the vector to store the date while it's being decoded.
+                let mut new_packed_file_data = vec![];
+
+                // Then we add the new entries to the decoded entry list.
+                for (index, reader_entry) in reader.records().enumerate() {
+
+                    // If the entry record hasn't returned any error...
+                    if let Ok(entry) = reader_entry {
+
+                        let mut entry_complete = vec![DecodedData::Index(format!("{}", index + 1))];
+                        for (j, field) in entry.iter().enumerate() {
+                            match self.table_definition.fields[j].field_type {
+                                FieldType::Boolean => entry_complete.push(DecodedData::Boolean(field.parse::<bool>()?)),
+                                FieldType::Float => entry_complete.push(DecodedData::Float(field.parse::<f32>()?)),
+                                FieldType::Integer => entry_complete.push(DecodedData::Integer(field.parse::<i32>()?)),
+                                FieldType::LongInteger => entry_complete.push(DecodedData::LongInteger(field.parse::<i64>()?)),
+                                FieldType::StringU8 => entry_complete.push(DecodedData::StringU8(field.to_owned())),
+                                FieldType::StringU16 => entry_complete.push(DecodedData::StringU16(field.to_owned())),
+                                FieldType::OptionalStringU8 => entry_complete.push(DecodedData::OptionalStringU8(field.to_owned())),
+                                FieldType::OptionalStringU16 => entry_complete.push(DecodedData::OptionalStringU16(field.to_owned())),
+                            }
+                        }
+                        new_packed_file_data.push(entry_complete)
+                    }
+                }
+
+                // If we reached this point without errors, we replace the old data with the new one.
+                self.packed_file_data.clear();
+                self.packed_file_data.append( &mut new_packed_file_data);
+
+                Ok(())
+            }
+            Err(_) => Err(format_err!("Error while trying to read the csv file \"{}\".", &csv_file_path.display()))
+        }
+    }
+
+    fn export_csv(&self, packed_file_path: &PathBuf) -> Result<String, Error> {
+
+        // We want no headers and quotes around the fields, so we need to tweak our writer first.
+        let mut writer_builder = WriterBuilder::new();
+        writer_builder.has_headers(false);
+        writer_builder.quote_style(QuoteStyle::Always);
+        let mut writer = writer_builder.from_writer(vec![]);
+
+        // For every entry, we serialize every one of it's fields (except the index).
+        for entry in &self.packed_file_data {
+
+            // We don't want the index, as that's not really needed outside the program.
+            writer.serialize(&entry[1..])?;
+        }
+
+        // Get it all into an string, and write them to disk.
+        let csv_serialized = String::from_utf8(writer.into_inner().unwrap().to_vec()).unwrap();
+        match File::create(&packed_file_path) {
+            Ok(mut file) => {
+                match file.write_all(csv_serialized.as_bytes()) {
+                    Ok(_) => Ok(format!("DB PackedFile successfully exported:\n{}", packed_file_path.display())),
+                    Err(_) => Err(format_err!("Error while writing the following file to disk:\n{}", packed_file_path.display()))
+                }
+            }
+            Err(_) => Err(format_err!("Error while trying to write the following file to disk:\n{}", packed_file_path.display()))
+        }
     }
 }
