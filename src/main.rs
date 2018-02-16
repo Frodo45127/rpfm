@@ -1585,10 +1585,12 @@ fn build_ui(application: &Application) {
                                                 return ui::show_dialog(&error_dialog, error.cause());
                                             }
 
+                                            // From this point, if the file has been imported properly, we mark the PackFile as "Modified".
+                                            set_modified(true, &window, &mut *pack_file_decoded.borrow_mut());
+
                                             // Load the data to the TreeView, and save it to the encoded data too.
                                             PackedFileLocTreeView::load_data_to_tree_view(&packed_file_data_decoded.borrow().packed_file_data, &packed_file_list_store);
                                             update_packed_file_data_loc(&*packed_file_data_decoded.borrow_mut(), &mut *pack_file_decoded.borrow_mut(), index as usize);
-                                            set_modified(true, &window, &mut *pack_file_decoded.borrow_mut());
                                         }
                                         file_chooser_packedfile_import_csv.hide_on_delete();
                                     }
@@ -2131,7 +2133,14 @@ fn build_ui(application: &Application) {
                                         // First we ask for the file to import.
                                         if file_chooser_packedfile_import_csv.run() == gtk_response_ok {
 
-                                            // If there is an error importing, we report it.
+                                            // Just in case the import fails after importing (for example, due to importing a CSV from another table,
+                                            // or from another version of the table, and it fails while loading to table or saving to PackFile)
+                                            // we save a copy of the table, so we can restore it if it fails after we modify it.
+                                            let packed_file_data_copy = packed_file_data_decoded.borrow_mut().packed_file_data.clone();
+                                            let mut restore_table = (false, format_err!(""));
+
+                                            // If there is an error importing, we report it. This only edits the data after checking
+                                            // that it can be decoded properly, so we don't need to restore the table in this case.
                                             if let Err(error) = DBData::import_csv(
                                                 &mut packed_file_data_decoded.borrow_mut().packed_file_data,
                                                 &file_chooser_packedfile_import_csv.get_filename().expect("Couldn't open file")
@@ -2140,21 +2149,28 @@ fn build_ui(application: &Application) {
                                                 return ui::show_dialog(&error_dialog, error.cause());
                                             }
 
-                                            // If there is an error loading the data (wrong table imported?), report it.
+                                            // Here we mark the PackFile as "Modified".
+                                            set_modified(true, &window, &mut *pack_file_decoded.borrow_mut());
+
+                                            // If there is an error loading the data (wrong table imported?), report it and restore it from the old copy.
                                             if let Err(error) = PackedFileDBTreeView::load_data_to_tree_view(&packed_file_data_decoded.borrow().packed_file_data, &packed_file_list_store) {
                                                 file_chooser_packedfile_import_csv.hide_on_delete();
-                                                return ui::show_dialog(&error_dialog, error.cause());
+                                                restore_table = (true, error);
                                             }
 
                                             // If the table loaded properly, try to save the data to the encoded file.
-                                            if let Err(error) = ::packfile::update_packed_file_data_db(&*packed_file_data_decoded.borrow_mut(), &mut *pack_file_decoded.borrow_mut(), index as usize) {
-                                                file_chooser_packedfile_import_csv.hide_on_delete();
-                                                return ui::show_dialog(&error_dialog, error.cause());
+                                            if !restore_table.0 {
+                                                if let Err(error) = update_packed_file_data_db(&*packed_file_data_decoded.borrow_mut(), &mut *pack_file_decoded.borrow_mut(), index as usize) {
+                                                    file_chooser_packedfile_import_csv.hide_on_delete();
+                                                    restore_table = (true, error);
+                                                }
                                             }
 
-                                            // If we reached this point, the file has been imported successfully.
-                                            // Get the data from the table and turn it into a Vec<u8> to write it.
-                                            set_modified(true, &window, &mut *pack_file_decoded.borrow_mut());
+                                            // If the import broke somewhere along the way, restore the old table and report the error.
+                                            if restore_table.0 {
+                                                packed_file_data_decoded.borrow_mut().packed_file_data = packed_file_data_copy;
+                                                ui::show_dialog(&error_dialog, restore_table.1.cause());
+                                            }
                                         }
                                         file_chooser_packedfile_import_csv.hide_on_delete();
                                     }

@@ -468,23 +468,34 @@ impl SerializableToCSV for DBData {
                 // Then we add the new entries to the decoded entry list.
                 for (index, reader_entry) in reader.records().enumerate() {
 
-                    // If the entry record hasn't returned any error...
-                    if let Ok(entry) = reader_entry {
+                    // If the entry record hasn't returned any error, we try decode it using the schema of the open table.
+                    match reader_entry {
+                        Ok(entry) => {
 
-                        let mut entry_complete = vec![DecodedData::Index(format!("{}", index + 1))];
-                        for (j, field) in entry.iter().enumerate() {
-                            match self.table_definition.fields[j].field_type {
-                                FieldType::Boolean => entry_complete.push(DecodedData::Boolean(field.parse::<bool>()?)),
-                                FieldType::Float => entry_complete.push(DecodedData::Float(field.parse::<f32>()?)),
-                                FieldType::Integer => entry_complete.push(DecodedData::Integer(field.parse::<i32>()?)),
-                                FieldType::LongInteger => entry_complete.push(DecodedData::LongInteger(field.parse::<i64>()?)),
-                                FieldType::StringU8 => entry_complete.push(DecodedData::StringU8(field.to_owned())),
-                                FieldType::StringU16 => entry_complete.push(DecodedData::StringU16(field.to_owned())),
-                                FieldType::OptionalStringU8 => entry_complete.push(DecodedData::OptionalStringU8(field.to_owned())),
-                                FieldType::OptionalStringU16 => entry_complete.push(DecodedData::OptionalStringU16(field.to_owned())),
+                            // We need to check if the length of the imported entries is the same than the one from the schema.
+                            // If not, then we stop the import and return an error. This should avoid the problem with undecodeable
+                            // tables after importing into them a CSV from another table that passes the schema filter from below.
+                            if entry.len() == self.table_definition.fields.len() {
+                                let mut entry_complete = vec![DecodedData::Index(format!("{}", index + 1))];
+                                for (j, field) in entry.iter().enumerate() {
+                                    match self.table_definition.fields[j].field_type {
+                                        FieldType::Boolean => entry_complete.push(DecodedData::Boolean(field.parse::<bool>()?)),
+                                        FieldType::Float => entry_complete.push(DecodedData::Float(field.parse::<f32>()?)),
+                                        FieldType::Integer => entry_complete.push(DecodedData::Integer(field.parse::<i32>()?)),
+                                        FieldType::LongInteger => entry_complete.push(DecodedData::LongInteger(field.parse::<i64>()?)),
+                                        FieldType::StringU8 => entry_complete.push(DecodedData::StringU8(field.to_owned())),
+                                        FieldType::StringU16 => entry_complete.push(DecodedData::StringU16(field.to_owned())),
+                                        FieldType::OptionalStringU8 => entry_complete.push(DecodedData::OptionalStringU8(field.to_owned())),
+                                        FieldType::OptionalStringU16 => entry_complete.push(DecodedData::OptionalStringU16(field.to_owned())),
+                                    }
+                                }
+                                new_packed_file_data.push(entry_complete);
+                            }
+                            else {
+                                return Err(format_err!("Error while trying import the csv file:\n{}\n\nIf you see this message, you probably tried to import a .csv file into a table with different structure.", &csv_file_path.display()));
                             }
                         }
-                        new_packed_file_data.push(entry_complete)
+                        Err(_) => return Err(format_err!("Error while trying import the csv file:\n{}", &csv_file_path.display())),
                     }
                 }
 

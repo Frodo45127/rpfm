@@ -254,21 +254,29 @@ impl SerializableToCSV for LocData {
 
     fn import_csv(&mut self, csv_file_path: &PathBuf) -> Result<(), Error> {
 
-        let mut packed_file_data_from_tree_view = LocData::new();
-
         // We expect no headers, so we need to tweak our reader first.
         let mut reader_builder = ReaderBuilder::new();
         reader_builder.has_headers(false);
+
+        // Get the file and it's entries.
         match reader_builder.from_path(&csv_file_path) {
             Ok(mut reader) => {
+                
+                // We create here the vector to store the date while it's being decoded.
+                let mut new_packed_file_data = vec![];
+
                 // Then we add the new entries to the decoded entry list.
-                for i in reader.deserialize() {
-                    match i {
-                        Ok(entry) => packed_file_data_from_tree_view.packed_file_data_entries.push(entry),
+                for reader_entry in reader.deserialize() {
+                    match reader_entry {
+                        Ok(entry) => new_packed_file_data.push(entry),
                         Err(_) => return Err(format_err!("Error while trying import the csv file:\n{}", &csv_file_path.display()))
 
                     }
                 }
+                // If we reached this point without errors, we replace the old data with the new one.
+                self.packed_file_data_entries.clear();
+                self.packed_file_data_entries.append( &mut new_packed_file_data);
+
                 Ok(())
             }
             Err(_) => Err(format_err!("Error while trying to read the csv file \"{}\".", &csv_file_path.display()))
