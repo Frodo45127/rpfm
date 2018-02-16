@@ -121,6 +121,7 @@ fn build_ui(application: &Application) {
     let packed_file_data_display: Box = builder.get_object("gtk_packed_file_data_display").expect("Couldn't get gtk_packed_file_data_display");
 
     let window_about: AboutDialog = builder.get_object("gtk_window_about").expect("Couldn't get gtk_window_about");
+    let unsaved_dialog: MessageDialog = builder.get_object("gtk_unsaved_dialog").expect("Couldn't get gtk_unsaved_dialog");
     let error_dialog: MessageDialog = builder.get_object("gtk_error_dialog").expect("Couldn't get gtk_error_dialog");
     let success_dialog: MessageDialog = builder.get_object("gtk_success_dialog").expect("Couldn't get gtk_success_dialog");
     let rename_popover: Popover = builder.get_object("gtk_rename_popover").expect("Couldn't get gtk_rename_popover");
@@ -285,9 +286,23 @@ fn build_ui(application: &Application) {
     // From here, it's all event handling.
 
     // First, we catch the close window event, and close the program when we do it.
-    window.connect_delete_event(clone!(window => move |_, _| {
-        window.destroy();
-        Inhibit(false)
+    window.connect_delete_event(clone!(
+        application,
+        pack_file_decoded,
+        unsaved_dialog => move |_,_| {
+
+        // If the current PackFile has been changed in any way, we pop up the "Are you sure?" message.
+        if pack_file_decoded.borrow().pack_file_extra_data.is_modified {
+            if unsaved_dialog.run() == gtk_response_ok {
+                application.quit();
+            } else {
+                unsaved_dialog.hide_on_delete();
+            }
+        } else {
+           application.quit();
+        }
+
+        Inhibit(true)
     }));
 
     //By default, these four actions are disabled until a PackFile is created or opened.
@@ -630,8 +645,21 @@ fn build_ui(application: &Application) {
     }));
 
     // When we hit the "Quit" button.
-    menu_bar_quit.connect_activate(clone!(window => move |_,_| {
-        window.destroy();
+    menu_bar_quit.connect_activate(clone!(
+        application,
+        pack_file_decoded,
+        unsaved_dialog => move |_,_| {
+
+            // If the current PackFile has been changed in any way, we pop up the "Are you sure?" message.
+            if pack_file_decoded.borrow().pack_file_extra_data.is_modified {
+                if unsaved_dialog.run() == gtk_response_ok {
+                    application.quit();
+                } else {
+                    unsaved_dialog.hide_on_delete();
+                }
+            } else {
+                application.quit();
+            }
     }));
 
     /*

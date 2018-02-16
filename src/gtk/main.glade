@@ -873,6 +873,39 @@
       <placeholder/>
     </child>
   </object>
+  <object class="GtkMessageDialog" id="gtk_unsaved_dialog">
+    <property name="can_focus">False</property>
+    <property name="window_position">center</property>
+    <property name="type_hint">dialog</property>
+    <property name="gravity">center</property>
+    <property name="transient_for">gtk_window</property>
+    <property name="message_type">error</property>
+    <property name="buttons">ok-cancel</property>
+    <property name="text" translatable="yes">There are some changes yet to save.</property>
+    <property name="use_markup">True</property>
+    <property name="secondary_text" translatable="yes">Are you sure you want to exit?</property>
+    <child internal-child="vbox">
+      <object class="GtkBox">
+        <property name="can_focus">False</property>
+        <property name="orientation">vertical</property>
+        <property name="spacing">2</property>
+        <child internal-child="action_area">
+          <object class="GtkButtonBox">
+            <property name="can_focus">False</property>
+            <property name="layout_style">end</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">False</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+      </object>
+    </child>
+    <child>
+      <placeholder/>
+    </child>
+  </object>
   <object class="GtkAboutDialog" id="gtk_window_about">
     <property name="can_focus">False</property>
     <property name="window_position">center</property>
