@@ -17,13 +17,16 @@ extern crate gtk;
 extern crate gdk;
 extern crate glib;
 extern crate gio;
+extern crate pango;
 extern crate sourceview;
 extern crate num;
 
 use std::path::PathBuf;
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::fs::File;
+use std::fs::{
+    File, DirBuilder
+};
 use std::io::Write;
 use std::env::args;
 
@@ -40,6 +43,9 @@ use gtk::{
     TreeView, TreeSelection, TreeStore, MessageDialog, ScrolledWindow, Orientation, Application,
     CellRendererText, TreeViewColumn, Popover, Entry, Button, Image, ListStore,
     ShortcutsWindow, ToVariant
+};
+use pango::{
+    AttrList, Attribute
 };
 
 use sourceview::{
@@ -61,6 +67,7 @@ use packedfile::rigidmodel::RigidModel;
 use settings::*;
 use ui::packedfile_db::*;
 use ui::packedfile_loc::*;
+use ui::settings::*;
 
 mod common;
 mod ui;
@@ -176,6 +183,7 @@ fn build_ui(application: &Application) {
     let menu_bar_patch_siege_ai = SimpleAction::new("patch-siege-ai", None);
     let menu_bar_about = SimpleAction::new("about", None);
     let menu_bar_change_packfile_type = SimpleAction::new_stateful("change-packfile-type", glib::VariantTy::new("s").ok(), &"mod".to_variant());
+    let menu_bar_my_mod_new = SimpleAction::new("my-mod-new", None);
 
     application.add_action(&menu_bar_new_packfile);
     application.add_action(&menu_bar_open_packfile);
@@ -186,6 +194,7 @@ fn build_ui(application: &Application) {
     application.add_action(&menu_bar_patch_siege_ai);
     application.add_action(&menu_bar_about);
     application.add_action(&menu_bar_change_packfile_type);
+    application.add_action(&menu_bar_my_mod_new);
 
     // Right-click menu actions.
     let context_menu_add_file = SimpleAction::new("add-file", None);
@@ -237,8 +246,10 @@ fn build_ui(application: &Application) {
     window_about.add_credit_section("Windows's theme", &["\"Materia for GTK3\" by nana-4"]);
     window_about.add_credit_section("Special thanks to", &["- PFM team (for providing the community\n   with awesome modding tools).", "- CA (for being a mod-friendly company)."]);
 
-    // We bring up the main window.
+    // We link the main ApplicationWindow to the application.
     window.set_application(Some(application));
+
+    // We bring up the main window.
     window.show_all();
 
     // We center the window after being loaded, so the load of the display tips don't move it to the left.
@@ -559,6 +570,7 @@ fn build_ui(application: &Application) {
     // When we hit the "Preferences" button.
     menu_bar_preferences.connect_activate(clone!(
         error_dialog,
+        settings,
         application => move |menu_bar_preferences,_| {
 
         // We disable the button, so we can't start 2 settings windows at the same time.
@@ -660,6 +672,129 @@ fn build_ui(application: &Application) {
             } else {
                 application.quit();
             }
+    }));
+
+    /*
+    --------------------------------------------------------
+                    Superior Menu: "My Mod"
+    --------------------------------------------------------
+    */
+
+    // When we hit the "New mod" button.
+    menu_bar_my_mod_new.connect_activate(clone!(
+        settings,
+        application,
+        window,
+        error_dialog,
+        pack_file_decoded,
+        folder_tree_store,
+        menu_bar_save_packfile,
+        menu_bar_save_packfile_as,
+        menu_bar_change_packfile_type,
+        menu_bar_patch_siege_ai => move |menu_bar_my_mod_new,_| {
+
+        // We disable the button, so we can't open two new mod windows at the same time.
+        menu_bar_my_mod_new.set_enabled(false);
+
+        // Create the the "New mod" window and put all it's stuff into a variable.
+        let new_mod_stuff = Rc::new(RefCell::new(MyModNewWindow::create_my_mod_new_window(&application)));
+
+        // Make an initial check, to make sure all starts invalid.
+        check_my_mod_new_mod_validity(&new_mod_stuff.borrow(), &settings.borrow());
+
+        // When we write something in the "Mod Name" entry, we check if there is a mod for the selected
+        // game with that name already created.
+        new_mod_stuff.borrow().my_mod_new_name_entry.connect_key_release_event(clone!(
+            settings,
+            new_mod_stuff => move |_,_| {
+
+            // This will check the results. We don't need to know if it's true or false, just check.
+            check_my_mod_new_mod_validity(&new_mod_stuff.borrow(), &settings.borrow());
+            Inhibit(false)
+        }));
+
+        // When we press the "Accept" button.
+        new_mod_stuff.borrow().my_mod_new_accept.connect_button_release_event(clone!(
+            new_mod_stuff,
+            menu_bar_my_mod_new,
+            settings,
+            window,
+            error_dialog,
+            pack_file_decoded,
+            folder_tree_store,
+            menu_bar_save_packfile,
+            menu_bar_save_packfile_as,
+            menu_bar_change_packfile_type,
+            menu_bar_patch_siege_ai => move |_,_| {
+
+            // If the name passes the checks, we create it. We do nothing otherwise.
+            if check_my_mod_new_mod_validity(&new_mod_stuff.borrow(), &settings.borrow()) {
+
+                // Get the PackFile name.
+                let mod_name = format!("{}.pack", new_mod_stuff.borrow().my_mod_new_name_entry.get_buffer().get_text());
+
+                // We just create a new PackFile with a name, set his type to Mod and update the
+                // TreeView to show it.
+                *pack_file_decoded.borrow_mut() = packfile::new_packfile(mod_name.to_owned());
+                ui::update_tree_view(&folder_tree_store, &*pack_file_decoded.borrow());
+                set_modified(false, &window, &mut *pack_file_decoded.borrow_mut());
+
+                // Enable the disabled actions...
+                menu_bar_save_packfile.set_enabled(true);
+                menu_bar_save_packfile_as.set_enabled(true);
+                menu_bar_change_packfile_type.set_enabled(true);
+                menu_bar_patch_siege_ai.set_enabled(true);
+
+                // Get his new path.
+                let mut my_mod_path = settings.borrow().paths.my_mods_base_path.clone().unwrap();
+
+                // We get his name, depending on the selected game.
+                let selected_game = new_mod_stuff.borrow().my_mod_new_game_list_combo.get_active_text().unwrap();
+                match &*selected_game {
+                    "Warhammer 2" => my_mod_path.push("warhammer_2"),
+                    "Warhammer" => my_mod_path.push("warhammer"),
+                    "Attila" => my_mod_path.push("attila"),
+                    "Rome 2" => my_mod_path.push("rome_2"),
+                    _ => my_mod_path.push("if_you_see_this_folder_report_it"),
+                }
+
+                // Just in case the folder doesn't exist, we try to create it. It's save to ignore this result.
+                DirBuilder::new().create(&my_mod_path);
+
+                // Add the PackFile name to the full path.
+                my_mod_path.push(mod_name);
+
+                // Then we save it.
+                if let Err(error) = packfile::save_packfile(&mut pack_file_decoded.borrow_mut(), Some(my_mod_path)) {
+                    ui::show_dialog(&error_dialog, error.cause());
+                }
+
+                // If there was no error while saving, we destroy the window and reenable the "New mod" button.
+                else {
+                    // And destroy the window.
+                    new_mod_stuff.borrow().my_mod_new_window.destroy();
+                    menu_bar_my_mod_new.set_enabled(true);
+                }
+            }
+            Inhibit(false)
+        }));
+
+        // When we press the "Cancel" button, we close the window and re-enable the "New mod" action.
+        new_mod_stuff.borrow().my_mod_new_cancel.connect_button_release_event(clone!(
+            new_mod_stuff,
+            menu_bar_my_mod_new => move |_,_| {
+            new_mod_stuff.borrow().my_mod_new_window.destroy();
+            menu_bar_my_mod_new.set_enabled(true);
+            Inhibit(false)
+        }));
+
+        // We catch the destroy event to restore the "New mod" action.
+        new_mod_stuff.borrow().my_mod_new_window.connect_delete_event(clone!(
+            menu_bar_my_mod_new => move |my_mod_new_window, _| {
+            my_mod_new_window.destroy();
+            menu_bar_my_mod_new.set_enabled(true);
+            Inhibit(false)
+        }));
     }));
 
     /*
@@ -3105,6 +3240,91 @@ fn update_first_row_decoded(packedfile: &[u8], list_store: &ListStore, index: &u
         index,
     );
     index
+}
+
+/// This function takes care of the checks needed when creating a new mod using the "My Mod" feature.
+/// It returns true or false, depending on the result of the checks.
+fn check_my_mod_new_mod_validity(new_mod_stuff: &MyModNewWindow, settings: &Settings) -> bool {
+
+    // We get the selected game, and look on the settings it's path.
+    let selected_game = new_mod_stuff.my_mod_new_game_list_combo.get_active_text().map_or("Warhammer 2".to_string(), |v| v);
+    if let Some(ref my_mod_base_path) = settings.paths.my_mods_base_path {
+
+        // And is valid.
+        if my_mod_base_path.is_dir() {
+
+            // Get the new game-specific path.
+            let mut my_mod_path = my_mod_base_path.clone();
+            match &*selected_game {
+                "Warhammer 2" => my_mod_path.push("warhammer_2"),
+                "Warhammer" => my_mod_path.push("warhammer"),
+                "Attila" => my_mod_path.push("attila"),
+                "Rome 2" => my_mod_path.push("rome_2"),
+                _ => my_mod_path.push("if_you_see_this_folder_report_it"),
+            }
+
+            // Get the colour change stuff here, just once.
+            let attribute_list = AttrList::new();
+            let red = Attribute::new_background(65535, 0, 0).expect("Couldn't create new background");
+            let green = Attribute::new_background(0, 65535, 0).expect("Couldn't create new background");
+
+            // The we build our mod's full path, using it's name (if it's valid), and check if already exists.
+            let new_name = new_mod_stuff.my_mod_new_name_entry.get_buffer().get_text();
+            if new_name.is_empty() || new_name.contains(' ') {
+
+                attribute_list.insert(red);
+                new_mod_stuff.my_mod_new_name_is_valid_label.set_text("Invalid");
+                new_mod_stuff.my_mod_new_name_is_valid_label.set_attributes(&attribute_list);
+
+                // We disable the "Accept" button, so it doesn't allow you to overwrite other mods.
+                new_mod_stuff.my_mod_new_accept.set_sensitive(false);
+                false
+            }
+            else {
+                my_mod_path.push(new_name);
+                my_mod_path.set_extension("pack");
+
+                // If it already exists, turn the "is_valid" label to "Invalid" and paint it red.
+                if my_mod_path.is_file() {
+
+                    attribute_list.insert(red);
+                    new_mod_stuff.my_mod_new_name_is_valid_label.set_text("Invalid");
+                    new_mod_stuff.my_mod_new_name_is_valid_label.set_attributes(&attribute_list);
+
+                    // We disable the "Accept" button, so it doesn't allow you to overwrite other mods.
+                    new_mod_stuff.my_mod_new_accept.set_sensitive(false);
+
+                    // We return false in the check.
+                    false
+                }
+
+                // If it doesn't exists yet, turn the "is_valid" label to "Valid" and paint it green.
+                else {
+                    let attribute_list = AttrList::new();
+                    attribute_list.insert(green);
+
+                    new_mod_stuff.my_mod_new_name_is_valid_label.set_text("Valid");
+                    new_mod_stuff.my_mod_new_name_is_valid_label.set_attributes(&attribute_list);
+
+                    // We enable the "Accept" button.
+                    new_mod_stuff.my_mod_new_accept.set_sensitive(true);
+
+                    // We return true in the check.
+                    true
+                }
+            }
+        }
+
+        // If the currently saved path for my mods is invalid, we return false.
+        else {
+            false
+        }
+    }
+
+    // If there is no path at all, it's always invalid.
+    else {
+        false
+    }
 }
 
 /// Main function.
