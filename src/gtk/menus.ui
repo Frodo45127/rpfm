@@ -84,6 +84,11 @@
                         <attribute name="action">app.my-mod-new</attribute>
                     </item>
                 </section>
+
+                <!-- This section is populated programmatically, so left it empty here. -->
+                <section id="my-mod-list">
+                </section>
+
             </submenu>
             <submenu>
                 <attribute name="label" translatable="yes">_Special Stuff</attribute>
