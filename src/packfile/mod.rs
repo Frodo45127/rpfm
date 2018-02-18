@@ -47,7 +47,7 @@ pub fn open_packfile(pack_file_path: PathBuf) -> Result<packfile::PackFile, Erro
     file.read_to_end(&mut pack_file_buffered)?;
 
     // If the file has less than 28 bytes (length of an empty PFH5 PackFile), the file is not valid.
-    if pack_file_buffered.len() <= 28 {
+    if pack_file_buffered.len() < 28 {
         Err(format_err!("The file doesn't even have a full header."))
     }
     else {
