@@ -1815,6 +1815,7 @@ fn build_ui(application: &Application) {
     context_menu_extract_packedfile.connect_activate(clone!(
         success_dialog,
         error_dialog,
+        my_mod_selected,
         pack_file_decoded,
         folder_tree_view,
         folder_tree_selection,
@@ -1835,29 +1836,144 @@ fn build_ui(application: &Application) {
             // FileChooser for files and folders, so we check first what it's.
             match get_type_of_selected_tree_path(&tree_path, &*pack_file_decoded.borrow()) {
                 TreePathType::File(_) => {
-                    file_chooser_extract_file.set_current_name(&tree_path.last().unwrap());
-                    if file_chooser_extract_file.run() == gtk_response_ok {
-                        match packfile::extract_from_packfile(
-                            &*pack_file_decoded.borrow(),
-                            &tree_path,
-                            &file_chooser_extract_file.get_filename().expect("Couldn't open file")) {
-                            Ok(result) => ui::show_dialog(&success_dialog, result),
-                            Err(error) => ui::show_dialog(&error_dialog, error.cause())
+
+                    // If there is a "MyMod" selected, we need to extract whatever we want to extracted
+                    // directly to the mod's assets folder.
+                    if let Some(ref my_mod_selected) = *my_mod_selected.borrow() {
+
+                        // In theory, if we reach this line this should always exist. In theory I should be rich.
+                        if let Some(ref my_mods_base_path) = settings.borrow().paths.my_mods_base_path {
+
+                            // We get his base path (where the PackFile is).
+                            let mut my_mod_base_folder = my_mods_base_path.to_path_buf();
+                            my_mod_base_folder.push(my_mod_selected.0.to_owned());
+
+                            // Now we create the folder structure of the parents of that PackedFile in the
+                            // assets folder, so we have a full structure replicating the PackFile when we
+                            // extract stuff from the PackFile.
+                            let mut extraction_final_folder = my_mod_base_folder;
+                            let mut tree_path = tree_path.to_vec();
+                            let tree_path_len = tree_path.len();
+
+                            for (index, folder) in tree_path.iter_mut().enumerate() {
+
+                                // The PackFile ".pack" extension NEEDS to be removed.
+                                if index == 0 && folder.ends_with(".pack"){
+
+                                    // How to remove the last five characters of a string, lazy way.
+                                    folder.pop();
+                                    folder.pop();
+                                    folder.pop();
+                                    folder.pop();
+                                    folder.pop();
+                                }
+                                extraction_final_folder.push(folder);
+
+                                // The last thing in the path is the new file, so we don't have to
+                                // create a folder for it.
+                                if index < (tree_path_len - 1) {
+                                    DirBuilder::new().create(&extraction_final_folder);
+                                }
+                            }
+
+                            // And finally, we extract our file to the desired destiny.
+                            match packfile::extract_from_packfile(
+                                &*pack_file_decoded.borrow(),
+                                &tree_path,
+                                &extraction_final_folder
+                            ) {
+
+                                Ok(result) => ui::show_dialog(&success_dialog, result),
+                                Err(error) => ui::show_dialog(&error_dialog, error.cause())
+                            }
                         }
                     }
-                    file_chooser_extract_file.hide_on_delete();
+
+
+                    // If there is no "MyMod" selected, extract normally.
+                    else {
+                        file_chooser_extract_file.set_current_name(&tree_path.last().unwrap());
+                        if file_chooser_extract_file.run() == gtk_response_ok {
+                            match packfile::extract_from_packfile(
+                                &*pack_file_decoded.borrow(),
+                                &tree_path,
+                                &file_chooser_extract_file.get_filename().expect("Couldn't open file")
+                            ) {
+
+                                Ok(result) => ui::show_dialog(&success_dialog, result),
+                                Err(error) => ui::show_dialog(&error_dialog, error.cause())
+                            }
+                        }
+                        file_chooser_extract_file.hide_on_delete();
+                    }
                 },
                 TreePathType::Folder(_) => {
-                    if file_chooser_extract_folder.run() == gtk_response_ok {
-                        match packfile::extract_from_packfile(
-                            &*pack_file_decoded.borrow(),
-                            &tree_path,
-                            &file_chooser_extract_folder.get_filename().expect("Couldn't open file")) {
-                            Ok(result) => ui::show_dialog(&success_dialog, result),
-                            Err(error) => ui::show_dialog(&error_dialog, error.cause())
+
+
+                    // If there is a "MyMod" selected, we need to extract whatever we want to extracted
+                    // directly to the mod's assets folder.
+                    if let Some(ref my_mod_selected) = *my_mod_selected.borrow() {
+
+                        // In theory, if we reach this line this should always exist. In theory I should be rich.
+                        if let Some(ref my_mods_base_path) = settings.borrow().paths.my_mods_base_path {
+
+                            // We get his base path (where the PackFile is).
+                            let mut my_mod_base_folder = my_mods_base_path.to_path_buf();
+                            my_mod_base_folder.push(my_mod_selected.0.to_owned());
+
+                            // Now we create the folder structure of the parents of that PackedFile in the
+                            // assets folder, so we have a full structure replicating the PackFile when we
+                            // extract stuff from the PackFile.
+                            let mut extraction_final_folder = my_mod_base_folder;
+                            let mut tree_path_tweaked = tree_path.to_vec();
+
+                            // The last folder is the one the extraction function will create, so we
+                            // remove it from the path.
+                            tree_path_tweaked.pop();
+
+                            for (index, folder) in tree_path_tweaked.iter_mut().enumerate() {
+
+                                // The PackFile ".pack" extension NEEDS to be removed.
+                                if index == 0 && folder.ends_with(".pack"){
+
+                                    // How to remove the last five characters of a string, lazy way.
+                                    folder.pop();
+                                    folder.pop();
+                                    folder.pop();
+                                    folder.pop();
+                                    folder.pop();
+                                }
+                                extraction_final_folder.push(folder);
+                                DirBuilder::new().create(&extraction_final_folder);
+                            }
+
+                            // And finally, we extract our file to the desired destiny.
+                            match packfile::extract_from_packfile(
+                                &*pack_file_decoded.borrow(),
+                                &tree_path,
+                                &extraction_final_folder
+                            ) {
+
+                                Ok(result) => ui::show_dialog(&success_dialog, result),
+                                Err(error) => ui::show_dialog(&error_dialog, error.cause())
+                            }
                         }
                     }
-                    file_chooser_extract_folder.hide_on_delete();
+
+                    // If there is no "MyMod" selected, extract normally.
+                    else {
+                        if file_chooser_extract_folder.run() == gtk_response_ok {
+                            match packfile::extract_from_packfile(
+                                &*pack_file_decoded.borrow(),
+                                &tree_path,
+                                &file_chooser_extract_folder.get_filename().expect("Couldn't open file")) {
+
+                                Ok(result) => ui::show_dialog(&success_dialog, result),
+                                Err(error) => ui::show_dialog(&error_dialog, error.cause())
+                            }
+                        }
+                        file_chooser_extract_folder.hide_on_delete();
+                    }
                 }
                 TreePathType::PackFile => ui::show_dialog(&error_dialog, format!("Extracting an entire PackFile is not implemented. Yet.")),
                 TreePathType::None => ui::show_dialog(&error_dialog, format!("You can't extract non-existent files.")),

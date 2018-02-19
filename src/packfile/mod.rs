@@ -397,9 +397,9 @@ pub fn extract_from_packfile(
 
         TreePathType::Folder(tree_path) => {
             let mut files_to_extract: Vec<packfile::PackedFile> = vec![];
-            for i in &pack_file.pack_file_data.packed_files {
-                if i.packed_file_path.starts_with(&tree_path) {
-                    files_to_extract.push(i.clone());
+            for packed_file in &pack_file.pack_file_data.packed_files {
+                if packed_file.packed_file_path.starts_with(&tree_path) {
+                    files_to_extract.push(packed_file.clone());
                 }
             }
 
