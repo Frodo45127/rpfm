@@ -453,7 +453,59 @@ pub fn extract_from_packfile(
             }
         },
 
-        TreePathType::PackFile => Err(format_err!("I can't think of a situation that causes this error to show up.")),
+        TreePathType::PackFile => {
+
+            // For PackFiles it's like folders, but we just take all the PackedFiles.
+            let mut files_to_extract = pack_file.pack_file_data.packed_files.to_vec();
+            let base_path = extracted_path.clone();
+            let mut current_path = base_path.clone();
+
+            for file_to_extract in &mut files_to_extract {
+                file_to_extract.packed_file_path.drain(..(tree_path.len() - 1));
+
+                for (index, k) in file_to_extract.packed_file_path.iter().enumerate() {
+                    current_path.push(&k);
+
+                    // If the current String is the last one of the tree_path, it's a file, so we
+                    // write it into the disk.
+                    if (index + 1) == file_to_extract.packed_file_path.len() {
+                        match File::create(&current_path) {
+                            Ok(mut extracted_file) => {
+                                let packed_file_encoded: (Vec<u8>, Vec<u8>) = packfile::PackedFile::save(file_to_extract);
+                                match extracted_file.write_all(&packed_file_encoded.1) {
+                                    Ok(_) => files_extracted += 1,
+                                    Err(error) => {
+                                        let error = From::from(error);
+                                        error_list.push(error);
+                                        files_errors += 1;
+                                    }
+                                }
+                            }
+                            Err(error) => {
+                                let error = From::from(error);
+                                error_list.push(error);
+                                files_errors += 1;
+                            },
+                        }
+                    }
+
+                    // If it's a folder, we create it and set is as the new parent. If it already exists,
+                    // it'll throw an error we'll ignore, like good politicians.
+                    else {
+                        match DirBuilder::new().create(&current_path) {
+                            Ok(_) | Err(_) => continue,
+                        }
+                    }
+                }
+                current_path = base_path.clone();
+            }
+            if files_errors > 0 {
+                Err(format_err!("{} errors extracting files:\n {:#?}", files_errors, error_list))
+            }
+            else {
+                Ok(format!("{} files extracted. No errors detected.", files_extracted))
+            }
+        }
         TreePathType::None => Err(format_err!("How the hell did you managed to try to delete a non-existant file?")),
     }
 }

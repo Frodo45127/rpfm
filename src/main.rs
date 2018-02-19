@@ -1499,7 +1499,7 @@ fn build_ui(application: &Application) {
             context_menu_add_folder.set_enabled(true);
             context_menu_add_from_packfile.set_enabled(true);
             context_menu_delete_packedfile.set_enabled(false);
-            context_menu_extract_packedfile.set_enabled(false);
+            context_menu_extract_packedfile.set_enabled(true);
         }
 
         // If this is triggered, the selection is a folder.
@@ -1975,7 +1975,63 @@ fn build_ui(application: &Application) {
                         file_chooser_extract_folder.hide_on_delete();
                     }
                 }
-                TreePathType::PackFile => ui::show_dialog(&error_dialog, format!("Extracting an entire PackFile is not implemented. Yet.")),
+                TreePathType::PackFile => {
+
+                    // If there is a "MyMod" selected, we need to extract whatever we want to extracted
+                    // directly to the mod's assets folder.
+                    if let Some(ref my_mod_selected) = *my_mod_selected.borrow() {
+
+                        // In theory, if we reach this line this should always exist. In theory I should be rich.
+                        if let Some(ref my_mods_base_path) = settings.borrow().paths.my_mods_base_path {
+
+                            // We get his base path (where the PackFile is).
+                            let mut my_mod_base_folder = my_mods_base_path.to_path_buf();
+                            my_mod_base_folder.push(my_mod_selected.0.to_owned());
+
+                            // Now we create the folder structure of the parents of that PackedFile in the
+                            // assets folder, so we have a full structure replicating the PackFile when we
+                            // extract stuff from the PackFile.
+                            let mut extraction_final_folder = my_mod_base_folder;
+                            let mut pack_file_name = tree_path[0].to_owned();
+
+                            // How to remove the last five characters of a string in a Vec<String>, lazy way.
+                            pack_file_name.pop();
+                            pack_file_name.pop();
+                            pack_file_name.pop();
+                            pack_file_name.pop();
+                            pack_file_name.pop();
+
+                            extraction_final_folder.push(pack_file_name);
+                            DirBuilder::new().create(&extraction_final_folder);
+
+                            // And finally, we extract our file to the desired destiny.
+                            match packfile::extract_from_packfile(
+                                &*pack_file_decoded.borrow(),
+                                &tree_path,
+                                &extraction_final_folder
+                            ) {
+
+                                Ok(result) => ui::show_dialog(&success_dialog, result),
+                                Err(error) => ui::show_dialog(&error_dialog, error.cause())
+                            }
+                        }
+                    }
+
+                    // If there is no "MyMod" selected, extract normally.
+                    else {
+                        if file_chooser_extract_folder.run() == gtk_response_ok {
+                            match packfile::extract_from_packfile(
+                                &*pack_file_decoded.borrow(),
+                                &tree_path,
+                                &file_chooser_extract_folder.get_filename().expect("Couldn't open file")) {
+
+                                Ok(result) => ui::show_dialog(&success_dialog, result),
+                                Err(error) => ui::show_dialog(&error_dialog, error.cause())
+                            }
+                        }
+                        file_chooser_extract_folder.hide_on_delete();
+                    }
+                }
                 TreePathType::None => ui::show_dialog(&error_dialog, format!("You can't extract non-existent files.")),
             }
         }
