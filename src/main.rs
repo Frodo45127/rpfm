@@ -1621,7 +1621,7 @@ fn build_ui(application: &Application) {
                                     Err(error) => ui::show_dialog(&error_dialog, error.cause())
                                 }
                                 if success {
-                                    set_modified(false, &window, &mut *pack_file_decoded.borrow_mut());
+                                    set_modified(true, &window, &mut *pack_file_decoded.borrow_mut());
                                     ui::update_tree_view_expand_path(
                                         &folder_tree_store,
                                         &*pack_file_decoded.borrow(),
@@ -1644,7 +1644,7 @@ fn build_ui(application: &Application) {
                                     Err(error) => ui::show_dialog(&error_dialog, error.cause())
                                 }
                                 if success {
-                                    set_modified(false, &window, &mut *pack_file_decoded.borrow_mut());
+                                    set_modified(true, &window, &mut *pack_file_decoded.borrow_mut());
                                     ui::update_tree_view_expand_path(
                                         &folder_tree_store,
                                         &*pack_file_decoded.borrow(),
@@ -1677,7 +1677,7 @@ fn build_ui(application: &Application) {
                             Err(error) => ui::show_dialog(&error_dialog, error.cause())
                         }
                         if success {
-                            set_modified(false, &window, &mut *pack_file_decoded.borrow_mut());
+                            set_modified(true, &window, &mut *pack_file_decoded.borrow_mut());
                             ui::update_tree_view_expand_path(
                                 &folder_tree_store,
                                 &*pack_file_decoded.borrow(),
