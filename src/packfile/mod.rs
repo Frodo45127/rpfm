@@ -41,32 +41,40 @@ pub fn open_packfile(pack_file_path: PathBuf) -> Result<packfile::PackFile, Erro
     // First, we get his name.
     let pack_file_name = pack_file_path.file_name().unwrap().to_str().unwrap().to_string();
 
-    // Then we open it, read it, and store his content in raw format.
-    let mut file = File::open(&pack_file_path)?;
-    let mut pack_file_buffered = vec![];
-    file.read_to_end(&mut pack_file_buffered)?;
+    // If the name doesn't end in ".pack", we don't open it. It works, but it'll break some things
+    // if we allow it.
+    if pack_file_name.ends_with(".pack") {
 
-    // If the file has less than 28 bytes (length of an empty PFH5 PackFile), the file is not valid.
-    if pack_file_buffered.len() < 28 {
-        Err(format_err!("The file doesn't even have a full header."))
+        // Then we open it, read it, and store his content in raw format.
+        let mut file = File::open(&pack_file_path)?;
+        let mut pack_file_buffered = vec![];
+        file.read_to_end(&mut pack_file_buffered)?;
+
+        // If the file has less than 28 bytes (length of an empty PFH5 PackFile), the file is not valid.
+        if pack_file_buffered.len() < 28 {
+            Err(format_err!("The file doesn't even have a full header."))
+        }
+        else {
+            match coding_helpers::decode_string_u8(&pack_file_buffered[0..4]) {
+                Ok(pack_file_id) => {
+
+                    // If the header's first 4 bytes are "PFH5", it's a valid file, so we read it.
+                    if pack_file_id == "PFH5" {
+                        packfile::PackFile::read(&pack_file_buffered, pack_file_name, pack_file_path).map(|result| result)
+                    }
+
+                    // If we reach this point, the file is not valid.
+                    else {
+                        Err(format_err!("The file is not a Warhammer 2 PackFile."))
+                    }
+                }
+                // If we reach this point, there has been a decoding error.
+                Err(error) => Err(error),
+            }
+        }
     }
     else {
-        match coding_helpers::decode_string_u8(&pack_file_buffered[0..4]) {
-            Ok(pack_file_id) => {
-
-                // If the header's first 4 bytes are "PFH5", it's a valid file, so we read it.
-                if pack_file_id == "PFH5" {
-                    packfile::PackFile::read(&pack_file_buffered, pack_file_name, pack_file_path).map(|result| result)
-                }
-
-                // If we reach this point, the file is not valid.
-                else {
-                    Err(format_err!("The file is not a Warhammer 2 PackFile."))
-                }
-            }
-            // If we reach this point, there has been a decoding error.
-            Err(error) => Err(error),
-        }
+        Err(format_err!("A valid PackFile name needs to end in \".pack\". Otherwise, RPFM will not open it."))
     }
 }
 
