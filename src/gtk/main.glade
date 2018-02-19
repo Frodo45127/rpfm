@@ -883,7 +883,7 @@
     <property name="buttons">ok-cancel</property>
     <property name="text" translatable="yes">There are some changes yet to save.</property>
     <property name="use_markup">True</property>
-    <property name="secondary_text" translatable="yes">Are you sure you want to exit?</property>
+    <property name="secondary_text" translatable="yes">Are you sure?</property>
     <child internal-child="vbox">
       <object class="GtkBox">
         <property name="can_focus">False</property>

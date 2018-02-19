@@ -376,6 +376,7 @@ fn build_ui(application: &Application) {
                                         my_mod_selected,
                                         game_folder_name,
                                         error_dialog,
+                                        unsaved_dialog,
                                         pack_file_decoded,
                                         folder_tree_store,
                                         menu_bar_save_packfile,
@@ -384,38 +385,52 @@ fn build_ui(application: &Application) {
                                         menu_bar_patch_siege_ai,
                                         menu_bar_my_mod_install,
                                         menu_bar_my_mod_uninstall => move |_,_| {
-                                        let pack_file_path = game_folder_file.to_path_buf();
-                                        match packfile::open_packfile(pack_file_path) {
-                                            Ok(pack_file_opened) => {
-                                                *pack_file_decoded.borrow_mut() = pack_file_opened;
-                                                ui::update_tree_view(&folder_tree_store, &*pack_file_decoded.borrow());
-                                                set_modified(false, &window, &mut *pack_file_decoded.borrow_mut());
-
-                                                // Enable the selected mod.
-                                                *my_mod_selected.borrow_mut() = Some((game_folder_name.to_owned(), mod_name.to_owned()));
-
-                                                // We choose the right option, depending on our PackFile.
-                                                match pack_file_decoded.borrow().pack_file_header.pack_file_type {
-                                                    0 => menu_bar_change_packfile_type.change_state(&"boot".to_variant()),
-                                                    1 => menu_bar_change_packfile_type.change_state(&"release".to_variant()),
-                                                    2 => menu_bar_change_packfile_type.change_state(&"patch".to_variant()),
-                                                    3 => menu_bar_change_packfile_type.change_state(&"mod".to_variant()),
-                                                    4 => menu_bar_change_packfile_type.change_state(&"movie".to_variant()),
-                                                    _ => ui::show_dialog(&error_dialog, format_err!("PackFile Type not valid.")),
+                                            // If the current PackFile has been changed in any way, we pop up the "Are you sure?" message.
+                                            let lets_do_it = if pack_file_decoded.borrow().pack_file_extra_data.is_modified {
+                                                if unsaved_dialog.run() == gtk_response_ok {
+                                                    unsaved_dialog.hide_on_delete();
+                                                    true
+                                                } else {
+                                                    unsaved_dialog.hide_on_delete();
+                                                    false
                                                 }
+                                            } else { true };
 
-                                                menu_bar_save_packfile.set_enabled(true);
-                                                menu_bar_save_packfile_as.set_enabled(true);
-                                                menu_bar_change_packfile_type.set_enabled(true);
-                                                menu_bar_patch_siege_ai.set_enabled(true);
+                                            // If we got confirmation...
+                                            if lets_do_it {
+                                                let pack_file_path = game_folder_file.to_path_buf();
+                                                match packfile::open_packfile(pack_file_path) {
+                                                    Ok(pack_file_opened) => {
+                                                        *pack_file_decoded.borrow_mut() = pack_file_opened;
+                                                        ui::update_tree_view(&folder_tree_store, &*pack_file_decoded.borrow());
+                                                        set_modified(false, &window, &mut *pack_file_decoded.borrow_mut());
 
-                                                // Enable the controls for "MyMod".
-                                                menu_bar_my_mod_install.set_enabled(true);
-                                                menu_bar_my_mod_uninstall.set_enabled(true);
+                                                        // Enable the selected mod.
+                                                        *my_mod_selected.borrow_mut() = Some((game_folder_name.to_owned(), mod_name.to_owned()));
 
+                                                        // We choose the right option, depending on our PackFile.
+                                                        match pack_file_decoded.borrow().pack_file_header.pack_file_type {
+                                                            0 => menu_bar_change_packfile_type.change_state(&"boot".to_variant()),
+                                                            1 => menu_bar_change_packfile_type.change_state(&"release".to_variant()),
+                                                            2 => menu_bar_change_packfile_type.change_state(&"patch".to_variant()),
+                                                            3 => menu_bar_change_packfile_type.change_state(&"mod".to_variant()),
+                                                            4 => menu_bar_change_packfile_type.change_state(&"movie".to_variant()),
+                                                            _ => ui::show_dialog(&error_dialog, format_err!("PackFile Type not valid.")),
+                                                        }
+
+                                                        menu_bar_save_packfile.set_enabled(true);
+                                                        menu_bar_save_packfile_as.set_enabled(true);
+                                                        menu_bar_change_packfile_type.set_enabled(true);
+                                                        menu_bar_patch_siege_ai.set_enabled(true);
+
+                                                        // Enable the controls for "MyMod".
+                                                        menu_bar_my_mod_install.set_enabled(true);
+                                                        menu_bar_my_mod_uninstall.set_enabled(true);
+
+                                                    }
+                                                    Err(error) => ui::show_dialog(&error_dialog, error.cause()),
+                                                }
                                             }
-                                            Err(error) => ui::show_dialog(&error_dialog, error.cause()),
-                                        }
                                     }));
 
                                     valid_mod_index += 1;
@@ -490,6 +505,7 @@ fn build_ui(application: &Application) {
     menu_bar_new_packfile.connect_activate(clone!(
         window,
         my_mod_selected,
+        unsaved_dialog,
         pack_file_decoded,
         folder_tree_store,
         menu_bar_save_packfile,
@@ -499,23 +515,38 @@ fn build_ui(application: &Application) {
         menu_bar_my_mod_install,
         menu_bar_my_mod_uninstall => move |_,_| {
 
-        // We just create a new PackFile with a name, set his type to Mod and update the
-        // TreeView to show it.
-        *pack_file_decoded.borrow_mut() = packfile::new_packfile("unknown.pack".to_string());
-        ui::update_tree_view(&folder_tree_store, &*pack_file_decoded.borrow());
-        set_modified(false, &window, &mut *pack_file_decoded.borrow_mut());
+            // If the current PackFile has been changed in any way, we pop up the "Are you sure?" message.
+            let lets_do_it = if pack_file_decoded.borrow().pack_file_extra_data.is_modified {
+                if unsaved_dialog.run() == gtk_response_ok {
+                    unsaved_dialog.hide_on_delete();
+                    true
+                } else {
+                    unsaved_dialog.hide_on_delete();
+                    false
+                }
+            } else { true };
 
-        // Disable selected mod, if we are using it.
-        *my_mod_selected.borrow_mut() = None;
+            // If we got confirmation...
+            if lets_do_it {
 
-        menu_bar_save_packfile.set_enabled(true);
-        menu_bar_save_packfile_as.set_enabled(true);
-        menu_bar_change_packfile_type.set_enabled(true);
-        menu_bar_patch_siege_ai.set_enabled(true);
+                // We just create a new PackFile with a name, set his type to Mod and update the
+                // TreeView to show it.
+                *pack_file_decoded.borrow_mut() = packfile::new_packfile("unknown.pack".to_string());
+                ui::update_tree_view(&folder_tree_store, &*pack_file_decoded.borrow());
+                set_modified(false, &window, &mut *pack_file_decoded.borrow_mut());
 
-        // Disable the controls for "MyMod".
-        menu_bar_my_mod_install.set_enabled(false);
-        menu_bar_my_mod_uninstall.set_enabled(false);
+                // Disable selected mod, if we are using it.
+                *my_mod_selected.borrow_mut() = None;
+
+                menu_bar_save_packfile.set_enabled(true);
+                menu_bar_save_packfile_as.set_enabled(true);
+                menu_bar_change_packfile_type.set_enabled(true);
+                menu_bar_patch_siege_ai.set_enabled(true);
+
+                // Disable the controls for "MyMod".
+                menu_bar_my_mod_install.set_enabled(false);
+                menu_bar_my_mod_uninstall.set_enabled(false);
+            }
     }));
 
 
@@ -525,6 +556,7 @@ fn build_ui(application: &Application) {
         window,
         my_mod_selected,
         error_dialog,
+        unsaved_dialog,
         pack_file_decoded,
         folder_tree_store,
         menu_bar_save_packfile,
@@ -534,48 +566,63 @@ fn build_ui(application: &Application) {
         menu_bar_my_mod_install,
         menu_bar_my_mod_uninstall => move |_,_| {
 
-        // In case we have a default path for the game selected, we use it as base path for opening files.
-        if let Some(ref path) = game_selected.game_path {
-            file_chooser_open_packfile_dialog.set_current_folder(&path);
-        }
-
-        // When we select the file to open, we get his path, open it and, if there has been no
-        // errors, decode it, update the TreeView to show it and check his type for the Change PackFile
-        // Type option in the File menu.
-        if file_chooser_open_packfile_dialog.run() == gtk_response_ok {
-            let pack_file_path = file_chooser_open_packfile_dialog.get_filename().expect("Couldn't open file");
-            match packfile::open_packfile(pack_file_path) {
-                Ok(pack_file_opened) => {
-                    *pack_file_decoded.borrow_mut() = pack_file_opened;
-                    ui::update_tree_view(&folder_tree_store, &*pack_file_decoded.borrow());
-                    set_modified(false, &window, &mut *pack_file_decoded.borrow_mut());
-
-                    // Disable selected mod, if we are using it.
-                    *my_mod_selected.borrow_mut() = None;
-
-                    // We choose the right option, depending on our PackFile.
-                    match pack_file_decoded.borrow().pack_file_header.pack_file_type {
-                        0 => menu_bar_change_packfile_type.change_state(&"boot".to_variant()),
-                        1 => menu_bar_change_packfile_type.change_state(&"release".to_variant()),
-                        2 => menu_bar_change_packfile_type.change_state(&"patch".to_variant()),
-                        3 => menu_bar_change_packfile_type.change_state(&"mod".to_variant()),
-                        4 => menu_bar_change_packfile_type.change_state(&"movie".to_variant()),
-                        _ => ui::show_dialog(&error_dialog, format_err!("PackFile Type not valid.")),
-                    }
-
-                    menu_bar_save_packfile.set_enabled(true);
-                    menu_bar_save_packfile_as.set_enabled(true);
-                    menu_bar_change_packfile_type.set_enabled(true);
-                    menu_bar_patch_siege_ai.set_enabled(true);
-
-                    // Disable the controls for "MyMod".
-                    menu_bar_my_mod_install.set_enabled(false);
-                    menu_bar_my_mod_uninstall.set_enabled(false);
+            // If the current PackFile has been changed in any way, we pop up the "Are you sure?" message.
+            let lets_do_it = if pack_file_decoded.borrow().pack_file_extra_data.is_modified {
+                if unsaved_dialog.run() == gtk_response_ok {
+                    unsaved_dialog.hide_on_delete();
+                    true
+                } else {
+                    unsaved_dialog.hide_on_delete();
+                    false
                 }
-                Err(error) => ui::show_dialog(&error_dialog, error.cause()),
+            } else { true };
+
+            // If we got confirmation...
+            if lets_do_it {
+
+                // In case we have a default path for the game selected, we use it as base path for opening files.
+                if let Some(ref path) = game_selected.game_path {
+                    file_chooser_open_packfile_dialog.set_current_folder(&path);
+                }
+
+                // When we select the file to open, we get his path, open it and, if there has been no
+                // errors, decode it, update the TreeView to show it and check his type for the Change PackFile
+                // Type option in the File menu.
+                if file_chooser_open_packfile_dialog.run() == gtk_response_ok {
+                    let pack_file_path = file_chooser_open_packfile_dialog.get_filename().expect("Couldn't open file");
+                    match packfile::open_packfile(pack_file_path) {
+                        Ok(pack_file_opened) => {
+                            *pack_file_decoded.borrow_mut() = pack_file_opened;
+                            ui::update_tree_view(&folder_tree_store, &*pack_file_decoded.borrow());
+                            set_modified(false, &window, &mut *pack_file_decoded.borrow_mut());
+
+                            // Disable selected mod, if we are using it.
+                            *my_mod_selected.borrow_mut() = None;
+
+                            // We choose the right option, depending on our PackFile.
+                            match pack_file_decoded.borrow().pack_file_header.pack_file_type {
+                                0 => menu_bar_change_packfile_type.change_state(&"boot".to_variant()),
+                                1 => menu_bar_change_packfile_type.change_state(&"release".to_variant()),
+                                2 => menu_bar_change_packfile_type.change_state(&"patch".to_variant()),
+                                3 => menu_bar_change_packfile_type.change_state(&"mod".to_variant()),
+                                4 => menu_bar_change_packfile_type.change_state(&"movie".to_variant()),
+                                _ => ui::show_dialog(&error_dialog, format_err!("PackFile Type not valid.")),
+                            }
+
+                            menu_bar_save_packfile.set_enabled(true);
+                            menu_bar_save_packfile_as.set_enabled(true);
+                            menu_bar_change_packfile_type.set_enabled(true);
+                            menu_bar_patch_siege_ai.set_enabled(true);
+
+                            // Disable the controls for "MyMod".
+                            menu_bar_my_mod_install.set_enabled(false);
+                            menu_bar_my_mod_uninstall.set_enabled(false);
+                        }
+                        Err(error) => ui::show_dialog(&error_dialog, error.cause()),
+                    }
+                }
+                file_chooser_open_packfile_dialog.hide_on_delete();
             }
-        }
-        file_chooser_open_packfile_dialog.hide_on_delete();
     }));
 
 
@@ -753,6 +800,7 @@ fn build_ui(application: &Application) {
         error_dialog,
         window,
         my_mod_list,
+        unsaved_dialog,
         pack_file_decoded,
         folder_tree_store,
         menu_bar_save_packfile,
@@ -819,6 +867,7 @@ fn build_ui(application: &Application) {
             pack_file_decoded,
             error_dialog,
             window,
+            unsaved_dialog,
             my_mod_list,
             folder_tree_store,
             menu_bar_save_packfile,
@@ -914,6 +963,7 @@ fn build_ui(application: &Application) {
                                                 my_mod_selected,
                                                 game_folder_name,
                                                 error_dialog,
+                                                unsaved_dialog,
                                                 pack_file_decoded,
                                                 folder_tree_store,
                                                 menu_bar_save_packfile,
@@ -922,37 +972,52 @@ fn build_ui(application: &Application) {
                                                 menu_bar_patch_siege_ai,
                                                 menu_bar_my_mod_install,
                                                 menu_bar_my_mod_uninstall => move |_,_| {
-                                                let pack_file_path = game_folder_file.to_path_buf();
-                                                match packfile::open_packfile(pack_file_path) {
-                                                    Ok(pack_file_opened) => {
-                                                        *pack_file_decoded.borrow_mut() = pack_file_opened;
-                                                        ui::update_tree_view(&folder_tree_store, &*pack_file_decoded.borrow());
-                                                        set_modified(false, &window, &mut *pack_file_decoded.borrow_mut());
-
-                                                        // Enable the selected mod.
-                                                        *my_mod_selected.borrow_mut() = Some((game_folder_name.to_owned(), mod_name.to_owned()));
-
-                                                        // We choose the right option, depending on our PackFile.
-                                                        match pack_file_decoded.borrow().pack_file_header.pack_file_type {
-                                                            0 => menu_bar_change_packfile_type.change_state(&"boot".to_variant()),
-                                                            1 => menu_bar_change_packfile_type.change_state(&"release".to_variant()),
-                                                            2 => menu_bar_change_packfile_type.change_state(&"patch".to_variant()),
-                                                            3 => menu_bar_change_packfile_type.change_state(&"mod".to_variant()),
-                                                            4 => menu_bar_change_packfile_type.change_state(&"movie".to_variant()),
-                                                            _ => ui::show_dialog(&error_dialog, format_err!("PackFile Type not valid.")),
+                                                    // If the current PackFile has been changed in any way, we pop up the "Are you sure?" message.
+                                                    let lets_do_it = if pack_file_decoded.borrow().pack_file_extra_data.is_modified {
+                                                        if unsaved_dialog.run() == gtk_response_ok {
+                                                            unsaved_dialog.hide_on_delete();
+                                                            true
+                                                        } else {
+                                                            unsaved_dialog.hide_on_delete();
+                                                            false
                                                         }
+                                                    } else { true };
 
-                                                        menu_bar_save_packfile.set_enabled(true);
-                                                        menu_bar_save_packfile_as.set_enabled(true);
-                                                        menu_bar_change_packfile_type.set_enabled(true);
-                                                        menu_bar_patch_siege_ai.set_enabled(true);
+                                                    // If we got confirmation...
+                                                    if lets_do_it {
+                                                        let pack_file_path = game_folder_file.to_path_buf();
+                                                        match packfile::open_packfile(pack_file_path) {
+                                                            Ok(pack_file_opened) => {
+                                                                *pack_file_decoded.borrow_mut() = pack_file_opened;
+                                                                ui::update_tree_view(&folder_tree_store, &*pack_file_decoded.borrow());
+                                                                set_modified(false, &window, &mut *pack_file_decoded.borrow_mut());
 
-                                                        // Enable the controls for "MyMod".
-                                                        menu_bar_my_mod_install.set_enabled(true);
-                                                        menu_bar_my_mod_uninstall.set_enabled(true);
+                                                                // Enable the selected mod.
+                                                                *my_mod_selected.borrow_mut() = Some((game_folder_name.to_owned(), mod_name.to_owned()));
+
+                                                                // We choose the right option, depending on our PackFile.
+                                                                match pack_file_decoded.borrow().pack_file_header.pack_file_type {
+                                                                    0 => menu_bar_change_packfile_type.change_state(&"boot".to_variant()),
+                                                                    1 => menu_bar_change_packfile_type.change_state(&"release".to_variant()),
+                                                                    2 => menu_bar_change_packfile_type.change_state(&"patch".to_variant()),
+                                                                    3 => menu_bar_change_packfile_type.change_state(&"mod".to_variant()),
+                                                                    4 => menu_bar_change_packfile_type.change_state(&"movie".to_variant()),
+                                                                    _ => ui::show_dialog(&error_dialog, format_err!("PackFile Type not valid.")),
+                                                                }
+
+                                                                menu_bar_save_packfile.set_enabled(true);
+                                                                menu_bar_save_packfile_as.set_enabled(true);
+                                                                menu_bar_change_packfile_type.set_enabled(true);
+                                                                menu_bar_patch_siege_ai.set_enabled(true);
+
+                                                                // Enable the controls for "MyMod".
+                                                                menu_bar_my_mod_install.set_enabled(true);
+                                                                menu_bar_my_mod_uninstall.set_enabled(true);
+
+                                                            }
+                                                            Err(error) => ui::show_dialog(&error_dialog, error.cause()),
+                                                        }
                                                     }
-                                                    Err(error) => ui::show_dialog(&error_dialog, error.cause()),
-                                                }
                                             }));
 
                                             valid_mod_index += 1;
@@ -1028,6 +1093,7 @@ fn build_ui(application: &Application) {
         application,
         window,
         my_mod_selected,
+        unsaved_dialog,
         error_dialog,
         pack_file_decoded,
         folder_tree_store,
@@ -1064,6 +1130,7 @@ fn build_ui(application: &Application) {
             application,
             menu_bar_my_mod_new,
             settings,
+            unsaved_dialog,
             window,
             my_mod_selected,
             my_mod_list,
@@ -1203,6 +1270,7 @@ fn build_ui(application: &Application) {
                                                         window,
                                                         my_mod_selected,
                                                         game_folder_name,
+                                                        unsaved_dialog,
                                                         error_dialog,
                                                         pack_file_decoded,
                                                         folder_tree_store,
@@ -1212,37 +1280,53 @@ fn build_ui(application: &Application) {
                                                         menu_bar_patch_siege_ai,
                                                         menu_bar_my_mod_install,
                                                         menu_bar_my_mod_uninstall => move |_,_| {
-                                                        let pack_file_path = game_folder_file.to_path_buf();
-                                                        match packfile::open_packfile(pack_file_path) {
-                                                            Ok(pack_file_opened) => {
-                                                                *pack_file_decoded.borrow_mut() = pack_file_opened;
-                                                                ui::update_tree_view(&folder_tree_store, &*pack_file_decoded.borrow());
-                                                                set_modified(false, &window, &mut *pack_file_decoded.borrow_mut());
 
-                                                                // Enable the selected mod.
-                                                                *my_mod_selected.borrow_mut() = Some((game_folder_name.to_owned(), mod_name.to_owned()));
-
-                                                                // We choose the right option, depending on our PackFile.
-                                                                match pack_file_decoded.borrow().pack_file_header.pack_file_type {
-                                                                    0 => menu_bar_change_packfile_type.change_state(&"boot".to_variant()),
-                                                                    1 => menu_bar_change_packfile_type.change_state(&"release".to_variant()),
-                                                                    2 => menu_bar_change_packfile_type.change_state(&"patch".to_variant()),
-                                                                    3 => menu_bar_change_packfile_type.change_state(&"mod".to_variant()),
-                                                                    4 => menu_bar_change_packfile_type.change_state(&"movie".to_variant()),
-                                                                    _ => ui::show_dialog(&error_dialog, format_err!("PackFile Type not valid.")),
+                                                            // If the current PackFile has been changed in any way, we pop up the "Are you sure?" message.
+                                                            let lets_do_it = if pack_file_decoded.borrow().pack_file_extra_data.is_modified {
+                                                                if unsaved_dialog.run() == gtk_response_ok {
+                                                                    unsaved_dialog.hide_on_delete();
+                                                                    true
+                                                                } else {
+                                                                    unsaved_dialog.hide_on_delete();
+                                                                    false
                                                                 }
+                                                            } else { true };
 
-                                                                menu_bar_save_packfile.set_enabled(true);
-                                                                menu_bar_save_packfile_as.set_enabled(true);
-                                                                menu_bar_change_packfile_type.set_enabled(true);
-                                                                menu_bar_patch_siege_ai.set_enabled(true);
+                                                            // If we got confirmation...
+                                                            if lets_do_it {
+                                                                let pack_file_path = game_folder_file.to_path_buf();
+                                                                match packfile::open_packfile(pack_file_path) {
+                                                                    Ok(pack_file_opened) => {
+                                                                        *pack_file_decoded.borrow_mut() = pack_file_opened;
+                                                                        ui::update_tree_view(&folder_tree_store, &*pack_file_decoded.borrow());
+                                                                        set_modified(false, &window, &mut *pack_file_decoded.borrow_mut());
 
-                                                                // Enable the controls for "MyMod".
-                                                                menu_bar_my_mod_install.set_enabled(true);
-                                                                menu_bar_my_mod_uninstall.set_enabled(true);
+                                                                        // Enable the selected mod.
+                                                                        *my_mod_selected.borrow_mut() = Some((game_folder_name.to_owned(), mod_name.to_owned()));
+
+                                                                        // We choose the right option, depending on our PackFile.
+                                                                        match pack_file_decoded.borrow().pack_file_header.pack_file_type {
+                                                                            0 => menu_bar_change_packfile_type.change_state(&"boot".to_variant()),
+                                                                            1 => menu_bar_change_packfile_type.change_state(&"release".to_variant()),
+                                                                            2 => menu_bar_change_packfile_type.change_state(&"patch".to_variant()),
+                                                                            3 => menu_bar_change_packfile_type.change_state(&"mod".to_variant()),
+                                                                            4 => menu_bar_change_packfile_type.change_state(&"movie".to_variant()),
+                                                                            _ => ui::show_dialog(&error_dialog, format_err!("PackFile Type not valid.")),
+                                                                        }
+
+                                                                        menu_bar_save_packfile.set_enabled(true);
+                                                                        menu_bar_save_packfile_as.set_enabled(true);
+                                                                        menu_bar_change_packfile_type.set_enabled(true);
+                                                                        menu_bar_patch_siege_ai.set_enabled(true);
+
+                                                                        // Enable the controls for "MyMod".
+                                                                        menu_bar_my_mod_install.set_enabled(true);
+                                                                        menu_bar_my_mod_uninstall.set_enabled(true);
+
+                                                                    }
+                                                                    Err(error) => ui::show_dialog(&error_dialog, error.cause()),
+                                                                }
                                                             }
-                                                            Err(error) => ui::show_dialog(&error_dialog, error.cause()),
-                                                        }
                                                     }));
 
                                                     valid_mod_index += 1;
@@ -4183,44 +4267,69 @@ fn build_ui(application: &Application) {
         error_dialog,
         pack_file_decoded,
         folder_tree_store,
+        my_mod_selected,
         menu_bar_save_packfile,
         menu_bar_save_packfile_as,
         menu_bar_change_packfile_type,
-        menu_bar_patch_siege_ai => move |_, _, _, _, selection_data, info, _| {
-        match info {
-            0 => {
-                let pack_file_path: PathBuf = if cfg!(target_os = "linux") {
-                    PathBuf::from(selection_data.get_uris()[0].replace("file:///", "/").replace("%20", " "))
+        menu_bar_patch_siege_ai,
+        menu_bar_my_mod_install,
+        menu_bar_my_mod_uninstall => move |_, _, _, _, selection_data, info, _| {
+
+            // If the current PackFile has been changed in any way, we pop up the "Are you sure?" message.
+            let lets_do_it = if pack_file_decoded.borrow().pack_file_extra_data.is_modified {
+                if unsaved_dialog.run() == gtk_response_ok {
+                    unsaved_dialog.hide_on_delete();
+                    true
                 } else {
-                    PathBuf::from(selection_data.get_uris()[0].replace("file:///", "").replace("%20", " "))
-                };
-                match packfile::open_packfile(pack_file_path) {
-                    Ok(pack_file_opened) => {
+                    unsaved_dialog.hide_on_delete();
+                    false
+                }
+            } else { true };
 
-                        *pack_file_decoded.borrow_mut() = pack_file_opened;
-                        ui::update_tree_view(&folder_tree_store, &*pack_file_decoded.borrow());
-                        set_modified(false, &window, &mut *pack_file_decoded.borrow_mut());
+            // If we got confirmation...
+            if lets_do_it {
+                match info {
+                    0 => {
+                        let pack_file_path: PathBuf = if cfg!(target_os = "linux") {
+                            PathBuf::from(selection_data.get_uris()[0].replace("file:///", "/").replace("%20", " "))
+                        } else {
+                            PathBuf::from(selection_data.get_uris()[0].replace("file:///", "").replace("%20", " "))
+                        };
+                        match packfile::open_packfile(pack_file_path) {
+                            Ok(pack_file_opened) => {
 
-                        // We choose the right option, depending on our PackFile.
-                        match pack_file_decoded.borrow().pack_file_header.pack_file_type {
-                            0 => menu_bar_change_packfile_type.change_state(&"boot".to_variant()),
-                            1 => menu_bar_change_packfile_type.change_state(&"release".to_variant()),
-                            2 => menu_bar_change_packfile_type.change_state(&"patch".to_variant()),
-                            3 => menu_bar_change_packfile_type.change_state(&"mod".to_variant()),
-                            4 => menu_bar_change_packfile_type.change_state(&"movie".to_variant()),
-                            _ => ui::show_dialog(&error_dialog, format_err!("PackFile Type not valid.")),
+                                *pack_file_decoded.borrow_mut() = pack_file_opened;
+                                ui::update_tree_view(&folder_tree_store, &*pack_file_decoded.borrow());
+                                set_modified(false, &window, &mut *pack_file_decoded.borrow_mut());
+
+                                // Disable selected mod, if we are using it.
+                                *my_mod_selected.borrow_mut() = None;
+
+                                // We choose the right option, depending on our PackFile.
+                                match pack_file_decoded.borrow().pack_file_header.pack_file_type {
+                                    0 => menu_bar_change_packfile_type.change_state(&"boot".to_variant()),
+                                    1 => menu_bar_change_packfile_type.change_state(&"release".to_variant()),
+                                    2 => menu_bar_change_packfile_type.change_state(&"patch".to_variant()),
+                                    3 => menu_bar_change_packfile_type.change_state(&"mod".to_variant()),
+                                    4 => menu_bar_change_packfile_type.change_state(&"movie".to_variant()),
+                                    _ => ui::show_dialog(&error_dialog, format_err!("PackFile Type not valid.")),
+                                }
+
+                                menu_bar_save_packfile.set_enabled(true);
+                                menu_bar_save_packfile_as.set_enabled(true);
+                                menu_bar_change_packfile_type.set_enabled(true);
+                                menu_bar_patch_siege_ai.set_enabled(true);
+
+                                // Disable the controls for "MyMod".
+                                menu_bar_my_mod_install.set_enabled(false);
+                                menu_bar_my_mod_uninstall.set_enabled(false);
+                            }
+                            Err(error) => ui::show_dialog(&error_dialog, error.cause()),
                         }
-
-                        menu_bar_save_packfile.set_enabled(true);
-                        menu_bar_save_packfile_as.set_enabled(true);
-                        menu_bar_change_packfile_type.set_enabled(true);
-                        menu_bar_patch_siege_ai.set_enabled(true);
                     }
-                    Err(error) => ui::show_dialog(&error_dialog, error.cause()),
+                    _ => ui::show_dialog(&error_dialog, format!("This type of event is not yet used.")),
                 }
             }
-            _ => ui::show_dialog(&error_dialog, format!("This type of event is not yet used.")),
-        }
     }));
 }
 
