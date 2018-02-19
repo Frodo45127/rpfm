@@ -1344,7 +1344,16 @@ fn build_ui(application: &Application) {
                             return ui::show_dialog(&error_dialog, error.cause());
                         }
                     }
+                    else {
+                        return ui::show_dialog(&error_dialog, format_err!("Game folder path not configured."));
+                    }
                 }
+                else {
+                    return ui::show_dialog(&error_dialog, format_err!("MyMod base path not configured."));
+                }
+            }
+            else {
+                return ui::show_dialog(&error_dialog, format_err!("MyMod not selected."));
             }
         }
     ));
@@ -1387,6 +1396,12 @@ fn build_ui(application: &Application) {
                         }
                     }
                 }
+                else {
+                    return ui::show_dialog(&error_dialog, format_err!("Game folder path not configured."));
+                }
+            }
+            else {
+                return ui::show_dialog(&error_dialog, format_err!("MyMod not selected."));
             }
         }
     ));
@@ -1622,7 +1637,6 @@ fn build_ui(application: &Application) {
 
                                 // Get his usual tree_path.
                                 let tree_path = ui::get_tree_path_from_pathbuf(path, &folder_tree_selection, true);
-                                println!("{:?}", tree_path);
 
                                 let mut success = false;
                                 match packfile::add_file_to_packfile(&mut *pack_file_decoded.borrow_mut(), path, tree_path) {
@@ -2009,8 +2023,10 @@ fn build_ui(application: &Application) {
                                 Err(error) => ui::show_dialog(&error_dialog, error.cause())
                             }
                         }
+                        else {
+                            return ui::show_dialog(&error_dialog, format_err!("MyMod base path not configured."));
+                        }
                     }
-
 
                     // If there is no "MyMod" selected, extract normally.
                     else {
@@ -2080,6 +2096,9 @@ fn build_ui(application: &Application) {
                                 Err(error) => ui::show_dialog(&error_dialog, error.cause())
                             }
                         }
+                        else {
+                            return ui::show_dialog(&error_dialog, format_err!("MyMod base path not configured."));
+                        }
                     }
 
                     // If there is no "MyMod" selected, extract normally.
@@ -2136,6 +2155,9 @@ fn build_ui(application: &Application) {
                                 Ok(result) => ui::show_dialog(&success_dialog, result),
                                 Err(error) => ui::show_dialog(&error_dialog, error.cause())
                             }
+                        }
+                        else {
+                            return ui::show_dialog(&error_dialog, format_err!("MyMod base path not configured."));
                         }
                     }
 
