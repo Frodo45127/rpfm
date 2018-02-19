@@ -288,7 +288,7 @@ fn build_ui(application: &Application) {
     }
 
     // With this var we know if there is a "My mod" selected, so we can change how RPFM behaves.
-    // This is a tuple with (my_mod_folder_name, my_mod_name).
+    // This is a tuple with (my_mod_folder_name, my_mod_name), being y_mod_name mod.pack.
     let my_mod_selected: Rc<RefCell<Option<(String, String)>>> = Rc::new(RefCell::new(None));;
 
     // We load the settings here, and in case they doesn't exist, we create them.
@@ -1121,7 +1121,7 @@ fn build_ui(application: &Application) {
                 DirBuilder::new().create(&extracted_files_path);
 
                 // Add the PackFile name to the full path.
-                my_mod_path.push(full_mod_name);
+                my_mod_path.push(full_mod_name.to_owned());
 
                 // Then we save it.
                 if let Err(error) = packfile::save_packfile(&mut pack_file_decoded.borrow_mut(), Some(my_mod_path)) {
@@ -1132,7 +1132,7 @@ fn build_ui(application: &Application) {
                 else {
 
                     // Mark it as "selected"
-                    *my_mod_selected.borrow_mut() = Some((selected_game_folder.to_owned(), mod_name));
+                    *my_mod_selected.borrow_mut() = Some((selected_game_folder.to_owned(), full_mod_name));
 
                     // Enable the controls for "MyMod".
                     menu_bar_my_mod_install.set_enabled(true);
