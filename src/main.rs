@@ -1515,7 +1515,9 @@ fn build_ui(application: &Application) {
     // When we hit the "Add file" button.
     context_menu_add_file.connect_activate(clone!(
         window,
+        settings,
         error_dialog,
+        my_mod_selected,
         pack_file_decoded,
         folder_tree_view,
         folder_tree_store,
@@ -1530,30 +1532,150 @@ fn build_ui(application: &Application) {
         // We only do something in case the focus is in the TreeView. This should stop problems with
         // the accels working everywhere.
         if folder_tree_view.has_focus() {
-            if file_chooser_add_file_to_packfile.run() == gtk_response_ok {
 
-                let paths = file_chooser_add_file_to_packfile.get_filenames();
-                for path in &paths {
+            // If there is a "MyMod" selected, we need to add whatever we want to add
+            // directly to the mod's assets folder.
+            if let Some(ref my_mod_selected) = *my_mod_selected.borrow() {
 
-                    let tree_path = ui::get_tree_path_from_pathbuf(path, &folder_tree_selection, true);
-                    let mut success = false;
-                    match packfile::add_file_to_packfile(&mut *pack_file_decoded.borrow_mut(), path, tree_path) {
-                        Ok(_) => success = true,
-                        Err(error) => ui::show_dialog(&error_dialog, error.cause())
+                // In theory, if we reach this line this should always exist. In theory I should be rich.
+                if let Some(ref my_mods_base_path) = settings.borrow().paths.my_mods_base_path {
+
+                    // Get the game_path for the mod.
+                    let game_path = match &*my_mod_selected.0 {
+                        "warhammer_2" => settings.borrow().paths.warhammer_2.clone(),
+                        "warhammer" => settings.borrow().paths.warhammer.clone(),
+                        "attila" => settings.borrow().paths.attila.clone(),
+                        "rome_2" => settings.borrow().paths.rome_2.clone(),
+                        _ => Some(PathBuf::from("error")),
+                    };
+
+                    // We get his original path.
+                    let mut my_mod_path = my_mods_base_path.to_path_buf();
+                    my_mod_path.push(my_mod_selected.0.to_owned());
+
+                    // We need his folder, not his PackFile name.
+                    let mut folder_name = my_mod_selected.1.to_owned();
+                    folder_name.pop();
+                    folder_name.pop();
+                    folder_name.pop();
+                    folder_name.pop();
+                    folder_name.pop();
+                    my_mod_path.push(folder_name);
+
+                    // We check that path exists, and create it if it doesn't.
+                    if !my_mod_path.is_dir() {
+                        DirBuilder::new().create(&my_mod_path);
                     }
-                    if success {
-                        set_modified(false, &window, &mut *pack_file_decoded.borrow_mut());
-                        ui::update_tree_view_expand_path(
-                            &folder_tree_store,
-                            &*pack_file_decoded.borrow(),
-                            &folder_tree_selection,
-                            &folder_tree_view,
-                            false
-                        );
+
+                    // Then we set that path as current path for the "Add PackedFile" file chooser.
+                    file_chooser_add_file_to_packfile.set_current_folder(&my_mod_path);
+
+                    // And run the file_chooser.
+                    if file_chooser_add_file_to_packfile.run() == gtk_response_ok {
+
+                        // Get the names of the files to add.
+                        let paths = file_chooser_add_file_to_packfile.get_filenames();
+
+                        // For each one of them...
+                        for path in &paths {
+
+                            // If we are inside the mod's folder, we need to "emulate" the path to then
+                            // file in the TreeView, so we add the file with a custom tree_path.
+                            if path.starts_with(&my_mod_path) {
+
+                                // Remove from their path the base mod path (leaving only their future tree_path).
+                                let mut index = 0;
+                                let mut path_vec = path.iter().map(|t| t.to_str().unwrap().to_string()).collect::<Vec<String>>();
+                                let mut my_mod_path_vec = my_mod_path.iter().map(|t| t.to_str().unwrap().to_string()).collect::<Vec<String>>();
+                                loop {
+                                    if index < path_vec.len() && index < my_mod_path_vec.len() &&
+                                        path_vec[index] != my_mod_path_vec[index] {
+                                        break;
+                                    }
+                                    else if index == path_vec.len() || index == my_mod_path_vec.len() {
+                                        break;
+                                    }
+                                    index += 1;
+                                }
+
+                                let tree_path = path_vec[index..].to_vec();
+
+                                let mut success = false;
+                                match packfile::add_file_to_packfile(&mut *pack_file_decoded.borrow_mut(), path, tree_path) {
+                                    Ok(_) => success = true,
+                                    Err(error) => ui::show_dialog(&error_dialog, error.cause())
+                                }
+                                if success {
+                                    set_modified(false, &window, &mut *pack_file_decoded.borrow_mut());
+                                    ui::update_tree_view_expand_path(
+                                        &folder_tree_store,
+                                        &*pack_file_decoded.borrow(),
+                                        &folder_tree_selection,
+                                        &folder_tree_view,
+                                        false
+                                    );
+                                }
+                            }
+
+                            // If not, we get their tree_path like a normal file.
+                            else {
+
+                                // Get his usual tree_path.
+                                let tree_path = ui::get_tree_path_from_pathbuf(path, &folder_tree_selection, true);
+                                println!("{:?}", tree_path);
+
+                                let mut success = false;
+                                match packfile::add_file_to_packfile(&mut *pack_file_decoded.borrow_mut(), path, tree_path) {
+                                    Ok(_) => success = true,
+                                    Err(error) => ui::show_dialog(&error_dialog, error.cause())
+                                }
+                                if success {
+                                    set_modified(false, &window, &mut *pack_file_decoded.borrow_mut());
+                                    ui::update_tree_view_expand_path(
+                                        &folder_tree_store,
+                                        &*pack_file_decoded.borrow(),
+                                        &folder_tree_selection,
+                                        &folder_tree_view,
+                                        false
+                                    );
+                                }
+                            }
+                        }
                     }
+                    file_chooser_add_file_to_packfile.hide_on_delete();
+                }
+                else {
+                    return ui::show_dialog(&error_dialog, format_err!("MyMod base folder not configured."));
                 }
             }
-            file_chooser_add_file_to_packfile.hide_on_delete();
+
+            // If there is no "MyMod" selected, we just keep the normal behavior.
+            else {
+                if file_chooser_add_file_to_packfile.run() == gtk_response_ok {
+
+                    let paths = file_chooser_add_file_to_packfile.get_filenames();
+                    for path in &paths {
+
+                        let tree_path = ui::get_tree_path_from_pathbuf(path, &folder_tree_selection, true);
+                        let mut success = false;
+                        match packfile::add_file_to_packfile(&mut *pack_file_decoded.borrow_mut(), path, tree_path) {
+                            Ok(_) => success = true,
+                            Err(error) => ui::show_dialog(&error_dialog, error.cause())
+                        }
+                        if success {
+                            set_modified(false, &window, &mut *pack_file_decoded.borrow_mut());
+                            ui::update_tree_view_expand_path(
+                                &folder_tree_store,
+                                &*pack_file_decoded.borrow(),
+                                &folder_tree_selection,
+                                &folder_tree_view,
+                                false
+                            );
+                        }
+                    }
+                }
+                file_chooser_add_file_to_packfile.hide_on_delete();
+            }
         }
     }));
 
