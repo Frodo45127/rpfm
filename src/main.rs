@@ -26,7 +26,7 @@ use std::path::PathBuf;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::fs::{
-    File, DirBuilder
+    File, DirBuilder, copy, remove_file
 };
 use std::io::Write;
 use std::env::args;
@@ -188,6 +188,8 @@ fn build_ui(application: &Application) {
     let menu_bar_about = SimpleAction::new("about", None);
     let menu_bar_change_packfile_type = SimpleAction::new_stateful("change-packfile-type", glib::VariantTy::new("s").ok(), &"mod".to_variant());
     let menu_bar_my_mod_new = SimpleAction::new("my-mod-new", None);
+    let menu_bar_my_mod_install = SimpleAction::new("my-mod-install", None);
+    let menu_bar_my_mod_uninstall = SimpleAction::new("my-mod-uninstall", None);
 
     application.add_action(&menu_bar_new_packfile);
     application.add_action(&menu_bar_open_packfile);
@@ -199,6 +201,8 @@ fn build_ui(application: &Application) {
     application.add_action(&menu_bar_about);
     application.add_action(&menu_bar_change_packfile_type);
     application.add_action(&menu_bar_my_mod_new);
+    application.add_action(&menu_bar_my_mod_install);
+    application.add_action(&menu_bar_my_mod_uninstall);
 
     // Right-click menu actions.
     let context_menu_add_file = SimpleAction::new("add-file", None);
@@ -284,6 +288,7 @@ fn build_ui(application: &Application) {
     }
 
     // With this var we know if there is a "My mod" selected, so we can change how RPFM behaves.
+    // This is a tuple with (my_mod_folder_name, my_mod_name).
     let my_mod_selected: Rc<RefCell<Option<(String, String)>>> = Rc::new(RefCell::new(None));;
 
     // We load the settings here, and in case they doesn't exist, we create them.
@@ -1230,6 +1235,104 @@ fn build_ui(application: &Application) {
             Inhibit(false)
         }));
     }));
+
+    // When we hit the "Install" button.
+    menu_bar_my_mod_install.connect_activate(clone!(
+        error_dialog,
+        my_mod_selected,
+        settings => move |_,_| {
+
+            // If we have a "MyMod" selected, and both game and "MyMod" paths configured...
+            if let Some(ref my_mod_selected) = *my_mod_selected.borrow() {
+                if let Some(ref my_mods_base_path) = settings.borrow().paths.my_mods_base_path {
+
+                    // Get the game_path for the mod.
+                    let game_path = match &*my_mod_selected.0 {
+                        "warhammer_2" => settings.borrow().paths.warhammer_2.clone(),
+                        "warhammer" => settings.borrow().paths.warhammer.clone(),
+                        "attila" => settings.borrow().paths.attila.clone(),
+                        "rome_2" => settings.borrow().paths.rome_2.clone(),
+                        _ => Some(PathBuf::from("error")),
+                    };
+
+                    // If the game_path is configured.
+                    if let Some(game_path) = game_path {
+
+                        // We get his original path.
+                        let mut my_mod_path = my_mods_base_path.to_path_buf();
+                        my_mod_path.push(my_mod_selected.0.to_owned());
+                        my_mod_path.push(my_mod_selected.1.to_owned());
+                        my_mod_path.set_extension("pack");
+
+                        // We check that path exists.
+                        if !my_mod_path.is_file() {
+                            return ui::show_dialog(&error_dialog, format_err!("Source PackFile doesn't exist."));
+                        }
+
+                        // And his destination path.
+                        let mut game_path = game_path.to_path_buf();
+                        game_path.push("data");
+
+                        // We check that path exists.
+                        if !my_mod_path.is_dir() {
+                            return ui::show_dialog(&error_dialog, format_err!("Destination folder doesn't exist. You sure you configured the right folder for the game?"));
+                        }
+
+                        // And his destination file.
+                        game_path.push(my_mod_selected.1.to_owned());
+                        game_path.set_extension("pack");
+
+                        // And copy it to the destination.
+                        if let Err(error) = copy(my_mod_path, game_path).map_err(|error| Error::from(error)) {
+                            return ui::show_dialog(&error_dialog, error.cause());
+                        }
+                    }
+                }
+            }
+        }
+    ));
+
+    // When we hit the "Uninstall" button.
+    menu_bar_my_mod_uninstall.connect_activate(clone!(
+        error_dialog,
+        my_mod_selected,
+        settings => move |_,_| {
+
+            // If we have a "MyMod" selected, and the game_path configured...
+            if let Some(ref my_mod_selected) = *my_mod_selected.borrow() {
+
+                // Get the game_path for the mod.
+                let game_path = match &*my_mod_selected.0 {
+                    "warhammer_2" => settings.borrow().paths.warhammer_2.clone(),
+                    "warhammer" => settings.borrow().paths.warhammer.clone(),
+                    "attila" => settings.borrow().paths.attila.clone(),
+                    "rome_2" => settings.borrow().paths.rome_2.clone(),
+                    _ => Some(PathBuf::from("error")),
+                };
+
+                // If the game_path is configured.
+                if let Some(game_path) = game_path {
+
+                    // And his destination path.
+                    let mut installed_mod_path = game_path.to_path_buf();
+                    installed_mod_path.push("data");
+                    installed_mod_path.push(my_mod_selected.1.to_owned());
+                    installed_mod_path.set_extension("pack");
+
+                    // We check that path exists.
+                    if !installed_mod_path.is_file() {
+                        return ui::show_dialog(&error_dialog, format_err!("The currently selected mod is not installed"));
+                    }
+                    else {
+                        // And remove the mod from the data folder of the game.
+                        if let Err(error) = remove_file(installed_mod_path).map_err(|error| Error::from(error)) {
+                            return ui::show_dialog(&error_dialog, error.cause());
+                        }
+                    }
+                }
+            }
+        }
+    ));
 
     /*
     --------------------------------------------------------

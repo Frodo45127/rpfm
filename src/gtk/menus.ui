@@ -85,6 +85,19 @@
                     </item>
                 </section>
 
+                <section>
+                    <item>
+                        <attribute name="label" translatable="yes">_Install</attribute>
+                        <attribute name="action">app.my-mod-install</attribute>
+                    </item>
+
+                    <item>
+                        <attribute name="label" translatable="yes">_Uninstall</attribute>
+                        <attribute name="action">app.my-mod-uninstall</attribute>
+                    </item>
+
+                </section>
+
                 <!-- This section is populated programmatically, so left it empty here. -->
                 <section id="my-mod-list">
                 </section>
