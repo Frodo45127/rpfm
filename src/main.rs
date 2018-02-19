@@ -381,7 +381,9 @@ fn build_ui(application: &Application) {
                                         menu_bar_save_packfile,
                                         menu_bar_save_packfile_as,
                                         menu_bar_change_packfile_type,
-                                        menu_bar_patch_siege_ai => move |_,_| {
+                                        menu_bar_patch_siege_ai,
+                                        menu_bar_my_mod_install,
+                                        menu_bar_my_mod_uninstall => move |_,_| {
                                         let pack_file_path = game_folder_file.to_path_buf();
                                         match packfile::open_packfile(pack_file_path) {
                                             Ok(pack_file_opened) => {
@@ -406,6 +408,11 @@ fn build_ui(application: &Application) {
                                                 menu_bar_save_packfile_as.set_enabled(true);
                                                 menu_bar_change_packfile_type.set_enabled(true);
                                                 menu_bar_patch_siege_ai.set_enabled(true);
+
+                                                // Enable the controls for "MyMod".
+                                                menu_bar_my_mod_install.set_enabled(true);
+                                                menu_bar_my_mod_uninstall.set_enabled(true);
+
                                             }
                                             Err(error) => ui::show_dialog(&error_dialog, error.cause()),
                                         }
@@ -469,6 +476,10 @@ fn build_ui(application: &Application) {
     context_menu_delete_packedfile.set_enabled(false);
     context_menu_extract_packedfile.set_enabled(false);
 
+    // And these too.
+    menu_bar_my_mod_install.set_enabled(false);
+    menu_bar_my_mod_uninstall.set_enabled(false);
+
     /*
     --------------------------------------------------------
                      Superior Menu: "File"
@@ -484,7 +495,9 @@ fn build_ui(application: &Application) {
         menu_bar_save_packfile,
         menu_bar_save_packfile_as,
         menu_bar_change_packfile_type,
-        menu_bar_patch_siege_ai => move |_,_| {
+        menu_bar_patch_siege_ai,
+        menu_bar_my_mod_install,
+        menu_bar_my_mod_uninstall => move |_,_| {
 
         // We just create a new PackFile with a name, set his type to Mod and update the
         // TreeView to show it.
@@ -499,6 +512,10 @@ fn build_ui(application: &Application) {
         menu_bar_save_packfile_as.set_enabled(true);
         menu_bar_change_packfile_type.set_enabled(true);
         menu_bar_patch_siege_ai.set_enabled(true);
+
+        // Disable the controls for "MyMod".
+        menu_bar_my_mod_install.set_enabled(false);
+        menu_bar_my_mod_uninstall.set_enabled(false);
     }));
 
 
@@ -513,7 +530,9 @@ fn build_ui(application: &Application) {
         menu_bar_save_packfile,
         menu_bar_save_packfile_as,
         menu_bar_change_packfile_type,
-        menu_bar_patch_siege_ai => move |_,_| {
+        menu_bar_patch_siege_ai,
+        menu_bar_my_mod_install,
+        menu_bar_my_mod_uninstall => move |_,_| {
 
         // In case we have a default path for the game selected, we use it as base path for opening files.
         if let Some(ref path) = game_selected.game_path {
@@ -548,6 +567,10 @@ fn build_ui(application: &Application) {
                     menu_bar_save_packfile_as.set_enabled(true);
                     menu_bar_change_packfile_type.set_enabled(true);
                     menu_bar_patch_siege_ai.set_enabled(true);
+
+                    // Disable the controls for "MyMod".
+                    menu_bar_my_mod_install.set_enabled(false);
+                    menu_bar_my_mod_uninstall.set_enabled(false);
                 }
                 Err(error) => ui::show_dialog(&error_dialog, error.cause()),
             }
@@ -636,7 +659,9 @@ fn build_ui(application: &Application) {
         folder_tree_view,
         folder_tree_store,
         folder_tree_selection,
-        file_chooser_save_packfile_dialog => move |_,_| {
+        file_chooser_save_packfile_dialog,
+        menu_bar_my_mod_install,
+        menu_bar_my_mod_uninstall => move |_,_| {
 
         // We first set the current file of the Save dialog to the PackFile's name. Then we just
         // encode it and save it in the path selected. After that, we update the TreeView to reflect
@@ -666,6 +691,10 @@ fn build_ui(application: &Application) {
 
                 // If we save the mod as another, we are no longer using "MyMod".
                 *my_mod_selected.borrow_mut() = None;
+
+                // Disable the controls for "MyMod".
+                menu_bar_my_mod_install.set_enabled(false);
+                menu_bar_my_mod_uninstall.set_enabled(false);
             }
         }
         file_chooser_save_packfile_dialog.hide_on_delete();
@@ -732,7 +761,9 @@ fn build_ui(application: &Application) {
         menu_bar_patch_siege_ai,
         settings,
         my_mod_selected,
-        application => move |menu_bar_preferences,_| {
+        application,
+        menu_bar_my_mod_install,
+        menu_bar_my_mod_uninstall => move |menu_bar_preferences,_| {
 
         // We disable the button, so we can't start 2 settings windows at the same time.
         menu_bar_preferences.set_enabled(false);
@@ -798,7 +829,9 @@ fn build_ui(application: &Application) {
             settings,
             my_mod_selected,
             application,
-            menu_bar_preferences => move |_,_| {
+            menu_bar_preferences,
+            menu_bar_my_mod_install,
+            menu_bar_my_mod_uninstall => move |_,_| {
             let new_settings = settings_stuff.borrow().save_from_settings_window();
             *settings.borrow_mut() = new_settings;
             if let Err(error) = settings.borrow().save() {
@@ -810,6 +843,10 @@ fn build_ui(application: &Application) {
             // If we change any setting, disable the selected mod. We have currently no proper way to check
             // if the "My mod" path has changed, so we disable the selected "My Mod" when changing any setting.
             *my_mod_selected.borrow_mut() = None;
+
+            // Disable the controls for "MyMod".
+            menu_bar_my_mod_install.set_enabled(false);
+            menu_bar_my_mod_uninstall.set_enabled(false);
 
             // Recreate the "MyMod" menu (Atrocity incoming).
             // First, we clear the list.
@@ -882,7 +919,9 @@ fn build_ui(application: &Application) {
                                                 menu_bar_save_packfile,
                                                 menu_bar_save_packfile_as,
                                                 menu_bar_change_packfile_type,
-                                                menu_bar_patch_siege_ai => move |_,_| {
+                                                menu_bar_patch_siege_ai,
+                                                menu_bar_my_mod_install,
+                                                menu_bar_my_mod_uninstall => move |_,_| {
                                                 let pack_file_path = game_folder_file.to_path_buf();
                                                 match packfile::open_packfile(pack_file_path) {
                                                     Ok(pack_file_opened) => {
@@ -907,6 +946,10 @@ fn build_ui(application: &Application) {
                                                         menu_bar_save_packfile_as.set_enabled(true);
                                                         menu_bar_change_packfile_type.set_enabled(true);
                                                         menu_bar_patch_siege_ai.set_enabled(true);
+
+                                                        // Enable the controls for "MyMod".
+                                                        menu_bar_my_mod_install.set_enabled(true);
+                                                        menu_bar_my_mod_uninstall.set_enabled(true);
                                                     }
                                                     Err(error) => ui::show_dialog(&error_dialog, error.cause()),
                                                 }
@@ -991,7 +1034,9 @@ fn build_ui(application: &Application) {
         menu_bar_save_packfile,
         menu_bar_save_packfile_as,
         menu_bar_change_packfile_type,
-        menu_bar_patch_siege_ai => move |menu_bar_my_mod_new,_| {
+        menu_bar_patch_siege_ai,
+        menu_bar_my_mod_install,
+        menu_bar_my_mod_uninstall => move |menu_bar_my_mod_new,_| {
 
         // We disable the button, so we can't open two new mod windows at the same time.
         menu_bar_my_mod_new.set_enabled(false);
@@ -1028,7 +1073,9 @@ fn build_ui(application: &Application) {
             menu_bar_save_packfile,
             menu_bar_save_packfile_as,
             menu_bar_change_packfile_type,
-            menu_bar_patch_siege_ai => move |_,_| {
+            menu_bar_patch_siege_ai,
+            menu_bar_my_mod_install,
+            menu_bar_my_mod_uninstall => move |_,_| {
 
             // If the name passes the checks, we create it. We do nothing otherwise.
             if check_my_mod_new_mod_validity(&new_mod_stuff.borrow(), &settings.borrow()) {
@@ -1086,6 +1133,10 @@ fn build_ui(application: &Application) {
 
                     // Mark it as "selected"
                     *my_mod_selected.borrow_mut() = Some((selected_game_folder.to_owned(), mod_name));
+
+                    // Enable the controls for "MyMod".
+                    menu_bar_my_mod_install.set_enabled(true);
+                    menu_bar_my_mod_uninstall.set_enabled(true);
 
                     // Recreate the "MyMod" menu (Atrocity incoming).
                     // First, we clear the list.
@@ -1158,7 +1209,9 @@ fn build_ui(application: &Application) {
                                                         menu_bar_save_packfile,
                                                         menu_bar_save_packfile_as,
                                                         menu_bar_change_packfile_type,
-                                                        menu_bar_patch_siege_ai => move |_,_| {
+                                                        menu_bar_patch_siege_ai,
+                                                        menu_bar_my_mod_install,
+                                                        menu_bar_my_mod_uninstall => move |_,_| {
                                                         let pack_file_path = game_folder_file.to_path_buf();
                                                         match packfile::open_packfile(pack_file_path) {
                                                             Ok(pack_file_opened) => {
@@ -1183,6 +1236,10 @@ fn build_ui(application: &Application) {
                                                                 menu_bar_save_packfile_as.set_enabled(true);
                                                                 menu_bar_change_packfile_type.set_enabled(true);
                                                                 menu_bar_patch_siege_ai.set_enabled(true);
+
+                                                                // Enable the controls for "MyMod".
+                                                                menu_bar_my_mod_install.set_enabled(true);
+                                                                menu_bar_my_mod_uninstall.set_enabled(true);
                                                             }
                                                             Err(error) => ui::show_dialog(&error_dialog, error.cause()),
                                                         }
