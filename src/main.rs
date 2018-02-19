@@ -1882,6 +1882,13 @@ fn build_ui(application: &Application) {
         rename_popover,
         rename_popover_text_entry => move |_,_,_| {
 
+        // We need to NOT ALLOW to change PackFile names, as it causes problems with "MyMod", and it's
+        // actually broken for normal mods.
+        let tree_path = ui::get_tree_path_from_selection(&folder_tree_selection, true);
+        if let TreePathType::PackFile = get_type_of_selected_tree_path(&tree_path, &*pack_file_decoded.borrow()) {
+            return
+        }
+
         // First, we get the variable for the new name and spawn the popover.
         let new_name: Rc<RefCell<String>> = Rc::new(RefCell::new(String::new()));
 
@@ -1904,10 +1911,10 @@ fn build_ui(application: &Application) {
             rename_popover_text_entry,
             new_name => move |_, key| {
 
+            // Get the key pressed.
             let key_val = key.get_keyval();
             if key_val == 65293 {
                 let mut name_changed = false;
-                let tree_path = ui::get_tree_path_from_selection(&folder_tree_selection, true);
                 *new_name.borrow_mut() = rename_popover_text_entry.get_buffer().get_text();
                 match packfile::rename_packed_file(&mut *pack_file_decoded.borrow_mut(), &tree_path, &*new_name.borrow()) {
                     Ok(_) => {
