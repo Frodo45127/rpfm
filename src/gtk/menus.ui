@@ -83,6 +83,11 @@
                         <attribute name="label" translatable="yes">_New mod</attribute>
                         <attribute name="action">app.my-mod-new</attribute>
                     </item>
+
+                    <item>
+                        <attribute name="label" translatable="yes">_Delete selected mod</attribute>
+                        <attribute name="action">app.my-mod-delete</attribute>
+                    </item>
                 </section>
 
                 <section>

@@ -26,7 +26,7 @@ use std::path::PathBuf;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::fs::{
-    File, DirBuilder, copy, remove_file
+    File, DirBuilder, copy, remove_file, remove_dir_all
 };
 use std::io::Write;
 use std::env::args;
@@ -188,6 +188,7 @@ fn build_ui(application: &Application) {
     let menu_bar_about = SimpleAction::new("about", None);
     let menu_bar_change_packfile_type = SimpleAction::new_stateful("change-packfile-type", glib::VariantTy::new("s").ok(), &"mod".to_variant());
     let menu_bar_my_mod_new = SimpleAction::new("my-mod-new", None);
+    let menu_bar_my_mod_delete = SimpleAction::new("my-mod-delete", None);
     let menu_bar_my_mod_install = SimpleAction::new("my-mod-install", None);
     let menu_bar_my_mod_uninstall = SimpleAction::new("my-mod-uninstall", None);
 
@@ -201,6 +202,7 @@ fn build_ui(application: &Application) {
     application.add_action(&menu_bar_about);
     application.add_action(&menu_bar_change_packfile_type);
     application.add_action(&menu_bar_my_mod_new);
+    application.add_action(&menu_bar_my_mod_delete);
     application.add_action(&menu_bar_my_mod_install);
     application.add_action(&menu_bar_my_mod_uninstall);
 
@@ -383,6 +385,7 @@ fn build_ui(application: &Application) {
                                         menu_bar_save_packfile_as,
                                         menu_bar_change_packfile_type,
                                         menu_bar_patch_siege_ai,
+                                        menu_bar_my_mod_delete,
                                         menu_bar_my_mod_install,
                                         menu_bar_my_mod_uninstall => move |_,_| {
                                             // If the current PackFile has been changed in any way, we pop up the "Are you sure?" message.
@@ -424,6 +427,7 @@ fn build_ui(application: &Application) {
                                                         menu_bar_patch_siege_ai.set_enabled(true);
 
                                                         // Enable the controls for "MyMod".
+                                                        menu_bar_my_mod_delete.set_enabled(true);
                                                         menu_bar_my_mod_install.set_enabled(true);
                                                         menu_bar_my_mod_uninstall.set_enabled(true);
 
@@ -491,7 +495,8 @@ fn build_ui(application: &Application) {
     context_menu_delete_packedfile.set_enabled(false);
     context_menu_extract_packedfile.set_enabled(false);
 
-    // And these too.
+    // And these three.
+    menu_bar_my_mod_delete.set_enabled(false);
     menu_bar_my_mod_install.set_enabled(false);
     menu_bar_my_mod_uninstall.set_enabled(false);
 
@@ -512,6 +517,7 @@ fn build_ui(application: &Application) {
         menu_bar_save_packfile_as,
         menu_bar_change_packfile_type,
         menu_bar_patch_siege_ai,
+        menu_bar_my_mod_delete,
         menu_bar_my_mod_install,
         menu_bar_my_mod_uninstall => move |_,_| {
 
@@ -544,6 +550,7 @@ fn build_ui(application: &Application) {
                 menu_bar_patch_siege_ai.set_enabled(true);
 
                 // Disable the controls for "MyMod".
+                menu_bar_my_mod_delete.set_enabled(false);
                 menu_bar_my_mod_install.set_enabled(false);
                 menu_bar_my_mod_uninstall.set_enabled(false);
             }
@@ -563,6 +570,7 @@ fn build_ui(application: &Application) {
         menu_bar_save_packfile_as,
         menu_bar_change_packfile_type,
         menu_bar_patch_siege_ai,
+        menu_bar_my_mod_delete,
         menu_bar_my_mod_install,
         menu_bar_my_mod_uninstall => move |_,_| {
 
@@ -619,6 +627,7 @@ fn build_ui(application: &Application) {
                             menu_bar_patch_siege_ai.set_enabled(true);
 
                             // Disable the controls for "MyMod".
+                            menu_bar_my_mod_delete.set_enabled(false);
                             menu_bar_my_mod_install.set_enabled(false);
                             menu_bar_my_mod_uninstall.set_enabled(false);
                         }
@@ -716,6 +725,7 @@ fn build_ui(application: &Application) {
         folder_tree_store,
         folder_tree_selection,
         file_chooser_save_packfile_dialog,
+        menu_bar_my_mod_delete,
         menu_bar_my_mod_install,
         menu_bar_my_mod_uninstall => move |_,_| {
 
@@ -759,6 +769,7 @@ fn build_ui(application: &Application) {
                 *my_mod_selected.borrow_mut() = None;
 
                 // Disable the controls for "MyMod".
+                menu_bar_my_mod_delete.set_enabled(false);
                 menu_bar_my_mod_install.set_enabled(false);
                 menu_bar_my_mod_uninstall.set_enabled(false);
             }
@@ -829,6 +840,7 @@ fn build_ui(application: &Application) {
         settings,
         my_mod_selected,
         application,
+        menu_bar_my_mod_delete,
         menu_bar_my_mod_install,
         menu_bar_my_mod_uninstall => move |menu_bar_preferences,_| {
 
@@ -898,6 +910,7 @@ fn build_ui(application: &Application) {
             my_mod_selected,
             application,
             menu_bar_preferences,
+            menu_bar_my_mod_delete,
             menu_bar_my_mod_install,
             menu_bar_my_mod_uninstall => move |_,_| {
             let new_settings = settings_stuff.borrow().save_from_settings_window();
@@ -913,6 +926,7 @@ fn build_ui(application: &Application) {
             *my_mod_selected.borrow_mut() = None;
 
             // Disable the controls for "MyMod".
+            menu_bar_my_mod_delete.set_enabled(false);
             menu_bar_my_mod_install.set_enabled(false);
             menu_bar_my_mod_uninstall.set_enabled(false);
 
@@ -989,6 +1003,7 @@ fn build_ui(application: &Application) {
                                                 menu_bar_save_packfile_as,
                                                 menu_bar_change_packfile_type,
                                                 menu_bar_patch_siege_ai,
+                                                menu_bar_my_mod_delete,
                                                 menu_bar_my_mod_install,
                                                 menu_bar_my_mod_uninstall => move |_,_| {
                                                     // If the current PackFile has been changed in any way, we pop up the "Are you sure?" message.
@@ -1030,6 +1045,7 @@ fn build_ui(application: &Application) {
                                                                 menu_bar_patch_siege_ai.set_enabled(true);
 
                                                                 // Enable the controls for "MyMod".
+                                                                menu_bar_my_mod_delete.set_enabled(true);
                                                                 menu_bar_my_mod_install.set_enabled(true);
                                                                 menu_bar_my_mod_uninstall.set_enabled(true);
 
@@ -1111,6 +1127,7 @@ fn build_ui(application: &Application) {
         settings,
         application,
         window,
+        my_mod_list,
         my_mod_selected,
         unsaved_dialog,
         error_dialog,
@@ -1120,6 +1137,7 @@ fn build_ui(application: &Application) {
         menu_bar_save_packfile_as,
         menu_bar_change_packfile_type,
         menu_bar_patch_siege_ai,
+        menu_bar_my_mod_delete,
         menu_bar_my_mod_install,
         menu_bar_my_mod_uninstall => move |menu_bar_my_mod_new,_| {
 
@@ -1160,6 +1178,7 @@ fn build_ui(application: &Application) {
             menu_bar_save_packfile_as,
             menu_bar_change_packfile_type,
             menu_bar_patch_siege_ai,
+            menu_bar_my_mod_delete,
             menu_bar_my_mod_install,
             menu_bar_my_mod_uninstall => move |_,_| {
 
@@ -1199,12 +1218,16 @@ fn build_ui(application: &Application) {
                 my_mod_path.push(selected_game_folder.to_owned());
 
                 // Just in case the folder doesn't exist, we try to create it. It's save to ignore this result.
-                DirBuilder::new().create(&my_mod_path);
+                match DirBuilder::new().create(&my_mod_path){
+                    Ok(_) | Err(_) => { /* This returns ok if it created the folder and err if it already exist. */ }
+                };
 
                 // We need to create another folder inside game's folder with the name of the mod, to store extracted files.
                 let mut extracted_files_path = my_mod_path.to_path_buf();
                 extracted_files_path.push(mod_name.to_owned());
-                DirBuilder::new().create(&extracted_files_path);
+                match DirBuilder::new().create(&extracted_files_path) {
+                    Ok(_) | Err(_) => { /* This returns ok if it created the folder and err if it already exist. */ }
+                };
 
                 // Add the PackFile name to the full path.
                 my_mod_path.push(full_mod_name.to_owned());
@@ -1221,6 +1244,7 @@ fn build_ui(application: &Application) {
                     *my_mod_selected.borrow_mut() = Some((selected_game_folder.to_owned(), full_mod_name));
 
                     // Enable the controls for "MyMod".
+                    menu_bar_my_mod_delete.set_enabled(true);
                     menu_bar_my_mod_install.set_enabled(true);
                     menu_bar_my_mod_uninstall.set_enabled(true);
 
@@ -1297,6 +1321,7 @@ fn build_ui(application: &Application) {
                                                         menu_bar_save_packfile_as,
                                                         menu_bar_change_packfile_type,
                                                         menu_bar_patch_siege_ai,
+                                                        menu_bar_my_mod_delete,
                                                         menu_bar_my_mod_install,
                                                         menu_bar_my_mod_uninstall => move |_,_| {
 
@@ -1339,6 +1364,7 @@ fn build_ui(application: &Application) {
                                                                         menu_bar_patch_siege_ai.set_enabled(true);
 
                                                                         // Enable the controls for "MyMod".
+                                                                        menu_bar_my_mod_delete.set_enabled(true);
                                                                         menu_bar_my_mod_install.set_enabled(true);
                                                                         menu_bar_my_mod_uninstall.set_enabled(true);
 
@@ -1396,6 +1422,250 @@ fn build_ui(application: &Application) {
         }));
     }));
 
+    // When we hit the "Delete" button.
+    menu_bar_my_mod_delete.connect_activate(clone!(
+        application,
+        settings,
+        unsaved_dialog,
+        window,
+        my_mod_selected,
+        my_mod_list,
+        error_dialog,
+        success_dialog,
+        pack_file_decoded,
+        folder_tree_store,
+        menu_bar_save_packfile,
+        menu_bar_save_packfile_as,
+        menu_bar_change_packfile_type,
+        menu_bar_patch_siege_ai,
+        menu_bar_my_mod_install,
+        menu_bar_my_mod_uninstall => move |menu_bar_my_mod_delete,_| {
+
+            // We can't change my_mod_selected while it's borrowed, so we need to set this to true
+            // if we deleted the current "MyMod", and deal with changing it after ending the borrow.
+            let my_mod_selected_deleted;
+
+            // If we have a "MyMod" selected, and the "MyMod" path is configured...
+            if let Some(ref my_mod_selected) = *my_mod_selected.borrow() {
+                if let Some(ref my_mods_base_path) = settings.borrow().paths.my_mods_base_path {
+
+                    // We get his path.
+                    let mut my_mod_path = my_mods_base_path.to_path_buf();
+                    my_mod_path.push(my_mod_selected.0.to_owned());
+                    my_mod_path.push(my_mod_selected.1.to_owned());
+
+                    // We check that path exists.
+                    if !my_mod_path.is_file() {
+                        return ui::show_dialog(&error_dialog, format_err!("Source PackFile doesn't exist."));
+                    }
+
+                    // And we delete it.
+                    if let Err(error) = remove_file(&my_mod_path).map_err(|error| Error::from(error)) {
+                        return ui::show_dialog(&error_dialog, error.cause());
+                    }
+
+                    my_mod_selected_deleted = true;
+
+                    // Now we try to delete his asset folder.
+                    let mut asset_folder = my_mod_selected.1.to_owned();
+                    asset_folder.pop();
+                    asset_folder.pop();
+                    asset_folder.pop();
+                    asset_folder.pop();
+                    asset_folder.pop();
+                    my_mod_path.pop();
+                    my_mod_path.push(asset_folder);
+
+                    // We check that path exists. This is optional, so it should allow the deletion
+                    // process to continue with a warning.
+                    if !my_mod_path.is_dir() {
+                        ui::show_dialog(&error_dialog, format_err!("Mod deleted, but his assets folder hasn't been found."));
+                    }
+
+                    // And we delete it if it passed the test before.
+                    else if let Err(error) = remove_dir_all(&my_mod_path).map_err(|error| Error::from(error)) {
+                        return ui::show_dialog(&error_dialog, error.cause());
+                    }
+
+                }
+                else {
+                    return ui::show_dialog(&error_dialog, format_err!("MyMod base path not configured."));
+                }
+            }
+            else {
+                return ui::show_dialog(&error_dialog, format_err!("MyMod not selected."));
+            }
+
+            // If we deleted it, we allow chaos to form below.
+            if my_mod_selected_deleted {
+
+                // Store his old name for the success message.
+                let old_mod_name = my_mod_selected.borrow().clone().unwrap().1.to_owned();
+
+                // Set the selected mod to None.
+                *my_mod_selected.borrow_mut() = None;
+
+                // Disable the controls for "MyMod".
+                menu_bar_my_mod_delete.set_enabled(false);
+                menu_bar_my_mod_install.set_enabled(false);
+                menu_bar_my_mod_uninstall.set_enabled(false);
+
+                // Replace the open PackFile with a dummy one, like during boot.
+                *pack_file_decoded.borrow_mut() = PackFile::new();
+
+                // Clear the TreeView.
+                folder_tree_store.clear();
+
+                // First, we clear the list.
+                my_mod_list.remove_all();
+
+                // If we have the "MyMod" path configured...
+                if let Some(ref my_mod_base_path) = settings.borrow().paths.my_mods_base_path {
+
+                    // And can get without errors the folders in that path...
+                    if let Ok(game_folder_list) = my_mod_base_path.read_dir() {
+
+                        // We get all the games that have mods created (Folder exists and has at least a *.pack file inside).
+                        for game_folder in game_folder_list {
+
+                            // If the file/folder is valid, we see if it's one of our game's folder.
+                            if let Ok(game_folder) = game_folder {
+                                if game_folder.path().is_dir() &&
+                                    (
+                                        game_folder.file_name().to_string_lossy() == "warhammer_2"||
+                                        game_folder.file_name().to_string_lossy() == "warhammer" ||
+                                        game_folder.file_name().to_string_lossy() == "attila" ||
+                                        game_folder.file_name().to_string_lossy() == "rome_2"
+                                    ) {
+
+                                    // We create that game's menu here.
+                                    let game_submenu: Menu = Menu::new();
+                                    let game_folder_name = game_folder.file_name().to_string_lossy().as_ref().to_owned();
+
+                                    // If there were no errors while reading the path...
+                                    if let Ok(game_folder_files) = game_folder.path().read_dir() {
+
+                                        // Index to count the valid packfiles.
+                                        let mut valid_mod_index = 0;
+
+                                        // We need to sort these files, so they appear sorted in the menu.
+                                        // FIXME: remove this unwrap.
+                                        let mut game_folder_files_sorted: Vec<_> = game_folder_files.map(|res| res.unwrap().path()).collect();
+                                        game_folder_files_sorted.sort();
+
+                                        // We get all the stuff in that game's folder...
+                                        for game_folder_file in game_folder_files_sorted {
+
+                                            // And it's a file that ends in .pack...
+                                            if game_folder_file.is_file() &&
+                                                game_folder_file.extension().unwrap_or(OsStr::new("invalid")).to_string_lossy() =="pack" {
+
+                                                // That means our game_folder is a valid folder and it needs to be added to the menu.
+                                                let mod_name = game_folder_file.file_name().unwrap_or(OsStr::new("invalid")).to_string_lossy().as_ref().to_owned();
+                                                let mod_action = &*format!("my-mod-open-{}-{}", match &*game_folder_name {
+                                                    "warhammer_2" => "warhammer-2",
+                                                    "warhammer" => "warhammer",
+                                                    "attila" => "attila",
+                                                    "rome_2" => "rome-2",
+                                                    _ => "if you see this, please report it",
+                                                }, valid_mod_index);
+                                                game_submenu.append(Some(&*mod_name), Some(&*format!("app.{}", mod_action)));
+
+                                                // We create the action for the new button.
+                                                let open_mod = SimpleAction::new(mod_action, None);
+                                                application.add_action(&open_mod);
+
+                                                // And when activating the mod button, we open it and set it as selected (chaos incoming).
+                                                open_mod.connect_activate(clone!(
+                                                    window,
+                                                    my_mod_selected,
+                                                    game_folder_name,
+                                                    error_dialog,
+                                                    unsaved_dialog,
+                                                    pack_file_decoded,
+                                                    folder_tree_store,
+                                                    menu_bar_save_packfile,
+                                                    menu_bar_save_packfile_as,
+                                                    menu_bar_change_packfile_type,
+                                                    menu_bar_patch_siege_ai,
+                                                    menu_bar_my_mod_delete,
+                                                    menu_bar_my_mod_install,
+                                                    menu_bar_my_mod_uninstall => move |_,_| {
+                                                        // If the current PackFile has been changed in any way, we pop up the "Are you sure?" message.
+                                                        let lets_do_it = if pack_file_decoded.borrow().pack_file_extra_data.is_modified {
+                                                            if unsaved_dialog.run() == gtk_response_ok {
+                                                                unsaved_dialog.hide_on_delete();
+                                                                true
+                                                            } else {
+                                                                unsaved_dialog.hide_on_delete();
+                                                                false
+                                                            }
+                                                        } else { true };
+
+                                                        // If we got confirmation...
+                                                        if lets_do_it {
+                                                            let pack_file_path = game_folder_file.to_path_buf();
+                                                            match packfile::open_packfile(pack_file_path) {
+                                                                Ok(pack_file_opened) => {
+                                                                    *pack_file_decoded.borrow_mut() = pack_file_opened;
+                                                                    ui::update_tree_view(&folder_tree_store, &*pack_file_decoded.borrow());
+                                                                    set_modified(false, &window, &mut *pack_file_decoded.borrow_mut());
+
+                                                                    // Enable the selected mod.
+                                                                    *my_mod_selected.borrow_mut() = Some((game_folder_name.to_owned(), mod_name.to_owned()));
+
+                                                                    // We choose the right option, depending on our PackFile.
+                                                                    match pack_file_decoded.borrow().pack_file_header.pack_file_type {
+                                                                        0 => menu_bar_change_packfile_type.change_state(&"boot".to_variant()),
+                                                                        1 => menu_bar_change_packfile_type.change_state(&"release".to_variant()),
+                                                                        2 => menu_bar_change_packfile_type.change_state(&"patch".to_variant()),
+                                                                        3 => menu_bar_change_packfile_type.change_state(&"mod".to_variant()),
+                                                                        4 => menu_bar_change_packfile_type.change_state(&"movie".to_variant()),
+                                                                        _ => ui::show_dialog(&error_dialog, format_err!("PackFile Type not valid.")),
+                                                                    }
+
+                                                                    menu_bar_save_packfile.set_enabled(true);
+                                                                    menu_bar_save_packfile_as.set_enabled(true);
+                                                                    menu_bar_change_packfile_type.set_enabled(true);
+                                                                    menu_bar_patch_siege_ai.set_enabled(true);
+
+                                                                    // Enable the controls for "MyMod".
+                                                                    menu_bar_my_mod_delete.set_enabled(true);
+                                                                    menu_bar_my_mod_install.set_enabled(true);
+                                                                    menu_bar_my_mod_uninstall.set_enabled(true);
+
+                                                                }
+                                                                Err(error) => ui::show_dialog(&error_dialog, error.cause()),
+                                                            }
+                                                        }
+                                                }));
+
+                                                valid_mod_index += 1;
+                                            }
+                                        }
+                                    }
+
+                                    // Only if the submenu has items, we add it to the big menu.
+                                    if game_submenu.get_n_items() > 0 {
+                                        let game_submenu_name = match &*game_folder_name {
+                                            "warhammer_2" => "Warhammer 2",
+                                            "warhammer" => "Warhammer",
+                                            "attila" => "Attila",
+                                            "rome_2" => "Rome 2",
+                                            _ => "if you see this, please report it",
+                                        };
+                                        my_mod_list.append_submenu(game_submenu_name, &game_submenu);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                ui::show_dialog(&success_dialog, format!("MyMod \"{}\" deleted.", old_mod_name));
+            }
+        }
+    ));
+
     // When we hit the "Install" button.
     menu_bar_my_mod_install.connect_activate(clone!(
         error_dialog,
@@ -1422,7 +1692,6 @@ fn build_ui(application: &Application) {
                         let mut my_mod_path = my_mods_base_path.to_path_buf();
                         my_mod_path.push(my_mod_selected.0.to_owned());
                         my_mod_path.push(my_mod_selected.1.to_owned());
-                        my_mod_path.set_extension("pack");
 
                         // We check that path exists.
                         if !my_mod_path.is_file() {
@@ -1440,7 +1709,6 @@ fn build_ui(application: &Application) {
 
                         // And his destination file.
                         game_path.push(my_mod_selected.1.to_owned());
-                        game_path.set_extension("pack");
 
                         // And copy it to the destination.
                         if let Err(error) = copy(my_mod_path, game_path).map_err(|error| Error::from(error)) {
@@ -1486,7 +1754,6 @@ fn build_ui(application: &Application) {
                     let mut installed_mod_path = game_path.to_path_buf();
                     installed_mod_path.push("data");
                     installed_mod_path.push(my_mod_selected.1.to_owned());
-                    installed_mod_path.set_extension("pack");
 
                     // We check that path exists.
                     if !installed_mod_path.is_file() {
@@ -1658,15 +1925,6 @@ fn build_ui(application: &Application) {
                 // In theory, if we reach this line this should always exist. In theory I should be rich.
                 if let Some(ref my_mods_base_path) = settings.borrow().paths.my_mods_base_path {
 
-                    // Get the game_path for the mod.
-                    let game_path = match &*my_mod_selected.0 {
-                        "warhammer_2" => settings.borrow().paths.warhammer_2.clone(),
-                        "warhammer" => settings.borrow().paths.warhammer.clone(),
-                        "attila" => settings.borrow().paths.attila.clone(),
-                        "rome_2" => settings.borrow().paths.rome_2.clone(),
-                        _ => Some(PathBuf::from("error")),
-                    };
-
                     // We get his original path.
                     let mut my_mod_path = my_mods_base_path.to_path_buf();
                     my_mod_path.push(my_mod_selected.0.to_owned());
@@ -1682,7 +1940,9 @@ fn build_ui(application: &Application) {
 
                     // We check that path exists, and create it if it doesn't.
                     if !my_mod_path.is_dir() {
-                        DirBuilder::new().create(&my_mod_path);
+                        match DirBuilder::new().create(&my_mod_path) {
+                            Ok(_) | Err(_) => { /* This returns ok if it created the folder and err if it already exist. */ }
+                        };
                     }
 
                     // Then we set that path as current path for the "Add PackedFile" file chooser.
@@ -1828,15 +2088,6 @@ fn build_ui(application: &Application) {
                 // In theory, if we reach this line this should always exist. In theory I should be rich.
                 if let Some(ref my_mods_base_path) = settings.borrow().paths.my_mods_base_path {
 
-                    // Get the game_path for the mod.
-                    let game_path = match &*my_mod_selected.0 {
-                        "warhammer_2" => settings.borrow().paths.warhammer_2.clone(),
-                        "warhammer" => settings.borrow().paths.warhammer.clone(),
-                        "attila" => settings.borrow().paths.attila.clone(),
-                        "rome_2" => settings.borrow().paths.rome_2.clone(),
-                        _ => Some(PathBuf::from("error")),
-                    };
-
                     // We get his original path.
                     let mut my_mod_path = my_mods_base_path.to_path_buf();
                     my_mod_path.push(my_mod_selected.0.to_owned());
@@ -1852,7 +2103,9 @@ fn build_ui(application: &Application) {
 
                     // We check that path exists, and create it if it doesn't.
                     if !my_mod_path.is_dir() {
-                        DirBuilder::new().create(&my_mod_path);
+                        match DirBuilder::new().create(&my_mod_path) {
+                            Ok(_) | Err(_) => { /* This returns ok if it created the folder and err if it already exist. */ }
+                        };
                     }
 
                     // Then we set that path as current path for the "Add PackedFile" file chooser.
@@ -2280,7 +2533,9 @@ fn build_ui(application: &Application) {
                                 // The last thing in the path is the new file, so we don't have to
                                 // create a folder for it.
                                 if index < (tree_path_len - 1) {
-                                    DirBuilder::new().create(&extraction_final_folder);
+                                    match DirBuilder::new().create(&extraction_final_folder) {
+                                        Ok(_) | Err(_) => { /* This returns ok if it created the folder and err if it already exist. */ }
+                                    };
                                 }
                             }
 
@@ -2354,7 +2609,9 @@ fn build_ui(application: &Application) {
                                     folder.pop();
                                 }
                                 extraction_final_folder.push(folder);
-                                DirBuilder::new().create(&extraction_final_folder);
+                                match DirBuilder::new().create(&extraction_final_folder) {
+                                    Ok(_) | Err(_) => { /* This returns ok if it created the folder and err if it already exist. */ }
+                                };
                             }
 
                             // And finally, we extract our file to the desired destiny.
@@ -2415,7 +2672,9 @@ fn build_ui(application: &Application) {
                             pack_file_name.pop();
 
                             extraction_final_folder.push(pack_file_name);
-                            DirBuilder::new().create(&extraction_final_folder);
+                            match DirBuilder::new().create(&extraction_final_folder) {
+                                Ok(_) | Err(_) => { /* This returns ok if it created the folder and err if it already exist. */ }
+                            };
 
                             // And finally, we extract our file to the desired destiny.
                             match packfile::extract_from_packfile(
@@ -4291,6 +4550,7 @@ fn build_ui(application: &Application) {
         menu_bar_save_packfile_as,
         menu_bar_change_packfile_type,
         menu_bar_patch_siege_ai,
+        menu_bar_my_mod_delete,
         menu_bar_my_mod_install,
         menu_bar_my_mod_uninstall => move |_, _, _, _, selection_data, info, _| {
 
@@ -4340,6 +4600,7 @@ fn build_ui(application: &Application) {
                                 menu_bar_patch_siege_ai.set_enabled(true);
 
                                 // Disable the controls for "MyMod".
+                                menu_bar_my_mod_delete.set_enabled(false);
                                 menu_bar_my_mod_install.set_enabled(false);
                                 menu_bar_my_mod_uninstall.set_enabled(false);
                             }
