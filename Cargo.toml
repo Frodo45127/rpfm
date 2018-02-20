@@ -20,7 +20,7 @@ failure="0.1"
 
 [dependencies.gtk]
 version = "0.3.0"
-features = ["v3_22"]
+features = ["v3_22", "dox", "embed-lgpl-docs"]
 
 [dependencies.gdk]
 version = "0.7.0"
@@ -29,6 +29,9 @@ version = "0.7.0"
 version = "0.4.0"
 
 [dependencies.gio]
+version = "*"
+
+[dependencies.pango]
 version = "*"
 
 [dependencies.sourceview]

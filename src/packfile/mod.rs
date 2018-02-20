@@ -41,32 +41,40 @@ pub fn open_packfile(pack_file_path: PathBuf) -> Result<packfile::PackFile, Erro
     // First, we get his name.
     let pack_file_name = pack_file_path.file_name().unwrap().to_str().unwrap().to_string();
 
-    // Then we open it, read it, and store his content in raw format.
-    let mut file = File::open(&pack_file_path)?;
-    let mut pack_file_buffered = vec![];
-    file.read_to_end(&mut pack_file_buffered)?;
+    // If the name doesn't end in ".pack", we don't open it. It works, but it'll break some things
+    // if we allow it.
+    if pack_file_name.ends_with(".pack") {
 
-    // If the file has less than 28 bytes (length of an empty PFH5 PackFile), the file is not valid.
-    if pack_file_buffered.len() <= 28 {
-        Err(format_err!("The file doesn't even have a full header."))
+        // Then we open it, read it, and store his content in raw format.
+        let mut file = File::open(&pack_file_path)?;
+        let mut pack_file_buffered = vec![];
+        file.read_to_end(&mut pack_file_buffered)?;
+
+        // If the file has less than 28 bytes (length of an empty PFH5 PackFile), the file is not valid.
+        if pack_file_buffered.len() < 28 {
+            Err(format_err!("The file doesn't even have a full header."))
+        }
+        else {
+            match coding_helpers::decode_string_u8(&pack_file_buffered[0..4]) {
+                Ok(pack_file_id) => {
+
+                    // If the header's first 4 bytes are "PFH5", it's a valid file, so we read it.
+                    if pack_file_id == "PFH5" {
+                        packfile::PackFile::read(&pack_file_buffered, pack_file_name, pack_file_path).map(|result| result)
+                    }
+
+                    // If we reach this point, the file is not valid.
+                    else {
+                        Err(format_err!("The file is not a Warhammer 2 PackFile."))
+                    }
+                }
+                // If we reach this point, there has been a decoding error.
+                Err(error) => Err(error),
+            }
+        }
     }
     else {
-        match coding_helpers::decode_string_u8(&pack_file_buffered[0..4]) {
-            Ok(pack_file_id) => {
-
-                // If the header's first 4 bytes are "PFH5", it's a valid file, so we read it.
-                if pack_file_id == "PFH5" {
-                    packfile::PackFile::read(&pack_file_buffered, pack_file_name, pack_file_path).map(|result| result)
-                }
-
-                // If we reach this point, the file is not valid.
-                else {
-                    Err(format_err!("The file is not a Warhammer 2 PackFile."))
-                }
-            }
-            // If we reach this point, there has been a decoding error.
-            Err(error) => Err(error),
-        }
+        Err(format_err!("A valid PackFile name needs to end in \".pack\". Otherwise, RPFM will not open it."))
     }
 }
 
@@ -397,9 +405,9 @@ pub fn extract_from_packfile(
 
         TreePathType::Folder(tree_path) => {
             let mut files_to_extract: Vec<packfile::PackedFile> = vec![];
-            for i in &pack_file.pack_file_data.packed_files {
-                if i.packed_file_path.starts_with(&tree_path) {
-                    files_to_extract.push(i.clone());
+            for packed_file in &pack_file.pack_file_data.packed_files {
+                if packed_file.packed_file_path.starts_with(&tree_path) {
+                    files_to_extract.push(packed_file.clone());
                 }
             }
 
@@ -453,7 +461,59 @@ pub fn extract_from_packfile(
             }
         },
 
-        TreePathType::PackFile => Err(format_err!("I can't think of a situation that causes this error to show up.")),
+        TreePathType::PackFile => {
+
+            // For PackFiles it's like folders, but we just take all the PackedFiles.
+            let mut files_to_extract = pack_file.pack_file_data.packed_files.to_vec();
+            let base_path = extracted_path.clone();
+            let mut current_path = base_path.clone();
+
+            for file_to_extract in &mut files_to_extract {
+                file_to_extract.packed_file_path.drain(..(tree_path.len() - 1));
+
+                for (index, k) in file_to_extract.packed_file_path.iter().enumerate() {
+                    current_path.push(&k);
+
+                    // If the current String is the last one of the tree_path, it's a file, so we
+                    // write it into the disk.
+                    if (index + 1) == file_to_extract.packed_file_path.len() {
+                        match File::create(&current_path) {
+                            Ok(mut extracted_file) => {
+                                let packed_file_encoded: (Vec<u8>, Vec<u8>) = packfile::PackedFile::save(file_to_extract);
+                                match extracted_file.write_all(&packed_file_encoded.1) {
+                                    Ok(_) => files_extracted += 1,
+                                    Err(error) => {
+                                        let error = From::from(error);
+                                        error_list.push(error);
+                                        files_errors += 1;
+                                    }
+                                }
+                            }
+                            Err(error) => {
+                                let error = From::from(error);
+                                error_list.push(error);
+                                files_errors += 1;
+                            },
+                        }
+                    }
+
+                    // If it's a folder, we create it and set is as the new parent. If it already exists,
+                    // it'll throw an error we'll ignore, like good politicians.
+                    else {
+                        match DirBuilder::new().create(&current_path) {
+                            Ok(_) | Err(_) => continue,
+                        }
+                    }
+                }
+                current_path = base_path.clone();
+            }
+            if files_errors > 0 {
+                Err(format_err!("{} errors extracting files:\n {:#?}", files_errors, error_list))
+            }
+            else {
+                Ok(format!("{} files extracted. No errors detected.", files_extracted))
+            }
+        }
         TreePathType::None => Err(format_err!("How the hell did you managed to try to delete a non-existant file?")),
     }
 }
@@ -522,10 +582,7 @@ pub fn rename_packed_file(
                     Err(format_err!("This name is already being used by another folder in this path."))
                 }
             }
-            TreePathType::PackFile => {
-                pack_file.pack_file_extra_data.file_name = new_name.to_string();
-                Ok(())
-            }
+            TreePathType::PackFile => Err(format_err!("This should never happen.")),
             TreePathType::None => Err(format_err!("This should never happen.")),
         }
     }
