@@ -17,7 +17,7 @@ use self::failure::Error;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Settings {
     pub paths: Paths,
-    pub default_game: i32,
+    pub default_game: String,
 }
 
 /// This struct should hold any path we need to store in the settings.
@@ -45,7 +45,7 @@ impl Settings {
     pub fn new() -> Settings {
         Settings {
             paths: Paths::new(),
-            default_game: 0,
+            default_game: "warhammer_2".to_owned(),
         }
     }
 
@@ -97,29 +97,29 @@ impl GameSelected {
             game_data_path: None
         };
 
-        match settings.default_game {
-            0 => {
+        match &*settings.default_game {
+            "warhammer_2" => {
                 game_selected.game_path = settings.paths.warhammer_2.clone();
                 let mut data_path = game_selected.game_path.clone().unwrap_or(PathBuf::from("error"));
                 data_path.push("data");
                 game_selected.game_data_path = Some(data_path);
             },
 
-            1 => {
+            "warhammer" => {
                 game_selected.game_path = settings.paths.warhammer.clone();
                 let mut data_path = game_selected.game_path.clone().unwrap_or(PathBuf::from("error"));
                 data_path.push("data");
                 game_selected.game_data_path = Some(data_path);
             },
 
-            2 => {
+            "attila" => {
                 game_selected.game_path = settings.paths.attila.clone();
                 let mut data_path = game_selected.game_path.clone().unwrap_or(PathBuf::from("error"));
                 data_path.push("data");
                 game_selected.game_data_path = Some(data_path);
             },
 
-            3 => {
+            "rome_2" => {
                 game_selected.game_path = settings.paths.rome_2.clone();
                 let mut data_path = game_selected.game_path.clone().unwrap_or(PathBuf::from("error"));
                 data_path.push("data");

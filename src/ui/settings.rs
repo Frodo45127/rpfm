@@ -147,7 +147,16 @@ impl SettingsWindow {
 
     /// This function loads the data from the settings object to the settings window.
     pub fn load_to_settings_window(&self, settings: &Settings) {
-        self.settings_game_list_combo.set_active(settings.default_game);
+        self.settings_game_list_combo.set_active(
+            match &*settings.default_game {
+                "warhammer_2" => 0,
+                "warhammer" => 1,
+                "attila" => 2,
+                "rome_2" => 3,
+                _ => 0,
+            }
+
+        );
         if let Some(ref path) = settings.paths.my_mods_base_path {
             self.settings_path_my_mod_entry.get_buffer().set_text(&path.to_string_lossy());
         }
@@ -160,7 +169,18 @@ impl SettingsWindow {
     /// data in it.
     pub fn save_from_settings_window(&self) -> Settings {
         let mut settings = Settings::new();
-        settings.default_game = self.settings_game_list_combo.get_active();
+
+        // We get his game's folder, depending on the selected game.
+        let selected_game = self.settings_game_list_combo.get_active_text().unwrap();
+        let selected_game_folder = match &*selected_game {
+            "Warhammer 2" => "warhammer_2",
+            "Warhammer" => "warhammer",
+            "Attila" => "attila",
+            "Rome 2" => "rome_2",
+            _ => "if_you_see_this_folder_report_it",
+        };
+        settings.default_game = selected_game_folder.to_owned();
+
         if Path::new(&self.settings_path_my_mod_entry.get_buffer().get_text()).is_dir() {
             settings.paths.my_mods_base_path = Some(PathBuf::from(&self.settings_path_my_mod_entry.get_buffer().get_text()));
         }
