@@ -34,7 +34,7 @@ pub struct Paths {
 #[derive(Clone, Debug)]
 pub struct GameSelected {
     pub game_path: Option<PathBuf>,
-    pub my_mod_path: Option<PathBuf>
+    pub game_data_path: Option<PathBuf>,
 }
 
 /// Implementation of Settings.
@@ -94,47 +94,41 @@ impl GameSelected {
 
         let mut game_selected = GameSelected {
             game_path: None,
-            my_mod_path: None,
+            game_data_path: None
         };
 
-        let base_my_mod_path = settings.paths.my_mods_base_path.clone();
         match settings.default_game {
             0 => {
                 game_selected.game_path = settings.paths.warhammer_2.clone();
-                game_selected.my_mod_path = if let Some(mut path) = base_my_mod_path {
-                    path.push("Warhammer_2");
-                    Some(path)
-                } else { None };
+                let mut data_path = game_selected.game_path.clone().unwrap_or(PathBuf::from("error"));
+                data_path.push("data");
+                game_selected.game_data_path = Some(data_path);
             },
 
             1 => {
                 game_selected.game_path = settings.paths.warhammer.clone();
-                game_selected.my_mod_path = if let Some(mut path) = base_my_mod_path {
-                    path.push("Warhammer");
-                    Some(path)
-                } else { None };
+                let mut data_path = game_selected.game_path.clone().unwrap_or(PathBuf::from("error"));
+                data_path.push("data");
+                game_selected.game_data_path = Some(data_path);
             },
 
             2 => {
                 game_selected.game_path = settings.paths.attila.clone();
-                game_selected.my_mod_path = if let Some(mut path) = base_my_mod_path {
-                    path.push("Attila");
-                    Some(path)
-                } else { None };
+                let mut data_path = game_selected.game_path.clone().unwrap_or(PathBuf::from("error"));
+                data_path.push("data");
+                game_selected.game_data_path = Some(data_path);
             },
 
             3 => {
                 game_selected.game_path = settings.paths.rome_2.clone();
-                game_selected.my_mod_path = if let Some(mut path) = base_my_mod_path {
-                    path.push("Rome_2");
-                    Some(path)
-                } else { None };
+                let mut data_path = game_selected.game_path.clone().unwrap_or(PathBuf::from("error"));
+                data_path.push("data");
+                game_selected.game_data_path = Some(data_path);
             },
 
             // This should be an error somewhere in the code.
             _ => {
                 game_selected.game_path = None;
-                game_selected.my_mod_path = None;
             },
         }
 
@@ -142,8 +136,13 @@ impl GameSelected {
     }
 
     /// This functions just changes the values in GameSelected.
-    pub fn set_paths(&mut self, my_mod_path: Option<PathBuf>, game_path: Option<PathBuf>) {
+    pub fn set_path(&mut self, game_path: Option<PathBuf>) {
         self.game_path = game_path;
-        self.my_mod_path = my_mod_path;
+
+        if let Some(ref game_path) = self.game_path {
+            let mut data_path = game_path.clone();
+            data_path.push("data");
+            self.game_data_path = Some(data_path);
+        }
     }
 }

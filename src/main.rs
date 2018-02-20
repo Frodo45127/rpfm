@@ -581,8 +581,12 @@ fn build_ui(application: &Application) {
             if lets_do_it {
 
                 // In case we have a default path for the game selected, we use it as base path for opening files.
-                if let Some(ref path) = game_selected.game_path {
-                    file_chooser_open_packfile_dialog.set_current_folder(&path);
+                if let Some(ref path) = game_selected.game_data_path {
+
+                    // We check that actually exists before setting it.
+                    if path.is_dir() {
+                        file_chooser_open_packfile_dialog.set_current_folder(&path);
+                    }
                 }
 
                 // When we select the file to open, we get his path, open it and, if there has been no
@@ -647,8 +651,12 @@ fn build_ui(application: &Application) {
             file_chooser_save_packfile_dialog.set_current_name(&pack_file_decoded.borrow().pack_file_extra_data.file_name);
 
             // In case we have a default path for the game selected, we use it as base path for saving files.
-            if let Some(ref path) = game_selected.game_path {
-                file_chooser_save_packfile_dialog.set_current_folder(path);
+            if let Some(ref path) = game_selected.game_data_path {
+
+                // We check it actually exists before setting it.
+                if path.is_dir() {
+                    file_chooser_save_packfile_dialog.set_current_folder(path);
+                }
             }
 
             if file_chooser_save_packfile_dialog.run() == gtk_response_ok {
@@ -698,6 +706,7 @@ fn build_ui(application: &Application) {
 
     // When we hit the "Save PackFile as" button.
     menu_bar_save_packfile_as.connect_activate(clone!(
+        game_selected,
         window,
         my_mod_selected,
         success_dialog,
@@ -710,11 +719,21 @@ fn build_ui(application: &Application) {
         menu_bar_my_mod_install,
         menu_bar_my_mod_uninstall => move |_,_| {
 
-        // We first set the current file of the Save dialog to the PackFile's name. Then we just
-        // encode it and save it in the path selected. After that, we update the TreeView to reflect
-        // the name change and hide the dialog.
-        file_chooser_save_packfile_dialog.set_current_name(&pack_file_decoded.borrow().pack_file_extra_data.file_name);
-        file_chooser_save_packfile_dialog.set_current_folder(&pack_file_decoded.borrow().pack_file_extra_data.file_path);
+        // If we are saving an existing PackFile with another name, we start in his current path.
+        if pack_file_decoded.borrow().pack_file_extra_data.file_path.exists() {
+            file_chooser_save_packfile_dialog.set_filename(&pack_file_decoded.borrow().pack_file_extra_data.file_path);
+        }
+
+        // In case we have a default path for the game selected, we use it as base path for saving files.
+        else if let Some(ref path) = game_selected.game_data_path {
+            file_chooser_save_packfile_dialog.set_current_name(&pack_file_decoded.borrow().pack_file_extra_data.file_name);
+
+            // We check it actually exists before setting it.
+            if path.is_dir() {
+                file_chooser_save_packfile_dialog.set_current_folder(path);
+            }
+        }
+
         if file_chooser_save_packfile_dialog.run() == gtk_response_ok {
             let mut success = false;
             match packfile::save_packfile(
