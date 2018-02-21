@@ -114,15 +114,13 @@ pub fn decode_string_u16(string_encoded: &[u8]) -> Result<String, Error> {
     Ok(string_decoded)
 }
 
-/// This function allow us to decode an encoded boolean. This is simple: \u{0} is false, \u{1} is true.
+/// This function allow us to decode an encoded boolean. This is simple: 0 is false, 1 is true.
 /// It only uses a byte.
 #[allow(dead_code)]
 pub fn decode_bool(bool_encoded: u8) -> Result<bool, Error> {
-    let bool_decoded = (bool_encoded as char).escape_unicode().to_string();
-
-    match &*bool_decoded {
-        "\\u{0}" => Ok(false),
-        "\\u{1}" => Ok(true),
+    match bool_encoded {
+        0 => Ok(false),
+        1 => Ok(true),
         _ => Err(format_err!("Error:\nTrying to decode a non-boolean value as boolean.")),
     }
 }
