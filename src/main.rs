@@ -1704,7 +1704,7 @@ fn build_ui(application: &Application) {
 
                         // We check that path exists.
                         if !my_mod_path.is_dir() {
-                            return ui::show_dialog(&error_dialog, format_err!("Destination folder doesn't exist. You sure you configured the right folder for the game?"));
+                            return ui::show_dialog(&error_dialog, format_err!("Destination folder (../data) doesn't exist. You sure you configured the right folder for the game?"));
                         }
 
                         // And his destination file.
@@ -4721,14 +4721,22 @@ fn update_first_row_decoded(packedfile: &[u8], list_store: &ListStore, index: &u
 /// It returns true or false, depending on the result of the checks.
 fn check_my_mod_new_mod_validity(new_mod_stuff: &MyModNewWindow, settings: &Settings) -> bool {
 
+    // True is valid, false is invalid.
+    let is_valid;
+
+    // Get the colour change stuff here, just once.
+    let attribute_list = AttrList::new();
+    let red = Attribute::new_background(65535, 0, 0).expect("Couldn't create new background");
+    let green = Attribute::new_background(0, 65535, 0).expect("Couldn't create new background");
+
     // We get the selected game, and look on the settings it's path.
     let selected_game = new_mod_stuff.my_mod_new_game_list_combo.get_active_text().map_or("Warhammer 2".to_string(), |v| v);
     if let Some(ref my_mod_base_path) = settings.paths.my_mods_base_path {
 
-        // And is valid.
+        // If his path is valid...
         if my_mod_base_path.is_dir() {
 
-            // Get the new game-specific path.
+            // Get his game path.
             let mut my_mod_path = my_mod_base_path.clone();
             match &*selected_game {
                 "Warhammer 2" => my_mod_path.push("warhammer_2"),
@@ -4738,66 +4746,65 @@ fn check_my_mod_new_mod_validity(new_mod_stuff: &MyModNewWindow, settings: &Sett
                 _ => my_mod_path.push("if_you_see_this_folder_report_it"),
             }
 
-            // Get the colour change stuff here, just once.
-            let attribute_list = AttrList::new();
-            let red = Attribute::new_background(65535, 0, 0).expect("Couldn't create new background");
-            let green = Attribute::new_background(0, 65535, 0).expect("Couldn't create new background");
-
             // The we build our mod's full path, using it's name (if it's valid), and check if already exists.
             let new_name = new_mod_stuff.my_mod_new_name_entry.get_buffer().get_text();
             if new_name.is_empty() || new_name.contains(' ') {
-
-                attribute_list.insert(red);
-                new_mod_stuff.my_mod_new_name_is_valid_label.set_text("Invalid");
-                new_mod_stuff.my_mod_new_name_is_valid_label.set_attributes(&attribute_list);
-
-                // We disable the "Accept" button, so it doesn't allow you to overwrite other mods.
-                new_mod_stuff.my_mod_new_accept.set_sensitive(false);
-                false
+                is_valid = false;
             }
             else {
                 my_mod_path.push(new_name);
                 my_mod_path.set_extension("pack");
 
-                // If it already exists, turn the "is_valid" label to "Invalid" and paint it red.
+                // If it already exists, is not valid.
                 if my_mod_path.is_file() {
-
-                    attribute_list.insert(red);
-                    new_mod_stuff.my_mod_new_name_is_valid_label.set_text("Invalid");
-                    new_mod_stuff.my_mod_new_name_is_valid_label.set_attributes(&attribute_list);
-
-                    // We disable the "Accept" button, so it doesn't allow you to overwrite other mods.
-                    new_mod_stuff.my_mod_new_accept.set_sensitive(false);
-
-                    // We return false in the check.
-                    false
+                    is_valid = false;
                 }
 
-                // If it doesn't exists yet, turn the "is_valid" label to "Valid" and paint it green.
+                // If it doesn't exists yet, is valid.
                 else {
-                    let attribute_list = AttrList::new();
-                    attribute_list.insert(green);
-
-                    new_mod_stuff.my_mod_new_name_is_valid_label.set_text("Valid");
-                    new_mod_stuff.my_mod_new_name_is_valid_label.set_attributes(&attribute_list);
-
-                    // We enable the "Accept" button.
-                    new_mod_stuff.my_mod_new_accept.set_sensitive(true);
-
-                    // We return true in the check.
-                    true
+                    is_valid = true;
                 }
             }
         }
 
-        // If the currently saved path for my mods is invalid, we return false.
+        // If the currently saved path for my mods is invalid...
         else {
-            false
+            is_valid = false;
         }
     }
 
     // If there is no path at all, it's always invalid.
     else {
+        is_valid = false;
+    }
+
+    // If is valid, we paint it green and enable the button.
+    if is_valid {
+
+        // We set the message green and "Valid".
+        attribute_list.insert(green);
+        new_mod_stuff.my_mod_new_name_is_valid_label.set_text("Valid");
+        new_mod_stuff.my_mod_new_name_is_valid_label.set_attributes(&attribute_list);
+
+        // We enable the "Accept" button.
+        new_mod_stuff.my_mod_new_accept.set_sensitive(true);
+
+        // We return true in the check.
+        true
+    }
+
+    // If it isn't, paint it red and disable it.
+    else {
+
+        // We set the message red and "Invalid".
+        attribute_list.insert(red);
+        new_mod_stuff.my_mod_new_name_is_valid_label.set_text("Invalid");
+        new_mod_stuff.my_mod_new_name_is_valid_label.set_attributes(&attribute_list);
+
+        // We disable the "Accept" button, so it doesn't allow you to overwrite other mods.
+        new_mod_stuff.my_mod_new_accept.set_sensitive(false);
+
+        // And return false.
         false
     }
 }
