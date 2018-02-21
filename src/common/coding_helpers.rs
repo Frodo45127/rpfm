@@ -9,10 +9,6 @@ extern crate byteorder;
 
 use failure::Error;
 
-use std::char::{
-    decode_utf16, REPLACEMENT_CHARACTER
-};
-
 use self::byteorder::{
     ByteOrder, ReadBytesExt, LittleEndian
 };
