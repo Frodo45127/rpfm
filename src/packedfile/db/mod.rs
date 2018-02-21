@@ -12,11 +12,13 @@
 
 extern crate failure;
 extern crate csv;
+extern crate uuid;
 
 use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
 
+use self::uuid::Uuid;
 use self::failure::Error;
 use self::csv::{
     ReaderBuilder, WriterBuilder, QuoteStyle
@@ -52,7 +54,7 @@ pub struct DB {
 /// - packed_file_header_packed_file_entry_count:
 #[derive(Clone, Debug)]
 pub struct DBHeader {
-    pub packed_file_header_packed_file_guid: (String, usize),
+    pub packed_file_header_packed_file_guid: String,
     pub packed_file_header_packed_file_version: u32,
     pub packed_file_header_packed_file_version_marker: bool,
     pub packed_file_header_packed_file_mysterious_byte: u8,
@@ -150,9 +152,10 @@ impl DB {
 /// Implementation of "DBHeader"
 impl DBHeader {
 
-    /// This function creates a new DBHeader from nothing.
+    /// This function creates a new DBHeader from nothing. For the GUID, we generate a random GUID
+    /// so, if for some reason RPFM fails to save the default GUID, we have one to back it up.
     pub fn new() -> DBHeader {
-        let packed_file_header_packed_file_guid = (String::new(), 0);
+        let packed_file_header_packed_file_guid = format!("{}", Uuid::new_v4());
         let packed_file_header_packed_file_version = 0;
         let packed_file_header_packed_file_version_marker = false;
         let packed_file_header_packed_file_mysterious_byte = 0;
@@ -174,28 +177,32 @@ impl DBHeader {
         let mut packed_file_header_decoded = DBHeader::new();
         let mut index: usize = 0;
 
-        // If it has a GUID_MARKER, we get the GUID.
+        // We assume it always has a GUID_MARKER, so we get the GUID. If it doesn't have it, return error.
         if &packed_file_header[index..(index + 4)] == GUID_MARKER {
             index += 4;
-            packed_file_header_decoded.packed_file_header_packed_file_guid = coding_helpers::decode_packedfile_string_u16(&packed_file_header[index..], index)?;
-            index = packed_file_header_decoded.packed_file_header_packed_file_guid.1;
+            let decoded_guid = coding_helpers::decode_packedfile_string_u16(&packed_file_header[index..], index)?;
+            packed_file_header_decoded.packed_file_header_packed_file_guid = decoded_guid.0;
+            index = decoded_guid.1;
+
+            // If it has a VERSION_MARKER, we get the version of the table.
+            if &packed_file_header[index..(index + 4)] == VERSION_MARKER {
+                packed_file_header_decoded.packed_file_header_packed_file_version = coding_helpers::decode_integer_u32(&packed_file_header[(index + 4)..(index + 8)])?;
+                packed_file_header_decoded.packed_file_header_packed_file_version_marker = true;
+                index += 8;
+            }
+
+            // We save a mysterious byte I don't know what it does.
+            packed_file_header_decoded.packed_file_header_packed_file_mysterious_byte = packed_file_header[index];
+            index += 1;
+
+            packed_file_header_decoded.packed_file_header_packed_file_entry_count = coding_helpers::decode_integer_u32(&packed_file_header[(index)..(index + 4)])?;
+            index += 4;
+
+            Ok((packed_file_header_decoded, index))
         }
-
-        // If it has a VERSION_MARKER, we get the version of the table.
-        if &packed_file_header[index..(index + 4)] == VERSION_MARKER {
-            packed_file_header_decoded.packed_file_header_packed_file_version = coding_helpers::decode_integer_u32(&packed_file_header[(index + 4)..(index + 8)])?;
-            packed_file_header_decoded.packed_file_header_packed_file_version_marker = true;
-            index += 8;
+        else {
+            Err(format_err!("This DB PackedFile doesn't have a GUID Marker. If you're sure this is a table, please report it as a bug."))
         }
-
-        // We save a mysterious byte I don't know what it does.
-        packed_file_header_decoded.packed_file_header_packed_file_mysterious_byte = packed_file_header[index];
-        index += 1;
-
-        packed_file_header_decoded.packed_file_header_packed_file_entry_count = coding_helpers::decode_integer_u32(&packed_file_header[(index)..(index + 4)])?;
-        index += 4;
-
-        Ok((packed_file_header_decoded, index))
     }
 
     /// This function takes an entire DBHeader and a packed_file_entry_count, and encode it to Vec<u8>,
@@ -203,10 +210,22 @@ impl DBHeader {
     pub fn save(packed_file_header_decoded: &DBHeader, packed_file_entry_count: u32) -> Vec<u8> {
         let mut packed_file_header_encoded: Vec<u8> = vec![];
 
-        let guid_encoded = coding_helpers::encode_packedfile_string_u16(&packed_file_header_decoded.packed_file_header_packed_file_guid.0);
-
+        // We are always going to have a GUID_MARKER, so we add it directly.
         packed_file_header_encoded.extend_from_slice(GUID_MARKER);
-        packed_file_header_encoded.extend_from_slice(&guid_encoded);
+
+        // If the GUID is empty, is a bugged table from RPFM 0.4.1 and below. Generate a
+        // new GUID for it and use it.
+        if packed_file_header_decoded.packed_file_header_packed_file_guid.is_empty() {
+            let guid_encoded = coding_helpers::encode_packedfile_string_u16(&format!("{}", Uuid::new_v4()));
+            packed_file_header_encoded.extend_from_slice(&guid_encoded);
+        }
+
+        // Otherwise, just encode the current GUID and put it in the encoded data vector.
+        else {
+            let guid_encoded = coding_helpers::encode_packedfile_string_u16(&packed_file_header_decoded.packed_file_header_packed_file_guid);
+            packed_file_header_encoded.extend_from_slice(&guid_encoded);
+        }
+
 
         if packed_file_header_decoded.packed_file_header_packed_file_version_marker {
             let version_encoded = coding_helpers::encode_integer_u32(packed_file_header_decoded.packed_file_header_packed_file_version);
