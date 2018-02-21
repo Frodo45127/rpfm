@@ -94,24 +94,22 @@ pub fn decode_string_u8_0padded(string_encoded: &[u8]) -> (String, usize) {
 ///       it, but return success.
 #[allow(dead_code)]
 pub fn decode_string_u16(string_encoded: &[u8]) -> Result<String, Error> {
-    let mut string_decoded: String = String::new();
-    let mut offset: usize = 0;
 
+    let mut u16_characters = vec![];
+    let mut offset: usize = 0;
     for _ in 0..(string_encoded.len() / 2) {
         match decode_integer_u16(&string_encoded[offset..offset + 2]) {
             Ok(character_u16) => {
-                let character = decode_utf16(vec![character_u16]
-                        .iter()
-                        .cloned())
-                    .map( | r | r.unwrap_or(REPLACEMENT_CHARACTER))
-                    .collect::<Vec<_>>();
-                string_decoded.push_str(&character[0].escape_debug().to_string());
+                u16_characters.push(character_u16);
                 offset += 2;
             }
             Err(error) => return Err(error)
         }
     }
-    Ok(string_decoded)
+    match String::from_utf16(&u16_characters).map_err(|error| From::from(error)) {
+        Ok(string_encoded) => Ok(string_encoded),
+        Err(error) => return Err(error),
+    }
 }
 
 /// This function allow us to decode an encoded boolean. This is simple: 0 is false, 1 is true.
@@ -212,22 +210,10 @@ pub fn encode_string_u8_0padded(string_decoded: &(String, usize)) -> Result<Vec<
 
 /// This function allow us to encode an UTF-16 decoded String. This type of Strings are encoded in
 /// in 2 bytes reversed (LittleEndian).
-/// TODO: Improve this.
 #[allow(dead_code)]
 pub fn encode_string_u16(string_decoded: &str) -> Vec<u8> {
     let mut string_encoded: Vec<u8> = vec![];
-
-    // First we need to "unescape" all the escaped chars in the decoding process, so we write them
-    // instead \n, \",...
-    let string_decoded_unescaped = unescape::unescape(string_decoded).unwrap();
-    let string_decoded_length = string_decoded_unescaped.chars().count() as u16;
-
-    for i in 0..string_decoded_length {
-        let mut character_u16_buffer = [0; 1];
-        let character_u16 = string_decoded_unescaped.chars().nth(i as usize).unwrap().encode_utf16(&mut character_u16_buffer);
-        let mut character_u8 = encode_integer_u16(character_u16[0]);
-        string_encoded.append(&mut character_u8);
-    }
+    string_decoded.encode_utf16().for_each(|character| string_encoded.append(&mut encode_integer_u16(character)));
     string_encoded
 }
 
