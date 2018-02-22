@@ -4458,11 +4458,15 @@ fn build_ui(application: &Application) {
                         let packed_file_data_decoded = RigidModel::read(packed_file_data_encoded);
                         match packed_file_data_decoded {
                             Ok(packed_file_data_decoded) => {
-                                let packed_file_data_view_stuff = ui::packedfile_rigidmodel::PackedFileRigidModelDataView::create_data_view(&packed_file_data_display, &packed_file_data_decoded);
+                                let packed_file_data_view_stuff = match ui::packedfile_rigidmodel::PackedFileRigidModelDataView::create_data_view(&packed_file_data_display, &packed_file_data_decoded){
+                                    Ok(result) => result,
+                                    Err(error) => return ui::show_dialog(&error_dialog, Error::from(error).cause()),
+                                };
                                 let packed_file_save_button = packed_file_data_view_stuff.packed_file_save_button;
                                 let rigid_model_game_patch_button = packed_file_data_view_stuff.rigid_model_game_patch_button;
                                 let rigid_model_game_label = packed_file_data_view_stuff.rigid_model_game_label;
                                 let packed_file_texture_paths = packed_file_data_view_stuff.packed_file_texture_paths;
+                                let packed_file_texture_paths_index = packed_file_data_view_stuff.packed_file_texture_paths_index;
                                 let packed_file_data_decoded = Rc::new(RefCell::new(packed_file_data_decoded));
 
                                 // When we hit the "Patch to Warhammer 1&2" button.
@@ -4507,12 +4511,20 @@ fn build_ui(application: &Application) {
                                     success_dialog,
                                     pack_file_decoded,
                                     packed_file_texture_paths,
+                                    packed_file_texture_paths_index,
                                     packed_file_data_decoded => move |_ ,_|{
 
-                                    let new_data = ui::packedfile_rigidmodel::PackedFileRigidModelDataView::return_data_from_data_view(
+                                    let new_data = match ui::packedfile_rigidmodel::PackedFileRigidModelDataView::return_data_from_data_view(
                                         &packed_file_texture_paths,
+                                        &packed_file_texture_paths_index,
                                         &mut (*packed_file_data_decoded.borrow_mut()).packed_file_data.packed_file_data_lods_data.to_vec()
-                                    );
+                                    ) {
+                                        Ok(new_data) => new_data,
+                                        Err(error) => {
+                                            ui::show_dialog(&error_dialog, error.cause());
+                                            return Inhibit(false);
+                                        }
+                                    };
 
                                     packed_file_data_decoded.borrow_mut().packed_file_data.packed_file_data_lods_data = new_data;
 
