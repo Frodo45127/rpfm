@@ -4839,7 +4839,7 @@ fn check_my_mod_new_mod_validity(new_mod_stuff: &MyModNewWindow, settings: &Sett
 fn main() {
 
     // We create the application.
-    let application = Application::new("com.github.frodo45127.rpfm", gio::ApplicationFlags::empty()).expect("Initialization failed...");
+    let application = Application::new("com.github.frodo45127.rpfm", gio::ApplicationFlags::NON_UNIQUE).expect("Initialization failed...");
 
     // We initialize it.
     application.connect_startup(move |app| {
