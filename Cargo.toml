@@ -1,6 +1,6 @@
 [package]
 name = "rpfm-code"
-version = "0.4.1"
+version = "0.5.0"
 authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
 build = "build.rs"
 description = "A modder tool for Total War: Warhammer 2."
@@ -21,7 +21,7 @@ uuid = { version = "0.6", features = ["v4"] }
 
 [dependencies.gtk]
 version = "0.3.0"
-features = ["v3_22", "dox", "embed-lgpl-docs"]
+features = ["v3_22", "embed-lgpl-docs"]
 
 [dependencies.gdk]
 version = "0.7.0"
