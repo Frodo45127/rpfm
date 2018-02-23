@@ -19,7 +19,7 @@ pub mod settings;
 /// This function shows a Message in the specified Box.
 pub fn display_help_tips(packed_file_data_display: &Box) {
     let tips = "Welcome to Rusted PackFile Manager! Here you have some tips on how to use it:
-        - You can rename anything (even the PackFile) by double-clicking it.
+        - You can rename anything (except the PackFile) by double-clicking it.
         - You can open a PackFile by dragging it to the big PackFile Tree View.
         - To patch an Attila model to work in Warhammer, select it and press \"Patch to Warhammer 1&2\".
         - You can insta-patch your siege maps (if you're a mapper) with the \"Patch SiegeAI\" feature from the \"Special Stuff\" menu.".to_owned();
