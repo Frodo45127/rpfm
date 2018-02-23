@@ -7,25 +7,21 @@
                     <item>
                         <attribute name="label" translatable="yes">_New PackFile</attribute>
                         <attribute name="action">app.new-packfile</attribute>
-                        <attribute name="icon">document-new</attribute>
                         <attribute name="accel">&lt;Primary&gt;n</attribute>
                     </item>
                     <item>
                        <attribute name="label" translatable="yes">_Open PackFile</attribute>
                         <attribute name="action">app.open-packfile</attribute>
-                        <attribute name="icon">document-open</attribute>
                         <attribute name="accel">&lt;Primary&gt;o</attribute>
                     </item>
                     <item>
                         <attribute name="label" translatable="yes">_Save PackFile</attribute>
                         <attribute name="action">app.save-packfile</attribute>
-                        <attribute name="icon">document-save</attribute>
                         <attribute name="accel">&lt;Primary&gt;s</attribute>
                     </item>
                     <item>
                         <attribute name="label" translatable="yes">Save PackFile _As</attribute>
                         <attribute name="action">app.save-packfile-as</attribute>
-                        <attribute name="icon">document-save-as</attribute>
                         <attribute name="accel">&lt;Primary&gt;&lt;Shift&gt;s</attribute>
                     </item>
                 </section>
@@ -65,13 +61,11 @@
                     <item>
                         <attribute name="label" translatable="yes">_Preferences</attribute>
                         <attribute name="action">app.preferences</attribute>
-                        <attribute name="icon">gtk-preferences</attribute>
                         <attribute name="accel">&lt;Primary&gt;p</attribute>
                     </item>
                     <item>
                         <attribute name="label" translatable="yes">_Quit</attribute>
                         <attribute name="action">app.quit</attribute>
-                        <attribute name="icon">application-exit</attribute>
                         <attribute name="accel">&lt;Primary&gt;q</attribute>
                     </item>
                 </section>
@@ -127,12 +121,10 @@
                 <item>
                     <attribute name="label" translatable="yes">_Shortcuts</attribute>
                     <attribute name="action">win.show-help-overlay</attribute>
-                    <attribute name="icon">help-about</attribute>
                 </item>
                 <item>
                     <attribute name="label" translatable="yes">_About</attribute>
                     <attribute name="action">app.about</attribute>
-                    <attribute name="icon">help-about</attribute>
                     <attribute name="accel">&lt;Primary&gt;h</attribute>
                 </item>
             </submenu>
