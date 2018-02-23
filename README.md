@@ -13,18 +13,20 @@ The latest released version can (only for TW:Warhammer 2 for now):
 In addition to that, it has some special features:
 - [x] ***Patch SiegeAI***: For mappers. It patches the opened PackFile so the Siege AI stuff of your map works properly, delete the useless xml files in your map's folder and save your PackFile.
 - [x] ***Patch Attila's RigidModel***: It patches the selected Attila's RigidModel file to work in Warhammer 1&2. Basically, it's to be able to import a custom model through Attila's Assembly Kit and then ported it to Warhammer. ***DISCLAIMER***: Please note that importing models from another IPs different from Warhammer Fantasy, or from any other game you don't have the copyright to use it ***It's not legal and can get you in trouble***. And I'm not responsible in case you get in trouble.
+- [x] ***MyMod***: A re-implementation of the "MyMod" feature from PFM. It works following the behavior specified [here][MyMod behavior] with some changes:
+    - "Delete selected mod" actually deletes the mod and his extracted files.
+    - It'll enable itself when you open a "MyMod" mod, and disable itself when you open another mod.
 
 To see what's being worked on, check the ***TODO.md*** file.
 
 # Requirements (to use)
-To use the ***Linux*** you just need to install **GTK 3.22 or later** and... that's all.
-
 To use the ***Windows*** version, there are no requirements. Just extract it somewhere and execute it.
 
+For ***Linux*** builds, they'll be provided again once I cover a game that has a linux version.
 
 # Requirements (to build)
 To build this project, you need:
-* ***GTK 3.22*** or higher.
+* ***GTK 3.22*** or higher (including SourceView).
 * ***Rust toolchain***.
 
 In **Linux**, you just need to install the latest ***GTK3 package*** of your distro (at least GTK 3.22), the ***GTK Source View*** package and the ***Rust Toolchain*** (recommended using [***Rustup***][Rustup download]).
@@ -44,9 +46,6 @@ cargo build --target=x86_64-unknown-linux-gnu --release
 - **Why not helping with PFM instead of reimplementing it?**: because I wanted to learn a new language, and I already now a bit of C#. Also, where is the fun of that?
 - **Why the code quality is not the very best?**: because I'm using this project to learn Rust, and I'm constantly rewriting code as I find new and better ways to write it.
 
-# Known bugs
-- Changing the type of the PackFile doesn't make it show up as "modified" in the window's title bar.
-- Menu icons are horrible. Trying to get rid of the horrible Adwaita icons, but haven't managed to do it yet.
 
 # Credits
 - ***Frodo45127***: I'm the guy who has made the program.
@@ -61,3 +60,4 @@ cargo build --target=x86_64-unknown-linux-gnu --release
 
 [Rustup download]: https://www.rustup.rs/ "Here you can download it :)"
 [Gtk-rs requeriments]: http://gtk-rs.org/docs-src/requirements.html "Installation Tutorial for GTK3 in Windows"
+[MyMod behavior]: http://www.twcenter.net/forums/showthread.php?536546-The-PFM-2-1-s-MyMod-Feature

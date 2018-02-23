@@ -1,12 +1,15 @@
 // In this file are all the Structs and Impls required to decode and encode the PackFiles.
 // For now we only support common TW: Warhammer 2 PackFiles (not loc files, those are different).
 extern crate chrono;
+extern crate failure;
 
 use self::chrono::{
     NaiveDateTime, Utc
 };
-use std::io::Error;
 use std::path::PathBuf;
+
+use self::failure::Error;
+
 use common::coding_helpers;
 
 /// Struct PackFile: This stores the data of the entire PackFile in memory ('cause fuck lazy-loading),
@@ -111,8 +114,8 @@ impl PackFile {
     /// It requires:
     /// - self: the PackFile we are going to manipulate.
     /// - packed_files: a Vec<PackedFile> we are going to add.
-    pub fn add_packedfiles(&mut self, packed_files: Vec<PackedFile>) {
-        for packed_file in packed_files.iter() {
+    pub fn add_packedfiles(&mut self, packed_files: &[PackedFile]) {
+        for packed_file in packed_files {
             self.pack_file_header.packed_file_count += 1;
             self.pack_file_data.packed_files.push(packed_file.clone());
         }
@@ -141,7 +144,7 @@ impl PackFile {
     /// - pack_file_buffered: a Vec<u8> with the entire PackFile encoded inside it.
     /// - file_name: a String with the name of the PackFile.
     /// - file_path: a PathBuf with the path of the PackFile.
-    pub fn read(pack_file_buffered: Vec<u8>, file_name: String, file_path: PathBuf) -> Result<PackFile, Error> {
+    pub fn read(pack_file_buffered: &[u8], file_name: String, file_path: PathBuf) -> Result<PackFile, Error> {
 
         // We save the "Extra data" of the packfile
         let pack_file_extra_data = PackFileExtraData::new_from_file(file_name, file_path);
@@ -252,13 +255,13 @@ impl PackFileHeader {
 
         let mut pack_file_header = PackFileHeader::new();
 
-        pack_file_header.pack_file_id = coding_helpers::decode_string_u8((&header[0..4]).to_vec())?;
-        pack_file_header.pack_file_type = coding_helpers::decode_integer_u32((&header[4..8]).to_vec())?;
-        pack_file_header.pack_file_count = coding_helpers::decode_integer_u32((&header[8..12]).to_vec())?;
-        pack_file_header.pack_file_index_size = coding_helpers::decode_integer_u32((&header[12..16]).to_vec())?;
-        pack_file_header.packed_file_count = coding_helpers::decode_integer_u32((&header[16..20]).to_vec())?;
-        pack_file_header.packed_file_index_size = coding_helpers::decode_integer_u32((&header[20..24]).to_vec())?;
-        pack_file_header.packed_file_creation_time = NaiveDateTime::from_timestamp(coding_helpers::decode_integer_u32((&header[24..28]).to_vec())? as i64, 0);
+        pack_file_header.pack_file_id = coding_helpers::decode_string_u8(&header[0..4])?;
+        pack_file_header.pack_file_type = coding_helpers::decode_integer_u32(&header[4..8])?;
+        pack_file_header.pack_file_count = coding_helpers::decode_integer_u32(&header[8..12])?;
+        pack_file_header.pack_file_index_size = coding_helpers::decode_integer_u32(&header[12..16])?;
+        pack_file_header.packed_file_count = coding_helpers::decode_integer_u32(&header[16..20])?;
+        pack_file_header.packed_file_index_size = coding_helpers::decode_integer_u32(&header[20..24])?;
+        pack_file_header.packed_file_creation_time = NaiveDateTime::from_timestamp(i64::from(coding_helpers::decode_integer_u32(&header[24..28])?), 0);
 
         Ok(pack_file_header)
     }
@@ -268,7 +271,7 @@ impl PackFileHeader {
     pub fn save(header_decoded: &PackFileHeader, pack_file_index_size: u32, packed_file_index_size: u32) -> Vec<u8> {
         let mut header_encoded = vec![];
 
-        let mut pack_file_id = coding_helpers::encode_string_u8(header_decoded.pack_file_id.clone());
+        let mut pack_file_id = coding_helpers::encode_string_u8(&header_decoded.pack_file_id);
         let mut pack_file_type = coding_helpers::encode_integer_u32(header_decoded.pack_file_type);
         let mut pack_file_count = coding_helpers::encode_integer_u32(header_decoded.pack_file_count);
         let mut pack_file_index_size = coding_helpers::encode_integer_u32(pack_file_index_size);
@@ -310,9 +313,9 @@ impl PackFileData {
     /// It requires:
     /// - self: a PackFileData to check for the PackedFile.
     /// - packed_file_paths: the paths of the PackedFiles we want to check.
-    pub fn packedfile_exists(&self, packed_file_path: &Vec<String>) -> bool {
-        for packed_file in self.packed_files.iter() {
-            if &packed_file.packed_file_path == packed_file_path {
+    pub fn packedfile_exists(&self, packed_file_path: &[String]) -> bool {
+        for packed_file in &self.packed_files {
+            if packed_file.packed_file_path == packed_file_path {
                 return true;
             }
         }
@@ -323,9 +326,9 @@ impl PackFileData {
     /// It requires:
     /// - self: a PackFileData to check for the folder.
     /// - packed_file_paths: the path of the folder we want to check.
-    pub fn folder_exists(&self, packed_file_path: &Vec<String>) -> bool {
-        for packed_file in self.packed_files.iter() {
-            if packed_file.packed_file_path.starts_with(&packed_file_path)
+    pub fn folder_exists(&self, packed_file_path: &[String]) -> bool {
+        for packed_file in &self.packed_files {
+            if packed_file.packed_file_path.starts_with(packed_file_path)
                 && packed_file.packed_file_path.len() > packed_file_path.len() {
                 return true;
             }
@@ -406,14 +409,10 @@ impl PackFileData {
             }
 
             // We get the size of the PackedFile (bytes 1 to 4 of the index)
-            let file_size = match coding_helpers::decode_integer_u32(packed_file_index[(
+            let file_size = coding_helpers::decode_integer_u32(&packed_file_index[(
                     (packed_file_index_offset as usize) + packed_file_index_file_size_begin_offset as usize)
-                    ..((packed_file_index_offset as usize) + 4 + (packed_file_index_file_size_begin_offset as usize))
-                    ].to_vec()
-            ) {
-                Ok(size) => size,
-                Err(error) => return Err(error)
-            };
+                    ..((packed_file_index_offset as usize) + 4 + (packed_file_index_file_size_begin_offset as usize))]
+            )?;
 
             // Then we get the Path, char by char
             let mut packed_file_index_path: Vec<String> = vec![];
@@ -429,7 +428,7 @@ impl PackFileData {
                 if c.escape_unicode().to_string() == ("\\u{5c}") {
                     packed_file_index_path.push(packed_file_index_path_folder);
                     packed_file_index_path_folder = String::new();
-                    packed_file_index_offset = packed_file_index_offset + 1;
+                    packed_file_index_offset += 1;
                 }
 
                 // If the byte is \u{0}, the path is complete. We save it and update the offsets to
@@ -437,16 +436,14 @@ impl PackFileData {
                 else if c.escape_unicode().to_string() == ("\\u{0}") {
                     packed_file_index_path.push(packed_file_index_path_folder);
                     packed_file_index_path_folder = String::new();
-                    packed_file_index_offset =
-                        packed_file_index_offset
-                            + packed_file_index_file_size_path_offset;
+                    packed_file_index_offset += packed_file_index_file_size_path_offset;
                     done = true;
 
                 // If none of the options before are True, then we add the character to the current
                 // folder/file name.
                 } else {
                     packed_file_index_path_folder.push(c);
-                    packed_file_index_offset = packed_file_index_offset + 1;
+                    packed_file_index_offset += 1;
                 }
             }
 
@@ -456,7 +453,7 @@ impl PackFileData {
                 packed_file_data_offset as usize)
                 ..((packed_file_data_offset as usize)
                 + (file_size as usize))].into();
-            packed_file_data_offset = packed_file_data_offset + file_size;
+            packed_file_data_offset += file_size;
 
             // And finally, we create the PackedFile decoded and we push it to the Vec<PackedFile>.
             packed_files.push(PackedFile::read(file_size, packed_file_index_path, packed_file_data_file_data));
@@ -478,14 +475,14 @@ impl PackFileData {
 
         for i in &data_decoded.pack_files {
             pack_file_index.extend_from_slice( i.as_bytes());
-            pack_file_index.extend_from_slice("\0".as_bytes());
+            pack_file_index.push(0);
         }
 
         for i in &data_decoded.packed_files {
             let mut packed_file_encoded = PackedFile::save(i);
             packed_file_index.append(&mut packed_file_encoded.0);
             packed_file_data.append(&mut packed_file_encoded.1);
-            packed_file_index.extend_from_slice("\0".as_bytes());
+            packed_file_index.push(0);
         }
 
         let mut pack_file_data_encoded: Vec<Vec<u8>> = vec![];
@@ -519,7 +516,7 @@ impl PackedFile {
         // We get the file_size and add a \u{0} to it.
         let file_size_in_bytes = coding_helpers::encode_integer_u32(packed_file_decoded.packed_file_size);
         packed_file_index_entry.extend_from_slice(&file_size_in_bytes);
-        packed_file_index_entry.extend_from_slice("\0".as_bytes());
+        packed_file_index_entry.push(0);
 
         // Then we get the path, turn it into a single String and push it with the rest of the index.
         let mut path = String::new();
@@ -535,9 +532,7 @@ impl PackedFile {
         // Then, we encode the data
         let packed_file_data_entry: Vec<u8> = packed_file_decoded.packed_file_data.to_vec();
 
-
         // Finally, we put both together and return them.
-        let packed_file_data_encoded = (packed_file_index_entry, packed_file_data_entry);
-        packed_file_data_encoded
+        (packed_file_index_entry, packed_file_data_entry)
     }
 }

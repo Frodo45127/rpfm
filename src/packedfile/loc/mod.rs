@@ -1,8 +1,18 @@
 // In this file we define the PackedFile type Loc for decoding and encoding it.
 // This is the type used by localisation files.
+extern crate failure;
+extern crate csv;
 
-use std::io::Error;
+use std::fs::File;
+use std::io::Write;
+use std::path::PathBuf;
+
+use self::failure::Error;
+use self::csv::{
+    ReaderBuilder, WriterBuilder, QuoteStyle
+};
 use common::coding_helpers;
+use super::SerializableToCSV;
 
 /// Struct Loc: This stores the data of a decoded Localisation PackedFile in memory.
 /// It stores the PackedFile divided in 2 parts:
@@ -52,10 +62,10 @@ impl Loc {
 
     /// This function creates a new decoded Loc from the data of a PackedFile. Note that this assume
     /// the file is a loc. It'll crash otherwise.
-    pub fn read(packed_file_data: Vec<u8>) -> Result<Loc, Error> {
-        match LocHeader::read(packed_file_data[..14].to_vec()) {
+    pub fn read(packed_file_data: &[u8]) -> Result<Loc, Error> {
+        match LocHeader::read(&packed_file_data[..14]) {
             Ok(packed_file_header) => {
-                match LocData::read(packed_file_data[14..].to_vec(), &packed_file_header.packed_file_header_packed_file_entry_count) {
+                match LocData::read(&packed_file_data[14..], &packed_file_header.packed_file_header_packed_file_entry_count) {
                     Ok(packed_file_data) =>
                         Ok(Loc {
                             packed_file_header,
@@ -102,13 +112,13 @@ impl LocHeader {
 
     /// This function creates a new decoded LocHeader from the data of a PackedFile. To see what are
     /// these values, check the LocHeader struct.
-    pub fn read(packed_file_header: Vec<u8>) -> Result<LocHeader, Error> {
+    pub fn read(packed_file_header: &[u8]) -> Result<LocHeader, Error> {
         let mut loc_header = LocHeader::new();
 
-        loc_header.packed_file_header_byte_order_mark = coding_helpers::decode_integer_u16((&packed_file_header[0..2]).to_vec())?;
-        loc_header.packed_file_header_packed_file_type = coding_helpers::decode_string_u8((&packed_file_header[2..5]).to_vec())?;
-        loc_header.packed_file_header_packed_file_version = coding_helpers::decode_integer_u32((&packed_file_header[6..10]).to_vec())?;
-        loc_header.packed_file_header_packed_file_entry_count = coding_helpers::decode_integer_u32((&packed_file_header[10..14]).to_vec())?;
+        loc_header.packed_file_header_byte_order_mark = coding_helpers::decode_integer_u16(&packed_file_header[0..2])?;
+        loc_header.packed_file_header_packed_file_type = coding_helpers::decode_string_u8(&packed_file_header[2..5])?;
+        loc_header.packed_file_header_packed_file_version = coding_helpers::decode_integer_u32(&packed_file_header[6..10])?;
+        loc_header.packed_file_header_packed_file_entry_count = coding_helpers::decode_integer_u32(&packed_file_header[10..14])?;
 
         Ok(loc_header)
     }
@@ -119,8 +129,8 @@ impl LocHeader {
         let mut packed_file_header_encoded: Vec<u8> = vec![];
 
         packed_file_header_encoded.extend_from_slice(&coding_helpers::encode_integer_u16(packed_file_header_decoded.packed_file_header_byte_order_mark));
-        packed_file_header_encoded.extend_from_slice(&coding_helpers::encode_string_u8(packed_file_header_decoded.packed_file_header_packed_file_type.clone()));
-        packed_file_header_encoded.extend_from_slice("\0".as_bytes());
+        packed_file_header_encoded.extend_from_slice(&coding_helpers::encode_string_u8(&packed_file_header_decoded.packed_file_header_packed_file_type));
+        packed_file_header_encoded.push(0);
         packed_file_header_encoded.extend_from_slice(&coding_helpers::encode_integer_u32(packed_file_header_decoded.packed_file_header_packed_file_version));
         packed_file_header_encoded.extend_from_slice(&coding_helpers::encode_integer_u32(packed_file_entry_count));
 
@@ -142,7 +152,7 @@ impl LocData {
     /// This function creates a new decoded LocData from the data of a PackedFile. A LocData is a
     /// Vec<LocDataEntry>. This pass through all the data of the Loc PackedFile and decodes every
     /// entry.
-    pub fn read(packed_file_data: Vec<u8>, packed_file_entry_count: &u32) -> Result<LocData, Error> {
+    pub fn read(packed_file_data: &[u8], packed_file_entry_count: &u32) -> Result<LocData, Error> {
         let mut packed_file_data_entries: Vec<LocDataEntry> = vec![];
 
         let mut entry_offset: u32 = 0;
@@ -152,7 +162,7 @@ impl LocData {
         let mut entry_field_size: u16 = 0;
 
         // For each entry
-        for _ in 0..packed_file_entry_count.clone() {
+        for _ in 0..*packed_file_entry_count {
 
             let mut key: String = String::new();
             let mut text: String = String::new();
@@ -175,9 +185,9 @@ impl LocData {
                         // utf-16 so they use 2 bytes and need to be reversed before using them.
                         0 | 1 => {
                             let string_encoded_begin = (entry_offset + entry_field_offset + entry_size_byte_offset) as usize;
-                            let string_encoded_end = (entry_offset + entry_field_offset + entry_size_byte_offset + ((entry_field_size * 2) as u32)) as usize;
+                            let string_encoded_end = (entry_offset + entry_field_offset + entry_size_byte_offset + (u32::from(entry_field_size * 2))) as usize;
                             let string_encoded: Vec<u8> = packed_file_data[string_encoded_begin..string_encoded_end].to_vec();
-                            let string_decoded = coding_helpers::decode_string_u16(string_encoded)?;
+                            let string_decoded = coding_helpers::decode_string_u16(&string_encoded)?;
 
                             if entry_field == 0 {
                                 key = string_decoded;
@@ -185,7 +195,7 @@ impl LocData {
                             else {
                                 text = string_decoded;
                             }
-                            entry_field_offset += (entry_field_size * 2) as u32;
+                            entry_field_offset += u32::from(entry_field_size * 2);
 
                             entry_field += 1;
                             entry_offset = entry_offset + entry_size_byte_offset + entry_field_offset;
@@ -217,9 +227,9 @@ impl LocData {
         let mut packed_file_entry_count = 0;
 
         for i in &packed_file_data_decoded.packed_file_data_entries {
-            packed_file_data_encoded.append(&mut coding_helpers::encode_packedfile_string_u16(i.key.clone()));
-            packed_file_data_encoded.append(&mut coding_helpers::encode_packedfile_string_u16(i.text.clone()));
-            packed_file_data_encoded.append(&mut coding_helpers::encode_bool(i.tooltip));
+            packed_file_data_encoded.append(&mut coding_helpers::encode_packedfile_string_u16(&i.key));
+            packed_file_data_encoded.append(&mut coding_helpers::encode_packedfile_string_u16(&i.text));
+            packed_file_data_encoded.push(coding_helpers::encode_bool(i.tooltip));
             packed_file_entry_count += 1;
         }
         (packed_file_data_encoded, packed_file_entry_count)
@@ -235,6 +245,67 @@ impl LocDataEntry {
             key,
             text,
             tooltip,
+        }
+    }
+}
+
+/// Implementation of `SerializableToCSV` for `LocData`.
+impl SerializableToCSV for LocData {
+
+    fn import_csv(&mut self, csv_file_path: &PathBuf) -> Result<(), Error> {
+
+        // We expect no headers, so we need to tweak our reader first.
+        let mut reader_builder = ReaderBuilder::new();
+        reader_builder.has_headers(false);
+
+        // Get the file and it's entries.
+        match reader_builder.from_path(&csv_file_path) {
+            Ok(mut reader) => {
+                
+                // We create here the vector to store the date while it's being decoded.
+                let mut new_packed_file_data = vec![];
+
+                // Then we add the new entries to the decoded entry list.
+                for reader_entry in reader.deserialize() {
+                    match reader_entry {
+                        Ok(entry) => new_packed_file_data.push(entry),
+                        Err(_) => return Err(format_err!("Error while trying import the csv file:\n{}", &csv_file_path.display()))
+
+                    }
+                }
+                // If we reached this point without errors, we replace the old data with the new one.
+                self.packed_file_data_entries.clear();
+                self.packed_file_data_entries.append( &mut new_packed_file_data);
+
+                Ok(())
+            }
+            Err(_) => Err(format_err!("Error while trying to read the csv file \"{}\".", &csv_file_path.display()))
+        }
+    }
+
+    fn export_csv(&self, packed_file_path: &PathBuf) -> Result<String, Error> {
+
+        // We want no headers and quotes around the fields, so we need to tweak our writer first.
+        let mut writer_builder = WriterBuilder::new();
+        writer_builder.has_headers(false);
+        writer_builder.quote_style(QuoteStyle::Always);
+        let mut writer = writer_builder.from_writer(vec![]);
+
+        // For every entry, we serialize every one of it's fields.
+        for entry in &self.packed_file_data_entries {
+            writer.serialize(entry)?;
+        }
+
+        // Get it all into an string, and write them to disk.
+        let csv_serialized = String::from_utf8(writer.into_inner().unwrap().to_vec()).unwrap();
+        match File::create(&packed_file_path) {
+            Ok(mut file) => {
+                match file.write_all(csv_serialized.as_bytes()) {
+                    Ok(_) => Ok(format!("Loc PackedFile successfully exported:\n{}", packed_file_path.display())),
+                    Err(_) => Err(format_err!("Error while writing the following file to disk:\n{}", packed_file_path.display()))
+                }
+            }
+            Err(_) => Err(format_err!("Error while trying to write the following file to disk:\n{}", packed_file_path.display()))
         }
     }
 }

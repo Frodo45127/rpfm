@@ -1,32 +1,88 @@
-# Shorterm (Probably next update)
-- [ ] Implement an "Update checker" feature.
-- [ ] Implement some kind-of dependency check for DB PackedFile Tables.
-- [ ] Implement cs2.parsed files patching.
-- [ ] Rework the UI for editing Loc and DB files.
+# Road to 1.0:
+### PackFile Management:
+  - [x] Add File/Folder.
+  - [x] Add File/Folder from PackFile.
+  - [ ] Create new folder.
+  - [ ] Create new table.
+  - [ ] Create new Loc.
+  - [x] Delete.
+  - [x] Rename.
+  - [x] Extract.
+  - [ ] Open with external tool.
+  - [ ] Copy file/folder.
+  - [ ] Cut file/folder.
+  - [ ] Paste file/folder.
 
-# Midterm
-- [ ] Implement some sort of user settings.
-- [x] Implement priority columns for DB tables.
-- [x] Implement a decoding tool to decode Table's Structure, both from PackFiles and from Assembly Kit's XMLs.
-- [ ] Implement basic hotkeys, like "Supr", "CTRL+C/V",....
-- [ ] Implement more file management stuff, like moving between folders.
-- [ ] Implement an "Open with external tool" feature.
-- [ ] Implement a "Create a Siege Battle PackFile" feature.
-- [ ] Implement a "Convert Catchment to Prefab" feature.
-- [ ] Implement support for TW:Warhammer 1 PackFiles.
-- [ ] Implement Importing/Exporting to .csv for DB PackedFiles.
-- [ ] Implement something like the "MyMod" feature in PFM.
-- [ ] Make the tables remember the width of their columns.
-- [ ] Implement Theming support (graphically, as the theme can be changed already through a text file).
-- [ ] Implement some sort of font scaling.
-- [ ] Use native file chooser dialogs instead of the GTK ones.
-- [x] Split the "master_schema.xml" by game.
-- [ ] Implement some test to ensure the general PackFile creation/reading/saving functions doesn't break.
-- [ ] Endless UI improving.
-- [ ] Make improvements in the code so the UI doesn't hangs when there is an operation running in the background (maybe with threads?).
+### PackedFile Management:
+  - [x] RigidModel:
+    - [x] Rework current decoding process to be more reliable with multiple Lods.
+  - [ ] Loc:
+    - [x] Edit rows.
+    - [x] Add rows.
+    - [x] Delete rows.
+    - [ ] Copy rows.
+    - [ ] Cut rows.
+    - [ ] Paste rows.
+    - [x] Import from csv.
+    - [x] Export to csv.
+  - [ ] DB:
+    - [ ] Table View:
+      - [x] Edit rows.
+      - [x] Add rows.
+      - [x] Delete rows.
+      - [x] Clone rows.
+      - [ ] Copy rows.
+      - [ ] Cut rows.
+      - [ ] Paste rows.
+      - [x] Import from csv.
+      - [x] Export to csv.
+    - [ ] Decoder View:
+      - [x] Decode any type of entry.
+      - [ ] Load old definitions of an undecoded table.
+      - [x] Manipulate decoded columns.
+      - [x] Update "First row decoded" field on column order change.
+	- [ ] Others:
+	  - [x] Decode simple text files (with syntax highlight if possible).
+	  - [x] Show images in the program (png, jpeg, jpg, tga).
+	  - [ ] Show dds files in the program.
 
-# Someday, maybe
-- [ ] Implement a "View in HexEditor" feature for PackedFiles.
-- [ ] Implement Encoding/Decoding for more PackedFiles.
-- [ ] Implement optional Lazy-Loading of PackFiles.
-- [ ] Make the build script to copy the needed extra files to the build directory.
+### QoL Improvements:
+  - [ ] All: Improve the general behavior of the program.
+  - [ ] Pref: Block edition in Boot/Release/Patch packs.
+  - [ ] PackFile Management: Improve interaction in case of duplicate files while adding them to the PackFile.
+  - [ ] PackFile Management: Open PackFile directly from data folder.
+  - [ ] PackFile Management: Don't try to decode the files if the selection has been done with right-click (or a better alternative for this).
+  - [ ] PackFile Management: Delete multiple selected things at the same time.
+  - [ ] PackFile Management: Extract multiple selected things at the same time.
+  - [ ] PackFile Management: Move the load of the DB schemas to background (so it doesn't lock the UI) and make it happen on opening the PackFile (so we load only the needed schema).
+  - [ ] PackedFile Management: Make it so right-clicking a row doesn't unselect the rest.
+  - [ ] PackedFile Management: Make the "column name rewriting" on opening table, instead on creation (to work better with dependencies).
+  - [ ] PackedFile Management: Improve decoder hex-view... so it's not broken.
+
+### General Improvements:
+  - [x] Hotkeys.
+  - [ ] Cross-table dependencies for DB Tables.
+  - [ ] Minimize DB files function (requires some... imaginative coding to not fill 4GB of ram on minimize).
+  - [ ] Column filtering for DB tables (custom, not permanent).
+  - [ ] Loc Entries edition integrated in DB Tables View.
+  - [ ] First-start setup dialog.
+  - [x] MyMod Feature.
+  - [ ] Update checker.
+  - [ ] Auto-updater.
+  - [ ] Full support (PackFiles, DB Tables and Loc files) for:
+    - [x] Warhammer 2.
+    - [ ] Warhammer.
+    - [ ] Attila.
+    - [ ] Rome 2.
+    - [ ] Britannia (if 1.0 is not done when it gets released).
+
+### Extra Improvements (Not needed for 1.0, but want to have them done at some point):
+  - [ ] Patch Attila's cs2.parsed to Warhammer format (for custom buildings).
+  - [ ] Automatic creation of prefabs from maps (to ease mapmaking).
+  - [ ] Extra theming options.
+  - [ ] LUA files autocompletion.
+  - [ ] Font size selection.
+  - [ ] Migrate filechooser dialogs to use native dialogs (probably in the next GTK-RS update, as I saw some of the code needed for this already in their repo).
+  - [ ] Pref: Remember custom column widths (not so sure if I'll manage to make this one... or if it'll be done, but to the list it goes).
+  - [ ] Code Tests, to ensure I don't break something with a code change.... again.
+  - [ ] Something to not load entire PackFiles to Ram (optional, as this causes problems seen in PFM),

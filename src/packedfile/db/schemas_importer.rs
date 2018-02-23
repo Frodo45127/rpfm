@@ -2,13 +2,13 @@
 // runtime, so we just wired up when we need to create a new schema from scratch.
 
 extern crate serde_xml_rs;
+extern crate failure;
 
 use std::fs::File;
-use std::io::{
-    Read, Error
-};
+use std::io::Read;
 use std::path::PathBuf;
 
+use self::failure::Error;
 use self::serde_xml_rs::deserialize;
 use super::DBHeader;
 use super::schemas::*;
@@ -53,7 +53,7 @@ pub fn import_schema(
     let assembly_kit_schemas = common::get_assembly_kit_schemas(assembly_kit_schemas_path).unwrap();
 
     // For each file...
-    for path in assembly_kit_schemas.iter() {
+    for path in &assembly_kit_schemas {
 
         // We just do this in Debug builds, so we use a print to check when a table throws an error.
         println!("{:?}", path);
@@ -73,7 +73,7 @@ pub fn import_schema(
             Ok(db_file_path) => {
 
                 // If we found something...
-                if db_file_path.len() > 0 {
+                if !db_file_path.is_empty() {
                     match File::open(&db_file_path[0]) {
                         Ok(ref mut file) => {
 
@@ -82,13 +82,13 @@ pub fn import_schema(
                             file.read_to_end(&mut pack_file_buffered).expect("Error reading file.");
 
                             // Get it's version...
-                            let header = DBHeader::read(pack_file_buffered).unwrap();
+                            let header = DBHeader::read(&pack_file_buffered).unwrap();
                             let version = header.0.packed_file_header_packed_file_version;
 
                             // And add it to the schema.
                             schema.add_table_definitions(TableDefinitions::new(&table_name));
                             let index = schema.get_table_definitions(&table_name).unwrap();
-                            schema.tables_definitions[index].add_table_definition(TableDefinition::new_from_assembly_kit(imported_table_definition, version, table_name));
+                            schema.tables_definitions[index].add_table_definition(TableDefinition::new_from_assembly_kit(&imported_table_definition, version, &table_name));
 
                         }
                         Err(_) => continue,

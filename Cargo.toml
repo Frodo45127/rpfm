@@ -1,6 +1,6 @@
 [package]
 name = "rpfm-code"
-version = "0.4.1"
+version = "0.5.0"
 authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
 build = "build.rs"
 description = "A modder tool for Total War: Warhammer 2."
@@ -15,17 +15,25 @@ serde_json = "1.0"
 serde-xml-rs = "0.2"
 unescape = "0.1.0"
 hex-slice = "0.1.2"
-chrono="0.4.0"
+chrono = "0.4.0"
+failure = "0.1"
+uuid = { version = "0.6", features = ["v4"] }
 
 [dependencies.gtk]
 version = "0.3.0"
-features = ["v3_22"]
+features = ["v3_22", "embed-lgpl-docs"]
 
 [dependencies.gdk]
 version = "0.7.0"
 
 [dependencies.glib]
 version = "0.4.0"
+
+[dependencies.gio]
+version = "0.3.0"
+
+[dependencies.pango]
+version = "0.3.0"
 
 [dependencies.sourceview]
 version = "0.3.0"

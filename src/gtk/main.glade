@@ -2,258 +2,46 @@
 <!-- Generated with glade 3.20.2 -->
 <interface>
   <requires lib="gtk+" version="3.20"/>
-  <object class="GtkImage" id="gtk_context_menu_tree_view_db_packedfile_img_add_rows">
-    <property name="visible">True</property>
+  <object class="GtkMessageDialog" id="gtk_delete_my_mod_dialog">
     <property name="can_focus">False</property>
-    <property name="stock">gtk-add</property>
-  </object>
-  <object class="GtkImage" id="gtk_context_menu_tree_view_db_packedfile_img_delete_row">
-    <property name="visible">True</property>
-    <property name="can_focus">False</property>
-    <property name="stock">gtk-delete</property>
-  </object>
-  <object class="GtkPopover" id="gtk_context_menu_tree_view_packedfile_db">
-    <property name="can_focus">False</property>
-    <child>
+    <property name="window_position">center</property>
+    <property name="type_hint">dialog</property>
+    <property name="gravity">center</property>
+    <property name="transient_for">gtk_window</property>
+    <property name="message_type">question</property>
+    <property name="buttons">ok-cancel</property>
+    <property name="text" translatable="yes">You are going to delete this mod from your disk.</property>
+    <property name="use_markup">True</property>
+    <property name="secondary_text" translatable="yes">Are you sure?</property>
+    <child internal-child="vbox">
       <object class="GtkBox">
-        <property name="visible">True</property>
         <property name="can_focus">False</property>
         <property name="orientation">vertical</property>
-        <child>
-          <object class="GtkBox">
-            <property name="visible">True</property>
+        <property name="spacing">2</property>
+        <child internal-child="action_area">
+          <object class="GtkButtonBox">
             <property name="can_focus">False</property>
+            <property name="layout_style">end</property>
             <child>
-              <object class="GtkButton" id="gtk_context_menu_tree_view_db_packedfile_add_rows">
-                <property name="label" translatable="yes">Add rows:</property>
-                <property name="visible">True</property>
-                <property name="can_focus">True</property>
-                <property name="receives_default">True</property>
-                <property name="hexpand">True</property>
-                <property name="image">gtk_context_menu_tree_view_db_packedfile_img_add_rows</property>
-                <property name="relief">none</property>
-                <property name="xalign">0</property>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">True</property>
-                <property name="position">0</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkEntry" id="gtk_context_menu_tree_view_db_packedfile_add_rows_number">
-                <property name="visible">True</property>
-                <property name="can_focus">True</property>
-                <property name="hexpand">True</property>
-                <property name="max_length">4</property>
-                <property name="has_frame">False</property>
-                <property name="width_chars">6</property>
-                <property name="text" translatable="yes">1</property>
-                <property name="xalign">1</property>
-                <property name="caps_lock_warning">False</property>
-                <property name="primary_icon_stock">gtk-goto-last</property>
-                <property name="placeholder_text" translatable="yes">1</property>
-                <property name="input_purpose">digits</property>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">True</property>
-                <property name="position">1</property>
-              </packing>
+              <placeholder/>
             </child>
           </object>
           <packing>
             <property name="expand">False</property>
-            <property name="fill">True</property>
+            <property name="fill">False</property>
             <property name="position">0</property>
           </packing>
         </child>
         <child>
-          <object class="GtkButton" id="gtk_context_menu_tree_view_packedfile_db_delete_row">
-            <property name="label" translatable="yes">Delete row</property>
-            <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <property name="receives_default">True</property>
-            <property name="hexpand">True</property>
-            <property name="image">gtk_context_menu_tree_view_db_packedfile_img_delete_row</property>
-            <property name="relief">none</property>
-            <property name="xalign">0</property>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="position">1</property>
-          </packing>
+          <placeholder/>
         </child>
       </object>
     </child>
-  </object>
-  <object class="GtkImage" id="gtk_context_menu_tree_view_img_add_file">
-    <property name="visible">True</property>
-    <property name="can_focus">False</property>
-    <property name="stock">gtk-add</property>
-  </object>
-  <object class="GtkImage" id="gtk_context_menu_tree_view_img_add_folder">
-    <property name="visible">True</property>
-    <property name="can_focus">False</property>
-    <property name="stock">gtk-add</property>
-  </object>
-  <object class="GtkImage" id="gtk_context_menu_tree_view_img_add_from_packfile">
-    <property name="visible">True</property>
-    <property name="can_focus">False</property>
-    <property name="stock">gtk-undelete</property>
-  </object>
-  <object class="GtkImage" id="gtk_context_menu_tree_view_img_delete_file">
-    <property name="visible">True</property>
-    <property name="can_focus">False</property>
-    <property name="stock">gtk-delete</property>
-  </object>
-  <object class="GtkImage" id="gtk_context_menu_tree_view_img_extract_file">
-    <property name="visible">True</property>
-    <property name="can_focus">False</property>
-    <property name="stock">gtk-undelete</property>
-  </object>
-  <object class="GtkImage" id="gtk_context_menu_tree_view_loc_packedfile_img_add_rows">
-    <property name="visible">True</property>
-    <property name="can_focus">False</property>
-    <property name="stock">gtk-add</property>
-  </object>
-  <object class="GtkImage" id="gtk_context_menu_tree_view_loc_packedfile_img_delete_row">
-    <property name="visible">True</property>
-    <property name="can_focus">False</property>
-    <property name="stock">gtk-delete</property>
-  </object>
-  <object class="GtkImage" id="gtk_context_menu_tree_view_loc_packedfile_img_export_to_csv">
-    <property name="visible">True</property>
-    <property name="can_focus">False</property>
-    <property name="stock">gtk-undo</property>
-  </object>
-  <object class="GtkImage" id="gtk_context_menu_tree_view_loc_packedfile_img_import_from_csv">
-    <property name="visible">True</property>
-    <property name="can_focus">False</property>
-    <property name="stock">gtk-redo</property>
-  </object>
-  <object class="GtkPopover" id="gtk_context_menu_tree_view_packedfile_loc">
-    <property name="can_focus">False</property>
     <child>
-      <object class="GtkBox">
-        <property name="visible">True</property>
-        <property name="can_focus">False</property>
-        <property name="orientation">vertical</property>
-        <child>
-          <object class="GtkBox">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <child>
-              <object class="GtkButton" id="gtk_context_menu_tree_view_loc_packedfile_add_rows">
-                <property name="label" translatable="yes">Add rows:</property>
-                <property name="visible">True</property>
-                <property name="can_focus">True</property>
-                <property name="receives_default">True</property>
-                <property name="hexpand">True</property>
-                <property name="image">gtk_context_menu_tree_view_loc_packedfile_img_add_rows</property>
-                <property name="relief">none</property>
-                <property name="xalign">0</property>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">True</property>
-                <property name="position">0</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkEntry" id="gtk_context_menu_tree_view_loc_packedfile_add_rows_number">
-                <property name="visible">True</property>
-                <property name="can_focus">True</property>
-                <property name="max_length">4</property>
-                <property name="has_frame">False</property>
-                <property name="width_chars">6</property>
-                <property name="text" translatable="yes">1</property>
-                <property name="xalign">1</property>
-                <property name="caps_lock_warning">False</property>
-                <property name="primary_icon_stock">gtk-goto-last</property>
-                <property name="placeholder_text" translatable="yes">1</property>
-                <property name="input_purpose">digits</property>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">True</property>
-                <property name="position">1</property>
-              </packing>
-            </child>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="position">0</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkButton" id="gtk_context_menu_tree_view_packedfile_loc_delete_row">
-            <property name="label" translatable="yes">Delete row</property>
-            <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <property name="receives_default">True</property>
-            <property name="hexpand">True</property>
-            <property name="image">gtk_context_menu_tree_view_loc_packedfile_img_delete_row</property>
-            <property name="relief">none</property>
-            <property name="xalign">0</property>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="position">1</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkSeparator">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="position">2</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkButton" id="gtk_context_menu_tree_view_packedfile_loc_import_csv">
-            <property name="label" translatable="yes">Import from CSV</property>
-            <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <property name="receives_default">True</property>
-            <property name="hexpand">True</property>
-            <property name="image">gtk_context_menu_tree_view_loc_packedfile_img_import_from_csv</property>
-            <property name="relief">none</property>
-            <property name="xalign">0</property>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="position">3</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkButton" id="gtk_context_menu_tree_view_packedfile_loc_export_csv">
-            <property name="label" translatable="yes">Export to CSV</property>
-            <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <property name="receives_default">True</property>
-            <property name="hexpand">True</property>
-            <property name="image">gtk_context_menu_tree_view_loc_packedfile_img_export_to_csv</property>
-            <property name="relief">none</property>
-            <property name="xalign">0</property>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="position">4</property>
-          </packing>
-        </child>
-      </object>
+      <placeholder/>
     </child>
   </object>
-  <object class="GtkFileFilter" id="gtk_file_chooser_packedfile_loc_import_csv_filter">
+  <object class="GtkFileFilter" id="gtk_file_chooser_packedfile_import_csv_filter">
     <patterns>
       <pattern>*.csv</pattern>
     </patterns>
@@ -263,7 +51,7 @@
       <pattern>*.pack</pattern>
     </patterns>
   </object>
-  <object class="GtkWindow" id="gtk_window">
+  <object class="GtkApplicationWindow" id="gtk_window">
     <property name="can_focus">False</property>
     <property name="is_focus">True</property>
     <property name="can_default">True</property>
@@ -277,194 +65,6 @@
         <property name="visible">True</property>
         <property name="can_focus">False</property>
         <property name="orientation">vertical</property>
-        <child>
-          <object class="GtkMenuBar" id="gtk_top_menu_bar">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <child>
-              <object class="GtkMenuItem" id="gtk_top_menu_file">
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="label" translatable="yes">PackFile</property>
-                <child type="submenu">
-                  <object class="GtkMenu">
-                    <property name="visible">True</property>
-                    <property name="can_focus">False</property>
-                    <child>
-                      <object class="GtkImageMenuItem" id="gtk_top_menu_file_new_packfile">
-                        <property name="label">gtk-new</property>
-                        <property name="visible">True</property>
-                        <property name="can_focus">False</property>
-                        <property name="use_underline">True</property>
-                        <property name="use_stock">True</property>
-                      </object>
-                    </child>
-                    <child>
-                      <object class="GtkImageMenuItem" id="gtk_top_menu_file_open_packfile">
-                        <property name="label">gtk-open</property>
-                        <property name="visible">True</property>
-                        <property name="can_focus">False</property>
-                        <property name="use_underline">True</property>
-                        <property name="use_stock">True</property>
-                      </object>
-                    </child>
-                    <child>
-                      <object class="GtkImageMenuItem" id="gtk_top_menu_file_save_packfile">
-                        <property name="label">gtk-save</property>
-                        <property name="visible">True</property>
-                        <property name="can_focus">False</property>
-                        <property name="use_underline">True</property>
-                        <property name="use_stock">True</property>
-                      </object>
-                    </child>
-                    <child>
-                      <object class="GtkImageMenuItem" id="gtk_top_menu_file_save_packfile_as">
-                        <property name="label">gtk-save-as</property>
-                        <property name="visible">True</property>
-                        <property name="can_focus">False</property>
-                        <property name="use_underline">True</property>
-                        <property name="use_stock">True</property>
-                      </object>
-                    </child>
-                    <child>
-                      <object class="GtkSeparatorMenuItem">
-                        <property name="visible">True</property>
-                        <property name="can_focus">False</property>
-                      </object>
-                    </child>
-                    <child>
-                      <object class="GtkMenuItem" id="gtk_top_menu_file_select_packfile_type">
-                        <property name="visible">True</property>
-                        <property name="can_focus">False</property>
-                        <property name="label" translatable="yes">Change PackFile Type</property>
-                        <child type="submenu">
-                          <object class="GtkMenu">
-                            <property name="visible">True</property>
-                            <property name="can_focus">False</property>
-                            <child>
-                              <object class="GtkRadioMenuItem" id="gtk_top_menu_file_select_packfile_type1">
-                                <property name="visible">True</property>
-                                <property name="can_focus">False</property>
-                                <property name="label" translatable="yes">Boot</property>
-                                <property name="use_underline">True</property>
-                                <property name="draw_as_radio">True</property>
-                              </object>
-                            </child>
-                            <child>
-                              <object class="GtkRadioMenuItem" id="gtk_top_menu_file_select_packfile_type2">
-                                <property name="visible">True</property>
-                                <property name="can_focus">False</property>
-                                <property name="label" translatable="yes">Release</property>
-                                <property name="use_underline">True</property>
-                                <property name="draw_as_radio">True</property>
-                                <property name="group">gtk_top_menu_file_select_packfile_type1</property>
-                              </object>
-                            </child>
-                            <child>
-                              <object class="GtkRadioMenuItem" id="gtk_top_menu_file_select_packfile_type3">
-                                <property name="visible">True</property>
-                                <property name="can_focus">False</property>
-                                <property name="label" translatable="yes">Patch</property>
-                                <property name="use_underline">True</property>
-                                <property name="draw_as_radio">True</property>
-                                <property name="group">gtk_top_menu_file_select_packfile_type1</property>
-                              </object>
-                            </child>
-                            <child>
-                              <object class="GtkRadioMenuItem" id="gtk_top_menu_file_select_packfile_type4">
-                                <property name="visible">True</property>
-                                <property name="can_focus">False</property>
-                                <property name="label" translatable="yes">Mod</property>
-                                <property name="use_underline">True</property>
-                                <property name="draw_as_radio">True</property>
-                                <property name="group">gtk_top_menu_file_select_packfile_type1</property>
-                              </object>
-                            </child>
-                            <child>
-                              <object class="GtkRadioMenuItem" id="gtk_top_menu_file_select_packfile_type5">
-                                <property name="visible">True</property>
-                                <property name="can_focus">False</property>
-                                <property name="label" translatable="yes">Movie</property>
-                                <property name="use_underline">True</property>
-                                <property name="draw_as_radio">True</property>
-                                <property name="group">gtk_top_menu_file_select_packfile_type1</property>
-                              </object>
-                            </child>
-                          </object>
-                        </child>
-                      </object>
-                    </child>
-                    <child>
-                      <object class="GtkSeparatorMenuItem">
-                        <property name="visible">True</property>
-                        <property name="can_focus">False</property>
-                      </object>
-                    </child>
-                    <child>
-                      <object class="GtkImageMenuItem" id="gtk_top_menu_file_quit">
-                        <property name="label">gtk-quit</property>
-                        <property name="visible">True</property>
-                        <property name="can_focus">False</property>
-                        <property name="use_underline">True</property>
-                        <property name="use_stock">True</property>
-                      </object>
-                    </child>
-                  </object>
-                </child>
-              </object>
-            </child>
-            <child>
-              <object class="GtkMenuItem" id="gtk_top_menu_special_stuff">
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="label" translatable="yes">Special Stuff</property>
-                <child type="submenu">
-                  <object class="GtkMenu">
-                    <property name="visible">True</property>
-                    <property name="can_focus">False</property>
-                    <child>
-                      <object class="GtkImageMenuItem" id="gtk_top_menu_special_patch_ai">
-                        <property name="label">Patch SiegeAI</property>
-                        <property name="visible">True</property>
-                        <property name="can_focus">False</property>
-                        <property name="use_stock">False</property>
-                      </object>
-                    </child>
-                  </object>
-                </child>
-              </object>
-            </child>
-            <child>
-              <object class="GtkMenuItem" id="gtk_top_menu_about">
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="label" translatable="yes">About</property>
-                <property name="use_underline">True</property>
-                <child type="submenu">
-                  <object class="GtkMenu">
-                    <property name="visible">True</property>
-                    <property name="can_focus">False</property>
-                    <child>
-                      <object class="GtkImageMenuItem" id="gtk_top_menu_about_about">
-                        <property name="label">gtk-about</property>
-                        <property name="visible">True</property>
-                        <property name="can_focus">False</property>
-                        <property name="use_underline">True</property>
-                        <property name="use_stock">True</property>
-                        <signal name="activate" handler="on_gtk_top_menu_about_about_activate" swapped="no"/>
-                      </object>
-                    </child>
-                  </object>
-                </child>
-              </object>
-            </child>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="position">0</property>
-          </packing>
-        </child>
         <child>
           <object class="GtkPaned">
             <property name="width_request">1100</property>
@@ -544,107 +144,8 @@
         </child>
       </object>
     </child>
-    <child>
+    <child type="titlebar">
       <placeholder/>
-    </child>
-  </object>
-  <object class="GtkPopover" id="gtk_context_menu_tree_view">
-    <property name="can_focus">False</property>
-    <property name="relative_to">gtk_folder_tree_view</property>
-    <property name="position">bottom</property>
-    <property name="constrain_to">none</property>
-    <child>
-      <object class="GtkBox">
-        <property name="visible">True</property>
-        <property name="can_focus">False</property>
-        <property name="orientation">vertical</property>
-        <property name="homogeneous">True</property>
-        <child>
-          <object class="GtkButton" id="gtk_context_menu_tree_view_add_file">
-            <property name="label" translatable="yes">Add file</property>
-            <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <property name="receives_default">True</property>
-            <property name="hexpand">True</property>
-            <property name="image">gtk_context_menu_tree_view_img_add_file</property>
-            <property name="relief">none</property>
-            <property name="xalign">0</property>
-          </object>
-          <packing>
-            <property name="expand">True</property>
-            <property name="fill">True</property>
-            <property name="position">0</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkButton" id="gtk_context_menu_tree_view_add_folder">
-            <property name="label" translatable="yes">Add folder</property>
-            <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <property name="receives_default">True</property>
-            <property name="hexpand">False</property>
-            <property name="image">gtk_context_menu_tree_view_img_add_folder</property>
-            <property name="relief">none</property>
-            <property name="xalign">0</property>
-          </object>
-          <packing>
-            <property name="expand">True</property>
-            <property name="fill">True</property>
-            <property name="position">1</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkButton" id="gtk_context_menu_tree_view_add_from_packfile">
-            <property name="label" translatable="yes">Add file/folder from PackFile</property>
-            <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <property name="receives_default">True</property>
-            <property name="hexpand">True</property>
-            <property name="image">gtk_context_menu_tree_view_img_add_from_packfile</property>
-            <property name="relief">none</property>
-            <property name="xalign">0</property>
-          </object>
-          <packing>
-            <property name="expand">True</property>
-            <property name="fill">True</property>
-            <property name="position">2</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkButton" id="gtk_context_menu_tree_view_delete_file">
-            <property name="label" translatable="yes">Delete file/folder</property>
-            <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <property name="receives_default">True</property>
-            <property name="hexpand">True</property>
-            <property name="image">gtk_context_menu_tree_view_img_delete_file</property>
-            <property name="relief">none</property>
-            <property name="xalign">0</property>
-          </object>
-          <packing>
-            <property name="expand">True</property>
-            <property name="fill">True</property>
-            <property name="position">3</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkButton" id="gtk_context_menu_tree_view_extract_file">
-            <property name="label" translatable="yes">Extract file/folder</property>
-            <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <property name="receives_default">True</property>
-            <property name="hexpand">True</property>
-            <property name="image">gtk_context_menu_tree_view_img_extract_file</property>
-            <property name="relief">none</property>
-            <property name="xalign">0</property>
-          </object>
-          <packing>
-            <property name="expand">True</property>
-            <property name="fill">True</property>
-            <property name="position">4</property>
-          </packing>
-        </child>
-      </object>
     </child>
   </object>
   <object class="GtkMessageDialog" id="gtk_error_dialog">
@@ -1083,7 +584,7 @@
       <placeholder/>
     </child>
   </object>
-  <object class="GtkFileChooserDialog" id="gtk_file_chooser_packedfile_loc_export_csv">
+  <object class="GtkFileChooserDialog" id="gtk_file_chooser_packedfile_export_csv">
     <property name="can_focus">False</property>
     <property name="title" translatable="yes">Export to CSV</property>
     <property name="window_position">center</property>
@@ -1093,7 +594,7 @@
     <property name="transient_for">gtk_window</property>
     <property name="action">save</property>
     <property name="do_overwrite_confirmation">True</property>
-    <property name="filter">gtk_file_chooser_packedfile_loc_import_csv_filter</property>
+    <property name="filter">gtk_file_chooser_packedfile_import_csv_filter</property>
     <child internal-child="vbox">
       <object class="GtkBox">
         <property name="width_request">650</property>
@@ -1151,7 +652,7 @@
       <placeholder/>
     </child>
   </object>
-  <object class="GtkFileChooserDialog" id="gtk_file_chooser_packedfile_loc_import_csv">
+  <object class="GtkFileChooserDialog" id="gtk_file_chooser_packedfile_import_csv">
     <property name="can_focus">False</property>
     <property name="hexpand">True</property>
     <property name="vexpand">True</property>
@@ -1161,7 +662,7 @@
     <property name="default_height">600</property>
     <property name="type_hint">dialog</property>
     <property name="transient_for">gtk_window</property>
-    <property name="filter">gtk_file_chooser_packedfile_loc_import_csv_filter</property>
+    <property name="filter">gtk_file_chooser_packedfile_import_csv_filter</property>
     <child internal-child="vbox">
       <object class="GtkBox">
         <property name="width_request">650</property>
@@ -1287,6 +788,71 @@
       <placeholder/>
     </child>
   </object>
+  <object class="GtkFileChooserDialog" id="gtk_file_chooser_settings_select_folder">
+    <property name="can_focus">False</property>
+    <property name="title" translatable="yes">Select new folder</property>
+    <property name="window_position">center</property>
+    <property name="default_width">700</property>
+    <property name="default_height">600</property>
+    <property name="type_hint">dialog</property>
+    <property name="transient_for">gtk_window</property>
+    <property name="action">select-folder</property>
+    <property name="select_multiple">True</property>
+    <child internal-child="vbox">
+      <object class="GtkBox">
+        <property name="can_focus">False</property>
+        <property name="orientation">vertical</property>
+        <property name="spacing">2</property>
+        <child internal-child="action_area">
+          <object class="GtkButtonBox">
+            <property name="can_focus">False</property>
+            <property name="layout_style">end</property>
+            <child>
+              <object class="GtkButton" id="button5">
+                <property name="label">gtk-cancel</property>
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="receives_default">True</property>
+                <property name="use_stock">True</property>
+              </object>
+              <packing>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkButton" id="button6">
+                <property name="label">gtk-add</property>
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="can_default">True</property>
+                <property name="receives_default">True</property>
+                <property name="use_stock">True</property>
+              </object>
+              <packing>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">False</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+      </object>
+    </child>
+    <action-widgets>
+      <action-widget response="-6">button5</action-widget>
+      <action-widget response="-5">button6</action-widget>
+    </action-widgets>
+    <child>
+      <placeholder/>
+    </child>
+  </object>
   <object class="GtkPopover" id="gtk_rename_popover">
     <property name="can_focus">False</property>
     <property name="relative_to">gtk_folder_tree_view</property>
@@ -1324,6 +890,39 @@
     <property name="buttons">ok</property>
     <property name="text" translatable="yes">Success</property>
     <property name="secondary_text" translatable="yes">Success 2</property>
+    <child internal-child="vbox">
+      <object class="GtkBox">
+        <property name="can_focus">False</property>
+        <property name="orientation">vertical</property>
+        <property name="spacing">2</property>
+        <child internal-child="action_area">
+          <object class="GtkButtonBox">
+            <property name="can_focus">False</property>
+            <property name="layout_style">end</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">False</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+      </object>
+    </child>
+    <child>
+      <placeholder/>
+    </child>
+  </object>
+  <object class="GtkMessageDialog" id="gtk_unsaved_dialog">
+    <property name="can_focus">False</property>
+    <property name="window_position">center</property>
+    <property name="type_hint">dialog</property>
+    <property name="gravity">center</property>
+    <property name="transient_for">gtk_window</property>
+    <property name="message_type">question</property>
+    <property name="buttons">ok-cancel</property>
+    <property name="text" translatable="yes">There are some changes yet to save.</property>
+    <property name="use_markup">True</property>
+    <property name="secondary_text" translatable="yes">Are you sure?</property>
     <child internal-child="vbox">
       <object class="GtkBox">
         <property name="can_focus">False</property>

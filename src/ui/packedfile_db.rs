@@ -3,16 +3,17 @@ extern crate gtk;
 extern crate gdk;
 extern crate glib;
 extern crate hex_slice;
+extern crate failure;
 
 use packedfile::db::*;
 use packedfile::db::schemas::*;
 use common::coding_helpers;
-use std::io::Error;
+use failure::Error;
 use gtk::prelude::*;
 use gtk::{
-    Box, TreeView, ListStore, ScrolledWindow, Button, Orientation, TextView, Label, Entry, ToggleButton,
+    Box, TreeView, ListStore, ScrolledWindow, Button, Orientation, TextView, Label, Entry,
     CellRendererText, TreeViewColumn, CellRendererToggle, Type, WrapMode, Justification, Frame, CellRendererCombo,
-    TextTag, Popover, Image
+    TextTag, Popover, ModelButton, Paned, Switch, Separator
 };
 
 use self::hex_slice::AsHex;
@@ -30,9 +31,7 @@ pub struct PackedFileDBTreeView {
     pub packed_file_tree_view_cell_string: Vec<CellRendererText>,
     pub packed_file_tree_view_cell_optional_string: Vec<CellRendererText>,
     pub packed_file_popover_menu: Popover,
-    pub packed_file_popover_menu_add_rows_button: Button,
     pub packed_file_popover_menu_add_rows_entry: Entry,
-    pub packed_file_popover_menu_delete_rows_button: Button,
 }
 
 /// Struct PackedFileDBDecoder: contains all the stuff we need to return to be able to decode DB PackedFiles.
@@ -63,13 +62,15 @@ pub struct PackedFileDBDecoder {
     pub fields_tree_view: TreeView,
     pub fields_list_store: ListStore,
     pub field_name_entry: Entry,
-    pub is_key_field_button: ToggleButton,
+    pub is_key_field_switch: Switch,
     pub save_decoded_schema: Button,
     pub fields_tree_view_cell_bool: CellRendererToggle,
     pub fields_tree_view_cell_combo: CellRendererCombo,
     pub fields_tree_view_cell_combo_list_store: ListStore,
     pub fields_tree_view_cell_string: Vec<CellRendererText>,
     pub delete_all_fields_button: Button,
+    pub move_up_button: ModelButton,
+    pub move_down_button: ModelButton,
 }
 
 /// Implementation of "PackedFileDBTreeView".
@@ -91,13 +92,10 @@ impl PackedFileDBTreeView{
         list_store_table_definition.push(Type::String);
 
         // Depending on the type of the field, we push the gtk::Type equivalent to that column.
-        for field in packed_file_table_definition.fields.iter() {
+        for field in &packed_file_table_definition.fields {
             match field.field_type {
                 FieldType::Boolean => {
                     list_store_table_definition.push(Type::Bool);
-                }
-                FieldType::Float => {
-                    list_store_table_definition.push(Type::String);
                 }
                 FieldType::Integer => {
                     list_store_table_definition.push(Type::I32);
@@ -105,7 +103,7 @@ impl PackedFileDBTreeView{
                 FieldType::LongInteger => {
                     list_store_table_definition.push(Type::I64);
                 }
-                FieldType::StringU8 | FieldType::StringU16 | FieldType::OptionalStringU8 | FieldType::OptionalStringU16 => {
+                FieldType::Float | FieldType::StringU8 | FieldType::StringU16 | FieldType::OptionalStringU8 | FieldType::OptionalStringU16 => {
                     list_store_table_definition.push(Type::String);
                 }
             }
@@ -141,7 +139,7 @@ impl PackedFileDBTreeView{
 
         let mut index = 1;
         let mut key_columns = vec![];
-        for field in packed_file_table_definition.fields.iter() {
+        for field in &packed_file_table_definition.fields {
 
             // These are the specific declarations of the columns for every type implemented.
             match field.field_type {
@@ -282,7 +280,7 @@ impl PackedFileDBTreeView{
 
         // This should put the key columns in order.
         for column in key_columns.iter().rev() {
-            packed_file_tree_view.move_column_after(&column, Some(&column_index));
+            packed_file_tree_view.move_column_after(column, Some(&column_index));
         }
 
         // Disabled search. Not sure why I disabled it, but until all the decoding/encoding stuff is
@@ -294,35 +292,50 @@ impl PackedFileDBTreeView{
         let packed_file_popover_menu = Popover::new(&packed_file_tree_view);
 
         let packed_file_popover_menu_box = Box::new(Orientation::Vertical, 0);
+        packed_file_popover_menu_box.set_border_width(6);
+        
         let packed_file_popover_menu_box_add_rows_box = Box::new(Orientation::Horizontal, 0);
 
-        let packed_file_popover_menu_add_rows_button = Button::new_with_label("Add rows:");
-        let packed_file_popover_menu_add_rows_button_image = Image::new_from_icon_name(Some("list-add"), gtk::IconSize::Button.into());
-        packed_file_popover_menu_add_rows_button.set_image(&packed_file_popover_menu_add_rows_button_image);
-        packed_file_popover_menu_add_rows_button.set_image_position(gtk::PositionType::Left);
-        packed_file_popover_menu_add_rows_button.set_relief(gtk::ReliefStyle::None);
-        packed_file_popover_menu_add_rows_button.get_children()[0].set_halign(gtk::Align::Start);
+        let packed_file_popover_menu_add_rows_button = ModelButton::new();
+        packed_file_popover_menu_add_rows_button.set_property_text(Some("Add rows:"));
+        packed_file_popover_menu_add_rows_button.set_action_name("app.packedfile_db_add_rows");
 
         let packed_file_popover_menu_add_rows_entry = Entry::new();
         let packed_file_popover_menu_add_rows_entry_buffer = packed_file_popover_menu_add_rows_entry.get_buffer();
         packed_file_popover_menu_add_rows_entry.set_alignment(1.0);
         packed_file_popover_menu_add_rows_entry.set_width_chars(8);
         packed_file_popover_menu_add_rows_entry.set_icon_from_stock(gtk::EntryIconPosition::Primary, Some("gtk-goto-last"));
+        packed_file_popover_menu_add_rows_entry.set_has_frame(false);
         packed_file_popover_menu_add_rows_entry_buffer.set_max_length(Some(4));
         packed_file_popover_menu_add_rows_entry_buffer.set_text("1");
 
-        let packed_file_popover_menu_delete_rows_button = Button::new_with_label("Delete row/s");
-        let packed_file_popover_menu_delete_rows_button_image = Image::new_from_icon_name(Some("edit-delete"), gtk::IconSize::Button.into());
-        packed_file_popover_menu_delete_rows_button.set_image(&packed_file_popover_menu_delete_rows_button_image);
-        packed_file_popover_menu_delete_rows_button.set_image_position(gtk::PositionType::Left);
-        packed_file_popover_menu_delete_rows_button.set_relief(gtk::ReliefStyle::None);
-        packed_file_popover_menu_delete_rows_button.get_children()[0].set_halign(gtk::Align::Start);
+        let packed_file_popover_menu_delete_rows_button = ModelButton::new();
+        packed_file_popover_menu_delete_rows_button.set_property_text(Some("Delete row/s"));
+        packed_file_popover_menu_delete_rows_button.set_action_name("app.packedfile_db_delete_rows");
+
+        let packed_file_popover_menu_clone_rows_button = ModelButton::new();
+        packed_file_popover_menu_clone_rows_button.set_property_text(Some("Clone row/s"));
+        packed_file_popover_menu_clone_rows_button.set_action_name("app.packedfile_db_clone_rows");
+
+        let separator = Separator::new(Orientation::Vertical);
+        let packed_file_popover_menu_import_from_csv_button = ModelButton::new();
+        packed_file_popover_menu_import_from_csv_button.set_property_text(Some("Import from CSV"));
+        packed_file_popover_menu_import_from_csv_button.set_action_name("app.packedfile_db_import_csv");
+
+        let packed_file_popover_menu_export_to_csv_button = ModelButton::new();
+        packed_file_popover_menu_export_to_csv_button.set_property_text(Some("Export to CSV"));
+        packed_file_popover_menu_export_to_csv_button.set_action_name("app.packedfile_db_export_csv");
 
         packed_file_popover_menu_box_add_rows_box.pack_start(&packed_file_popover_menu_add_rows_button, true, true, 0);
         packed_file_popover_menu_box_add_rows_box.pack_end(&packed_file_popover_menu_add_rows_entry, true, true, 0);
 
         packed_file_popover_menu_box.pack_start(&packed_file_popover_menu_box_add_rows_box, true, true, 0);
         packed_file_popover_menu_box.pack_start(&packed_file_popover_menu_delete_rows_button, true, true, 0);
+        packed_file_popover_menu_box.pack_start(&packed_file_popover_menu_clone_rows_button, true, true, 0);
+
+        packed_file_popover_menu_box.pack_start(&separator, true, true, 0);
+        packed_file_popover_menu_box.pack_start(&packed_file_popover_menu_import_from_csv_button, true, true, 0);
+        packed_file_popover_menu_box.pack_start(&packed_file_popover_menu_export_to_csv_button, true, true, 0);
 
         packed_file_popover_menu.add(&packed_file_popover_menu_box);
         packed_file_popover_menu.show_all();
@@ -338,9 +351,7 @@ impl PackedFileDBTreeView{
 
         Ok(PackedFileDBTreeView {
             packed_file_popover_menu,
-            packed_file_popover_menu_add_rows_button,
             packed_file_popover_menu_add_rows_entry,
-            packed_file_popover_menu_delete_rows_button,
             packed_file_tree_view,
             packed_file_list_store,
             packed_file_tree_view_cell_bool,
@@ -354,7 +365,7 @@ impl PackedFileDBTreeView{
 
     /// This function decodes the data of a DB PackedFile and loads it into a TreeView.
     pub fn load_data_to_tree_view(
-        packed_file_data: Vec<Vec<::packedfile::db::DecodedData>>,
+        packed_file_data: &DBData,
         packed_file_list_store: &ListStore,
     ) -> Result<(), Error>{
 
@@ -362,28 +373,28 @@ impl PackedFileDBTreeView{
         packed_file_list_store.clear();
 
         // Then we add every line to the ListStore.
-        for row in packed_file_data {
-            let mut index = 0;
+        for row in &packed_file_data.packed_file_data {
 
             // Due to issues with types and gtk-rs, we need to create an empty line and then add the
             // values to it, one by one.
             let current_row = packed_file_list_store.append();
 
-            for field in row {
+            for (index, field) in row.iter().enumerate() {
                 let gtk_value_field;
-                match field {
-                    DecodedData::Index(data) => gtk_value_field = gtk::ToValue::to_value(&data),
-                    DecodedData::Boolean(data) => gtk_value_field = gtk::ToValue::to_value(&data),
-                    DecodedData::Float(data) => gtk_value_field = gtk::ToValue::to_value(&format!("{}", data)),
-                    DecodedData::Integer(data) => gtk_value_field = gtk::ToValue::to_value(&data),
-                    DecodedData::LongInteger(data) => gtk_value_field = gtk::ToValue::to_value(&data),
-                    DecodedData::StringU8(data) => gtk_value_field = gtk::ToValue::to_value(&data),
-                    DecodedData::StringU16(data) => gtk_value_field = gtk::ToValue::to_value(&data),
-                    DecodedData::OptionalStringU8(data) => gtk_value_field = gtk::ToValue::to_value(&data),
-                    DecodedData::OptionalStringU16(data) => gtk_value_field = gtk::ToValue::to_value(&data),
+                match *field {
+                    DecodedData::Boolean(ref data) => gtk_value_field = gtk::ToValue::to_value(&data),
+                    DecodedData::Float(ref data) => gtk_value_field = gtk::ToValue::to_value(&format!("{}", data)),
+                    DecodedData::Integer(ref data) => gtk_value_field = gtk::ToValue::to_value(&data),
+                    DecodedData::LongInteger(ref data) => gtk_value_field = gtk::ToValue::to_value(&data),
+
+                    // All these are Strings, so it can be together,
+                    DecodedData::Index(ref data) |
+                    DecodedData::StringU8(ref data) |
+                    DecodedData::StringU16(ref data) |
+                    DecodedData::OptionalStringU8(ref data) |
+                    DecodedData::OptionalStringU16(ref data) => gtk_value_field = gtk::ToValue::to_value(&data),
                 }
-                packed_file_list_store.set_value(&current_row, index, &gtk_value_field);
-                index += 1;
+                packed_file_list_store.set_value(&current_row, index as u32, &gtk_value_field);
             }
         }
         Ok(())
@@ -407,7 +418,8 @@ impl PackedFileDBTreeView{
             let mut done = false;
             while !done {
 
-                let mut packed_file_data_from_tree_view_entry: Vec<DecodedData> = vec![];
+                // We return the index too. We deal with it in the save function, so there is no problem
+                let mut packed_file_data_from_tree_view_entry: Vec<DecodedData> = vec![DecodedData::Index(packed_file_list_store.get_value(&current_line, 0).get().unwrap())];
 
                 for column in 1..columns {
                     let field_type = &table_definition.fields[column as usize - 1].field_type;
@@ -504,7 +516,6 @@ impl PackedFileDBDecoder {
         packed_file_raw_data_scroll.set_size_request(350, 0);
 
         // Then, the big box to put all the stuff we need to decode.
-        let packed_file_decoded_data_big_boxx = Box::new(Orientation::Vertical, 0);
         let packed_file_decoded_data_less_bigger_boxx = Box::new(Orientation::Horizontal, 0);
         let packed_file_decoded_data_box = Box::new(Orientation::Vertical, 0);
 
@@ -512,11 +523,36 @@ impl PackedFileDBDecoder {
         let fields_tree_view = TreeView::new();
         let fields_list_store = ListStore::new(&[String::static_type(), String::static_type(), String::static_type(), bool::static_type(), String::static_type(), String::static_type(), String::static_type(), String::static_type()]);
         fields_tree_view.set_model(Some(&fields_list_store));
-        // Here we set the TreeView as "drag_dest" and "drag_source", so we can drag&drop things to it.
-        let targets = vec![gtk::TargetEntry::new("text/uri-list", gtk::TargetFlags::SAME_WIDGET, 0)];
-        fields_tree_view.drag_source_set(gdk::ModifierType::BUTTON1_MASK, &targets, gdk::DragAction::MOVE);
-        fields_tree_view.drag_dest_set(gtk::DestDefaults::ALL, &targets, gdk::DragAction::MOVE);
-        fields_tree_view.set_reorderable(true);
+
+        // This method of reordering crash the program on windows, so we only enable it for Linux.
+        if cfg!(target_os = "linux") {
+
+            // Here we set the TreeView as "drag_dest" and "drag_source", so we can drag&drop things to it.
+            let targets = vec![gtk::TargetEntry::new("text/uri-list", gtk::TargetFlags::SAME_WIDGET, 0)];
+            fields_tree_view.drag_source_set(gdk::ModifierType::BUTTON1_MASK, &targets, gdk::DragAction::MOVE);
+            fields_tree_view.drag_dest_set(gtk::DestDefaults::ALL, &targets, gdk::DragAction::MOVE);
+            fields_tree_view.set_reorderable(true);
+        }
+
+        // Here we create the buttons to move the decoded rows up&down.
+        let row_up = ModelButton::new();
+        let row_down = ModelButton::new();
+        row_up.set_property_text(Some("Up"));
+        row_down.set_property_text(Some("Down"));
+        row_up.set_action_name("app.move_row_up");
+        row_down.set_action_name("app.move_row_down");
+
+        let button_box = Box::new(Orientation::Vertical, 0);
+        button_box.pack_start(&row_up, true, true, 6);
+        button_box.pack_end(&row_down, true, true, 6);
+
+        let fields_tree_view_scroll = ScrolledWindow::new(None, None);
+        fields_tree_view_scroll.add(&fields_tree_view);
+        fields_tree_view_scroll.set_size_request(400, 200);
+
+        let tree_view_box = Box::new(Orientation::Horizontal, 6);
+        tree_view_box.pack_start(&button_box, false, false, 0);
+        tree_view_box.pack_start(&fields_tree_view_scroll, true, true, 0);
 
         let mut fields_tree_view_cell_string = vec![];
 
@@ -539,14 +575,14 @@ impl PackedFileDBDecoder {
         fields_tree_view_cell_string.push(cell_name);
 
         let cell_type_list_store = ListStore::new(&[String::static_type()]);
-        cell_type_list_store.insert_with_values(None, &[0], &[&format!("Bool")]);
-        cell_type_list_store.insert_with_values(None, &[0], &[&format!("Float")]);
-        cell_type_list_store.insert_with_values(None, &[0], &[&format!("Integer")]);
-        cell_type_list_store.insert_with_values(None, &[0], &[&format!("LongInteger")]);
-        cell_type_list_store.insert_with_values(None, &[0], &[&format!("StringU8")]);
-        cell_type_list_store.insert_with_values(None, &[0], &[&format!("StringU16")]);
-        cell_type_list_store.insert_with_values(None, &[0], &[&format!("OptionalStringU8")]);
-        cell_type_list_store.insert_with_values(None, &[0], &[&format!("OptionalStringU16")]);
+        cell_type_list_store.insert_with_values(None, &[0], &[&"Bool"]);
+        cell_type_list_store.insert_with_values(None, &[0], &[&"Float"]);
+        cell_type_list_store.insert_with_values(None, &[0], &[&"Integer"]);
+        cell_type_list_store.insert_with_values(None, &[0], &[&"LongInteger"]);
+        cell_type_list_store.insert_with_values(None, &[0], &[&"StringU8"]);
+        cell_type_list_store.insert_with_values(None, &[0], &[&"StringU16"]);
+        cell_type_list_store.insert_with_values(None, &[0], &[&"OptionalStringU8"]);
+        cell_type_list_store.insert_with_values(None, &[0], &[&"OptionalStringU16"]);
 
         let column_type = TreeViewColumn::new();
         let cell_type = CellRendererCombo::new();
@@ -619,9 +655,6 @@ impl PackedFileDBDecoder {
         fields_tree_view.append_column(&column_decoded);
         fields_tree_view.append_column(&column_description);
 
-        let fields_tree_view_scroll = ScrolledWindow::new(None, None);
-        fields_tree_view_scroll.add(&fields_tree_view);
-        fields_tree_view_scroll.set_size_request(400, 500);
 
         let bool_box = Box::new(Orientation::Horizontal, 0);
         let float_box = Box::new(Orientation::Horizontal, 0);
@@ -754,7 +787,9 @@ impl PackedFileDBDecoder {
         let field_name_entry = Entry::new();
         field_name_entry.set_size_request(400, 0);
 
-        let is_key_field_button = ToggleButton::new_with_label("Key field");
+        let field_is_key_box = Box::new(Orientation::Horizontal, 0);
+        let is_key_field_label = Label::new("Key field");
+        let is_key_field_switch = Switch::new();
         let save_decoded_schema = Button::new_with_label("Finish It!");
 
         packed_file_field_settings_box_table_type.pack_start(&packed_file_decoded_data_table_type_label, false, false, 2);
@@ -769,6 +804,9 @@ impl PackedFileDBDecoder {
         field_name_box.pack_start(&field_name_label, false, false, 6);
         field_name_box.pack_end(&field_name_entry, false, true, 4);
 
+        field_is_key_box.pack_start(&is_key_field_label, false, false, 6);
+        field_is_key_box.pack_end(&is_key_field_switch, false, true, 4);
+
         packed_file_field_info_frame_box.pack_start(&packed_file_field_settings_box_table_type, false, false, 2);
         packed_file_field_info_frame_box.pack_start(&packed_file_field_settings_box_table_version, false, false, 2);
         packed_file_field_info_frame_box.pack_start(&packed_file_field_settings_box_table_entry_count, false, false, 2);
@@ -776,18 +814,19 @@ impl PackedFileDBDecoder {
 
         packed_file_field_settings_box.pack_start(&packed_file_table_info_frame, false, false, 2);
         packed_file_field_settings_box.pack_start(&field_name_box, false, false, 2);
-        packed_file_field_settings_box.pack_start(&is_key_field_button, false, false, 2);
+        packed_file_field_settings_box.pack_start(&field_is_key_box, false, false, 2);
         packed_file_field_settings_box.pack_end(&save_decoded_schema, false, false, 2);
 
         packed_file_decoded_data_less_bigger_boxx.pack_start(&packed_file_decoded_data_box, true, true, 0);
-        packed_file_decoded_data_less_bigger_boxx.pack_end(&packed_file_field_settings_box, true, true, 0);
+        packed_file_decoded_data_less_bigger_boxx.pack_end(&packed_file_field_settings_box, true, true, 8);
 
-        packed_file_decoded_data_big_boxx.pack_start(&fields_tree_view_scroll, false, false, 2);
-        packed_file_decoded_data_big_boxx.pack_start(&packed_file_decoded_data_less_bigger_boxx, false, false, 4);
+        let paned_big_boxx = Paned::new(Orientation::Vertical);
+        paned_big_boxx.pack1(&tree_view_box, false, false);
+        paned_big_boxx.pack2(&packed_file_decoded_data_less_bigger_boxx, false, false);
 
         packed_file_raw_data_scroll.add(&raw_data_box);
         decoder_box.add(&packed_file_raw_data_scroll);
-        decoder_box.pack_end(&packed_file_decoded_data_big_boxx, true, true, 0);
+        decoder_box.pack_end(&paned_big_boxx, true, true, 6);
 
         packed_file_data_display.show_all();
 
@@ -817,13 +856,15 @@ impl PackedFileDBDecoder {
             fields_tree_view,
             fields_list_store,
             field_name_entry,
-            is_key_field_button,
+            is_key_field_switch,
             save_decoded_schema,
             fields_tree_view_cell_bool,
             fields_tree_view_cell_combo,
             fields_tree_view_cell_combo_list_store,
             fields_tree_view_cell_string,
             delete_all_fields_button,
+            move_up_button: row_up,
+            move_down_button: row_down,
         }
     }
 
@@ -831,10 +872,10 @@ impl PackedFileDBDecoder {
     pub fn load_data_to_decoder_view(
         packed_file_decoder_view: &PackedFileDBDecoder,
         packed_file_table_type: &str,
-        packed_file_encoded: &Vec<u8>,
+        packed_file_encoded: &[u8],
         initial_index: usize
     ) -> Result<(), Error> {
-        let db_header = DBHeader::read(packed_file_encoded.to_vec())?;
+        let db_header = DBHeader::read(packed_file_encoded)?;
 
         // This creates the "index" column at the left of the hex data.
         let hex_lines = (packed_file_encoded.len() / 16) + 1;
@@ -921,13 +962,19 @@ impl PackedFileDBDecoder {
         Ok(())
     }
 
-    /// This function updates the data shown in the "Decoder" box when we execute it.
+    /// This function updates the data shown in the "Decoder" box when we execute it. It requires:
+    /// - packed_file_decoder: &PackedFileDBDecoder, the decoder object.
+    /// - packed_file_decoded: Vec<u8>, PackedFile's Data to decode.
+    /// - table_definition: Option<&TableDefinition>, a ref to the table definitions. None will
+    ///   skip the load of data to the table.
+    /// - index_data: usize, the index where to start decoding.
+    /// - load_from_existing_definition: bool, if true, then we load the data from a definition.
+    ///   If false, we update the entire table. If false, we just update the text entries.
     pub fn update_decoder_view(
         packed_file_decoder: &PackedFileDBDecoder,
-        packed_file_decoded: Vec<u8>,
-        table_definition: &TableDefinition,
+        packed_file_decoded: &[u8],
+        table_definition: Option<&TableDefinition>,
         index_data: usize,
-        load_from_existing_definition: bool
     ) -> usize {
 
         // We need to get the length of the vector first, to avoid crashes due to non-existant indexes
@@ -940,21 +987,21 @@ impl PackedFileDBDecoder {
         let decoded_optional_string_u8;
         let decoded_optional_string_u16;
 
-        let mut index_data = index_data.clone();
+        let mut index_data = index_data;
 
         // If we are loading data to the table for the first time, we'll load to the table all the data
         // directly from the existing definition and update the initial index for decoding.
-        if load_from_existing_definition && !table_definition.fields.is_empty() {
+        if let Some(table_definition) = table_definition {
             for (index, field) in table_definition.fields.iter().enumerate() {
                 index_data = PackedFileDBDecoder::add_field_to_data_view(
-                    &packed_file_decoder,
-                    packed_file_decoded.to_vec(),
-                    &table_definition,
+                    packed_file_decoder,
+                    packed_file_decoded,
+                    table_definition,
                     &field.field_name,
                     field.field_type.to_owned(),
                     field.field_is_key,
-                    field.field_is_reference.clone(),
-                    field.field_description.to_owned(),
+                    &field.field_is_reference,
+                    &field.field_description,
                     index_data,
                     Some(index)
                 );
@@ -985,7 +1032,7 @@ impl PackedFileDBDecoder {
         // Check if the index does even exist, to avoid crashes.
         if (index_data + 4) <= packed_file_decoded.len() {
             decoded_float = match coding_helpers::decode_packedfile_float_u32(
-                packed_file_decoded[index_data..(index_data + 4)].to_vec(),
+                &packed_file_decoded[index_data..(index_data + 4)],
                 index_data
             ) {
                 Ok(data) => data.0.to_string(),
@@ -993,7 +1040,7 @@ impl PackedFileDBDecoder {
             };
 
             decoded_integer = match coding_helpers::decode_packedfile_integer_i32(
-                packed_file_decoded[index_data..(index_data + 4)].to_vec(),
+                &packed_file_decoded[index_data..(index_data + 4)],
                 index_data
             ) {
                 Ok(data) => data.0.to_string(),
@@ -1008,7 +1055,7 @@ impl PackedFileDBDecoder {
         // Check if the index does even exist, to avoid crashes.
         if (index_data + 8) <= packed_file_decoded.len() {
             decoded_long_integer = match coding_helpers::decode_packedfile_integer_i64(
-                packed_file_decoded[index_data..(index_data + 8)].to_vec(),
+                &packed_file_decoded[index_data..(index_data + 8)],
                 index_data
             ) {
                 Ok(data) => data.0.to_string(),
@@ -1022,7 +1069,7 @@ impl PackedFileDBDecoder {
         // Check that the index exist, to avoid crashes.
         if index_data < packed_file_decoded.len() {
             decoded_string_u8 = match coding_helpers::decode_packedfile_string_u8(
-                packed_file_decoded[index_data..].to_vec(),
+                &packed_file_decoded[index_data..],
                 index_data
             ) {
                 Ok(data) => data.0,
@@ -1030,7 +1077,7 @@ impl PackedFileDBDecoder {
             };
 
             decoded_string_u16 = match coding_helpers::decode_packedfile_string_u16(
-                packed_file_decoded[index_data..].to_vec(),
+                &packed_file_decoded[index_data..],
                 index_data
             ) {
                 Ok(data) => data.0,
@@ -1038,7 +1085,7 @@ impl PackedFileDBDecoder {
             };
 
             decoded_optional_string_u8 = match coding_helpers::decode_packedfile_optional_string_u8(
-                packed_file_decoded[index_data..].to_vec(),
+                &packed_file_decoded[index_data..],
                 index_data
             ) {
                 Ok(data) => data.0,
@@ -1046,7 +1093,7 @@ impl PackedFileDBDecoder {
             };
 
             decoded_optional_string_u16 = match coding_helpers::decode_packedfile_optional_string_u16(
-                packed_file_decoded[index_data..].to_vec(),
+                &packed_file_decoded[index_data..],
                 index_data
             ) {
                 Ok(data) => data.0,
@@ -1072,7 +1119,7 @@ impl PackedFileDBDecoder {
 
         // We reset these two every time we add a field.
         packed_file_decoder.field_name_entry.get_buffer().set_text(&format!("Unknown {}", index_data));
-        packed_file_decoder.is_key_field_button.set_active(false);
+        packed_file_decoder.is_key_field_switch.set_state(false);
 
         // Then we set the TextTags to paint the hex_data.
         let raw_data_text_buffer = packed_file_decoder.raw_data.get_buffer().unwrap();
@@ -1100,124 +1147,32 @@ impl PackedFileDBDecoder {
     /// - field_description: the description of the field. If the field is new, this is just String::new().
     /// - index_data: the index to start decoding from the vector.
     ///
+    /// We return the index of the next field in the data.
     /// NOTE: In case of error, we return the same index, NOT AN ERROR. That way, we deal with the
     /// possible error here instead on the UI.
     pub fn add_field_to_data_view(
         packed_file_decoder: &PackedFileDBDecoder,
-        packed_file_decoded: Vec<u8>,
+        packed_file_decoded: &[u8],
         table_definition: &TableDefinition,
         field_name: &str,
         field_type: FieldType,
         field_is_key: bool,
-        field_is_reference: Option<(String, String)>,
-        field_description: String,
+        field_is_reference: &Option<(String, String)>,
+        field_description: &str,
         index_data: usize,
         index_row: Option<usize>
     ) -> usize {
 
         let field_index = match index_row {
             Some(index) => format!("{:0count$}", index + 1, count = (table_definition.fields.len().to_string().len() + 1)),
-            None => format!("New"),
+            None => "New".to_owned(),
         };
 
-        let decoded_data = match field_type {
-            FieldType::Boolean => {
-                // Check if the index does even exist, to avoid crashes.
-                if index_data < packed_file_decoded.len() {
-                    match coding_helpers::decode_packedfile_bool(packed_file_decoded[index_data], index_data) {
-                        Ok(result) => {
-                            if result.0 {
-                                ("True".to_string(), result.1)
-                            }
-                            else {
-                                ("False".to_string(), result.1)
-                            }
-                        }
-                        Err(_) => ("Error".to_owned(), index_data),
-                    }
-                }
-                else {
-                    ("Error".to_owned(), index_data)
-                }
-            },
-            FieldType::Float => {
-                if (index_data + 4) <= packed_file_decoded.len() {
-                    match coding_helpers::decode_packedfile_float_u32(packed_file_decoded[index_data..(index_data + 4)].to_vec(), index_data) {
-                        Ok(result) => (result.0.to_string(), result.1),
-                        Err(_) => ("Error".to_owned(), index_data),
-                    }
-                }
-                else {
-                    ("Error".to_owned(), index_data)
-                }
-            },
-            FieldType::Integer => {
-                if (index_data + 4) <= packed_file_decoded.len() {
-                    match coding_helpers::decode_packedfile_integer_i32(packed_file_decoded[index_data..(index_data + 4)].to_vec(), index_data) {
-                        Ok(result) => (result.0.to_string(), result.1),
-                        Err(_) => ("Error".to_owned(), index_data),
-                    }
-                }
-                else {
-                    ("Error".to_owned(), index_data)
-                }
-            },
-            FieldType::LongInteger => {
-                if (index_data + 8) <= packed_file_decoded.len() {
-                    match coding_helpers::decode_packedfile_integer_i64(packed_file_decoded[index_data..(index_data + 8)].to_vec(), index_data) {
-                        Ok(result) => (result.0.to_string(), result.1),
-                        Err(_) => ("Error".to_owned(), index_data),
-                    }
-                }
-                else {
-                    ("Error".to_owned(), index_data)
-                }
-            },
-            FieldType::StringU8 => {
-                if index_data < packed_file_decoded.len() {
-                    match coding_helpers::decode_packedfile_string_u8(packed_file_decoded[index_data..].to_vec(), index_data) {
-                        Ok(result) => result,
-                        Err(_) => ("Error".to_owned(), index_data),
-                    }
-                }
-                else {
-                    ("Error".to_owned(), index_data)
-                }
-            },
-            FieldType::StringU16 => {
-                if index_data < packed_file_decoded.len() {
-                    match coding_helpers::decode_packedfile_string_u16(packed_file_decoded[index_data..].to_vec(), index_data) {
-                        Ok(result) => result,
-                        Err(_) => ("Error".to_owned(), index_data),
-                    }
-                }
-                else {
-                    ("Error".to_owned(), index_data)
-                }
-            },
-            FieldType::OptionalStringU8 => {
-                if index_data < packed_file_decoded.len() {
-                    match coding_helpers::decode_packedfile_optional_string_u8(packed_file_decoded[index_data..].to_vec(), index_data) {
-                        Ok(result) => result,
-                        Err(_) => ("Error".to_owned(), index_data),
-                    }
-                }
-                else {
-                    ("Error".to_owned(), index_data)
-                }
-            },
-            FieldType::OptionalStringU16 => {
-                if index_data < packed_file_decoded.len() {
-                    match coding_helpers::decode_packedfile_optional_string_u16(packed_file_decoded[index_data..].to_vec(), index_data) {
-                        Ok(result) => result,
-                        Err(_) => ("Error".to_owned(), index_data),
-                    }
-                }
-                else {
-                    ("Error".to_owned(), index_data)
-                }
-            },
-        };
+        let decoded_data = decode_data_by_fieldtype(
+            packed_file_decoded,
+            &field_type,
+            index_data
+        );
 
         let field_type = match field_type {
             FieldType::Boolean => "Bool",
@@ -1230,7 +1185,7 @@ impl PackedFileDBDecoder {
             FieldType::OptionalStringU16 => "OptionalStringU16",
         };
 
-        if let Some(ref reference) = field_is_reference {
+        if let Some(ref reference) = *field_is_reference {
             packed_file_decoder.fields_list_store.insert_with_values(
                 None,
                 &[0, 1, 2, 3, 4, 5, 6, 7],
@@ -1291,9 +1246,7 @@ impl PackedFileDBDecoder {
                     "StringU8" => FieldType::StringU8,
                     "StringU16" => FieldType::StringU16,
                     "OptionalStringU8" => FieldType::OptionalStringU8,
-                    "OptionalStringU16" => FieldType::OptionalStringU16,
-                    // This is just so the compiler doesn't complain.
-                    _ => FieldType::Boolean,
+                    "OptionalStringU16" | _=> FieldType::OptionalStringU16,
                 };
 
                 if ref_table.is_empty() {
@@ -1309,5 +1262,110 @@ impl PackedFileDBDecoder {
             }
         }
         fields
+    }
+}
+
+
+/// This function is a helper to try to decode data in different formats, returning "Error" in case
+/// of decoding error. It requires the FieldType we want to decode, the data we want to decode
+/// (vec<u8>, being the first u8 the first byte to decode) and the index of the data in the Vec<u8>.
+pub fn decode_data_by_fieldtype(field_data: &[u8], field_type: &FieldType, index_data: usize) -> (String, usize) {
+    match *field_type {
+        FieldType::Boolean => {
+            // Check if the index does even exist, to avoid crashes.
+            if field_data.get(index_data).is_some() {
+                match coding_helpers::decode_packedfile_bool(field_data[index_data], index_data) {
+                    Ok(result) => {
+                        if result.0 {
+                            ("True".to_string(), result.1)
+                        }
+                        else {
+                            ("False".to_string(), result.1)
+                        }
+                    }
+                    Err(_) => ("Error".to_owned(), index_data),
+                }
+            }
+            else {
+                ("Error".to_owned(), index_data)
+            }
+        },
+        FieldType::Float => {
+            if field_data.get(index_data..(index_data + 4)).is_some() {
+                match coding_helpers::decode_packedfile_float_u32(&field_data[index_data..(index_data + 4)], index_data) {
+                    Ok(result) => (result.0.to_string(), result.1),
+                    Err(_) => ("Error".to_owned(), index_data),
+                }
+            }
+            else {
+                ("Error".to_owned(), index_data)
+            }
+        },
+        FieldType::Integer => {
+            if field_data.get(index_data..(index_data + 4)).is_some() {
+                match coding_helpers::decode_packedfile_integer_i32(&field_data[index_data..(index_data +4)], index_data) {
+                    Ok(result) => (result.0.to_string(), result.1),
+                    Err(_) => ("Error".to_owned(), index_data),
+                }
+            }
+            else {
+                ("Error".to_owned(), index_data)
+            }
+        },
+        FieldType::LongInteger => {
+            if field_data.get(index_data..(index_data + 8)).is_some() {
+                match coding_helpers::decode_packedfile_integer_i64(&field_data[index_data..(index_data +8)], index_data) {
+                    Ok(result) => (result.0.to_string(), result.1),
+                    Err(_) => ("Error".to_owned(), index_data),
+                }
+            }
+            else {
+                ("Error".to_owned(), index_data)
+            }
+        },
+        FieldType::StringU8 => {
+            if field_data.get(index_data).is_some() {
+                match coding_helpers::decode_packedfile_string_u8(&field_data[index_data..], index_data) {
+                    Ok(result) => result,
+                    Err(_) => ("Error".to_owned(), index_data),
+                }
+            }
+            else {
+                ("Error".to_owned(), index_data)
+            }
+        },
+        FieldType::StringU16 => {
+            if field_data.get(index_data).is_some() {
+                match coding_helpers::decode_packedfile_string_u16(&field_data[index_data..], index_data) {
+                    Ok(result) => result,
+                    Err(_) => ("Error".to_owned(), index_data),
+                }
+            }
+            else {
+                ("Error".to_owned(), index_data)
+            }
+        },
+        FieldType::OptionalStringU8 => {
+            if field_data.get(index_data).is_some() {
+                match coding_helpers::decode_packedfile_optional_string_u8(&field_data[index_data..], index_data) {
+                    Ok(result) => result,
+                    Err(_) => ("Error".to_owned(), index_data),
+                }
+            }
+            else {
+                ("Error".to_owned(), index_data)
+            }
+        },
+        FieldType::OptionalStringU16 => {
+            if field_data.get(index_data).is_some() {
+                match coding_helpers::decode_packedfile_optional_string_u16(&field_data[index_data..], index_data) {
+                    Ok(result) => result,
+                    Err(_) => ("Error".to_owned(), index_data),
+                }
+            }
+            else {
+                ("Error".to_owned(), index_data)
+            }
+        },
     }
 }
