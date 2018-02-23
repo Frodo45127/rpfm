@@ -14,13 +14,12 @@
   - [ ] Paste file/folder.
 
 ### PackedFile Management:
-  - [ ] RigidModel:
-    - [ ] Rework current decoding process to be more reliable with multiple Lods.
+  - [x] RigidModel:
+    - [x] Rework current decoding process to be more reliable with multiple Lods.
   - [ ] Loc:
     - [x] Edit rows.
     - [x] Add rows.
     - [x] Delete rows.
-    - [ ] Clone rows.
     - [ ] Copy rows.
     - [ ] Cut rows.
     - [ ] Paste rows.
@@ -48,6 +47,7 @@
 	  - [ ] Show dds files in the program.
 
 ### QoL Improvements:
+  - [ ] All: Improve the general behavior of the program.
   - [ ] Pref: Block edition in Boot/Release/Patch packs.
   - [ ] PackFile Management: Improve interaction in case of duplicate files while adding them to the PackFile.
   - [ ] PackFile Management: Open PackFile directly from data folder.
@@ -66,7 +66,7 @@
   - [ ] Column filtering for DB tables (custom, not permanent).
   - [ ] Loc Entries edition integrated in DB Tables View.
   - [ ] First-start setup dialog.
-  - [ ] MyMod Feature.
+  - [x] MyMod Feature.
   - [ ] Update checker.
   - [ ] Auto-updater.
   - [ ] Full support (PackFiles, DB Tables and Loc files) for:
@@ -74,7 +74,7 @@
     - [ ] Warhammer.
     - [ ] Attila.
     - [ ] Rome 2.
-    - [ ] Brittania (if 1.0 is not done when it's get released).
+    - [ ] Britannia (if 1.0 is not done when it gets released).
 
 ### Extra Improvements (Not needed for 1.0, but want to have them done at some point):
   - [ ] Patch Attila's cs2.parsed to Warhammer format (for custom buildings).
