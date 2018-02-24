@@ -120,7 +120,10 @@ impl RigidModelHeader {
             Err(error) => return Err(error)
         }
 
-        packed_file_header.packed_file_data_base_skeleton = coding_helpers::decode_string_u8_0padded(&packed_file_data[12..140]);
+        match coding_helpers::decode_string_u8_0padded(&packed_file_data[12..140]) {
+            Ok(data) => packed_file_header.packed_file_data_base_skeleton = data,
+            Err(error) => return Err(error)
+        }
         Ok(packed_file_header)
     }
 
@@ -221,7 +224,7 @@ impl RigidModelLodHeader {
             Ok(data) => header.start_offset = data,
             Err(error) => return Err(error)
         }
-        match coding_helpers::decode_float_u32(&packed_file_data[16..20]) {
+        match coding_helpers::decode_float_f32(&packed_file_data[16..20]) {
             Ok(data) => header.lod_zoom_factor = data,
             Err(error) => return Err(error)
         }

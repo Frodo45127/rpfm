@@ -1,17 +1,9 @@
-// In this file are all the helper functions used by the encoding/decoding PackedFiles process.
-// As we may or may not use them, all functions here should have the "#[allow(dead_code)]"
-// var set, so the compiler doesn't spam us every time we try to compile.
-//
-// Note: the specific decoders/encoders usually return some extra data, like sizes of strings.
-extern crate failure;
-extern crate unescape;
-extern crate byteorder;
+// This module contain tests to make sure we don't break any of the encoding/decoding functions in
+// a update, as these are used all over the program and if one of them breaks, half of the program
+// will break with it. Also, this is the only place where ".unwrap()" will be allowed, as a fail in
+// an unwrap means something got broken in the original function.
 
-use failure::Error;
-
-use self::byteorder::{
-    ByteOrder, ReadBytesExt, LittleEndian
-};
+use coding_helpers::*;
 
 /*
 --------------------------------------------------------
@@ -19,125 +11,162 @@ use self::byteorder::{
 --------------------------------------------------------
 */
 
-/// This function allow us to decode an UTF-16 encoded integer. This type of Integers are encoded in
-/// in 2 bytes reversed (LittleEndian).
-#[allow(dead_code)]
-pub fn decode_integer_u16(integer_encoded: &[u8]) -> Result<u16, Error> {
-    match integer_encoded.len() {
-        2 => (&integer_encoded[..]).read_u16::<LittleEndian>().map_err(From::from),
-        _ => Err(format_err!("Error trying to decode an U16 number.\n\n - Required bytes: 2.\n - Provided bytes: {}", integer_encoded.len()))
-    }
+/// Test to make sure the u16 integer decoder (`decode_integer_u16()`) works properly.
+#[test]
+fn test_decode_integer_u16() {
+
+    // Check the decoding works for a proper value.
+    assert_eq!(decode_integer_u16(&[10, 0]).unwrap(), 10);
 }
 
-/// This function allow us to decode an UTF-32 encoded integer. This type of Integers are encoded in
-/// in 4 bytes reversed (LittleEndian).
-#[allow(dead_code)]
-pub fn decode_integer_u32(integer_encoded: &[u8]) -> Result<u32, Error> {
-    match integer_encoded.len() {
-        4 => (&integer_encoded[..]).read_u32::<LittleEndian>().map_err(From::from),
-        _ => Err(format_err!("Error trying to decode an U32 number.\n\n - Required bytes: 4.\n - Provided bytes: {}", integer_encoded.len()))
-    }
+/// Test to make sure the u16 integer decoder (`decode_integer_u16()`) fails properly.
+#[test]
+#[should_panic]
+fn test_error_decode_integer_u16() {
+
+    // Check the decoder returns an error for a slice who's length is different than 2.
+    assert_eq!(decode_integer_u16(&[10, 0, 0, 0, 0]).unwrap(), 10);
 }
 
-/// This function allow us to decode an encoded Long Integer. This type of Integers are encoded in
-/// in 8 bytes reversed (LittleEndian).
-#[allow(dead_code)]
-pub fn decode_integer_u64(integer_encoded: &[u8]) -> Result<u64, Error> {
-    match integer_encoded.len() {
-        8 => (&integer_encoded[..]).read_u64::<LittleEndian>().map_err(From::from),
-        _ => Err(format_err!("Error trying to decode an U64 number.\n\n - Required bytes: 8.\n - Provided bytes: {}", integer_encoded.len()))
-    }
+/// Test to make sure the u32 integer decoder (`decode_integer_u32()`) works properly.
+#[test]
+fn test_decode_integer_u32() {
+
+    // Check the decoding works for a proper value.
+    assert_eq!(decode_integer_u32(&[10, 0, 0, 0]).unwrap(), 10);
 }
 
-/// This function allow us to decode an signed UTF-32 encoded integer. This type of Integers are encoded in
-/// in 4 bytes reversed (LittleEndian).
-#[allow(dead_code)]
-pub fn decode_integer_i32(integer_encoded: &[u8]) -> Result<i32, Error> {
-    match integer_encoded.len() {
-        4 => (&integer_encoded[..]).read_i32::<LittleEndian>().map_err(From::from),
-        _ => Err(format_err!("Error trying to decode an I32 number.\n\n - Required bytes: 4.\n - Provided bytes: {}", integer_encoded.len()))
-    }
+/// Test to make sure the u32 integer decoder (`decode_integer_u32()`) fails properly.
+#[test]
+#[should_panic]
+fn test_error_decode_integer_u32() {
+
+    // Check the decoder returns an error for a slice who's length is different than 4.
+    assert_eq!(decode_integer_u32(&[10, 0, 0, 0, 0]).unwrap(), 10);
 }
 
-/// This function allow us to decode an signed encoded Long Integer. This type of Integers are encoded in
-/// in 8 bytes reversed (LittleEndian).
-#[allow(dead_code)]
-pub fn decode_integer_i64(integer_encoded: &[u8]) -> Result<i64, Error> {
-    match integer_encoded.len() {
-        8 => (&integer_encoded[..]).read_i64::<LittleEndian>().map_err(From::from),
-        _ => Err(format_err!("Error trying to decode an I64 number.\n\n - Required bytes: 8.\n - Provided bytes: {}", integer_encoded.len()))
-    }
+/// Test to make sure the u64 integer decoder (`decode_integer_u64()`) works properly.
+#[test]
+fn test_decode_integer_u64() {
+
+    // Check the decoding works for a proper value.
+    assert_eq!(decode_integer_u64(&[10, 0, 0, 0, 0, 0, 0, 0]).unwrap(), 10);
 }
 
-/// This function allow us to decode an UTF-32 encoded float. This type of floats are encoded in
-/// in 4 bytes reversed (LittleEndian).
-#[allow(dead_code)]
-pub fn decode_float_f32(float_encoded: &[u8]) -> Result<f32, Error> {
-    match float_encoded.len() {
-        4 => (&float_encoded[..]).read_f32::<LittleEndian>().map_err(From::from),
-        _ => Err(format_err!("Error trying to decode a F32 number.\n\n - Required bytes: 4.\n - Provided bytes: {}", float_encoded.len()))
-    }
+/// Test to make sure the u64 integer decoder (`decode_integer_u64()`) fails properly.
+#[test]
+#[should_panic]
+fn test_error_decode_integer_u64() {
+
+    // Check the decoder returns an error for a slice who's length is different than 8.
+    assert_eq!(decode_integer_u64(&[10, 0, 0, 0, 0]).unwrap(), 10);
 }
 
-/// This function allow us to decode an UTF-8 encoded String.
-#[allow(dead_code)]
-pub fn decode_string_u8(string_encoded: &[u8]) -> Result<String, Error> {
-    String::from_utf8(string_encoded.to_vec()).map_err(From::from)
+/// Test to make sure the i32 integer decoder (`decode_integer_i32()`) works properly.
+#[test]
+fn test_decode_integer_i32() {
+
+    // Check the decoding works for a proper value.
+    assert_eq!(decode_integer_i32(&[10, 0, 0, 0]).unwrap(), 10);
 }
 
-/// This function allow us to decode an (0-Padded) UTF-8 encoded String. This type of String has a
-/// fixed size and, when the chars ends, it's filled with \u{0} bytes. Also, due to how we are going
-/// to decode them, this type of decoding cannot fail, but it's slower than a normal UTF-8 String decoding.
-/// We use a tuple to store them and his size.
-#[allow(dead_code)]
-pub fn decode_string_u8_0padded(string_encoded: &[u8]) -> Result<(String, usize), Error> {
-    let mut string_encoded_without_0 = vec![];
-    for character in string_encoded.iter() {
-        match *character {
-            0 => break,
-            _ => string_encoded_without_0.push(*character)
-        }
-    }
+/// Test to make sure the i32 integer decoder (`decode_integer_i32()`) fails properly.
+#[test]
+#[should_panic]
+fn test_error_decode_integer_i32() {
 
-    let size = string_encoded.len();
-    let string_decoded: String = String::from_utf8(string_encoded_without_0).map_err(|error| Error::from(error))?;
-
-    Ok((string_decoded, size))
+    // Check the decoder returns an error for a slice who's length is different than 4.
+    assert_eq!(decode_integer_i32(&[10, 0, 0, 0, 0]).unwrap(), 10);
 }
 
-/// This function allow us to decode an UTF-16 encoded String. This type of Strings are encoded in
-/// in 2 bytes reversed (LittleEndian). Also, this is extremely slow. Needs a lot of improvements.
-///
-/// NOTE: We return error if the length has returned an error. If a char return an error, we just replace
-///       it, but return success.
-#[allow(dead_code)]
-pub fn decode_string_u16(string_encoded: &[u8]) -> Result<String, Error> {
+/// Test to make sure the i64 integer decoder (`decode_integer_i64()`) works properly.
+#[test]
+fn test_decode_integer_i64() {
 
-    let mut u16_characters = vec![];
-    let mut offset: usize = 0;
-    for _ in 0..(string_encoded.len() / 2) {
-        match decode_integer_u16(&string_encoded[offset..offset + 2]) {
-            Ok(character_u16) => {
-                u16_characters.push(character_u16);
-                offset += 2;
-            }
-            Err(error) => return Err(error)
-        }
-    }
-
-    String::from_utf16(&u16_characters).map_err(|error| From::from(error))
+    // Check the decoding works for a proper value.
+    assert_eq!(decode_integer_i64(&[10, 0, 0, 0, 0, 0, 0, 0]).unwrap(), 10);
 }
 
-/// This function allow us to decode an encoded boolean. This is simple: 0 is false, 1 is true.
-/// It only uses a byte.
-#[allow(dead_code)]
-pub fn decode_bool(bool_encoded: u8) -> Result<bool, Error> {
-    match bool_encoded {
-        0 => Ok(false),
-        1 => Ok(true),
-        _ => Err(format_err!("Error:\nTrying to decode a non-boolean value as boolean.")),
-    }
+/// Test to make sure the i64 integer decoder (`decode_integer_i64()`) fails properly.
+#[test]
+#[should_panic]
+fn test_error_decode_integer_i64() {
+
+    // Check the decoder returns an error for a slice who's length is different than 8.
+    assert_eq!(decode_integer_i64(&[10, 0, 0, 0, 0]).unwrap(), 10);
 }
+
+/// Test to make sure the f32 float decoder (`decode_float_u32()`) works properly.
+#[test]
+fn test_decode_float_f32() {
+
+    // Check the decoding works for a proper value.
+    assert_eq!(decode_float_f32(&[0, 0, 32, 65]).unwrap(), 10.0);
+}
+
+/// Test to make sure the f32 float decoder (`decode_float_u64()`) fails properly.
+#[test]
+#[should_panic]
+fn test_error_decode_float_f32() {
+
+    // Check the decoder returns an error for a slice who's length is different than 4.
+    assert_eq!(decode_float_f32(&[0, 0, 0, 32, 65]).unwrap(), 10.0);
+}
+
+/// Test to make sure the u8 string decoder (`decode_string_u8()`) works properly.
+#[test]
+fn test_decode_string_u8() {
+
+    // Check the decoding works for a proper encoded string.
+    assert_eq!(decode_string_u8(&[87, 97, 104, 97, 104, 97, 104, 97, 104, 97]).unwrap(), "Wahahahaha");
+
+    // Check the decoder returns an error for a slice with non-UTF8 characters (255).
+    assert_eq!(decode_string_u8(&[87, 97, 104, 97, 255, 104, 97, 104, 97, 104, 97]).is_err(), true);
+}
+
+/// Test to make sure the u8 0-padded string decoder (`decode_string_u8_0padded()`) works and fails properly.
+#[test]
+fn test_decode_string_u8_0padded() {
+
+    // Check the decoding works for a proper encoded string.
+    assert_eq!(decode_string_u8_0padded(&[87, 97, 104, 97, 104, 97, 0, 0, 0, 0]).unwrap().0, "Wahaha");
+    assert_eq!(decode_string_u8_0padded(&[87, 97, 104, 97, 104, 97, 0, 0, 0, 0]).unwrap().1, 10);
+
+    // Check that, as soon as it finds a 0 (null character) the decoding stops.
+    assert_eq!(decode_string_u8_0padded(&[87, 97, 104, 97, 0, 104, 97, 0, 0, 0]).unwrap().0, "Waha");
+    assert_eq!(decode_string_u8_0padded(&[87, 97, 104, 97, 0, 104, 97, 0, 0, 0]).unwrap().1, 10);
+
+    // Check the decoder returns an error for a slice with non-UTF8 characters (255).
+    assert_eq!(decode_string_u8_0padded(&[87, 97, 104, 97, 255, 104, 97, 104, 97, 104, 97]).is_err(), true);
+}
+
+/// Test to make sure the u16 string decoder (`decode_string_u16()`) works and fails properly.
+#[test]
+fn test_decode_string_u16() {
+
+    // Check the decoding works for a proper encoded string.
+    assert_eq!(decode_string_u16(&[87, 0, 97, 0, 104, 0, 97, 0, 104, 0, 97, 0]).unwrap(), "Wahaha");
+
+    // Check the decoder returns an error for a slice with non-UTF8 characters (216).
+    assert_eq!(decode_string_u16(&[87, 0, 0, 216, 104, 0, 97, 0, 104, 0, 97, 0]).is_err(), true);
+}
+
+
+/// Test to make sure the boolean decoder (`decode_bool()`) works and fails properly.
+#[test]
+fn test_decode_bool() {
+
+    // Check that a normal boolean value is decoded properly.
+    assert_eq!(decode_bool(0).unwrap(), false);
+    assert_eq!(decode_bool(1).unwrap(), true);
+
+    // Check that trying to decode a non-boolean value returns an error.
+    assert_eq!(decode_bool(2).is_err(), true);
+}
+
+
+/*
+
 
 /*
 --------------------------------------------------------
@@ -339,9 +368,9 @@ pub fn decode_packedfile_integer_i64(packed_file_data: &[u8], mut index: usize) 
 /// This function allow us to decode an UTF-32 encoded float cell. We return the float and the index
 /// for the next cell's data.
 #[allow(dead_code)]
-pub fn decode_packedfile_float_f32(packed_file_data: &[u8], mut index: usize) -> Result<(f32, usize), Error> {
+pub fn decode_packedfile_float_u32(packed_file_data: &[u8], mut index: usize) -> Result<(f32, usize), Error> {
     if packed_file_data.len() >= 4 {
-        match decode_float_f32(&packed_file_data[..4]) {
+        match decode_float_u32(&packed_file_data[..4]) {
             Ok(number) => {
                 index += 4;
                 Ok((number, index))
@@ -560,4 +589,4 @@ pub fn encode_packedfile_optional_string_u16(optional_string_u16_decoded: &str) 
     }
 
     optional_string_u16_encoded
-}
+}*/

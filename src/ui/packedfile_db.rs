@@ -293,7 +293,7 @@ impl PackedFileDBTreeView{
 
         let packed_file_popover_menu_box = Box::new(Orientation::Vertical, 0);
         packed_file_popover_menu_box.set_border_width(6);
-        
+
         let packed_file_popover_menu_box_add_rows_box = Box::new(Orientation::Horizontal, 0);
 
         let packed_file_popover_menu_add_rows_button = ModelButton::new();
@@ -1031,7 +1031,7 @@ impl PackedFileDBDecoder {
 
         // Check if the index does even exist, to avoid crashes.
         if (index_data + 4) <= packed_file_decoded.len() {
-            decoded_float = match coding_helpers::decode_packedfile_float_u32(
+            decoded_float = match coding_helpers::decode_packedfile_float_f32(
                 &packed_file_decoded[index_data..(index_data + 4)],
                 index_data
             ) {
@@ -1292,7 +1292,7 @@ pub fn decode_data_by_fieldtype(field_data: &[u8], field_type: &FieldType, index
         },
         FieldType::Float => {
             if field_data.get(index_data..(index_data + 4)).is_some() {
-                match coding_helpers::decode_packedfile_float_u32(&field_data[index_data..(index_data + 4)], index_data) {
+                match coding_helpers::decode_packedfile_float_f32(&field_data[index_data..(index_data + 4)], index_data) {
                     Ok(result) => (result.0.to_string(), result.1),
                     Err(_) => ("Error".to_owned(), index_data),
                 }
