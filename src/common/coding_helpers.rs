@@ -23,42 +23,60 @@ use self::byteorder::{
 /// in 2 bytes reversed (LittleEndian).
 #[allow(dead_code)]
 pub fn decode_integer_u16(integer_encoded: &[u8]) -> Result<u16, Error> {
-    (&integer_encoded[..]).read_u16::<LittleEndian>().map_err(From::from)
+    match integer_encoded.len() {
+        2 => (&integer_encoded[..]).read_u16::<LittleEndian>().map_err(From::from),
+        _ => Err(format_err!("Error trying to decode an U16 number.\n\n - Required bytes: 2.\n - Provided bytes: {}", integer_encoded.len()))
+    }
 }
 
 /// This function allow us to decode an UTF-32 encoded integer. This type of Integers are encoded in
 /// in 4 bytes reversed (LittleEndian).
 #[allow(dead_code)]
 pub fn decode_integer_u32(integer_encoded: &[u8]) -> Result<u32, Error> {
-    (&integer_encoded[..]).read_u32::<LittleEndian>().map_err(From::from)
+    match integer_encoded.len() {
+        4 => (&integer_encoded[..]).read_u32::<LittleEndian>().map_err(From::from),
+        _ => Err(format_err!("Error trying to decode an U32 number.\n\n - Required bytes: 4.\n - Provided bytes: {}", integer_encoded.len()))
+    }
 }
 
 /// This function allow us to decode an encoded Long Integer. This type of Integers are encoded in
 /// in 8 bytes reversed (LittleEndian).
 #[allow(dead_code)]
 pub fn decode_integer_u64(integer_encoded: &[u8]) -> Result<u64, Error> {
-    (&integer_encoded[..]).read_u64::<LittleEndian>().map_err(From::from)
+    match integer_encoded.len() {
+        8 => (&integer_encoded[..]).read_u64::<LittleEndian>().map_err(From::from),
+        _ => Err(format_err!("Error trying to decode an U64 number.\n\n - Required bytes: 8.\n - Provided bytes: {}", integer_encoded.len()))
+    }
 }
 
 /// This function allow us to decode an signed UTF-32 encoded integer. This type of Integers are encoded in
 /// in 4 bytes reversed (LittleEndian).
 #[allow(dead_code)]
 pub fn decode_integer_i32(integer_encoded: &[u8]) -> Result<i32, Error> {
-    (&integer_encoded[..]).read_i32::<LittleEndian>().map_err(From::from)
+    match integer_encoded.len() {
+        4 => (&integer_encoded[..]).read_i32::<LittleEndian>().map_err(From::from),
+        _ => Err(format_err!("Error trying to decode an I32 number.\n\n - Required bytes: 4.\n - Provided bytes: {}", integer_encoded.len()))
+    }
 }
 
 /// This function allow us to decode an signed encoded Long Integer. This type of Integers are encoded in
 /// in 8 bytes reversed (LittleEndian).
 #[allow(dead_code)]
 pub fn decode_integer_i64(integer_encoded: &[u8]) -> Result<i64, Error> {
-    (&integer_encoded[..]).read_i64::<LittleEndian>().map_err(From::from)
+    match integer_encoded.len() {
+        8 => (&integer_encoded[..]).read_i64::<LittleEndian>().map_err(From::from),
+        _ => Err(format_err!("Error trying to decode an I64 number.\n\n - Required bytes: 8.\n - Provided bytes: {}", integer_encoded.len()))
+    }
 }
 
 /// This function allow us to decode an UTF-32 encoded float. This type of floats are encoded in
 /// in 4 bytes reversed (LittleEndian).
 #[allow(dead_code)]
 pub fn decode_float_u32(float_encoded: &[u8]) -> Result<f32, Error> {
-    (&float_encoded[..]).read_f32::<LittleEndian>().map_err(From::from)
+    match float_encoded.len() {
+        4 => (&float_encoded[..]).read_f32::<LittleEndian>().map_err(From::from),
+        _ => Err(format_err!("Error trying to decode a F32 number.\n\n - Required bytes: 4.\n - Provided bytes: {}", float_encoded.len()))
+    }
 }
 
 /// This function allow us to decode an UTF-8 encoded String.
