@@ -2752,10 +2752,9 @@ fn build_ui(application: &Application) {
 
         // First, we get the variable for the new name and spawn the popover.
         let new_name: Rc<RefCell<String>> = Rc::new(RefCell::new(String::new()));
-
         let rect = ui::get_rect_for_popover(&folder_tree_view, None);
         rename_popover.set_pointing_to(&rect);
-        rename_popover_text_entry.get_buffer().set_text(ui::get_tree_path_from_selection(&folder_tree_selection, true).last().unwrap());
+        rename_popover_text_entry.get_buffer().set_text(tree_path.last().unwrap());
         rename_popover.popup();
 
         // Now, in the "New Name" popup, we wait until "Enter" (65293) is hit AND released.
@@ -2771,6 +2770,9 @@ fn build_ui(application: &Application) {
             rename_popover,
             rename_popover_text_entry,
             new_name => move |_, key| {
+
+            // Get his path (so it doesn't remember his old path).
+            let tree_path = ui::get_tree_path_from_selection(&folder_tree_selection, true);
 
             // Get the key pressed.
             let key_val = key.get_keyval();
