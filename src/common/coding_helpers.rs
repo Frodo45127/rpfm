@@ -141,7 +141,7 @@ pub fn decode_bool(bool_encoded: u8) -> Result<bool, Error> {
 
 /*
 --------------------------------------------------------
-            Encoding helpers (Common decoders)
+            Encoding helpers (Common encoders)
 --------------------------------------------------------
 */
 /// This function allow us to encode an UTF-16 decoded Integer. This type of Integers are encoded in
@@ -193,7 +193,7 @@ pub fn encode_integer_i64(integer_decoded: i64) -> Vec<u8> {
 /// This function allow us to encode an UTF-32 decoded Float. This type of Floats are encoded in
 /// in 4 bytes reversed (LittleEndian).
 #[allow(dead_code)]
-pub fn encode_float_u32(float_decoded: f32) -> Vec<u8> {
+pub fn encode_float_f32(float_decoded: f32) -> Vec<u8> {
     let mut float_encoded: [u8;4] = [0;4];
     LittleEndian::write_f32(&mut float_encoded, float_decoded);
     float_encoded.to_vec()
@@ -420,7 +420,9 @@ pub fn decode_packedfile_string_u16(packed_file_data: &[u8], index: usize) -> Re
     if packed_file_data.len() >= 2 {
         match decode_packedfile_integer_u16(&packed_file_data[..2], index) {
             Ok(result) => {
-                // We wrap this to avoid overflow, as the limit of this is 65,535.
+
+                // We wrap this to avoid overflow, as the limit of this is 65,535. Also, this has to be
+                // half the actual lenght of the data, because it counts pairs of bytes (u16), not single bytes.
                 let size = result.0.wrapping_mul(2);
                 let mut index = result.1;
                 if packed_file_data.len() >= (size as usize + 2) {
@@ -488,7 +490,7 @@ pub fn decode_packedfile_bool(packed_file_data: u8, mut index: usize) -> Result<
 
 /*
 --------------------------------------------------------
-          Encoding helpers (Specific decoders)
+          Encoding helpers (Specific encoders)
 --------------------------------------------------------
 */
 
@@ -552,7 +554,7 @@ pub fn encode_packedfile_optional_string_u16(optional_string_u16_decoded: &str) 
     }
     else {
         let mut optional_string_u16_data = encode_string_u16(optional_string_u16_decoded);
-        let mut optional_string_u16_lenght = encode_integer_u16(optional_string_u16_data.len() as u16);
+        let mut optional_string_u16_lenght = encode_integer_u16(optional_string_u16_data.len() as u16 / 2);
 
         optional_string_u16_encoded.push(encode_bool(true));
         optional_string_u16_encoded.append(&mut optional_string_u16_lenght);

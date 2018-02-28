@@ -253,7 +253,7 @@ impl RigidModelLodHeader {
         let mut vertex_data_length = coding_helpers::encode_integer_u32(rigid_model_lod.vertices_data_length);
         let mut index_data_length = coding_helpers::encode_integer_u32(rigid_model_lod.indices_data_length);
         let mut start_offset = coding_helpers::encode_integer_u32(rigid_model_lod.start_offset);
-        let mut lod_zoom_factor = coding_helpers::encode_float_u32(rigid_model_lod.lod_zoom_factor);
+        let mut lod_zoom_factor = coding_helpers::encode_float_f32(rigid_model_lod.lod_zoom_factor);
 
         let mysterious_data_1 = match rigid_model_lod.mysterious_data_1 {
             Some(data) => Some(data),

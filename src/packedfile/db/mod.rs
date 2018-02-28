@@ -432,7 +432,7 @@ impl DBData {
                         packed_file_data_encoded.push(encoded_data);
                     },
                     DecodedData::Float(data) => {
-                        let mut encoded_data = coding_helpers::encode_float_u32(data);
+                        let mut encoded_data = coding_helpers::encode_float_f32(data);
                         packed_file_data_encoded.append(&mut encoded_data);
                     },
                     DecodedData::Integer(data) => {
