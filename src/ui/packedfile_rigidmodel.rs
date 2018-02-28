@@ -147,7 +147,17 @@ impl PackedFileRigidModelDataView {
 
             // Then we get it's path, and put it in a gtk::Entry.
             let texture_path = Entry::new();
-            texture_path.get_buffer().set_text(&*(decode_string_u8_0padded(&packed_file_decoded.packed_file_data.packed_file_data_lods_data[texture_index[0] as usize..(texture_index[0] as u32 + 256u32) as usize])).0);
+
+            match decode_string_u8_0padded(
+                &packed_file_decoded.packed_file_data.packed_file_data_lods_data[
+                    texture_index[0] as usize..
+                    (texture_index[0] as u32 + 256u32) as usize
+                ]
+            ) {
+                Ok(result) => texture_path.get_buffer().set_text(&*result.0),
+                Err(_) => texture_path.get_buffer().set_text("Error while decoding."),
+            };
+
             texture_path.get_buffer().set_max_length(Some(256u16));
             texture_path.set_editable(true);
 
@@ -215,7 +225,17 @@ impl PackedFileRigidModelDataView {
 
                         // Then we get it's path, and put it in a gtk::Entry.
                         let texture_path = Entry::new();
-                        texture_path.get_buffer().set_text(&*(decode_string_u8_0padded(&packed_file_decoded.packed_file_data.packed_file_data_lods_data[texture_index[index + (lod * 6)] as usize..(texture_index[index + (lod * 6)] as u32 + 255u32) as usize])).0);
+
+                        match decode_string_u8_0padded(
+                            &packed_file_decoded.packed_file_data.packed_file_data_lods_data[
+                                texture_index[index + (lod * 6)] as usize..
+                                (texture_index[index + (lod * 6)] as u32 + 255u32) as usize
+                            ]
+                        ) {
+                            Ok(result) => texture_path.get_buffer().set_text(&*result.0),
+                            Err(_) => texture_path.get_buffer().set_text("Error while decoding."),
+                        };
+                        
                         texture_path.get_buffer().set_max_length(Some(256u16));
                         texture_path.set_editable(true);
 
