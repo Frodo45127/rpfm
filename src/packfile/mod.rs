@@ -29,8 +29,8 @@ pub mod packfile;
 */
 
 /// This function creates a new PackFile with the name received.
-pub fn new_packfile(file_name: String) -> packfile::PackFile {
-    packfile::PackFile::new_with_name(file_name)
+pub fn new_packfile(file_name: String, packfile_id: &str) -> packfile::PackFile {
+    packfile::PackFile::new_with_name(file_name, packfile_id)
 }
 
 

@@ -192,6 +192,7 @@ fn build_ui(application: &Application) {
     let menu_bar_my_mod_delete = SimpleAction::new("my-mod-delete", None);
     let menu_bar_my_mod_install = SimpleAction::new("my-mod-install", None);
     let menu_bar_my_mod_uninstall = SimpleAction::new("my-mod-uninstall", None);
+    let menu_bar_change_game_selected = SimpleAction::new_stateful("change-game-selected", glib::VariantTy::new("s").ok(), &"warhammer-2".to_variant());
 
     application.add_action(&menu_bar_new_packfile);
     application.add_action(&menu_bar_open_packfile);
@@ -206,6 +207,7 @@ fn build_ui(application: &Application) {
     application.add_action(&menu_bar_my_mod_delete);
     application.add_action(&menu_bar_my_mod_install);
     application.add_action(&menu_bar_my_mod_uninstall);
+    application.add_action(&menu_bar_change_game_selected);
 
     // Right-click menu actions.
     let context_menu_add_file = SimpleAction::new("add-file", None);
@@ -301,8 +303,14 @@ fn build_ui(application: &Application) {
     let schema: Rc<RefCell<Option<Schema>>> = Rc::new(RefCell::new(None));
 
     // And we prepare the stuff for the default game (paths, and those things).
-    // FIXME: changing paths require to restart the program. This needs to be fixed.
-    let mut game_selected = GameSelected::new(&settings.borrow());
+    let game_selected = Rc::new(RefCell::new(GameSelected::new(&settings.borrow())));
+    match &*settings.borrow().default_game {
+        "warhammer_2" => menu_bar_change_game_selected.change_state(&"warhammer-2".to_variant()),
+        "warhammer" => menu_bar_change_game_selected.change_state(&"warhammer".to_variant()),
+        "attila" => menu_bar_change_game_selected.change_state(&"attila".to_variant()),
+        "rome_2" => menu_bar_change_game_selected.change_state(&"rome-2".to_variant()),
+        _ => menu_bar_change_game_selected.change_state(&"warhammer-2".to_variant()),
+    }
 
     // Prepare the "MyMod" menu. This... atrocity needs to be in the following places for MyMod to open PackFiles:
     // - At the start of the program (here).
@@ -372,13 +380,16 @@ fn build_ui(application: &Application) {
                                     // And when activating the mod button, we open it and set it as selected (chaos incoming).
                                     open_mod.connect_activate(clone!(
                                         window,
+                                        settings,
                                         schema,
                                         my_mod_selected,
                                         game_folder_name,
                                         error_dialog,
+                                        game_selected,
                                         unsaved_dialog,
                                         pack_file_decoded,
                                         folder_tree_store,
+                                        menu_bar_change_game_selected,
                                         menu_bar_save_packfile,
                                         menu_bar_save_packfile_as,
                                         menu_bar_change_packfile_type,
@@ -417,6 +428,18 @@ fn build_ui(application: &Application) {
                                                             3 => menu_bar_change_packfile_type.change_state(&"mod".to_variant()),
                                                             4 => menu_bar_change_packfile_type.change_state(&"movie".to_variant()),
                                                             _ => ui::show_dialog(&error_dialog, format_err!("PackFile Type not valid.")),
+                                                        }
+
+                                                        // We choose the new GameSelected depending on what the open mod id is.
+                                                        match &*pack_file_decoded.borrow().pack_file_header.pack_file_id {
+                                                            "PFH5" => {
+                                                                game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.warhammer_2);
+                                                                menu_bar_change_game_selected.change_state(&"warhammer-2".to_variant());
+                                                            },
+                                                            "PFH4" | _ => {
+                                                                game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.warhammer_2);
+                                                                menu_bar_change_game_selected.change_state(&"warhammer".to_variant());
+                                                            },
                                                         }
 
                                                         menu_bar_save_packfile.set_enabled(true);
@@ -510,6 +533,7 @@ fn build_ui(application: &Application) {
     menu_bar_new_packfile.connect_activate(clone!(
         window,
         schema,
+        game_selected,
         my_mod_selected,
         unsaved_dialog,
         pack_file_decoded,
@@ -538,7 +562,13 @@ fn build_ui(application: &Application) {
 
                 // We just create a new PackFile with a name, set his type to Mod and update the
                 // TreeView to show it.
-                *pack_file_decoded.borrow_mut() = packfile::new_packfile("unknown.pack".to_string());
+                let packfile_id = match &*game_selected.borrow().game {
+                    "warhammer_2" => "PFH5",
+                    "warhammer" => "PFH4",
+                    _ => "PFH5",
+                };
+
+                *pack_file_decoded.borrow_mut() = packfile::new_packfile("unknown.pack".to_string(), packfile_id);
                 ui::update_tree_view(&folder_tree_store, &*pack_file_decoded.borrow());
                 set_modified(false, &window, &mut *pack_file_decoded.borrow_mut());
 
@@ -566,11 +596,13 @@ fn build_ui(application: &Application) {
         game_selected,
         window,
         schema,
+        settings,
         my_mod_selected,
         error_dialog,
         unsaved_dialog,
         pack_file_decoded,
         folder_tree_store,
+        menu_bar_change_game_selected,
         menu_bar_save_packfile,
         menu_bar_save_packfile_as,
         menu_bar_change_packfile_type,
@@ -594,7 +626,7 @@ fn build_ui(application: &Application) {
             if lets_do_it {
 
                 // In case we have a default path for the game selected, we use it as base path for opening files.
-                if let Some(ref path) = game_selected.game_data_path {
+                if let Some(ref path) = game_selected.borrow().game_data_path {
 
                     // We check that actually exists before setting it.
                     if path.is_dir() {
@@ -624,6 +656,18 @@ fn build_ui(application: &Application) {
                                 3 => menu_bar_change_packfile_type.change_state(&"mod".to_variant()),
                                 4 => menu_bar_change_packfile_type.change_state(&"movie".to_variant()),
                                 _ => ui::show_dialog(&error_dialog, format_err!("PackFile Type not valid.")),
+                            }
+
+                            // We choose the new GameSelected depending on what the open mod id is.
+                            match &*pack_file_decoded.borrow().pack_file_header.pack_file_id {
+                                "PFH5" => {
+                                    game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.warhammer_2);
+                                    menu_bar_change_game_selected.change_state(&"warhammer-2".to_variant());
+                                },
+                                "PFH4" | _ => {
+                                    game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.warhammer_2);
+                                    menu_bar_change_game_selected.change_state(&"warhammer".to_variant());
+                                },
                             }
 
                             // Enable the actions for PackFiles.
@@ -669,7 +713,7 @@ fn build_ui(application: &Application) {
             file_chooser_save_packfile_dialog.set_current_name(&pack_file_decoded.borrow().pack_file_extra_data.file_name);
 
             // In case we have a default path for the game selected, we use it as base path for saving files.
-            if let Some(ref path) = game_selected.game_data_path {
+            if let Some(ref path) = game_selected.borrow().game_data_path {
 
                 // We check it actually exists before setting it.
                 if path.is_dir() {
@@ -744,7 +788,7 @@ fn build_ui(application: &Application) {
         }
 
         // In case we have a default path for the game selected, we use it as base path for saving files.
-        else if let Some(ref path) = game_selected.game_data_path {
+        else if let Some(ref path) = game_selected.borrow().game_data_path {
             file_chooser_save_packfile_dialog.set_current_name(&pack_file_decoded.borrow().pack_file_extra_data.file_name);
 
             // We check it actually exists before setting it.
@@ -839,6 +883,7 @@ fn build_ui(application: &Application) {
         error_dialog,
         window,
         my_mod_list,
+        game_selected,
         unsaved_dialog,
         pack_file_decoded,
         folder_tree_store,
@@ -848,6 +893,7 @@ fn build_ui(application: &Application) {
         menu_bar_patch_siege_ai,
         settings,
         my_mod_selected,
+        menu_bar_change_game_selected,
         application,
         schema,
         menu_bar_my_mod_delete,
@@ -903,6 +949,25 @@ fn build_ui(application: &Application) {
             Inhibit(false)
         }));
 
+        settings_stuff.borrow().settings_path_warhammer_button.connect_button_release_event(clone!(
+            settings,
+            settings_stuff,
+            file_chooser_settings_select_folder => move |_,_| {
+
+            // If we already have a path for it, and said path exists, we use it as base for the next path.
+            if settings.borrow().paths.warhammer != None &&
+                settings.borrow().clone().paths.warhammer.unwrap().to_path_buf().is_dir() {
+                file_chooser_settings_select_folder.set_current_folder(settings.borrow().clone().paths.warhammer.unwrap().to_path_buf());
+            }
+            if file_chooser_settings_select_folder.run() == gtk_response_ok {
+                if let Some(new_folder) = file_chooser_settings_select_folder.get_current_folder() {
+                    settings_stuff.borrow_mut().settings_path_warhammer_entry.get_buffer().set_text(&new_folder.to_string_lossy());
+                }
+            }
+            file_chooser_settings_select_folder.hide_on_delete();
+            Inhibit(false)
+        }));
+
         // When we press the "Accept" button.
         settings_stuff.borrow().settings_accept.connect_button_release_event(clone!(
             pack_file_decoded,
@@ -917,6 +982,8 @@ fn build_ui(application: &Application) {
             menu_bar_patch_siege_ai,
             settings_stuff,
             settings,
+            menu_bar_change_game_selected,
+            game_selected,
             schema,
             my_mod_selected,
             application,
@@ -935,6 +1002,18 @@ fn build_ui(application: &Application) {
             // If we change any setting, disable the selected mod. We have currently no proper way to check
             // if the "My mod" path has changed, so we disable the selected "My Mod" when changing any setting.
             *my_mod_selected.borrow_mut() = None;
+
+            // Reset the game selected, just in case we changed it's path.
+            match &*pack_file_decoded.borrow().pack_file_header.pack_file_id {
+                "PFH5" => {
+                    game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.warhammer_2);
+                    menu_bar_change_game_selected.change_state(&"warhammer-2".to_variant());
+                }
+                "PFH4" | _ => {
+                    game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.warhammer_2);
+                    menu_bar_change_game_selected.change_state(&"warhammer".to_variant());
+                }
+            }
 
             // Disable the controls for "MyMod".
             menu_bar_my_mod_delete.set_enabled(false);
@@ -1004,13 +1083,16 @@ fn build_ui(application: &Application) {
                                             // And when activating the mod button, we open it and set it as selected (chaos incoming).
                                             open_mod.connect_activate(clone!(
                                                 window,
+                                                settings,
                                                 schema,
                                                 my_mod_selected,
                                                 game_folder_name,
+                                                game_selected,
                                                 error_dialog,
                                                 unsaved_dialog,
                                                 pack_file_decoded,
                                                 folder_tree_store,
+                                                menu_bar_change_game_selected,
                                                 menu_bar_save_packfile,
                                                 menu_bar_save_packfile_as,
                                                 menu_bar_change_packfile_type,
@@ -1049,6 +1131,18 @@ fn build_ui(application: &Application) {
                                                                     3 => menu_bar_change_packfile_type.change_state(&"mod".to_variant()),
                                                                     4 => menu_bar_change_packfile_type.change_state(&"movie".to_variant()),
                                                                     _ => ui::show_dialog(&error_dialog, format_err!("PackFile Type not valid.")),
+                                                                }
+
+                                                                // We choose the new GameSelected depending on what the open mod id is.
+                                                                match &*pack_file_decoded.borrow().pack_file_header.pack_file_id {
+                                                                    "PFH5" => {
+                                                                        game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.warhammer_2);
+                                                                        menu_bar_change_game_selected.change_state(&"warhammer-2".to_variant());
+                                                                    },
+                                                                    "PFH4" | _ => {
+                                                                        game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.warhammer_2);
+                                                                        menu_bar_change_game_selected.change_state(&"warhammer".to_variant());
+                                                                    },
                                                                 }
 
                                                                 menu_bar_save_packfile.set_enabled(true);
@@ -1142,12 +1236,14 @@ fn build_ui(application: &Application) {
         application,
         window,
         schema,
+        game_selected,
         my_mod_list,
         my_mod_selected,
         unsaved_dialog,
         error_dialog,
         pack_file_decoded,
         folder_tree_store,
+        menu_bar_change_game_selected,
         menu_bar_save_packfile,
         menu_bar_save_packfile_as,
         menu_bar_change_packfile_type,
@@ -1188,8 +1284,10 @@ fn build_ui(application: &Application) {
             my_mod_selected,
             my_mod_list,
             error_dialog,
+            game_selected,
             pack_file_decoded,
             folder_tree_store,
+            menu_bar_change_game_selected,
             menu_bar_save_packfile,
             menu_bar_save_packfile_as,
             menu_bar_change_packfile_type,
@@ -1209,7 +1307,20 @@ fn build_ui(application: &Application) {
 
                 // We just create a new PackFile with a name, set his type to Mod and update the
                 // TreeView to show it.
-                *pack_file_decoded.borrow_mut() = packfile::new_packfile(full_mod_name.to_owned());
+                let packfile_id = match &*new_mod_stuff.borrow().my_mod_new_game_list_combo.get_active_text().unwrap() {
+                    "warhammer_2" => {
+                        game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.warhammer_2);
+                        menu_bar_change_game_selected.change_state(&"warhammer-2".to_variant());
+                        "PFH5"
+                    },
+                    "warhammer" | _ => {
+                        game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.warhammer_2);
+                        menu_bar_change_game_selected.change_state(&"warhammer".to_variant());
+                        "PFH4"
+                    },
+                };
+
+                *pack_file_decoded.borrow_mut() = packfile::new_packfile(full_mod_name.to_owned(), packfile_id);
                 ui::update_tree_view(&folder_tree_store, &*pack_file_decoded.borrow());
                 set_modified(false, &window, &mut *pack_file_decoded.borrow_mut());
 
@@ -1327,13 +1438,16 @@ fn build_ui(application: &Application) {
                                                     // And when activating the mod button, we open it and set it as selected (chaos incoming).
                                                     open_mod.connect_activate(clone!(
                                                         window,
+                                                        settings,
                                                         schema,
                                                         my_mod_selected,
                                                         game_folder_name,
                                                         unsaved_dialog,
                                                         error_dialog,
+                                                        game_selected,
                                                         pack_file_decoded,
                                                         folder_tree_store,
+                                                        menu_bar_change_game_selected,
                                                         menu_bar_save_packfile,
                                                         menu_bar_save_packfile_as,
                                                         menu_bar_change_packfile_type,
@@ -1373,6 +1487,18 @@ fn build_ui(application: &Application) {
                                                                             3 => menu_bar_change_packfile_type.change_state(&"mod".to_variant()),
                                                                             4 => menu_bar_change_packfile_type.change_state(&"movie".to_variant()),
                                                                             _ => ui::show_dialog(&error_dialog, format_err!("PackFile Type not valid.")),
+                                                                        }
+
+                                                                        // We choose the new GameSelected depending on what the open mod id is.
+                                                                        match &*pack_file_decoded.borrow().pack_file_header.pack_file_id {
+                                                                            "PFH5" => {
+                                                                                game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.warhammer_2);
+                                                                                menu_bar_change_game_selected.change_state(&"warhammer-2".to_variant());
+                                                                            },
+                                                                            "PFH4" | _ => {
+                                                                                game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.warhammer_2);
+                                                                                menu_bar_change_game_selected.change_state(&"warhammer".to_variant());
+                                                                            },
                                                                         }
 
                                                                         menu_bar_save_packfile.set_enabled(true);
@@ -1448,12 +1574,14 @@ fn build_ui(application: &Application) {
         unsaved_dialog,
         window,
         schema,
+        game_selected,
         my_mod_selected,
         my_mod_list,
         error_dialog,
         success_dialog,
         pack_file_decoded,
         folder_tree_store,
+        menu_bar_change_game_selected,
         menu_bar_save_packfile,
         menu_bar_save_packfile_as,
         menu_bar_change_packfile_type,
@@ -1611,12 +1739,15 @@ fn build_ui(application: &Application) {
                                                     open_mod.connect_activate(clone!(
                                                         window,
                                                         schema,
+                                                        settings,
                                                         my_mod_selected,
                                                         game_folder_name,
                                                         error_dialog,
                                                         unsaved_dialog,
+                                                        game_selected,
                                                         pack_file_decoded,
                                                         folder_tree_store,
+                                                        menu_bar_change_game_selected,
                                                         menu_bar_save_packfile,
                                                         menu_bar_save_packfile_as,
                                                         menu_bar_change_packfile_type,
@@ -1655,6 +1786,18 @@ fn build_ui(application: &Application) {
                                                                             3 => menu_bar_change_packfile_type.change_state(&"mod".to_variant()),
                                                                             4 => menu_bar_change_packfile_type.change_state(&"movie".to_variant()),
                                                                             _ => ui::show_dialog(&error_dialog, format_err!("PackFile Type not valid.")),
+                                                                        }
+
+                                                                        // We choose the new GameSelected depending on what the open mod id is.
+                                                                        match &*pack_file_decoded.borrow().pack_file_header.pack_file_id {
+                                                                            "PFH5" => {
+                                                                                game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.warhammer_2);
+                                                                                menu_bar_change_game_selected.change_state(&"warhammer-2".to_variant());
+                                                                            },
+                                                                            "PFH4" | _ => {
+                                                                                game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.warhammer_2);
+                                                                                menu_bar_change_game_selected.change_state(&"warhammer".to_variant());
+                                                                            },
                                                                         }
 
                                                                         menu_bar_save_packfile.set_enabled(true);
@@ -1812,6 +1955,42 @@ fn build_ui(application: &Application) {
         }
     ));
 
+
+    /*
+    --------------------------------------------------------
+                 Superior Menu: "Game Selected"
+    --------------------------------------------------------
+    */
+
+    // When changing the selected game.
+    menu_bar_change_game_selected.connect_activate(clone!(
+        settings,
+        error_dialog,
+        game_selected => move |menu_bar_change_game_selected, selected| {
+        if let Some(state) = selected.clone() {
+            let new_state: Option<String> = state.get();
+            match &*new_state.unwrap() {
+                "warhammer-2" => {
+                    game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.warhammer_2);
+                    menu_bar_change_game_selected.change_state(&"warhammer-2".to_variant());
+                }
+                "warhammer" => {
+                    game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.warhammer);
+                    menu_bar_change_game_selected.change_state(&"warhammer".to_variant());
+                }
+                /*
+                "attila" => {
+                    game_selected.borrow_mut().change_game_selected(&settings.borrow().paths.attila);
+                    menu_bar_change_game_selected.change_state(&"attila".to_variant());
+                }
+                "rome-2" => {
+                    game_selected.borrow_mut().change_game_selected(&settings.borrow().paths.rome_2);
+                    menu_bar_change_game_selected.change_state(&"rome_2".to_variant());
+                }*/
+                _ => ui::show_dialog(&error_dialog, format_err!("Game Selected not valid.")),
+            }
+        }
+    }));
     /*
     --------------------------------------------------------
                  Superior Menu: "Special Stuff"
@@ -2511,6 +2690,7 @@ fn build_ui(application: &Application) {
     // When we hit the "Extract file/folder" button.
     context_menu_extract_packedfile.connect_activate(clone!(
         success_dialog,
+        settings,
         error_dialog,
         my_mod_selected,
         pack_file_decoded,
@@ -4610,7 +4790,9 @@ fn build_ui(application: &Application) {
     // This allow us to open a PackFile by "Drag&Drop" it into the folder_tree_view.
     folder_tree_view.connect_drag_data_received(clone!(
         window,
+        settings,
         schema,
+        game_selected,
         error_dialog,
         pack_file_decoded,
         folder_tree_store,
@@ -4661,6 +4843,18 @@ fn build_ui(application: &Application) {
                                     3 => menu_bar_change_packfile_type.change_state(&"mod".to_variant()),
                                     4 => menu_bar_change_packfile_type.change_state(&"movie".to_variant()),
                                     _ => ui::show_dialog(&error_dialog, format_err!("PackFile Type not valid.")),
+                                }
+
+                                // We choose the new GameSelected depending on what the open mod id is.
+                                match &*pack_file_decoded.borrow().pack_file_header.pack_file_id {
+                                    "PFH5" => {
+                                        game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.warhammer_2);
+                                        menu_bar_change_game_selected.change_state(&"warhammer-2".to_variant());
+                                    },
+                                    "PFH4" | _ => {
+                                        game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.warhammer_2);
+                                        menu_bar_change_game_selected.change_state(&"warhammer".to_variant());
+                                    },
                                 }
 
                                 menu_bar_save_packfile.set_enabled(true);

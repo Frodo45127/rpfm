@@ -84,10 +84,10 @@ pub struct PackedFile {
 /// Implementation of "PackFile"
 impl PackFile {
 
-    /// This function creates a new empty "PackFile".
+    /// This function creates a new empty "PackFile". This is used for creating a "dummy" PackFile.
     pub fn new() -> PackFile {
         let pack_file_extra_data = PackFileExtraData::new();
-        let pack_file_header = PackFileHeader::new();
+        let pack_file_header = PackFileHeader::new("PFH5");
         let pack_file_data = PackFileData::new();
 
         PackFile {
@@ -98,9 +98,9 @@ impl PackFile {
     }
 
     /// This function creates a new empty "PackFile" with a name.
-    pub fn new_with_name(file_name: String) -> PackFile {
+    pub fn new_with_name(file_name: String, packfile_id:&str) -> PackFile {
         let pack_file_extra_data = PackFileExtraData::new_with_name(file_name);
-        let pack_file_header = PackFileHeader::new();
+        let pack_file_header = PackFileHeader::new(packfile_id);
         let pack_file_data = PackFileData::new();
 
         PackFile {
@@ -243,8 +243,8 @@ impl PackFileExtraData {
 impl PackFileHeader {
 
     /// This function creates a new PackFileHeader for an empty PackFile of Warhammer 2.
-    pub fn new() -> PackFileHeader {
-        let pack_file_id = "PFH5".to_string();
+    pub fn new(packfile_id: &str) -> PackFileHeader {
+        let pack_file_id = packfile_id.to_string();
         let pack_file_type = 3 as u32;
         let pack_file_count = 0 as u32;
         let pack_file_index_size = 0 as u32;
@@ -267,7 +267,7 @@ impl PackFileHeader {
     /// this data in packs of 4 bytes, and read them in LittleEndian.
     pub fn read(header: &[u8]) -> Result<PackFileHeader, Error> {
 
-        let mut pack_file_header = PackFileHeader::new();
+        let mut pack_file_header = PackFileHeader::new("PFH5");
 
         pack_file_header.pack_file_id = coding_helpers::decode_string_u8(&header[0..4])?;
         pack_file_header.pack_file_type = coding_helpers::decode_integer_u32(&header[4..8])?;
