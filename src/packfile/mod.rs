@@ -58,14 +58,14 @@ pub fn open_packfile(pack_file_path: PathBuf) -> Result<packfile::PackFile, Erro
             match coding_helpers::decode_string_u8(&pack_file_buffered[0..4]) {
                 Ok(pack_file_id) => {
 
-                    // If the header's first 4 bytes are "PFH5", it's a valid file, so we read it.
-                    if pack_file_id == "PFH5" {
+                    // If the header's first 4 bytes are "PFH5" or "PFH4", it's a valid file, so we read it.
+                    if pack_file_id == "PFH5" || pack_file_id == "PFH4" {
                         packfile::PackFile::read(&pack_file_buffered, pack_file_name, pack_file_path).map(|result| result)
                     }
 
                     // If we reach this point, the file is not valid.
                     else {
-                        Err(format_err!("The file is not a Warhammer 2 PackFile."))
+                        Err(format_err!("The file is not a supported PackFile.\n\nFor now, we only support:\n - Warhammer 2.\n - Warhammer."))
                     }
                 }
                 // If we reach this point, there has been a decoding error.
@@ -393,7 +393,7 @@ pub fn extract_from_packfile(
             let index = packed_file_data.1;
             match File::create(&extracted_path) {
                 Ok(mut extracted_file) => {
-                    let packed_file_encoded: (Vec<u8>, Vec<u8>) = packfile::PackedFile::save(&pack_file.pack_file_data.packed_files[index]);
+                    let packed_file_encoded: (Vec<u8>, Vec<u8>) = packfile::PackedFile::save(&pack_file.pack_file_data.packed_files[index], &pack_file.pack_file_header.pack_file_id);
                     match extracted_file.write_all(&packed_file_encoded.1) {
                         Ok(_) => Ok(format!("File extracted successfully:\n{}", extracted_path.display())),
                         Err(_) => Err(format_err!("Error while writing the following file to disk:\n{}", extracted_path.display()))
@@ -425,7 +425,7 @@ pub fn extract_from_packfile(
                     if (index + 1) == file_to_extract.packed_file_path.len() {
                         match File::create(&current_path) {
                             Ok(mut extracted_file) => {
-                                let packed_file_encoded: (Vec<u8>, Vec<u8>) = packfile::PackedFile::save(file_to_extract);
+                                let packed_file_encoded: (Vec<u8>, Vec<u8>) = packfile::PackedFile::save(file_to_extract, &pack_file.pack_file_header.pack_file_id);
                                 match extracted_file.write_all(&packed_file_encoded.1) {
                                     Ok(_) => files_extracted += 1,
                                     Err(error) => {
@@ -479,7 +479,7 @@ pub fn extract_from_packfile(
                     if (index + 1) == file_to_extract.packed_file_path.len() {
                         match File::create(&current_path) {
                             Ok(mut extracted_file) => {
-                                let packed_file_encoded: (Vec<u8>, Vec<u8>) = packfile::PackedFile::save(file_to_extract);
+                                let packed_file_encoded: (Vec<u8>, Vec<u8>) = packfile::PackedFile::save(file_to_extract, &pack_file.pack_file_header.pack_file_id);
                                 match extracted_file.write_all(&packed_file_encoded.1) {
                                     Ok(_) => files_extracted += 1,
                                     Err(error) => {
