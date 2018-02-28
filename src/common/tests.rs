@@ -233,7 +233,7 @@ fn test_decode_packedfile_integer_u16() {
     // Check the decoding works for a proper value.
     assert_eq!(decode_packedfile_integer_u16(&[10, 0], 0).unwrap(), (10, 2));
 
-    // Check the decoder returns an error for a slice whose lenght is less than 2.
+    // Check the decoder returns an error for a slice whose lenght is other than 2.
     assert_eq!(decode_packedfile_integer_u16(&[10], 0).is_err(), true);
 }
 
@@ -245,7 +245,7 @@ fn test_decode_packedfile_integer_u32() {
     // Check the decoding works for a proper value.
     assert_eq!(decode_packedfile_integer_u32(&[10, 0, 0, 0], 0).unwrap(), (10, 4));
 
-    // Check the decoder returns an error for a slice whose lenght is less than 4.
+    // Check the decoder returns an error for a slice whose lenght is other than 4.
     assert_eq!(decode_packedfile_integer_u32(&[10, 0], 0).is_err(), true);
 }
 
@@ -257,7 +257,7 @@ fn test_decode_packedfile_integer_u64() {
     // Check the decoding works for a proper value.
     assert_eq!(decode_packedfile_integer_u64(&[10, 0, 0, 0, 0, 0, 0, 0], 0).unwrap(), (10, 8));
 
-    // Check the decoder returns an error for a slice whose lenght is less than 8.
+    // Check the decoder returns an error for a slice whose lenght is other than 8.
     assert_eq!(decode_packedfile_integer_u64(&[10, 0], 0).is_err(), true);
 }
 
@@ -269,7 +269,7 @@ fn test_decode_packedfile_integer_i32() {
     // Check the decoding works for a proper value.
     assert_eq!(decode_packedfile_integer_i32(&[254, 254, 255, 255], 0).unwrap(), (-258, 4));
 
-    // Check the decoder returns an error for a slice whose lenght is less than 4.
+    // Check the decoder returns an error for a slice whose lenght is other than 4.
     assert_eq!(decode_packedfile_integer_i32(&[10, 0], 0).is_err(), true);
 }
 
@@ -281,7 +281,7 @@ fn test_decode_packedfile_integer_i64() {
     // Check the decoding works for a proper value.
     assert_eq!(decode_packedfile_integer_i64(&[254, 254, 255, 255, 255, 255, 255, 255], 0).unwrap(), (-258, 8));
 
-    // Check the decoder returns an error for a slice whose lenght is less than 8.
+    // Check the decoder returns an error for a slice whose lenght is other than 8.
     assert_eq!(decode_packedfile_integer_i64(&[10, 0], 0).is_err(), true);
 }
 
@@ -293,7 +293,7 @@ fn test_decode_packedfile_float_f32() {
     // Check the decoding works for a proper value.
     assert_eq!(decode_packedfile_float_f32(&[51, 51, 35, 193], 0).unwrap(), (-10.2, 4));
 
-    // Check the decoder returns an error for a slice whose lenght is less than 4.
+    // Check the decoder returns an error for a slice whose lenght is other than 4.
     assert_eq!(decode_packedfile_float_f32(&[10, 0], 0).is_err(), true);
 }
 

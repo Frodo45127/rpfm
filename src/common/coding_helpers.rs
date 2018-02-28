@@ -2,15 +2,19 @@
 // As we may or may not use them, all functions here should have the "#[allow(dead_code)]"
 // var set, so the compiler doesn't spam us every time we try to compile.
 //
-// Note: the specific decoders/encoders usually return some extra data, like sizes of strings.
+// Common helpers are used to just decode/encode data.
+// Specific helpers are used to decode/encode data, returning the position from where continue to
+// decode/encode. These are used specially in PackedFiles.
+//
+// Note: the specific decoders return tuples with (value, index of the new thing to decode).
+
 extern crate failure;
-extern crate unescape;
 extern crate byteorder;
 
 use failure::Error;
 
 use self::byteorder::{
-    ByteOrder, ReadBytesExt, LittleEndian
+    ByteOrder, LittleEndian
 };
 
 /*
@@ -24,9 +28,10 @@ use self::byteorder::{
 #[allow(dead_code)]
 pub fn decode_integer_u16(integer_encoded: &[u8]) -> Result<u16, Error> {
     match integer_encoded.len() {
-        2 => (&integer_encoded[..]).read_u16::<LittleEndian>().map_err(From::from),
-        _ => Err(format_err!("Error trying to decode an U16 number.\n\n - Required bytes: 2.\n - Provided bytes: {}", integer_encoded.len()))
+        2 => Ok(LittleEndian::read_u16(integer_encoded)),
+        _ => Err(format_err!("Error trying to decode an u16 number.\n\n - Required bytes: 2.\n - Provided bytes: {}", integer_encoded.len()))
     }
+
 }
 
 /// This function allow us to decode an UTF-32 encoded integer. This type of Integers are encoded in
@@ -34,8 +39,8 @@ pub fn decode_integer_u16(integer_encoded: &[u8]) -> Result<u16, Error> {
 #[allow(dead_code)]
 pub fn decode_integer_u32(integer_encoded: &[u8]) -> Result<u32, Error> {
     match integer_encoded.len() {
-        4 => (&integer_encoded[..]).read_u32::<LittleEndian>().map_err(From::from),
-        _ => Err(format_err!("Error trying to decode an U32 number.\n\n - Required bytes: 4.\n - Provided bytes: {}", integer_encoded.len()))
+        4 => Ok(LittleEndian::read_u32(integer_encoded)),
+        _ => Err(format_err!("Error trying to decode an u32 number.\n\n - Required bytes: 4.\n - Provided bytes: {}", integer_encoded.len()))
     }
 }
 
@@ -44,8 +49,8 @@ pub fn decode_integer_u32(integer_encoded: &[u8]) -> Result<u32, Error> {
 #[allow(dead_code)]
 pub fn decode_integer_u64(integer_encoded: &[u8]) -> Result<u64, Error> {
     match integer_encoded.len() {
-        8 => (&integer_encoded[..]).read_u64::<LittleEndian>().map_err(From::from),
-        _ => Err(format_err!("Error trying to decode an U64 number.\n\n - Required bytes: 8.\n - Provided bytes: {}", integer_encoded.len()))
+        8 => Ok(LittleEndian::read_u64(integer_encoded)),
+        _ => Err(format_err!("Error trying to decode an u64 number.\n\n - Required bytes: 8.\n - Provided bytes: {}", integer_encoded.len()))
     }
 }
 
@@ -54,8 +59,8 @@ pub fn decode_integer_u64(integer_encoded: &[u8]) -> Result<u64, Error> {
 #[allow(dead_code)]
 pub fn decode_integer_i32(integer_encoded: &[u8]) -> Result<i32, Error> {
     match integer_encoded.len() {
-        4 => (&integer_encoded[..]).read_i32::<LittleEndian>().map_err(From::from),
-        _ => Err(format_err!("Error trying to decode an I32 number.\n\n - Required bytes: 4.\n - Provided bytes: {}", integer_encoded.len()))
+        4 => Ok(LittleEndian::read_i32(integer_encoded)),
+        _ => Err(format_err!("Error trying to decode an i32 number.\n\n - Required bytes: 4.\n - Provided bytes: {}", integer_encoded.len()))
     }
 }
 
@@ -64,8 +69,8 @@ pub fn decode_integer_i32(integer_encoded: &[u8]) -> Result<i32, Error> {
 #[allow(dead_code)]
 pub fn decode_integer_i64(integer_encoded: &[u8]) -> Result<i64, Error> {
     match integer_encoded.len() {
-        8 => (&integer_encoded[..]).read_i64::<LittleEndian>().map_err(From::from),
-        _ => Err(format_err!("Error trying to decode an I64 number.\n\n - Required bytes: 8.\n - Provided bytes: {}", integer_encoded.len()))
+        8 => Ok(LittleEndian::read_i64(integer_encoded)),
+        _ => Err(format_err!("Error trying to decode an i64 number.\n\n - Required bytes: 8.\n - Provided bytes: {}", integer_encoded.len()))
     }
 }
 
@@ -74,21 +79,20 @@ pub fn decode_integer_i64(integer_encoded: &[u8]) -> Result<i64, Error> {
 #[allow(dead_code)]
 pub fn decode_float_f32(float_encoded: &[u8]) -> Result<f32, Error> {
     match float_encoded.len() {
-        4 => (&float_encoded[..]).read_f32::<LittleEndian>().map_err(From::from),
-        _ => Err(format_err!("Error trying to decode a F32 number.\n\n - Required bytes: 4.\n - Provided bytes: {}", float_encoded.len()))
+        4 => Ok(LittleEndian::read_f32(float_encoded)),
+        _ => Err(format_err!("Error trying to decode a f32 number.\n\n - Required bytes: 4.\n - Provided bytes: {}", float_encoded.len()))
     }
 }
 
 /// This function allow us to decode an UTF-8 encoded String.
 #[allow(dead_code)]
 pub fn decode_string_u8(string_encoded: &[u8]) -> Result<String, Error> {
-    String::from_utf8(string_encoded.to_vec()).map_err(From::from)
+    String::from_utf8(string_encoded.to_vec()).map_err(|_| format_err!("Error trying to decode an UTF-8 String."))
 }
 
 /// This function allow us to decode an (0-Padded) UTF-8 encoded String. This type of String has a
-/// fixed size and, when the chars ends, it's filled with \u{0} bytes. Also, due to how we are going
-/// to decode them, this type of decoding cannot fail, but it's slower than a normal UTF-8 String decoding.
-/// We use a tuple to store them and his size.
+/// fixed size and, when the chars ends, it's filled with "0" bytes. We use a tuple to store
+/// his text and his size when encoded.
 #[allow(dead_code)]
 pub fn decode_string_u8_0padded(string_encoded: &[u8]) -> Result<(String, usize), Error> {
     let mut string_encoded_without_0 = vec![];
@@ -98,34 +102,25 @@ pub fn decode_string_u8_0padded(string_encoded: &[u8]) -> Result<(String, usize)
             _ => string_encoded_without_0.push(*character)
         }
     }
-
-    let size = string_encoded.len();
-    let string_decoded: String = String::from_utf8(string_encoded_without_0).map_err(|error| Error::from(error))?;
-
-    Ok((string_decoded, size))
+    let string_decoded = String::from_utf8(string_encoded_without_0).map_err(|_| format_err!("Error trying to decode an UTF-8 0-Padded String."))?;
+    Ok((string_decoded, string_encoded.len()))
 }
 
 /// This function allow us to decode an UTF-16 encoded String. This type of Strings are encoded in
-/// in 2 bytes reversed (LittleEndian). Also, this is extremely slow. Needs a lot of improvements.
-///
-/// NOTE: We return error if the length has returned an error. If a char return an error, we just replace
-///       it, but return success.
+/// in 2 bytes reversed (LittleEndian).
 #[allow(dead_code)]
 pub fn decode_string_u16(string_encoded: &[u8]) -> Result<String, Error> {
-
     let mut u16_characters = vec![];
     let mut offset: usize = 0;
     for _ in 0..(string_encoded.len() / 2) {
-        match decode_integer_u16(&string_encoded[offset..offset + 2]) {
-            Ok(character_u16) => {
-                u16_characters.push(character_u16);
-                offset += 2;
-            }
-            Err(error) => return Err(error)
-        }
+
+        // This unwrap() is allowed, as decoding an u16 can only fail if we don't provide an slice
+        // of len() == 2.
+        u16_characters.push(decode_integer_u16(&string_encoded[offset..offset + 2]).unwrap());
+        offset += 2;
     }
 
-    String::from_utf16(&u16_characters).map_err(|error| From::from(error))
+    String::from_utf16(&u16_characters).map_err(|_| format_err!("Error trying to decode an UTF-16 String."))
 }
 
 /// This function allow us to decode an encoded boolean. This is simple: 0 is false, 1 is true.
@@ -135,7 +130,7 @@ pub fn decode_bool(bool_encoded: u8) -> Result<bool, Error> {
     match bool_encoded {
         0 => Ok(false),
         1 => Ok(true),
-        _ => Err(format_err!("Error:\nTrying to decode a non-boolean value as boolean.")),
+        _ => Err(format_err!("Error trying to decode \"{}\" as boolean.", bool_encoded)),
     }
 }
 
@@ -205,9 +200,9 @@ pub fn encode_string_u8(string_decoded: &str) -> Vec<u8> {
     string_decoded.as_bytes().to_vec()
 }
 
-/// This function allow us to encode an UTF-8 decoded 0-padded String. This one requires us to provide a
-/// "size", so we encode the String like a normal UTF-8 String and then extend the vector until we
-/// reach the desired size.
+/// This function allow us to encode an UTF-8 decoded 0-padded String. This one is a bit special.
+/// It's uses a tuple with the String to encode and the total size of the encoded string.
+/// So... we just encode the String as a normal string, then add 0 until we reach the desired size.
 #[allow(dead_code)]
 pub fn encode_string_u8_0padded(string_decoded: &(String, usize)) -> Result<Vec<u8>, Error> {
     let mut string_encoded = string_decoded.0.as_bytes().to_vec();
@@ -220,7 +215,7 @@ pub fn encode_string_u8_0padded(string_decoded: &(String, usize)) -> Result<Vec<
         Ok(string_encoded)
     }
     else {
-        Err(format_err!("Error: String \"{}\" has a lenght of {} chars, but his max length should be {}).", string_decoded.0, string_encoded.len(), size))
+        Err(format_err!("Error: String \"{}\" has a lenght of {} chars, but his max length should be less or equal to {}).", string_decoded.0, string_encoded.len(), size))
     }
 }
 
@@ -233,7 +228,7 @@ pub fn encode_string_u16(string_decoded: &str) -> Vec<u8> {
     string_encoded
 }
 
-/// This function allow us to encode a boolean. This is simple: \u{0} is false, \u{1} is true.
+/// This function allow us to encode a boolean. This is simple: 0 is false, 1 is true.
 /// It only uses a byte.
 #[allow(dead_code)]
 pub fn encode_bool(bool_decoded: bool) -> u8 {
@@ -246,146 +241,71 @@ pub fn encode_bool(bool_decoded: bool) -> u8 {
 --------------------------------------------------------
 */
 
-/// This function allow us to decode an UTF-16 encoded integer cell. We return the integer and the index
-/// for the next cell's data.
+/// This function allow us to decode an UTF-16 encoded integer, returning with it the byte where
+/// the next thing to decode is.
 #[allow(dead_code)]
-pub fn decode_packedfile_integer_u16(packed_file_data: &[u8], mut index: usize) -> Result<(u16, usize), Error> {
-    if packed_file_data.len() >= 2 {
-        match decode_integer_u16(&packed_file_data[..2]) {
-            Ok(number) => {
-                index += 2;
-                Ok((number, index))
-            }
-            Err(error) => Err(error)
-        }
-    }
-    else {
-        Err(format_err!("Error decoding an u16: Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len()))
-    }
+pub fn decode_packedfile_integer_u16(packed_file_data: &[u8], index: usize) -> Result<(u16, usize), Error> {
+    decode_integer_u16(&packed_file_data).map(|result| (result, index + 2))
 }
 
-/// This function allow us to decode an UTF-32 encoded integer cell. We return the integer and the index
-/// for the next cell's data.
+/// This function allow us to decode an UTF-32 encoded integer, returning with it the byte where
+/// the next thing to decode is.
 #[allow(dead_code)]
-pub fn decode_packedfile_integer_u32(packed_file_data: &[u8], mut index: usize) -> Result<(u32, usize), Error> {
-    if packed_file_data.len() >= 4 {
-        match decode_integer_u32(&packed_file_data[..4]) {
-            Ok(number) => {
-                index += 4;
-                Ok((number, index))
-            }
-            Err(error) => Err(error)
-        }
-    }
-    else {
-        Err(format_err!("Error decoding an u32: Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len()))
-    }
+pub fn decode_packedfile_integer_u32(packed_file_data: &[u8], index: usize) -> Result<(u32, usize), Error> {
+    decode_integer_u32(&packed_file_data).map(|result| (result, index + 4))
 }
 
-/// This function allow us to decode an encoded Long Integer cell. We return the integer and the index
-/// for the next cell's data.
+/// This function allow us to decode an encoded Long Integer (u64), returning with it the byte where
+/// the next thing to decode is.
 #[allow(dead_code)]
-pub fn decode_packedfile_integer_u64(packed_file_data: &[u8], mut index: usize) -> Result<(u64, usize), Error> {
-    if packed_file_data.len() >= 8 {
-        match decode_integer_u64(&packed_file_data[..8]) {
-            Ok(number) => {
-                index += 8;
-                Ok((number, index))
-            }
-            Err(error) => Err(error)
-        }
-    }
-    else {
-        Err(format_err!("Error decoding an u64: Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len()))
-    }
+pub fn decode_packedfile_integer_u64(packed_file_data: &[u8], index: usize) -> Result<(u64, usize), Error> {
+    decode_integer_u64(&packed_file_data).map(|result| (result, index + 8))
 }
 
-/// This function allow us to decode a signed UTF-32 encoded integer cell. We return the integer and the index
-/// for the next cell's data.
+/// This function allow us to decode an UTF-32 encoded signed integer, returning with it the byte where
+/// the next thing to decode is.
 #[allow(dead_code)]
-pub fn decode_packedfile_integer_i32(packed_file_data: &[u8], mut index: usize) -> Result<(i32, usize), Error> {
-    if packed_file_data.len() >= 4 {
-        match decode_integer_i32(&packed_file_data[..4]) {
-            Ok(number) => {
-                index += 4;
-                Ok((number, index))
-            }
-            Err(error) => Err(error)
-        }
-    }
-    else {
-        Err(format_err!("Error decoding an i32: Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len()))
-    }
+pub fn decode_packedfile_integer_i32(packed_file_data: &[u8], index: usize) -> Result<(i32, usize), Error> {
+    decode_integer_i32(&packed_file_data).map(|result| (result, index + 4))
 }
 
-/// This function allow us to decode a signed encoded Long Integer cell. We return the integer and the index
-/// for the next cell's data.
+/// This function allow us to decode an encoded signed Long Integer (i64), returning with it the byte where
+/// the next thing to decode is.
 #[allow(dead_code)]
-pub fn decode_packedfile_integer_i64(packed_file_data: &[u8], mut index: usize) -> Result<(i64, usize), Error> {
-    if packed_file_data.len() >= 8 {
-        match decode_integer_i64(&packed_file_data[..8]) {
-            Ok(number) => {
-                index += 8;
-                Ok((number, index))
-            }
-            Err(error) => Err(error)
-        }
-    }
-    else {
-        Err(format_err!("Error decoding an i64: Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len()))
-    }
+pub fn decode_packedfile_integer_i64(packed_file_data: &[u8], index: usize) -> Result<(i64, usize), Error> {
+    decode_integer_i64(&packed_file_data).map(|result| (result, index + 8))
 }
 
-/// This function allow us to decode an UTF-32 encoded float cell. We return the float and the index
-/// for the next cell's data.
+/// This function allow us to decode an UTF-32 encoded float, returning with it the byte where
+/// the next thing to decode is.
 #[allow(dead_code)]
-pub fn decode_packedfile_float_f32(packed_file_data: &[u8], mut index: usize) -> Result<(f32, usize), Error> {
-    if packed_file_data.len() >= 4 {
-        match decode_float_f32(&packed_file_data[..4]) {
-            Ok(number) => {
-                index += 4;
-                Ok((number, index))
-            }
-            Err(error) => Err(error)
-        }
-    }
-    else {
-        Err(format_err!("Error decoding a f32: Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len()))
-    }
+pub fn decode_packedfile_float_f32(packed_file_data: &[u8], index: usize) -> Result<(f32, usize), Error> {
+    decode_float_f32(&packed_file_data).map(|result| (result, index + 4))
 }
 
-/// This function allow us to decode an UTF-8 encoded string cell. We return the string and the
-/// index for the next cell's data.
+/// This function allow us to decode an UTF-8 encoded String, returning with it the byte where
+/// the next thing to decode is.
 #[allow(dead_code)]
 pub fn decode_packedfile_string_u8(packed_file_data: &[u8], index: usize) -> Result<(String, usize), Error> {
     if packed_file_data.len() >= 2 {
-        match decode_packedfile_integer_u16(&packed_file_data[..2], index) {
-            Ok(result) => {
-                let size = result.0;
-                let mut index = result.1;
-                if packed_file_data.len() >= (size as usize + 2) {
-                    match decode_string_u8(&packed_file_data[2..(2 + size as usize)]) {
-                        Ok(string) => {
-                            index += size as usize;
-                            Ok((string, index))
-                        }
-                        Err(error) => Err(error)
-                    }
-                }
-                else {
-                    Err(format_err!("Error decoding an u8 String: Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len()))
-                }
-            }
-            Err(error) => Err(error)
+
+        // We have already checked this cannot fail (we have 2 or more bytes), so the unwrap() here is allowed.
+        let string_lenght = decode_packedfile_integer_u16(&packed_file_data[..2], index).unwrap();
+        let size = string_lenght.0 as usize;
+        if packed_file_data.len() >= (size + 2) {
+            decode_string_u8(&packed_file_data[2..(2 + size)]).map(|string| (string, string_lenght.1 + size))
+        }
+        else {
+            Err(format_err!("Error trying to decode an u8 String:\n\nSize specified ({}) is bigger than the amount of bytes we have ({}).", size, packed_file_data.len()))
         }
     }
     else {
-        Err(format_err!("Error decoding an u16 (String size): Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len()))
+        Err(format_err!("Error trying to decode an u8 String:\n\nNot enough bytes (only {}, minimum required is 2) to get his size.", packed_file_data.len()))
     }
 }
 
-/// This function allow us to decode an UTF-8 encoded optional string cell. We return the string (or
-/// an empty string if it doesn't exist) and the index for the next cell's data.
+/// This function allow us to decode an UTF-8 encoded optional String, returning with it the byte where
+/// the next thing to decode is.
 ///
 /// NOTE: These strings's first byte it's a boolean that indicates if the string has something.
 #[allow(dead_code)]
@@ -393,61 +313,45 @@ pub fn decode_packedfile_optional_string_u8(packed_file_data: &[u8], index: usiz
     if packed_file_data.len() >= 1 {
         match decode_packedfile_bool(packed_file_data[0], index) {
             Ok(result) => {
-                let exist = result.0;
-                let index = result.1;
-                if exist {
-                    match decode_packedfile_string_u8(&packed_file_data[1..], index) {
-                        Ok(result) => Ok(result),
-                        Err(error) => Err(error),
-                    }
-                }
-                else {
-                    Ok((String::new(), result.1))
+                match result.0 {
+                    true => decode_packedfile_string_u8(&packed_file_data[1..], result.1),
+                    false => Ok((String::new(), result.1))
                 }
             }
-            Err(error) => Err(error)
+            Err(_) => Err(format_err!("Error trying to decode an u8 Optional String:\n\nThe first byte is not a boolean."))
         }
     }
     else {
-        Err(format_err!("Error decoding an u8 Optional String: Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len()))
+        Err(format_err!("Error trying to decode an u8 Optional String:\n\nThere are no bytes provided to decode."))
     }
 }
 
-/// This function allow us to decode an UTF-16 encoded string cell. We return the string and the
-/// index for the next cell's data.
+/// This function allow us to decode an UTF-16 encoded String, returning with it the byte where
+/// the next thing to decode is.
 #[allow(dead_code)]
 pub fn decode_packedfile_string_u16(packed_file_data: &[u8], index: usize) -> Result<(String, usize), Error> {
     if packed_file_data.len() >= 2 {
-        match decode_packedfile_integer_u16(&packed_file_data[..2], index) {
-            Ok(result) => {
 
-                // We wrap this to avoid overflow, as the limit of this is 65,535. Also, this has to be
-                // half the actual lenght of the data, because it counts pairs of bytes (u16), not single bytes.
-                let size = result.0.wrapping_mul(2);
-                let mut index = result.1;
-                if packed_file_data.len() >= (size as usize + 2) {
-                    match decode_string_u16(&packed_file_data[2..(2 + size as usize)]) {
-                        Ok(string) => {
-                            index += size as usize;
-                            Ok((string, index))
-                        }
-                        Err(error) => Err(error)
-                    }
-                }
-                else {
-                    Err(format_err!("Error decoding an u8 String: Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len()))
-                }
-            }
-            Err(error) => Err(error)
+        // We have already checked this cannot fail (we have 2 or more bytes), so the unwrap() here is allowed.
+        let string_lenght = decode_packedfile_integer_u16(&packed_file_data[..2], index).unwrap();
+
+        // We wrap this to avoid overflow, as the limit of this is 65,535. Also, this has to be
+        // half the actual lenght of the data, because it counts pairs of bytes (u16), not single bytes.
+        let size = string_lenght.0.wrapping_mul(2) as usize;
+        if packed_file_data.len() >= (size + 2) {
+            decode_string_u16(&packed_file_data[2..(2 + size)]).map(|string| (string, string_lenght.1 + size))
+        }
+        else {
+            Err(format_err!("Error trying to decode an u16 String:\n\nSize specified ({}) is bigger than the amount of pairs of bytes we have ({}).", size, packed_file_data.len() / 2))
         }
     }
     else {
-        Err(format_err!("Error decoding an u16 (String size): Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len()))
+        Err(format_err!("Error trying to decode an u16 String:\n\nNot enough bytes (only {}, minimum required is 2) to get his size.", packed_file_data.len()))
     }
 }
 
-/// This function allow us to decode an UTF-16 encoded optional string cell. We return the string (or
-/// an empty string if it doesn't exist) and the index for the next cell's data.
+/// This function allow us to decode an UTF-16 encoded optional String, returning with it the byte where
+/// the next thing to decode is.
 ///
 /// NOTE: These strings's first byte it's a boolean that indicates if the string has something.
 #[allow(dead_code)]
@@ -455,37 +359,24 @@ pub fn decode_packedfile_optional_string_u16(packed_file_data: &[u8], index: usi
     if packed_file_data.len() >= 1 {
         match decode_packedfile_bool(packed_file_data[0], index) {
             Ok(result) => {
-                let exist = result.0;
-                let index = result.1;
-                if exist {
-                    match decode_packedfile_string_u16(&packed_file_data[1..], index) {
-                        Ok(result) => Ok(result),
-                        Err(error) => Err(error),
-                    }
-                }
-                else {
-                    Ok((String::new(), result.1))
+                match result.0 {
+                    true => decode_packedfile_string_u16(&packed_file_data[1..], result.1),
+                    false => Ok((String::new(), result.1))
                 }
             }
-            Err(error) => Err(error)
+            Err(_) => Err(format_err!("Error trying to decode an u16 Optional String:\n\nThe first byte is not a boolean."))
         }
     }
     else {
-        Err(format_err!("Error decoding an u8 Optional String: Index \"{}\" out of bounds (Max length: {}).", index, packed_file_data.len()))
+        Err(format_err!("Error trying to decode an u16 Optional String:\n\nThere are no bytes provided to decode."))
     }
 }
 
-/// This function allow us to decode a boolean cell. We return the boolean's value and the index
-/// for the next cell's data.
+/// This function allow us to decode a boolean, returning with it the byte where
+/// the next thing to decode is.
 #[allow(dead_code)]
-pub fn decode_packedfile_bool(packed_file_data: u8, mut index: usize) -> Result<(bool, usize), Error> {
-    match decode_bool(packed_file_data) {
-        Ok(value) => {
-            index += 1;
-            Ok((value, index))
-        }
-        Err(error) => Err(error)
-    }
+pub fn decode_packedfile_bool(packed_file_data: u8, index: usize) -> Result<(bool, usize), Error> {
+    decode_bool(packed_file_data).map(|result| (result, index + 1))
 }
 
 /*
@@ -494,8 +385,8 @@ pub fn decode_packedfile_bool(packed_file_data: u8, mut index: usize) -> Result<
 --------------------------------------------------------
 */
 
-/// This function allow us to encode an UTF-8 decoded string cell. We return the Vec<u8> of
-/// the encoded string.
+/// This function allow us to encode an UTF-8 decoded String that requires having his lenght
+/// (two bytes, an u16 integer) encoded before the encoded string.
 #[allow(dead_code)]
 pub fn encode_packedfile_string_u8(string_u8_decoded: &str) -> Vec<u8> {
     let mut string_u8_encoded = vec![];
@@ -508,8 +399,9 @@ pub fn encode_packedfile_string_u8(string_u8_decoded: &str) -> Vec<u8> {
     string_u8_encoded
 }
 
-/// This function allow us to encode an UTF-8 decoded string cell. We return the Vec<u8> of
-/// the encoded string.
+/// This function allow us to encode an UTF-8 decoded String that requires having a boolean (one
+/// byte, true if exists, false if it's empty) and his lenght (two bytes, an u16 integer) encoded
+/// before the encoded string.
 #[allow(dead_code)]
 pub fn encode_packedfile_optional_string_u8(optional_string_u8_decoded: &str) -> Vec<u8> {
     let mut optional_string_u8_encoded = vec![];
@@ -529,8 +421,8 @@ pub fn encode_packedfile_optional_string_u8(optional_string_u8_decoded: &str) ->
     optional_string_u8_encoded
 }
 
-/// This function allow us to encode an UTF-16 decoded string cell. We return the Vec<u8> of
-/// the encoded string.
+/// This function allow us to encode an UTF-16 decoded String that requires having his lenght
+/// (two bytes, an u16 integer) encoded before the encoded string.
 #[allow(dead_code)]
 pub fn encode_packedfile_string_u16(string_u16_decoded: &str) -> Vec<u8> {
     let mut string_u16_encoded = vec![];
@@ -543,8 +435,9 @@ pub fn encode_packedfile_string_u16(string_u16_decoded: &str) -> Vec<u8> {
     string_u16_encoded
 }
 
-/// This function allow us to encode an UTF-8 decoded string cell. We return the Vec<u8> of
-/// the encoded string.
+/// This function allow us to encode an UTF-16 decoded String that requires having a boolean (one
+/// byte, true if exists, false if it's empty) and his lenght (two bytes, an u16 integer) encoded
+/// before the encoded string.
 #[allow(dead_code)]
 pub fn encode_packedfile_optional_string_u16(optional_string_u16_decoded: &str) -> Vec<u8> {
     let mut optional_string_u16_encoded = vec![];
