@@ -99,7 +99,7 @@ pub fn import_schema(
         }
     }
 
-    Schema::save(&schema)?;
+    Schema::save(&schema, "PFH5")?;
 
     Ok(())
 }

@@ -297,16 +297,12 @@ fn build_ui(application: &Application) {
     // We load the settings here, and in case they doesn't exist, we create them.
     let settings = Rc::new(RefCell::new(Settings::load().unwrap_or_else(|_|Settings::new())));
 
+    // We prepare the schema to be loaded/changed.
+    let schema: Rc<RefCell<Option<Schema>>> = Rc::new(RefCell::new(None));
+
     // And we prepare the stuff for the default game (paths, and those things).
     // FIXME: changing paths require to restart the program. This needs to be fixed.
     let mut game_selected = GameSelected::new(&settings.borrow());
-
-    // And we import the schema for the DB tables.
-    let schema = match Schema::load() {
-        Ok(schema) => schema,
-        Err(error) => return ui::show_dialog(&error_dialog, format!("Error while loading DB Schema file:\n{}", error.cause())),
-    };
-    let schema = Rc::new(RefCell::new(schema));
 
     // Prepare the "MyMod" menu. This... atrocity needs to be in the following places for MyMod to open PackFiles:
     // - At the start of the program (here).
@@ -376,6 +372,7 @@ fn build_ui(application: &Application) {
                                     // And when activating the mod button, we open it and set it as selected (chaos incoming).
                                     open_mod.connect_activate(clone!(
                                         window,
+                                        schema,
                                         my_mod_selected,
                                         game_folder_name,
                                         error_dialog,
@@ -432,6 +429,8 @@ fn build_ui(application: &Application) {
                                                         menu_bar_my_mod_install.set_enabled(true);
                                                         menu_bar_my_mod_uninstall.set_enabled(true);
 
+                                                        // Try to load the Schema for this PackFile's game.
+                                                        *schema.borrow_mut() = Schema::load(&*pack_file_decoded.borrow().pack_file_header.pack_file_id).ok();
                                                     }
                                                     Err(error) => ui::show_dialog(&error_dialog, error.cause()),
                                                 }
@@ -510,6 +509,7 @@ fn build_ui(application: &Application) {
     // When we hit the "New PackFile" button.
     menu_bar_new_packfile.connect_activate(clone!(
         window,
+        schema,
         my_mod_selected,
         unsaved_dialog,
         pack_file_decoded,
@@ -554,6 +554,9 @@ fn build_ui(application: &Application) {
                 menu_bar_my_mod_delete.set_enabled(false);
                 menu_bar_my_mod_install.set_enabled(false);
                 menu_bar_my_mod_uninstall.set_enabled(false);
+
+                // Try to load the Schema for this PackFile's game.
+                *schema.borrow_mut() = Schema::load(&*pack_file_decoded.borrow().pack_file_header.pack_file_id).ok();
             }
     }));
 
@@ -562,6 +565,7 @@ fn build_ui(application: &Application) {
     menu_bar_open_packfile.connect_activate(clone!(
         game_selected,
         window,
+        schema,
         my_mod_selected,
         error_dialog,
         unsaved_dialog,
@@ -622,6 +626,7 @@ fn build_ui(application: &Application) {
                                 _ => ui::show_dialog(&error_dialog, format_err!("PackFile Type not valid.")),
                             }
 
+                            // Enable the actions for PackFiles.
                             menu_bar_save_packfile.set_enabled(true);
                             menu_bar_save_packfile_as.set_enabled(true);
                             menu_bar_change_packfile_type.set_enabled(true);
@@ -631,6 +636,9 @@ fn build_ui(application: &Application) {
                             menu_bar_my_mod_delete.set_enabled(false);
                             menu_bar_my_mod_install.set_enabled(false);
                             menu_bar_my_mod_uninstall.set_enabled(false);
+
+                            // Try to load the Schema for this PackFile's game.
+                            *schema.borrow_mut() = Schema::load(&*pack_file_decoded.borrow().pack_file_header.pack_file_id).ok();
                         }
                         Err(error) => ui::show_dialog(&error_dialog, error.cause()),
                     }
@@ -841,6 +849,7 @@ fn build_ui(application: &Application) {
         settings,
         my_mod_selected,
         application,
+        schema,
         menu_bar_my_mod_delete,
         menu_bar_my_mod_install,
         menu_bar_my_mod_uninstall => move |menu_bar_preferences,_| {
@@ -908,6 +917,7 @@ fn build_ui(application: &Application) {
             menu_bar_patch_siege_ai,
             settings_stuff,
             settings,
+            schema,
             my_mod_selected,
             application,
             menu_bar_preferences,
@@ -994,6 +1004,7 @@ fn build_ui(application: &Application) {
                                             // And when activating the mod button, we open it and set it as selected (chaos incoming).
                                             open_mod.connect_activate(clone!(
                                                 window,
+                                                schema,
                                                 my_mod_selected,
                                                 game_folder_name,
                                                 error_dialog,
@@ -1050,6 +1061,8 @@ fn build_ui(application: &Application) {
                                                                 menu_bar_my_mod_install.set_enabled(true);
                                                                 menu_bar_my_mod_uninstall.set_enabled(true);
 
+                                                                // Try to load the Schema for this PackFile's game.
+                                                                *schema.borrow_mut() = Schema::load(&*pack_file_decoded.borrow().pack_file_header.pack_file_id).ok();
                                                             }
                                                             Err(error) => ui::show_dialog(&error_dialog, error.cause()),
                                                         }
@@ -1128,6 +1141,7 @@ fn build_ui(application: &Application) {
         settings,
         application,
         window,
+        schema,
         my_mod_list,
         my_mod_selected,
         unsaved_dialog,
@@ -1170,6 +1184,7 @@ fn build_ui(application: &Application) {
             settings,
             unsaved_dialog,
             window,
+            schema,
             my_mod_selected,
             my_mod_list,
             error_dialog,
@@ -1312,6 +1327,7 @@ fn build_ui(application: &Application) {
                                                     // And when activating the mod button, we open it and set it as selected (chaos incoming).
                                                     open_mod.connect_activate(clone!(
                                                         window,
+                                                        schema,
                                                         my_mod_selected,
                                                         game_folder_name,
                                                         unsaved_dialog,
@@ -1369,6 +1385,8 @@ fn build_ui(application: &Application) {
                                                                         menu_bar_my_mod_install.set_enabled(true);
                                                                         menu_bar_my_mod_uninstall.set_enabled(true);
 
+                                                                        // Try to load the Schema for this PackFile's game.
+                                                                        *schema.borrow_mut() = Schema::load(&*pack_file_decoded.borrow().pack_file_header.pack_file_id).ok();
                                                                     }
                                                                     Err(error) => ui::show_dialog(&error_dialog, error.cause()),
                                                                 }
@@ -1429,6 +1447,7 @@ fn build_ui(application: &Application) {
         settings,
         unsaved_dialog,
         window,
+        schema,
         my_mod_selected,
         my_mod_list,
         error_dialog,
@@ -1591,6 +1610,7 @@ fn build_ui(application: &Application) {
                                                     // And when activating the mod button, we open it and set it as selected (chaos incoming).
                                                     open_mod.connect_activate(clone!(
                                                         window,
+                                                        schema,
                                                         my_mod_selected,
                                                         game_folder_name,
                                                         error_dialog,
@@ -1647,6 +1667,8 @@ fn build_ui(application: &Application) {
                                                                         menu_bar_my_mod_install.set_enabled(true);
                                                                         menu_bar_my_mod_uninstall.set_enabled(true);
 
+                                                                        // Try to load the Schema for this PackFile's game.
+                                                                        *schema.borrow_mut() = Schema::load(&*pack_file_decoded.borrow().pack_file_header.pack_file_id).ok();
                                                                     }
                                                                     Err(error) => ui::show_dialog(&error_dialog, error.cause()),
                                                                 }
@@ -3267,7 +3289,13 @@ fn build_ui(application: &Application) {
                         packed_file_data_display.show_all();
 
                         let packed_file_data_encoded = Rc::new(RefCell::new(pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data.to_vec()));
-                        let packed_file_data_decoded = DB::read(&packed_file_data_encoded.borrow(), &*tree_path[1], &schema.borrow().clone());
+                        let packed_file_data_decoded = match *schema.borrow() {
+                            Some(ref schema) => DB::read(&packed_file_data_encoded.borrow(), &*tree_path[1], &schema.clone()),
+                            None => {
+                                packed_file_decode_mode_button.set_sensitive(false);
+                                return ui::show_dialog(&error_dialog, format_err!("There is no Schema loaded for this game."))
+                            },
+                        };
 
                         // If this returns an error, we just leave the button for the decoder.
                         match packed_file_data_decoded {
@@ -3845,6 +3873,7 @@ fn build_ui(application: &Application) {
                             tree_path,
                             error_dialog,
                             success_dialog,
+                            pack_file_decoded,
                             packed_file_data_display => move |packed_file_decode_mode_button ,_|{
 
                             // We need to disable the button. Otherwise, things will get weird.
@@ -3866,8 +3895,9 @@ fn build_ui(application: &Application) {
                                     // We get the initial index to start decoding.
                                     let initial_index = db_header.1;
 
-                                    // We get the definition, or create one if we didn't find it.
-                                    let table_definition = match DB::get_schema(&*tree_path[1], db_header.0.packed_file_header_packed_file_version, &*schema.borrow()) {
+                                    // We get the Schema for his game, if exists. If we reached this point, the Schema
+                                    // should exists. Otherwise, the button for this window will be disabled.
+                                    let table_definition = match DB::get_schema(&*tree_path[1], db_header.0.packed_file_header_packed_file_version, &schema.borrow().clone().unwrap()) {
                                         Some(table_definition) => Rc::new(RefCell::new(table_definition)),
                                         None => Rc::new(RefCell::new(TableDefinition::new(db_header.0.packed_file_header_packed_file_version)))
                                     };
@@ -4278,26 +4308,36 @@ fn build_ui(application: &Application) {
                                                 tree_path,
                                                 error_dialog,
                                                 success_dialog,
+                                                pack_file_decoded,
                                                 packed_file_decoder => move |_ ,_|{
 
-                                                    // We get the index of our table's definitions. In case we find it, we just return it. If it's not
-                                                    // the case, then we create a new table's definitions and return his index. To know if we didn't found
-                                                    // an index, we just return -1 as index.
-                                                    let mut table_definitions_index = match schema.borrow().get_table_definitions(&*tree_path[1]) {
-                                                        Some(table_definitions_index) => table_definitions_index as i32,
-                                                        None => -1i32,
-                                                    };
+                                                    // Check if the Schema actually exists. This should never show up if the schema exists,
+                                                    // but the compiler doesn't know it, so we have to check it.
+                                                    match *schema.borrow_mut() {
+                                                        Some(ref mut schema) => {
 
-                                                    if table_definitions_index == -1 {
-                                                        schema.borrow_mut().add_table_definitions(TableDefinitions::new(&packed_file_decoder.table_type_label.get_text().unwrap()));
-                                                        table_definitions_index = schema.borrow().get_table_definitions(&*tree_path[1]).unwrap() as i32;
+                                                            // We get the index of our table's definitions. In case we find it, we just return it. If it's not
+                                                            // the case, then we create a new table's definitions and return his index. To know if we didn't found
+                                                            // an index, we just return -1 as index.
+                                                            let mut table_definitions_index = match schema.get_table_definitions(&*tree_path[1]) {
+                                                                Some(table_definitions_index) => table_definitions_index as i32,
+                                                                None => -1i32,
+                                                            };
+
+                                                            if table_definitions_index == -1 {
+                                                                schema.add_table_definitions(TableDefinitions::new(&packed_file_decoder.table_type_label.get_text().unwrap()));
+                                                                table_definitions_index = schema.get_table_definitions(&*tree_path[1]).unwrap() as i32;
+                                                            }
+                                                            table_definition.borrow_mut().fields = packed_file_decoder.return_data_from_data_view();
+                                                            schema.tables_definitions[table_definitions_index as usize].add_table_definition(table_definition.borrow().clone());
+                                                            match Schema::save(&schema, &*pack_file_decoded.borrow().pack_file_header.pack_file_id) {
+                                                                Ok(_) => ui::show_dialog(&success_dialog, format!("Schema saved successfully.")),
+                                                                Err(error) => ui::show_dialog(&error_dialog, error.cause()),
+                                                            }
+                                                        }
+                                                        None => ui::show_dialog(&error_dialog, format_err!("Cannot save this table's definitions:\nSchemas for this game are not supported yet."))
                                                     }
-                                                    table_definition.borrow_mut().fields = packed_file_decoder.return_data_from_data_view();
-                                                    schema.borrow_mut().tables_definitions[table_definitions_index as usize].add_table_definition(table_definition.borrow().clone());
-                                                    match Schema::save(&*schema.borrow()) {
-                                                        Ok(_) => ui::show_dialog(&success_dialog, format!("Schema saved successfully.")),
-                                                        Err(error) => ui::show_dialog(&error_dialog, error.cause()),
-                                                    }
+
                                                 Inhibit(false)
                                             }));
 
@@ -4570,6 +4610,7 @@ fn build_ui(application: &Application) {
     // This allow us to open a PackFile by "Drag&Drop" it into the folder_tree_view.
     folder_tree_view.connect_drag_data_received(clone!(
         window,
+        schema,
         error_dialog,
         pack_file_decoded,
         folder_tree_store,
@@ -4631,6 +4672,9 @@ fn build_ui(application: &Application) {
                                 menu_bar_my_mod_delete.set_enabled(false);
                                 menu_bar_my_mod_install.set_enabled(false);
                                 menu_bar_my_mod_uninstall.set_enabled(false);
+
+                                // Try to load the Schema for this PackFile's game.
+                                *schema.borrow_mut() = Schema::load(&*pack_file_decoded.borrow().pack_file_header.pack_file_id).ok();
                             }
                             Err(error) => ui::show_dialog(&error_dialog, error.cause()),
                         }
