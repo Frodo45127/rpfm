@@ -114,7 +114,7 @@ pub fn save_packfile(
         Ok(mut file) => {
             let pack_file_encoded: Vec<u8> = packfile::PackFile::save(pack_file);
             match file.write_all(&pack_file_encoded) {
-                Ok(_) => Ok(format!("File saved succesfuly:\n{}", pack_file_path.display())),
+                Ok(_) => Ok(format!("File saved successfully:\n{}", pack_file_path.display())),
                 Err(error) => Err(From::from(error))
             }
         }
