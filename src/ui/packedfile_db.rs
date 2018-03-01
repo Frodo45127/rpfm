@@ -141,13 +141,34 @@ impl PackedFileDBTreeView{
         let mut key_columns = vec![];
         for field in &packed_file_table_definition.fields {
 
+            // We need to fix the names here, so the column names are not broken.
+            let mut new_name: String = String::new();
+            let mut should_be_uppercase = false;
+            for character in field.field_name.to_owned().chars() {
+                let new_character: char;
+                if new_name.is_empty() || should_be_uppercase {
+                    new_character = character.to_uppercase().to_string().chars().nth(0).unwrap();
+                    should_be_uppercase = false;
+                }
+                else if character == "_".chars().nth(0).unwrap() {
+                    new_character = " ".chars().nth(0).unwrap();
+                    should_be_uppercase = true;
+                }
+                else {
+                    new_character = character;
+                    should_be_uppercase = false;
+                }
+                new_name.push(new_character);
+            }
+            let field_name = new_name;
+
             // These are the specific declarations of the columns for every type implemented.
             match field.field_type {
                 FieldType::Boolean => {
                     let cell_bool = CellRendererToggle::new();
                     cell_bool.set_activatable(true);
                     let column_bool = TreeViewColumn::new();
-                    column_bool.set_title(&field.field_name);
+                    column_bool.set_title(&field_name);
                     column_bool.set_clickable(true);
                     column_bool.set_min_width(50);
                     column_bool.set_sizing(gtk::TreeViewColumnSizing::GrowOnly);
@@ -167,7 +188,7 @@ impl PackedFileDBTreeView{
                     cell_float.set_property_xalign(1.0);
                     cell_float.set_property_placeholder_text(Some("Float (2.54, 3.21, 6.8765,..)"));
                     let column_float = TreeViewColumn::new();
-                    column_float.set_title(&field.field_name);
+                    column_float.set_title(&field_name);
                     column_float.set_clickable(true);
                     column_float.set_resizable(true);
                     column_float.set_min_width(50);
@@ -188,7 +209,7 @@ impl PackedFileDBTreeView{
                     cell_int.set_property_xalign(1.0);
                     cell_int.set_property_placeholder_text(Some("Integer (2, 3, 6,..)"));
                     let column_int = TreeViewColumn::new();
-                    column_int.set_title(&field.field_name);
+                    column_int.set_title(&field_name);
                     column_int.set_clickable(true);
                     column_int.set_resizable(true);
                     column_int.set_min_width(50);
@@ -209,7 +230,7 @@ impl PackedFileDBTreeView{
                     cell_long_int.set_property_xalign(1.0);
                     cell_long_int.set_property_placeholder_text(Some("Long Integer (2, 3, 6,..)"));
                     let column_long_int = TreeViewColumn::new();
-                    column_long_int.set_title(&field.field_name);
+                    column_long_int.set_title(&field_name);
                     column_long_int.set_clickable(true);
                     column_long_int.set_resizable(true);
                     column_long_int.set_min_width(50);
@@ -229,7 +250,7 @@ impl PackedFileDBTreeView{
                     cell_string.set_property_editable(true);
                     cell_string.set_property_placeholder_text(Some("Obligatory String"));
                     let column_string = TreeViewColumn::new();
-                    column_string.set_title(&field.field_name);
+                    column_string.set_title(&field_name);
                     column_string.set_clickable(true);
                     column_string.set_resizable(true);
                     column_string.set_min_width(50);
@@ -249,7 +270,7 @@ impl PackedFileDBTreeView{
                     cell_optional_string.set_property_editable(true);
                     cell_optional_string.set_property_placeholder_text(Some("Optional String"));
                     let column_optional_string = TreeViewColumn::new();
-                    column_optional_string.set_title(&field.field_name);
+                    column_optional_string.set_title(&field_name);
                     column_optional_string.set_clickable(true);
                     column_optional_string.set_resizable(true);
                     column_optional_string.set_min_width(50);
