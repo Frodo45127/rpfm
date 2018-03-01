@@ -47,7 +47,7 @@ pub fn import_schema(
 ) -> Result<(), Error> {
 
     // We get the new schema.
-    let mut schema = Schema::new(format!("TW:Warhammer 2"));
+    let mut schema = Schema::new();
 
     // Then we get all the schema files. We unwrap it, as we want it to crash oon error.
     let assembly_kit_schemas = common::get_assembly_kit_schemas(assembly_kit_schemas_path).unwrap();
