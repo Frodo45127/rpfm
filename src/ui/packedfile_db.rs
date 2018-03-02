@@ -61,6 +61,10 @@ pub struct PackedFileDBDecoder {
     pub use_optional_string_u16_button: Button,
     pub fields_tree_view: TreeView,
     pub fields_list_store: ListStore,
+    pub all_table_versions_tree_view: TreeView,
+    pub all_table_versions_list_store: ListStore,
+    pub all_table_versions_load_definition: Button,
+    pub all_table_versions_remove_definition: Button,
     pub field_name_entry: Entry,
     pub is_key_field_switch: Switch,
     pub save_decoded_schema: Button,
@@ -676,7 +680,7 @@ impl PackedFileDBDecoder {
         fields_tree_view.append_column(&column_decoded);
         fields_tree_view.append_column(&column_description);
 
-
+        // Here we create the TextViews for the different decoding types.
         let bool_box = Box::new(Orientation::Horizontal, 0);
         let float_box = Box::new(Orientation::Horizontal, 0);
         let integer_box = Box::new(Orientation::Horizontal, 0);
@@ -813,6 +817,31 @@ impl PackedFileDBDecoder {
         let is_key_field_switch = Switch::new();
         let save_decoded_schema = Button::new_with_label("Finish It!");
 
+        // Here we create a little TreeView with all the versions of this table we have, in case we
+        // want to decode it based on another version's definition, to save time.
+        let all_table_versions_tree_view = TreeView::new();
+        let all_table_versions_list_store = ListStore::new(&[u32::static_type()]);
+        all_table_versions_tree_view.set_model(Some(&all_table_versions_list_store));
+
+        let all_table_versions_tree_view_scroll = ScrolledWindow::new(None, None);
+        all_table_versions_tree_view_scroll.add(&all_table_versions_tree_view);
+        all_table_versions_tree_view_scroll.set_size_request(0, 100);
+
+        let column_versions = TreeViewColumn::new();
+        let cell_version = CellRendererText::new();
+        column_versions.pack_start(&cell_version, true);
+        column_versions.add_attribute(&cell_version, "text", 0);
+        column_versions.set_sort_column_id(0);
+        column_versions.set_clickable(false);
+        column_versions.set_title("Versions");
+
+        all_table_versions_tree_view.append_column(&column_versions);
+
+        // Buttons to load and delete the selected version from the schema.
+        let box_definition = Box::new(Orientation::Horizontal, 0);
+        let load_definition = Button::new_with_label("Load");
+        let remove_definition = Button::new_with_label("Remove");
+
         packed_file_field_settings_box_table_type.pack_start(&packed_file_decoded_data_table_type_label, false, false, 2);
         packed_file_field_settings_box_table_type.pack_start(&table_type_label, false, false, 2);
 
@@ -828,6 +857,9 @@ impl PackedFileDBDecoder {
         field_is_key_box.pack_start(&is_key_field_label, false, false, 6);
         field_is_key_box.pack_end(&is_key_field_switch, false, true, 4);
 
+        box_definition.pack_start(&load_definition, true, true, 4);
+        box_definition.pack_end(&remove_definition, true, true, 4);
+
         packed_file_field_info_frame_box.pack_start(&packed_file_field_settings_box_table_type, false, false, 2);
         packed_file_field_info_frame_box.pack_start(&packed_file_field_settings_box_table_version, false, false, 2);
         packed_file_field_info_frame_box.pack_start(&packed_file_field_settings_box_table_entry_count, false, false, 2);
@@ -836,6 +868,8 @@ impl PackedFileDBDecoder {
         packed_file_field_settings_box.pack_start(&packed_file_table_info_frame, false, false, 2);
         packed_file_field_settings_box.pack_start(&field_name_box, false, false, 2);
         packed_file_field_settings_box.pack_start(&field_is_key_box, false, false, 2);
+        packed_file_field_settings_box.pack_start(&all_table_versions_tree_view_scroll, false, false, 2);
+        packed_file_field_settings_box.pack_start(&box_definition, false, false, 2);
         packed_file_field_settings_box.pack_end(&save_decoded_schema, false, false, 2);
 
         packed_file_decoded_data_less_bigger_boxx.pack_start(&packed_file_decoded_data_box, true, true, 0);
@@ -876,6 +910,10 @@ impl PackedFileDBDecoder {
             use_optional_string_u16_button,
             fields_tree_view,
             fields_list_store,
+            all_table_versions_tree_view,
+            all_table_versions_list_store,
+            all_table_versions_load_definition: load_definition,
+            all_table_versions_remove_definition: remove_definition,
             field_name_entry,
             is_key_field_switch,
             save_decoded_schema,
@@ -1153,7 +1191,25 @@ impl PackedFileDBDecoder {
         let index_char_end = ((index_data * 3) + 2) as i32;
         raw_data_text_buffer.apply_tag_by_name("index", &raw_data_text_buffer.get_iter_at_line_offset(0, index_char_start), &raw_data_text_buffer.get_iter_at_line_offset(0, index_char_end));
 
+        // Returns the new "index_data" to keep decoding.
         index_data
+    }
+
+    /// This function is used to update the list of "Versions" of the currently open table decoded.
+    pub fn update_versions_list(
+        packed_file_decoder: &PackedFileDBDecoder,
+        schema: &Schema,
+        table_name: &str,
+    ) {
+        // Clear the current list.
+        packed_file_decoder.all_table_versions_list_store.clear();
+
+        // And get all the versions of this table, and list them in their TreeView, if we have any.
+        if let Some(table_versions_list) = DB::get_schema_versions_list(table_name, &schema) {
+            for version in table_versions_list {
+                packed_file_decoder.all_table_versions_list_store.insert_with_values(None, &[0], &[&version.version]);
+            }
+        }
     }
 
     /// This function adds fields to the "Decoder" table, so we can do this without depending on the

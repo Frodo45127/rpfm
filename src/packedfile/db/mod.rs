@@ -146,6 +146,48 @@ impl DB {
         }
         None
     }
+
+    /// This function gets all the schemas corresponding to the table we passed it, if any of them exists.
+    pub fn get_schema_versions_list(db_name: &str, schema: &schemas::Schema) -> Option<Vec<schemas::TableDefinition>> {
+
+        // If we find our table in the TableDefinitions vector...
+        if let Some(index_table_definitions) = schema.get_table_definitions(db_name) {
+
+            // And it has at least one definition created...
+            if !schema.tables_definitions[index_table_definitions].versions.is_empty() {
+
+                // Return the vector with our tables's versions.
+                return Some(schema.tables_definitions[index_table_definitions].versions.to_vec())
+            }
+        }
+        None
+    }
+
+    /// This function removes from the schema the version of a table with the provided version.
+    pub fn remove_table_version(table_name: &str, version: u32, schema: &mut schemas::Schema) -> Result<(), Error>{
+
+        // If we find our table in the TableDefinitions vector...
+        if let Some(index_table_definitions) = schema.get_table_definitions(table_name) {
+
+            // And it has a definition created for our version of the table...
+            if let Some(index_table_versions) = schema.tables_definitions[index_table_definitions].get_table_version(version) {
+
+                // We remove that version and return success.
+                schema.tables_definitions[index_table_definitions].versions.remove(index_table_versions);
+                Ok(())
+            }
+
+            // If the table doesn't have the version we asked for...
+            else {
+                return Err(format_err!("Error while deleting the definition for version {} of table {}:\nThis table doesn't have this version decoded.", version, table_name));
+            }
+        }
+
+        // If the table hasn't been found in the Schema...
+        else {
+            return Err(format_err!("Error while deleting the definition for version {} of table {}:\nThis table is not in the currently loaded Schema.", version, table_name));
+        }
+    }
 }
 
 

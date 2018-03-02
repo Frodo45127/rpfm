@@ -4102,6 +4102,9 @@ fn build_ui(application: &Application) {
                                                 initial_index,
                                             )));
 
+                                            // Update the versions list. Only if we have an schema, we can reach this point, so we just unwrap the schema.
+                                            PackedFileDBDecoder::update_versions_list(&packed_file_decoder, &(schema.borrow().clone().unwrap()), &*tree_path[1]);
+
                                             // Clean the accelerators stuff.
                                             remove_temporal_accelerators(&application);
 
@@ -4180,6 +4183,25 @@ fn build_ui(application: &Application) {
                                                         packed_file_decoder.fields_list_store.move_after(&current_iter, &new_iter);
                                                     }
                                                     *index_data.borrow_mut() = update_first_row_decoded(&packed_file_data_encoded.borrow(), &packed_file_decoder.fields_list_store, &initial_index, &packed_file_decoder);
+                                                }
+                                            }));
+
+                                            // By default, these buttons are disabled.
+                                            packed_file_decoder.all_table_versions_remove_definition.set_sensitive(false);
+                                            packed_file_decoder.all_table_versions_load_definition.set_sensitive(false);
+
+                                            // We check if we can allow actions on selection changes.
+                                            packed_file_decoder.all_table_versions_tree_view.connect_cursor_changed(clone!(
+                                                packed_file_decoder => move |_| {
+
+                                                // If the version list is empty or nothing is selected, disable all the actions.
+                                                if packed_file_decoder.all_table_versions_tree_view.get_selection().count_selected_rows() > 0 {
+                                                    packed_file_decoder.all_table_versions_remove_definition.set_sensitive(true);
+                                                    packed_file_decoder.all_table_versions_load_definition.set_sensitive(true);
+                                                }
+                                                else {
+                                                    packed_file_decoder.all_table_versions_remove_definition.set_sensitive(false);
+                                                    packed_file_decoder.all_table_versions_load_definition.set_sensitive(false);
                                                 }
                                             }));
 
@@ -4480,6 +4502,82 @@ fn build_ui(application: &Application) {
                                                 }
                                             }));
 
+                                            // This allow us to replace the definition we have loaded with one from another version of the table.
+                                            packed_file_decoder.all_table_versions_load_definition.connect_button_release_event(clone!(
+                                                schema,
+                                                tree_path,
+                                                error_dialog,
+                                                packed_file_data_encoded,
+                                                packed_file_decoder => move |_ ,_| {
+
+                                                    // Only if we have a version selected, do something.
+                                                    if let Some(version_selected) = packed_file_decoder.all_table_versions_tree_view.get_selection().get_selected() {
+
+                                                        // Get the table's name and version selected.
+                                                        let table_name = &*tree_path[1];
+                                                        let version_to_load: u32 = packed_file_decoder.all_table_versions_list_store.get_value(&version_selected.1, 0).get().unwrap();
+
+                                                        // Check if the Schema actually exists. This should never show up if the schema exists,
+                                                        // but the compiler doesn't know it, so we have to check it.
+                                                        match *schema.borrow_mut() {
+                                                            Some(ref mut schema) => {
+
+                                                                // Get the new definition.
+                                                                let table_definition = DB::get_schema(table_name, version_to_load, schema);
+
+                                                                // Remove all the fields of the currently loaded definition.
+                                                                packed_file_decoder.fields_list_store.clear();
+
+                                                                // Reload the decoder View with the new definition loaded.
+                                                                PackedFileDBDecoder::update_decoder_view(
+                                                                    &packed_file_decoder,
+                                                                    &packed_file_data_encoded.borrow(),
+                                                                    table_definition.as_ref(),
+                                                                    initial_index,
+                                                                );
+                                                            }
+                                                            None => ui::show_dialog(&error_dialog, format_err!("Cannot load a version of a table from a non-existant Schema."))
+                                                        }
+                                                    }
+
+                                                Inhibit(false)
+                                            }));
+
+                                            // This allow us to remove an entire definition of a table for an specific version.
+                                            // Basically, hitting this button deletes the selected definition.
+                                            packed_file_decoder.all_table_versions_remove_definition.connect_button_release_event(clone!(
+                                                schema,
+                                                tree_path,
+                                                error_dialog,
+                                                packed_file_decoder => move |_ ,_| {
+
+                                                    // Only if we have a version selected, do something.
+                                                    if let Some(version_selected) = packed_file_decoder.all_table_versions_tree_view.get_selection().get_selected() {
+
+                                                        // Get the table's name and version selected.
+                                                        let table_name = &*tree_path[1];
+                                                        let version_to_delete: u32 = packed_file_decoder.all_table_versions_list_store.get_value(&version_selected.1, 0).get().unwrap();
+
+                                                        // Check if the Schema actually exists. This should never show up if the schema exists,
+                                                        // but the compiler doesn't know it, so we have to check it.
+                                                        match *schema.borrow_mut() {
+                                                            Some(ref mut schema) => {
+
+                                                                // Try to remove that version form the schema.
+                                                                match DB::remove_table_version(table_name, version_to_delete, schema) {
+
+                                                                    // If it worked, update the list.
+                                                                    Ok(_) => PackedFileDBDecoder::update_versions_list(&packed_file_decoder, schema, &*tree_path[1]),
+                                                                    Err(error) => ui::show_dialog(&error_dialog, error.cause()),
+                                                                }
+                                                            }
+                                                            None => ui::show_dialog(&error_dialog, format_err!("Cannot delete a version from a non-existant Schema."))
+                                                        }
+                                                    }
+
+                                                Inhibit(false)
+                                            }));
+
                                             // This saves the schema to a file. It takes the "table_definition" we had for this version of our table, and put
                                             // in it all the fields we have in the fields tree_view.
                                             packed_file_decoder.save_decoded_schema.connect_button_release_event(clone!(
@@ -4489,7 +4587,7 @@ fn build_ui(application: &Application) {
                                                 error_dialog,
                                                 success_dialog,
                                                 pack_file_decoded,
-                                                packed_file_decoder => move |_ ,_|{
+                                                packed_file_decoder => move |_ ,_| {
 
                                                     // Check if the Schema actually exists. This should never show up if the schema exists,
                                                     // but the compiler doesn't know it, so we have to check it.
@@ -4514,6 +4612,9 @@ fn build_ui(application: &Application) {
                                                                 Ok(_) => ui::show_dialog(&success_dialog, format!("Schema saved successfully.")),
                                                                 Err(error) => ui::show_dialog(&error_dialog, error.cause()),
                                                             }
+
+                                                            // After all that, we need to update the version list, as this may have created a new version.
+                                                            PackedFileDBDecoder::update_versions_list(&packed_file_decoder, schema, &*tree_path[1]);
                                                         }
                                                         None => ui::show_dialog(&error_dialog, format_err!("Cannot save this table's definitions:\nSchemas for this game are not supported yet."))
                                                     }
