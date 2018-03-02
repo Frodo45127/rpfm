@@ -3530,6 +3530,39 @@ fn build_ui(application: &Application) {
                                 application.set_accels_for_action("app.packedfile_db_import_csv", &["<Shift>i"]);
                                 application.set_accels_for_action("app.packedfile_db_export_csv", &["<Shift>e"]);
 
+                                // Enable the tooltips for the TreeView.
+                                packed_file_tree_view.set_has_tooltip(true);
+                                packed_file_tree_view.connect_query_tooltip(clone!(
+                                    table_definition => move |tree_view, x, y,_, tooltip| {
+
+                                        // Get the coordinates of the cell under the cursor.
+                                        let cell_coords: (i32, i32) = tree_view.convert_widget_to_tree_coords(x, y);
+
+                                        // Get the column in those coordinates, if exists.
+                                        let column = tree_view.get_path_at_pos(cell_coords.0, cell_coords.1);
+                                        if let Some(column) = column {
+                                            if let Some(column) = column.1 {
+                                                let column = column.get_sort_column_id();
+
+                                                // We don't want to check the tooltip for the Index column, nor for the fake end column.
+                                                if column >= 1 && (column as usize) <= table_definition.borrow().fields.len() {
+                                                    let tooltip_text = &*table_definition.borrow().fields[column as usize - 1].field_description.to_owned();
+
+                                                    // If there is a comment for that column, we use it and show the column.
+                                                    if !tooltip_text.is_empty() {
+                                                        tooltip.set_text(tooltip_text);
+
+                                                        // Return true to show the tooltip.
+                                                        return true
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        // In any other case, return false.
+                                        false
+                                    }
+                                ));
                                 // These are the events to save edits in cells, one loop for every type of cell.
                                 // This loop takes care of the interaction with string cells.
                                 for edited_cell in &packed_file_tree_view_stuff.packed_file_tree_view_cell_string {
