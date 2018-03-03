@@ -34896,16 +34896,16 @@
               "field_description": ""
             },
             {
-              "field_name": "persistent_factors",
-              "field_type": "Boolean",
-              "field_is_key": false,
+              "field_name": "minimum",
+              "field_type": "Integer",
+              "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
             },
             {
-              "field_name": "minimum",
-              "field_type": "Integer",
-              "field_is_key": true,
+              "field_name": "persistent_factors",
+              "field_type": "Boolean",
+              "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
             },
