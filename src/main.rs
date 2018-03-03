@@ -4247,7 +4247,7 @@ fn build_ui(application: &Application) {
                                                 packed_file_decoder => move |_ ,_|{
 
                                                 // We are going to check if this is valid when adding the field to the TreeView, so we just add it.
-                                                let index_data_copy = index_data.borrow();
+                                                let index_data_copy = index_data.borrow().clone();
                                                 *index_data.borrow_mut() = PackedFileDBDecoder::add_field_to_data_view(
                                                     &packed_file_decoder,
                                                     &packed_file_data_encoded.borrow(),
@@ -4257,7 +4257,7 @@ fn build_ui(application: &Application) {
                                                     packed_file_decoder.is_key_field_switch.get_active(),
                                                     &None,
                                                     &String::new(),
-                                                    *index_data_copy,
+                                                    index_data_copy,
                                                     None
                                                 );
 
@@ -4279,7 +4279,7 @@ fn build_ui(application: &Application) {
                                                 packed_file_decoder => move |_ ,_|{
 
                                                 // We are going to check if this is valid when adding the field to the TreeView, so we just add it.
-                                                let index_data_copy = index_data.borrow();
+                                                let index_data_copy = index_data.borrow().clone();
                                                 *index_data.borrow_mut() = PackedFileDBDecoder::add_field_to_data_view(
                                                     &packed_file_decoder,
                                                     &packed_file_data_encoded.borrow(),
@@ -4289,7 +4289,7 @@ fn build_ui(application: &Application) {
                                                     packed_file_decoder.is_key_field_switch.get_active(),
                                                     &None,
                                                     &String::new(),
-                                                    *index_data_copy,
+                                                    index_data_copy,
                                                     None
                                                 );
 
@@ -4311,7 +4311,7 @@ fn build_ui(application: &Application) {
                                                 packed_file_decoder => move |_ ,_|{
 
                                                 // We are going to check if this is valid when adding the field to the TreeView, so we just add it.
-                                                let index_data_copy = index_data.borrow();
+                                                let index_data_copy = index_data.borrow().clone();
                                                 *index_data.borrow_mut() = PackedFileDBDecoder::add_field_to_data_view(
                                                     &packed_file_decoder,
                                                     &packed_file_data_encoded.borrow(),
@@ -4321,7 +4321,7 @@ fn build_ui(application: &Application) {
                                                     packed_file_decoder.is_key_field_switch.get_active(),
                                                     &None,
                                                     &String::new(),
-                                                    *index_data_copy,
+                                                    index_data_copy,
                                                     None
                                                 );
 
@@ -4343,7 +4343,7 @@ fn build_ui(application: &Application) {
                                                 packed_file_decoder => move |_ ,_|{
 
                                                 // We are going to check if this is valid when adding the field to the TreeView, so we just add it.
-                                                let index_data_copy = index_data.borrow();
+                                                let index_data_copy = index_data.borrow().clone();
                                                 *index_data.borrow_mut() = PackedFileDBDecoder::add_field_to_data_view(
                                                     &packed_file_decoder,
                                                     &packed_file_data_encoded.borrow(),
@@ -4353,7 +4353,7 @@ fn build_ui(application: &Application) {
                                                     packed_file_decoder.is_key_field_switch.get_active(),
                                                     &None,
                                                     &String::new(),
-                                                    *index_data_copy,
+                                                    index_data_copy,
                                                     None
                                                 );
 
@@ -4376,7 +4376,7 @@ fn build_ui(application: &Application) {
                                                 packed_file_decoder => move |_ ,_|{
 
                                                 // We are going to check if this is valid when adding the field to the TreeView, so we just add it.
-                                                let index_data_copy = index_data.borrow();
+                                                let index_data_copy = index_data.borrow().clone();
                                                 *index_data.borrow_mut() = PackedFileDBDecoder::add_field_to_data_view(
                                                     &packed_file_decoder,
                                                     &packed_file_data_encoded.borrow(),
@@ -4386,7 +4386,7 @@ fn build_ui(application: &Application) {
                                                     packed_file_decoder.is_key_field_switch.get_active(),
                                                     &None,
                                                     &String::new(),
-                                                    *index_data_copy,
+                                                    index_data_copy,
                                                     None
                                                 );
 
@@ -4408,7 +4408,7 @@ fn build_ui(application: &Application) {
                                                 packed_file_decoder => move |_ ,_|{
 
                                                 // We are going to check if this is valid when adding the field to the TreeView, so we just add it.
-                                                let index_data_copy = index_data.borrow();
+                                                let index_data_copy = index_data.borrow().clone();
                                                 *index_data.borrow_mut() = PackedFileDBDecoder::add_field_to_data_view(
                                                     &packed_file_decoder,
                                                     &packed_file_data_encoded.borrow(),
@@ -4418,7 +4418,7 @@ fn build_ui(application: &Application) {
                                                     packed_file_decoder.is_key_field_switch.get_active(),
                                                     &None,
                                                     &String::new(),
-                                                    *index_data_copy,
+                                                    index_data_copy,
                                                     None
                                                 );
 
@@ -4440,7 +4440,7 @@ fn build_ui(application: &Application) {
                                                 packed_file_decoder => move |_ ,_|{
 
                                                 // We are going to check if this is valid when adding the field to the TreeView, so we just add it.
-                                                let index_data_copy = index_data.borrow();
+                                                let index_data_copy = index_data.borrow().clone();
                                                 *index_data.borrow_mut() = PackedFileDBDecoder::add_field_to_data_view(
                                                     &packed_file_decoder,
                                                     &packed_file_data_encoded.borrow(),
@@ -4450,7 +4450,7 @@ fn build_ui(application: &Application) {
                                                     packed_file_decoder.is_key_field_switch.get_active(),
                                                     &None,
                                                     &String::new(),
-                                                    *index_data_copy,
+                                                    index_data_copy,
                                                     None
                                                 );
 
@@ -4472,7 +4472,7 @@ fn build_ui(application: &Application) {
                                                 packed_file_decoder => move |_ ,_|{
 
                                                 // We are going to check if this is valid when adding the field to the TreeView, so we just add it.
-                                                let index_data_copy = index_data.borrow();
+                                                let index_data_copy = index_data.borrow().clone();
                                                 *index_data.borrow_mut() = PackedFileDBDecoder::add_field_to_data_view(
                                                     &packed_file_decoder,
                                                     &packed_file_data_encoded.borrow(),
@@ -4482,7 +4482,7 @@ fn build_ui(application: &Application) {
                                                     packed_file_decoder.is_key_field_switch.get_active(),
                                                     &None,
                                                     &String::new(),
-                                                    *index_data_copy,
+                                                    index_data_copy,
                                                     None
                                                 );
 
