@@ -44,33 +44,47 @@ pub fn show_dialog<T: Display>(dialog: &MessageDialog, text: T) {
 /// This function get the rect needed to put the popovers in the correct places when we create them,
 /// all of this thanks to the magic of the FileChooserDialog from GTK3.
 /// It requires:
-/// - folder_tree_view: The TreeView we are going to use as parent of the Popover.
+/// - tree_view: The TreeView we are going to use as parent of the Popover.
 /// - cursor_position: An option(f64, f64). This is usually get using gdk::EventButton::get_position
 /// or something like that. In case we aren't using a button, we just put None and get a default position.
 pub fn get_rect_for_popover(
-    folder_tree_view: &TreeView,
+    tree_view: &TreeView,
     cursor_position: Option<(f64, f64)>
 ) -> Rectangle {
-    let cell = folder_tree_view.get_cursor();
-    let mut rect: Rectangle = if cell.0.clone().is_some() {
-        folder_tree_view.get_cell_area(
-            Some(&cell.0.unwrap()),
-            Some(&cell.1.unwrap())
+    let cursor = tree_view.get_cursor();
+    let mut rect: Rectangle = if cursor.0.clone().is_some() {
+
+        // If there is a tree_path selected, get the coords of the cursor.
+        tree_view.get_cell_area(
+            Some(&cursor.0.unwrap()),
+            Some(&cursor.1.unwrap())
         )
     }
     else {
-        folder_tree_view.get_cell_area(
+
+        // If there is no tree_path selected, it sets the coords to 0,0.
+        tree_view.get_cell_area(
             None,
             None
         )
     };
 
-    let rect_new_coords: (i32, i32) = folder_tree_view.convert_bin_window_to_widget_coords(rect.x, rect.y);
-    rect.y = rect_new_coords.1;
-    match cursor_position {
-        Some(cursor_pos) =>  rect.x = num::clamp((cursor_pos.0 as i32) - 20, 0, folder_tree_view.get_allocated_width() - 40),
-        None => rect.x = num::clamp(rect.x, 0, folder_tree_view.get_allocated_width() - 40),
+    // Replace the rect.x with the widget one, so it's not crazy when you scroll to the size.
+    rect.x = tree_view.convert_tree_to_widget_coords(rect.x, rect.y).0;
+
+    // If the TreeView has headers, fix the Y coordinate too.
+    if tree_view.get_headers_visible() {
+        rect.y += 32; // 32 - height of the header.
     }
+
+    // If we got a precise position of the cursor, we get the exact position of the x, based on the
+    // current x we have. This is partly black magic.
+    if let Some(cursor_pos) = cursor_position {
+        let widget_coords = tree_view.convert_tree_to_widget_coords(cursor_pos.0 as i32, cursor_pos.1 as i32);
+        rect.x = num::clamp((widget_coords.0 as i32) - 20, 0, tree_view.get_allocated_width() - 40);
+    }
+
+    // Set the witdth to 40 (more black magic?) and return the rect.
     rect.width = 40;
     rect
 }
