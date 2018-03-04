@@ -137,7 +137,7 @@
                         <section>
                             <item>
                                 <attribute name="label" translatable="yes">_Generate Dependency Pack</attribute>
-                                <attribute name="action">app.generate-dependency-pack-wh2</attribute>
+                                <attribute name="action">app.generate-dependency-pack</attribute>
                             </item>
                             <item>
                                 <attribute name="label" translatable="yes">_Patch SiegeAI</attribute>

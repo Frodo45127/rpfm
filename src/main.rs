@@ -186,7 +186,7 @@ fn build_ui(application: &Application) {
     let menu_bar_preferences = SimpleAction::new("preferences", None);
     let menu_bar_quit = SimpleAction::new("quit", None);
     let menu_bar_patch_siege_ai = SimpleAction::new("patch-siege-ai", None);
-    let menu_bar_generate_dependency_pack_wh2 = SimpleAction::new("generate-dependency-pack-wh2", None);
+    let menu_bar_generate_dependency_pack = SimpleAction::new("generate-dependency-pack", None);
     let menu_bar_about = SimpleAction::new("about", None);
     let menu_bar_change_packfile_type = SimpleAction::new_stateful("change-packfile-type", glib::VariantTy::new("s").ok(), &"mod".to_variant());
     let menu_bar_my_mod_new = SimpleAction::new("my-mod-new", None);
@@ -202,7 +202,7 @@ fn build_ui(application: &Application) {
     application.add_action(&menu_bar_preferences);
     application.add_action(&menu_bar_quit);
     application.add_action(&menu_bar_patch_siege_ai);
-    application.add_action(&menu_bar_generate_dependency_pack_wh2);
+    application.add_action(&menu_bar_generate_dependency_pack);
     application.add_action(&menu_bar_about);
     application.add_action(&menu_bar_change_packfile_type);
     application.add_action(&menu_bar_my_mod_new);
@@ -1974,7 +1974,7 @@ fn build_ui(application: &Application) {
             match &*new_state.unwrap() {
                 "warhammer-2" => {
                     game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.warhammer_2);
-                    menu_bar_change_game_selected.change_state(&"warhammer-2".to_variant());
+                    menu_bar_change_game_selected.change_state(&"ref".to_variant());
                 }
                 "warhammer" => {
                     game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.warhammer);
@@ -2037,7 +2037,7 @@ fn build_ui(application: &Application) {
     }));
 
     // When we hit the "Generate Dependency Pack" button.
-    menu_bar_generate_dependency_pack_wh2.connect_activate(clone!(
+    menu_bar_generate_dependency_pack.connect_activate(clone!(
         game_selected,
         success_dialog,
         error_dialog => move |_,_| {
@@ -2057,7 +2057,12 @@ fn build_ui(application: &Application) {
                                 Ok(_) | Err(_) => {},
                             }
 
-                            match packfile::save_packfile(data_packfile, Some(PathBuf::from("dependency_packs/wh2.pack"))) {
+                            let pack_file_path = match &*game_selected.borrow().game {
+                                "warhammer_2" => PathBuf::from("dependency_packs/wh2.pack"),
+                                "warhammer" | _ => PathBuf::from("dependency_packs/wh.pack")
+                            };
+
+                            match packfile::save_packfile(data_packfile, Some(pack_file_path)) {
                                 Ok(_) => ui::show_dialog(&success_dialog, format_err!("Dependency pack created.")),
                                 Err(error) => ui::show_dialog(&error_dialog, format_err!("Error: generated dependency pack couldn't be saved. {:?}", error)),
                             }
@@ -3044,6 +3049,7 @@ fn build_ui(application: &Application) {
 
     // When you select a file in the TreeView, decode it with his codec, if it's implemented.
     folder_tree_view.connect_cursor_changed(clone!(
+        game_selected,
         application,
         schema,
         window,
@@ -3518,7 +3524,12 @@ fn build_ui(application: &Application) {
                             Ok(packed_file_data_decoded) => {
 
                                 // We try to get the "data" database, to check dependencies.
-                                let dependency_database = match packfile::open_packfile(PathBuf::from("dependency_packs/wh2.pack")) {
+                                let pack_file_path = match &*game_selected.borrow().game {
+                                    "warhammer_2" => PathBuf::from("dependency_packs/wh2.pack"),
+                                    "warhammer" | _ => PathBuf::from("dependency_packs/wh.pack")
+                                };
+
+                                let dependency_database = match packfile::open_packfile(pack_file_path) {
                                     Ok(data) => Some(data.pack_file_data.packed_files.to_vec()),
                                     Err(_) => None,
                                 };
