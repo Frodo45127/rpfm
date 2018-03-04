@@ -185,8 +185,10 @@ fn build_ui(application: &Application) {
     let menu_bar_save_packfile_as = SimpleAction::new("save-packfile-as", None);
     let menu_bar_preferences = SimpleAction::new("preferences", None);
     let menu_bar_quit = SimpleAction::new("quit", None);
-    let menu_bar_patch_siege_ai = SimpleAction::new("patch-siege-ai", None);
-    let menu_bar_generate_dependency_pack = SimpleAction::new("generate-dependency-pack", None);
+    let menu_bar_generate_dependency_pack_wh2 = SimpleAction::new("generate-dependency-pack-wh2", None);
+    let menu_bar_patch_siege_ai_wh2 = SimpleAction::new("patch-siege-ai-wh2", None);
+    let menu_bar_generate_dependency_pack_wh = SimpleAction::new("generate-dependency-pack-wh", None);
+    let menu_bar_patch_siege_ai_wh = SimpleAction::new("patch-siege-ai-wh", None);
     let menu_bar_about = SimpleAction::new("about", None);
     let menu_bar_change_packfile_type = SimpleAction::new_stateful("change-packfile-type", glib::VariantTy::new("s").ok(), &"mod".to_variant());
     let menu_bar_my_mod_new = SimpleAction::new("my-mod-new", None);
@@ -201,8 +203,10 @@ fn build_ui(application: &Application) {
     application.add_action(&menu_bar_save_packfile_as);
     application.add_action(&menu_bar_preferences);
     application.add_action(&menu_bar_quit);
-    application.add_action(&menu_bar_patch_siege_ai);
-    application.add_action(&menu_bar_generate_dependency_pack);
+    application.add_action(&menu_bar_generate_dependency_pack_wh2);
+    application.add_action(&menu_bar_patch_siege_ai_wh2);
+    application.add_action(&menu_bar_generate_dependency_pack_wh);
+    application.add_action(&menu_bar_patch_siege_ai_wh);
     application.add_action(&menu_bar_about);
     application.add_action(&menu_bar_change_packfile_type);
     application.add_action(&menu_bar_my_mod_new);
@@ -395,7 +399,10 @@ fn build_ui(application: &Application) {
                                         menu_bar_save_packfile,
                                         menu_bar_save_packfile_as,
                                         menu_bar_change_packfile_type,
-                                        menu_bar_patch_siege_ai,
+                                        menu_bar_generate_dependency_pack_wh2,
+                                        menu_bar_patch_siege_ai_wh2,
+                                        menu_bar_generate_dependency_pack_wh,
+                                        menu_bar_patch_siege_ai_wh,
                                         menu_bar_my_mod_delete,
                                         menu_bar_my_mod_install,
                                         menu_bar_my_mod_uninstall => move |_,_| {
@@ -432,14 +439,24 @@ fn build_ui(application: &Application) {
                                                             _ => ui::show_dialog(&error_dialog, format_err!("PackFile Type not valid.")),
                                                         }
 
+                                                        // We deactive these menus, and only activate the one corresponding to our game.
+                                                        menu_bar_generate_dependency_pack_wh2.set_enabled(false);
+                                                        menu_bar_patch_siege_ai_wh2.set_enabled(false);
+                                                        menu_bar_generate_dependency_pack_wh.set_enabled(false);
+                                                        menu_bar_patch_siege_ai_wh.set_enabled(false);
+
                                                         // We choose the new GameSelected depending on what the open mod id is.
                                                         match &*pack_file_decoded.borrow().pack_file_header.pack_file_id {
                                                             "PFH5" => {
                                                                 game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.warhammer_2);
+                                                                menu_bar_generate_dependency_pack_wh2.set_enabled(true);
+                                                                menu_bar_patch_siege_ai_wh2.set_enabled(true);
                                                                 menu_bar_change_game_selected.change_state(&"warhammer-2".to_variant());
                                                             },
                                                             "PFH4" | _ => {
                                                                 game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.warhammer_2);
+                                                                menu_bar_generate_dependency_pack_wh.set_enabled(true);
+                                                                menu_bar_patch_siege_ai_wh.set_enabled(true);
                                                                 menu_bar_change_game_selected.change_state(&"warhammer".to_variant());
                                                             },
                                                         }
@@ -447,7 +464,6 @@ fn build_ui(application: &Application) {
                                                         menu_bar_save_packfile.set_enabled(true);
                                                         menu_bar_save_packfile_as.set_enabled(true);
                                                         menu_bar_change_packfile_type.set_enabled(true);
-                                                        menu_bar_patch_siege_ai.set_enabled(true);
 
                                                         // Enable the controls for "MyMod".
                                                         menu_bar_my_mod_delete.set_enabled(true);
@@ -507,11 +523,16 @@ fn build_ui(application: &Application) {
         Inhibit(true)
     }));
 
-    //By default, these four actions are disabled until a PackFile is created or opened.
+    //By default, these actions are disabled until a PackFile is created or opened.
     menu_bar_save_packfile.set_enabled(false);
     menu_bar_save_packfile_as.set_enabled(false);
     menu_bar_change_packfile_type.set_enabled(false);
-    menu_bar_patch_siege_ai.set_enabled(false);
+
+    // We deactive these menus, and only activate the one corresponding to our game.
+    menu_bar_generate_dependency_pack_wh2.set_enabled(false);
+    menu_bar_patch_siege_ai_wh2.set_enabled(false);
+    menu_bar_generate_dependency_pack_wh.set_enabled(false);
+    menu_bar_patch_siege_ai_wh.set_enabled(false);
 
     // These needs to be disabled by default at start too.
     context_menu_add_file.set_enabled(false);
@@ -543,7 +564,10 @@ fn build_ui(application: &Application) {
         menu_bar_save_packfile,
         menu_bar_save_packfile_as,
         menu_bar_change_packfile_type,
-        menu_bar_patch_siege_ai,
+        menu_bar_generate_dependency_pack_wh2,
+        menu_bar_patch_siege_ai_wh2,
+        menu_bar_generate_dependency_pack_wh,
+        menu_bar_patch_siege_ai_wh,
         menu_bar_my_mod_delete,
         menu_bar_my_mod_install,
         menu_bar_my_mod_uninstall => move |_,_| {
@@ -562,12 +586,25 @@ fn build_ui(application: &Application) {
             // If we got confirmation...
             if lets_do_it {
 
+                // We deactive these menus, and only activate the one corresponding to our game.
+                menu_bar_generate_dependency_pack_wh2.set_enabled(false);
+                menu_bar_patch_siege_ai_wh2.set_enabled(false);
+                menu_bar_generate_dependency_pack_wh.set_enabled(false);
+                menu_bar_patch_siege_ai_wh.set_enabled(false);
+
                 // We just create a new PackFile with a name, set his type to Mod and update the
                 // TreeView to show it.
                 let packfile_id = match &*game_selected.borrow().game {
-                    "warhammer_2" => "PFH5",
-                    "warhammer" => "PFH4",
-                    _ => "PFH5",
+                    "warhammer_2" => {
+                        menu_bar_generate_dependency_pack_wh2.set_enabled(true);
+                        menu_bar_patch_siege_ai_wh2.set_enabled(true);
+                        "PFH5"
+                    },
+                    "warhammer" | _ => {
+                        menu_bar_generate_dependency_pack_wh.set_enabled(true);
+                        menu_bar_patch_siege_ai_wh.set_enabled(true);
+                        "PFH4"
+                    },
                 };
 
                 *pack_file_decoded.borrow_mut() = packfile::new_packfile("unknown.pack".to_string(), packfile_id);
@@ -580,7 +617,6 @@ fn build_ui(application: &Application) {
                 menu_bar_save_packfile.set_enabled(true);
                 menu_bar_save_packfile_as.set_enabled(true);
                 menu_bar_change_packfile_type.set_enabled(true);
-                menu_bar_patch_siege_ai.set_enabled(true);
 
                 // Disable the controls for "MyMod".
                 menu_bar_my_mod_delete.set_enabled(false);
@@ -608,7 +644,10 @@ fn build_ui(application: &Application) {
         menu_bar_save_packfile,
         menu_bar_save_packfile_as,
         menu_bar_change_packfile_type,
-        menu_bar_patch_siege_ai,
+        menu_bar_generate_dependency_pack_wh2,
+        menu_bar_patch_siege_ai_wh2,
+        menu_bar_generate_dependency_pack_wh,
+        menu_bar_patch_siege_ai_wh,
         menu_bar_my_mod_delete,
         menu_bar_my_mod_install,
         menu_bar_my_mod_uninstall => move |_,_| {
@@ -660,14 +699,24 @@ fn build_ui(application: &Application) {
                                 _ => ui::show_dialog(&error_dialog, format_err!("PackFile Type not valid.")),
                             }
 
+                            // We deactive these menus, and only activate the one corresponding to our game.
+                            menu_bar_generate_dependency_pack_wh2.set_enabled(false);
+                            menu_bar_patch_siege_ai_wh2.set_enabled(false);
+                            menu_bar_generate_dependency_pack_wh.set_enabled(false);
+                            menu_bar_patch_siege_ai_wh.set_enabled(false);
+
                             // We choose the new GameSelected depending on what the open mod id is.
                             match &*pack_file_decoded.borrow().pack_file_header.pack_file_id {
                                 "PFH5" => {
                                     game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.warhammer_2);
+                                    menu_bar_generate_dependency_pack_wh2.set_enabled(true);
+                                    menu_bar_patch_siege_ai_wh2.set_enabled(true);
                                     menu_bar_change_game_selected.change_state(&"warhammer-2".to_variant());
                                 },
                                 "PFH4" | _ => {
                                     game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.warhammer_2);
+                                    menu_bar_generate_dependency_pack_wh.set_enabled(true);
+                                    menu_bar_patch_siege_ai_wh.set_enabled(true);
                                     menu_bar_change_game_selected.change_state(&"warhammer".to_variant());
                                 },
                             }
@@ -676,7 +725,6 @@ fn build_ui(application: &Application) {
                             menu_bar_save_packfile.set_enabled(true);
                             menu_bar_save_packfile_as.set_enabled(true);
                             menu_bar_change_packfile_type.set_enabled(true);
-                            menu_bar_patch_siege_ai.set_enabled(true);
 
                             // Disable the controls for "MyMod".
                             menu_bar_my_mod_delete.set_enabled(false);
@@ -892,7 +940,10 @@ fn build_ui(application: &Application) {
         menu_bar_save_packfile,
         menu_bar_save_packfile_as,
         menu_bar_change_packfile_type,
-        menu_bar_patch_siege_ai,
+        menu_bar_generate_dependency_pack_wh2,
+        menu_bar_patch_siege_ai_wh2,
+        menu_bar_generate_dependency_pack_wh,
+        menu_bar_patch_siege_ai_wh,
         settings,
         my_mod_selected,
         menu_bar_change_game_selected,
@@ -981,7 +1032,10 @@ fn build_ui(application: &Application) {
             menu_bar_save_packfile,
             menu_bar_save_packfile_as,
             menu_bar_change_packfile_type,
-            menu_bar_patch_siege_ai,
+            menu_bar_generate_dependency_pack_wh2,
+            menu_bar_patch_siege_ai_wh2,
+            menu_bar_generate_dependency_pack_wh,
+            menu_bar_patch_siege_ai_wh,
             settings_stuff,
             settings,
             menu_bar_change_game_selected,
@@ -1098,7 +1152,10 @@ fn build_ui(application: &Application) {
                                                 menu_bar_save_packfile,
                                                 menu_bar_save_packfile_as,
                                                 menu_bar_change_packfile_type,
-                                                menu_bar_patch_siege_ai,
+                                                menu_bar_generate_dependency_pack_wh2,
+                                                menu_bar_patch_siege_ai_wh2,
+                                                menu_bar_generate_dependency_pack_wh,
+                                                menu_bar_patch_siege_ai_wh,
                                                 menu_bar_my_mod_delete,
                                                 menu_bar_my_mod_install,
                                                 menu_bar_my_mod_uninstall => move |_,_| {
@@ -1135,14 +1192,24 @@ fn build_ui(application: &Application) {
                                                                     _ => ui::show_dialog(&error_dialog, format_err!("PackFile Type not valid.")),
                                                                 }
 
+                                                                // We deactive these menus, and only activate the one corresponding to our game.
+                                                                menu_bar_generate_dependency_pack_wh2.set_enabled(false);
+                                                                menu_bar_patch_siege_ai_wh2.set_enabled(false);
+                                                                menu_bar_generate_dependency_pack_wh.set_enabled(false);
+                                                                menu_bar_patch_siege_ai_wh.set_enabled(false);
+
                                                                 // We choose the new GameSelected depending on what the open mod id is.
                                                                 match &*pack_file_decoded.borrow().pack_file_header.pack_file_id {
                                                                     "PFH5" => {
                                                                         game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.warhammer_2);
+                                                                        menu_bar_generate_dependency_pack_wh2.set_enabled(true);
+                                                                        menu_bar_patch_siege_ai_wh2.set_enabled(true);
                                                                         menu_bar_change_game_selected.change_state(&"warhammer-2".to_variant());
                                                                     },
                                                                     "PFH4" | _ => {
                                                                         game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.warhammer_2);
+                                                                        menu_bar_generate_dependency_pack_wh.set_enabled(true);
+                                                                        menu_bar_patch_siege_ai_wh.set_enabled(true);
                                                                         menu_bar_change_game_selected.change_state(&"warhammer".to_variant());
                                                                     },
                                                                 }
@@ -1150,7 +1217,6 @@ fn build_ui(application: &Application) {
                                                                 menu_bar_save_packfile.set_enabled(true);
                                                                 menu_bar_save_packfile_as.set_enabled(true);
                                                                 menu_bar_change_packfile_type.set_enabled(true);
-                                                                menu_bar_patch_siege_ai.set_enabled(true);
 
                                                                 // Enable the controls for "MyMod".
                                                                 menu_bar_my_mod_delete.set_enabled(true);
@@ -1249,7 +1315,10 @@ fn build_ui(application: &Application) {
         menu_bar_save_packfile,
         menu_bar_save_packfile_as,
         menu_bar_change_packfile_type,
-        menu_bar_patch_siege_ai,
+        menu_bar_generate_dependency_pack_wh2,
+        menu_bar_patch_siege_ai_wh2,
+        menu_bar_generate_dependency_pack_wh,
+        menu_bar_patch_siege_ai_wh,
         menu_bar_my_mod_delete,
         menu_bar_my_mod_install,
         menu_bar_my_mod_uninstall => move |menu_bar_my_mod_new,_| {
@@ -1293,7 +1362,10 @@ fn build_ui(application: &Application) {
             menu_bar_save_packfile,
             menu_bar_save_packfile_as,
             menu_bar_change_packfile_type,
-            menu_bar_patch_siege_ai,
+            menu_bar_generate_dependency_pack_wh2,
+            menu_bar_patch_siege_ai_wh2,
+            menu_bar_generate_dependency_pack_wh,
+            menu_bar_patch_siege_ai_wh,
             menu_bar_my_mod_delete,
             menu_bar_my_mod_install,
             menu_bar_my_mod_uninstall => move |_,_| {
@@ -1307,17 +1379,27 @@ fn build_ui(application: &Application) {
                 // Get the PackFile name.
                 let full_mod_name = format!("{}.pack", mod_name);
 
+                // We deactive these menus, and only activate the one corresponding to our game.
+                menu_bar_generate_dependency_pack_wh2.set_enabled(false);
+                menu_bar_patch_siege_ai_wh2.set_enabled(false);
+                menu_bar_generate_dependency_pack_wh.set_enabled(false);
+                menu_bar_patch_siege_ai_wh.set_enabled(false);
+
                 // We just create a new PackFile with a name, set his type to Mod and update the
                 // TreeView to show it.
                 let packfile_id = match &*new_mod_stuff.borrow().my_mod_new_game_list_combo.get_active_text().unwrap() {
                     "warhammer_2" => {
                         game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.warhammer_2);
                         menu_bar_change_game_selected.change_state(&"warhammer-2".to_variant());
+                        menu_bar_generate_dependency_pack_wh2.set_enabled(true);
+                        menu_bar_patch_siege_ai_wh2.set_enabled(true);
                         "PFH5"
                     },
                     "warhammer" | _ => {
                         game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.warhammer_2);
                         menu_bar_change_game_selected.change_state(&"warhammer".to_variant());
+                        menu_bar_generate_dependency_pack_wh.set_enabled(true);
+                        menu_bar_patch_siege_ai_wh.set_enabled(true);
                         "PFH4"
                     },
                 };
@@ -1330,7 +1412,6 @@ fn build_ui(application: &Application) {
                 menu_bar_save_packfile.set_enabled(true);
                 menu_bar_save_packfile_as.set_enabled(true);
                 menu_bar_change_packfile_type.set_enabled(true);
-                menu_bar_patch_siege_ai.set_enabled(true);
 
                 // Get his new path.
                 let mut my_mod_path = settings.borrow().paths.my_mods_base_path.clone().unwrap();
@@ -1453,7 +1534,10 @@ fn build_ui(application: &Application) {
                                                         menu_bar_save_packfile,
                                                         menu_bar_save_packfile_as,
                                                         menu_bar_change_packfile_type,
-                                                        menu_bar_patch_siege_ai,
+                                                        menu_bar_generate_dependency_pack_wh2,
+                                                        menu_bar_patch_siege_ai_wh2,
+                                                        menu_bar_generate_dependency_pack_wh,
+                                                        menu_bar_patch_siege_ai_wh,
                                                         menu_bar_my_mod_delete,
                                                         menu_bar_my_mod_install,
                                                         menu_bar_my_mod_uninstall => move |_,_| {
@@ -1491,14 +1575,24 @@ fn build_ui(application: &Application) {
                                                                             _ => ui::show_dialog(&error_dialog, format_err!("PackFile Type not valid.")),
                                                                         }
 
+                                                                        // We deactive these menus, and only activate the one corresponding to our game.
+                                                                        menu_bar_generate_dependency_pack_wh2.set_enabled(false);
+                                                                        menu_bar_patch_siege_ai_wh2.set_enabled(false);
+                                                                        menu_bar_generate_dependency_pack_wh.set_enabled(false);
+                                                                        menu_bar_patch_siege_ai_wh.set_enabled(false);
+
                                                                         // We choose the new GameSelected depending on what the open mod id is.
                                                                         match &*pack_file_decoded.borrow().pack_file_header.pack_file_id {
                                                                             "PFH5" => {
                                                                                 game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.warhammer_2);
+                                                                                menu_bar_generate_dependency_pack_wh2.set_enabled(true);
+                                                                                menu_bar_patch_siege_ai_wh2.set_enabled(true);
                                                                                 menu_bar_change_game_selected.change_state(&"warhammer-2".to_variant());
                                                                             },
                                                                             "PFH4" | _ => {
                                                                                 game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.warhammer_2);
+                                                                                menu_bar_generate_dependency_pack_wh.set_enabled(true);
+                                                                                menu_bar_patch_siege_ai_wh.set_enabled(true);
                                                                                 menu_bar_change_game_selected.change_state(&"warhammer".to_variant());
                                                                             },
                                                                         }
@@ -1506,7 +1600,6 @@ fn build_ui(application: &Application) {
                                                                         menu_bar_save_packfile.set_enabled(true);
                                                                         menu_bar_save_packfile_as.set_enabled(true);
                                                                         menu_bar_change_packfile_type.set_enabled(true);
-                                                                        menu_bar_patch_siege_ai.set_enabled(true);
 
                                                                         // Enable the controls for "MyMod".
                                                                         menu_bar_my_mod_delete.set_enabled(true);
@@ -1587,7 +1680,10 @@ fn build_ui(application: &Application) {
         menu_bar_save_packfile,
         menu_bar_save_packfile_as,
         menu_bar_change_packfile_type,
-        menu_bar_patch_siege_ai,
+        menu_bar_generate_dependency_pack_wh2,
+        menu_bar_patch_siege_ai_wh2,
+        menu_bar_generate_dependency_pack_wh,
+        menu_bar_patch_siege_ai_wh,
         menu_bar_my_mod_install,
         menu_bar_my_mod_uninstall => move |menu_bar_my_mod_delete,_| {
 
@@ -1753,7 +1849,10 @@ fn build_ui(application: &Application) {
                                                         menu_bar_save_packfile,
                                                         menu_bar_save_packfile_as,
                                                         menu_bar_change_packfile_type,
-                                                        menu_bar_patch_siege_ai,
+                                                        menu_bar_generate_dependency_pack_wh2,
+                                                        menu_bar_patch_siege_ai_wh2,
+                                                        menu_bar_generate_dependency_pack_wh,
+                                                        menu_bar_patch_siege_ai_wh,
                                                         menu_bar_my_mod_delete,
                                                         menu_bar_my_mod_install,
                                                         menu_bar_my_mod_uninstall => move |_,_| {
@@ -1790,14 +1889,24 @@ fn build_ui(application: &Application) {
                                                                             _ => ui::show_dialog(&error_dialog, format_err!("PackFile Type not valid.")),
                                                                         }
 
+                                                                        // We deactive these menus, and only activate the one corresponding to our game.
+                                                                        menu_bar_generate_dependency_pack_wh2.set_enabled(false);
+                                                                        menu_bar_patch_siege_ai_wh2.set_enabled(false);
+                                                                        menu_bar_generate_dependency_pack_wh.set_enabled(false);
+                                                                        menu_bar_patch_siege_ai_wh.set_enabled(false);
+
                                                                         // We choose the new GameSelected depending on what the open mod id is.
                                                                         match &*pack_file_decoded.borrow().pack_file_header.pack_file_id {
                                                                             "PFH5" => {
                                                                                 game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.warhammer_2);
+                                                                                menu_bar_generate_dependency_pack_wh2.set_enabled(true);
+                                                                                menu_bar_patch_siege_ai_wh2.set_enabled(true);
                                                                                 menu_bar_change_game_selected.change_state(&"warhammer-2".to_variant());
                                                                             },
                                                                             "PFH4" | _ => {
                                                                                 game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.warhammer_2);
+                                                                                menu_bar_generate_dependency_pack_wh.set_enabled(true);
+                                                                                menu_bar_patch_siege_ai_wh.set_enabled(true);
                                                                                 menu_bar_change_game_selected.change_state(&"warhammer".to_variant());
                                                                             },
                                                                         }
@@ -1805,7 +1914,6 @@ fn build_ui(application: &Application) {
                                                                         menu_bar_save_packfile.set_enabled(true);
                                                                         menu_bar_save_packfile_as.set_enabled(true);
                                                                         menu_bar_change_packfile_type.set_enabled(true);
-                                                                        menu_bar_patch_siege_ai.set_enabled(true);
 
                                                                         // Enable the controls for "MyMod".
                                                                         menu_bar_my_mod_delete.set_enabled(true);
@@ -2000,7 +2108,7 @@ fn build_ui(application: &Application) {
     */
 
     // When we hit the "Patch SiegeAI" button.
-    menu_bar_patch_siege_ai.connect_activate(clone!(
+    menu_bar_patch_siege_ai_wh2.connect_activate(clone!(
     success_dialog,
     error_dialog,
     pack_file_decoded,
@@ -2037,7 +2145,83 @@ fn build_ui(application: &Application) {
     }));
 
     // When we hit the "Generate Dependency Pack" button.
-    menu_bar_generate_dependency_pack.connect_activate(clone!(
+    menu_bar_generate_dependency_pack_wh2.connect_activate(clone!(
+        game_selected,
+        success_dialog,
+        error_dialog => move |_,_| {
+
+            // Get the data folder of game_selected and try to create our dependency PackFile.
+            match game_selected.borrow().game_data_path {
+                Some(ref path) => {
+                    let mut data_pack_path = path.to_path_buf();
+                    data_pack_path.push("data.pack");
+                    match packfile::open_packfile(data_pack_path) {
+                        Ok(ref mut data_packfile) => {
+                            data_packfile.pack_file_data.packed_files.retain(|packed_file| packed_file.packed_file_path.starts_with(&["db".to_owned()]));
+                            data_packfile.pack_file_header.packed_file_count = data_packfile.pack_file_data.packed_files.len() as u32;
+
+                            // Just in case the folder doesn't exists, we try to create it.
+                            match DirBuilder::new().create(PathBuf::from("dependency_packs")) {
+                                Ok(_) | Err(_) => {},
+                            }
+
+                            let pack_file_path = match &*game_selected.borrow().game {
+                                "warhammer_2" => PathBuf::from("dependency_packs/wh2.pack"),
+                                "warhammer" | _ => PathBuf::from("dependency_packs/wh.pack")
+                            };
+
+                            match packfile::save_packfile(data_packfile, Some(pack_file_path)) {
+                                Ok(_) => ui::show_dialog(&success_dialog, format_err!("Dependency pack created.")),
+                                Err(error) => ui::show_dialog(&error_dialog, format_err!("Error: generated dependency pack couldn't be saved. {:?}", error)),
+                            }
+                        }
+                        Err(_) => ui::show_dialog(&error_dialog, format_err!("Error: data.pack couldn't be open."))
+                    }
+                },
+                None => ui::show_dialog(&error_dialog, format_err!("Error: data path of the game not found."))
+            }
+        }
+    ));
+
+    // When we hit the "Patch SiegeAI" button (Warhammer).
+    menu_bar_patch_siege_ai_wh.connect_activate(clone!(
+    success_dialog,
+    error_dialog,
+    pack_file_decoded,
+    folder_tree_view,
+    folder_tree_store,
+    folder_tree_selection => move |_,_| {
+
+        // First, we try to patch the PackFile. If there are no errors, we save the result in a tuple.
+        // Then we check that tuple and, if it's a success, we save the PackFile and update the TreeView.
+        let mut sucessful_patching = (false, String::new());
+        match packfile::patch_siege_ai(&mut *pack_file_decoded.borrow_mut()) {
+            Ok(result) => sucessful_patching = (true, result),
+            Err(error) => ui::show_dialog(&error_dialog, error.cause())
+        }
+        if sucessful_patching.0 {
+            let mut success = false;
+            match packfile::save_packfile( &mut *pack_file_decoded.borrow_mut(), None) {
+                Ok(result) => {
+                    success = true;
+                    ui::show_dialog(&success_dialog, format!("{}\n\n{}", sucessful_patching.1, result));
+                },
+                Err(error) => ui::show_dialog(&error_dialog, error.cause())
+            }
+            if success {
+                ui::update_tree_view_expand_path(
+                    &folder_tree_store,
+                    &*pack_file_decoded.borrow(),
+                    &folder_tree_selection,
+                    &folder_tree_view,
+                    false
+                );
+            }
+        }
+    }));
+
+    // When we hit the "Generate Dependency Pack" button (Warhammer).
+    menu_bar_generate_dependency_pack_wh.connect_activate(clone!(
         game_selected,
         success_dialog,
         error_dialog => move |_,_| {
@@ -5022,7 +5206,10 @@ fn build_ui(application: &Application) {
         menu_bar_save_packfile,
         menu_bar_save_packfile_as,
         menu_bar_change_packfile_type,
-        menu_bar_patch_siege_ai,
+        menu_bar_generate_dependency_pack_wh2,
+        menu_bar_patch_siege_ai_wh2,
+        menu_bar_generate_dependency_pack_wh,
+        menu_bar_patch_siege_ai_wh,
         menu_bar_my_mod_delete,
         menu_bar_my_mod_install,
         menu_bar_my_mod_uninstall => move |_, _, _, _, selection_data, info, _| {
@@ -5067,14 +5254,24 @@ fn build_ui(application: &Application) {
                                     _ => ui::show_dialog(&error_dialog, format_err!("PackFile Type not valid.")),
                                 }
 
+                                // We deactive these menus, and only activate the one corresponding to our game.
+                                menu_bar_generate_dependency_pack_wh2.set_enabled(false);
+                                menu_bar_patch_siege_ai_wh2.set_enabled(false);
+                                menu_bar_generate_dependency_pack_wh.set_enabled(false);
+                                menu_bar_patch_siege_ai_wh.set_enabled(false);
+
                                 // We choose the new GameSelected depending on what the open mod id is.
                                 match &*pack_file_decoded.borrow().pack_file_header.pack_file_id {
                                     "PFH5" => {
                                         game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.warhammer_2);
+                                        menu_bar_generate_dependency_pack_wh2.set_enabled(true);
+                                        menu_bar_patch_siege_ai_wh2.set_enabled(true);
                                         menu_bar_change_game_selected.change_state(&"warhammer-2".to_variant());
                                     },
                                     "PFH4" | _ => {
                                         game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.warhammer_2);
+                                        menu_bar_generate_dependency_pack_wh.set_enabled(true);
+                                        menu_bar_patch_siege_ai_wh.set_enabled(true);
                                         menu_bar_change_game_selected.change_state(&"warhammer".to_variant());
                                     },
                                 }
@@ -5082,7 +5279,6 @@ fn build_ui(application: &Application) {
                                 menu_bar_save_packfile.set_enabled(true);
                                 menu_bar_save_packfile_as.set_enabled(true);
                                 menu_bar_change_packfile_type.set_enabled(true);
-                                menu_bar_patch_siege_ai.set_enabled(true);
 
                                 // Disable the controls for "MyMod".
                                 menu_bar_my_mod_delete.set_enabled(false);
