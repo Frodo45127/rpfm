@@ -3788,11 +3788,30 @@ fn build_ui(application: &Application) {
 
                                                 // We don't want to check the tooltip for the Index column, nor for the fake end column.
                                                 if column >= 1 && (column as usize) <= table_definition.borrow().fields.len() {
-                                                    let tooltip_text = &*table_definition.borrow().fields[column as usize - 1].field_description.to_owned();
+
+                                                    // If it's a reference, we put to what cell is referencing in the tooltip.
+                                                    let tooltip_text: String = if let Some(ref reference) = table_definition.borrow().fields[column as usize - 1].field_is_reference {
+                                                        if !table_definition.borrow().fields[column as usize - 1].field_description.is_empty() {
+                                                            format!("{}\n\nThis column is a reference to \"{}/{}\".",
+                                                                table_definition.borrow().fields[column as usize - 1].field_description,
+                                                                reference.0,
+                                                                reference.1
+                                                            )
+                                                        }
+                                                        else {
+                                                            format!("This column is a reference to \"{}/{}\".",
+                                                                reference.0,
+                                                                reference.1
+                                                            )
+                                                        }
+
+                                                    } else {
+                                                        table_definition.borrow().fields[column as usize - 1].field_description.to_owned()
+                                                    };
 
                                                     // If there is a comment for that column, we use it and show the column.
                                                     if !tooltip_text.is_empty() {
-                                                        tooltip.set_text(tooltip_text);
+                                                        tooltip.set_text(&*tooltip_text);
 
                                                         // Return true to show the tooltip.
                                                         return true
