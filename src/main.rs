@@ -3481,10 +3481,18 @@ fn build_ui(application: &Application) {
                         match packed_file_data_decoded {
                             Ok(packed_file_data_decoded) => {
 
+                                // We get the "data" database, to check dependencies.
+                                let dependency_database = packfile::open_packfile(PathBuf::from("/home/frodo45127/__schema_tester_tk.pack")).unwrap().pack_file_data.packed_files.to_vec();
+
                                 // ONLY if we get a decoded_db, we set up the TreeView.
                                 let packed_file_data_decoded = Rc::new(RefCell::new(packed_file_data_decoded));
                                 let table_definition = Rc::new(RefCell::new(packed_file_data_decoded.borrow().packed_file_data.table_definition.clone()));
-                                let packed_file_tree_view_stuff = match ui::packedfile_db::PackedFileDBTreeView::create_tree_view(&packed_file_data_display, &*packed_file_data_decoded.borrow()) {
+                                let packed_file_tree_view_stuff = match ui::packedfile_db::PackedFileDBTreeView::create_tree_view(
+                                    &packed_file_data_display,
+                                    &*packed_file_data_decoded.borrow(),
+                                    &dependency_database,
+                                    &schema.borrow().clone().unwrap()
+                                ) {
                                     Ok(data) => data,
                                     Err(error) => return ui::show_dialog(&error_dialog, error.cause())
                                 };
@@ -3564,6 +3572,37 @@ fn build_ui(application: &Application) {
                                     }
                                 ));
                                 // These are the events to save edits in cells, one loop for every type of cell.
+                                // This loop takes care of reference cells.
+                                for edited_cell in &packed_file_tree_view_stuff.packed_file_tree_view_cell_reference {
+                                    edited_cell.connect_edited(clone!(
+                                    table_definition,
+                                    window,
+                                    error_dialog,
+                                    pack_file_decoded,
+                                    packed_file_data_decoded,
+                                    packed_file_tree_view,
+                                    packed_file_list_store => move |_ ,tree_path , new_text| {
+
+                                        if let Some(tree_iter) = packed_file_list_store.get_iter(&tree_path) {
+                                            let edited_cell_column = packed_file_tree_view.get_cursor();
+                                            packed_file_list_store.set_value(&tree_iter, edited_cell_column.1.unwrap().get_sort_column_id() as u32, &new_text.to_value());
+
+                                            // Get the data from the table and turn it into a Vec<u8> to write it.
+                                            match ui::packedfile_db::PackedFileDBTreeView::return_data_from_tree_view(&*table_definition.borrow() ,&packed_file_list_store) {
+                                                Ok(data) => {
+                                                    packed_file_data_decoded.borrow_mut().packed_file_data.packed_file_data = data;
+                                                    if let Err(error) = ::packfile::update_packed_file_data_db(&*packed_file_data_decoded.borrow_mut(), &mut *pack_file_decoded.borrow_mut(), index as usize) {
+                                                        ui::show_dialog(&error_dialog, error.cause());
+                                                    }
+                                                    set_modified(true, &window, &mut *pack_file_decoded.borrow_mut());
+
+                                                }
+                                                Err(error) => ui::show_dialog(&error_dialog, error.cause()),
+                                            }
+                                        }
+                                    }));
+                                }
+
                                 // This loop takes care of the interaction with string cells.
                                 for edited_cell in &packed_file_tree_view_stuff.packed_file_tree_view_cell_string {
                                     edited_cell.connect_edited(clone!(
@@ -3592,7 +3631,6 @@ fn build_ui(application: &Application) {
                                             Err(error) => ui::show_dialog(&error_dialog, error.cause()),
                                         }
                                     }));
-
                                 }
 
                                 // This loop takes care of the interaction with optional_string cells.

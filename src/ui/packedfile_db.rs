@@ -7,6 +7,7 @@ extern crate failure;
 
 use packedfile::db::*;
 use packedfile::db::schemas::*;
+use packfile::packfile::PackedFile;
 use common::coding_helpers;
 use failure::Error;
 use gtk::prelude::*;
@@ -30,6 +31,7 @@ pub struct PackedFileDBTreeView {
     pub packed_file_tree_view_cell_long_integer: Vec<CellRendererText>,
     pub packed_file_tree_view_cell_string: Vec<CellRendererText>,
     pub packed_file_tree_view_cell_optional_string: Vec<CellRendererText>,
+    pub packed_file_tree_view_cell_reference: Vec<CellRendererCombo>,
     pub packed_file_popover_menu: Popover,
     pub packed_file_popover_menu_add_rows_entry: Entry,
 }
@@ -84,7 +86,9 @@ impl PackedFileDBTreeView{
     /// PackedFileDBTreeView with all his data.
     pub fn create_tree_view(
         packed_file_data_display: &Box,
-        packed_file_decoded: &::packedfile::db::DB
+        packed_file_decoded: &DB,
+        dependency_database: &[PackedFile],
+        master_schema: &Schema
     ) -> Result<PackedFileDBTreeView, Error> {
 
         // First, we create the Vec<Type> we are going to use to create the TreeView, based on the structure
@@ -140,6 +144,7 @@ impl PackedFileDBTreeView{
         let mut packed_file_tree_view_cell_long_integer = vec![];
         let mut packed_file_tree_view_cell_string = vec![];
         let mut packed_file_tree_view_cell_optional_string = vec![];
+        let mut packed_file_tree_view_cell_reference: Vec<CellRendererCombo> = vec![];
 
         let mut index = 1;
         let mut key_columns = vec![];
@@ -250,43 +255,223 @@ impl PackedFileDBTreeView{
                     }
                 }
                 FieldType::StringU8 | FieldType::StringU16 => {
-                    let cell_string = CellRendererText::new();
-                    cell_string.set_property_editable(true);
-                    cell_string.set_property_placeholder_text(Some("Obligatory String"));
-                    let column_string = TreeViewColumn::new();
-                    column_string.set_title(&field_name);
-                    column_string.set_clickable(true);
-                    column_string.set_resizable(true);
-                    column_string.set_min_width(50);
-                    column_string.set_sizing(gtk::TreeViewColumnSizing::GrowOnly);
-                    column_string.set_alignment(0.5);
-                    column_string.set_sort_column_id(index);
-                    column_string.pack_start(&cell_string, true);
-                    column_string.add_attribute(&cell_string, "text", index);
-                    packed_file_tree_view.append_column(&column_string);
-                    packed_file_tree_view_cell_string.push(cell_string);
-                    if field.field_is_key {
-                        key_columns.push(column_string);
+
+                    // Check for references.
+                    match field.field_is_reference {
+
+                        // If it's a reference, use a combo with all unique values of it's original column.
+                        Some(ref origin) => {
+                            let mut origin_combo_data = vec![];
+
+                            // For each table in the database...
+                            for table in dependency_database {
+
+                                // If it's our original table...
+                                if table.packed_file_path[1] == format!("{}_tables", origin.0) {
+                                    let db = DB::read(&table.packed_file_data, &*table.packed_file_path[1], master_schema)?;
+
+                                    // For each column in our original table...
+                                    for (index, original_field) in db.packed_file_data.table_definition.fields.iter().enumerate() {
+
+                                        // If it's our column...
+                                        if original_field.field_name == origin.1.to_owned() {
+
+                                            // Get it's position + 1 to compensate for the index.
+                                            for row in &db.packed_file_data.packed_file_data {
+                                                match row[index + 1] {
+                                                    DecodedData::StringU8(ref data) | DecodedData::StringU16(ref data) => origin_combo_data.push(data.to_owned()),
+                                                    _ => {},
+                                                };
+
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // If we have at least one thing in the list for the combo...
+                            if !origin_combo_data.is_empty() {
+
+                                let cell_string_list_store = ListStore::new(&[String::static_type()]);
+                                for row in &origin_combo_data {
+                                    cell_string_list_store.insert_with_values(None, &[0], &[&row]);
+                                }
+
+                                let column_string = TreeViewColumn::new();
+                                let cell_string = CellRendererCombo::new();
+                                cell_string.set_property_editable(true);
+                                cell_string.set_property_model(Some(&cell_string_list_store));
+                                cell_string.set_property_text_column(0);
+                                column_string.set_title(&field_name);
+                                column_string.set_clickable(true);
+                                column_string.set_resizable(true);
+                                column_string.set_min_width(50);
+                                column_string.set_sizing(gtk::TreeViewColumnSizing::GrowOnly);
+                                column_string.set_alignment(0.5);
+                                column_string.set_sort_column_id(index);
+                                column_string.pack_start(&cell_string, true);
+                                column_string.add_attribute(&cell_string, "text", index);
+                                packed_file_tree_view.append_column(&column_string);
+                                packed_file_tree_view_cell_reference.push(cell_string);
+                                if field.field_is_key {
+                                    key_columns.push(column_string);
+                                }
+                            }
+
+                            // Otherwise, we fallback to the usual method.
+                            else {
+                                let cell_string = CellRendererText::new();
+                                cell_string.set_property_editable(true);
+                                cell_string.set_property_placeholder_text(Some("Obligatory String"));
+                                let column_string = TreeViewColumn::new();
+                                column_string.set_title(&field_name);
+                                column_string.set_clickable(true);
+                                column_string.set_resizable(true);
+                                column_string.set_min_width(50);
+                                column_string.set_sizing(gtk::TreeViewColumnSizing::GrowOnly);
+                                column_string.set_alignment(0.5);
+                                column_string.set_sort_column_id(index);
+                                column_string.pack_start(&cell_string, true);
+                                column_string.add_attribute(&cell_string, "text", index);
+                                packed_file_tree_view.append_column(&column_string);
+                                packed_file_tree_view_cell_string.push(cell_string);
+                                if field.field_is_key {
+                                    key_columns.push(column_string);
+                                }
+                            }
+                        },
+
+                        // If it's not a reference, keep the normal behavior.
+                        None => {
+                            let cell_string = CellRendererText::new();
+                            cell_string.set_property_editable(true);
+                            cell_string.set_property_placeholder_text(Some("Obligatory String"));
+                            let column_string = TreeViewColumn::new();
+                            column_string.set_title(&field_name);
+                            column_string.set_clickable(true);
+                            column_string.set_resizable(true);
+                            column_string.set_min_width(50);
+                            column_string.set_sizing(gtk::TreeViewColumnSizing::GrowOnly);
+                            column_string.set_alignment(0.5);
+                            column_string.set_sort_column_id(index);
+                            column_string.pack_start(&cell_string, true);
+                            column_string.add_attribute(&cell_string, "text", index);
+                            packed_file_tree_view.append_column(&column_string);
+                            packed_file_tree_view_cell_string.push(cell_string);
+                            if field.field_is_key {
+                                key_columns.push(column_string);
+                            }
+                        }
                     }
                 }
                 FieldType::OptionalStringU8 | FieldType::OptionalStringU16 => {
-                    let cell_optional_string = CellRendererText::new();
-                    cell_optional_string.set_property_editable(true);
-                    cell_optional_string.set_property_placeholder_text(Some("Optional String"));
-                    let column_optional_string = TreeViewColumn::new();
-                    column_optional_string.set_title(&field_name);
-                    column_optional_string.set_clickable(true);
-                    column_optional_string.set_resizable(true);
-                    column_optional_string.set_min_width(50);
-                    column_optional_string.set_sizing(gtk::TreeViewColumnSizing::GrowOnly);
-                    column_optional_string.set_alignment(0.5);
-                    column_optional_string.set_sort_column_id(index);
-                    column_optional_string.pack_start(&cell_optional_string, true);
-                    column_optional_string.add_attribute(&cell_optional_string, "text", index);
-                    packed_file_tree_view.append_column(&column_optional_string);
-                    packed_file_tree_view_cell_optional_string.push(cell_optional_string);
-                    if field.field_is_key {
-                        key_columns.push(column_optional_string);
+
+                    // Check for references.
+                    match field.field_is_reference {
+
+                        // If it's a reference, use a combo with all unique values of it's original column.
+                        Some(ref origin) => {
+                            let mut origin_combo_data = vec![];
+
+                            // For each table in the database...
+                            for table in dependency_database {
+
+                                // If it's our original table...
+                                if table.packed_file_path[1] == format!("{}_tables", origin.0) {
+                                    let db = DB::read(&table.packed_file_data, &*table.packed_file_path[1], master_schema)?;
+
+                                    // For each column in our original table...
+                                    for (index, original_field) in db.packed_file_data.table_definition.fields.iter().enumerate() {
+
+                                        // If it's our column...
+                                        if original_field.field_name == origin.1.to_owned() {
+
+                                            // Get it's position + 1 to compensate for the index.
+                                            for row in &db.packed_file_data.packed_file_data {
+                                                match row[index + 1] {
+                                                    DecodedData::OptionalStringU8(ref data) | DecodedData::OptionalStringU16(ref data) => origin_combo_data.push(data.to_owned()),
+                                                    _ => {},
+                                                };
+
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // If we have at least one thing in the list for the combo...
+                            if !origin_combo_data.is_empty() {
+
+                                let cell_string_list_store = ListStore::new(&[String::static_type()]);
+                                for row in &origin_combo_data {
+                                    cell_string_list_store.insert_with_values(None, &[0], &[&row]);
+                                }
+
+                                let column_optional_string = TreeViewColumn::new();
+                                let cell_optional_string = CellRendererCombo::new();
+                                cell_optional_string.set_property_editable(true);
+                                cell_optional_string.set_property_model(Some(&cell_string_list_store));
+                                cell_optional_string.set_property_text_column(0);
+                                column_optional_string.set_title(&field_name);
+                                column_optional_string.set_clickable(true);
+                                column_optional_string.set_resizable(true);
+                                column_optional_string.set_min_width(50);
+                                column_optional_string.set_sizing(gtk::TreeViewColumnSizing::GrowOnly);
+                                column_optional_string.set_alignment(0.5);
+                                column_optional_string.set_sort_column_id(index);
+                                column_optional_string.pack_start(&cell_optional_string, true);
+                                column_optional_string.add_attribute(&cell_optional_string, "text", index);
+                                packed_file_tree_view.append_column(&column_optional_string);
+                                packed_file_tree_view_cell_reference.push(cell_optional_string);
+                                if field.field_is_key {
+                                    key_columns.push(column_optional_string);
+                                }
+                            }
+
+                            // Otherwise, we fallback to the usual method.
+                            else {
+                                let cell_optional_string = CellRendererText::new();
+                                cell_optional_string.set_property_editable(true);
+                                cell_optional_string.set_property_placeholder_text(Some("Optional String"));
+                                let column_optional_string = TreeViewColumn::new();
+                                column_optional_string.set_title(&field_name);
+                                column_optional_string.set_clickable(true);
+                                column_optional_string.set_resizable(true);
+                                column_optional_string.set_min_width(50);
+                                column_optional_string.set_sizing(gtk::TreeViewColumnSizing::GrowOnly);
+                                column_optional_string.set_alignment(0.5);
+                                column_optional_string.set_sort_column_id(index);
+                                column_optional_string.pack_start(&cell_optional_string, true);
+                                column_optional_string.add_attribute(&cell_optional_string, "text", index);
+                                packed_file_tree_view.append_column(&column_optional_string);
+                                packed_file_tree_view_cell_optional_string.push(cell_optional_string);
+                                if field.field_is_key {
+                                    key_columns.push(column_optional_string);
+                                }
+                            }
+                        },
+
+                        // If it's not a reference, keep the normal behavior.
+                        None => {
+                            let cell_optional_string = CellRendererText::new();
+                            cell_optional_string.set_property_editable(true);
+                            cell_optional_string.set_property_placeholder_text(Some("Optional String"));
+                            let column_optional_string = TreeViewColumn::new();
+                            column_optional_string.set_title(&field_name);
+                            column_optional_string.set_clickable(true);
+                            column_optional_string.set_resizable(true);
+                            column_optional_string.set_min_width(50);
+                            column_optional_string.set_sizing(gtk::TreeViewColumnSizing::GrowOnly);
+                            column_optional_string.set_alignment(0.5);
+                            column_optional_string.set_sort_column_id(index);
+                            column_optional_string.pack_start(&cell_optional_string, true);
+                            column_optional_string.add_attribute(&cell_optional_string, "text", index);
+                            packed_file_tree_view.append_column(&column_optional_string);
+                            packed_file_tree_view_cell_optional_string.push(cell_optional_string);
+                            if field.field_is_key {
+                                key_columns.push(column_optional_string);
+                            }
+                        }
                     }
                 }
             }
@@ -385,6 +570,7 @@ impl PackedFileDBTreeView{
             packed_file_tree_view_cell_long_integer,
             packed_file_tree_view_cell_string,
             packed_file_tree_view_cell_optional_string,
+            packed_file_tree_view_cell_reference,
         })
     }
 
