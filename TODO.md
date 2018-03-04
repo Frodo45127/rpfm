@@ -86,3 +86,5 @@
   - [ ] Pref: Remember custom column widths (not so sure if I'll manage to make this one... or if it'll be done, but to the list it goes).
   - [ ] Code Tests, to ensure I don't break something with a code change.... again.
   - [ ] Something to not load entire PackFiles to Ram (optional, as this causes problems seen in PFM),
+  - [ ] Rework how the entire TreeView works (including better controls to fold/expand the folders).
+  - [ ] Allow to open a PackFile directly by associationg it with RPFM.
