@@ -136,6 +136,10 @@
                         <attribute name="label" translatable="yes">_Warhammer 2</attribute>
                         <section>
                             <item>
+                                <attribute name="label" translatable="yes">_Generate Dependency Pack</attribute>
+                                <attribute name="action">app.generate-dependency-pack-wh2</attribute>
+                            </item>
+                            <item>
                                 <attribute name="label" translatable="yes">_Patch SiegeAI</attribute>
                                 <attribute name="action">app.patch-siege-ai</attribute>
                             </item>

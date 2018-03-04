@@ -87,7 +87,7 @@ impl PackedFileDBTreeView{
     pub fn create_tree_view(
         packed_file_data_display: &Box,
         packed_file_decoded: &DB,
-        dependency_database: &[PackedFile],
+        dependency_database: Option<Vec<PackedFile>>,
         master_schema: &Schema
     ) -> Result<PackedFileDBTreeView, Error> {
 
@@ -263,26 +263,30 @@ impl PackedFileDBTreeView{
                         Some(ref origin) => {
                             let mut origin_combo_data = vec![];
 
-                            // For each table in the database...
-                            for table in dependency_database {
+                            // If we have a database to check for refs...
+                            if let Some(ref dependency_database) = dependency_database {
 
-                                // If it's our original table...
-                                if table.packed_file_path[1] == format!("{}_tables", origin.0) {
-                                    let db = DB::read(&table.packed_file_data, &*table.packed_file_path[1], master_schema)?;
+                                // For each table in the database...
+                                for table in dependency_database {
 
-                                    // For each column in our original table...
-                                    for (index, original_field) in db.packed_file_data.table_definition.fields.iter().enumerate() {
+                                    // If it's our original table...
+                                    if table.packed_file_path[1] == format!("{}_tables", origin.0) {
+                                        let db = DB::read(&table.packed_file_data, &*table.packed_file_path[1], master_schema)?;
 
-                                        // If it's our column...
-                                        if original_field.field_name == origin.1.to_owned() {
+                                        // For each column in our original table...
+                                        for (index, original_field) in db.packed_file_data.table_definition.fields.iter().enumerate() {
 
-                                            // Get it's position + 1 to compensate for the index.
-                                            for row in &db.packed_file_data.packed_file_data {
-                                                match row[index + 1] {
-                                                    DecodedData::StringU8(ref data) | DecodedData::StringU16(ref data) => origin_combo_data.push(data.to_owned()),
-                                                    _ => {},
-                                                };
+                                            // If it's our column...
+                                            if original_field.field_name == origin.1.to_owned() {
 
+                                                // Get it's position + 1 to compensate for the index.
+                                                for row in &db.packed_file_data.packed_file_data {
+                                                    match row[index + 1] {
+                                                        DecodedData::StringU8(ref data) | DecodedData::StringU16(ref data) => origin_combo_data.push(data.to_owned()),
+                                                        _ => {},
+                                                    };
+
+                                                }
                                             }
                                         }
                                     }
@@ -373,26 +377,30 @@ impl PackedFileDBTreeView{
                         Some(ref origin) => {
                             let mut origin_combo_data = vec![];
 
-                            // For each table in the database...
-                            for table in dependency_database {
+                            // If we have a database to check for refs...
+                            if let Some(ref dependency_database) = dependency_database {
 
-                                // If it's our original table...
-                                if table.packed_file_path[1] == format!("{}_tables", origin.0) {
-                                    let db = DB::read(&table.packed_file_data, &*table.packed_file_path[1], master_schema)?;
+                                // For each table in the database...
+                                for table in dependency_database {
 
-                                    // For each column in our original table...
-                                    for (index, original_field) in db.packed_file_data.table_definition.fields.iter().enumerate() {
+                                    // If it's our original table...
+                                    if table.packed_file_path[1] == format!("{}_tables", origin.0) {
+                                        let db = DB::read(&table.packed_file_data, &*table.packed_file_path[1], master_schema)?;
 
-                                        // If it's our column...
-                                        if original_field.field_name == origin.1.to_owned() {
+                                        // For each column in our original table...
+                                        for (index, original_field) in db.packed_file_data.table_definition.fields.iter().enumerate() {
 
-                                            // Get it's position + 1 to compensate for the index.
-                                            for row in &db.packed_file_data.packed_file_data {
-                                                match row[index + 1] {
-                                                    DecodedData::OptionalStringU8(ref data) | DecodedData::OptionalStringU16(ref data) => origin_combo_data.push(data.to_owned()),
-                                                    _ => {},
-                                                };
+                                            // If it's our column...
+                                            if original_field.field_name == origin.1.to_owned() {
 
+                                                // Get it's position + 1 to compensate for the index.
+                                                for row in &db.packed_file_data.packed_file_data {
+                                                    match row[index + 1] {
+                                                        DecodedData::OptionalStringU8(ref data) | DecodedData::OptionalStringU16(ref data) => origin_combo_data.push(data.to_owned()),
+                                                        _ => {},
+                                                    };
+
+                                                }
                                             }
                                         }
                                     }

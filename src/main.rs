@@ -186,6 +186,7 @@ fn build_ui(application: &Application) {
     let menu_bar_preferences = SimpleAction::new("preferences", None);
     let menu_bar_quit = SimpleAction::new("quit", None);
     let menu_bar_patch_siege_ai = SimpleAction::new("patch-siege-ai", None);
+    let menu_bar_generate_dependency_pack_wh2 = SimpleAction::new("generate-dependency-pack-wh2", None);
     let menu_bar_about = SimpleAction::new("about", None);
     let menu_bar_change_packfile_type = SimpleAction::new_stateful("change-packfile-type", glib::VariantTy::new("s").ok(), &"mod".to_variant());
     let menu_bar_my_mod_new = SimpleAction::new("my-mod-new", None);
@@ -201,6 +202,7 @@ fn build_ui(application: &Application) {
     application.add_action(&menu_bar_preferences);
     application.add_action(&menu_bar_quit);
     application.add_action(&menu_bar_patch_siege_ai);
+    application.add_action(&menu_bar_generate_dependency_pack_wh2);
     application.add_action(&menu_bar_about);
     application.add_action(&menu_bar_change_packfile_type);
     application.add_action(&menu_bar_my_mod_new);
@@ -2034,6 +2036,40 @@ fn build_ui(application: &Application) {
         }
     }));
 
+    // When we hit the "Generate Dependency Pack" button.
+    menu_bar_generate_dependency_pack_wh2.connect_activate(clone!(
+        game_selected,
+        success_dialog,
+        error_dialog => move |_,_| {
+
+            // Get the data folder of game_selected and try to create our dependency PackFile.
+            match game_selected.borrow().game_data_path {
+                Some(ref path) => {
+                    let mut data_pack_path = path.to_path_buf();
+                    data_pack_path.push("data.pack");
+                    match packfile::open_packfile(data_pack_path) {
+                        Ok(ref mut data_packfile) => {
+                            data_packfile.pack_file_data.packed_files.retain(|packed_file| packed_file.packed_file_path.starts_with(&["db".to_owned()]));
+                            data_packfile.pack_file_header.packed_file_count = data_packfile.pack_file_data.packed_files.len() as u32;
+
+                            // Just in case the folder doesn't exists, we try to create it.
+                            match DirBuilder::new().create(PathBuf::from("dependency_packs")) {
+                                Ok(_) | Err(_) => {},
+                            }
+
+                            match packfile::save_packfile(data_packfile, Some(PathBuf::from("dependency_packs/wh2.pack"))) {
+                                Ok(_) => ui::show_dialog(&success_dialog, format_err!("Dependency pack created.")),
+                                Err(error) => ui::show_dialog(&error_dialog, format_err!("Error: generated dependency pack couldn't be saved. {:?}", error)),
+                            }
+                        }
+                        Err(_) => ui::show_dialog(&error_dialog, format_err!("Error: data.pack couldn't be open."))
+                    }
+                },
+                None => ui::show_dialog(&error_dialog, format_err!("Error: data path of the game not found."))
+            }
+        }
+    ));
+
     /*
     --------------------------------------------------------
                     Superior Menu: "About"
@@ -3481,8 +3517,11 @@ fn build_ui(application: &Application) {
                         match packed_file_data_decoded {
                             Ok(packed_file_data_decoded) => {
 
-                                // We get the "data" database, to check dependencies.
-                                let dependency_database = packfile::open_packfile(PathBuf::from("/home/frodo45127/__schema_tester_tk.pack")).unwrap().pack_file_data.packed_files.to_vec();
+                                // We try to get the "data" database, to check dependencies.
+                                let dependency_database = match packfile::open_packfile(PathBuf::from("dependency_packs/wh2.pack")) {
+                                    Ok(data) => Some(data.pack_file_data.packed_files.to_vec()),
+                                    Err(_) => None,
+                                };
 
                                 // ONLY if we get a decoded_db, we set up the TreeView.
                                 let packed_file_data_decoded = Rc::new(RefCell::new(packed_file_data_decoded));
@@ -3490,7 +3529,7 @@ fn build_ui(application: &Application) {
                                 let packed_file_tree_view_stuff = match ui::packedfile_db::PackedFileDBTreeView::create_tree_view(
                                     &packed_file_data_display,
                                     &*packed_file_data_decoded.borrow(),
-                                    &dependency_database,
+                                    dependency_database,
                                     &schema.borrow().clone().unwrap()
                                 ) {
                                     Ok(data) => data,
