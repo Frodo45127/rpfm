@@ -88,6 +88,7 @@ impl PackedFileDBTreeView{
         packed_file_data_display: &Box,
         packed_file_decoded: &DB,
         dependency_database: Option<Vec<PackedFile>>,
+        local_dependency_database: &[PackedFile],
         master_schema: &Schema
     ) -> Result<PackedFileDBTreeView, Error> {
 
@@ -291,6 +292,45 @@ impl PackedFileDBTreeView{
                                         }
                                     }
                                 }
+
+                                // For each table in our mod...
+                                for table in local_dependency_database {
+
+                                    // If it's our original table...
+                                    if table.packed_file_path[1] == format!("{}_tables", origin.0) {
+                                        let db = DB::read(&table.packed_file_data, &*table.packed_file_path[1], master_schema)?;
+
+                                        // For each column in our original table...
+                                        for (index, original_field) in db.packed_file_data.table_definition.fields.iter().enumerate() {
+
+                                            // If it's our column...
+                                            if original_field.field_name == origin.1.to_owned() {
+
+                                                // Get it's position + 1 to compensate for the index.
+                                                for row in &db.packed_file_data.packed_file_data {
+                                                    match row[index + 1] {
+                                                        DecodedData::StringU8(ref data) | DecodedData::StringU16(ref data) => {
+
+                                                            // If the data is not already in the combo, we add it.
+                                                            let mut exists = false;
+                                                            for i in &origin_combo_data {
+                                                                if i == data {
+                                                                    exists = true;
+                                                                    break;
+                                                                }
+                                                            }
+                                                            if !exists {
+                                                                origin_combo_data.push(data.to_owned());
+                                                            }
+                                                        }
+                                                        _ => {},
+                                                    };
+
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                             }
 
                             // If we have at least one thing in the list for the combo...
@@ -397,6 +437,45 @@ impl PackedFileDBTreeView{
                                                 for row in &db.packed_file_data.packed_file_data {
                                                     match row[index + 1] {
                                                         DecodedData::OptionalStringU8(ref data) | DecodedData::OptionalStringU16(ref data) => origin_combo_data.push(data.to_owned()),
+                                                        _ => {},
+                                                    };
+
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // For each table in our mod...
+                                for table in local_dependency_database {
+
+                                    // If it's our original table...
+                                    if table.packed_file_path[1] == format!("{}_tables", origin.0) {
+                                        let db = DB::read(&table.packed_file_data, &*table.packed_file_path[1], master_schema)?;
+
+                                        // For each column in our original table...
+                                        for (index, original_field) in db.packed_file_data.table_definition.fields.iter().enumerate() {
+
+                                            // If it's our column...
+                                            if original_field.field_name == origin.1.to_owned() {
+
+                                                // Get it's position + 1 to compensate for the index.
+                                                for row in &db.packed_file_data.packed_file_data {
+                                                    match row[index + 1] {
+                                                        DecodedData::StringU8(ref data) | DecodedData::StringU16(ref data) => {
+
+                                                            // If the data is not already in the combo, we add it.
+                                                            let mut exists = false;
+                                                            for i in &origin_combo_data {
+                                                                if i == data {
+                                                                    exists = true;
+                                                                    break;
+                                                                }
+                                                            }
+                                                            if !exists {
+                                                                origin_combo_data.push(data.to_owned());
+                                                            }
+                                                        }
                                                         _ => {},
                                                     };
 

@@ -3725,6 +3725,7 @@ fn build_ui(application: &Application) {
                                     &packed_file_data_display,
                                     &*packed_file_data_decoded.borrow(),
                                     dependency_database,
+                                    &pack_file_decoded.borrow().pack_file_data.packed_files,
                                     &schema.borrow().clone().unwrap()
                                 ) {
                                     Ok(data) => data,
