@@ -45,7 +45,7 @@ use gtk::{
     AboutDialog, Box, Builder, WindowPosition, FileChooserDialog, ApplicationWindow,
     TreeView, TreeSelection, TreeStore, MessageDialog, ScrolledWindow, Orientation, Application,
     CellRendererText, TreeViewColumn, Popover, Entry, Button, Image, ListStore,
-    ShortcutsWindow, ToVariant
+    ShortcutsWindow, ToVariant, Statusbar
 };
 use pango::{
     AttrList, Attribute
@@ -141,6 +141,7 @@ fn build_ui(application: &Application) {
     let rename_popover: Popover = builder.get_object("gtk_rename_popover").expect("Couldn't get gtk_rename_popover");
 
     let rename_popover_text_entry: Entry = builder.get_object("gtk_rename_popover_text_entry").expect("Couldn't get gtk_rename_popover_text_entry");
+    let status_bar: Statusbar = builder.get_object("gtk_bottom_status_bar").expect("Couldn't get gtk_bottom_status_bar");
 
     let file_chooser_open_packfile_dialog: FileChooserDialog = builder.get_object("gtk_file_chooser_open_packfile").expect("Couldn't get gtk_file_chooser_open_packfile");
     let file_chooser_save_packfile_dialog: FileChooserDialog = builder.get_object("gtk_file_chooser_save_packfile").expect("Couldn't get gtk_file_chooser_save_packfile");
@@ -549,6 +550,9 @@ fn build_ui(application: &Application) {
     menu_bar_my_mod_delete.set_enabled(false);
     menu_bar_my_mod_install.set_enabled(false);
     menu_bar_my_mod_uninstall.set_enabled(false);
+
+    // Check for updates at the start.
+    check_updates(None, &status_bar);
 
     /*
     --------------------------------------------------------
@@ -2271,36 +2275,9 @@ fn build_ui(application: &Application) {
 
     // When we hit the "Check Updates" button.
     menu_bar_check_updates.connect_activate(clone!(
-        check_updates_dialog => move |_,_| {
-        // Create new client with API base URL
-        let mut client = RestClient::new("https://api.github.com").unwrap();
-        client.set_header_raw("User-Agent", "Mozilla/5.0 (X11; Linux x86_64; rv:59.0) Gecko/20100101 Firefox/59.0");
-
-        // GET http://httpbin.org/anything and deserialize the result automatically
-        match client.get(()) {
-            Ok(last_release) => {
-
-                let last_release: LastestRelease = last_release;
-
-                // All this depends on the fact that the releases are called "vX.X.X".
-                let mut last_version = last_release.name.to_owned();
-                last_version.remove(0);
-                if last_version != VERSION {
-                    check_updates_dialog.set_property_text(Some(&format!("New update found: {}", last_release.name)));
-                    check_updates_dialog.set_property_secondary_text(Some(&format!("Download available here:\n<a href=\"{}\">{}</a>\n\nChanges:\n{}", last_release.html_url, last_release.html_url, last_release.body)));
-                }
-                else {
-                    check_updates_dialog.set_property_text(Some(&format!("No new updates available")));
-                    check_updates_dialog.set_property_secondary_text(Some(&format!("More luck next time :)")));
-                }
-            }
-            Err(_) => {
-                check_updates_dialog.set_property_text(Some(&format!("Error checking new updates")));
-                check_updates_dialog.set_property_secondary_text(Some(&format!("Mmmm if this happends, there has been a problem with your connection to the Github.com server.\n\nPlease, make sure you can access to <a href=\"https:\\\\api.github.com\">https:\\\\api.github.com</a>")));
-            }
-        }
-        check_updates_dialog.run();
-        check_updates_dialog.hide_on_delete();
+        check_updates_dialog,
+        status_bar => move |_,_| {
+        check_updates(Some(&check_updates_dialog), &status_bar)
     }));
 
     // When we hit the "About" button.
@@ -5548,6 +5525,76 @@ fn check_my_mod_new_mod_validity(new_mod_stuff: &MyModNewWindow, settings: &Sett
 
         // And return false.
         false
+    }
+}
+
+/// This function checks if there is any newer version of RPFM released. If the dialog is None, it'll
+/// show the result in the status bar.
+fn check_updates(check_updates_dialog: Option<&MessageDialog>, status_bar: &Statusbar) {
+
+    // Create new client with API base URL
+    let mut client = RestClient::new("https://api.github.com").unwrap();
+    client.set_header_raw("User-Agent", "Mozilla/5.0 (X11; Linux x86_64; rv:59.0) Gecko/20100101 Firefox/59.0");
+
+    // If we got a dialog, use it.
+    if let Some(check_updates_dialog) = check_updates_dialog {
+
+        // GET http://httpbin.org/anything and deserialize the result automatically
+        match client.get(()) {
+            Ok(last_release) => {
+
+                let last_release: LastestRelease = last_release;
+
+                // All this depends on the fact that the releases are called "vX.X.X".
+                let mut last_version = last_release.name.to_owned();
+                last_version.remove(0);
+                if last_version != VERSION {
+                    check_updates_dialog.set_property_text(Some(&format!("New update found: {}", last_release.name)));
+                    check_updates_dialog.set_property_secondary_text(Some(&format!("Download available here:\n<a href=\"{}\">{}</a>\n\nChanges:\n{}", last_release.html_url, last_release.html_url, last_release.body)));
+                }
+                else {
+                    check_updates_dialog.set_property_text(Some(&format!("No new updates available")));
+                    check_updates_dialog.set_property_secondary_text(Some(&format!("More luck next time :)")));
+                }
+            }
+            Err(_) => {
+                check_updates_dialog.set_property_text(Some(&format!("Error checking new updates")));
+                check_updates_dialog.set_property_secondary_text(Some(&format!("Mmmm if this happends, there has been a problem with your connection to the Github.com server.\n\nPlease, make sure you can access to <a href=\"https:\\\\api.github.com\">https:\\\\api.github.com</a>")));
+            }
+        }
+        check_updates_dialog.run();
+        check_updates_dialog.hide_on_delete();
+    }
+
+    // If there is no dialog, use the status bar to display the result.
+    else {
+
+        // GET http://httpbin.org/anything and deserialize the result automatically
+        match client.get(()) {
+            Ok(last_release) => {
+
+                let last_release: LastestRelease = last_release;
+
+                // All this depends on the fact that the releases are called "vX.X.X".
+                let mut last_version = last_release.name.to_owned();
+                last_version.remove(0);
+                if last_version != VERSION {
+                    let message = &*format!("New update found. Check \"About/About\" for a link to the download.");
+                    let context_id = status_bar.get_context_id(message);
+                    status_bar.push(context_id, message);
+                }
+                else {
+                    let message = &*format!("No new updates available.");
+                    let context_id = status_bar.get_context_id(message);
+                    status_bar.push(context_id, message);
+                }
+            }
+            Err(_) => {
+                let message = &*format!("Error checking new updates.");
+                let context_id = status_bar.get_context_id(message);
+                status_bar.push(context_id, message);
+            }
+        }
     }
 }
 
