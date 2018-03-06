@@ -20,6 +20,7 @@ extern crate gio;
 extern crate pango;
 extern crate sourceview;
 extern crate num;
+extern crate restson;
 
 use std::ffi::OsStr;
 use std::path::PathBuf;
@@ -33,6 +34,7 @@ use std::env::args;
 
 use failure::Error;
 
+use restson::RestClient;
 use gdk::Gravity;
 use gio::prelude::*;
 use gio::{
@@ -43,12 +45,11 @@ use gtk::{
     AboutDialog, Box, Builder, WindowPosition, FileChooserDialog, ApplicationWindow,
     TreeView, TreeSelection, TreeStore, MessageDialog, ScrolledWindow, Orientation, Application,
     CellRendererText, TreeViewColumn, Popover, Entry, Button, Image, ListStore,
-    ShortcutsWindow, ToVariant
+    ShortcutsWindow, ToVariant, Statusbar
 };
 use pango::{
     AttrList, Attribute
 };
-
 use sourceview::{
     Buffer, BufferExt, View, ViewExt, Language, LanguageManager, LanguageManagerExt
 };
@@ -69,16 +70,16 @@ use settings::*;
 use ui::packedfile_db::*;
 use ui::packedfile_loc::*;
 use ui::settings::*;
+use updater::LastestRelease;
 
 mod common;
 mod ui;
 mod packfile;
 mod packedfile;
 mod settings;
+mod updater;
 
 /// This macro is used to clone the variables into the closures without the compiler protesting.
-/// TODO: Delete this. Yes, it reduce the code length, but it breaks the sintax highlight in the entire
-/// file. And being this the bigger file in the project,... IT'S A PROBLEM.
 macro_rules! clone {
     (@param _) => ( _ );
     (@param $x:ident) => ( $x );
@@ -136,9 +137,11 @@ fn build_ui(application: &Application) {
     let delete_my_mod_dialog: MessageDialog = builder.get_object("gtk_delete_my_mod_dialog").expect("Couldn't get gtk_delete_my_mod_dialog");
     let error_dialog: MessageDialog = builder.get_object("gtk_error_dialog").expect("Couldn't get gtk_error_dialog");
     let success_dialog: MessageDialog = builder.get_object("gtk_success_dialog").expect("Couldn't get gtk_success_dialog");
+    let check_updates_dialog: MessageDialog = builder.get_object("gtk_check_updates_dialog").expect("Couldn't get gtk_check_updates_dialog");
     let rename_popover: Popover = builder.get_object("gtk_rename_popover").expect("Couldn't get gtk_rename_popover");
 
     let rename_popover_text_entry: Entry = builder.get_object("gtk_rename_popover_text_entry").expect("Couldn't get gtk_rename_popover_text_entry");
+    let status_bar: Statusbar = builder.get_object("gtk_bottom_status_bar").expect("Couldn't get gtk_bottom_status_bar");
 
     let file_chooser_open_packfile_dialog: FileChooserDialog = builder.get_object("gtk_file_chooser_open_packfile").expect("Couldn't get gtk_file_chooser_open_packfile");
     let file_chooser_save_packfile_dialog: FileChooserDialog = builder.get_object("gtk_file_chooser_save_packfile").expect("Couldn't get gtk_file_chooser_save_packfile");
@@ -189,6 +192,7 @@ fn build_ui(application: &Application) {
     let menu_bar_patch_siege_ai_wh2 = SimpleAction::new("patch-siege-ai-wh2", None);
     let menu_bar_generate_dependency_pack_wh = SimpleAction::new("generate-dependency-pack-wh", None);
     let menu_bar_patch_siege_ai_wh = SimpleAction::new("patch-siege-ai-wh", None);
+    let menu_bar_check_updates = SimpleAction::new("check-updates", None);
     let menu_bar_about = SimpleAction::new("about", None);
     let menu_bar_change_packfile_type = SimpleAction::new_stateful("change-packfile-type", glib::VariantTy::new("s").ok(), &"mod".to_variant());
     let menu_bar_my_mod_new = SimpleAction::new("my-mod-new", None);
@@ -208,6 +212,7 @@ fn build_ui(application: &Application) {
     application.add_action(&menu_bar_generate_dependency_pack_wh);
     application.add_action(&menu_bar_patch_siege_ai_wh);
     application.add_action(&menu_bar_about);
+    application.add_action(&menu_bar_check_updates);
     application.add_action(&menu_bar_change_packfile_type);
     application.add_action(&menu_bar_my_mod_new);
     application.add_action(&menu_bar_my_mod_delete);
@@ -545,6 +550,9 @@ fn build_ui(application: &Application) {
     menu_bar_my_mod_delete.set_enabled(false);
     menu_bar_my_mod_install.set_enabled(false);
     menu_bar_my_mod_uninstall.set_enabled(false);
+
+    // Check for updates at the start.
+    check_updates(None, &status_bar);
 
     /*
     --------------------------------------------------------
@@ -2264,6 +2272,13 @@ fn build_ui(application: &Application) {
                     Superior Menu: "About"
     --------------------------------------------------------
     */
+
+    // When we hit the "Check Updates" button.
+    menu_bar_check_updates.connect_activate(clone!(
+        check_updates_dialog,
+        status_bar => move |_,_| {
+        check_updates(Some(&check_updates_dialog), &status_bar)
+    }));
 
     // When we hit the "About" button.
     menu_bar_about.connect_activate(move |_,_| {
@@ -5510,6 +5525,76 @@ fn check_my_mod_new_mod_validity(new_mod_stuff: &MyModNewWindow, settings: &Sett
 
         // And return false.
         false
+    }
+}
+
+/// This function checks if there is any newer version of RPFM released. If the dialog is None, it'll
+/// show the result in the status bar.
+fn check_updates(check_updates_dialog: Option<&MessageDialog>, status_bar: &Statusbar) {
+
+    // Create new client with API base URL
+    let mut client = RestClient::new("https://api.github.com").unwrap();
+    client.set_header_raw("User-Agent", "Mozilla/5.0 (X11; Linux x86_64; rv:59.0) Gecko/20100101 Firefox/59.0");
+
+    // If we got a dialog, use it.
+    if let Some(check_updates_dialog) = check_updates_dialog {
+
+        // GET http://httpbin.org/anything and deserialize the result automatically
+        match client.get(()) {
+            Ok(last_release) => {
+
+                let last_release: LastestRelease = last_release;
+
+                // All this depends on the fact that the releases are called "vX.X.X".
+                let mut last_version = last_release.name.to_owned();
+                last_version.remove(0);
+                if last_version != VERSION {
+                    check_updates_dialog.set_property_text(Some(&format!("New update found: {}", last_release.name)));
+                    check_updates_dialog.set_property_secondary_text(Some(&format!("Download available here:\n<a href=\"{}\">{}</a>\n\nChanges:\n{}", last_release.html_url, last_release.html_url, last_release.body)));
+                }
+                else {
+                    check_updates_dialog.set_property_text(Some(&format!("No new updates available")));
+                    check_updates_dialog.set_property_secondary_text(Some(&format!("More luck next time :)")));
+                }
+            }
+            Err(_) => {
+                check_updates_dialog.set_property_text(Some(&format!("Error checking new updates")));
+                check_updates_dialog.set_property_secondary_text(Some(&format!("Mmmm if this happends, there has been a problem with your connection to the Github.com server.\n\nPlease, make sure you can access to <a href=\"https:\\\\api.github.com\">https:\\\\api.github.com</a>")));
+            }
+        }
+        check_updates_dialog.run();
+        check_updates_dialog.hide_on_delete();
+    }
+
+    // If there is no dialog, use the status bar to display the result.
+    else {
+
+        // GET http://httpbin.org/anything and deserialize the result automatically
+        match client.get(()) {
+            Ok(last_release) => {
+
+                let last_release: LastestRelease = last_release;
+
+                // All this depends on the fact that the releases are called "vX.X.X".
+                let mut last_version = last_release.name.to_owned();
+                last_version.remove(0);
+                if last_version != VERSION {
+                    let message = &*format!("New update found. Check \"About/About\" for a link to the download.");
+                    let context_id = status_bar.get_context_id(message);
+                    status_bar.push(context_id, message);
+                }
+                else {
+                    let message = &*format!("No new updates available.");
+                    let context_id = status_bar.get_context_id(message);
+                    status_bar.push(context_id, message);
+                }
+            }
+            Err(_) => {
+                let message = &*format!("Error checking new updates.");
+                let context_id = status_bar.get_context_id(message);
+                status_bar.push(context_id, message);
+            }
+        }
     }
 }
 
