@@ -124,6 +124,7 @@ impl PackedFileDBTreeView{
 
         packed_file_tree_view.set_model(Some(&packed_file_list_store));
         packed_file_tree_view.set_grid_lines(gtk::TreeViewGridLines::Both);
+        packed_file_tree_view.set_rubber_banding(true);
 
         // Now we create the columns we need for this specific table. Always with an index column first.
         let cell_index = CellRendererText::new();

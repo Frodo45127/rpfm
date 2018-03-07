@@ -38,6 +38,7 @@ impl PackedFileLocTreeView{
 
         packed_file_tree_view.set_model(Some(&packed_file_list_store));
         packed_file_tree_view.set_grid_lines(gtk::TreeViewGridLines::Both);
+        packed_file_tree_view.set_rubber_banding(true);
 
         let cell_index = CellRendererText::new();
         let cell_key = CellRendererText::new();
