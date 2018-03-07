@@ -2091,9 +2091,9 @@ fn build_ui(application: &Application) {
             match &*new_state.unwrap() {
                 "warhammer-2" => {
                     game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.warhammer_2);
-                    menu_bar_change_game_selected.change_state(&"ref".to_variant());
+                    menu_bar_change_game_selected.change_state(&"warhammer-2".to_variant());
                 }
-                "warhammer" => {
+                "warhammer" | _ => {
                     game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.warhammer);
                     menu_bar_change_game_selected.change_state(&"warhammer".to_variant());
                 }
@@ -2106,7 +2106,6 @@ fn build_ui(application: &Application) {
                     game_selected.borrow_mut().change_game_selected(&settings.borrow().paths.rome_2);
                     menu_bar_change_game_selected.change_state(&"rome_2".to_variant());
                 }*/
-                _ => ui::show_dialog(&error_dialog, format_err!("Game Selected not valid.")),
             }
         }
     }));
