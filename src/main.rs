@@ -3366,10 +3366,10 @@ fn build_ui(application: &Application) {
                                 application.add_action(&context_menu_packedfile_loc_export_csv);
 
                                 // Accels for popovers need to be specified here. Don't know why, but otherwise they do not work.
-                                application.set_accels_for_action("app.packedfile_loc_add_rows", &["<Shift>a"]);
+                                application.set_accels_for_action("app.packedfile_loc_add_rows", &["<Primary><Shift>a"]);
                                 application.set_accels_for_action("app.packedfile_loc_delete_rows", &["<Shift>Delete"]);
-                                application.set_accels_for_action("app.packedfile_loc_import_csv", &["<Shift>i"]);
-                                application.set_accels_for_action("app.packedfile_loc_export_csv", &["<Shift>e"]);
+                                application.set_accels_for_action("app.packedfile_loc_import_csv", &["<Primary><Shift>i"]);
+                                application.set_accels_for_action("app.packedfile_loc_export_csv", &["<Primary><Shift>e"]);
 
                                 // By default, the delete action should be disabled.
                                 context_menu_packedfile_loc_delete_rows.set_enabled(false);
@@ -3782,11 +3782,11 @@ fn build_ui(application: &Application) {
                                 application.add_action(&context_menu_packedfile_db_export_csv);
 
                                 // Accels for popovers need to be specified here. Don't know why, but otherwise they do not work.
-                                application.set_accels_for_action("app.packedfile_db_add_rows", &["<Shift>a"]);
+                                application.set_accels_for_action("app.packedfile_db_add_rows", &["<Primary><Shift>a"]);
                                 application.set_accels_for_action("app.packedfile_db_delete_rows", &["<Shift>Delete"]);
-                                application.set_accels_for_action("app.packedfile_db_clone_rows", &["<Shift>d"]);
-                                application.set_accels_for_action("app.packedfile_db_import_csv", &["<Shift>i"]);
-                                application.set_accels_for_action("app.packedfile_db_export_csv", &["<Shift>e"]);
+                                application.set_accels_for_action("app.packedfile_db_clone_rows", &["<Primary><Shift>d"]);
+                                application.set_accels_for_action("app.packedfile_db_import_csv", &["<Primary><Shift>i"]);
+                                application.set_accels_for_action("app.packedfile_db_export_csv", &["<Primary><Shift>e"]);
 
                                 // Enable the tooltips for the TreeView.
                                 packed_file_tree_view.set_has_tooltip(true);

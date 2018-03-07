@@ -139,7 +139,7 @@
                         <child>
                             <object class="GtkShortcutsShortcut">
                                 <property name="visible">1</property>
-                                <property name="accelerator">&lt;Shift&gt;a</property>
+                                <property name="accelerator">&lt;Ctrl&gt;&lt;Shift&gt;a</property>
                                 <property name="title" translatable="yes">Add row</property>
                             </object>
                         </child>
@@ -155,7 +155,7 @@
                         <child>
                             <object class="GtkShortcutsShortcut">
                                 <property name="visible">1</property>
-                                <property name="accelerator">&lt;Shift&gt;i</property>
+                                <property name="accelerator">&lt;Ctrl&gt;&lt;Shift&gt;i</property>
                                 <property name="title" translatable="yes">Import from CSV</property>
                             </object>
                         </child>
@@ -163,7 +163,7 @@
                         <child>
                             <object class="GtkShortcutsShortcut">
                                 <property name="visible">1</property>
-                                <property name="accelerator">&lt;Shift&gt;e</property>
+                                <property name="accelerator">&lt;Ctrl&gt;&lt;Shift&gt;e</property>
                                 <property name="title" translatable="yes">Export to CSV</property>
                             </object>
                         </child>
@@ -180,7 +180,7 @@
                         <child>
                             <object class="GtkShortcutsShortcut">
                                 <property name="visible">1</property>
-                                <property name="accelerator">&lt;Shift&gt;a</property>
+                                <property name="accelerator">&lt;Ctrl&gt;&lt;Shift&gt;a</property>
                                 <property name="title" translatable="yes">Add row</property>
                             </object>
                         </child>
@@ -196,7 +196,7 @@
                         <child>
                             <object class="GtkShortcutsShortcut">
                                 <property name="visible">1</property>
-                                <property name="accelerator">&lt;Shift&gt;d</property>
+                                <property name="accelerator">&lt;Ctrl&gt;&lt;Shift&gt;d</property>
                                 <property name="title" translatable="yes">Clone row</property>
                             </object>
                         </child>
@@ -204,7 +204,7 @@
                         <child>
                             <object class="GtkShortcutsShortcut">
                                 <property name="visible">1</property>
-                                <property name="accelerator">&lt;Shift&gt;i</property>
+                                <property name="accelerator">&lt;Ctrl&gt;&lt;Shift&gt;i</property>
                                 <property name="title" translatable="yes">Import from CSV</property>
                             </object>
                         </child>
@@ -212,7 +212,7 @@
                         <child>
                             <object class="GtkShortcutsShortcut">
                                 <property name="visible">1</property>
-                                <property name="accelerator">&lt;Shift&gt;e</property>
+                                <property name="accelerator">&lt;Ctrl&gt;&lt;Shift&gt;e</property>
                                 <property name="title" translatable="yes">Export to CSV</property>
                             </object>
                         </child>
