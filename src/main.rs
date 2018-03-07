@@ -5545,9 +5545,11 @@ fn check_updates(check_updates_dialog: Option<&MessageDialog>, status_bar: &Stat
 
                 let last_release: LastestRelease = last_release;
 
-                // All this depends on the fact that the releases are called "vX.X.X".
+                // All this depends on the fact that the releases are called "vX.X.X". We only compare
+                // numbers here, so we remove everything else.
                 let mut last_version = last_release.name.to_owned();
                 last_version.remove(0);
+                last_version.split_off(5);
                 if last_version != VERSION {
                     check_updates_dialog.set_property_text(Some(&format!("New update found: {}", last_release.name)));
                     check_updates_dialog.set_property_secondary_text(Some(&format!("Download available here:\n<a href=\"{}\">{}</a>\n\nChanges:\n{}", last_release.html_url, last_release.html_url, last_release.body)));
@@ -5575,9 +5577,11 @@ fn check_updates(check_updates_dialog: Option<&MessageDialog>, status_bar: &Stat
 
                 let last_release: LastestRelease = last_release;
 
-                // All this depends on the fact that the releases are called "vX.X.X".
+                // All this depends on the fact that the releases are called "vX.X.X". We only compare
+                // numbers here, so we remove everything else.
                 let mut last_version = last_release.name.to_owned();
                 last_version.remove(0);
+                last_version.split_off(5);
                 if last_version != VERSION {
                     let message = &*format!("New update found. Check \"About/About\" for a link to the download.");
                     let context_id = status_bar.get_context_id(message);
