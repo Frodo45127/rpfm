@@ -111,7 +111,7 @@ impl DB {
                             Err(error) => Err(error)
                         }
                     }
-                    None => Err(format_err!("Schema for this Packedfile not found"))
+                    None => Err(format_err!("Schema for this DB Table not found"))
                 }
 
             }
