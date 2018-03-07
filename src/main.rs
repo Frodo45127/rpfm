@@ -270,6 +270,9 @@ fn build_ui(application: &Application) {
     window_about.add_credit_section("Windows's theme", &["\"Materia for GTK3\" by nana-4"]);
     window_about.add_credit_section("Special thanks to", &["- PFM team (for providing the community\n   with awesome modding tools).", "- CA (for being a mod-friendly company)."]);
 
+    // Check for updates at the start. Currently this hangs the UI, so do it before showing the UI.
+    check_updates(None, &status_bar);
+
     // We link the main ApplicationWindow to the application.
     window.set_application(Some(application));
 
@@ -550,9 +553,6 @@ fn build_ui(application: &Application) {
     menu_bar_my_mod_delete.set_enabled(false);
     menu_bar_my_mod_install.set_enabled(false);
     menu_bar_my_mod_uninstall.set_enabled(false);
-
-    // Check for updates at the start.
-    check_updates(None, &status_bar);
 
     /*
     --------------------------------------------------------
