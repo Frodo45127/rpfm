@@ -274,21 +274,22 @@ impl PackedFileDBTreeView{
 
                                     // If it's our original table...
                                     if table.packed_file_path[1] == format!("{}_tables", origin.0) {
-                                        let db = DB::read(&table.packed_file_data, &*table.packed_file_path[1], master_schema)?;
+                                        if let Ok(db) = DB::read(&table.packed_file_data, &*table.packed_file_path[1], master_schema) {
 
-                                        // For each column in our original table...
-                                        for (index, original_field) in db.packed_file_data.table_definition.fields.iter().enumerate() {
+                                            // For each column in our original table...
+                                            for (index, original_field) in db.packed_file_data.table_definition.fields.iter().enumerate() {
 
-                                            // If it's our column...
-                                            if original_field.field_name == origin.1.to_owned() {
+                                                // If it's our column...
+                                                if original_field.field_name == origin.1.to_owned() {
 
-                                                // Get it's position + 1 to compensate for the index.
-                                                for row in &db.packed_file_data.packed_file_data {
-                                                    match row[index + 1] {
-                                                        DecodedData::StringU8(ref data) | DecodedData::StringU16(ref data) => origin_combo_data.push(data.to_owned()),
-                                                        _ => {},
-                                                    };
+                                                    // Get it's position + 1 to compensate for the index.
+                                                    for row in &db.packed_file_data.packed_file_data {
+                                                        match row[index + 1] {
+                                                            DecodedData::StringU8(ref data) | DecodedData::StringU16(ref data) => origin_combo_data.push(data.to_owned()),
+                                                            _ => {},
+                                                        };
 
+                                                    }
                                                 }
                                             }
                                         }
@@ -300,34 +301,34 @@ impl PackedFileDBTreeView{
 
                                     // If it's our original table...
                                     if table.packed_file_path[1] == format!("{}_tables", origin.0) {
-                                        let db = DB::read(&table.packed_file_data, &*table.packed_file_path[1], master_schema)?;
+                                        if let Ok(db) = DB::read(&table.packed_file_data, &*table.packed_file_path[1], master_schema) {
 
-                                        // For each column in our original table...
-                                        for (index, original_field) in db.packed_file_data.table_definition.fields.iter().enumerate() {
+                                            // For each column in our original table...
+                                            for (index, original_field) in db.packed_file_data.table_definition.fields.iter().enumerate() {
 
-                                            // If it's our column...
-                                            if original_field.field_name == origin.1.to_owned() {
+                                                // If it's our column...
+                                                if original_field.field_name == origin.1.to_owned() {
 
-                                                // Get it's position + 1 to compensate for the index.
-                                                for row in &db.packed_file_data.packed_file_data {
-                                                    match row[index + 1] {
-                                                        DecodedData::StringU8(ref data) | DecodedData::StringU16(ref data) => {
+                                                    // Get it's position + 1 to compensate for the index.
+                                                    for row in &db.packed_file_data.packed_file_data {
+                                                        match row[index + 1] {
+                                                            DecodedData::StringU8(ref data) | DecodedData::StringU16(ref data) => {
 
-                                                            // If the data is not already in the combo, we add it.
-                                                            let mut exists = false;
-                                                            for i in &origin_combo_data {
-                                                                if i == data {
-                                                                    exists = true;
-                                                                    break;
+                                                                // If the data is not already in the combo, we add it.
+                                                                let mut exists = false;
+                                                                for i in &origin_combo_data {
+                                                                    if i == data {
+                                                                        exists = true;
+                                                                        break;
+                                                                    }
+                                                                }
+                                                                if !exists {
+                                                                    origin_combo_data.push(data.to_owned());
                                                                 }
                                                             }
-                                                            if !exists {
-                                                                origin_combo_data.push(data.to_owned());
-                                                            }
-                                                        }
-                                                        _ => {},
-                                                    };
-
+                                                            _ => {},
+                                                        };
+                                                    }
                                                 }
                                             }
                                         }
@@ -427,21 +428,22 @@ impl PackedFileDBTreeView{
 
                                     // If it's our original table...
                                     if table.packed_file_path[1] == format!("{}_tables", origin.0) {
-                                        let db = DB::read(&table.packed_file_data, &*table.packed_file_path[1], master_schema)?;
 
-                                        // For each column in our original table...
-                                        for (index, original_field) in db.packed_file_data.table_definition.fields.iter().enumerate() {
+                                        if let Ok(db) = DB::read(&table.packed_file_data, &*table.packed_file_path[1], master_schema) {
 
-                                            // If it's our column...
-                                            if original_field.field_name == origin.1.to_owned() {
+                                            // For each column in our original table...
+                                            for (index, original_field) in db.packed_file_data.table_definition.fields.iter().enumerate() {
 
-                                                // Get it's position + 1 to compensate for the index.
-                                                for row in &db.packed_file_data.packed_file_data {
-                                                    match row[index + 1] {
-                                                        DecodedData::OptionalStringU8(ref data) | DecodedData::OptionalStringU16(ref data) => origin_combo_data.push(data.to_owned()),
-                                                        _ => {},
-                                                    };
+                                                // If it's our column...
+                                                if original_field.field_name == origin.1.to_owned() {
 
+                                                    // Get it's position + 1 to compensate for the index.
+                                                    for row in &db.packed_file_data.packed_file_data {
+                                                        match row[index + 1] {
+                                                            DecodedData::OptionalStringU8(ref data) | DecodedData::OptionalStringU16(ref data) => origin_combo_data.push(data.to_owned()),
+                                                            _ => {},
+                                                        };
+                                                    }
                                                 }
                                             }
                                         }
@@ -453,34 +455,34 @@ impl PackedFileDBTreeView{
 
                                     // If it's our original table...
                                     if table.packed_file_path[1] == format!("{}_tables", origin.0) {
-                                        let db = DB::read(&table.packed_file_data, &*table.packed_file_path[1], master_schema)?;
+                                        if let Ok(db) = DB::read(&table.packed_file_data, &*table.packed_file_path[1], master_schema) {
 
-                                        // For each column in our original table...
-                                        for (index, original_field) in db.packed_file_data.table_definition.fields.iter().enumerate() {
+                                            // For each column in our original table...
+                                            for (index, original_field) in db.packed_file_data.table_definition.fields.iter().enumerate() {
 
-                                            // If it's our column...
-                                            if original_field.field_name == origin.1.to_owned() {
+                                                // If it's our column...
+                                                if original_field.field_name == origin.1.to_owned() {
 
-                                                // Get it's position + 1 to compensate for the index.
-                                                for row in &db.packed_file_data.packed_file_data {
-                                                    match row[index + 1] {
-                                                        DecodedData::StringU8(ref data) | DecodedData::StringU16(ref data) => {
+                                                    // Get it's position + 1 to compensate for the index.
+                                                    for row in &db.packed_file_data.packed_file_data {
+                                                        match row[index + 1] {
+                                                            DecodedData::StringU8(ref data) | DecodedData::StringU16(ref data) => {
 
-                                                            // If the data is not already in the combo, we add it.
-                                                            let mut exists = false;
-                                                            for i in &origin_combo_data {
-                                                                if i == data {
-                                                                    exists = true;
-                                                                    break;
+                                                                // If the data is not already in the combo, we add it.
+                                                                let mut exists = false;
+                                                                for i in &origin_combo_data {
+                                                                    if i == data {
+                                                                        exists = true;
+                                                                        break;
+                                                                    }
+                                                                }
+                                                                if !exists {
+                                                                    origin_combo_data.push(data.to_owned());
                                                                 }
                                                             }
-                                                            if !exists {
-                                                                origin_combo_data.push(data.to_owned());
-                                                            }
-                                                        }
-                                                        _ => {},
-                                                    };
-
+                                                            _ => {},
+                                                        };
+                                                    }
                                                 }
                                             }
                                         }
