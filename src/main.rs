@@ -164,6 +164,7 @@ fn build_ui(application: &Application) {
     // The TreeView's stuff is created manually here, as I had problems creating it in Glade.
     let folder_tree_store = TreeStore::new(&[String::static_type()]);
     folder_tree_view.set_model(Some(&folder_tree_store));
+    folder_tree_view.set_margin_bottom(10);
 
     let column = TreeViewColumn::new();
     let cell = CellRendererText::new();

@@ -125,6 +125,7 @@ impl PackedFileDBTreeView{
         packed_file_tree_view.set_model(Some(&packed_file_list_store));
         packed_file_tree_view.set_grid_lines(gtk::TreeViewGridLines::Both);
         packed_file_tree_view.set_rubber_banding(true);
+        packed_file_tree_view.set_margin_bottom(10);
 
         // Now we create the columns we need for this specific table. Always with an index column first.
         let cell_index = CellRendererText::new();
@@ -822,6 +823,7 @@ impl PackedFileDBDecoder {
         let fields_tree_view = TreeView::new();
         let fields_list_store = ListStore::new(&[String::static_type(), String::static_type(), String::static_type(), bool::static_type(), String::static_type(), String::static_type(), String::static_type(), String::static_type()]);
         fields_tree_view.set_model(Some(&fields_list_store));
+        fields_tree_view.set_margin_bottom(10);
 
         // This method of reordering crash the program on windows, so we only enable it for Linux.
         if cfg!(target_os = "linux") {
