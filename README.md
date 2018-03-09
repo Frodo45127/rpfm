@@ -2,7 +2,7 @@
 ***Rusted PackFile Manager*** (RPFM) is a... reimplementation in Rust and GTK3 of ***PackFile Manager*** (PFM), one of the best modding tools for Total War Games.
 
 # Status of the Project
-The latest released version can (only for TW:Warhammer 2 for now):
+The latest released version can (for TW:Warhammer I and II for now):
 - [x] ***Manipulate PackFiles*** (create, open and save).
 - [x] ***Manipulate PackedFiles*** (add, extract, rename, delete).
 - [x] ***Edit DB PackedFiles***.
@@ -46,6 +46,9 @@ cargo build --target=x86_64-unknown-linux-gnu --release
 - **Why not helping with PFM instead of reimplementing it?**: because I wanted to learn a new language, and I already now a bit of C#. Also, where is the fun of that?
 - **Why the code quality is not the very best?**: because I'm using this project to learn Rust, and I'm constantly rewriting code as I find new and better ways to write it.
 
+# Known issues
+- **Some tables takes quite some time to load...**: That's because they have cross-references with other tables, so RPFM has to decode them too. This'll be an option in the future.
+- **RPFM hangs when I check for new update!**: It's the first time I do any kind of network related code, so it's far from perfect.
 
 # Credits
 - ***Frodo45127***: I'm the guy who has made the program.
