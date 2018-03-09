@@ -37,8 +37,9 @@
       - [x] Import from csv.
       - [x] Export to csv.
     - [ ] Decoder View:
+      - [ ] Fix the hex view.
       - [x] Decode any type of entry.
-      - [ ] Load old definitions of an undecoded table.
+      - [x] Load old definitions of an undecoded table.
       - [x] Manipulate decoded columns.
       - [x] Update "First row decoded" field on column order change.
 	- [ ] Others:
@@ -49,6 +50,7 @@
 ### QoL Improvements:
   - [ ] All: Improve the general behavior of the program.
   - [ ] Pref: Block edition in Boot/Release/Patch packs.
+  - [ ] Pref: Allow to disable Cross-Table dependencies to improve performance.
   - [ ] PackFile Management: Improve interaction in case of duplicate files while adding them to the PackFile.
   - [ ] PackFile Management: Open PackFile directly from data folder.
   - [ ] PackFile Management: Don't try to decode the files if the selection has been done with right-click (or a better alternative for this).
@@ -61,17 +63,17 @@
 
 ### General Improvements:
   - [x] Hotkeys.
-  - [ ] Cross-table dependencies for DB Tables.
+  - [x] Cross-table dependencies for DB Tables.
   - [ ] Minimize DB files function (requires some... imaginative coding to not fill 4GB of ram on minimize).
   - [ ] Column filtering for DB tables (custom, not permanent).
   - [ ] Loc Entries edition integrated in DB Tables View.
   - [ ] First-start setup dialog.
   - [x] MyMod Feature.
-  - [ ] Update checker.
+  - [x] Update checker.
   - [ ] Auto-updater.
   - [ ] Full support (PackFiles, DB Tables and Loc files) for:
     - [x] Warhammer 2.
-    - [ ] Warhammer.
+    - [x] Warhammer.
     - [ ] Attila.
     - [ ] Rome 2.
     - [ ] Britannia (if 1.0 is not done when it gets released).
@@ -87,4 +89,4 @@
   - [ ] Code Tests, to ensure I don't break something with a code change.... again.
   - [ ] Something to not load entire PackFiles to Ram (optional, as this causes problems seen in PFM),
   - [ ] Rework how the entire TreeView works (including better controls to fold/expand the folders).
-  - [ ] Allow to open a PackFile directly by associationg it with RPFM.
+  - [ ] Allow to open a PackFile directly by associating it with RPFM.
