@@ -1,9 +1,9 @@
 [package]
 name = "rpfm-code"
-version = "0.5.1"
+version = "0.6.0"
 authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
 build = "build.rs"
-description = "A modder tool for Total War: Warhammer 2."
+description = "A modding tool for Total War games."
 
 [dependencies]
 byteorder = "1.1.0"
