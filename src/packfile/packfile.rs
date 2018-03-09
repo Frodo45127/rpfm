@@ -84,10 +84,10 @@ pub struct PackedFile {
 /// Implementation of "PackFile"
 impl PackFile {
 
-    /// This function creates a new empty "PackFile".
+    /// This function creates a new empty "PackFile". This is used for creating a "dummy" PackFile.
     pub fn new() -> PackFile {
         let pack_file_extra_data = PackFileExtraData::new();
-        let pack_file_header = PackFileHeader::new();
+        let pack_file_header = PackFileHeader::new("PFH5");
         let pack_file_data = PackFileData::new();
 
         PackFile {
@@ -98,9 +98,9 @@ impl PackFile {
     }
 
     /// This function creates a new empty "PackFile" with a name.
-    pub fn new_with_name(file_name: String) -> PackFile {
+    pub fn new_with_name(file_name: String, packfile_id:&str) -> PackFile {
         let pack_file_extra_data = PackFileExtraData::new_with_name(file_name);
-        let pack_file_header = PackFileHeader::new();
+        let pack_file_header = PackFileHeader::new(packfile_id);
         let pack_file_data = PackFileData::new();
 
         PackFile {
@@ -154,7 +154,14 @@ impl PackFile {
         let data = &pack_file_buffered[28..];
         match PackFileHeader::read(header) {
             Ok(pack_file_header) => {
-                match PackFileData::read(data, pack_file_header.pack_file_count, pack_file_header.pack_file_index_size, pack_file_header.packed_file_count, pack_file_header.packed_file_index_size) {
+                match PackFileData::read(
+                    data,
+                    &pack_file_header.pack_file_id,
+                    pack_file_header.pack_file_count,
+                    pack_file_header.pack_file_index_size,
+                    pack_file_header.packed_file_count,
+                    pack_file_header.packed_file_index_size
+                ) {
                     Ok(pack_file_data) => {
                         Ok(PackFile {
                             pack_file_extra_data,
@@ -171,13 +178,20 @@ impl PackFile {
 
     /// This function takes a decoded &PackFile and encode it, ready for being wrote in the disk.
     pub fn save(pack_file_decoded: &PackFile) -> Vec<u8> {
-        let mut pack_file_data_encoded = PackFileData::save(&pack_file_decoded.pack_file_data);
+        let mut pack_file_data_encoded = PackFileData::save(
+            &pack_file_decoded.pack_file_data,
+            &pack_file_decoded.pack_file_header.pack_file_id
+        );
 
         // Both index sizes are only needed to open and save the PackFile, so we only recalculate them
         // on save.
         let new_pack_file_index_size = pack_file_data_encoded[0].len() as u32;
         let new_packed_file_index_size = pack_file_data_encoded[1].len() as u32;
-        let mut pack_file_header_encoded = PackFileHeader::save(&pack_file_decoded.pack_file_header, new_pack_file_index_size, new_packed_file_index_size);
+        let mut pack_file_header_encoded = PackFileHeader::save(
+            &pack_file_decoded.pack_file_header,
+            new_pack_file_index_size,
+            new_packed_file_index_size
+        );
 
         let mut pack_file_encoded = vec![];
         pack_file_encoded.append(&mut pack_file_header_encoded);
@@ -229,8 +243,8 @@ impl PackFileExtraData {
 impl PackFileHeader {
 
     /// This function creates a new PackFileHeader for an empty PackFile of Warhammer 2.
-    pub fn new() -> PackFileHeader {
-        let pack_file_id = "PFH5".to_string();
+    pub fn new(packfile_id: &str) -> PackFileHeader {
+        let pack_file_id = packfile_id.to_string();
         let pack_file_type = 3 as u32;
         let pack_file_count = 0 as u32;
         let pack_file_index_size = 0 as u32;
@@ -253,7 +267,7 @@ impl PackFileHeader {
     /// this data in packs of 4 bytes, and read them in LittleEndian.
     pub fn read(header: &[u8]) -> Result<PackFileHeader, Error> {
 
-        let mut pack_file_header = PackFileHeader::new();
+        let mut pack_file_header = PackFileHeader::new("PFH5");
 
         pack_file_header.pack_file_id = coding_helpers::decode_string_u8(&header[0..4])?;
         pack_file_header.pack_file_type = coding_helpers::decode_integer_u32(&header[4..8])?;
@@ -340,12 +354,14 @@ impl PackFileData {
     /// them in a Vec<PackedFile>.
     /// It requires:
     /// - data: the raw data or the PackFile.
+    /// - pack_file_id: ID of the PackFile, so we can decode multiple PackFile Types.
     /// - pack_file_count: the amount of PackFiles inside the PackFile Index. This should come from the header.
     /// - pack_index_size: the size of the index of PackFiles. This should come from the header.
     /// - packed_file_count: the amount of PackedFiles inside the PackFile. This should come from the header.
     /// - packed_index_size: the size of the index of PackedFiles. This should come from the header.
     pub fn read(
         data: &[u8],
+        pack_file_id: &str,
         pack_file_count: u32,
         pack_file_size: u32,
         packed_file_count: u32,
@@ -396,7 +412,9 @@ impl PackFileData {
 
         // Special offsets, to get the size and path of the PackedFiles from the index.
         let mut packed_file_index_file_size_begin_offset: u32 = 0;
-        let mut packed_file_index_file_size_path_offset: u32 = 5;
+
+        // PFH5 PackFiles (Warhammer 2) have a 0 separating size and name of the file in the index.
+        let mut packed_file_index_file_size_path_offset: u32 = if pack_file_id == "PFH5" { 5 } else { 4 };
 
         // We start a loop to decode every PackedFile
         for i in 0..packed_file_count {
@@ -405,7 +423,7 @@ impl PackFileData {
             // PackedFile has a byte less than the others.
             if i != 0 {
                 packed_file_index_file_size_begin_offset = 1;
-                packed_file_index_file_size_path_offset = 6;
+                packed_file_index_file_size_path_offset = if pack_file_id == "PFH5" { 6 } else { 5 };
             }
 
             // We get the size of the PackedFile (bytes 1 to 4 of the index)
@@ -468,18 +486,18 @@ impl PackFileData {
     /// This function takes a decoded Data and encode it, so it can be saved in a PackFile file.
     ///
     /// NOTE: We return the stuff in 3 vectors to be able to use it to update the header before saving.
-    pub fn save(data_decoded: &PackFileData) -> Vec<Vec<u8>> {
+    pub fn save(data_decoded: &PackFileData, pack_file_id: &str) -> Vec<Vec<u8>> {
         let mut pack_file_index = vec![];
         let mut packed_file_index = vec![];
         let mut packed_file_data = vec![];
 
         for i in &data_decoded.pack_files {
-            pack_file_index.extend_from_slice( i.as_bytes());
+            pack_file_index.extend_from_slice(i.as_bytes());
             pack_file_index.push(0);
         }
 
         for i in &data_decoded.packed_files {
-            let mut packed_file_encoded = PackedFile::save(i);
+            let mut packed_file_encoded = PackedFile::save(i, pack_file_id);
             packed_file_index.append(&mut packed_file_encoded.0);
             packed_file_data.append(&mut packed_file_encoded.1);
             packed_file_index.push(0);
@@ -507,16 +525,18 @@ impl PackedFile {
     }
 
     /// This function takes a decoded PackedFile and encode it, so it can be Saved inside a PackFile file.
-    pub fn save(packed_file_decoded: &PackedFile) -> (Vec<u8>, Vec<u8>) {
+    pub fn save(packed_file_decoded: &PackedFile, pack_file_id: &str) -> (Vec<u8>, Vec<u8>) {
 
         // We need to return both, the index and the data of the PackedFile, so we get them separated.
         // First, we encode the index.
         let mut packed_file_index_entry: Vec<u8> = vec![];
 
-        // We get the file_size and add a \u{0} to it.
+        // We get the file_size.
         let file_size_in_bytes = coding_helpers::encode_integer_u32(packed_file_decoded.packed_file_size);
         packed_file_index_entry.extend_from_slice(&file_size_in_bytes);
-        packed_file_index_entry.push(0);
+
+        // If it's a PFH5 (Warhammer 2), put a 0 between size and path.
+        if pack_file_id == "PFH5" { packed_file_index_entry.push(0) };
 
         // Then we get the path, turn it into a single String and push it with the rest of the index.
         let mut path = String::new();

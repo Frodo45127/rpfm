@@ -20,6 +20,7 @@ extern crate gio;
 extern crate pango;
 extern crate sourceview;
 extern crate num;
+extern crate restson;
 
 use std::ffi::OsStr;
 use std::path::PathBuf;
@@ -33,6 +34,7 @@ use std::env::args;
 
 use failure::Error;
 
+use restson::RestClient;
 use gdk::Gravity;
 use gio::prelude::*;
 use gio::{
@@ -43,12 +45,11 @@ use gtk::{
     AboutDialog, Box, Builder, WindowPosition, FileChooserDialog, ApplicationWindow,
     TreeView, TreeSelection, TreeStore, MessageDialog, ScrolledWindow, Orientation, Application,
     CellRendererText, TreeViewColumn, Popover, Entry, Button, Image, ListStore,
-    ShortcutsWindow, ToVariant
+    ShortcutsWindow, ToVariant, Statusbar
 };
 use pango::{
     AttrList, Attribute
 };
-
 use sourceview::{
     Buffer, BufferExt, View, ViewExt, Language, LanguageManager, LanguageManagerExt
 };
@@ -69,16 +70,16 @@ use settings::*;
 use ui::packedfile_db::*;
 use ui::packedfile_loc::*;
 use ui::settings::*;
+use updater::LastestRelease;
 
 mod common;
 mod ui;
 mod packfile;
 mod packedfile;
 mod settings;
+mod updater;
 
 /// This macro is used to clone the variables into the closures without the compiler protesting.
-/// TODO: Delete this. Yes, it reduce the code length, but it breaks the sintax highlight in the entire
-/// file. And being this the bigger file in the project,... IT'S A PROBLEM.
 macro_rules! clone {
     (@param _) => ( _ );
     (@param $x:ident) => ( $x );
@@ -136,9 +137,11 @@ fn build_ui(application: &Application) {
     let delete_my_mod_dialog: MessageDialog = builder.get_object("gtk_delete_my_mod_dialog").expect("Couldn't get gtk_delete_my_mod_dialog");
     let error_dialog: MessageDialog = builder.get_object("gtk_error_dialog").expect("Couldn't get gtk_error_dialog");
     let success_dialog: MessageDialog = builder.get_object("gtk_success_dialog").expect("Couldn't get gtk_success_dialog");
+    let check_updates_dialog: MessageDialog = builder.get_object("gtk_check_updates_dialog").expect("Couldn't get gtk_check_updates_dialog");
     let rename_popover: Popover = builder.get_object("gtk_rename_popover").expect("Couldn't get gtk_rename_popover");
 
     let rename_popover_text_entry: Entry = builder.get_object("gtk_rename_popover_text_entry").expect("Couldn't get gtk_rename_popover_text_entry");
+    let status_bar: Statusbar = builder.get_object("gtk_bottom_status_bar").expect("Couldn't get gtk_bottom_status_bar");
 
     let file_chooser_open_packfile_dialog: FileChooserDialog = builder.get_object("gtk_file_chooser_open_packfile").expect("Couldn't get gtk_file_chooser_open_packfile");
     let file_chooser_save_packfile_dialog: FileChooserDialog = builder.get_object("gtk_file_chooser_save_packfile").expect("Couldn't get gtk_file_chooser_save_packfile");
@@ -161,6 +164,7 @@ fn build_ui(application: &Application) {
     // The TreeView's stuff is created manually here, as I had problems creating it in Glade.
     let folder_tree_store = TreeStore::new(&[String::static_type()]);
     folder_tree_view.set_model(Some(&folder_tree_store));
+    folder_tree_view.set_margin_bottom(10);
 
     let column = TreeViewColumn::new();
     let cell = CellRendererText::new();
@@ -185,13 +189,18 @@ fn build_ui(application: &Application) {
     let menu_bar_save_packfile_as = SimpleAction::new("save-packfile-as", None);
     let menu_bar_preferences = SimpleAction::new("preferences", None);
     let menu_bar_quit = SimpleAction::new("quit", None);
-    let menu_bar_patch_siege_ai = SimpleAction::new("patch-siege-ai", None);
+    let menu_bar_generate_dependency_pack_wh2 = SimpleAction::new("generate-dependency-pack-wh2", None);
+    let menu_bar_patch_siege_ai_wh2 = SimpleAction::new("patch-siege-ai-wh2", None);
+    let menu_bar_generate_dependency_pack_wh = SimpleAction::new("generate-dependency-pack-wh", None);
+    let menu_bar_patch_siege_ai_wh = SimpleAction::new("patch-siege-ai-wh", None);
+    let menu_bar_check_updates = SimpleAction::new("check-updates", None);
     let menu_bar_about = SimpleAction::new("about", None);
     let menu_bar_change_packfile_type = SimpleAction::new_stateful("change-packfile-type", glib::VariantTy::new("s").ok(), &"mod".to_variant());
     let menu_bar_my_mod_new = SimpleAction::new("my-mod-new", None);
     let menu_bar_my_mod_delete = SimpleAction::new("my-mod-delete", None);
     let menu_bar_my_mod_install = SimpleAction::new("my-mod-install", None);
     let menu_bar_my_mod_uninstall = SimpleAction::new("my-mod-uninstall", None);
+    let menu_bar_change_game_selected = SimpleAction::new_stateful("change-game-selected", glib::VariantTy::new("s").ok(), &"warhammer-2".to_variant());
 
     application.add_action(&menu_bar_new_packfile);
     application.add_action(&menu_bar_open_packfile);
@@ -199,13 +208,18 @@ fn build_ui(application: &Application) {
     application.add_action(&menu_bar_save_packfile_as);
     application.add_action(&menu_bar_preferences);
     application.add_action(&menu_bar_quit);
-    application.add_action(&menu_bar_patch_siege_ai);
+    application.add_action(&menu_bar_generate_dependency_pack_wh2);
+    application.add_action(&menu_bar_patch_siege_ai_wh2);
+    application.add_action(&menu_bar_generate_dependency_pack_wh);
+    application.add_action(&menu_bar_patch_siege_ai_wh);
     application.add_action(&menu_bar_about);
+    application.add_action(&menu_bar_check_updates);
     application.add_action(&menu_bar_change_packfile_type);
     application.add_action(&menu_bar_my_mod_new);
     application.add_action(&menu_bar_my_mod_delete);
     application.add_action(&menu_bar_my_mod_install);
     application.add_action(&menu_bar_my_mod_uninstall);
+    application.add_action(&menu_bar_change_game_selected);
 
     // Right-click menu actions.
     let context_menu_add_file = SimpleAction::new("add-file", None);
@@ -257,6 +271,9 @@ fn build_ui(application: &Application) {
     window_about.add_credit_section("Windows's theme", &["\"Materia for GTK3\" by nana-4"]);
     window_about.add_credit_section("Special thanks to", &["- PFM team (for providing the community\n   with awesome modding tools).", "- CA (for being a mod-friendly company)."]);
 
+    // Check for updates at the start. Currently this hangs the UI, so do it before showing the UI.
+    check_updates(None, &status_bar);
+
     // We link the main ApplicationWindow to the application.
     window.set_application(Some(application));
 
@@ -297,16 +314,18 @@ fn build_ui(application: &Application) {
     // We load the settings here, and in case they doesn't exist, we create them.
     let settings = Rc::new(RefCell::new(Settings::load().unwrap_or_else(|_|Settings::new())));
 
-    // And we prepare the stuff for the default game (paths, and those things).
-    // FIXME: changing paths require to restart the program. This needs to be fixed.
-    let mut game_selected = GameSelected::new(&settings.borrow());
+    // We prepare the schema to be loaded/changed.
+    let schema: Rc<RefCell<Option<Schema>>> = Rc::new(RefCell::new(None));
 
-    // And we import the schema for the DB tables.
-    let schema = match Schema::load() {
-        Ok(schema) => schema,
-        Err(error) => return ui::show_dialog(&error_dialog, format!("Error while loading DB Schema file:\n{}", error.cause())),
-    };
-    let schema = Rc::new(RefCell::new(schema));
+    // And we prepare the stuff for the default game (paths, and those things).
+    let game_selected = Rc::new(RefCell::new(GameSelected::new(&settings.borrow())));
+    match &*settings.borrow().default_game {
+        "warhammer_2" => menu_bar_change_game_selected.change_state(&"warhammer-2".to_variant()),
+        "warhammer" => menu_bar_change_game_selected.change_state(&"warhammer".to_variant()),
+        "attila" => menu_bar_change_game_selected.change_state(&"attila".to_variant()),
+        "rome_2" => menu_bar_change_game_selected.change_state(&"rome-2".to_variant()),
+        _ => menu_bar_change_game_selected.change_state(&"warhammer-2".to_variant()),
+    }
 
     // Prepare the "MyMod" menu. This... atrocity needs to be in the following places for MyMod to open PackFiles:
     // - At the start of the program (here).
@@ -376,16 +395,23 @@ fn build_ui(application: &Application) {
                                     // And when activating the mod button, we open it and set it as selected (chaos incoming).
                                     open_mod.connect_activate(clone!(
                                         window,
+                                        settings,
+                                        schema,
                                         my_mod_selected,
                                         game_folder_name,
                                         error_dialog,
+                                        game_selected,
                                         unsaved_dialog,
                                         pack_file_decoded,
                                         folder_tree_store,
+                                        menu_bar_change_game_selected,
                                         menu_bar_save_packfile,
                                         menu_bar_save_packfile_as,
                                         menu_bar_change_packfile_type,
-                                        menu_bar_patch_siege_ai,
+                                        menu_bar_generate_dependency_pack_wh2,
+                                        menu_bar_patch_siege_ai_wh2,
+                                        menu_bar_generate_dependency_pack_wh,
+                                        menu_bar_patch_siege_ai_wh,
                                         menu_bar_my_mod_delete,
                                         menu_bar_my_mod_install,
                                         menu_bar_my_mod_uninstall => move |_,_| {
@@ -422,16 +448,39 @@ fn build_ui(application: &Application) {
                                                             _ => ui::show_dialog(&error_dialog, format_err!("PackFile Type not valid.")),
                                                         }
 
+                                                        // We deactive these menus, and only activate the one corresponding to our game.
+                                                        menu_bar_generate_dependency_pack_wh2.set_enabled(false);
+                                                        menu_bar_patch_siege_ai_wh2.set_enabled(false);
+                                                        menu_bar_generate_dependency_pack_wh.set_enabled(false);
+                                                        menu_bar_patch_siege_ai_wh.set_enabled(false);
+
+                                                        // We choose the new GameSelected depending on what the open mod id is.
+                                                        match &*pack_file_decoded.borrow().pack_file_header.pack_file_id {
+                                                            "PFH5" => {
+                                                                game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.warhammer_2);
+                                                                menu_bar_generate_dependency_pack_wh2.set_enabled(true);
+                                                                menu_bar_patch_siege_ai_wh2.set_enabled(true);
+                                                                menu_bar_change_game_selected.change_state(&"warhammer-2".to_variant());
+                                                            },
+                                                            "PFH4" | _ => {
+                                                                game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.warhammer_2);
+                                                                menu_bar_generate_dependency_pack_wh.set_enabled(true);
+                                                                menu_bar_patch_siege_ai_wh.set_enabled(true);
+                                                                menu_bar_change_game_selected.change_state(&"warhammer".to_variant());
+                                                            },
+                                                        }
+
                                                         menu_bar_save_packfile.set_enabled(true);
                                                         menu_bar_save_packfile_as.set_enabled(true);
                                                         menu_bar_change_packfile_type.set_enabled(true);
-                                                        menu_bar_patch_siege_ai.set_enabled(true);
 
                                                         // Enable the controls for "MyMod".
                                                         menu_bar_my_mod_delete.set_enabled(true);
                                                         menu_bar_my_mod_install.set_enabled(true);
                                                         menu_bar_my_mod_uninstall.set_enabled(true);
 
+                                                        // Try to load the Schema for this PackFile's game.
+                                                        *schema.borrow_mut() = Schema::load(&*pack_file_decoded.borrow().pack_file_header.pack_file_id).ok();
                                                     }
                                                     Err(error) => ui::show_dialog(&error_dialog, error.cause()),
                                                 }
@@ -483,11 +532,16 @@ fn build_ui(application: &Application) {
         Inhibit(true)
     }));
 
-    //By default, these four actions are disabled until a PackFile is created or opened.
+    //By default, these actions are disabled until a PackFile is created or opened.
     menu_bar_save_packfile.set_enabled(false);
     menu_bar_save_packfile_as.set_enabled(false);
     menu_bar_change_packfile_type.set_enabled(false);
-    menu_bar_patch_siege_ai.set_enabled(false);
+
+    // We deactive these menus, and only activate the one corresponding to our game.
+    menu_bar_generate_dependency_pack_wh2.set_enabled(false);
+    menu_bar_patch_siege_ai_wh2.set_enabled(false);
+    menu_bar_generate_dependency_pack_wh.set_enabled(false);
+    menu_bar_patch_siege_ai_wh.set_enabled(false);
 
     // These needs to be disabled by default at start too.
     context_menu_add_file.set_enabled(false);
@@ -510,6 +564,8 @@ fn build_ui(application: &Application) {
     // When we hit the "New PackFile" button.
     menu_bar_new_packfile.connect_activate(clone!(
         window,
+        schema,
+        game_selected,
         my_mod_selected,
         unsaved_dialog,
         pack_file_decoded,
@@ -517,7 +573,10 @@ fn build_ui(application: &Application) {
         menu_bar_save_packfile,
         menu_bar_save_packfile_as,
         menu_bar_change_packfile_type,
-        menu_bar_patch_siege_ai,
+        menu_bar_generate_dependency_pack_wh2,
+        menu_bar_patch_siege_ai_wh2,
+        menu_bar_generate_dependency_pack_wh,
+        menu_bar_patch_siege_ai_wh,
         menu_bar_my_mod_delete,
         menu_bar_my_mod_install,
         menu_bar_my_mod_uninstall => move |_,_| {
@@ -536,9 +595,28 @@ fn build_ui(application: &Application) {
             // If we got confirmation...
             if lets_do_it {
 
+                // We deactive these menus, and only activate the one corresponding to our game.
+                menu_bar_generate_dependency_pack_wh2.set_enabled(false);
+                menu_bar_patch_siege_ai_wh2.set_enabled(false);
+                menu_bar_generate_dependency_pack_wh.set_enabled(false);
+                menu_bar_patch_siege_ai_wh.set_enabled(false);
+
                 // We just create a new PackFile with a name, set his type to Mod and update the
                 // TreeView to show it.
-                *pack_file_decoded.borrow_mut() = packfile::new_packfile("unknown.pack".to_string());
+                let packfile_id = match &*game_selected.borrow().game {
+                    "warhammer_2" => {
+                        menu_bar_generate_dependency_pack_wh2.set_enabled(true);
+                        menu_bar_patch_siege_ai_wh2.set_enabled(true);
+                        "PFH5"
+                    },
+                    "warhammer" | _ => {
+                        menu_bar_generate_dependency_pack_wh.set_enabled(true);
+                        menu_bar_patch_siege_ai_wh.set_enabled(true);
+                        "PFH4"
+                    },
+                };
+
+                *pack_file_decoded.borrow_mut() = packfile::new_packfile("unknown.pack".to_string(), packfile_id);
                 ui::update_tree_view(&folder_tree_store, &*pack_file_decoded.borrow());
                 set_modified(false, &window, &mut *pack_file_decoded.borrow_mut());
 
@@ -548,12 +626,14 @@ fn build_ui(application: &Application) {
                 menu_bar_save_packfile.set_enabled(true);
                 menu_bar_save_packfile_as.set_enabled(true);
                 menu_bar_change_packfile_type.set_enabled(true);
-                menu_bar_patch_siege_ai.set_enabled(true);
 
                 // Disable the controls for "MyMod".
                 menu_bar_my_mod_delete.set_enabled(false);
                 menu_bar_my_mod_install.set_enabled(false);
                 menu_bar_my_mod_uninstall.set_enabled(false);
+
+                // Try to load the Schema for this PackFile's game.
+                *schema.borrow_mut() = Schema::load(&*pack_file_decoded.borrow().pack_file_header.pack_file_id).ok();
             }
     }));
 
@@ -562,15 +642,21 @@ fn build_ui(application: &Application) {
     menu_bar_open_packfile.connect_activate(clone!(
         game_selected,
         window,
+        schema,
+        settings,
         my_mod_selected,
         error_dialog,
         unsaved_dialog,
         pack_file_decoded,
         folder_tree_store,
+        menu_bar_change_game_selected,
         menu_bar_save_packfile,
         menu_bar_save_packfile_as,
         menu_bar_change_packfile_type,
-        menu_bar_patch_siege_ai,
+        menu_bar_generate_dependency_pack_wh2,
+        menu_bar_patch_siege_ai_wh2,
+        menu_bar_generate_dependency_pack_wh,
+        menu_bar_patch_siege_ai_wh,
         menu_bar_my_mod_delete,
         menu_bar_my_mod_install,
         menu_bar_my_mod_uninstall => move |_,_| {
@@ -590,7 +676,7 @@ fn build_ui(application: &Application) {
             if lets_do_it {
 
                 // In case we have a default path for the game selected, we use it as base path for opening files.
-                if let Some(ref path) = game_selected.game_data_path {
+                if let Some(ref path) = game_selected.borrow().game_data_path {
 
                     // We check that actually exists before setting it.
                     if path.is_dir() {
@@ -622,15 +708,40 @@ fn build_ui(application: &Application) {
                                 _ => ui::show_dialog(&error_dialog, format_err!("PackFile Type not valid.")),
                             }
 
+                            // We deactive these menus, and only activate the one corresponding to our game.
+                            menu_bar_generate_dependency_pack_wh2.set_enabled(false);
+                            menu_bar_patch_siege_ai_wh2.set_enabled(false);
+                            menu_bar_generate_dependency_pack_wh.set_enabled(false);
+                            menu_bar_patch_siege_ai_wh.set_enabled(false);
+
+                            // We choose the new GameSelected depending on what the open mod id is.
+                            match &*pack_file_decoded.borrow().pack_file_header.pack_file_id {
+                                "PFH5" => {
+                                    game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.warhammer_2);
+                                    menu_bar_generate_dependency_pack_wh2.set_enabled(true);
+                                    menu_bar_patch_siege_ai_wh2.set_enabled(true);
+                                    menu_bar_change_game_selected.change_state(&"warhammer-2".to_variant());
+                                },
+                                "PFH4" | _ => {
+                                    game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.warhammer_2);
+                                    menu_bar_generate_dependency_pack_wh.set_enabled(true);
+                                    menu_bar_patch_siege_ai_wh.set_enabled(true);
+                                    menu_bar_change_game_selected.change_state(&"warhammer".to_variant());
+                                },
+                            }
+
+                            // Enable the actions for PackFiles.
                             menu_bar_save_packfile.set_enabled(true);
                             menu_bar_save_packfile_as.set_enabled(true);
                             menu_bar_change_packfile_type.set_enabled(true);
-                            menu_bar_patch_siege_ai.set_enabled(true);
 
                             // Disable the controls for "MyMod".
                             menu_bar_my_mod_delete.set_enabled(false);
                             menu_bar_my_mod_install.set_enabled(false);
                             menu_bar_my_mod_uninstall.set_enabled(false);
+
+                            // Try to load the Schema for this PackFile's game.
+                            *schema.borrow_mut() = Schema::load(&*pack_file_decoded.borrow().pack_file_header.pack_file_id).ok();
                         }
                         Err(error) => ui::show_dialog(&error_dialog, error.cause()),
                     }
@@ -661,7 +772,7 @@ fn build_ui(application: &Application) {
             file_chooser_save_packfile_dialog.set_current_name(&pack_file_decoded.borrow().pack_file_extra_data.file_name);
 
             // In case we have a default path for the game selected, we use it as base path for saving files.
-            if let Some(ref path) = game_selected.game_data_path {
+            if let Some(ref path) = game_selected.borrow().game_data_path {
 
                 // We check it actually exists before setting it.
                 if path.is_dir() {
@@ -736,7 +847,7 @@ fn build_ui(application: &Application) {
         }
 
         // In case we have a default path for the game selected, we use it as base path for saving files.
-        else if let Some(ref path) = game_selected.game_data_path {
+        else if let Some(ref path) = game_selected.borrow().game_data_path {
             file_chooser_save_packfile_dialog.set_current_name(&pack_file_decoded.borrow().pack_file_extra_data.file_name);
 
             // We check it actually exists before setting it.
@@ -831,16 +942,22 @@ fn build_ui(application: &Application) {
         error_dialog,
         window,
         my_mod_list,
+        game_selected,
         unsaved_dialog,
         pack_file_decoded,
         folder_tree_store,
         menu_bar_save_packfile,
         menu_bar_save_packfile_as,
         menu_bar_change_packfile_type,
-        menu_bar_patch_siege_ai,
+        menu_bar_generate_dependency_pack_wh2,
+        menu_bar_patch_siege_ai_wh2,
+        menu_bar_generate_dependency_pack_wh,
+        menu_bar_patch_siege_ai_wh,
         settings,
         my_mod_selected,
+        menu_bar_change_game_selected,
         application,
+        schema,
         menu_bar_my_mod_delete,
         menu_bar_my_mod_install,
         menu_bar_my_mod_uninstall => move |menu_bar_preferences,_| {
@@ -894,6 +1011,25 @@ fn build_ui(application: &Application) {
             Inhibit(false)
         }));
 
+        settings_stuff.borrow().settings_path_warhammer_button.connect_button_release_event(clone!(
+            settings,
+            settings_stuff,
+            file_chooser_settings_select_folder => move |_,_| {
+
+            // If we already have a path for it, and said path exists, we use it as base for the next path.
+            if settings.borrow().paths.warhammer != None &&
+                settings.borrow().clone().paths.warhammer.unwrap().to_path_buf().is_dir() {
+                file_chooser_settings_select_folder.set_current_folder(settings.borrow().clone().paths.warhammer.unwrap().to_path_buf());
+            }
+            if file_chooser_settings_select_folder.run() == gtk_response_ok {
+                if let Some(new_folder) = file_chooser_settings_select_folder.get_current_folder() {
+                    settings_stuff.borrow_mut().settings_path_warhammer_entry.get_buffer().set_text(&new_folder.to_string_lossy());
+                }
+            }
+            file_chooser_settings_select_folder.hide_on_delete();
+            Inhibit(false)
+        }));
+
         // When we press the "Accept" button.
         settings_stuff.borrow().settings_accept.connect_button_release_event(clone!(
             pack_file_decoded,
@@ -905,9 +1041,15 @@ fn build_ui(application: &Application) {
             menu_bar_save_packfile,
             menu_bar_save_packfile_as,
             menu_bar_change_packfile_type,
-            menu_bar_patch_siege_ai,
+            menu_bar_generate_dependency_pack_wh2,
+            menu_bar_patch_siege_ai_wh2,
+            menu_bar_generate_dependency_pack_wh,
+            menu_bar_patch_siege_ai_wh,
             settings_stuff,
             settings,
+            menu_bar_change_game_selected,
+            game_selected,
+            schema,
             my_mod_selected,
             application,
             menu_bar_preferences,
@@ -925,6 +1067,18 @@ fn build_ui(application: &Application) {
             // If we change any setting, disable the selected mod. We have currently no proper way to check
             // if the "My mod" path has changed, so we disable the selected "My Mod" when changing any setting.
             *my_mod_selected.borrow_mut() = None;
+
+            // Reset the game selected, just in case we changed it's path.
+            match &*pack_file_decoded.borrow().pack_file_header.pack_file_id {
+                "PFH5" => {
+                    game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.warhammer_2);
+                    menu_bar_change_game_selected.change_state(&"warhammer-2".to_variant());
+                }
+                "PFH4" | _ => {
+                    game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.warhammer_2);
+                    menu_bar_change_game_selected.change_state(&"warhammer".to_variant());
+                }
+            }
 
             // Disable the controls for "MyMod".
             menu_bar_my_mod_delete.set_enabled(false);
@@ -994,16 +1148,23 @@ fn build_ui(application: &Application) {
                                             // And when activating the mod button, we open it and set it as selected (chaos incoming).
                                             open_mod.connect_activate(clone!(
                                                 window,
+                                                settings,
+                                                schema,
                                                 my_mod_selected,
                                                 game_folder_name,
+                                                game_selected,
                                                 error_dialog,
                                                 unsaved_dialog,
                                                 pack_file_decoded,
                                                 folder_tree_store,
+                                                menu_bar_change_game_selected,
                                                 menu_bar_save_packfile,
                                                 menu_bar_save_packfile_as,
                                                 menu_bar_change_packfile_type,
-                                                menu_bar_patch_siege_ai,
+                                                menu_bar_generate_dependency_pack_wh2,
+                                                menu_bar_patch_siege_ai_wh2,
+                                                menu_bar_generate_dependency_pack_wh,
+                                                menu_bar_patch_siege_ai_wh,
                                                 menu_bar_my_mod_delete,
                                                 menu_bar_my_mod_install,
                                                 menu_bar_my_mod_uninstall => move |_,_| {
@@ -1040,16 +1201,39 @@ fn build_ui(application: &Application) {
                                                                     _ => ui::show_dialog(&error_dialog, format_err!("PackFile Type not valid.")),
                                                                 }
 
+                                                                // We deactive these menus, and only activate the one corresponding to our game.
+                                                                menu_bar_generate_dependency_pack_wh2.set_enabled(false);
+                                                                menu_bar_patch_siege_ai_wh2.set_enabled(false);
+                                                                menu_bar_generate_dependency_pack_wh.set_enabled(false);
+                                                                menu_bar_patch_siege_ai_wh.set_enabled(false);
+
+                                                                // We choose the new GameSelected depending on what the open mod id is.
+                                                                match &*pack_file_decoded.borrow().pack_file_header.pack_file_id {
+                                                                    "PFH5" => {
+                                                                        game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.warhammer_2);
+                                                                        menu_bar_generate_dependency_pack_wh2.set_enabled(true);
+                                                                        menu_bar_patch_siege_ai_wh2.set_enabled(true);
+                                                                        menu_bar_change_game_selected.change_state(&"warhammer-2".to_variant());
+                                                                    },
+                                                                    "PFH4" | _ => {
+                                                                        game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.warhammer_2);
+                                                                        menu_bar_generate_dependency_pack_wh.set_enabled(true);
+                                                                        menu_bar_patch_siege_ai_wh.set_enabled(true);
+                                                                        menu_bar_change_game_selected.change_state(&"warhammer".to_variant());
+                                                                    },
+                                                                }
+
                                                                 menu_bar_save_packfile.set_enabled(true);
                                                                 menu_bar_save_packfile_as.set_enabled(true);
                                                                 menu_bar_change_packfile_type.set_enabled(true);
-                                                                menu_bar_patch_siege_ai.set_enabled(true);
 
                                                                 // Enable the controls for "MyMod".
                                                                 menu_bar_my_mod_delete.set_enabled(true);
                                                                 menu_bar_my_mod_install.set_enabled(true);
                                                                 menu_bar_my_mod_uninstall.set_enabled(true);
 
+                                                                // Try to load the Schema for this PackFile's game.
+                                                                *schema.borrow_mut() = Schema::load(&*pack_file_decoded.borrow().pack_file_header.pack_file_id).ok();
                                                             }
                                                             Err(error) => ui::show_dialog(&error_dialog, error.cause()),
                                                         }
@@ -1128,16 +1312,22 @@ fn build_ui(application: &Application) {
         settings,
         application,
         window,
+        schema,
+        game_selected,
         my_mod_list,
         my_mod_selected,
         unsaved_dialog,
         error_dialog,
         pack_file_decoded,
         folder_tree_store,
+        menu_bar_change_game_selected,
         menu_bar_save_packfile,
         menu_bar_save_packfile_as,
         menu_bar_change_packfile_type,
-        menu_bar_patch_siege_ai,
+        menu_bar_generate_dependency_pack_wh2,
+        menu_bar_patch_siege_ai_wh2,
+        menu_bar_generate_dependency_pack_wh,
+        menu_bar_patch_siege_ai_wh,
         menu_bar_my_mod_delete,
         menu_bar_my_mod_install,
         menu_bar_my_mod_uninstall => move |menu_bar_my_mod_new,_| {
@@ -1170,15 +1360,21 @@ fn build_ui(application: &Application) {
             settings,
             unsaved_dialog,
             window,
+            schema,
             my_mod_selected,
             my_mod_list,
             error_dialog,
+            game_selected,
             pack_file_decoded,
             folder_tree_store,
+            menu_bar_change_game_selected,
             menu_bar_save_packfile,
             menu_bar_save_packfile_as,
             menu_bar_change_packfile_type,
-            menu_bar_patch_siege_ai,
+            menu_bar_generate_dependency_pack_wh2,
+            menu_bar_patch_siege_ai_wh2,
+            menu_bar_generate_dependency_pack_wh,
+            menu_bar_patch_siege_ai_wh,
             menu_bar_my_mod_delete,
             menu_bar_my_mod_install,
             menu_bar_my_mod_uninstall => move |_,_| {
@@ -1192,9 +1388,32 @@ fn build_ui(application: &Application) {
                 // Get the PackFile name.
                 let full_mod_name = format!("{}.pack", mod_name);
 
+                // We deactive these menus, and only activate the one corresponding to our game.
+                menu_bar_generate_dependency_pack_wh2.set_enabled(false);
+                menu_bar_patch_siege_ai_wh2.set_enabled(false);
+                menu_bar_generate_dependency_pack_wh.set_enabled(false);
+                menu_bar_patch_siege_ai_wh.set_enabled(false);
+
                 // We just create a new PackFile with a name, set his type to Mod and update the
                 // TreeView to show it.
-                *pack_file_decoded.borrow_mut() = packfile::new_packfile(full_mod_name.to_owned());
+                let packfile_id = match &*new_mod_stuff.borrow().my_mod_new_game_list_combo.get_active_text().unwrap() {
+                    "warhammer_2" => {
+                        game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.warhammer_2);
+                        menu_bar_change_game_selected.change_state(&"warhammer-2".to_variant());
+                        menu_bar_generate_dependency_pack_wh2.set_enabled(true);
+                        menu_bar_patch_siege_ai_wh2.set_enabled(true);
+                        "PFH5"
+                    },
+                    "warhammer" | _ => {
+                        game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.warhammer_2);
+                        menu_bar_change_game_selected.change_state(&"warhammer".to_variant());
+                        menu_bar_generate_dependency_pack_wh.set_enabled(true);
+                        menu_bar_patch_siege_ai_wh.set_enabled(true);
+                        "PFH4"
+                    },
+                };
+
+                *pack_file_decoded.borrow_mut() = packfile::new_packfile(full_mod_name.to_owned(), packfile_id);
                 ui::update_tree_view(&folder_tree_store, &*pack_file_decoded.borrow());
                 set_modified(false, &window, &mut *pack_file_decoded.borrow_mut());
 
@@ -1202,7 +1421,6 @@ fn build_ui(application: &Application) {
                 menu_bar_save_packfile.set_enabled(true);
                 menu_bar_save_packfile_as.set_enabled(true);
                 menu_bar_change_packfile_type.set_enabled(true);
-                menu_bar_patch_siege_ai.set_enabled(true);
 
                 // Get his new path.
                 let mut my_mod_path = settings.borrow().paths.my_mods_base_path.clone().unwrap();
@@ -1312,16 +1530,23 @@ fn build_ui(application: &Application) {
                                                     // And when activating the mod button, we open it and set it as selected (chaos incoming).
                                                     open_mod.connect_activate(clone!(
                                                         window,
+                                                        settings,
+                                                        schema,
                                                         my_mod_selected,
                                                         game_folder_name,
                                                         unsaved_dialog,
                                                         error_dialog,
+                                                        game_selected,
                                                         pack_file_decoded,
                                                         folder_tree_store,
+                                                        menu_bar_change_game_selected,
                                                         menu_bar_save_packfile,
                                                         menu_bar_save_packfile_as,
                                                         menu_bar_change_packfile_type,
-                                                        menu_bar_patch_siege_ai,
+                                                        menu_bar_generate_dependency_pack_wh2,
+                                                        menu_bar_patch_siege_ai_wh2,
+                                                        menu_bar_generate_dependency_pack_wh,
+                                                        menu_bar_patch_siege_ai_wh,
                                                         menu_bar_my_mod_delete,
                                                         menu_bar_my_mod_install,
                                                         menu_bar_my_mod_uninstall => move |_,_| {
@@ -1359,16 +1584,39 @@ fn build_ui(application: &Application) {
                                                                             _ => ui::show_dialog(&error_dialog, format_err!("PackFile Type not valid.")),
                                                                         }
 
+                                                                        // We deactive these menus, and only activate the one corresponding to our game.
+                                                                        menu_bar_generate_dependency_pack_wh2.set_enabled(false);
+                                                                        menu_bar_patch_siege_ai_wh2.set_enabled(false);
+                                                                        menu_bar_generate_dependency_pack_wh.set_enabled(false);
+                                                                        menu_bar_patch_siege_ai_wh.set_enabled(false);
+
+                                                                        // We choose the new GameSelected depending on what the open mod id is.
+                                                                        match &*pack_file_decoded.borrow().pack_file_header.pack_file_id {
+                                                                            "PFH5" => {
+                                                                                game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.warhammer_2);
+                                                                                menu_bar_generate_dependency_pack_wh2.set_enabled(true);
+                                                                                menu_bar_patch_siege_ai_wh2.set_enabled(true);
+                                                                                menu_bar_change_game_selected.change_state(&"warhammer-2".to_variant());
+                                                                            },
+                                                                            "PFH4" | _ => {
+                                                                                game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.warhammer_2);
+                                                                                menu_bar_generate_dependency_pack_wh.set_enabled(true);
+                                                                                menu_bar_patch_siege_ai_wh.set_enabled(true);
+                                                                                menu_bar_change_game_selected.change_state(&"warhammer".to_variant());
+                                                                            },
+                                                                        }
+
                                                                         menu_bar_save_packfile.set_enabled(true);
                                                                         menu_bar_save_packfile_as.set_enabled(true);
                                                                         menu_bar_change_packfile_type.set_enabled(true);
-                                                                        menu_bar_patch_siege_ai.set_enabled(true);
 
                                                                         // Enable the controls for "MyMod".
                                                                         menu_bar_my_mod_delete.set_enabled(true);
                                                                         menu_bar_my_mod_install.set_enabled(true);
                                                                         menu_bar_my_mod_uninstall.set_enabled(true);
 
+                                                                        // Try to load the Schema for this PackFile's game.
+                                                                        *schema.borrow_mut() = Schema::load(&*pack_file_decoded.borrow().pack_file_header.pack_file_id).ok();
                                                                     }
                                                                     Err(error) => ui::show_dialog(&error_dialog, error.cause()),
                                                                 }
@@ -1429,16 +1677,22 @@ fn build_ui(application: &Application) {
         settings,
         unsaved_dialog,
         window,
+        schema,
+        game_selected,
         my_mod_selected,
         my_mod_list,
         error_dialog,
         success_dialog,
         pack_file_decoded,
         folder_tree_store,
+        menu_bar_change_game_selected,
         menu_bar_save_packfile,
         menu_bar_save_packfile_as,
         menu_bar_change_packfile_type,
-        menu_bar_patch_siege_ai,
+        menu_bar_generate_dependency_pack_wh2,
+        menu_bar_patch_siege_ai_wh2,
+        menu_bar_generate_dependency_pack_wh,
+        menu_bar_patch_siege_ai_wh,
         menu_bar_my_mod_install,
         menu_bar_my_mod_uninstall => move |menu_bar_my_mod_delete,_| {
 
@@ -1591,16 +1845,23 @@ fn build_ui(application: &Application) {
                                                     // And when activating the mod button, we open it and set it as selected (chaos incoming).
                                                     open_mod.connect_activate(clone!(
                                                         window,
+                                                        schema,
+                                                        settings,
                                                         my_mod_selected,
                                                         game_folder_name,
                                                         error_dialog,
                                                         unsaved_dialog,
+                                                        game_selected,
                                                         pack_file_decoded,
                                                         folder_tree_store,
+                                                        menu_bar_change_game_selected,
                                                         menu_bar_save_packfile,
                                                         menu_bar_save_packfile_as,
                                                         menu_bar_change_packfile_type,
-                                                        menu_bar_patch_siege_ai,
+                                                        menu_bar_generate_dependency_pack_wh2,
+                                                        menu_bar_patch_siege_ai_wh2,
+                                                        menu_bar_generate_dependency_pack_wh,
+                                                        menu_bar_patch_siege_ai_wh,
                                                         menu_bar_my_mod_delete,
                                                         menu_bar_my_mod_install,
                                                         menu_bar_my_mod_uninstall => move |_,_| {
@@ -1637,16 +1898,39 @@ fn build_ui(application: &Application) {
                                                                             _ => ui::show_dialog(&error_dialog, format_err!("PackFile Type not valid.")),
                                                                         }
 
+                                                                        // We deactive these menus, and only activate the one corresponding to our game.
+                                                                        menu_bar_generate_dependency_pack_wh2.set_enabled(false);
+                                                                        menu_bar_patch_siege_ai_wh2.set_enabled(false);
+                                                                        menu_bar_generate_dependency_pack_wh.set_enabled(false);
+                                                                        menu_bar_patch_siege_ai_wh.set_enabled(false);
+
+                                                                        // We choose the new GameSelected depending on what the open mod id is.
+                                                                        match &*pack_file_decoded.borrow().pack_file_header.pack_file_id {
+                                                                            "PFH5" => {
+                                                                                game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.warhammer_2);
+                                                                                menu_bar_generate_dependency_pack_wh2.set_enabled(true);
+                                                                                menu_bar_patch_siege_ai_wh2.set_enabled(true);
+                                                                                menu_bar_change_game_selected.change_state(&"warhammer-2".to_variant());
+                                                                            },
+                                                                            "PFH4" | _ => {
+                                                                                game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.warhammer_2);
+                                                                                menu_bar_generate_dependency_pack_wh.set_enabled(true);
+                                                                                menu_bar_patch_siege_ai_wh.set_enabled(true);
+                                                                                menu_bar_change_game_selected.change_state(&"warhammer".to_variant());
+                                                                            },
+                                                                        }
+
                                                                         menu_bar_save_packfile.set_enabled(true);
                                                                         menu_bar_save_packfile_as.set_enabled(true);
                                                                         menu_bar_change_packfile_type.set_enabled(true);
-                                                                        menu_bar_patch_siege_ai.set_enabled(true);
 
                                                                         // Enable the controls for "MyMod".
                                                                         menu_bar_my_mod_delete.set_enabled(true);
                                                                         menu_bar_my_mod_install.set_enabled(true);
                                                                         menu_bar_my_mod_uninstall.set_enabled(true);
 
+                                                                        // Try to load the Schema for this PackFile's game.
+                                                                        *schema.borrow_mut() = Schema::load(&*pack_file_decoded.borrow().pack_file_header.pack_file_id).ok();
                                                                     }
                                                                     Err(error) => ui::show_dialog(&error_dialog, error.cause()),
                                                                 }
@@ -1790,6 +2074,40 @@ fn build_ui(application: &Application) {
         }
     ));
 
+
+    /*
+    --------------------------------------------------------
+                 Superior Menu: "Game Selected"
+    --------------------------------------------------------
+    */
+
+    // When changing the selected game.
+    menu_bar_change_game_selected.connect_activate(clone!(
+        settings,
+        game_selected => move |menu_bar_change_game_selected, selected| {
+        if let Some(state) = selected.clone() {
+            let new_state: Option<String> = state.get();
+            match &*new_state.unwrap() {
+                "warhammer-2" => {
+                    game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.warhammer_2);
+                    menu_bar_change_game_selected.change_state(&"warhammer-2".to_variant());
+                }
+                "warhammer" | _ => {
+                    game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.warhammer);
+                    menu_bar_change_game_selected.change_state(&"warhammer".to_variant());
+                }
+                /*
+                "attila" => {
+                    game_selected.borrow_mut().change_game_selected(&settings.borrow().paths.attila);
+                    menu_bar_change_game_selected.change_state(&"attila".to_variant());
+                }
+                "rome-2" => {
+                    game_selected.borrow_mut().change_game_selected(&settings.borrow().paths.rome_2);
+                    menu_bar_change_game_selected.change_state(&"rome_2".to_variant());
+                }*/
+            }
+        }
+    }));
     /*
     --------------------------------------------------------
                  Superior Menu: "Special Stuff"
@@ -1797,7 +2115,7 @@ fn build_ui(application: &Application) {
     */
 
     // When we hit the "Patch SiegeAI" button.
-    menu_bar_patch_siege_ai.connect_activate(clone!(
+    menu_bar_patch_siege_ai_wh2.connect_activate(clone!(
     success_dialog,
     error_dialog,
     pack_file_decoded,
@@ -1833,11 +2151,133 @@ fn build_ui(application: &Application) {
         }
     }));
 
+    // When we hit the "Generate Dependency Pack" button.
+    menu_bar_generate_dependency_pack_wh2.connect_activate(clone!(
+        game_selected,
+        success_dialog,
+        error_dialog => move |_,_| {
+
+            // Get the data folder of game_selected and try to create our dependency PackFile.
+            match game_selected.borrow().game_data_path {
+                Some(ref path) => {
+                    let mut data_pack_path = path.to_path_buf();
+                    data_pack_path.push("data.pack");
+                    match packfile::open_packfile(data_pack_path) {
+                        Ok(ref mut data_packfile) => {
+                            data_packfile.pack_file_data.packed_files.retain(|packed_file| packed_file.packed_file_path.starts_with(&["db".to_owned()]));
+                            data_packfile.pack_file_header.packed_file_count = data_packfile.pack_file_data.packed_files.len() as u32;
+
+                            // Just in case the folder doesn't exists, we try to create it.
+                            match DirBuilder::new().create(PathBuf::from("dependency_packs")) {
+                                Ok(_) | Err(_) => {},
+                            }
+
+                            let pack_file_path = match &*game_selected.borrow().game {
+                                "warhammer_2" => PathBuf::from("dependency_packs/wh2.pack"),
+                                "warhammer" | _ => PathBuf::from("dependency_packs/wh.pack")
+                            };
+
+                            match packfile::save_packfile(data_packfile, Some(pack_file_path)) {
+                                Ok(_) => ui::show_dialog(&success_dialog, format_err!("Dependency pack created.")),
+                                Err(error) => ui::show_dialog(&error_dialog, format_err!("Error: generated dependency pack couldn't be saved. {:?}", error)),
+                            }
+                        }
+                        Err(_) => ui::show_dialog(&error_dialog, format_err!("Error: data.pack couldn't be open."))
+                    }
+                },
+                None => ui::show_dialog(&error_dialog, format_err!("Error: data path of the game not found."))
+            }
+        }
+    ));
+
+    // When we hit the "Patch SiegeAI" button (Warhammer).
+    menu_bar_patch_siege_ai_wh.connect_activate(clone!(
+    success_dialog,
+    error_dialog,
+    pack_file_decoded,
+    folder_tree_view,
+    folder_tree_store,
+    folder_tree_selection => move |_,_| {
+
+        // First, we try to patch the PackFile. If there are no errors, we save the result in a tuple.
+        // Then we check that tuple and, if it's a success, we save the PackFile and update the TreeView.
+        let mut sucessful_patching = (false, String::new());
+        match packfile::patch_siege_ai(&mut *pack_file_decoded.borrow_mut()) {
+            Ok(result) => sucessful_patching = (true, result),
+            Err(error) => ui::show_dialog(&error_dialog, error.cause())
+        }
+        if sucessful_patching.0 {
+            let mut success = false;
+            match packfile::save_packfile( &mut *pack_file_decoded.borrow_mut(), None) {
+                Ok(result) => {
+                    success = true;
+                    ui::show_dialog(&success_dialog, format!("{}\n\n{}", sucessful_patching.1, result));
+                },
+                Err(error) => ui::show_dialog(&error_dialog, error.cause())
+            }
+            if success {
+                ui::update_tree_view_expand_path(
+                    &folder_tree_store,
+                    &*pack_file_decoded.borrow(),
+                    &folder_tree_selection,
+                    &folder_tree_view,
+                    false
+                );
+            }
+        }
+    }));
+
+    // When we hit the "Generate Dependency Pack" button (Warhammer).
+    menu_bar_generate_dependency_pack_wh.connect_activate(clone!(
+        game_selected,
+        success_dialog,
+        error_dialog => move |_,_| {
+
+            // Get the data folder of game_selected and try to create our dependency PackFile.
+            match game_selected.borrow().game_data_path {
+                Some(ref path) => {
+                    let mut data_pack_path = path.to_path_buf();
+                    data_pack_path.push("data.pack");
+                    match packfile::open_packfile(data_pack_path) {
+                        Ok(ref mut data_packfile) => {
+                            data_packfile.pack_file_data.packed_files.retain(|packed_file| packed_file.packed_file_path.starts_with(&["db".to_owned()]));
+                            data_packfile.pack_file_header.packed_file_count = data_packfile.pack_file_data.packed_files.len() as u32;
+
+                            // Just in case the folder doesn't exists, we try to create it.
+                            match DirBuilder::new().create(PathBuf::from("dependency_packs")) {
+                                Ok(_) | Err(_) => {},
+                            }
+
+                            let pack_file_path = match &*game_selected.borrow().game {
+                                "warhammer_2" => PathBuf::from("dependency_packs/wh2.pack"),
+                                "warhammer" | _ => PathBuf::from("dependency_packs/wh.pack")
+                            };
+
+                            match packfile::save_packfile(data_packfile, Some(pack_file_path)) {
+                                Ok(_) => ui::show_dialog(&success_dialog, format_err!("Dependency pack created.")),
+                                Err(error) => ui::show_dialog(&error_dialog, format_err!("Error: generated dependency pack couldn't be saved. {:?}", error)),
+                            }
+                        }
+                        Err(_) => ui::show_dialog(&error_dialog, format_err!("Error: data.pack couldn't be open."))
+                    }
+                },
+                None => ui::show_dialog(&error_dialog, format_err!("Error: data path of the game not found."))
+            }
+        }
+    ));
+
     /*
     --------------------------------------------------------
                     Superior Menu: "About"
     --------------------------------------------------------
     */
+
+    // When we hit the "Check Updates" button.
+    menu_bar_check_updates.connect_activate(clone!(
+        check_updates_dialog,
+        status_bar => move |_,_| {
+        check_updates(Some(&check_updates_dialog), &status_bar)
+    }));
 
     // When we hit the "About" button.
     menu_bar_about.connect_activate(move |_,_| {
@@ -2489,6 +2929,7 @@ fn build_ui(application: &Application) {
     // When we hit the "Extract file/folder" button.
     context_menu_extract_packedfile.connect_activate(clone!(
         success_dialog,
+        settings,
         error_dialog,
         my_mod_selected,
         pack_file_decoded,
@@ -2806,6 +3247,7 @@ fn build_ui(application: &Application) {
 
     // When you select a file in the TreeView, decode it with his codec, if it's implemented.
     folder_tree_view.connect_cursor_changed(clone!(
+        game_selected,
         application,
         schema,
         window,
@@ -2923,10 +3365,10 @@ fn build_ui(application: &Application) {
                                 application.add_action(&context_menu_packedfile_loc_export_csv);
 
                                 // Accels for popovers need to be specified here. Don't know why, but otherwise they do not work.
-                                application.set_accels_for_action("app.packedfile_loc_add_rows", &["<Shift>a"]);
+                                application.set_accels_for_action("app.packedfile_loc_add_rows", &["<Primary><Shift>a"]);
                                 application.set_accels_for_action("app.packedfile_loc_delete_rows", &["<Shift>Delete"]);
-                                application.set_accels_for_action("app.packedfile_loc_import_csv", &["<Shift>i"]);
-                                application.set_accels_for_action("app.packedfile_loc_export_csv", &["<Shift>e"]);
+                                application.set_accels_for_action("app.packedfile_loc_import_csv", &["<Primary><Shift>i"]);
+                                application.set_accels_for_action("app.packedfile_loc_export_csv", &["<Primary><Shift>e"]);
 
                                 // By default, the delete action should be disabled.
                                 context_menu_packedfile_loc_delete_rows.set_enabled(false);
@@ -3267,19 +3709,659 @@ fn build_ui(application: &Application) {
                         packed_file_data_display.show_all();
 
                         let packed_file_data_encoded = Rc::new(RefCell::new(pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data.to_vec()));
-                        let packed_file_data_decoded = DB::read(&packed_file_data_encoded.borrow(), &*tree_path[1], &schema.borrow().clone());
+                        let packed_file_data_decoded = match *schema.borrow() {
+                            Some(ref schema) => DB::read(&packed_file_data_encoded.borrow(), &*tree_path[1], &schema.clone()),
+                            None => {
+                                packed_file_decode_mode_button.set_sensitive(false);
+                                return ui::show_dialog(&error_dialog, format_err!("There is no Schema loaded for this game."))
+                            },
+                        };
+
+                        // From here, we deal we the decoder stuff.
+                        packed_file_decode_mode_button.connect_button_release_event(clone!(
+                            application,
+                            schema,
+                            tree_path,
+                            error_dialog,
+                            success_dialog,
+                            pack_file_decoded,
+                            packed_file_data_display => move |packed_file_decode_mode_button ,_|{
+
+                            // We need to disable the button. Otherwise, things will get weird.
+                            packed_file_decode_mode_button.set_sensitive(false);
+
+                            // We destroy the table view if exists, so we don't have to deal with resizing it.
+                            let display_last_children = packed_file_data_display.get_children();
+                            if display_last_children.last().unwrap() != packed_file_decode_mode_button {
+                                display_last_children.last().unwrap().destroy();
+                            }
+
+                            // Then create the UI..
+                            let packed_file_decoder = ui::packedfile_db::PackedFileDBDecoder::create_decoder_view(&packed_file_data_display);
+
+                            // And only in case the db_header has been decoded, we do the rest.
+                            match DBHeader::read(&packed_file_data_encoded.borrow()){
+                                Ok(db_header) => {
+
+                                    // We get the initial index to start decoding.
+                                    let initial_index = db_header.1;
+
+                                    // We get the Schema for his game, if exists. If we reached this point, the Schema
+                                    // should exists. Otherwise, the button for this window will be disabled.
+                                    let table_definition = match DB::get_schema(&*tree_path[1], db_header.0.packed_file_header_packed_file_version, &schema.borrow().clone().unwrap()) {
+                                        Some(table_definition) => Rc::new(RefCell::new(table_definition)),
+                                        None => Rc::new(RefCell::new(TableDefinition::new(db_header.0.packed_file_header_packed_file_version)))
+                                    };
+
+                                    // If we managed to load all the static data successfully to the "Decoder" view, we set up all the button's events.
+                                    match PackedFileDBDecoder::load_data_to_decoder_view(
+                                        &packed_file_decoder,
+                                        &*tree_path[1],
+                                        &packed_file_data_encoded.borrow().to_vec(),
+                                        initial_index
+                                    ) {
+                                        Ok(_) => {
+
+                                            // To keep it simple, we'll use the fields TreeView as "list of fields", and we'll only touch the
+                                            // table_definition when getting it or creating it to load the Decoder's View, or saving it.
+                                            // Also, when we are loading the data from a definition (first update with existing definition)
+                                            // we'll return the index of the byte where the definition ends, so we continue decoding from it.
+                                            let index_data = Rc::new(RefCell::new(PackedFileDBDecoder::update_decoder_view(
+                                                &packed_file_decoder,
+                                                &packed_file_data_encoded.borrow(),
+                                                Some(&table_definition.borrow()),
+                                                initial_index,
+                                            )));
+
+                                            // Update the versions list. Only if we have an schema, we can reach this point, so we just unwrap the schema.
+                                            PackedFileDBDecoder::update_versions_list(&packed_file_decoder, &(schema.borrow().clone().unwrap()), &*tree_path[1]);
+
+                                            // Clean the accelerators stuff.
+                                            remove_temporal_accelerators(&application);
+
+                                            // Move and delete row actions.
+                                            let decoder_move_row_up = SimpleAction::new("move_row_up", None);
+                                            let decoder_move_row_down = SimpleAction::new("move_row_down", None);
+                                            let decoder_delete_row = SimpleAction::new("delete_row", None);
+
+                                            application.add_action(&decoder_move_row_up);
+                                            application.add_action(&decoder_move_row_down);
+                                            application.add_action(&decoder_delete_row);
+
+                                            // Accels for popovers need to be specified here. Don't know why, but otherwise they do not work.
+                                            application.set_accels_for_action("app.move_row_up", &["<Shift>Up"]);
+                                            application.set_accels_for_action("app.move_row_down", &["<Shift>Down"]);
+                                            application.set_accels_for_action("app.delete_row", &["<Shift>Delete"]);
+
+                                            // By default, these two should be disabled.
+                                            decoder_move_row_up.set_enabled(false);
+                                            decoder_move_row_down.set_enabled(false);
+
+                                            // We check if we can allow actions on selection changes.
+                                            packed_file_decoder.fields_tree_view.connect_cursor_changed(clone!(
+                                                decoder_move_row_up,
+                                                decoder_move_row_down,
+                                                decoder_delete_row,
+                                                packed_file_decoder => move |_| {
+
+                                                // If the field list is empty, disable all the actions.
+                                                if packed_file_decoder.fields_tree_view.get_selection().count_selected_rows() > 0 {
+                                                    decoder_move_row_up.set_enabled(true);
+                                                    decoder_move_row_down.set_enabled(true);
+                                                    decoder_delete_row.set_enabled(true);
+                                                }
+                                                else {
+                                                    decoder_move_row_up.set_enabled(false);
+                                                    decoder_move_row_down.set_enabled(false);
+                                                    decoder_delete_row.set_enabled(false);
+                                                }
+                                            }));
+
+                                            // When we press the "Move up" button.
+                                            decoder_move_row_up.connect_activate(clone!(
+                                                initial_index,
+                                                index_data,
+                                                packed_file_data_encoded,
+                                                packed_file_decoder => move |_,_| {
+
+                                                // We only do something in case the focus is in the TreeView or in it's button. This should stop problems with
+                                                // the accels working everywhere.
+                                                if packed_file_decoder.fields_tree_view.has_focus() || packed_file_decoder.move_up_button.has_focus() {
+
+                                                    let current_iter = packed_file_decoder.fields_tree_view.get_selection().get_selected().unwrap().1;
+                                                    let new_iter = current_iter.clone();
+                                                    if packed_file_decoder.fields_list_store.iter_previous(&new_iter) {
+                                                        packed_file_decoder.fields_list_store.move_before(&current_iter, &new_iter);
+                                                    }
+                                                    *index_data.borrow_mut() = update_first_row_decoded(&packed_file_data_encoded.borrow(), &packed_file_decoder.fields_list_store, &initial_index, &packed_file_decoder);
+                                                }
+                                            }));
+
+                                            // When we press the "Move down" button.
+                                            decoder_move_row_down.connect_activate(clone!(
+                                                initial_index,
+                                                index_data,
+                                                packed_file_data_encoded,
+                                                packed_file_decoder => move |_,_| {
+
+                                                // We only do something in case the focus is in the TreeView or in it's button. This should stop problems with
+                                                // the accels working everywhere.
+                                                if packed_file_decoder.fields_tree_view.has_focus() || packed_file_decoder.move_down_button.has_focus() {
+
+                                                    let current_iter = packed_file_decoder.fields_tree_view.get_selection().get_selected().unwrap().1;
+                                                    let new_iter = current_iter.clone();
+                                                    if packed_file_decoder.fields_list_store.iter_next(&new_iter) {
+                                                        packed_file_decoder.fields_list_store.move_after(&current_iter, &new_iter);
+                                                    }
+                                                    *index_data.borrow_mut() = update_first_row_decoded(&packed_file_data_encoded.borrow(), &packed_file_decoder.fields_list_store, &initial_index, &packed_file_decoder);
+                                                }
+                                            }));
+
+                                            // By default, these buttons are disabled.
+                                            packed_file_decoder.all_table_versions_remove_definition.set_sensitive(false);
+                                            packed_file_decoder.all_table_versions_load_definition.set_sensitive(false);
+
+                                            // We check if we can allow actions on selection changes.
+                                            packed_file_decoder.all_table_versions_tree_view.connect_cursor_changed(clone!(
+                                                packed_file_decoder => move |_| {
+
+                                                // If the version list is empty or nothing is selected, disable all the actions.
+                                                if packed_file_decoder.all_table_versions_tree_view.get_selection().count_selected_rows() > 0 {
+                                                    packed_file_decoder.all_table_versions_remove_definition.set_sensitive(true);
+                                                    packed_file_decoder.all_table_versions_load_definition.set_sensitive(true);
+                                                }
+                                                else {
+                                                    packed_file_decoder.all_table_versions_remove_definition.set_sensitive(false);
+                                                    packed_file_decoder.all_table_versions_load_definition.set_sensitive(false);
+                                                }
+                                            }));
+
+                                            // Logic for all the "Use this" buttons. Basically, they just check if it's possible to use their decoder for the bytes we have,
+                                            // and advance the index and add their type to the fields view.
+                                            packed_file_decoder.use_bool_button.connect_button_release_event(clone!(
+                                                table_definition,
+                                                index_data,
+                                                packed_file_data_encoded,
+                                                packed_file_decoder => move |_ ,_|{
+
+                                                // We are going to check if this is valid when adding the field to the TreeView, so we just add it.
+                                                let index_data_copy = index_data.borrow().clone();
+                                                *index_data.borrow_mut() = PackedFileDBDecoder::add_field_to_data_view(
+                                                    &packed_file_decoder,
+                                                    &packed_file_data_encoded.borrow(),
+                                                    &table_definition.borrow(),
+                                                    &packed_file_decoder.field_name_entry.get_buffer().get_text(),
+                                                    FieldType::Boolean,
+                                                    packed_file_decoder.is_key_field_switch.get_active(),
+                                                    &None,
+                                                    &String::new(),
+                                                    index_data_copy,
+                                                    None
+                                                );
+
+                                                PackedFileDBDecoder::update_decoder_view(
+                                                    &packed_file_decoder,
+                                                    &packed_file_data_encoded.borrow(),
+                                                    None,
+                                                    *index_data.borrow(),
+                                                );
+                                                packed_file_decoder.delete_all_fields_button.set_sensitive(true);
+
+                                                Inhibit(false)
+                                            }));
+
+                                            packed_file_decoder.use_float_button.connect_button_release_event(clone!(
+                                                table_definition,
+                                                index_data,
+                                                packed_file_data_encoded,
+                                                packed_file_decoder => move |_ ,_|{
+
+                                                // We are going to check if this is valid when adding the field to the TreeView, so we just add it.
+                                                let index_data_copy = index_data.borrow().clone();
+                                                *index_data.borrow_mut() = PackedFileDBDecoder::add_field_to_data_view(
+                                                    &packed_file_decoder,
+                                                    &packed_file_data_encoded.borrow(),
+                                                    &table_definition.borrow(),
+                                                    &packed_file_decoder.field_name_entry.get_buffer().get_text(),
+                                                    FieldType::Float,
+                                                    packed_file_decoder.is_key_field_switch.get_active(),
+                                                    &None,
+                                                    &String::new(),
+                                                    index_data_copy,
+                                                    None
+                                                );
+
+                                                PackedFileDBDecoder::update_decoder_view(
+                                                    &packed_file_decoder,
+                                                    &packed_file_data_encoded.borrow(),
+                                                    None,
+                                                    *index_data.borrow(),
+                                                );
+                                                packed_file_decoder.delete_all_fields_button.set_sensitive(true);
+
+                                                Inhibit(false)
+                                            }));
+
+                                            packed_file_decoder.use_integer_button.connect_button_release_event(clone!(
+                                                table_definition,
+                                                index_data,
+                                                packed_file_data_encoded,
+                                                packed_file_decoder => move |_ ,_|{
+
+                                                // We are going to check if this is valid when adding the field to the TreeView, so we just add it.
+                                                let index_data_copy = index_data.borrow().clone();
+                                                *index_data.borrow_mut() = PackedFileDBDecoder::add_field_to_data_view(
+                                                    &packed_file_decoder,
+                                                    &packed_file_data_encoded.borrow(),
+                                                    &table_definition.borrow(),
+                                                    &packed_file_decoder.field_name_entry.get_buffer().get_text(),
+                                                    FieldType::Integer,
+                                                    packed_file_decoder.is_key_field_switch.get_active(),
+                                                    &None,
+                                                    &String::new(),
+                                                    index_data_copy,
+                                                    None
+                                                );
+
+                                                PackedFileDBDecoder::update_decoder_view(
+                                                    &packed_file_decoder,
+                                                    &packed_file_data_encoded.borrow(),
+                                                    None,
+                                                    *index_data.borrow(),
+                                                );
+                                                packed_file_decoder.delete_all_fields_button.set_sensitive(true);
+
+                                                Inhibit(false)
+                                            }));
+
+                                            packed_file_decoder.use_long_integer_button.connect_button_release_event(clone!(
+                                                table_definition,
+                                                index_data,
+                                                packed_file_data_encoded,
+                                                packed_file_decoder => move |_ ,_|{
+
+                                                // We are going to check if this is valid when adding the field to the TreeView, so we just add it.
+                                                let index_data_copy = index_data.borrow().clone();
+                                                *index_data.borrow_mut() = PackedFileDBDecoder::add_field_to_data_view(
+                                                    &packed_file_decoder,
+                                                    &packed_file_data_encoded.borrow(),
+                                                    &table_definition.borrow(),
+                                                    &packed_file_decoder.field_name_entry.get_buffer().get_text(),
+                                                    FieldType::LongInteger,
+                                                    packed_file_decoder.is_key_field_switch.get_active(),
+                                                    &None,
+                                                    &String::new(),
+                                                    index_data_copy,
+                                                    None
+                                                );
+
+                                                PackedFileDBDecoder::update_decoder_view(
+                                                    &packed_file_decoder,
+                                                    &packed_file_data_encoded.borrow(),
+                                                    None,
+                                                    *index_data.borrow(),
+                                                );
+                                                packed_file_decoder.delete_all_fields_button.set_sensitive(true);
+
+                                                Inhibit(false)
+                                            }));
+
+
+                                            packed_file_decoder.use_string_u8_button.connect_button_release_event(clone!(
+                                                table_definition,
+                                                index_data,
+                                                packed_file_data_encoded,
+                                                packed_file_decoder => move |_ ,_|{
+
+                                                // We are going to check if this is valid when adding the field to the TreeView, so we just add it.
+                                                let index_data_copy = index_data.borrow().clone();
+                                                *index_data.borrow_mut() = PackedFileDBDecoder::add_field_to_data_view(
+                                                    &packed_file_decoder,
+                                                    &packed_file_data_encoded.borrow(),
+                                                    &table_definition.borrow(),
+                                                    &packed_file_decoder.field_name_entry.get_buffer().get_text(),
+                                                    FieldType::StringU8,
+                                                    packed_file_decoder.is_key_field_switch.get_active(),
+                                                    &None,
+                                                    &String::new(),
+                                                    index_data_copy,
+                                                    None
+                                                );
+
+                                                PackedFileDBDecoder::update_decoder_view(
+                                                    &packed_file_decoder,
+                                                    &packed_file_data_encoded.borrow(),
+                                                    None,
+                                                    *index_data.borrow(),
+                                                );
+                                                packed_file_decoder.delete_all_fields_button.set_sensitive(true);
+
+                                                Inhibit(false)
+                                            }));
+
+                                            packed_file_decoder.use_string_u16_button.connect_button_release_event(clone!(
+                                                table_definition,
+                                                index_data,
+                                                packed_file_data_encoded,
+                                                packed_file_decoder => move |_ ,_|{
+
+                                                // We are going to check if this is valid when adding the field to the TreeView, so we just add it.
+                                                let index_data_copy = index_data.borrow().clone();
+                                                *index_data.borrow_mut() = PackedFileDBDecoder::add_field_to_data_view(
+                                                    &packed_file_decoder,
+                                                    &packed_file_data_encoded.borrow(),
+                                                    &table_definition.borrow(),
+                                                    &packed_file_decoder.field_name_entry.get_buffer().get_text(),
+                                                    FieldType::StringU16,
+                                                    packed_file_decoder.is_key_field_switch.get_active(),
+                                                    &None,
+                                                    &String::new(),
+                                                    index_data_copy,
+                                                    None
+                                                );
+
+                                                PackedFileDBDecoder::update_decoder_view(
+                                                    &packed_file_decoder,
+                                                    &packed_file_data_encoded.borrow(),
+                                                    None,
+                                                    *index_data.borrow(),
+                                                );
+                                                packed_file_decoder.delete_all_fields_button.set_sensitive(true);
+
+                                                Inhibit(false)
+                                            }));
+
+                                            packed_file_decoder.use_optional_string_u8_button.connect_button_release_event(clone!(
+                                                table_definition,
+                                                index_data,
+                                                packed_file_data_encoded,
+                                                packed_file_decoder => move |_ ,_|{
+
+                                                // We are going to check if this is valid when adding the field to the TreeView, so we just add it.
+                                                let index_data_copy = index_data.borrow().clone();
+                                                *index_data.borrow_mut() = PackedFileDBDecoder::add_field_to_data_view(
+                                                    &packed_file_decoder,
+                                                    &packed_file_data_encoded.borrow(),
+                                                    &table_definition.borrow(),
+                                                    &packed_file_decoder.field_name_entry.get_buffer().get_text(),
+                                                    FieldType::OptionalStringU8,
+                                                    packed_file_decoder.is_key_field_switch.get_active(),
+                                                    &None,
+                                                    &String::new(),
+                                                    index_data_copy,
+                                                    None
+                                                );
+
+                                                PackedFileDBDecoder::update_decoder_view(
+                                                    &packed_file_decoder,
+                                                    &packed_file_data_encoded.borrow(),
+                                                    None,
+                                                    *index_data.borrow(),
+                                                );
+                                                packed_file_decoder.delete_all_fields_button.set_sensitive(true);
+
+                                                Inhibit(false)
+                                            }));
+
+                                            packed_file_decoder.use_optional_string_u16_button.connect_button_release_event(clone!(
+                                                table_definition,
+                                                index_data,
+                                                packed_file_data_encoded,
+                                                packed_file_decoder => move |_ ,_|{
+
+                                                // We are going to check if this is valid when adding the field to the TreeView, so we just add it.
+                                                let index_data_copy = index_data.borrow().clone();
+                                                *index_data.borrow_mut() = PackedFileDBDecoder::add_field_to_data_view(
+                                                    &packed_file_decoder,
+                                                    &packed_file_data_encoded.borrow(),
+                                                    &table_definition.borrow(),
+                                                    &packed_file_decoder.field_name_entry.get_buffer().get_text(),
+                                                    FieldType::OptionalStringU16,
+                                                    packed_file_decoder.is_key_field_switch.get_active(),
+                                                    &None,
+                                                    &String::new(),
+                                                    index_data_copy,
+                                                    None
+                                                );
+
+                                                PackedFileDBDecoder::update_decoder_view(
+                                                    &packed_file_decoder,
+                                                    &packed_file_data_encoded.borrow(),
+                                                    None,
+                                                    *index_data.borrow(),
+                                                );
+                                                packed_file_decoder.delete_all_fields_button.set_sensitive(true);
+
+                                                Inhibit(false)
+                                            }));
+
+                                            // When we press the "Delete all fields" button, we remove all fields from the field list,
+                                            // we reset the index_data, disable de deletion buttons and update the ui, effectively
+                                            // resetting the entire decoder to a blank state.
+                                            packed_file_decoder.delete_all_fields_button.connect_button_release_event(clone!(
+                                                index_data,
+                                                packed_file_data_encoded,
+                                                packed_file_decoder => move |delete_all_fields_button ,_|{
+                                                    packed_file_decoder.fields_list_store.clear();
+                                                    *index_data.borrow_mut() = initial_index;
+
+                                                    delete_all_fields_button.set_sensitive(false);
+
+                                                    PackedFileDBDecoder::update_decoder_view(
+                                                        &packed_file_decoder,
+                                                        &packed_file_data_encoded.borrow(),
+                                                        None,
+                                                        *index_data.borrow(),
+                                                    );
+                                                Inhibit(false)
+                                            }));
+
+                                            // This allow us to remove a field from the list, using the decoder_delete_row action.
+                                            decoder_delete_row.connect_activate(clone!(
+                                                initial_index,
+                                                index_data,
+                                                packed_file_data_encoded,
+                                                packed_file_decoder => move |_,_| {
+
+                                                // We only do something in case the focus is in the TreeView or in any of the moving buttons. This should stop problems with
+                                                // the accels working everywhere.
+                                                if packed_file_decoder.fields_tree_view.has_focus() || packed_file_decoder.move_up_button.has_focus() || packed_file_decoder.move_down_button.has_focus() {
+                                                    if let Some(selection) = packed_file_decoder.fields_tree_view.get_selection().get_selected() {
+                                                        packed_file_decoder.fields_list_store.remove(&selection.1);
+                                                    }
+                                                    *index_data.borrow_mut() = update_first_row_decoded(&packed_file_data_encoded.borrow(), &packed_file_decoder.fields_list_store, &initial_index, &packed_file_decoder);
+                                                }
+                                            }));
+
+                                            // This allow us to replace the definition we have loaded with one from another version of the table.
+                                            packed_file_decoder.all_table_versions_load_definition.connect_button_release_event(clone!(
+                                                schema,
+                                                tree_path,
+                                                error_dialog,
+                                                packed_file_data_encoded,
+                                                packed_file_decoder => move |_ ,_| {
+
+                                                    // Only if we have a version selected, do something.
+                                                    if let Some(version_selected) = packed_file_decoder.all_table_versions_tree_view.get_selection().get_selected() {
+
+                                                        // Get the table's name and version selected.
+                                                        let table_name = &*tree_path[1];
+                                                        let version_to_load: u32 = packed_file_decoder.all_table_versions_list_store.get_value(&version_selected.1, 0).get().unwrap();
+
+                                                        // Check if the Schema actually exists. This should never show up if the schema exists,
+                                                        // but the compiler doesn't know it, so we have to check it.
+                                                        match *schema.borrow_mut() {
+                                                            Some(ref mut schema) => {
+
+                                                                // Get the new definition.
+                                                                let table_definition = DB::get_schema(table_name, version_to_load, schema);
+
+                                                                // Remove all the fields of the currently loaded definition.
+                                                                packed_file_decoder.fields_list_store.clear();
+
+                                                                // Reload the decoder View with the new definition loaded.
+                                                                PackedFileDBDecoder::update_decoder_view(
+                                                                    &packed_file_decoder,
+                                                                    &packed_file_data_encoded.borrow(),
+                                                                    table_definition.as_ref(),
+                                                                    initial_index,
+                                                                );
+                                                            }
+                                                            None => ui::show_dialog(&error_dialog, format_err!("Cannot load a version of a table from a non-existant Schema."))
+                                                        }
+                                                    }
+
+                                                Inhibit(false)
+                                            }));
+
+                                            // This allow us to remove an entire definition of a table for an specific version.
+                                            // Basically, hitting this button deletes the selected definition.
+                                            packed_file_decoder.all_table_versions_remove_definition.connect_button_release_event(clone!(
+                                                schema,
+                                                tree_path,
+                                                error_dialog,
+                                                packed_file_decoder => move |_ ,_| {
+
+                                                    // Only if we have a version selected, do something.
+                                                    if let Some(version_selected) = packed_file_decoder.all_table_versions_tree_view.get_selection().get_selected() {
+
+                                                        // Get the table's name and version selected.
+                                                        let table_name = &*tree_path[1];
+                                                        let version_to_delete: u32 = packed_file_decoder.all_table_versions_list_store.get_value(&version_selected.1, 0).get().unwrap();
+
+                                                        // Check if the Schema actually exists. This should never show up if the schema exists,
+                                                        // but the compiler doesn't know it, so we have to check it.
+                                                        match *schema.borrow_mut() {
+                                                            Some(ref mut schema) => {
+
+                                                                // Try to remove that version form the schema.
+                                                                match DB::remove_table_version(table_name, version_to_delete, schema) {
+
+                                                                    // If it worked, update the list.
+                                                                    Ok(_) => PackedFileDBDecoder::update_versions_list(&packed_file_decoder, schema, &*tree_path[1]),
+                                                                    Err(error) => ui::show_dialog(&error_dialog, error.cause()),
+                                                                }
+                                                            }
+                                                            None => ui::show_dialog(&error_dialog, format_err!("Cannot delete a version from a non-existant Schema."))
+                                                        }
+                                                    }
+
+                                                Inhibit(false)
+                                            }));
+
+                                            // This saves the schema to a file. It takes the "table_definition" we had for this version of our table, and put
+                                            // in it all the fields we have in the fields tree_view.
+                                            packed_file_decoder.save_decoded_schema.connect_button_release_event(clone!(
+                                                schema,
+                                                table_definition,
+                                                tree_path,
+                                                error_dialog,
+                                                success_dialog,
+                                                pack_file_decoded,
+                                                packed_file_decoder => move |_ ,_| {
+
+                                                    // Check if the Schema actually exists. This should never show up if the schema exists,
+                                                    // but the compiler doesn't know it, so we have to check it.
+                                                    match *schema.borrow_mut() {
+                                                        Some(ref mut schema) => {
+
+                                                            // We get the index of our table's definitions. In case we find it, we just return it. If it's not
+                                                            // the case, then we create a new table's definitions and return his index. To know if we didn't found
+                                                            // an index, we just return -1 as index.
+                                                            let mut table_definitions_index = match schema.get_table_definitions(&*tree_path[1]) {
+                                                                Some(table_definitions_index) => table_definitions_index as i32,
+                                                                None => -1i32,
+                                                            };
+
+                                                            if table_definitions_index == -1 {
+                                                                schema.add_table_definitions(TableDefinitions::new(&packed_file_decoder.table_type_label.get_text().unwrap()));
+                                                                table_definitions_index = schema.get_table_definitions(&*tree_path[1]).unwrap() as i32;
+                                                            }
+                                                            table_definition.borrow_mut().fields = packed_file_decoder.return_data_from_data_view();
+                                                            schema.tables_definitions[table_definitions_index as usize].add_table_definition(table_definition.borrow().clone());
+                                                            match Schema::save(&schema, &*pack_file_decoded.borrow().pack_file_header.pack_file_id) {
+                                                                Ok(_) => ui::show_dialog(&success_dialog, format!("Schema saved successfully.")),
+                                                                Err(error) => ui::show_dialog(&error_dialog, error.cause()),
+                                                            }
+
+                                                            // After all that, we need to update the version list, as this may have created a new version.
+                                                            PackedFileDBDecoder::update_versions_list(&packed_file_decoder, schema, &*tree_path[1]);
+                                                        }
+                                                        None => ui::show_dialog(&error_dialog, format_err!("Cannot save this table's definitions:\nSchemas for this game are not supported yet."))
+                                                    }
+
+                                                Inhibit(false)
+                                            }));
+
+                                            // This allow us to change a field's data type in the TreeView.
+                                            packed_file_decoder.fields_tree_view_cell_combo.connect_edited(clone!(
+                                                packed_file_decoder => move |_, tree_path, new_value| {
+
+                                                let tree_iter = packed_file_decoder.fields_list_store.get_iter(&tree_path).unwrap();
+                                                packed_file_decoder.fields_list_store.set_value(&tree_iter, 2, &new_value.to_value());
+
+                                            }));
+
+                                            // This allow us to set as "key" a field in the TreeView.
+                                            packed_file_decoder.fields_tree_view_cell_bool.connect_toggled(clone!(
+                                                packed_file_decoder => move |cell, tree_path| {
+
+                                                let tree_iter = packed_file_decoder.fields_list_store.get_iter(&tree_path).unwrap();
+                                                let edited_cell_column = packed_file_decoder.fields_tree_view.get_cursor().1.unwrap().get_sort_column_id() as u32;
+                                                let new_value: bool = packed_file_decoder.fields_list_store.get_value(&tree_iter, edited_cell_column as i32).get().unwrap();
+                                                let new_value_bool = (!new_value).to_value();
+                                                cell.set_active(!new_value);
+                                                packed_file_decoder.fields_list_store.set_value(&tree_iter, edited_cell_column, &new_value_bool);
+                                            }));
+
+                                            // This loop takes care of the interaction with string cells.
+                                            for edited_cell in &packed_file_decoder.fields_tree_view_cell_string {
+                                                edited_cell.connect_edited(clone!(
+                                                    packed_file_decoder => move |_ ,tree_path , new_text| {
+
+                                                    let edited_cell = packed_file_decoder.fields_list_store.get_iter(&tree_path);
+                                                    let edited_cell_column = packed_file_decoder.fields_tree_view.get_cursor().1.unwrap().get_sort_column_id() as u32;
+                                                    packed_file_decoder.fields_list_store.set_value(&edited_cell.unwrap(), edited_cell_column, &new_text.to_value());
+                                                }));
+                                            }
+                                        }
+                                        Err(error) => ui::show_dialog(&error_dialog, error.cause()),
+                                    }
+                                },
+                                Err(error) => ui::show_dialog(&error_dialog, error.cause()),
+                            }
+                            Inhibit(false)
+                        }));
 
                         // If this returns an error, we just leave the button for the decoder.
                         match packed_file_data_decoded {
                             Ok(packed_file_data_decoded) => {
 
+                                // We try to get the "data" database, to check dependencies.
+                                let pack_file_path = match &*game_selected.borrow().game {
+                                    "warhammer_2" => PathBuf::from("dependency_packs/wh2.pack"),
+                                    "warhammer" | _ => PathBuf::from("dependency_packs/wh.pack")
+                                };
+
+                                let dependency_database = match packfile::open_packfile(pack_file_path) {
+                                    Ok(data) => Some(data.pack_file_data.packed_files.to_vec()),
+                                    Err(_) => None,
+                                };
+
                                 // ONLY if we get a decoded_db, we set up the TreeView.
                                 let packed_file_data_decoded = Rc::new(RefCell::new(packed_file_data_decoded));
                                 let table_definition = Rc::new(RefCell::new(packed_file_data_decoded.borrow().packed_file_data.table_definition.clone()));
-                                let packed_file_tree_view_stuff = match ui::packedfile_db::PackedFileDBTreeView::create_tree_view(&packed_file_data_display, &*packed_file_data_decoded.borrow()) {
+                                let packed_file_tree_view_stuff = match ui::packedfile_db::PackedFileDBTreeView::create_tree_view(
+                                    &packed_file_data_display,
+                                    &*packed_file_data_decoded.borrow(),
+                                    dependency_database,
+                                    &pack_file_decoded.borrow().pack_file_data.packed_files,
+                                    &schema.borrow().clone().unwrap()
+                                ) {
                                     Ok(data) => data,
                                     Err(error) => return ui::show_dialog(&error_dialog, error.cause())
                                 };
+
                                 let packed_file_tree_view = packed_file_tree_view_stuff.packed_file_tree_view;
                                 let packed_file_list_store = packed_file_tree_view_stuff.packed_file_list_store;
 
@@ -3316,13 +4398,96 @@ fn build_ui(application: &Application) {
                                 application.add_action(&context_menu_packedfile_db_export_csv);
 
                                 // Accels for popovers need to be specified here. Don't know why, but otherwise they do not work.
-                                application.set_accels_for_action("app.packedfile_db_add_rows", &["<Shift>a"]);
+                                application.set_accels_for_action("app.packedfile_db_add_rows", &["<Primary><Shift>a"]);
                                 application.set_accels_for_action("app.packedfile_db_delete_rows", &["<Shift>Delete"]);
-                                application.set_accels_for_action("app.packedfile_db_clone_rows", &["<Shift>d"]);
-                                application.set_accels_for_action("app.packedfile_db_import_csv", &["<Shift>i"]);
-                                application.set_accels_for_action("app.packedfile_db_export_csv", &["<Shift>e"]);
+                                application.set_accels_for_action("app.packedfile_db_clone_rows", &["<Primary><Shift>d"]);
+                                application.set_accels_for_action("app.packedfile_db_import_csv", &["<Primary><Shift>i"]);
+                                application.set_accels_for_action("app.packedfile_db_export_csv", &["<Primary><Shift>e"]);
 
+                                // Enable the tooltips for the TreeView.
+                                packed_file_tree_view.set_has_tooltip(true);
+                                packed_file_tree_view.connect_query_tooltip(clone!(
+                                    table_definition => move |tree_view, x, y,_, tooltip| {
+
+                                        // Get the coordinates of the cell under the cursor.
+                                        let cell_coords: (i32, i32) = tree_view.convert_widget_to_tree_coords(x, y);
+
+                                        // Get the column in those coordinates, if exists.
+                                        let column = tree_view.get_path_at_pos(cell_coords.0, cell_coords.1);
+                                        if let Some(column) = column {
+                                            if let Some(column) = column.1 {
+                                                let column = column.get_sort_column_id();
+
+                                                // We don't want to check the tooltip for the Index column, nor for the fake end column.
+                                                if column >= 1 && (column as usize) <= table_definition.borrow().fields.len() {
+
+                                                    // If it's a reference, we put to what cell is referencing in the tooltip.
+                                                    let tooltip_text: String = if let Some(ref reference) = table_definition.borrow().fields[column as usize - 1].field_is_reference {
+                                                        if !table_definition.borrow().fields[column as usize - 1].field_description.is_empty() {
+                                                            format!("{}\n\nThis column is a reference to \"{}/{}\".",
+                                                                table_definition.borrow().fields[column as usize - 1].field_description,
+                                                                reference.0,
+                                                                reference.1
+                                                            )
+                                                        }
+                                                        else {
+                                                            format!("This column is a reference to \"{}/{}\".",
+                                                                reference.0,
+                                                                reference.1
+                                                            )
+                                                        }
+
+                                                    } else {
+                                                        table_definition.borrow().fields[column as usize - 1].field_description.to_owned()
+                                                    };
+
+                                                    // If there is a comment for that column, we use it and show the column.
+                                                    if !tooltip_text.is_empty() {
+                                                        tooltip.set_text(&*tooltip_text);
+
+                                                        // Return true to show the tooltip.
+                                                        return true
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        // In any other case, return false.
+                                        false
+                                    }
+                                ));
                                 // These are the events to save edits in cells, one loop for every type of cell.
+                                // This loop takes care of reference cells.
+                                for edited_cell in &packed_file_tree_view_stuff.packed_file_tree_view_cell_reference {
+                                    edited_cell.connect_edited(clone!(
+                                    table_definition,
+                                    window,
+                                    error_dialog,
+                                    pack_file_decoded,
+                                    packed_file_data_decoded,
+                                    packed_file_tree_view,
+                                    packed_file_list_store => move |_ ,tree_path , new_text| {
+
+                                        if let Some(tree_iter) = packed_file_list_store.get_iter(&tree_path) {
+                                            let edited_cell_column = packed_file_tree_view.get_cursor();
+                                            packed_file_list_store.set_value(&tree_iter, edited_cell_column.1.unwrap().get_sort_column_id() as u32, &new_text.to_value());
+
+                                            // Get the data from the table and turn it into a Vec<u8> to write it.
+                                            match ui::packedfile_db::PackedFileDBTreeView::return_data_from_tree_view(&*table_definition.borrow() ,&packed_file_list_store) {
+                                                Ok(data) => {
+                                                    packed_file_data_decoded.borrow_mut().packed_file_data.packed_file_data = data;
+                                                    if let Err(error) = ::packfile::update_packed_file_data_db(&*packed_file_data_decoded.borrow_mut(), &mut *pack_file_decoded.borrow_mut(), index as usize) {
+                                                        ui::show_dialog(&error_dialog, error.cause());
+                                                    }
+                                                    set_modified(true, &window, &mut *pack_file_decoded.borrow_mut());
+
+                                                }
+                                                Err(error) => ui::show_dialog(&error_dialog, error.cause()),
+                                            }
+                                        }
+                                    }));
+                                }
+
                                 // This loop takes care of the interaction with string cells.
                                 for edited_cell in &packed_file_tree_view_stuff.packed_file_tree_view_cell_string {
                                     edited_cell.connect_edited(clone!(
@@ -3351,7 +4516,6 @@ fn build_ui(application: &Application) {
                                             Err(error) => ui::show_dialog(&error_dialog, error.cause()),
                                         }
                                     }));
-
                                 }
 
                                 // This loop takes care of the interaction with optional_string cells.
@@ -3837,509 +5001,6 @@ fn build_ui(application: &Application) {
                             }
                             Err(error) => ui::show_dialog(&error_dialog, error.cause()),
                         }
-
-                        // From here, we deal we the decoder stuff.
-                        packed_file_decode_mode_button.connect_button_release_event(clone!(
-                            application,
-                            schema,
-                            tree_path,
-                            error_dialog,
-                            success_dialog,
-                            packed_file_data_display => move |packed_file_decode_mode_button ,_|{
-
-                            // We need to disable the button. Otherwise, things will get weird.
-                            packed_file_decode_mode_button.set_sensitive(false);
-
-                            // We destroy the table view if exists, so we don't have to deal with resizing it.
-                            let display_last_children = packed_file_data_display.get_children();
-                            if display_last_children.last().unwrap() != packed_file_decode_mode_button {
-                                display_last_children.last().unwrap().destroy();
-                            }
-
-                            // Then create the UI..
-                            let packed_file_decoder = ui::packedfile_db::PackedFileDBDecoder::create_decoder_view(&packed_file_data_display);
-
-                            // And only in case the db_header has been decoded, we do the rest.
-                            match DBHeader::read(&packed_file_data_encoded.borrow()){
-                                Ok(db_header) => {
-
-                                    // We get the initial index to start decoding.
-                                    let initial_index = db_header.1;
-
-                                    // We get the definition, or create one if we didn't find it.
-                                    let table_definition = match DB::get_schema(&*tree_path[1], db_header.0.packed_file_header_packed_file_version, &*schema.borrow()) {
-                                        Some(table_definition) => Rc::new(RefCell::new(table_definition)),
-                                        None => Rc::new(RefCell::new(TableDefinition::new(db_header.0.packed_file_header_packed_file_version)))
-                                    };
-
-                                    // If we managed to load all the static data successfully to the "Decoder" view, we set up all the button's events.
-                                    match PackedFileDBDecoder::load_data_to_decoder_view(
-                                        &packed_file_decoder,
-                                        &*tree_path[1],
-                                        &packed_file_data_encoded.borrow().to_vec(),
-                                        initial_index
-                                    ) {
-                                        Ok(_) => {
-
-                                            // To keep it simple, we'll use the fields TreeView as "list of fields", and we'll only touch the
-                                            // table_definition when getting it or creating it to load the Decoder's View, or saving it.
-                                            // Also, when we are loading the data from a definition (first update with existing definition)
-                                            // we'll return the index of the byte where the definition ends, so we continue decoding from it.
-                                            let index_data = Rc::new(RefCell::new(PackedFileDBDecoder::update_decoder_view(
-                                                &packed_file_decoder,
-                                                &packed_file_data_encoded.borrow(),
-                                                Some(&table_definition.borrow()),
-                                                initial_index,
-                                            )));
-
-                                            // Clean the accelerators stuff.
-                                            remove_temporal_accelerators(&application);
-
-                                            // Move and delete row actions.
-                                            let decoder_move_row_up = SimpleAction::new("move_row_up", None);
-                                            let decoder_move_row_down = SimpleAction::new("move_row_down", None);
-                                            let decoder_delete_row = SimpleAction::new("delete_row", None);
-
-                                            application.add_action(&decoder_move_row_up);
-                                            application.add_action(&decoder_move_row_down);
-                                            application.add_action(&decoder_delete_row);
-
-                                            // Accels for popovers need to be specified here. Don't know why, but otherwise they do not work.
-                                            application.set_accels_for_action("app.move_row_up", &["<Shift>Up"]);
-                                            application.set_accels_for_action("app.move_row_down", &["<Shift>Down"]);
-                                            application.set_accels_for_action("app.delete_row", &["<Shift>Delete"]);
-
-                                            // By default, these two should be disabled.
-                                            decoder_move_row_up.set_enabled(false);
-                                            decoder_move_row_down.set_enabled(false);
-
-                                            // We check if we can allow actions on selection changes.
-                                            packed_file_decoder.fields_tree_view.connect_cursor_changed(clone!(
-                                                decoder_move_row_up,
-                                                decoder_move_row_down,
-                                                decoder_delete_row,
-                                                packed_file_decoder => move |_| {
-
-                                                // If the field list is empty, disable all the actions.
-                                                if packed_file_decoder.fields_tree_view.get_selection().count_selected_rows() > 0 {
-                                                    decoder_move_row_up.set_enabled(true);
-                                                    decoder_move_row_down.set_enabled(true);
-                                                    decoder_delete_row.set_enabled(true);
-                                                }
-                                                else {
-                                                    decoder_move_row_up.set_enabled(false);
-                                                    decoder_move_row_down.set_enabled(false);
-                                                    decoder_delete_row.set_enabled(false);
-                                                }
-                                            }));
-
-                                            // When we press the "Move up" button.
-                                            decoder_move_row_up.connect_activate(clone!(
-                                                initial_index,
-                                                index_data,
-                                                packed_file_data_encoded,
-                                                packed_file_decoder => move |_,_| {
-
-                                                // We only do something in case the focus is in the TreeView or in it's button. This should stop problems with
-                                                // the accels working everywhere.
-                                                if packed_file_decoder.fields_tree_view.has_focus() || packed_file_decoder.move_up_button.has_focus() {
-
-                                                    let current_iter = packed_file_decoder.fields_tree_view.get_selection().get_selected().unwrap().1;
-                                                    let new_iter = current_iter.clone();
-                                                    if packed_file_decoder.fields_list_store.iter_previous(&new_iter) {
-                                                        packed_file_decoder.fields_list_store.move_before(&current_iter, &new_iter);
-                                                    }
-                                                    *index_data.borrow_mut() = update_first_row_decoded(&packed_file_data_encoded.borrow(), &packed_file_decoder.fields_list_store, &initial_index, &packed_file_decoder);
-                                                }
-                                            }));
-
-                                            // When we press the "Move down" button.
-                                            decoder_move_row_down.connect_activate(clone!(
-                                                initial_index,
-                                                index_data,
-                                                packed_file_data_encoded,
-                                                packed_file_decoder => move |_,_| {
-
-                                                // We only do something in case the focus is in the TreeView or in it's button. This should stop problems with
-                                                // the accels working everywhere.
-                                                if packed_file_decoder.fields_tree_view.has_focus() || packed_file_decoder.move_down_button.has_focus() {
-
-                                                    let current_iter = packed_file_decoder.fields_tree_view.get_selection().get_selected().unwrap().1;
-                                                    let new_iter = current_iter.clone();
-                                                    if packed_file_decoder.fields_list_store.iter_next(&new_iter) {
-                                                        packed_file_decoder.fields_list_store.move_after(&current_iter, &new_iter);
-                                                    }
-                                                    *index_data.borrow_mut() = update_first_row_decoded(&packed_file_data_encoded.borrow(), &packed_file_decoder.fields_list_store, &initial_index, &packed_file_decoder);
-                                                }
-                                            }));
-
-                                            // Logic for all the "Use this" buttons. Basically, they just check if it's possible to use their decoder for the bytes we have,
-                                            // and advance the index and add their type to the fields view.
-                                            packed_file_decoder.use_bool_button.connect_button_release_event(clone!(
-                                                table_definition,
-                                                index_data,
-                                                packed_file_data_encoded,
-                                                packed_file_decoder => move |_ ,_|{
-
-                                                // We are going to check if this is valid when adding the field to the TreeView, so we just add it.
-                                                let index_data_copy = index_data.borrow();
-                                                *index_data.borrow_mut() = PackedFileDBDecoder::add_field_to_data_view(
-                                                    &packed_file_decoder,
-                                                    &packed_file_data_encoded.borrow(),
-                                                    &table_definition.borrow(),
-                                                    &packed_file_decoder.field_name_entry.get_buffer().get_text(),
-                                                    FieldType::Boolean,
-                                                    packed_file_decoder.is_key_field_switch.get_active(),
-                                                    &None,
-                                                    &String::new(),
-                                                    *index_data_copy,
-                                                    None
-                                                );
-
-                                                PackedFileDBDecoder::update_decoder_view(
-                                                    &packed_file_decoder,
-                                                    &packed_file_data_encoded.borrow(),
-                                                    None,
-                                                    *index_data.borrow(),
-                                                );
-                                                packed_file_decoder.delete_all_fields_button.set_sensitive(true);
-
-                                                Inhibit(false)
-                                            }));
-
-                                            packed_file_decoder.use_float_button.connect_button_release_event(clone!(
-                                                table_definition,
-                                                index_data,
-                                                packed_file_data_encoded,
-                                                packed_file_decoder => move |_ ,_|{
-
-                                                // We are going to check if this is valid when adding the field to the TreeView, so we just add it.
-                                                let index_data_copy = index_data.borrow();
-                                                *index_data.borrow_mut() = PackedFileDBDecoder::add_field_to_data_view(
-                                                    &packed_file_decoder,
-                                                    &packed_file_data_encoded.borrow(),
-                                                    &table_definition.borrow(),
-                                                    &packed_file_decoder.field_name_entry.get_buffer().get_text(),
-                                                    FieldType::Float,
-                                                    packed_file_decoder.is_key_field_switch.get_active(),
-                                                    &None,
-                                                    &String::new(),
-                                                    *index_data_copy,
-                                                    None
-                                                );
-
-                                                PackedFileDBDecoder::update_decoder_view(
-                                                    &packed_file_decoder,
-                                                    &packed_file_data_encoded.borrow(),
-                                                    None,
-                                                    *index_data.borrow(),
-                                                );
-                                                packed_file_decoder.delete_all_fields_button.set_sensitive(true);
-
-                                                Inhibit(false)
-                                            }));
-
-                                            packed_file_decoder.use_integer_button.connect_button_release_event(clone!(
-                                                table_definition,
-                                                index_data,
-                                                packed_file_data_encoded,
-                                                packed_file_decoder => move |_ ,_|{
-
-                                                // We are going to check if this is valid when adding the field to the TreeView, so we just add it.
-                                                let index_data_copy = index_data.borrow();
-                                                *index_data.borrow_mut() = PackedFileDBDecoder::add_field_to_data_view(
-                                                    &packed_file_decoder,
-                                                    &packed_file_data_encoded.borrow(),
-                                                    &table_definition.borrow(),
-                                                    &packed_file_decoder.field_name_entry.get_buffer().get_text(),
-                                                    FieldType::Integer,
-                                                    packed_file_decoder.is_key_field_switch.get_active(),
-                                                    &None,
-                                                    &String::new(),
-                                                    *index_data_copy,
-                                                    None
-                                                );
-
-                                                PackedFileDBDecoder::update_decoder_view(
-                                                    &packed_file_decoder,
-                                                    &packed_file_data_encoded.borrow(),
-                                                    None,
-                                                    *index_data.borrow(),
-                                                );
-                                                packed_file_decoder.delete_all_fields_button.set_sensitive(true);
-
-                                                Inhibit(false)
-                                            }));
-
-                                            packed_file_decoder.use_long_integer_button.connect_button_release_event(clone!(
-                                                table_definition,
-                                                index_data,
-                                                packed_file_data_encoded,
-                                                packed_file_decoder => move |_ ,_|{
-
-                                                // We are going to check if this is valid when adding the field to the TreeView, so we just add it.
-                                                let index_data_copy = index_data.borrow();
-                                                *index_data.borrow_mut() = PackedFileDBDecoder::add_field_to_data_view(
-                                                    &packed_file_decoder,
-                                                    &packed_file_data_encoded.borrow(),
-                                                    &table_definition.borrow(),
-                                                    &packed_file_decoder.field_name_entry.get_buffer().get_text(),
-                                                    FieldType::LongInteger,
-                                                    packed_file_decoder.is_key_field_switch.get_active(),
-                                                    &None,
-                                                    &String::new(),
-                                                    *index_data_copy,
-                                                    None
-                                                );
-
-                                                PackedFileDBDecoder::update_decoder_view(
-                                                    &packed_file_decoder,
-                                                    &packed_file_data_encoded.borrow(),
-                                                    None,
-                                                    *index_data.borrow(),
-                                                );
-                                                packed_file_decoder.delete_all_fields_button.set_sensitive(true);
-
-                                                Inhibit(false)
-                                            }));
-
-
-                                            packed_file_decoder.use_string_u8_button.connect_button_release_event(clone!(
-                                                table_definition,
-                                                index_data,
-                                                packed_file_data_encoded,
-                                                packed_file_decoder => move |_ ,_|{
-
-                                                // We are going to check if this is valid when adding the field to the TreeView, so we just add it.
-                                                let index_data_copy = index_data.borrow();
-                                                *index_data.borrow_mut() = PackedFileDBDecoder::add_field_to_data_view(
-                                                    &packed_file_decoder,
-                                                    &packed_file_data_encoded.borrow(),
-                                                    &table_definition.borrow(),
-                                                    &packed_file_decoder.field_name_entry.get_buffer().get_text(),
-                                                    FieldType::StringU8,
-                                                    packed_file_decoder.is_key_field_switch.get_active(),
-                                                    &None,
-                                                    &String::new(),
-                                                    *index_data_copy,
-                                                    None
-                                                );
-
-                                                PackedFileDBDecoder::update_decoder_view(
-                                                    &packed_file_decoder,
-                                                    &packed_file_data_encoded.borrow(),
-                                                    None,
-                                                    *index_data.borrow(),
-                                                );
-                                                packed_file_decoder.delete_all_fields_button.set_sensitive(true);
-
-                                                Inhibit(false)
-                                            }));
-
-                                            packed_file_decoder.use_string_u16_button.connect_button_release_event(clone!(
-                                                table_definition,
-                                                index_data,
-                                                packed_file_data_encoded,
-                                                packed_file_decoder => move |_ ,_|{
-
-                                                // We are going to check if this is valid when adding the field to the TreeView, so we just add it.
-                                                let index_data_copy = index_data.borrow();
-                                                *index_data.borrow_mut() = PackedFileDBDecoder::add_field_to_data_view(
-                                                    &packed_file_decoder,
-                                                    &packed_file_data_encoded.borrow(),
-                                                    &table_definition.borrow(),
-                                                    &packed_file_decoder.field_name_entry.get_buffer().get_text(),
-                                                    FieldType::StringU16,
-                                                    packed_file_decoder.is_key_field_switch.get_active(),
-                                                    &None,
-                                                    &String::new(),
-                                                    *index_data_copy,
-                                                    None
-                                                );
-
-                                                PackedFileDBDecoder::update_decoder_view(
-                                                    &packed_file_decoder,
-                                                    &packed_file_data_encoded.borrow(),
-                                                    None,
-                                                    *index_data.borrow(),
-                                                );
-                                                packed_file_decoder.delete_all_fields_button.set_sensitive(true);
-
-                                                Inhibit(false)
-                                            }));
-
-                                            packed_file_decoder.use_optional_string_u8_button.connect_button_release_event(clone!(
-                                                table_definition,
-                                                index_data,
-                                                packed_file_data_encoded,
-                                                packed_file_decoder => move |_ ,_|{
-
-                                                // We are going to check if this is valid when adding the field to the TreeView, so we just add it.
-                                                let index_data_copy = index_data.borrow();
-                                                *index_data.borrow_mut() = PackedFileDBDecoder::add_field_to_data_view(
-                                                    &packed_file_decoder,
-                                                    &packed_file_data_encoded.borrow(),
-                                                    &table_definition.borrow(),
-                                                    &packed_file_decoder.field_name_entry.get_buffer().get_text(),
-                                                    FieldType::OptionalStringU8,
-                                                    packed_file_decoder.is_key_field_switch.get_active(),
-                                                    &None,
-                                                    &String::new(),
-                                                    *index_data_copy,
-                                                    None
-                                                );
-
-                                                PackedFileDBDecoder::update_decoder_view(
-                                                    &packed_file_decoder,
-                                                    &packed_file_data_encoded.borrow(),
-                                                    None,
-                                                    *index_data.borrow(),
-                                                );
-                                                packed_file_decoder.delete_all_fields_button.set_sensitive(true);
-
-                                                Inhibit(false)
-                                            }));
-
-                                            packed_file_decoder.use_optional_string_u16_button.connect_button_release_event(clone!(
-                                                table_definition,
-                                                index_data,
-                                                packed_file_data_encoded,
-                                                packed_file_decoder => move |_ ,_|{
-
-                                                // We are going to check if this is valid when adding the field to the TreeView, so we just add it.
-                                                let index_data_copy = index_data.borrow();
-                                                *index_data.borrow_mut() = PackedFileDBDecoder::add_field_to_data_view(
-                                                    &packed_file_decoder,
-                                                    &packed_file_data_encoded.borrow(),
-                                                    &table_definition.borrow(),
-                                                    &packed_file_decoder.field_name_entry.get_buffer().get_text(),
-                                                    FieldType::OptionalStringU16,
-                                                    packed_file_decoder.is_key_field_switch.get_active(),
-                                                    &None,
-                                                    &String::new(),
-                                                    *index_data_copy,
-                                                    None
-                                                );
-
-                                                PackedFileDBDecoder::update_decoder_view(
-                                                    &packed_file_decoder,
-                                                    &packed_file_data_encoded.borrow(),
-                                                    None,
-                                                    *index_data.borrow(),
-                                                );
-                                                packed_file_decoder.delete_all_fields_button.set_sensitive(true);
-
-                                                Inhibit(false)
-                                            }));
-
-                                            // When we press the "Delete all fields" button, we remove all fields from the field list,
-                                            // we reset the index_data, disable de deletion buttons and update the ui, effectively
-                                            // resetting the entire decoder to a blank state.
-                                            packed_file_decoder.delete_all_fields_button.connect_button_release_event(clone!(
-                                                index_data,
-                                                packed_file_data_encoded,
-                                                packed_file_decoder => move |delete_all_fields_button ,_|{
-                                                    packed_file_decoder.fields_list_store.clear();
-                                                    *index_data.borrow_mut() = initial_index;
-
-                                                    delete_all_fields_button.set_sensitive(false);
-
-                                                    PackedFileDBDecoder::update_decoder_view(
-                                                        &packed_file_decoder,
-                                                        &packed_file_data_encoded.borrow(),
-                                                        None,
-                                                        *index_data.borrow(),
-                                                    );
-                                                Inhibit(false)
-                                            }));
-
-                                            // This allow us to remove a field from the list, using the decoder_delete_row action.
-                                            decoder_delete_row.connect_activate(clone!(
-                                                initial_index,
-                                                index_data,
-                                                packed_file_data_encoded,
-                                                packed_file_decoder => move |_,_| {
-
-                                                // We only do something in case the focus is in the TreeView or in any of the moving buttons. This should stop problems with
-                                                // the accels working everywhere.
-                                                if packed_file_decoder.fields_tree_view.has_focus() || packed_file_decoder.move_up_button.has_focus() || packed_file_decoder.move_down_button.has_focus() {
-                                                    if let Some(selection) = packed_file_decoder.fields_tree_view.get_selection().get_selected() {
-                                                        packed_file_decoder.fields_list_store.remove(&selection.1);
-                                                    }
-                                                    *index_data.borrow_mut() = update_first_row_decoded(&packed_file_data_encoded.borrow(), &packed_file_decoder.fields_list_store, &initial_index, &packed_file_decoder);
-                                                }
-                                            }));
-
-                                            // This saves the schema to a file. It takes the "table_definition" we had for this version of our table, and put
-                                            // in it all the fields we have in the fields tree_view.
-                                            packed_file_decoder.save_decoded_schema.connect_button_release_event(clone!(
-                                                schema,
-                                                table_definition,
-                                                tree_path,
-                                                error_dialog,
-                                                success_dialog,
-                                                packed_file_decoder => move |_ ,_|{
-
-                                                    // We get the index of our table's definitions. In case we find it, we just return it. If it's not
-                                                    // the case, then we create a new table's definitions and return his index. To know if we didn't found
-                                                    // an index, we just return -1 as index.
-                                                    let mut table_definitions_index = match schema.borrow().get_table_definitions(&*tree_path[1]) {
-                                                        Some(table_definitions_index) => table_definitions_index as i32,
-                                                        None => -1i32,
-                                                    };
-
-                                                    if table_definitions_index == -1 {
-                                                        schema.borrow_mut().add_table_definitions(TableDefinitions::new(&packed_file_decoder.table_type_label.get_text().unwrap()));
-                                                        table_definitions_index = schema.borrow().get_table_definitions(&*tree_path[1]).unwrap() as i32;
-                                                    }
-                                                    table_definition.borrow_mut().fields = packed_file_decoder.return_data_from_data_view();
-                                                    schema.borrow_mut().tables_definitions[table_definitions_index as usize].add_table_definition(table_definition.borrow().clone());
-                                                    match Schema::save(&*schema.borrow()) {
-                                                        Ok(_) => ui::show_dialog(&success_dialog, format!("Schema saved successfully.")),
-                                                        Err(error) => ui::show_dialog(&error_dialog, error.cause()),
-                                                    }
-                                                Inhibit(false)
-                                            }));
-
-                                            // This allow us to change a field's data type in the TreeView.
-                                            packed_file_decoder.fields_tree_view_cell_combo.connect_edited(clone!(
-                                                packed_file_decoder => move |_, tree_path, new_value| {
-
-                                                let tree_iter = packed_file_decoder.fields_list_store.get_iter(&tree_path).unwrap();
-                                                packed_file_decoder.fields_list_store.set_value(&tree_iter, 2, &new_value.to_value());
-
-                                            }));
-
-                                            // This allow us to set as "key" a field in the TreeView.
-                                            packed_file_decoder.fields_tree_view_cell_bool.connect_toggled(clone!(
-                                                packed_file_decoder => move |cell, tree_path| {
-
-                                                let tree_iter = packed_file_decoder.fields_list_store.get_iter(&tree_path).unwrap();
-                                                let edited_cell_column = packed_file_decoder.fields_tree_view.get_cursor().1.unwrap().get_sort_column_id() as u32;
-                                                let new_value: bool = packed_file_decoder.fields_list_store.get_value(&tree_iter, edited_cell_column as i32).get().unwrap();
-                                                let new_value_bool = (!new_value).to_value();
-                                                cell.set_active(!new_value);
-                                                packed_file_decoder.fields_list_store.set_value(&tree_iter, edited_cell_column, &new_value_bool);
-                                            }));
-
-                                            // This loop takes care of the interaction with string cells.
-                                            for edited_cell in &packed_file_decoder.fields_tree_view_cell_string {
-                                                edited_cell.connect_edited(clone!(
-                                                    packed_file_decoder => move |_ ,tree_path , new_text| {
-
-                                                    let edited_cell = packed_file_decoder.fields_list_store.get_iter(&tree_path);
-                                                    let edited_cell_column = packed_file_decoder.fields_tree_view.get_cursor().1.unwrap().get_sort_column_id() as u32;
-                                                    packed_file_decoder.fields_list_store.set_value(&edited_cell.unwrap(), edited_cell_column, &new_text.to_value());
-                                                }));
-                                            }
-                                        }
-                                        Err(error) => ui::show_dialog(&error_dialog, error.cause()),
-                                    }
-                                },
-                                Err(error) => ui::show_dialog(&error_dialog, error.cause()),
-                            }
-                            Inhibit(false)
-                        }));
                     }
 
                     // If it's a plain text file, we create a source view and try to get highlighting for
@@ -4570,6 +5231,9 @@ fn build_ui(application: &Application) {
     // This allow us to open a PackFile by "Drag&Drop" it into the folder_tree_view.
     folder_tree_view.connect_drag_data_received(clone!(
         window,
+        settings,
+        schema,
+        game_selected,
         error_dialog,
         pack_file_decoded,
         folder_tree_store,
@@ -4577,7 +5241,10 @@ fn build_ui(application: &Application) {
         menu_bar_save_packfile,
         menu_bar_save_packfile_as,
         menu_bar_change_packfile_type,
-        menu_bar_patch_siege_ai,
+        menu_bar_generate_dependency_pack_wh2,
+        menu_bar_patch_siege_ai_wh2,
+        menu_bar_generate_dependency_pack_wh,
+        menu_bar_patch_siege_ai_wh,
         menu_bar_my_mod_delete,
         menu_bar_my_mod_install,
         menu_bar_my_mod_uninstall => move |_, _, _, _, selection_data, info, _| {
@@ -4622,15 +5289,39 @@ fn build_ui(application: &Application) {
                                     _ => ui::show_dialog(&error_dialog, format_err!("PackFile Type not valid.")),
                                 }
 
+                                // We deactive these menus, and only activate the one corresponding to our game.
+                                menu_bar_generate_dependency_pack_wh2.set_enabled(false);
+                                menu_bar_patch_siege_ai_wh2.set_enabled(false);
+                                menu_bar_generate_dependency_pack_wh.set_enabled(false);
+                                menu_bar_patch_siege_ai_wh.set_enabled(false);
+
+                                // We choose the new GameSelected depending on what the open mod id is.
+                                match &*pack_file_decoded.borrow().pack_file_header.pack_file_id {
+                                    "PFH5" => {
+                                        game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.warhammer_2);
+                                        menu_bar_generate_dependency_pack_wh2.set_enabled(true);
+                                        menu_bar_patch_siege_ai_wh2.set_enabled(true);
+                                        menu_bar_change_game_selected.change_state(&"warhammer-2".to_variant());
+                                    },
+                                    "PFH4" | _ => {
+                                        game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.warhammer_2);
+                                        menu_bar_generate_dependency_pack_wh.set_enabled(true);
+                                        menu_bar_patch_siege_ai_wh.set_enabled(true);
+                                        menu_bar_change_game_selected.change_state(&"warhammer".to_variant());
+                                    },
+                                }
+
                                 menu_bar_save_packfile.set_enabled(true);
                                 menu_bar_save_packfile_as.set_enabled(true);
                                 menu_bar_change_packfile_type.set_enabled(true);
-                                menu_bar_patch_siege_ai.set_enabled(true);
 
                                 // Disable the controls for "MyMod".
                                 menu_bar_my_mod_delete.set_enabled(false);
                                 menu_bar_my_mod_install.set_enabled(false);
                                 menu_bar_my_mod_uninstall.set_enabled(false);
+
+                                // Try to load the Schema for this PackFile's game.
+                                *schema.borrow_mut() = Schema::load(&*pack_file_decoded.borrow().pack_file_header.pack_file_id).ok();
                             }
                             Err(error) => ui::show_dialog(&error_dialog, error.cause()),
                         }
@@ -4834,6 +5525,80 @@ fn check_my_mod_new_mod_validity(new_mod_stuff: &MyModNewWindow, settings: &Sett
 
         // And return false.
         false
+    }
+}
+
+/// This function checks if there is any newer version of RPFM released. If the dialog is None, it'll
+/// show the result in the status bar.
+fn check_updates(check_updates_dialog: Option<&MessageDialog>, status_bar: &Statusbar) {
+
+    // Create new client with API base URL
+    let mut client = RestClient::new("https://api.github.com").unwrap();
+    client.set_header_raw("User-Agent", "Mozilla/5.0 (X11; Linux x86_64; rv:59.0) Gecko/20100101 Firefox/59.0");
+
+    // If we got a dialog, use it.
+    if let Some(check_updates_dialog) = check_updates_dialog {
+
+        // GET http://httpbin.org/anything and deserialize the result automatically
+        match client.get(()) {
+            Ok(last_release) => {
+
+                let last_release: LastestRelease = last_release;
+
+                // All this depends on the fact that the releases are called "vX.X.X". We only compare
+                // numbers here, so we remove everything else.
+                let mut last_version = last_release.name.to_owned();
+                last_version.remove(0);
+                last_version.split_off(5);
+                if last_version != VERSION {
+                    check_updates_dialog.set_property_text(Some(&format!("New update found: {}", last_release.name)));
+                    check_updates_dialog.set_property_secondary_text(Some(&format!("Download available here:\n<a href=\"{}\">{}</a>\n\nChanges:\n{}", last_release.html_url, last_release.html_url, last_release.body)));
+                }
+                else {
+                    check_updates_dialog.set_property_text(Some(&format!("No new updates available")));
+                    check_updates_dialog.set_property_secondary_text(Some(&format!("More luck next time :)")));
+                }
+            }
+            Err(_) => {
+                check_updates_dialog.set_property_text(Some(&format!("Error checking new updates")));
+                check_updates_dialog.set_property_secondary_text(Some(&format!("Mmmm if this happends, there has been a problem with your connection to the Github.com server.\n\nPlease, make sure you can access to <a href=\"https:\\\\api.github.com\">https:\\\\api.github.com</a>")));
+            }
+        }
+        check_updates_dialog.run();
+        check_updates_dialog.hide_on_delete();
+    }
+
+    // If there is no dialog, use the status bar to display the result.
+    else {
+
+        // GET http://httpbin.org/anything and deserialize the result automatically
+        match client.get(()) {
+            Ok(last_release) => {
+
+                let last_release: LastestRelease = last_release;
+
+                // All this depends on the fact that the releases are called "vX.X.X". We only compare
+                // numbers here, so we remove everything else.
+                let mut last_version = last_release.name.to_owned();
+                last_version.remove(0);
+                last_version.split_off(5);
+                if last_version != VERSION {
+                    let message = &*format!("New update found. Check \"About/About\" for a link to the download.");
+                    let context_id = status_bar.get_context_id(message);
+                    status_bar.push(context_id, message);
+                }
+                else {
+                    let message = &*format!("No new updates available.");
+                    let context_id = status_bar.get_context_id(message);
+                    status_bar.push(context_id, message);
+                }
+            }
+            Err(_) => {
+                let message = &*format!("Error checking new updates.");
+                let context_id = status_bar.get_context_id(message);
+                status_bar.push(context_id, message);
+            }
+        }
     }
 }
 

@@ -103,14 +103,59 @@
 
             </submenu>
             <submenu>
+                <attribute name="label" translatable="yes">_Game Selected</attribute>
+                <section>
+                    <item>
+                        <attribute name="label" translatable="yes">_Warhammer 2</attribute>
+                        <attribute name="action">app.change-game-selected</attribute>
+                        <attribute name="target">warhammer-2</attribute>
+                    </item>
+                    <item>
+                        <attribute name="label" translatable="yes">War_hammer</attribute>
+                        <attribute name="action">app.change-game-selected</attribute>
+                        <attribute name="target">warhammer</attribute>
+                    </item>
+                    <!--
+                    <item>
+                        <attribute name="label" translatable="yes">_Atila</attribute>
+                        <attribute name="action">app.change-packfile-type</attribute>
+                        <attribute name="target">patch</attribute>
+                    </item>
+                    <item>
+                        <attribute name="label" translatable="yes">_Rome 2</attribute>
+                        <attribute name="action">app.change-packfile-type</attribute>
+                        <attribute name="target">mod</attribute>
+                    </item>
+                -->
+                </section>
+            </submenu>
+            <submenu>
                 <attribute name="label" translatable="yes">_Special Stuff</attribute>
                 <section>
                     <submenu>
                         <attribute name="label" translatable="yes">_Warhammer 2</attribute>
                         <section>
                             <item>
+                                <attribute name="label" translatable="yes">_Generate Dependency Pack</attribute>
+                                <attribute name="action">app.generate-dependency-pack-wh2</attribute>
+                            </item>
+                            <item>
                                 <attribute name="label" translatable="yes">_Patch SiegeAI</attribute>
-                                <attribute name="action">app.patch-siege-ai</attribute>
+                                <attribute name="action">app.patch-siege-ai-wh2</attribute>
+                            </item>
+                        </section>
+                    </submenu>
+
+                    <submenu>
+                        <attribute name="label" translatable="yes">War_hammer</attribute>
+                        <section>
+                            <item>
+                                <attribute name="label" translatable="yes">_Generate Dependency Pack</attribute>
+                                <attribute name="action">app.generate-dependency-pack-wh</attribute>
+                            </item>
+                            <item>
+                                <attribute name="label" translatable="yes">_Patch SiegeAI</attribute>
+                                <attribute name="action">app.patch-siege-ai-wh</attribute>
                             </item>
                         </section>
                     </submenu>
@@ -121,6 +166,10 @@
                 <item>
                     <attribute name="label" translatable="yes">_Shortcuts</attribute>
                     <attribute name="action">win.show-help-overlay</attribute>
+                </item>
+                <item>
+                    <attribute name="label" translatable="yes">_Check Updates</attribute>
+                    <attribute name="action">app.check-updates</attribute>
                 </item>
                 <item>
                     <attribute name="label" translatable="yes">_About</attribute>

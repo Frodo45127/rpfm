@@ -1,5 +1,6 @@
 /.idea/
 /target/
+/dependency_packs/
 **/*.rs.bk
 .directory
 Cargo.lock

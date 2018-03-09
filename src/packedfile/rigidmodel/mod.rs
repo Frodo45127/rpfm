@@ -120,7 +120,10 @@ impl RigidModelHeader {
             Err(error) => return Err(error)
         }
 
-        packed_file_header.packed_file_data_base_skeleton = coding_helpers::decode_string_u8_0padded(&packed_file_data[12..140]);
+        match coding_helpers::decode_string_u8_0padded(&packed_file_data[12..140]) {
+            Ok(data) => packed_file_header.packed_file_data_base_skeleton = data,
+            Err(error) => return Err(error)
+        }
         Ok(packed_file_header)
     }
 
@@ -221,7 +224,7 @@ impl RigidModelLodHeader {
             Ok(data) => header.start_offset = data,
             Err(error) => return Err(error)
         }
-        match coding_helpers::decode_float_u32(&packed_file_data[16..20]) {
+        match coding_helpers::decode_float_f32(&packed_file_data[16..20]) {
             Ok(data) => header.lod_zoom_factor = data,
             Err(error) => return Err(error)
         }
@@ -250,7 +253,7 @@ impl RigidModelLodHeader {
         let mut vertex_data_length = coding_helpers::encode_integer_u32(rigid_model_lod.vertices_data_length);
         let mut index_data_length = coding_helpers::encode_integer_u32(rigid_model_lod.indices_data_length);
         let mut start_offset = coding_helpers::encode_integer_u32(rigid_model_lod.start_offset);
-        let mut lod_zoom_factor = coding_helpers::encode_float_u32(rigid_model_lod.lod_zoom_factor);
+        let mut lod_zoom_factor = coding_helpers::encode_float_f32(rigid_model_lod.lod_zoom_factor);
 
         let mysterious_data_1 = match rigid_model_lod.mysterious_data_1 {
             Some(data) => Some(data),

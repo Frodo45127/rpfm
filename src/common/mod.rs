@@ -12,6 +12,10 @@ use packfile::packfile::PackFile;
 
 pub mod coding_helpers;
 
+// This tells the compiler to only compile this mod when testing... I think.
+#[cfg(test)]
+pub mod tests;
+
 /// This enum has the different types of selected items in a TreeView.
 #[derive(Clone, Debug)]
 pub enum TreePathType {

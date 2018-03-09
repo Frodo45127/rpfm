@@ -20,6 +20,8 @@ pub struct SettingsWindow {
     pub settings_path_my_mod_button: Button,
     pub settings_path_warhammer_2_entry: Entry,
     pub settings_path_warhammer_2_button: Button,
+    pub settings_path_warhammer_entry: Entry,
+    pub settings_path_warhammer_button: Button,
     pub settings_game_list_combo: ComboBoxText,
     pub settings_cancel: Button,
     pub settings_accept: Button,
@@ -63,21 +65,28 @@ impl SettingsWindow {
         let paths_big_boxx = Box::new(Orientation::Vertical, 0);
         let path_my_mod_box = Box::new(Orientation::Horizontal, 0);
         let path_warhammer_2_box = Box::new(Orientation::Horizontal, 0);
+        let path_warhammer_box = Box::new(Orientation::Horizontal, 0);
         path_my_mod_box.set_border_width(4);
         path_warhammer_2_box.set_border_width(4);
+        path_warhammer_box.set_border_width(4);
 
         let my_mod_label = Label::new(Some("My mod's folder"));
         let warhammer_2_label = Label::new(Some("TW: Warhammer 2 folder"));
+        let warhammer_label = Label::new(Some("TW: Warhammer folder"));
         my_mod_label.set_size_request(170, 0);
         my_mod_label.set_alignment(0.0, 0.5);
         warhammer_2_label.set_size_request(170, 0);
         warhammer_2_label.set_alignment(0.0, 0.5);
+        warhammer_label.set_size_request(170, 0);
+        warhammer_label.set_alignment(0.0, 0.5);
 
         let my_mod_entry = Entry::new();
         let warhammer_2_entry = Entry::new();
+        let warhammer_entry = Entry::new();
 
         let my_mod_button = Button::new_with_label("...");
         let warhammer_2_button = Button::new_with_label("...");
+        let warhammer_button = Button::new_with_label("...");
 
         let settings_big_boxx = Box::new(Orientation::Vertical, 0);
         let default_game_box = Box::new(Orientation::Horizontal, 0);
@@ -86,7 +95,7 @@ impl SettingsWindow {
         let default_game_label = Label::new(Some("Default Game Selected:"));
         let game_list_combo = ComboBoxText::new();
         game_list_combo.append(None, "Warhammer 2");
-        //game_list_combo.append(None, "Warhammer");
+        game_list_combo.append(None, "Warhammer");
         //game_list_combo.append(None, "Attila");
         //game_list_combo.append(None, "Rome 2");
 
@@ -109,8 +118,13 @@ impl SettingsWindow {
         path_warhammer_2_box.pack_start(&warhammer_2_entry, true, true, 0);
         path_warhammer_2_box.pack_end(&warhammer_2_button, false, false, 0);
 
+        path_warhammer_box.pack_start(&warhammer_label, false, false, 0);
+        path_warhammer_box.pack_start(&warhammer_entry, true, true, 0);
+        path_warhammer_box.pack_end(&warhammer_button, false, false, 0);
+
         paths_big_boxx.pack_start(&path_my_mod_box, false, false, 0);
         paths_big_boxx.pack_start(&path_warhammer_2_box, false, false, 0);
+        paths_big_boxx.pack_start(&path_warhammer_box, false, false, 0);
 
         paths_frame.add(&paths_big_boxx);
 
@@ -139,6 +153,8 @@ impl SettingsWindow {
             settings_path_my_mod_button: my_mod_button,
             settings_path_warhammer_2_entry: warhammer_2_entry,
             settings_path_warhammer_2_button: warhammer_2_button,
+            settings_path_warhammer_entry: warhammer_entry,
+            settings_path_warhammer_button: warhammer_button,
             settings_game_list_combo: game_list_combo,
             settings_cancel: cancel_button,
             settings_accept: accept_button,
@@ -163,6 +179,9 @@ impl SettingsWindow {
         if let Some(ref path) = settings.paths.warhammer_2 {
             self.settings_path_warhammer_2_entry.get_buffer().set_text(&path.to_string_lossy());
         }
+        if let Some(ref path) = settings.paths.warhammer {
+            self.settings_path_warhammer_entry.get_buffer().set_text(&path.to_string_lossy());
+        }
     }
 
     /// This function gets the data from the settings window and returns a Settings object with that
@@ -186,6 +205,9 @@ impl SettingsWindow {
         }
         if Path::new(&self.settings_path_warhammer_2_entry.get_buffer().get_text()).is_dir() {
             settings.paths.warhammer_2 = Some(PathBuf::from(&self.settings_path_warhammer_2_entry.get_buffer().get_text()));
+        }
+        if Path::new(&self.settings_path_warhammer_entry.get_buffer().get_text()).is_dir() {
+            settings.paths.warhammer = Some(PathBuf::from(&self.settings_path_warhammer_entry.get_buffer().get_text()));
         }
         settings
     }
@@ -232,9 +254,9 @@ impl MyModNewWindow {
 
         let selected_game_list_combo = ComboBoxText::new();
         selected_game_list_combo.append(None, "Warhammer 2");
-        //game_list_combo.append(None, "Warhammer");
-        //game_list_combo.append(None, "Attila");
-        //game_list_combo.append(None, "Rome 2");
+        selected_game_list_combo.append(None, "Warhammer");
+        //selected_game_list_combo.append(None, "Attila");
+        //selected_game_list_combo.append(None, "Rome 2");
         selected_game_list_combo.set_active(0);
 
         let mod_name_box = Box::new(Orientation::Horizontal, 0);

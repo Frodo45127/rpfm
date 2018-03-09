@@ -17,7 +17,6 @@ use super::schemas_importer;
 /// - tables_definition: the actual definitions.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Schema {
-    pub game: String,
     pub version: u32,
     pub tables_definitions: Vec<TableDefinitions>,
 }
@@ -72,12 +71,11 @@ impl Schema {
 
     /// This function creates a new schema. It should only be needed to create the first table definition
     /// of a game, as the rest will continue using the same schema.
-    pub fn new(game: String) -> Schema {
+    pub fn new() -> Schema {
         let version = 1u32;
         let tables_definitions = vec![];
 
         Schema {
-            game,
             version,
             tables_definitions,
         }
@@ -117,16 +115,30 @@ impl Schema {
     }
 
     /// This function takes an schema file and reads it into a "Schema" object.
-    pub fn load() -> Result<Schema, Error> {
-        let schema_file = File::open("schemas/schema_wh2.json")?;
+    pub fn load(packfile_id: &str) -> Result<Schema, Error> {
+
+        // We use the PackFile ID to load the right schema:
+        // - PFH5 -> warhammer 2.
+        // - PFH4 -> warhammer.
+        let schema_file = match packfile_id {
+            "PFH5" => File::open("schemas/schema_wh2.json")?,
+            "PFH4" => File::open("schemas/schema_wh.json")?,
+            _ => return Err(format_err!("Error while loading schema:\nPackFile ID unknown."))
+        };
+
         let schema = serde_json::from_reader(schema_file)?;
         Ok(schema)
     }
 
     /// This function takes an "Schema" object and saves it into a schema file.
-    pub fn save(schema: &Schema) -> Result<(), Error> {
+    pub fn save(schema: &Schema, packfile_id: &str) -> Result<(), Error> {
         let schema_json = serde_json::to_string_pretty(schema);
-        match File::create(PathBuf::from("schemas/schema_wh2.json")) {
+        let schema_file = match packfile_id {
+            "PFH5" => "schemas/schema_wh2.json",
+            "PFH4" => "schemas/schema_wh.json",
+            _ => return Err(format_err!("Error while loading schema:\nPackFile ID unknown."))
+        };
+        match File::create(PathBuf::from(schema_file)) {
             Ok(mut file) => {
                 match file.write_all(schema_json.unwrap().as_bytes()) {
                     Ok(_) => Ok(()),
@@ -228,28 +240,7 @@ impl TableDefinition {
                 field.name == "on_screen_target" {
                 continue;
             }
-
-            // We need to fix the names here, so the column names are not broken.
-            let mut new_name: String = String::new();
-            let mut should_be_uppercase = false;
-            for character in field.name.to_owned().chars() {
-                let new_character: char;
-                if new_name.is_empty() || should_be_uppercase {
-                    new_character = character.to_uppercase().to_string().chars().nth(0).unwrap();
-                    should_be_uppercase = false;
-                }
-                else if character == "_".chars().nth(0).unwrap() {
-                    new_character = " ".chars().nth(0).unwrap();
-                    should_be_uppercase = true;
-                }
-                else {
-                    new_character = character;
-                    should_be_uppercase = false;
-                }
-                new_name.push(new_character);
-            }
-            let field_name = new_name;
-
+            let field_name = field.name.to_owned();
             let field_is_key = field.primary_key == "1";
             let field_is_reference = if field.column_source_table != None {
                 Some((field.column_source_table.clone().unwrap().to_owned(), field.column_source_column.clone().unwrap()[0].to_owned()))

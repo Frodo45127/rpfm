@@ -7,6 +7,7 @@ extern crate failure;
 
 use packedfile::db::*;
 use packedfile::db::schemas::*;
+use packfile::packfile::PackedFile;
 use common::coding_helpers;
 use failure::Error;
 use gtk::prelude::*;
@@ -30,6 +31,7 @@ pub struct PackedFileDBTreeView {
     pub packed_file_tree_view_cell_long_integer: Vec<CellRendererText>,
     pub packed_file_tree_view_cell_string: Vec<CellRendererText>,
     pub packed_file_tree_view_cell_optional_string: Vec<CellRendererText>,
+    pub packed_file_tree_view_cell_reference: Vec<CellRendererCombo>,
     pub packed_file_popover_menu: Popover,
     pub packed_file_popover_menu_add_rows_entry: Entry,
 }
@@ -61,6 +63,10 @@ pub struct PackedFileDBDecoder {
     pub use_optional_string_u16_button: Button,
     pub fields_tree_view: TreeView,
     pub fields_list_store: ListStore,
+    pub all_table_versions_tree_view: TreeView,
+    pub all_table_versions_list_store: ListStore,
+    pub all_table_versions_load_definition: Button,
+    pub all_table_versions_remove_definition: Button,
     pub field_name_entry: Entry,
     pub is_key_field_switch: Switch,
     pub save_decoded_schema: Button,
@@ -80,7 +86,10 @@ impl PackedFileDBTreeView{
     /// PackedFileDBTreeView with all his data.
     pub fn create_tree_view(
         packed_file_data_display: &Box,
-        packed_file_decoded: &::packedfile::db::DB
+        packed_file_decoded: &DB,
+        dependency_database: Option<Vec<PackedFile>>,
+        local_dependency_database: &[PackedFile],
+        master_schema: &Schema
     ) -> Result<PackedFileDBTreeView, Error> {
 
         // First, we create the Vec<Type> we are going to use to create the TreeView, based on the structure
@@ -115,6 +124,8 @@ impl PackedFileDBTreeView{
 
         packed_file_tree_view.set_model(Some(&packed_file_list_store));
         packed_file_tree_view.set_grid_lines(gtk::TreeViewGridLines::Both);
+        packed_file_tree_view.set_rubber_banding(true);
+        packed_file_tree_view.set_margin_bottom(10);
 
         // Now we create the columns we need for this specific table. Always with an index column first.
         let cell_index = CellRendererText::new();
@@ -136,10 +147,32 @@ impl PackedFileDBTreeView{
         let mut packed_file_tree_view_cell_long_integer = vec![];
         let mut packed_file_tree_view_cell_string = vec![];
         let mut packed_file_tree_view_cell_optional_string = vec![];
+        let mut packed_file_tree_view_cell_reference: Vec<CellRendererCombo> = vec![];
 
         let mut index = 1;
         let mut key_columns = vec![];
         for field in &packed_file_table_definition.fields {
+
+            // We need to fix the names here, so the column names are not broken.
+            let mut new_name: String = String::new();
+            let mut should_be_uppercase = false;
+            for character in field.field_name.to_owned().chars() {
+                let new_character: char;
+                if new_name.is_empty() || should_be_uppercase {
+                    new_character = character.to_uppercase().to_string().chars().nth(0).unwrap();
+                    should_be_uppercase = false;
+                }
+                else if character == "_".chars().nth(0).unwrap() {
+                    new_character = " ".chars().nth(0).unwrap();
+                    should_be_uppercase = true;
+                }
+                else {
+                    new_character = character;
+                    should_be_uppercase = false;
+                }
+                new_name.push(new_character);
+            }
+            let field_name = new_name;
 
             // These are the specific declarations of the columns for every type implemented.
             match field.field_type {
@@ -147,7 +180,7 @@ impl PackedFileDBTreeView{
                     let cell_bool = CellRendererToggle::new();
                     cell_bool.set_activatable(true);
                     let column_bool = TreeViewColumn::new();
-                    column_bool.set_title(&field.field_name);
+                    column_bool.set_title(&field_name);
                     column_bool.set_clickable(true);
                     column_bool.set_min_width(50);
                     column_bool.set_sizing(gtk::TreeViewColumnSizing::GrowOnly);
@@ -167,7 +200,7 @@ impl PackedFileDBTreeView{
                     cell_float.set_property_xalign(1.0);
                     cell_float.set_property_placeholder_text(Some("Float (2.54, 3.21, 6.8765,..)"));
                     let column_float = TreeViewColumn::new();
-                    column_float.set_title(&field.field_name);
+                    column_float.set_title(&field_name);
                     column_float.set_clickable(true);
                     column_float.set_resizable(true);
                     column_float.set_min_width(50);
@@ -188,7 +221,7 @@ impl PackedFileDBTreeView{
                     cell_int.set_property_xalign(1.0);
                     cell_int.set_property_placeholder_text(Some("Integer (2, 3, 6,..)"));
                     let column_int = TreeViewColumn::new();
-                    column_int.set_title(&field.field_name);
+                    column_int.set_title(&field_name);
                     column_int.set_clickable(true);
                     column_int.set_resizable(true);
                     column_int.set_min_width(50);
@@ -209,7 +242,7 @@ impl PackedFileDBTreeView{
                     cell_long_int.set_property_xalign(1.0);
                     cell_long_int.set_property_placeholder_text(Some("Long Integer (2, 3, 6,..)"));
                     let column_long_int = TreeViewColumn::new();
-                    column_long_int.set_title(&field.field_name);
+                    column_long_int.set_title(&field_name);
                     column_long_int.set_clickable(true);
                     column_long_int.set_resizable(true);
                     column_long_int.set_min_width(50);
@@ -225,43 +258,311 @@ impl PackedFileDBTreeView{
                     }
                 }
                 FieldType::StringU8 | FieldType::StringU16 => {
-                    let cell_string = CellRendererText::new();
-                    cell_string.set_property_editable(true);
-                    cell_string.set_property_placeholder_text(Some("Obligatory String"));
-                    let column_string = TreeViewColumn::new();
-                    column_string.set_title(&field.field_name);
-                    column_string.set_clickable(true);
-                    column_string.set_resizable(true);
-                    column_string.set_min_width(50);
-                    column_string.set_sizing(gtk::TreeViewColumnSizing::GrowOnly);
-                    column_string.set_alignment(0.5);
-                    column_string.set_sort_column_id(index);
-                    column_string.pack_start(&cell_string, true);
-                    column_string.add_attribute(&cell_string, "text", index);
-                    packed_file_tree_view.append_column(&column_string);
-                    packed_file_tree_view_cell_string.push(cell_string);
-                    if field.field_is_key {
-                        key_columns.push(column_string);
+
+                    // Check for references.
+                    match field.field_is_reference {
+
+                        // If it's a reference, use a combo with all unique values of it's original column.
+                        Some(ref origin) => {
+                            let mut origin_combo_data = vec![];
+
+                            // If we have a database to check for refs...
+                            if let Some(ref dependency_database) = dependency_database {
+
+                                // For each table in the database...
+                                for table in dependency_database {
+
+                                    // If it's our original table...
+                                    if table.packed_file_path[1] == format!("{}_tables", origin.0) {
+                                        if let Ok(db) = DB::read(&table.packed_file_data, &*table.packed_file_path[1], master_schema) {
+
+                                            // For each column in our original table...
+                                            for (index, original_field) in db.packed_file_data.table_definition.fields.iter().enumerate() {
+
+                                                // If it's our column...
+                                                if original_field.field_name == origin.1.to_owned() {
+
+                                                    // Get it's position + 1 to compensate for the index.
+                                                    for row in &db.packed_file_data.packed_file_data {
+                                                        match row[index + 1] {
+                                                            DecodedData::StringU8(ref data) | DecodedData::StringU16(ref data) => origin_combo_data.push(data.to_owned()),
+                                                            _ => {},
+                                                        };
+
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // For each table in our mod...
+                                for table in local_dependency_database {
+
+                                    // If it's our original table...
+                                    if table.packed_file_path[1] == format!("{}_tables", origin.0) {
+                                        if let Ok(db) = DB::read(&table.packed_file_data, &*table.packed_file_path[1], master_schema) {
+
+                                            // For each column in our original table...
+                                            for (index, original_field) in db.packed_file_data.table_definition.fields.iter().enumerate() {
+
+                                                // If it's our column...
+                                                if original_field.field_name == origin.1.to_owned() {
+
+                                                    // Get it's position + 1 to compensate for the index.
+                                                    for row in &db.packed_file_data.packed_file_data {
+                                                        match row[index + 1] {
+                                                            DecodedData::StringU8(ref data) | DecodedData::StringU16(ref data) => {
+
+                                                                // If the data is not already in the combo, we add it.
+                                                                let mut exists = false;
+                                                                for i in &origin_combo_data {
+                                                                    if i == data {
+                                                                        exists = true;
+                                                                        break;
+                                                                    }
+                                                                }
+                                                                if !exists {
+                                                                    origin_combo_data.push(data.to_owned());
+                                                                }
+                                                            }
+                                                            _ => {},
+                                                        };
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // If we have at least one thing in the list for the combo...
+                            if !origin_combo_data.is_empty() {
+
+                                let cell_string_list_store = ListStore::new(&[String::static_type()]);
+                                for row in &origin_combo_data {
+                                    cell_string_list_store.insert_with_values(None, &[0], &[&row]);
+                                }
+
+                                let column_string = TreeViewColumn::new();
+                                let cell_string = CellRendererCombo::new();
+                                cell_string.set_property_editable(true);
+                                cell_string.set_property_model(Some(&cell_string_list_store));
+                                cell_string.set_property_text_column(0);
+                                column_string.set_title(&field_name);
+                                column_string.set_clickable(true);
+                                column_string.set_resizable(true);
+                                column_string.set_min_width(50);
+                                column_string.set_sizing(gtk::TreeViewColumnSizing::GrowOnly);
+                                column_string.set_alignment(0.5);
+                                column_string.set_sort_column_id(index);
+                                column_string.pack_start(&cell_string, true);
+                                column_string.add_attribute(&cell_string, "text", index);
+                                packed_file_tree_view.append_column(&column_string);
+                                packed_file_tree_view_cell_reference.push(cell_string);
+                                if field.field_is_key {
+                                    key_columns.push(column_string);
+                                }
+                            }
+
+                            // Otherwise, we fallback to the usual method.
+                            else {
+                                let cell_string = CellRendererText::new();
+                                cell_string.set_property_editable(true);
+                                cell_string.set_property_placeholder_text(Some("Obligatory String"));
+                                let column_string = TreeViewColumn::new();
+                                column_string.set_title(&field_name);
+                                column_string.set_clickable(true);
+                                column_string.set_resizable(true);
+                                column_string.set_min_width(50);
+                                column_string.set_sizing(gtk::TreeViewColumnSizing::GrowOnly);
+                                column_string.set_alignment(0.5);
+                                column_string.set_sort_column_id(index);
+                                column_string.pack_start(&cell_string, true);
+                                column_string.add_attribute(&cell_string, "text", index);
+                                packed_file_tree_view.append_column(&column_string);
+                                packed_file_tree_view_cell_string.push(cell_string);
+                                if field.field_is_key {
+                                    key_columns.push(column_string);
+                                }
+                            }
+                        },
+
+                        // If it's not a reference, keep the normal behavior.
+                        None => {
+                            let cell_string = CellRendererText::new();
+                            cell_string.set_property_editable(true);
+                            cell_string.set_property_placeholder_text(Some("Obligatory String"));
+                            let column_string = TreeViewColumn::new();
+                            column_string.set_title(&field_name);
+                            column_string.set_clickable(true);
+                            column_string.set_resizable(true);
+                            column_string.set_min_width(50);
+                            column_string.set_sizing(gtk::TreeViewColumnSizing::GrowOnly);
+                            column_string.set_alignment(0.5);
+                            column_string.set_sort_column_id(index);
+                            column_string.pack_start(&cell_string, true);
+                            column_string.add_attribute(&cell_string, "text", index);
+                            packed_file_tree_view.append_column(&column_string);
+                            packed_file_tree_view_cell_string.push(cell_string);
+                            if field.field_is_key {
+                                key_columns.push(column_string);
+                            }
+                        }
                     }
                 }
                 FieldType::OptionalStringU8 | FieldType::OptionalStringU16 => {
-                    let cell_optional_string = CellRendererText::new();
-                    cell_optional_string.set_property_editable(true);
-                    cell_optional_string.set_property_placeholder_text(Some("Optional String"));
-                    let column_optional_string = TreeViewColumn::new();
-                    column_optional_string.set_title(&field.field_name);
-                    column_optional_string.set_clickable(true);
-                    column_optional_string.set_resizable(true);
-                    column_optional_string.set_min_width(50);
-                    column_optional_string.set_sizing(gtk::TreeViewColumnSizing::GrowOnly);
-                    column_optional_string.set_alignment(0.5);
-                    column_optional_string.set_sort_column_id(index);
-                    column_optional_string.pack_start(&cell_optional_string, true);
-                    column_optional_string.add_attribute(&cell_optional_string, "text", index);
-                    packed_file_tree_view.append_column(&column_optional_string);
-                    packed_file_tree_view_cell_optional_string.push(cell_optional_string);
-                    if field.field_is_key {
-                        key_columns.push(column_optional_string);
+
+                    // Check for references.
+                    match field.field_is_reference {
+
+                        // If it's a reference, use a combo with all unique values of it's original column.
+                        Some(ref origin) => {
+                            let mut origin_combo_data = vec![];
+
+                            // If we have a database to check for refs...
+                            if let Some(ref dependency_database) = dependency_database {
+
+                                // For each table in the database...
+                                for table in dependency_database {
+
+                                    // If it's our original table...
+                                    if table.packed_file_path[1] == format!("{}_tables", origin.0) {
+
+                                        if let Ok(db) = DB::read(&table.packed_file_data, &*table.packed_file_path[1], master_schema) {
+
+                                            // For each column in our original table...
+                                            for (index, original_field) in db.packed_file_data.table_definition.fields.iter().enumerate() {
+
+                                                // If it's our column...
+                                                if original_field.field_name == origin.1.to_owned() {
+
+                                                    // Get it's position + 1 to compensate for the index.
+                                                    for row in &db.packed_file_data.packed_file_data {
+                                                        match row[index + 1] {
+                                                            DecodedData::OptionalStringU8(ref data) | DecodedData::OptionalStringU16(ref data) => origin_combo_data.push(data.to_owned()),
+                                                            _ => {},
+                                                        };
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // For each table in our mod...
+                                for table in local_dependency_database {
+
+                                    // If it's our original table...
+                                    if table.packed_file_path[1] == format!("{}_tables", origin.0) {
+                                        if let Ok(db) = DB::read(&table.packed_file_data, &*table.packed_file_path[1], master_schema) {
+
+                                            // For each column in our original table...
+                                            for (index, original_field) in db.packed_file_data.table_definition.fields.iter().enumerate() {
+
+                                                // If it's our column...
+                                                if original_field.field_name == origin.1.to_owned() {
+
+                                                    // Get it's position + 1 to compensate for the index.
+                                                    for row in &db.packed_file_data.packed_file_data {
+                                                        match row[index + 1] {
+                                                            DecodedData::StringU8(ref data) | DecodedData::StringU16(ref data) => {
+
+                                                                // If the data is not already in the combo, we add it.
+                                                                let mut exists = false;
+                                                                for i in &origin_combo_data {
+                                                                    if i == data {
+                                                                        exists = true;
+                                                                        break;
+                                                                    }
+                                                                }
+                                                                if !exists {
+                                                                    origin_combo_data.push(data.to_owned());
+                                                                }
+                                                            }
+                                                            _ => {},
+                                                        };
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // If we have at least one thing in the list for the combo...
+                            if !origin_combo_data.is_empty() {
+
+                                let cell_string_list_store = ListStore::new(&[String::static_type()]);
+                                for row in &origin_combo_data {
+                                    cell_string_list_store.insert_with_values(None, &[0], &[&row]);
+                                }
+
+                                let column_optional_string = TreeViewColumn::new();
+                                let cell_optional_string = CellRendererCombo::new();
+                                cell_optional_string.set_property_editable(true);
+                                cell_optional_string.set_property_model(Some(&cell_string_list_store));
+                                cell_optional_string.set_property_text_column(0);
+                                column_optional_string.set_title(&field_name);
+                                column_optional_string.set_clickable(true);
+                                column_optional_string.set_resizable(true);
+                                column_optional_string.set_min_width(50);
+                                column_optional_string.set_sizing(gtk::TreeViewColumnSizing::GrowOnly);
+                                column_optional_string.set_alignment(0.5);
+                                column_optional_string.set_sort_column_id(index);
+                                column_optional_string.pack_start(&cell_optional_string, true);
+                                column_optional_string.add_attribute(&cell_optional_string, "text", index);
+                                packed_file_tree_view.append_column(&column_optional_string);
+                                packed_file_tree_view_cell_reference.push(cell_optional_string);
+                                if field.field_is_key {
+                                    key_columns.push(column_optional_string);
+                                }
+                            }
+
+                            // Otherwise, we fallback to the usual method.
+                            else {
+                                let cell_optional_string = CellRendererText::new();
+                                cell_optional_string.set_property_editable(true);
+                                cell_optional_string.set_property_placeholder_text(Some("Optional String"));
+                                let column_optional_string = TreeViewColumn::new();
+                                column_optional_string.set_title(&field_name);
+                                column_optional_string.set_clickable(true);
+                                column_optional_string.set_resizable(true);
+                                column_optional_string.set_min_width(50);
+                                column_optional_string.set_sizing(gtk::TreeViewColumnSizing::GrowOnly);
+                                column_optional_string.set_alignment(0.5);
+                                column_optional_string.set_sort_column_id(index);
+                                column_optional_string.pack_start(&cell_optional_string, true);
+                                column_optional_string.add_attribute(&cell_optional_string, "text", index);
+                                packed_file_tree_view.append_column(&column_optional_string);
+                                packed_file_tree_view_cell_optional_string.push(cell_optional_string);
+                                if field.field_is_key {
+                                    key_columns.push(column_optional_string);
+                                }
+                            }
+                        },
+
+                        // If it's not a reference, keep the normal behavior.
+                        None => {
+                            let cell_optional_string = CellRendererText::new();
+                            cell_optional_string.set_property_editable(true);
+                            cell_optional_string.set_property_placeholder_text(Some("Optional String"));
+                            let column_optional_string = TreeViewColumn::new();
+                            column_optional_string.set_title(&field_name);
+                            column_optional_string.set_clickable(true);
+                            column_optional_string.set_resizable(true);
+                            column_optional_string.set_min_width(50);
+                            column_optional_string.set_sizing(gtk::TreeViewColumnSizing::GrowOnly);
+                            column_optional_string.set_alignment(0.5);
+                            column_optional_string.set_sort_column_id(index);
+                            column_optional_string.pack_start(&cell_optional_string, true);
+                            column_optional_string.add_attribute(&cell_optional_string, "text", index);
+                            packed_file_tree_view.append_column(&column_optional_string);
+                            packed_file_tree_view_cell_optional_string.push(cell_optional_string);
+                            if field.field_is_key {
+                                key_columns.push(column_optional_string);
+                            }
+                        }
                     }
                 }
             }
@@ -293,7 +594,7 @@ impl PackedFileDBTreeView{
 
         let packed_file_popover_menu_box = Box::new(Orientation::Vertical, 0);
         packed_file_popover_menu_box.set_border_width(6);
-        
+
         let packed_file_popover_menu_box_add_rows_box = Box::new(Orientation::Horizontal, 0);
 
         let packed_file_popover_menu_add_rows_button = ModelButton::new();
@@ -360,6 +661,7 @@ impl PackedFileDBTreeView{
             packed_file_tree_view_cell_long_integer,
             packed_file_tree_view_cell_string,
             packed_file_tree_view_cell_optional_string,
+            packed_file_tree_view_cell_reference,
         })
     }
 
@@ -523,6 +825,7 @@ impl PackedFileDBDecoder {
         let fields_tree_view = TreeView::new();
         let fields_list_store = ListStore::new(&[String::static_type(), String::static_type(), String::static_type(), bool::static_type(), String::static_type(), String::static_type(), String::static_type(), String::static_type()]);
         fields_tree_view.set_model(Some(&fields_list_store));
+        fields_tree_view.set_margin_bottom(10);
 
         // This method of reordering crash the program on windows, so we only enable it for Linux.
         if cfg!(target_os = "linux") {
@@ -655,7 +958,7 @@ impl PackedFileDBDecoder {
         fields_tree_view.append_column(&column_decoded);
         fields_tree_view.append_column(&column_description);
 
-
+        // Here we create the TextViews for the different decoding types.
         let bool_box = Box::new(Orientation::Horizontal, 0);
         let float_box = Box::new(Orientation::Horizontal, 0);
         let integer_box = Box::new(Orientation::Horizontal, 0);
@@ -792,6 +1095,31 @@ impl PackedFileDBDecoder {
         let is_key_field_switch = Switch::new();
         let save_decoded_schema = Button::new_with_label("Finish It!");
 
+        // Here we create a little TreeView with all the versions of this table we have, in case we
+        // want to decode it based on another version's definition, to save time.
+        let all_table_versions_tree_view = TreeView::new();
+        let all_table_versions_list_store = ListStore::new(&[u32::static_type()]);
+        all_table_versions_tree_view.set_model(Some(&all_table_versions_list_store));
+
+        let all_table_versions_tree_view_scroll = ScrolledWindow::new(None, None);
+        all_table_versions_tree_view_scroll.add(&all_table_versions_tree_view);
+        all_table_versions_tree_view_scroll.set_size_request(0, 100);
+
+        let column_versions = TreeViewColumn::new();
+        let cell_version = CellRendererText::new();
+        column_versions.pack_start(&cell_version, true);
+        column_versions.add_attribute(&cell_version, "text", 0);
+        column_versions.set_sort_column_id(0);
+        column_versions.set_clickable(false);
+        column_versions.set_title("Versions");
+
+        all_table_versions_tree_view.append_column(&column_versions);
+
+        // Buttons to load and delete the selected version from the schema.
+        let box_definition = Box::new(Orientation::Horizontal, 0);
+        let load_definition = Button::new_with_label("Load");
+        let remove_definition = Button::new_with_label("Remove");
+
         packed_file_field_settings_box_table_type.pack_start(&packed_file_decoded_data_table_type_label, false, false, 2);
         packed_file_field_settings_box_table_type.pack_start(&table_type_label, false, false, 2);
 
@@ -807,6 +1135,9 @@ impl PackedFileDBDecoder {
         field_is_key_box.pack_start(&is_key_field_label, false, false, 6);
         field_is_key_box.pack_end(&is_key_field_switch, false, true, 4);
 
+        box_definition.pack_start(&load_definition, true, true, 4);
+        box_definition.pack_end(&remove_definition, true, true, 4);
+
         packed_file_field_info_frame_box.pack_start(&packed_file_field_settings_box_table_type, false, false, 2);
         packed_file_field_info_frame_box.pack_start(&packed_file_field_settings_box_table_version, false, false, 2);
         packed_file_field_info_frame_box.pack_start(&packed_file_field_settings_box_table_entry_count, false, false, 2);
@@ -815,6 +1146,8 @@ impl PackedFileDBDecoder {
         packed_file_field_settings_box.pack_start(&packed_file_table_info_frame, false, false, 2);
         packed_file_field_settings_box.pack_start(&field_name_box, false, false, 2);
         packed_file_field_settings_box.pack_start(&field_is_key_box, false, false, 2);
+        packed_file_field_settings_box.pack_start(&all_table_versions_tree_view_scroll, false, false, 2);
+        packed_file_field_settings_box.pack_start(&box_definition, false, false, 2);
         packed_file_field_settings_box.pack_end(&save_decoded_schema, false, false, 2);
 
         packed_file_decoded_data_less_bigger_boxx.pack_start(&packed_file_decoded_data_box, true, true, 0);
@@ -855,6 +1188,10 @@ impl PackedFileDBDecoder {
             use_optional_string_u16_button,
             fields_tree_view,
             fields_list_store,
+            all_table_versions_tree_view,
+            all_table_versions_list_store,
+            all_table_versions_load_definition: load_definition,
+            all_table_versions_remove_definition: remove_definition,
             field_name_entry,
             is_key_field_switch,
             save_decoded_schema,
@@ -1031,7 +1368,7 @@ impl PackedFileDBDecoder {
 
         // Check if the index does even exist, to avoid crashes.
         if (index_data + 4) <= packed_file_decoded.len() {
-            decoded_float = match coding_helpers::decode_packedfile_float_u32(
+            decoded_float = match coding_helpers::decode_packedfile_float_f32(
                 &packed_file_decoded[index_data..(index_data + 4)],
                 index_data
             ) {
@@ -1132,7 +1469,25 @@ impl PackedFileDBDecoder {
         let index_char_end = ((index_data * 3) + 2) as i32;
         raw_data_text_buffer.apply_tag_by_name("index", &raw_data_text_buffer.get_iter_at_line_offset(0, index_char_start), &raw_data_text_buffer.get_iter_at_line_offset(0, index_char_end));
 
+        // Returns the new "index_data" to keep decoding.
         index_data
+    }
+
+    /// This function is used to update the list of "Versions" of the currently open table decoded.
+    pub fn update_versions_list(
+        packed_file_decoder: &PackedFileDBDecoder,
+        schema: &Schema,
+        table_name: &str,
+    ) {
+        // Clear the current list.
+        packed_file_decoder.all_table_versions_list_store.clear();
+
+        // And get all the versions of this table, and list them in their TreeView, if we have any.
+        if let Some(table_versions_list) = DB::get_schema_versions_list(table_name, &schema) {
+            for version in table_versions_list {
+                packed_file_decoder.all_table_versions_list_store.insert_with_values(None, &[0], &[&version.version]);
+            }
+        }
     }
 
     /// This function adds fields to the "Decoder" table, so we can do this without depending on the
@@ -1292,7 +1647,7 @@ pub fn decode_data_by_fieldtype(field_data: &[u8], field_type: &FieldType, index
         },
         FieldType::Float => {
             if field_data.get(index_data..(index_data + 4)).is_some() {
-                match coding_helpers::decode_packedfile_float_u32(&field_data[index_data..(index_data + 4)], index_data) {
+                match coding_helpers::decode_packedfile_float_f32(&field_data[index_data..(index_data + 4)], index_data) {
                     Ok(result) => (result.0.to_string(), result.1),
                     Err(_) => ("Error".to_owned(), index_data),
                 }

@@ -33,6 +33,7 @@ pub struct Paths {
 /// This struct holds the data needed for the Game Selected.
 #[derive(Clone, Debug)]
 pub struct GameSelected {
+    pub game: String,
     pub game_path: Option<PathBuf>,
     pub game_data_path: Option<PathBuf>,
 }
@@ -93,12 +94,14 @@ impl GameSelected {
     pub fn new(settings: &Settings) -> GameSelected {
 
         let mut game_selected = GameSelected {
+            game: "warhammer_2".to_owned(),
             game_path: None,
             game_data_path: None
         };
 
         match &*settings.default_game {
             "warhammer_2" => {
+                game_selected.game = "warhammer_2".to_owned();
                 game_selected.game_path = settings.paths.warhammer_2.clone();
                 let mut data_path = game_selected.game_path.clone().unwrap_or(PathBuf::from("error"));
                 data_path.push("data");
@@ -106,6 +109,7 @@ impl GameSelected {
             },
 
             "warhammer" => {
+                game_selected.game = "warhammer".to_owned();
                 game_selected.game_path = settings.paths.warhammer.clone();
                 let mut data_path = game_selected.game_path.clone().unwrap_or(PathBuf::from("error"));
                 data_path.push("data");
@@ -113,6 +117,7 @@ impl GameSelected {
             },
 
             "attila" => {
+                game_selected.game = "attila".to_owned();
                 game_selected.game_path = settings.paths.attila.clone();
                 let mut data_path = game_selected.game_path.clone().unwrap_or(PathBuf::from("error"));
                 data_path.push("data");
@@ -120,6 +125,7 @@ impl GameSelected {
             },
 
             "rome_2" => {
+                game_selected.game = "rome_2".to_owned();
                 game_selected.game_path = settings.paths.rome_2.clone();
                 let mut data_path = game_selected.game_path.clone().unwrap_or(PathBuf::from("error"));
                 data_path.push("data");
@@ -136,8 +142,9 @@ impl GameSelected {
     }
 
     /// This functions just changes the values in GameSelected.
-    pub fn set_path(&mut self, game_path: Option<PathBuf>) {
-        self.game_path = game_path;
+    pub fn change_game_selected(&mut self, game: &str, game_path: &Option<PathBuf>) {
+        self.game = game.to_owned();
+        self.game_path = game_path.clone();
 
         if let Some(ref game_path) = self.game_path {
             let mut data_path = game_path.clone();
