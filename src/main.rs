@@ -330,7 +330,6 @@ fn build_ui(application: &Application) {
     app_ui.folder_tree_view.append_column(&column);
     app_ui.folder_tree_view.set_margin_bottom(10);
     app_ui.folder_tree_view.set_enable_search(false);
-    app_ui.folder_tree_view.set_rules_hint(true);
 
     // Config stuff for `app_ui.shortcuts_window`.
     app_ui.shortcuts_window.set_title("Shortcuts");
@@ -2734,7 +2733,6 @@ fn build_ui(application: &Application) {
                         folder_tree_view_extra.append_column(&column_extra);
                         folder_tree_view_extra.set_enable_tree_lines(true);
                         folder_tree_view_extra.set_enable_search(false);
-                        folder_tree_view_extra.set_rules_hint(true);
                         folder_tree_view_extra.set_headers_visible(false);
 
                         let folder_tree_view_extra_scroll = ScrolledWindow::new(None, None);

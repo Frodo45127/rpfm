@@ -134,7 +134,7 @@ impl PackedFileLocTreeView{
         let packed_file_popover_menu_add_rows_entry_buffer = packed_file_popover_menu_add_rows_entry.get_buffer();
         packed_file_popover_menu_add_rows_entry.set_alignment(1.0);
         packed_file_popover_menu_add_rows_entry.set_width_chars(8);
-        packed_file_popover_menu_add_rows_entry.set_icon_from_stock(gtk::EntryIconPosition::Primary, Some("gtk-goto-last"));
+        packed_file_popover_menu_add_rows_entry.set_icon_from_icon_name(gtk::EntryIconPosition::Primary, Some("go-last"));
         packed_file_popover_menu_add_rows_entry.set_has_frame(false);
         packed_file_popover_menu_add_rows_entry_buffer.set_max_length(Some(4));
         packed_file_popover_menu_add_rows_entry_buffer.set_text("1");
@@ -224,4 +224,3 @@ impl PackedFileLocTreeView{
         packed_file_data_from_tree_view
     }
 }
-

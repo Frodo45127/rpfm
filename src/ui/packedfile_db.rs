@@ -605,7 +605,7 @@ impl PackedFileDBTreeView{
         let packed_file_popover_menu_add_rows_entry_buffer = packed_file_popover_menu_add_rows_entry.get_buffer();
         packed_file_popover_menu_add_rows_entry.set_alignment(1.0);
         packed_file_popover_menu_add_rows_entry.set_width_chars(8);
-        packed_file_popover_menu_add_rows_entry.set_icon_from_stock(gtk::EntryIconPosition::Primary, Some("gtk-goto-last"));
+        packed_file_popover_menu_add_rows_entry.set_icon_from_icon_name(gtk::EntryIconPosition::Primary, "go-last");
         packed_file_popover_menu_add_rows_entry.set_has_frame(false);
         packed_file_popover_menu_add_rows_entry_buffer.set_max_length(Some(4));
         packed_file_popover_menu_add_rows_entry_buffer.set_text("1");
@@ -788,7 +788,8 @@ impl PackedFileDBDecoder {
         let raw_data = TextView::new();
         //let raw_data_decoded = TextView::new();
 
-        raw_data_line_index.set_alignment(1.0, 0.0);
+        raw_data_line_index.set_xalign(1.0);
+        raw_data_line_index.set_yalign(0.0);
         raw_data.set_justification(Justification::Fill);
         raw_data.set_size_request(290, 0);
         raw_data.set_wrap_mode(WrapMode::Word);
@@ -986,14 +987,22 @@ impl PackedFileDBDecoder {
         optional_string_u8_label.set_size_request(200, 0);
         optional_string_u16_label.set_size_request(200, 0);
 
-        bool_label.set_alignment(0.0, 0.5);
-        float_label.set_alignment(0.0, 0.5);
-        integer_label.set_alignment(0.0, 0.5);
-        long_integer_label.set_alignment(0.0, 0.5);
-        string_u8_label.set_alignment(0.0, 0.5);
-        string_u16_label.set_alignment(0.0, 0.5);
-        optional_string_u8_label.set_alignment(0.0, 0.5);
-        optional_string_u16_label.set_alignment(0.0, 0.5);
+        bool_label.set_xalign(0.0);
+        bool_label.set_yalign(0.5);
+        float_label.set_xalign(0.0);
+        float_label.set_yalign(0.5);
+        integer_label.set_xalign(0.0);
+        integer_label.set_yalign(0.5);
+        long_integer_label.set_xalign(0.0);
+        long_integer_label.set_yalign(0.5);
+        string_u8_label.set_xalign(0.0);
+        string_u8_label.set_yalign(0.5);
+        string_u16_label.set_xalign(0.0);
+        string_u16_label.set_yalign(0.5);
+        optional_string_u8_label.set_xalign(0.0);
+        optional_string_u8_label.set_yalign(0.5);
+        optional_string_u16_label.set_xalign(0.0);
+        optional_string_u16_label.set_yalign(0.5);
 
         let bool_entry = Entry::new();
         let float_entry = Entry::new();

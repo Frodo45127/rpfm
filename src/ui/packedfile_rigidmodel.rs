@@ -53,8 +53,9 @@ impl PackedFileRigidModelDataView {
                 "RigidModel compatible with: \"Warhammer 1&2\"."
             }
         ));
-        rigid_model_game_label.set_padding(4, 0);
-        rigid_model_game_label.set_alignment(0.0, 0.5);
+        rigid_model_game_label.set_margin_start(4);
+        rigid_model_game_label.set_xalign(0.0);
+        rigid_model_game_label.set_yalign(0.5);
 
         let rigid_model_game_patch_button = Button::new_with_label("Patch to Warhammer 1&2");
         if packed_file_decoded.packed_file_header.packed_file_header_model_type == 6 {
@@ -68,8 +69,9 @@ impl PackedFileRigidModelDataView {
         rigid_model_game_box.pack_end(&rigid_model_game_patch_button, false, false, 0);
 
         let rigid_model_textures_label = Label::new(Some("Textures used by this RigidModel:"));
-        rigid_model_textures_label.set_padding(4, 0);
-        rigid_model_textures_label.set_alignment(0.0, 0.5);
+        rigid_model_textures_label.set_margin_start(4);
+        rigid_model_textures_label.set_xalign(0.0);
+        rigid_model_textures_label.set_yalign(0.5);
 
         packed_file_data_display_scroll_inner_box.pack_start(&rigid_model_game_box, false, false, 0);
         packed_file_data_display_scroll_inner_box.pack_start(&rigid_model_textures_label, false, false, 0);
@@ -142,7 +144,8 @@ impl PackedFileRigidModelDataView {
 
             let texture_info_box = Box::new(Orientation::Horizontal, 0);
             let texture_type = Label::new(Some("Texture Directory:"));
-            texture_type.set_alignment(0.0, 0.5);
+            texture_type.set_xalign(0.0);
+            texture_type.set_yalign(0.5);
             texture_type.set_size_request(60, 0);
 
             // Then we get it's path, and put it in a gtk::Entry.
@@ -220,7 +223,8 @@ impl PackedFileRigidModelDataView {
                             }
                         ));
 
-                        texture_type.set_alignment(0.0, 0.5);
+                        texture_type.set_xalign(0.0);
+                        texture_type.set_yalign(0.5);
                         texture_type.set_size_request(60, 0);
 
                         // Then we get it's path, and put it in a gtk::Entry.
@@ -235,7 +239,7 @@ impl PackedFileRigidModelDataView {
                             Ok(result) => texture_path.get_buffer().set_text(&*result.0),
                             Err(_) => texture_path.get_buffer().set_text("Error while decoding."),
                         };
-                        
+
                         texture_path.get_buffer().set_max_length(Some(256u16));
                         texture_path.set_editable(true);
 

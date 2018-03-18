@@ -74,11 +74,14 @@ impl SettingsWindow {
         let warhammer_2_label = Label::new(Some("TW: Warhammer 2 folder"));
         let warhammer_label = Label::new(Some("TW: Warhammer folder"));
         my_mod_label.set_size_request(170, 0);
-        my_mod_label.set_alignment(0.0, 0.5);
+        my_mod_label.set_xalign(0.0);
+        my_mod_label.set_yalign(0.5);
         warhammer_2_label.set_size_request(170, 0);
-        warhammer_2_label.set_alignment(0.0, 0.5);
+        warhammer_2_label.set_xalign(0.0);
+        warhammer_2_label.set_yalign(0.5);
         warhammer_label.set_size_request(170, 0);
-        warhammer_label.set_alignment(0.0, 0.5);
+        warhammer_label.set_xalign(0.0);
+        warhammer_label.set_yalign(0.5);
 
         let my_mod_entry = Entry::new();
         let warhammer_2_entry = Entry::new();
@@ -106,8 +109,8 @@ impl SettingsWindow {
         button_box.set_layout(ButtonBoxStyle::End);
         button_box.set_spacing(10);
 
-        let cancel_button = Button::new_from_stock("gtk-cancel");
-        let accept_button = Button::new_from_stock("gtk-ok");
+        let cancel_button = Button::new_with_label("Cancel");
+        let accept_button = Button::new_with_label("Accept");
 
         // Frame packing stuff...
         path_my_mod_box.pack_start(&my_mod_label, false, false, 0);
@@ -243,14 +246,16 @@ impl MyModNewWindow {
 	- If you want to use multiple words, use \"_\" instead of \" \".
 	- You can't create a mod for a game that has no path set in the settings."));
         advices_label.set_size_request(170, 0);
-        advices_label.set_alignment(0.5, 0.5);
+        advices_label.set_xalign(0.5);
+        advices_label.set_yalign(0.5);
 
         let selected_game_box = Box::new(Orientation::Horizontal, 0);
         selected_game_box.set_border_width(4);
 
         let selected_game_label = Label::new(Some("Game of the Mod:"));
         selected_game_label.set_size_request(125, 0);
-        selected_game_label.set_alignment(0.0, 0.5);
+        selected_game_label.set_xalign(0.0);
+        selected_game_label.set_yalign(0.5);
 
         let selected_game_list_combo = ComboBoxText::new();
         selected_game_list_combo.append(None, "Warhammer 2");
@@ -264,21 +269,23 @@ impl MyModNewWindow {
 
         let mod_name_label = Label::new(Some("Name of the Mod:"));
         mod_name_label.set_size_request(125, 0);
-        mod_name_label.set_alignment(0.0, 0.5);
+        mod_name_label.set_xalign(0.0);
+        mod_name_label.set_yalign(0.5);
 
         let mod_name_entry = Entry::new();
         mod_name_entry.set_placeholder_text("For example: one_ring_for_me");
 
         let is_name_valid_label = Label::new(Some("Invalid"));
         is_name_valid_label.set_size_request(125, 0);
-        is_name_valid_label.set_alignment(0.5, 0.5);
+        is_name_valid_label.set_xalign(0.5);
+        is_name_valid_label.set_yalign(0.5);
 
         let button_box = ButtonBox::new(Orientation::Horizontal);
         button_box.set_layout(ButtonBoxStyle::End);
         button_box.set_spacing(10);
 
-        let cancel_button = Button::new_from_stock("gtk-cancel");
-        let accept_button = Button::new_from_stock("gtk-ok");
+        let cancel_button = Button::new_with_label("Cancel");
+        let accept_button = Button::new_with_label("Accept");
 
         // Frame packing stuff...
         advices_frame.add(&advices_label);
