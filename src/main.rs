@@ -1047,8 +1047,9 @@ fn build_ui(application: &Application) {
             }
 
             if file_chooser_select_folder.run() == gtk_response_accept {
-                if let Some(new_folder) = file_chooser_select_folder.get_current_folder(){
-                    settings_stuff.borrow_mut().settings_path_my_mod_entry.get_buffer().set_text(&new_folder.to_string_lossy());
+                if let Some(new_folder) = file_chooser_select_folder.get_uri() {
+                    let path = get_path_from_uri(&new_folder);
+                    settings_stuff.borrow_mut().settings_path_my_mod_entry.get_buffer().set_text(&path.to_string_lossy());
                 }
             }
             Inhibit(false)
@@ -1072,8 +1073,9 @@ fn build_ui(application: &Application) {
                 file_chooser_select_folder.set_current_folder(settings.borrow().clone().paths.warhammer_2.unwrap().to_path_buf());
             }
             if file_chooser_select_folder.run() == gtk_response_accept {
-                if let Some(new_folder) = file_chooser_select_folder.get_current_folder() {
-                    settings_stuff.borrow_mut().settings_path_warhammer_2_entry.get_buffer().set_text(&new_folder.to_string_lossy());
+                if let Some(new_folder) = file_chooser_select_folder.get_uri() {
+                    let path = get_path_from_uri(&new_folder);
+                    settings_stuff.borrow_mut().settings_path_warhammer_2_entry.get_buffer().set_text(&path.to_string_lossy());
                 }
             }
             Inhibit(false)
@@ -1097,8 +1099,9 @@ fn build_ui(application: &Application) {
                 file_chooser_select_folder.set_current_folder(settings.borrow().clone().paths.warhammer.unwrap().to_path_buf());
             }
             if file_chooser_select_folder.run() == gtk_response_accept {
-                if let Some(new_folder) = file_chooser_select_folder.get_current_folder() {
-                    settings_stuff.borrow_mut().settings_path_warhammer_entry.get_buffer().set_text(&new_folder.to_string_lossy());
+                if let Some(new_folder) = file_chooser_select_folder.get_uri() {
+                    let path = get_path_from_uri(&new_folder);
+                    settings_stuff.borrow_mut().settings_path_warhammer_entry.get_buffer().set_text(&path.to_string_lossy());
                 }
             }
             Inhibit(false)
