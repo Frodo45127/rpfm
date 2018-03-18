@@ -45,8 +45,8 @@ use gtk::prelude::*;
 use gtk::{
     AboutDialog, Box, Builder, WindowPosition, FileChooserDialog, ApplicationWindow,
     TreeView, TreeSelection, TreeStore, MessageDialog, ScrolledWindow, Orientation, Application,
-    CellRendererText, TreeViewColumn, Popover, Entry, Button, Image, ListStore,
-    ShortcutsWindow, ToVariant, Statusbar
+    CellRendererText, TreeViewColumn, Popover, Entry, Button, Image, ListStore, ResponseType,
+    ShortcutsWindow, ToVariant, Statusbar, FileChooserNative, FileChooserAction
 };
 use pango::{
     AttrList, Attribute
@@ -169,7 +169,6 @@ struct AppUI {
     file_chooser_extract_folder: FileChooserDialog,
     file_chooser_packedfile_import_csv: FileChooserDialog,
     file_chooser_packedfile_export_csv: FileChooserDialog,
-    file_chooser_settings_select_folder: FileChooserDialog,
 
     // TreeView used to see the PackedFiles, and his TreeStore and TreeSelection.
     folder_tree_view: TreeView,
@@ -276,7 +275,6 @@ fn build_ui(application: &Application) {
         file_chooser_extract_folder: builder.get_object("gtk_file_chooser_extract_folder").unwrap(),
         file_chooser_packedfile_import_csv: builder.get_object("gtk_file_chooser_packedfile_import_csv").unwrap(),
         file_chooser_packedfile_export_csv: builder.get_object("gtk_file_chooser_packedfile_export_csv").unwrap(),
-        file_chooser_settings_select_folder: builder.get_object("gtk_file_chooser_settings_select_folder").unwrap(),
 
         // TreeView used to see the PackedFiles, and his TreeStore and TreeSelection.
         folder_tree_view,
@@ -424,9 +422,11 @@ fn build_ui(application: &Application) {
     // PackedFiles to our opened PackFile.
     let is_folder_tree_view_locked = Rc::new(RefCell::new(false));
 
-    // Here we define the "ok" response for GTK, as it seems Restson causes it to fail to compile if
-    // we get the "ok" i32 directly in the `if` statement.
-    let gtk_response_ok: i32 = gtk::ResponseType::Ok.into();
+    // Here we define the `Ok` and `Accept` responses for GTK, as it seems Restson causes them to
+    // fail to compile if we get them to i32 directly in the `if` statement.
+    // NOTE: For some bizarre reason, GTKFileChoosers return `Ok`, while native ones return `Accept`.
+    let gtk_response_ok: i32 = ResponseType::Ok.into();
+    let gtk_response_accept: i32 = ResponseType::Accept.into();
 
     // We need two PackFiles:
     // - `pack_file_decoded`: This one will hold our opened PackFile.
@@ -1026,65 +1026,81 @@ fn build_ui(application: &Application) {
         let settings_stuff = Rc::new(RefCell::new(ui::settings::SettingsWindow::create_settings_window(&application)));
         settings_stuff.borrow().load_to_settings_window(&*settings.borrow());
 
-        // This fixes the problem with the "Add folder" button closing the prefs window.
-        app_ui.file_chooser_settings_select_folder.set_transient_for(&settings_stuff.borrow().settings_window);
-
         // here we set all the events for the preferences window.
         // When we press the "..." buttons.
         settings_stuff.borrow().settings_path_my_mod_button.connect_button_release_event(clone!(
-            app_ui,
             settings,
             settings_stuff => move |_,_| {
+
+            let file_chooser_select_folder = FileChooserNative::new(
+                "Select MyMod's Folder",
+                &settings_stuff.borrow().settings_window,
+                FileChooserAction::SelectFolder,
+                "Accept",
+                "Cancel"
+            );
 
             // If we already have a path for it, and said path exists, we use it as base for the next path.
             if settings.borrow().paths.my_mods_base_path != None &&
                 settings.borrow().clone().paths.my_mods_base_path.unwrap().to_path_buf().is_dir() {
-                app_ui.file_chooser_settings_select_folder.set_current_folder(settings.borrow().clone().paths.my_mods_base_path.unwrap().to_path_buf());
+                file_chooser_select_folder.set_current_folder(settings.borrow().clone().paths.my_mods_base_path.unwrap().to_path_buf());
             }
-            if app_ui.file_chooser_settings_select_folder.run() == gtk_response_ok {
-                if let Some(new_folder) = app_ui.file_chooser_settings_select_folder.get_current_folder(){
+
+            if file_chooser_select_folder.run() == gtk_response_accept {
+                if let Some(new_folder) = file_chooser_select_folder.get_current_folder(){
                     settings_stuff.borrow_mut().settings_path_my_mod_entry.get_buffer().set_text(&new_folder.to_string_lossy());
                 }
             }
-            app_ui.file_chooser_settings_select_folder.hide_on_delete();
             Inhibit(false)
         }));
 
         settings_stuff.borrow().settings_path_warhammer_2_button.connect_button_release_event(clone!(
-            app_ui,
             settings,
             settings_stuff => move |_,_| {
+
+            let file_chooser_select_folder = FileChooserNative::new(
+                "Select Warhammer 2 Folder",
+                &settings_stuff.borrow().settings_window,
+                FileChooserAction::SelectFolder,
+                "Accept",
+                "Cancel"
+            );
 
             // If we already have a path for it, and said path exists, we use it as base for the next path.
             if settings.borrow().paths.warhammer_2 != None &&
                 settings.borrow().clone().paths.warhammer_2.unwrap().to_path_buf().is_dir() {
-                app_ui.file_chooser_settings_select_folder.set_current_folder(settings.borrow().clone().paths.warhammer_2.unwrap().to_path_buf());
+                file_chooser_select_folder.set_current_folder(settings.borrow().clone().paths.warhammer_2.unwrap().to_path_buf());
             }
-            if app_ui.file_chooser_settings_select_folder.run() == gtk_response_ok {
-                if let Some(new_folder) = app_ui.file_chooser_settings_select_folder.get_current_folder() {
+            if file_chooser_select_folder.run() == gtk_response_accept {
+                if let Some(new_folder) = file_chooser_select_folder.get_current_folder() {
                     settings_stuff.borrow_mut().settings_path_warhammer_2_entry.get_buffer().set_text(&new_folder.to_string_lossy());
                 }
             }
-            app_ui.file_chooser_settings_select_folder.hide_on_delete();
             Inhibit(false)
         }));
 
         settings_stuff.borrow().settings_path_warhammer_button.connect_button_release_event(clone!(
-            app_ui,
             settings,
             settings_stuff => move |_,_| {
+
+            let file_chooser_select_folder = FileChooserNative::new(
+                "Select Warhammmer Folder",
+                &settings_stuff.borrow().settings_window,
+                FileChooserAction::SelectFolder,
+                "Accept",
+                "Cancel"
+            );
 
             // If we already have a path for it, and said path exists, we use it as base for the next path.
             if settings.borrow().paths.warhammer != None &&
                 settings.borrow().clone().paths.warhammer.unwrap().to_path_buf().is_dir() {
-                app_ui.file_chooser_settings_select_folder.set_current_folder(settings.borrow().clone().paths.warhammer.unwrap().to_path_buf());
+                file_chooser_select_folder.set_current_folder(settings.borrow().clone().paths.warhammer.unwrap().to_path_buf());
             }
-            if app_ui.file_chooser_settings_select_folder.run() == gtk_response_ok {
-                if let Some(new_folder) = app_ui.file_chooser_settings_select_folder.get_current_folder() {
+            if file_chooser_select_folder.run() == gtk_response_accept {
+                if let Some(new_folder) = file_chooser_select_folder.get_current_folder() {
                     settings_stuff.borrow_mut().settings_path_warhammer_entry.get_buffer().set_text(&new_folder.to_string_lossy());
                 }
             }
-            app_ui.file_chooser_settings_select_folder.hide_on_delete();
             Inhibit(false)
         }));
 
