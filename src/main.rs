@@ -22,6 +22,7 @@ extern crate pango;
 extern crate sourceview;
 extern crate num;
 extern crate restson;
+extern crate url;
 
 use std::ffi::OsStr;
 use std::path::PathBuf;
@@ -34,7 +35,7 @@ use std::io::Write;
 use std::env::args;
 
 use failure::Error;
-
+use url::Url;
 use restson::RestClient;
 use gdk::Gravity;
 use gio::prelude::*;
@@ -74,14 +75,8 @@ use ui::packedfile_loc::*;
 use ui::settings::*;
 use updater::LastestRelease;
 
-mod common;
-mod ui;
-mod packfile;
-mod packedfile;
-mod settings;
-mod updater;
-
 /// This macro is used to clone the variables into the closures without the compiler complaining.
+/// This should be BEFORE the `mod xxx` stuff, so submodules can use it too.
 macro_rules! clone {
     (@param _) => ( _ );
     (@param $x:ident) => ( $x );
@@ -98,6 +93,14 @@ macro_rules! clone {
         }
     );
 }
+
+mod common;
+mod ui;
+mod packfile;
+mod packedfile;
+mod settings;
+mod updater;
+
 
 // This constant gets RPFM's version from the "Cargo.toml" file, so we don't have to change it
 // in two different places in every update.
@@ -1025,87 +1028,6 @@ fn build_ui(application: &Application) {
 
         let settings_stuff = Rc::new(RefCell::new(ui::settings::SettingsWindow::create_settings_window(&application)));
         settings_stuff.borrow().load_to_settings_window(&*settings.borrow());
-
-        // here we set all the events for the preferences window.
-        // When we press the "..." buttons.
-        settings_stuff.borrow().settings_path_my_mod_button.connect_button_release_event(clone!(
-            settings,
-            settings_stuff => move |_,_| {
-
-            let file_chooser_select_folder = FileChooserNative::new(
-                "Select MyMod's Folder",
-                &settings_stuff.borrow().settings_window,
-                FileChooserAction::SelectFolder,
-                "Accept",
-                "Cancel"
-            );
-
-            // If we already have a path for it, and said path exists, we use it as base for the next path.
-            if settings.borrow().paths.my_mods_base_path != None &&
-                settings.borrow().clone().paths.my_mods_base_path.unwrap().to_path_buf().is_dir() {
-                file_chooser_select_folder.set_current_folder(settings.borrow().clone().paths.my_mods_base_path.unwrap().to_path_buf());
-            }
-
-            if file_chooser_select_folder.run() == gtk_response_accept {
-                if let Some(new_folder) = file_chooser_select_folder.get_uri() {
-                    let path = get_path_from_uri(&new_folder);
-                    settings_stuff.borrow_mut().settings_path_my_mod_entry.get_buffer().set_text(&path.to_string_lossy());
-                }
-            }
-            Inhibit(false)
-        }));
-
-        settings_stuff.borrow().settings_path_warhammer_2_button.connect_button_release_event(clone!(
-            settings,
-            settings_stuff => move |_,_| {
-
-            let file_chooser_select_folder = FileChooserNative::new(
-                "Select Warhammer 2 Folder",
-                &settings_stuff.borrow().settings_window,
-                FileChooserAction::SelectFolder,
-                "Accept",
-                "Cancel"
-            );
-
-            // If we already have a path for it, and said path exists, we use it as base for the next path.
-            if settings.borrow().paths.warhammer_2 != None &&
-                settings.borrow().clone().paths.warhammer_2.unwrap().to_path_buf().is_dir() {
-                file_chooser_select_folder.set_current_folder(settings.borrow().clone().paths.warhammer_2.unwrap().to_path_buf());
-            }
-            if file_chooser_select_folder.run() == gtk_response_accept {
-                if let Some(new_folder) = file_chooser_select_folder.get_uri() {
-                    let path = get_path_from_uri(&new_folder);
-                    settings_stuff.borrow_mut().settings_path_warhammer_2_entry.get_buffer().set_text(&path.to_string_lossy());
-                }
-            }
-            Inhibit(false)
-        }));
-
-        settings_stuff.borrow().settings_path_warhammer_button.connect_button_release_event(clone!(
-            settings,
-            settings_stuff => move |_,_| {
-
-            let file_chooser_select_folder = FileChooserNative::new(
-                "Select Warhammmer Folder",
-                &settings_stuff.borrow().settings_window,
-                FileChooserAction::SelectFolder,
-                "Accept",
-                "Cancel"
-            );
-
-            // If we already have a path for it, and said path exists, we use it as base for the next path.
-            if settings.borrow().paths.warhammer != None &&
-                settings.borrow().clone().paths.warhammer.unwrap().to_path_buf().is_dir() {
-                file_chooser_select_folder.set_current_folder(settings.borrow().clone().paths.warhammer.unwrap().to_path_buf());
-            }
-            if file_chooser_select_folder.run() == gtk_response_accept {
-                if let Some(new_folder) = file_chooser_select_folder.get_uri() {
-                    let path = get_path_from_uri(&new_folder);
-                    settings_stuff.borrow_mut().settings_path_warhammer_entry.get_buffer().set_text(&path.to_string_lossy());
-                }
-            }
-            Inhibit(false)
-        }));
 
         // When we press the "Accept" button.
         settings_stuff.borrow().settings_accept.connect_button_release_event(clone!(

@@ -1,14 +1,20 @@
 // Here it goes all the stuff related with "Settings" and "My Mod" windows.
 extern crate gtk;
+extern crate pango;
+extern crate url;
 
 use std::path::{
     Path, PathBuf
 };
+use url::Url;
 use gtk::prelude::*;
 use gdk::Gravity;
 use gtk::{
     Entry, Box, Button, Frame, ComboBoxText, ApplicationWindow, WindowPosition, Orientation,
-    Label, ButtonBox, ButtonBoxStyle, Application
+    Label, ButtonBox, ButtonBoxStyle, Application, FileChooserNative, ResponseType, FileChooserAction
+};
+use pango::{
+    AttrList, Attribute
 };
 use settings::Settings;
 
@@ -17,11 +23,8 @@ use settings::Settings;
 pub struct SettingsWindow {
     pub settings_window: ApplicationWindow,
     pub settings_path_my_mod_entry: Entry,
-    pub settings_path_my_mod_button: Button,
     pub settings_path_warhammer_2_entry: Entry,
-    pub settings_path_warhammer_2_button: Button,
     pub settings_path_warhammer_entry: Entry,
-    pub settings_path_warhammer_button: Button,
     pub settings_game_list_combo: ComboBoxText,
     pub settings_cancel: Button,
     pub settings_accept: Button,
@@ -86,10 +89,19 @@ impl SettingsWindow {
         let my_mod_entry = Entry::new();
         let warhammer_2_entry = Entry::new();
         let warhammer_entry = Entry::new();
+        my_mod_entry.set_has_frame(false);
+        my_mod_entry.set_placeholder_text("This is the folder where you want to store all \"MyMod\" related files.");
+        warhammer_2_entry.set_has_frame(false);
+        warhammer_2_entry.set_placeholder_text("This is the folder where you have Warhammer 2 installed.");
+        warhammer_entry.set_has_frame(false);
+        warhammer_entry.set_placeholder_text("This is the folder where you have Warhammer installed.");
 
         let my_mod_button = Button::new_with_label("...");
         let warhammer_2_button = Button::new_with_label("...");
         let warhammer_button = Button::new_with_label("...");
+        my_mod_button.set_relief(gtk::ReliefStyle::None);
+        warhammer_2_button.set_relief(gtk::ReliefStyle::None);
+        warhammer_button.set_relief(gtk::ReliefStyle::None);
 
         let settings_big_boxx = Box::new(Orientation::Vertical, 0);
         let default_game_box = Box::new(Orientation::Horizontal, 0);
@@ -141,7 +153,6 @@ impl SettingsWindow {
         button_box.pack_start(&cancel_button, false, false, 0);
         button_box.pack_start(&accept_button, false, false, 0);
 
-
         // General packing stuff...
         big_boxx.pack_start(&paths_frame, false, false, 0);
         big_boxx.pack_start(&settings_big_boxx, false, false, 0);
@@ -150,14 +161,60 @@ impl SettingsWindow {
         settings_window.add(&big_boxx);
         settings_window.show_all();
 
+        // Events for the `Entries`.
+        // Set their background red while writing in them if their path is not valid.
+        my_mod_entry.connect_changed(move |text_entry| {
+            paint_entry(text_entry);
+        });
+        warhammer_2_entry.connect_changed(move |text_entry| {
+            paint_entry(text_entry);
+        });
+        warhammer_entry.connect_changed(move |text_entry| {
+            paint_entry(text_entry);
+        });
+
+        // When we press the "..." buttons.
+        my_mod_button.connect_button_release_event(clone!(
+            my_mod_entry,
+            settings_window => move |_,_| {
+                update_entry_path(
+                    &my_mod_entry,
+                    "Select MyMod's Folder",
+                    &settings_window,
+                );
+                Inhibit(false)
+            }
+        ));
+
+        warhammer_2_button.connect_button_release_event(clone!(
+            warhammer_2_entry,
+            settings_window => move |_,_| {
+                update_entry_path(
+                    &warhammer_2_entry,
+                    "Select Warhammer 2 Folder",
+                    &settings_window
+                );
+                Inhibit(false)
+            }
+        ));
+
+        warhammer_button.connect_button_release_event(clone!(
+            warhammer_entry,
+            settings_window => move |_,_| {
+                update_entry_path(
+                    &warhammer_entry,
+                    "Select Warhammer Folder",
+                    &settings_window
+                );
+                Inhibit(false)
+            }
+        ));
+
         SettingsWindow {
             settings_window,
             settings_path_my_mod_entry: my_mod_entry,
-            settings_path_my_mod_button: my_mod_button,
             settings_path_warhammer_2_entry: warhammer_2_entry,
-            settings_path_warhammer_2_button: warhammer_2_button,
             settings_path_warhammer_entry: warhammer_entry,
-            settings_path_warhammer_button: warhammer_button,
             settings_game_list_combo: game_list_combo,
             settings_cancel: cancel_button,
             settings_accept: accept_button,
@@ -178,12 +235,15 @@ impl SettingsWindow {
         );
         if let Some(ref path) = settings.paths.my_mods_base_path {
             self.settings_path_my_mod_entry.get_buffer().set_text(&path.to_string_lossy());
+            paint_entry(&self.settings_path_my_mod_entry);
         }
         if let Some(ref path) = settings.paths.warhammer_2 {
             self.settings_path_warhammer_2_entry.get_buffer().set_text(&path.to_string_lossy());
+            paint_entry(&self.settings_path_warhammer_2_entry);
         }
         if let Some(ref path) = settings.paths.warhammer {
             self.settings_path_warhammer_entry.get_buffer().set_text(&path.to_string_lossy());
+            paint_entry(&self.settings_path_warhammer_entry);
         }
     }
 
@@ -318,6 +378,51 @@ impl MyModNewWindow {
             my_mod_new_name_is_valid_label: is_name_valid_label,
             my_mod_new_cancel: cancel_button,
             my_mod_new_accept: accept_button,
+        }
+    }
+}
+
+/// This function paints the provided `Entry` depending if the text inside the `Entry` is a valid
+/// `Path` or not.
+fn paint_entry(text_entry: &Entry) {
+    let text = text_entry.get_buffer().get_text();
+    let attribute_list = AttrList::new();
+
+    // If there is text and it's an invalid path, we paint in red. We clear the background otherwise.
+    if !text.is_empty() {
+        if !Path::new(&text).is_dir() {
+            let red = Attribute::new_background(65535, 35000, 35000).unwrap();
+            attribute_list.insert(red);
+        }
+    }
+    text_entry.set_attributes(&attribute_list);
+}
+
+/// This function gets a Folder from a Native FileChooser and put his path into the provided `Entry`.
+fn update_entry_path(text_entry: &Entry, file_chooser_title: &str, file_chooser_parent: &ApplicationWindow) {
+
+    let file_chooser_select_folder = FileChooserNative::new(
+        file_chooser_title,
+        file_chooser_parent,
+        FileChooserAction::SelectFolder,
+        "Accept",
+        "Cancel"
+    );
+
+    // If we already have a Path inside the `text_entry` (and it's not empty or an invalid folder),
+    // we set it as "starting" path for the FileChooser.
+    if let Some(current_path) = text_entry.get_text() {
+        if !current_path.is_empty() && PathBuf::from(&current_path).is_dir() {
+            file_chooser_select_folder.set_current_folder(PathBuf::from(&current_path));
+        }
+    }
+
+    // Then run the created FileChooser and update the `text_entry` only if we received `Accept`.
+    // We get his `URI`, translate it into `PathBuf`, and then to `&str` to put it into `text_entry`.
+    if file_chooser_select_folder.run() == Into::<i32>::into(ResponseType::Accept) {
+        if let Some(new_folder) = file_chooser_select_folder.get_uri() {
+            let path = Url::parse(&new_folder).unwrap().to_file_path().unwrap();
+            text_entry.set_text(&path.to_string_lossy());
         }
     }
 }

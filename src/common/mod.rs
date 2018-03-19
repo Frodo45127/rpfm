@@ -150,15 +150,3 @@ pub fn get_assembly_kit_schemas(current_path: &Path) -> Result<Vec<PathBuf>, Err
     file_list.sort();
     Ok(file_list)
 }
-
-/// This function turns an URI into a PathBuf. Used to deal with URIs and FileChoosers.
-#[allow(dead_code)]
-pub fn get_path_from_uri(uri: &str) -> PathBuf {
-
-    // In Linux all paths start with `/`. In Windows, that's empty.
-    if cfg!(target_os = "linux") {
-        PathBuf::from(uri.replace("file:///", "/").replace("%20", " "))
-    } else {
-        PathBuf::from(uri.replace("file:///", "").replace("%20", " "))
-    }
-}
