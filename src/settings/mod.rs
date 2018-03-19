@@ -18,6 +18,7 @@ use self::failure::Error;
 pub struct Settings {
     pub paths: Paths,
     pub default_game: String,
+    pub prefer_dark_theme: bool,
 }
 
 /// This struct should hold any path we need to store in the settings.
@@ -47,6 +48,7 @@ impl Settings {
         Settings {
             paths: Paths::new(),
             default_game: "warhammer_2".to_owned(),
+            prefer_dark_theme: false,
         }
     }
 

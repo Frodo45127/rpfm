@@ -11,7 +11,8 @@ use gtk::prelude::*;
 use gdk::Gravity;
 use gtk::{
     Entry, Box, Button, Frame, ComboBoxText, ApplicationWindow, WindowPosition, Orientation,
-    Label, ButtonBox, ButtonBoxStyle, Application, FileChooserNative, ResponseType, FileChooserAction
+    Label, ButtonBox, ButtonBoxStyle, Application, FileChooserNative, ResponseType, FileChooserAction,
+    ReliefStyle, StyleContext, CheckButton
 };
 use pango::{
     AttrList, Attribute
@@ -25,7 +26,11 @@ pub struct SettingsWindow {
     pub settings_path_my_mod_entry: Entry,
     pub settings_path_warhammer_2_entry: Entry,
     pub settings_path_warhammer_entry: Entry,
+    pub settings_path_my_mod_button: Button,
+    pub settings_path_warhammer_2_button: Button,
+    pub settings_path_warhammer_button: Button,
     pub settings_game_list_combo: ComboBoxText,
+    pub settings_theme_prefer_dark_theme: CheckButton,
     pub settings_cancel: Button,
     pub settings_accept: Button,
 }
@@ -50,7 +55,7 @@ impl SettingsWindow {
     pub fn create_settings_window(application: &Application) -> SettingsWindow {
 
         let settings_window = ApplicationWindow::new(application);
-        settings_window.set_size_request(550, 0);
+        settings_window.set_size_request(700, 0);
         settings_window.set_gravity(Gravity::Center);
         settings_window.set_position(WindowPosition::Center);
         settings_window.set_title("Settings");
@@ -99,13 +104,18 @@ impl SettingsWindow {
         let my_mod_button = Button::new_with_label("...");
         let warhammer_2_button = Button::new_with_label("...");
         let warhammer_button = Button::new_with_label("...");
-        my_mod_button.set_relief(gtk::ReliefStyle::None);
-        warhammer_2_button.set_relief(gtk::ReliefStyle::None);
-        warhammer_button.set_relief(gtk::ReliefStyle::None);
 
         let settings_big_boxx = Box::new(Orientation::Vertical, 0);
+        let extra_settings_box = Box::new(Orientation::Horizontal, 0);
         let default_game_box = Box::new(Orientation::Horizontal, 0);
         default_game_box.set_border_width(4);
+        default_game_box.set_size_request(400, 0);
+
+        let theme_box = Box::new(Orientation::Horizontal, 0);
+        let prefer_dark_theme_label = Label::new(Some("Dark Theme:"));
+        let prefer_dark_theme_checkbox = CheckButton::new();
+        theme_box.set_border_width(4);
+        theme_box.set_size_request(150, 0);
 
         let default_game_label = Label::new(Some("Default Game Selected:"));
         let game_list_combo = ComboBoxText::new();
@@ -115,7 +125,7 @@ impl SettingsWindow {
         //game_list_combo.append(None, "Rome 2");
 
         game_list_combo.set_active(0);
-        game_list_combo.set_size_request(250, 0);
+        game_list_combo.set_size_request(200, 0);
 
         let button_box = ButtonBox::new(Orientation::Horizontal);
         button_box.set_layout(ButtonBoxStyle::End);
@@ -144,10 +154,15 @@ impl SettingsWindow {
         paths_frame.add(&paths_big_boxx);
 
         // Settings packing stuff...
+        theme_box.pack_start(&prefer_dark_theme_label, false, false, 0);
+        theme_box.pack_end(&prefer_dark_theme_checkbox, false, false, 0);
         default_game_box.pack_start(&default_game_label, false, false, 0);
         default_game_box.pack_end(&game_list_combo, false, false, 0);
 
-        settings_big_boxx.pack_start(&default_game_box, false, false, 0);
+        extra_settings_box.pack_start(&theme_box, false, false, 0);
+        extra_settings_box.pack_end(&default_game_box, false, true, 0);
+
+        settings_big_boxx.pack_start(&extra_settings_box, false, false, 0);
 
         // ButtonBox packing stuff...
         button_box.pack_start(&cancel_button, false, false, 0);
@@ -161,24 +176,62 @@ impl SettingsWindow {
         settings_window.add(&big_boxx);
         settings_window.show_all();
 
+        // Event to change between "Light/Dark" theme variations.
+        prefer_dark_theme_checkbox.connect_toggled(clone!(
+            settings_window => move |checkbox| {
+                let theme_settings = settings_window.get_settings().unwrap();
+                theme_settings.set_property_gtk_application_prefer_dark_theme(checkbox.get_active());
+            }
+        ));
+
         // Events for the `Entries`.
+        // Check all the entries. If all are valid, enable the "Accept" button.
+        // FIXME: Fix this shit.
+        accept_button.connect_property_relief_notify(clone!(
+            my_mod_entry,
+            warhammer_2_entry,
+            warhammer_entry => move |accept_button| {
+                if (Path::new(&my_mod_entry.get_buffer().get_text()).is_dir() || my_mod_entry.get_buffer().get_text().is_empty()) &&
+                    (Path::new(&warhammer_2_entry.get_buffer().get_text()).is_dir() || warhammer_2_entry.get_buffer().get_text().is_empty()) &&
+                    (Path::new(&warhammer_entry.get_buffer().get_text()).is_dir() || warhammer_entry.get_buffer().get_text().is_empty()) {
+                    accept_button.set_sensitive(true);
+                }
+                else {
+                    accept_button.set_sensitive(false);
+                }
+            }
+        ));
+
         // Set their background red while writing in them if their path is not valid.
-        my_mod_entry.connect_changed(move |text_entry| {
-            paint_entry(text_entry);
-        });
-        warhammer_2_entry.connect_changed(move |text_entry| {
-            paint_entry(text_entry);
-        });
-        warhammer_entry.connect_changed(move |text_entry| {
-            paint_entry(text_entry);
-        });
+        my_mod_entry.connect_changed(clone!(
+            accept_button,
+            my_mod_button => move |text_entry| {
+                paint_entry(text_entry, &my_mod_button, &accept_button);
+            }
+        ));
+        warhammer_2_entry.connect_changed(clone!(
+            accept_button,
+            warhammer_2_button => move |text_entry| {
+                paint_entry(text_entry, &warhammer_2_button, &accept_button);
+            }
+        ));
+        warhammer_entry.connect_changed(clone!(
+            accept_button,
+            warhammer_button => move |text_entry| {
+                paint_entry(text_entry, &warhammer_button, &accept_button);
+            }
+        ));
 
         // When we press the "..." buttons.
         my_mod_button.connect_button_release_event(clone!(
             my_mod_entry,
+            my_mod_button,
+            accept_button,
             settings_window => move |_,_| {
                 update_entry_path(
                     &my_mod_entry,
+                    &my_mod_button,
+                    &accept_button,
                     "Select MyMod's Folder",
                     &settings_window,
                 );
@@ -188,9 +241,13 @@ impl SettingsWindow {
 
         warhammer_2_button.connect_button_release_event(clone!(
             warhammer_2_entry,
+            warhammer_2_button,
+            accept_button,
             settings_window => move |_,_| {
                 update_entry_path(
                     &warhammer_2_entry,
+                    &warhammer_2_button,
+                    &accept_button,
                     "Select Warhammer 2 Folder",
                     &settings_window
                 );
@@ -200,9 +257,13 @@ impl SettingsWindow {
 
         warhammer_button.connect_button_release_event(clone!(
             warhammer_entry,
+            warhammer_button,
+            accept_button,
             settings_window => move |_,_| {
                 update_entry_path(
                     &warhammer_entry,
+                    &warhammer_button,
+                    &accept_button,
                     "Select Warhammer Folder",
                     &settings_window
                 );
@@ -216,6 +277,10 @@ impl SettingsWindow {
             settings_path_warhammer_2_entry: warhammer_2_entry,
             settings_path_warhammer_entry: warhammer_entry,
             settings_game_list_combo: game_list_combo,
+            settings_path_my_mod_button: my_mod_button,
+            settings_path_warhammer_2_button: warhammer_2_button,
+            settings_path_warhammer_button: warhammer_button,
+            settings_theme_prefer_dark_theme: prefer_dark_theme_checkbox,
             settings_cancel: cancel_button,
             settings_accept: accept_button,
         }
@@ -231,20 +296,26 @@ impl SettingsWindow {
                 "rome_2" => 3,
                 _ => 0,
             }
-
         );
+
+        // Load the current Theme prefs.
+        self.settings_theme_prefer_dark_theme.set_active(settings.prefer_dark_theme);
+
+        // Load the data to the entries.
         if let Some(ref path) = settings.paths.my_mods_base_path {
             self.settings_path_my_mod_entry.get_buffer().set_text(&path.to_string_lossy());
-            paint_entry(&self.settings_path_my_mod_entry);
         }
         if let Some(ref path) = settings.paths.warhammer_2 {
             self.settings_path_warhammer_2_entry.get_buffer().set_text(&path.to_string_lossy());
-            paint_entry(&self.settings_path_warhammer_2_entry);
         }
         if let Some(ref path) = settings.paths.warhammer {
             self.settings_path_warhammer_entry.get_buffer().set_text(&path.to_string_lossy());
-            paint_entry(&self.settings_path_warhammer_entry);
         }
+
+        // Paint the entries and buttons.
+        paint_entry(&self.settings_path_my_mod_entry, &self.settings_path_my_mod_button, &self.settings_accept);
+        paint_entry(&self.settings_path_warhammer_2_entry, &self.settings_path_warhammer_2_button, &self.settings_accept);
+        paint_entry(&self.settings_path_warhammer_entry, &self.settings_path_warhammer_button, &self.settings_accept);
     }
 
     /// This function gets the data from the settings window and returns a Settings object with that
@@ -262,6 +333,7 @@ impl SettingsWindow {
             _ => "if_you_see_this_folder_report_it",
         };
         settings.default_game = selected_game_folder.to_owned();
+        settings.prefer_dark_theme = self.settings_theme_prefer_dark_theme.get_active();
 
         if Path::new(&self.settings_path_my_mod_entry.get_buffer().get_text()).is_dir() {
             settings.paths.my_mods_base_path = Some(PathBuf::from(&self.settings_path_my_mod_entry.get_buffer().get_text()));
@@ -383,23 +455,51 @@ impl MyModNewWindow {
 }
 
 /// This function paints the provided `Entry` depending if the text inside the `Entry` is a valid
-/// `Path` or not.
-fn paint_entry(text_entry: &Entry) {
+/// `Path` or not. It also set the button as "destructive-action" if there is no path set or it's
+/// invalid. And, If any of the paths is invalid, it disables the "Accept" button.
+fn paint_entry(text_entry: &Entry, text_button: &Button, accept_button: &Button) {
     let text = text_entry.get_buffer().get_text();
     let attribute_list = AttrList::new();
+    let style_context = text_button.get_style_context().unwrap();
+
+    // Set `text_button` as "Normal" by default.
+    text_button.set_relief(ReliefStyle::None);
+    StyleContext::remove_class(&style_context, "suggested-action");
+    StyleContext::remove_class(&style_context, "destructive-action");
 
     // If there is text and it's an invalid path, we paint in red. We clear the background otherwise.
     if !text.is_empty() {
         if !Path::new(&text).is_dir() {
             let red = Attribute::new_background(65535, 35000, 35000).unwrap();
             attribute_list.insert(red);
+
+            text_button.set_relief(ReliefStyle::Normal);
+            StyleContext::add_class(&style_context, "destructive-action");
         }
     }
+
+    // If the `Entry` is empty, we mark his button red.
+    else {
+        text_button.set_relief(ReliefStyle::Normal);
+        StyleContext::add_class(&style_context, "suggested-action");
+    }
+
     text_entry.set_attributes(&attribute_list);
+
+    // Trigger the "check all the paths" signal. This is extremely wonky, but until I find a better
+    // way to do it.... It works.
+    // FIXME: Fix this shit.
+    accept_button.set_relief(ReliefStyle::None);
+    accept_button.set_relief(ReliefStyle::Normal);
 }
 
 /// This function gets a Folder from a Native FileChooser and put his path into the provided `Entry`.
-fn update_entry_path(text_entry: &Entry, file_chooser_title: &str, file_chooser_parent: &ApplicationWindow) {
+fn update_entry_path(
+    text_entry: &Entry,
+    text_button: &Button,
+    accept_button: &Button,
+    file_chooser_title: &str,
+    file_chooser_parent: &ApplicationWindow) {
 
     let file_chooser_select_folder = FileChooserNative::new(
         file_chooser_title,
@@ -423,6 +523,7 @@ fn update_entry_path(text_entry: &Entry, file_chooser_title: &str, file_chooser_
         if let Some(new_folder) = file_chooser_select_folder.get_uri() {
             let path = Url::parse(&new_folder).unwrap().to_file_path().unwrap();
             text_entry.set_text(&path.to_string_lossy());
+            paint_entry(text_entry, text_button, accept_button);
         }
     }
 }

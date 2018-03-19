@@ -47,7 +47,7 @@ use gtk::{
     AboutDialog, Box, Builder, WindowPosition, FileChooserDialog, ApplicationWindow,
     TreeView, TreeSelection, TreeStore, MessageDialog, ScrolledWindow, Orientation, Application,
     CellRendererText, TreeViewColumn, Popover, Entry, Button, Image, ListStore, ResponseType,
-    ShortcutsWindow, ToVariant, Statusbar, FileChooserNative, FileChooserAction
+    ShortcutsWindow, ToVariant, Statusbar, FileChooserNative, FileChooserAction, SettingsExt
 };
 use pango::{
     AttrList, Attribute
@@ -439,6 +439,10 @@ fn build_ui(application: &Application) {
 
     // We load the settings here, and in case they doesn't exist, we create them.
     let settings = Rc::new(RefCell::new(Settings::load().unwrap_or_else(|_|Settings::new())));
+
+    // Depending on our settings, load the GTK Theme we want to use.
+    let theme_settings = app_ui.window.get_settings().unwrap();
+    theme_settings.set_property_gtk_application_prefer_dark_theme(settings.borrow().prefer_dark_theme);
 
     // We prepare the schema object to hold an Schema, leaving it as `None` by default.
     let schema: Rc<RefCell<Option<Schema>>> = Rc::new(RefCell::new(None));
