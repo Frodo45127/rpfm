@@ -5077,11 +5077,7 @@ fn build_ui(application: &Application) {
             if lets_do_it {
                 match info {
                     0 => {
-                        let pack_file_path: PathBuf = if cfg!(target_os = "linux") {
-                            PathBuf::from(selection_data.get_uris()[0].replace("file:///", "/").replace("%20", " "))
-                        } else {
-                            PathBuf::from(selection_data.get_uris()[0].replace("file:///", "").replace("%20", " "))
-                        };
+                        let pack_file_path = Url::parse(&selection_data.get_uris()[0]).unwrap().to_file_path().unwrap();
                         match packfile::open_packfile(pack_file_path) {
                             Ok(pack_file_opened) => {
 
