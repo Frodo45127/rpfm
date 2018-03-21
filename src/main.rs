@@ -168,8 +168,6 @@ struct AppUI {
     file_chooser_add_file_to_packfile: FileChooserDialog,
     file_chooser_add_folder_to_packfile: FileChooserDialog,
     file_chooser_add_from_packfile_dialog: FileChooserDialog,
-    file_chooser_extract_file: FileChooserDialog,
-    file_chooser_extract_folder: FileChooserDialog,
     file_chooser_packedfile_import_csv: FileChooserDialog,
     file_chooser_packedfile_export_csv: FileChooserDialog,
 
@@ -274,8 +272,6 @@ fn build_ui(application: &Application) {
         file_chooser_add_file_to_packfile: builder.get_object("gtk_file_chooser_add_file_to_packfile").unwrap(),
         file_chooser_add_folder_to_packfile: builder.get_object("gtk_file_chooser_add_folder_to_packfile").unwrap(),
         file_chooser_add_from_packfile_dialog: builder.get_object("gtk_file_chooser_add_from_packfile").unwrap(),
-        file_chooser_extract_file: builder.get_object("gtk_file_chooser_extract_file").unwrap(),
-        file_chooser_extract_folder: builder.get_object("gtk_file_chooser_extract_folder").unwrap(),
         file_chooser_packedfile_import_csv: builder.get_object("gtk_file_chooser_packedfile_import_csv").unwrap(),
         file_chooser_packedfile_export_csv: builder.get_object("gtk_file_chooser_packedfile_export_csv").unwrap(),
 
@@ -2879,19 +2875,26 @@ fn build_ui(application: &Application) {
                         // If there is no "MyMod" selected, extract normally.
                         Mode::Normal => {
 
-                            app_ui.file_chooser_extract_file.set_current_name(&tree_path.last().unwrap());
-                            if app_ui.file_chooser_extract_file.run() == gtk_response_ok {
+                            let file_chooser_extract_file = FileChooserNative::new(
+                                "Select File destination...",
+                                &app_ui.window,
+                                FileChooserAction::Save,
+                                "Extract",
+                                "Cancel"
+                            );
+
+                            file_chooser_extract_file.set_current_name(&tree_path.last().unwrap());
+                            if file_chooser_extract_file.run() == gtk_response_accept {
                                 match packfile::extract_from_packfile(
                                     &*pack_file_decoded.borrow(),
                                     &tree_path,
-                                    &app_ui.file_chooser_extract_file.get_filename().expect("Couldn't open file")
+                                    &file_chooser_extract_file.get_filename().expect("Couldn't open file")
                                 ) {
 
                                     Ok(result) => ui::show_dialog(&app_ui.success_dialog, result),
                                     Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause())
                                 }
                             }
-                            app_ui.file_chooser_extract_file.hide_on_delete();
                         }
                     }
 
@@ -2957,17 +2960,25 @@ fn build_ui(application: &Application) {
 
                         // If there is no "MyMod" selected, extract normally.
                         Mode::Normal => {
-                            if app_ui.file_chooser_extract_folder.run() == gtk_response_ok {
+
+                            let file_chooser_extract_folder = FileChooserNative::new(
+                                "Select Folder destination...",
+                                &app_ui.window,
+                                FileChooserAction::CreateFolder,
+                                "Extract",
+                                "Cancel"
+                            );
+
+                            if file_chooser_extract_folder.run() == gtk_response_accept {
                                 match packfile::extract_from_packfile(
                                     &*pack_file_decoded.borrow(),
                                     &tree_path,
-                                    &app_ui.file_chooser_extract_folder.get_filename().expect("Couldn't open file")) {
+                                    &file_chooser_extract_folder.get_filename().expect("Couldn't open file")) {
 
                                     Ok(result) => ui::show_dialog(&app_ui.success_dialog, result),
                                     Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause())
                                 }
                             }
-                            app_ui.file_chooser_extract_folder.hide_on_delete();
                         }
                     }
                 }
@@ -3021,17 +3032,25 @@ fn build_ui(application: &Application) {
 
                         // If there is no "MyMod" selected, extract normally.
                         Mode::Normal => {
-                            if app_ui.file_chooser_extract_folder.run() == gtk_response_ok {
+
+                            let file_chooser_extract_folder = FileChooserNative::new(
+                                "Select Folder destination...",
+                                &app_ui.window,
+                                FileChooserAction::CreateFolder,
+                                "Extract",
+                                "Cancel"
+                            );
+
+                            if file_chooser_extract_folder.run() == gtk_response_accept {
                                 match packfile::extract_from_packfile(
                                     &*pack_file_decoded.borrow(),
                                     &tree_path,
-                                    &app_ui.file_chooser_extract_folder.get_filename().expect("Couldn't open file")) {
+                                    &file_chooser_extract_folder.get_filename().expect("Couldn't open file")) {
 
                                     Ok(result) => ui::show_dialog(&app_ui.success_dialog, result),
                                     Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause())
                                 }
                             }
-                            app_ui.file_chooser_extract_folder.hide_on_delete();
                         }
                     }
                 }
