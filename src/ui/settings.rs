@@ -12,7 +12,7 @@ use gdk::Gravity;
 use gtk::{
     Entry, Box, Button, Frame, ComboBoxText, ApplicationWindow, WindowPosition, Orientation,
     Label, ButtonBox, ButtonBoxStyle, Application, FileChooserNative, ResponseType, FileChooserAction,
-    ReliefStyle, StyleContext, CheckButton
+    ReliefStyle, StyleContext, CheckButton, Grid
 };
 use pango::{
     AttrList, Attribute
@@ -64,19 +64,17 @@ impl SettingsWindow {
         // Disable the menubar in this window.
         settings_window.set_show_menubar(false);
 
-        let big_boxx = Box::new(Orientation::Vertical, 0);
-        big_boxx.set_border_width(7);
+        let big_grid = Grid::new();
+        big_grid.set_border_width(6);
+        big_grid.set_row_spacing(3);
+        big_grid.set_column_spacing(3);
 
         let paths_frame = Frame::new(Some("Paths"));
+        let paths_grid = Grid::new();
         paths_frame.set_label_align(0.04, 0.5);
-
-        let paths_big_boxx = Box::new(Orientation::Vertical, 0);
-        let path_my_mod_box = Box::new(Orientation::Horizontal, 0);
-        let path_warhammer_2_box = Box::new(Orientation::Horizontal, 0);
-        let path_warhammer_box = Box::new(Orientation::Horizontal, 0);
-        path_my_mod_box.set_border_width(4);
-        path_warhammer_2_box.set_border_width(4);
-        path_warhammer_box.set_border_width(4);
+        paths_grid.set_border_width(6);
+        paths_grid.set_row_spacing(3);
+        paths_grid.set_column_spacing(3);
 
         let my_mod_label = Label::new(Some("My mod's folder"));
         let warhammer_2_label = Label::new(Some("TW: Warhammer 2 folder"));
@@ -95,37 +93,52 @@ impl SettingsWindow {
         let warhammer_2_entry = Entry::new();
         let warhammer_entry = Entry::new();
         my_mod_entry.set_has_frame(false);
+        my_mod_entry.set_hexpand(true);
         my_mod_entry.set_placeholder_text("This is the folder where you want to store all \"MyMod\" related files.");
         warhammer_2_entry.set_has_frame(false);
+        warhammer_2_entry.set_hexpand(true);
         warhammer_2_entry.set_placeholder_text("This is the folder where you have Warhammer 2 installed.");
         warhammer_entry.set_has_frame(false);
+        warhammer_entry.set_hexpand(true);
         warhammer_entry.set_placeholder_text("This is the folder where you have Warhammer installed.");
 
         let my_mod_button = Button::new_with_label("...");
         let warhammer_2_button = Button::new_with_label("...");
         let warhammer_button = Button::new_with_label("...");
 
-        let settings_big_boxx = Box::new(Orientation::Vertical, 0);
-        let extra_settings_box = Box::new(Orientation::Horizontal, 0);
-        let default_game_box = Box::new(Orientation::Horizontal, 0);
-        default_game_box.set_border_width(4);
-        default_game_box.set_size_request(400, 0);
+        let theme_frame = Frame::new(Some("Theme Settings"));
+        let theme_grid = Grid::new();
+        theme_frame.set_label_align(0.04, 0.5);
+        theme_grid.set_border_width(6);
+        theme_grid.set_row_spacing(3);
+        theme_grid.set_column_spacing(3);
 
-        let theme_box = Box::new(Orientation::Horizontal, 0);
-        let prefer_dark_theme_label = Label::new(Some("Dark Theme:"));
+        let prefer_dark_theme_label = Label::new(Some("Use Dark Theme:"));
         let prefer_dark_theme_checkbox = CheckButton::new();
-        theme_box.set_border_width(4);
-        theme_box.set_size_request(150, 0);
+        prefer_dark_theme_label.set_size_request(170, 0);
+        prefer_dark_theme_label.set_xalign(0.0);
+        prefer_dark_theme_label.set_yalign(0.5);
+        prefer_dark_theme_checkbox.set_hexpand(true);
+
+        let extra_settings_frame = Frame::new(Some("Extra Settings"));
+        let extra_settings_grid = Grid::new();
+        extra_settings_frame.set_label_align(0.04, 0.5);
+        extra_settings_grid.set_border_width(6);
+        extra_settings_grid.set_row_spacing(3);
+        extra_settings_grid.set_column_spacing(3);
 
         let default_game_label = Label::new(Some("Default Game Selected:"));
         let game_list_combo = ComboBoxText::new();
+        default_game_label.set_size_request(170, 0);
+        default_game_label.set_xalign(0.0);
+        default_game_label.set_yalign(0.5);
         game_list_combo.append(None, "Warhammer 2");
         game_list_combo.append(None, "Warhammer");
         //game_list_combo.append(None, "Attila");
         //game_list_combo.append(None, "Rome 2");
 
         game_list_combo.set_active(0);
-        game_list_combo.set_size_request(200, 0);
+        game_list_combo.set_hexpand(true);
 
         let button_box = ButtonBox::new(Orientation::Horizontal);
         button_box.set_layout(ButtonBoxStyle::End);
@@ -135,45 +148,43 @@ impl SettingsWindow {
         let accept_button = Button::new_with_label("Accept");
 
         // Frame packing stuff...
-        path_my_mod_box.pack_start(&my_mod_label, false, false, 0);
-        path_my_mod_box.pack_start(&my_mod_entry, true, true, 0);
-        path_my_mod_box.pack_end(&my_mod_button, false, false, 0);
+        paths_grid.attach(&my_mod_label, 0, 0, 1, 1);
+        paths_grid.attach(&my_mod_entry, 1, 0, 1, 1);
+        paths_grid.attach(&my_mod_button, 2, 0, 1, 1);
 
-        path_warhammer_2_box.pack_start(&warhammer_2_label, false, false, 0);
-        path_warhammer_2_box.pack_start(&warhammer_2_entry, true, true, 0);
-        path_warhammer_2_box.pack_end(&warhammer_2_button, false, false, 0);
+        paths_grid.attach(&warhammer_2_label, 0, 1, 1, 1);
+        paths_grid.attach(&warhammer_2_entry, 1, 1, 1, 1);
+        paths_grid.attach(&warhammer_2_button, 2, 1, 1, 1);
 
-        path_warhammer_box.pack_start(&warhammer_label, false, false, 0);
-        path_warhammer_box.pack_start(&warhammer_entry, true, true, 0);
-        path_warhammer_box.pack_end(&warhammer_button, false, false, 0);
+        paths_grid.attach(&warhammer_label, 0, 2, 1, 1);
+        paths_grid.attach(&warhammer_entry, 1, 2, 1, 1);
+        paths_grid.attach(&warhammer_button, 2, 2, 1, 1);
 
-        paths_big_boxx.pack_start(&path_my_mod_box, false, false, 0);
-        paths_big_boxx.pack_start(&path_warhammer_2_box, false, false, 0);
-        paths_big_boxx.pack_start(&path_warhammer_box, false, false, 0);
+        paths_frame.add(&paths_grid);
 
-        paths_frame.add(&paths_big_boxx);
+        // Theme Settings packing stuff...
+        theme_grid.attach(&prefer_dark_theme_label, 0, 0, 1, 1);
+        theme_grid.attach(&prefer_dark_theme_checkbox, 1, 0, 1, 1);
 
-        // Settings packing stuff...
-        theme_box.pack_start(&prefer_dark_theme_label, false, false, 0);
-        theme_box.pack_end(&prefer_dark_theme_checkbox, false, false, 0);
-        default_game_box.pack_start(&default_game_label, false, false, 0);
-        default_game_box.pack_end(&game_list_combo, false, false, 0);
+        theme_frame.add(&theme_grid);
 
-        extra_settings_box.pack_start(&theme_box, false, false, 0);
-        extra_settings_box.pack_end(&default_game_box, false, true, 0);
+        // Extra Settings packing stuff
+        extra_settings_grid.attach(&default_game_label, 0, 0, 1, 1);
+        extra_settings_grid.attach(&game_list_combo, 1, 0, 1, 1);
 
-        settings_big_boxx.pack_start(&extra_settings_box, false, false, 0);
+        extra_settings_frame.add(&extra_settings_grid);
 
         // ButtonBox packing stuff...
         button_box.pack_start(&cancel_button, false, false, 0);
         button_box.pack_start(&accept_button, false, false, 0);
 
         // General packing stuff...
-        big_boxx.pack_start(&paths_frame, false, false, 0);
-        big_boxx.pack_start(&settings_big_boxx, false, false, 0);
-        big_boxx.pack_end(&button_box, false, false, 5);
+        big_grid.attach(&paths_frame, 0, 0, 2, 1);
+        big_grid.attach(&theme_frame, 0, 1, 1, 1);
+        big_grid.attach(&extra_settings_frame, 1, 1, 1, 1);
+        big_grid.attach(&button_box, 0, 2, 2, 1);
 
-        settings_window.add(&big_boxx);
+        settings_window.add(&big_grid);
         settings_window.show_all();
 
         // Event to change between "Light/Dark" theme variations.
