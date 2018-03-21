@@ -84,7 +84,7 @@
   - [ ] Extra theming options.
   - [ ] LUA files autocompletion.
   - [ ] Font size selection.
-  - [ ] Migrate filechooser dialogs to use native dialogs (probably in the next GTK-RS update, as I saw some of the code needed for this already in their repo).
+  - [x] Migrate filechooser dialogs to use native dialogs.
   - [ ] Pref: Remember custom column widths (not so sure if I'll manage to make this one... or if it'll be done, but to the list it goes).
   - [ ] Code Tests, to ensure I don't break something with a code change.... again.
   - [ ] Something to not load entire PackFiles to Ram (optional, as this causes problems seen in PFM),

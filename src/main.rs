@@ -44,7 +44,7 @@ use gio::{
 };
 use gtk::prelude::*;
 use gtk::{
-    AboutDialog, Box, Builder, WindowPosition, FileChooserDialog, ApplicationWindow, FileFilter,
+    AboutDialog, Box, Builder, WindowPosition, ApplicationWindow, FileFilter,
     TreeView, TreeSelection, TreeStore, MessageDialog, ScrolledWindow, Orientation, Application,
     CellRendererText, TreeViewColumn, Popover, Entry, Button, Image, ListStore, ResponseType,
     ShortcutsWindow, ToVariant, Statusbar, FileChooserNative, FileChooserAction, SettingsExt
@@ -162,10 +162,6 @@ struct AppUI {
     // Status bar at the bottom of the program. To show informative messages.
     status_bar: Statusbar,
 
-    // File choosers used by RPFM.
-    file_chooser_open_packfile_dialog: FileChooserDialog,
-    file_chooser_save_packfile_dialog: FileChooserDialog,
-
     // TreeView used to see the PackedFiles, and his TreeStore and TreeSelection.
     folder_tree_view: TreeView,
     folder_tree_store: TreeStore,
@@ -260,10 +256,6 @@ fn build_ui(application: &Application) {
 
         // Status bar at the bottom of the program. To show informative messages.
         status_bar: builder.get_object("gtk_bottom_status_bar").unwrap(),
-
-        // File choosers used by RPFM.
-        file_chooser_open_packfile_dialog: builder.get_object("gtk_file_chooser_open_packfile").unwrap(),
-        file_chooser_save_packfile_dialog: builder.get_object("gtk_file_chooser_save_packfile").unwrap(),
 
         // TreeView used to see the PackedFiles, and his TreeStore and TreeSelection.
         folder_tree_view,
@@ -757,20 +749,30 @@ fn build_ui(application: &Application) {
             // If we got confirmation...
             if lets_do_it {
 
+                let file_chooser_open_packfile = FileChooserNative::new(
+                    "Open PackFile...",
+                    &app_ui.window,
+                    FileChooserAction::Open,
+                    "Accept",
+                    "Cancel"
+                );
+
+                file_chooser_filter_packfile(&file_chooser_open_packfile, "*.pack");
+
                 // In case we have a default path for the game selected, we use it as base path for opening files.
                 if let Some(ref path) = game_selected.borrow().game_data_path {
 
                     // We check that actually exists before setting it.
                     if path.is_dir() {
-                        app_ui.file_chooser_open_packfile_dialog.set_current_folder(&path);
+                        file_chooser_open_packfile.set_current_folder(&path);
                     }
                 }
 
                 // When we select the file to open, we get his path, open it and, if there has been no
                 // errors, decode it, update the TreeView to show it and check his type for the Change PackFile
                 // Type option in the File menu.
-                if app_ui.file_chooser_open_packfile_dialog.run() == gtk_response_ok {
-                    let pack_file_path = app_ui.file_chooser_open_packfile_dialog.get_filename().expect("Couldn't open file");
+                if file_chooser_open_packfile.run() == gtk_response_accept {
+                    let pack_file_path = file_chooser_open_packfile.get_filename().expect("Couldn't open file");
                     match packfile::open_packfile(pack_file_path) {
                         Ok(pack_file_opened) => {
                             *pack_file_decoded.borrow_mut() = pack_file_opened;
@@ -828,7 +830,6 @@ fn build_ui(application: &Application) {
                         Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause()),
                     }
                 }
-                app_ui.file_chooser_open_packfile_dialog.hide_on_delete();
             }
     }));
 
@@ -845,19 +846,27 @@ fn build_ui(application: &Application) {
         // path. After that, we update the TreeView to reflect the name change and hide the dialog.
         let mut pack_file_path: Option<PathBuf> = None;
         if !pack_file_decoded.borrow().pack_file_extra_data.file_path.exists() {
-            app_ui.file_chooser_save_packfile_dialog.set_current_name(&pack_file_decoded.borrow().pack_file_extra_data.file_name);
+            let file_chooser_save_packfile = FileChooserNative::new(
+                "Save PackFile...",
+                &app_ui.window,
+                FileChooserAction::Save,
+                "Save",
+                "Cancel"
+            );
+
+            file_chooser_save_packfile.set_current_name(&pack_file_decoded.borrow().pack_file_extra_data.file_name);
 
             // In case we have a default path for the game selected, we use it as base path for saving files.
             if let Some(ref path) = game_selected.borrow().game_data_path {
 
                 // We check it actually exists before setting it.
                 if path.is_dir() {
-                    app_ui.file_chooser_save_packfile_dialog.set_current_folder(path);
+                    file_chooser_save_packfile.set_current_folder(path);
                 }
             }
 
-            if app_ui.file_chooser_save_packfile_dialog.run() == gtk_response_ok {
-                pack_file_path = Some(app_ui.file_chooser_save_packfile_dialog.get_filename().expect("Couldn't open file"));
+            if file_chooser_save_packfile.run() == gtk_response_accept {
+                pack_file_path = Some(file_chooser_save_packfile.get_filename().expect("Couldn't open file"));
 
                 let mut success = false;
                 match packfile::save_packfile(&mut *pack_file_decoded.borrow_mut(), pack_file_path) {
@@ -880,7 +889,6 @@ fn build_ui(application: &Application) {
                 }
 
             }
-            app_ui.file_chooser_save_packfile_dialog.hide_on_delete();
         }
 
         // If the PackFile has a path, we just encode it and save it into that path.
@@ -908,26 +916,34 @@ fn build_ui(application: &Application) {
         mode,
         pack_file_decoded => move |_,_| {
 
+        let file_chooser_save_packfile = FileChooserNative::new(
+            "Save PackFile...",
+            &app_ui.window,
+            FileChooserAction::Save,
+            "Save",
+            "Cancel"
+        );
+
         // If we are saving an existing PackFile with another name, we start in his current path.
         if pack_file_decoded.borrow().pack_file_extra_data.file_path.exists() {
-            app_ui.file_chooser_save_packfile_dialog.set_filename(&pack_file_decoded.borrow().pack_file_extra_data.file_path);
+            file_chooser_save_packfile.set_filename(&pack_file_decoded.borrow().pack_file_extra_data.file_path);
         }
 
         // In case we have a default path for the game selected, we use it as base path for saving files.
         else if let Some(ref path) = game_selected.borrow().game_data_path {
-            app_ui.file_chooser_save_packfile_dialog.set_current_name(&pack_file_decoded.borrow().pack_file_extra_data.file_name);
+            file_chooser_save_packfile.set_current_name(&pack_file_decoded.borrow().pack_file_extra_data.file_name);
 
             // We check it actually exists before setting it.
             if path.is_dir() {
-                app_ui.file_chooser_save_packfile_dialog.set_current_folder(path);
+                file_chooser_save_packfile.set_current_folder(path);
             }
         }
 
-        if app_ui.file_chooser_save_packfile_dialog.run() == gtk_response_ok {
+        if file_chooser_save_packfile.run() == gtk_response_accept {
             let mut success = false;
             match packfile::save_packfile(
                &mut *pack_file_decoded.borrow_mut(),
-               Some(app_ui.file_chooser_save_packfile_dialog.get_filename().expect("Couldn't open file"))) {
+               Some(file_chooser_save_packfile.get_filename().expect("Couldn't open file"))) {
                     Ok(result) => {
                         success = true;
                         ui::show_dialog(&app_ui.success_dialog, result);
@@ -953,7 +969,6 @@ fn build_ui(application: &Application) {
                 app_ui.menu_bar_my_mod_uninstall.set_enabled(false);
             }
         }
-        app_ui.file_chooser_save_packfile_dialog.hide_on_delete();
     }));
 
     // When changing the type of the open PackFile.
@@ -5480,9 +5495,6 @@ fn file_chooser_filter_packfile(file_chooser: &FileChooserNative, pattern: &str)
     // Set his filter to only admit ".pack" files.
     let filter = FileFilter::new();
     filter.add_pattern(pattern);
-
-    // This function conflitcs with others, so we call it this way.
-    FileFilterExt::set_name(&filter, "PackFiles");
     file_chooser.add_filter(&filter);
 }
 
