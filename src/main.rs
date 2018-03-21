@@ -44,7 +44,7 @@ use gio::{
 };
 use gtk::prelude::*;
 use gtk::{
-    AboutDialog, Box, Builder, WindowPosition, FileChooserDialog, ApplicationWindow,
+    AboutDialog, Box, Builder, WindowPosition, FileChooserDialog, ApplicationWindow, FileFilter,
     TreeView, TreeSelection, TreeStore, MessageDialog, ScrolledWindow, Orientation, Application,
     CellRendererText, TreeViewColumn, Popover, Entry, Button, Image, ListStore, ResponseType,
     ShortcutsWindow, ToVariant, Statusbar, FileChooserNative, FileChooserAction, SettingsExt
@@ -165,9 +165,6 @@ struct AppUI {
     // File choosers used by RPFM.
     file_chooser_open_packfile_dialog: FileChooserDialog,
     file_chooser_save_packfile_dialog: FileChooserDialog,
-    file_chooser_add_file_to_packfile: FileChooserDialog,
-    file_chooser_add_folder_to_packfile: FileChooserDialog,
-    file_chooser_add_from_packfile_dialog: FileChooserDialog,
     file_chooser_packedfile_import_csv: FileChooserDialog,
     file_chooser_packedfile_export_csv: FileChooserDialog,
 
@@ -269,9 +266,6 @@ fn build_ui(application: &Application) {
         // File choosers used by RPFM.
         file_chooser_open_packfile_dialog: builder.get_object("gtk_file_chooser_open_packfile").unwrap(),
         file_chooser_save_packfile_dialog: builder.get_object("gtk_file_chooser_save_packfile").unwrap(),
-        file_chooser_add_file_to_packfile: builder.get_object("gtk_file_chooser_add_file_to_packfile").unwrap(),
-        file_chooser_add_folder_to_packfile: builder.get_object("gtk_file_chooser_add_folder_to_packfile").unwrap(),
-        file_chooser_add_from_packfile_dialog: builder.get_object("gtk_file_chooser_add_from_packfile").unwrap(),
         file_chooser_packedfile_import_csv: builder.get_object("gtk_file_chooser_packedfile_import_csv").unwrap(),
         file_chooser_packedfile_export_csv: builder.get_object("gtk_file_chooser_packedfile_export_csv").unwrap(),
 
@@ -2259,6 +2253,14 @@ fn build_ui(application: &Application) {
         // the accels working everywhere.
         if app_ui.folder_tree_view.has_focus() {
 
+            let file_chooser_add_file_to_packfile = FileChooserNative::new(
+                "Select File...",
+                &app_ui.window,
+                FileChooserAction::Open,
+                "Accept",
+                "Cancel"
+            );
+
             match *mode.borrow() {
 
                 // If there is a "MyMod" selected, we need to add whatever we want to add
@@ -2288,13 +2290,13 @@ fn build_ui(application: &Application) {
                         }
 
                         // Then we set that path as current path for the "Add PackedFile" file chooser.
-                        app_ui.file_chooser_add_file_to_packfile.set_current_folder(&my_mod_path);
+                        file_chooser_add_file_to_packfile.set_current_folder(&my_mod_path);
 
                         // And run the file_chooser.
-                        if app_ui.file_chooser_add_file_to_packfile.run() == gtk_response_ok {
+                        if file_chooser_add_file_to_packfile.run() == gtk_response_accept {
 
                             // Get the names of the files to add.
-                            let paths = app_ui.file_chooser_add_file_to_packfile.get_filenames();
+                            let paths = file_chooser_add_file_to_packfile.get_filenames();
 
                             // For each one of them...
                             for path in &paths {
@@ -2361,7 +2363,6 @@ fn build_ui(application: &Application) {
                                 }
                             }
                         }
-                        app_ui.file_chooser_add_file_to_packfile.hide_on_delete();
                     }
                     else {
                         return ui::show_dialog(&app_ui.error_dialog, format_err!("MyMod base folder not configured."));
@@ -2370,9 +2371,9 @@ fn build_ui(application: &Application) {
 
                 // If there is no "MyMod" selected, we just keep the normal behavior.
                 Mode::Normal => {
-                    if app_ui.file_chooser_add_file_to_packfile.run() == gtk_response_ok {
+                    if file_chooser_add_file_to_packfile.run() == gtk_response_accept {
 
-                        let paths = app_ui.file_chooser_add_file_to_packfile.get_filenames();
+                        let paths = file_chooser_add_file_to_packfile.get_filenames();
                         for path in &paths {
 
                             let tree_path = ui::get_tree_path_from_pathbuf(path, &app_ui.folder_tree_selection, true);
@@ -2393,7 +2394,6 @@ fn build_ui(application: &Application) {
                             }
                         }
                     }
-                    app_ui.file_chooser_add_file_to_packfile.hide_on_delete();
                 },
             }
         }
@@ -2417,6 +2417,14 @@ fn build_ui(application: &Application) {
         // We only do something in case the focus is in the TreeView. This should stop problems with
         // the accels working everywhere.
         if app_ui.folder_tree_view.has_focus() {
+
+            let file_chooser_add_folder_to_packfile = FileChooserNative::new(
+                "Select Folder...",
+                &app_ui.window,
+                FileChooserAction::SelectFolder,
+                "Accept",
+                "Cancel"
+            );
 
             match *mode.borrow() {
 
@@ -2447,13 +2455,13 @@ fn build_ui(application: &Application) {
                         }
 
                         // Then we set that path as current path for the "Add PackedFile" file chooser.
-                        app_ui.file_chooser_add_folder_to_packfile.set_current_folder(&my_mod_path);
+                        file_chooser_add_folder_to_packfile.set_current_folder(&my_mod_path);
 
                         // Run the file chooser.
-                        if app_ui.file_chooser_add_folder_to_packfile.run() == gtk_response_ok {
+                        if file_chooser_add_folder_to_packfile.run() == gtk_response_accept {
 
                             // Get the folders.
-                            let folders = app_ui.file_chooser_add_folder_to_packfile.get_filenames();
+                            let folders = file_chooser_add_folder_to_packfile.get_filenames();
 
                             // For each folder...
                             for folder in &folders {
@@ -2568,7 +2576,6 @@ fn build_ui(application: &Application) {
                                 }
                             }
                         }
-                        app_ui.file_chooser_add_folder_to_packfile.hide_on_delete();
                     }
                     else {
                         return ui::show_dialog(&app_ui.error_dialog, format_err!("MyMod base folder not configured."));
@@ -2577,8 +2584,8 @@ fn build_ui(application: &Application) {
 
                 // If there is no "MyMod" selected, we just keep the normal behavior.
                 Mode::Normal => {
-                    if app_ui.file_chooser_add_folder_to_packfile.run() == gtk_response_ok {
-                        let folders = app_ui.file_chooser_add_folder_to_packfile.get_filenames();
+                    if file_chooser_add_folder_to_packfile.run() == gtk_response_accept {
+                        let folders = file_chooser_add_folder_to_packfile.get_filenames();
                         for folder in &folders {
                             let mut big_parent_prefix = folder.clone();
                             big_parent_prefix.pop();
@@ -2612,7 +2619,6 @@ fn build_ui(application: &Application) {
                             }
                         }
                     }
-                    app_ui.file_chooser_add_folder_to_packfile.hide_on_delete();
                 }
             }
         }
@@ -2641,8 +2647,19 @@ fn build_ui(application: &Application) {
                 }
             }
 
-            if app_ui.file_chooser_add_from_packfile_dialog.run() == gtk_response_ok {
-                let pack_file_path = app_ui.file_chooser_add_from_packfile_dialog.get_filename().expect("Couldn't open file");
+            let file_chooser_add_from_packfile = FileChooserNative::new(
+                "Select PackFile...",
+                &app_ui.window,
+                FileChooserAction::Open,
+                "Accept",
+                "Cancel"
+            );
+
+            // Set his filter to only admit ".pack" files.
+            file_chooser_filter_packfile(&file_chooser_add_from_packfile);
+
+            if file_chooser_add_from_packfile.run() == gtk_response_accept {
+                let pack_file_path = file_chooser_add_from_packfile.get_filename().expect("Couldn't open file");
                 match packfile::open_packfile(pack_file_path) {
 
                     // If the extra PackFile is valid, we create a box with a button to exit this mode
@@ -2757,7 +2774,6 @@ fn build_ui(application: &Application) {
                     Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause()),
                 }
             }
-            app_ui.file_chooser_add_from_packfile_dialog.hide_on_delete();
         }
     }));
 
@@ -5432,6 +5448,18 @@ fn check_updates(check_updates_dialog: Option<&MessageDialog>, status_bar: &Stat
             }
         }
     }
+}
+
+/// This function adds a "*.pack" Filter to the provided FileChooser.
+fn file_chooser_filter_packfile(file_chooser: &FileChooserNative) {
+
+    // Set his filter to only admit ".pack" files.
+    let filter = FileFilter::new();
+    filter.add_pattern("*.pack");
+
+    // This function conflitcs with others, so we call it this way.
+    FileFilterExt::set_name(&filter, "PackFiles");
+    file_chooser.add_filter(&filter);
 }
 
 /// Main function.
