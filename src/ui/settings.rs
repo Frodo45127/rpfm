@@ -12,7 +12,7 @@ use gdk::Gravity;
 use gtk::{
     Entry, Box, Button, Frame, ComboBoxText, ApplicationWindow, WindowPosition, Orientation,
     Label, ButtonBox, ButtonBoxStyle, Application, FileChooserNative, ResponseType, FileChooserAction,
-    ReliefStyle, StyleContext, CheckButton, Grid
+    ReliefStyle, StyleContext, CheckButton, Grid, FontButton
 };
 use pango::{
     AttrList, Attribute
@@ -31,6 +31,7 @@ pub struct SettingsWindow {
     pub settings_path_warhammer_button: Button,
     pub settings_game_list_combo: ComboBoxText,
     pub settings_theme_prefer_dark_theme: CheckButton,
+    pub settings_theme_font_button: FontButton,
     pub settings_cancel: Button,
     pub settings_accept: Button,
 }
@@ -64,6 +65,10 @@ impl SettingsWindow {
         // Disable the menubar in this window.
         settings_window.set_show_menubar(false);
 
+        // Get the current GTK settings. This unwrap is not expected to fail anytime, so we unwrap it.
+        let gtk_settings = &settings_window.get_settings().unwrap();
+
+        // Stuff of the Settings window.
         let big_grid = Grid::new();
         big_grid.set_border_width(6);
         big_grid.set_row_spacing(3);
@@ -115,10 +120,16 @@ impl SettingsWindow {
 
         let prefer_dark_theme_label = Label::new(Some("Use Dark Theme:"));
         let prefer_dark_theme_checkbox = CheckButton::new();
+        let font_settings_label = Label::new(Some("Font Settings:"));
+        let font_settings_button = FontButton::new();
         prefer_dark_theme_label.set_size_request(170, 0);
         prefer_dark_theme_label.set_xalign(0.0);
         prefer_dark_theme_label.set_yalign(0.5);
         prefer_dark_theme_checkbox.set_hexpand(true);
+        font_settings_label.set_size_request(170, 0);
+        font_settings_label.set_xalign(0.0);
+        font_settings_label.set_yalign(0.5);
+        font_settings_button.set_hexpand(true);
 
         let extra_settings_frame = Frame::new(Some("Extra Settings"));
         let extra_settings_grid = Grid::new();
@@ -165,6 +176,8 @@ impl SettingsWindow {
         // Theme Settings packing stuff...
         theme_grid.attach(&prefer_dark_theme_label, 0, 0, 1, 1);
         theme_grid.attach(&prefer_dark_theme_checkbox, 1, 0, 1, 1);
+        theme_grid.attach(&font_settings_label, 0, 1, 1, 1);
+        theme_grid.attach(&font_settings_button, 1, 1, 1, 1);
 
         theme_frame.add(&theme_grid);
 
@@ -189,9 +202,16 @@ impl SettingsWindow {
 
         // Event to change between "Light/Dark" theme variations.
         prefer_dark_theme_checkbox.connect_toggled(clone!(
-            settings_window => move |checkbox| {
-                let theme_settings = settings_window.get_settings().unwrap();
-                theme_settings.set_property_gtk_application_prefer_dark_theme(checkbox.get_active());
+            gtk_settings => move |checkbox| {
+                gtk_settings.set_property_gtk_application_prefer_dark_theme(checkbox.get_active());
+            }
+        ));
+
+        // Event to change the Font used.
+        font_settings_button.connect_font_set(clone!(
+            gtk_settings => move |font_settings_button| {
+                let new_font = font_settings_button.get_font_name().unwrap_or("Segoe UI 10".to_owned());
+                gtk_settings.set_property_gtk_font_name(Some(&new_font));
             }
         ));
 
@@ -292,6 +312,7 @@ impl SettingsWindow {
             settings_path_warhammer_2_button: warhammer_2_button,
             settings_path_warhammer_button: warhammer_button,
             settings_theme_prefer_dark_theme: prefer_dark_theme_checkbox,
+            settings_theme_font_button: font_settings_button,
             settings_cancel: cancel_button,
             settings_accept: accept_button,
         }
@@ -311,6 +332,7 @@ impl SettingsWindow {
 
         // Load the current Theme prefs.
         self.settings_theme_prefer_dark_theme.set_active(settings.prefer_dark_theme);
+        self.settings_theme_font_button.set_font_name(&settings.font);
 
         // Load the data to the entries.
         if let Some(ref path) = settings.paths.my_mods_base_path {
@@ -345,6 +367,7 @@ impl SettingsWindow {
         };
         settings.default_game = selected_game_folder.to_owned();
         settings.prefer_dark_theme = self.settings_theme_prefer_dark_theme.get_active();
+        settings.font = self.settings_theme_font_button.get_font_name().unwrap_or("Segoe UI 10".to_owned());
 
         if Path::new(&self.settings_path_my_mod_entry.get_buffer().get_text()).is_dir() {
             settings.paths.my_mods_base_path = Some(PathBuf::from(&self.settings_path_my_mod_entry.get_buffer().get_text()));

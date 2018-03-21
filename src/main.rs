@@ -418,9 +418,8 @@ fn build_ui(application: &Application) {
     // We load the settings here, and in case they doesn't exist, we create them.
     let settings = Rc::new(RefCell::new(Settings::load().unwrap_or_else(|_|Settings::new())));
 
-    // Depending on our settings, load the GTK Theme we want to use.
-    let theme_settings = app_ui.window.get_settings().unwrap();
-    theme_settings.set_property_gtk_application_prefer_dark_theme(settings.borrow().prefer_dark_theme);
+    // Load the GTK Settings, like the Theme and Font used.
+    load_gtk_settings(&app_ui.window, &settings.borrow());
 
     // We prepare the schema object to hold an Schema, leaving it as `None` by default.
     let schema: Rc<RefCell<Option<Schema>>> = Rc::new(RefCell::new(None));
@@ -5491,11 +5490,18 @@ fn check_updates(check_updates_dialog: Option<&MessageDialog>, status_bar: &Stat
 
 /// This function adds a Filter to the provided FileChooser, using the `pattern` &str.
 fn file_chooser_filter_packfile(file_chooser: &FileChooserNative, pattern: &str) {
-
-    // Set his filter to only admit ".pack" files.
     let filter = FileFilter::new();
     filter.add_pattern(pattern);
     file_chooser.add_filter(&filter);
+}
+
+/// This function loads the Theme and Font settings we have in our `Setting` object to GTK.
+fn load_gtk_settings(window: &ApplicationWindow, settings: &Settings) {
+
+    // Depending on our settings, load the GTK Theme we want to use.
+    let gtk_settings = window.get_settings().unwrap();
+    gtk_settings.set_property_gtk_application_prefer_dark_theme(settings.prefer_dark_theme);
+    gtk_settings.set_property_gtk_font_name(Some(&settings.font));
 }
 
 /// Main function.

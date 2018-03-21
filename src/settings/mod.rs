@@ -19,6 +19,7 @@ pub struct Settings {
     pub paths: Paths,
     pub default_game: String,
     pub prefer_dark_theme: bool,
+    pub font: String,
 }
 
 /// This struct should hold any path we need to store in the settings.
@@ -49,6 +50,7 @@ impl Settings {
             paths: Paths::new(),
             default_game: "warhammer_2".to_owned(),
             prefer_dark_theme: false,
+            font: "Segoe UI 10".to_owned()
         }
     }
 
