@@ -165,8 +165,6 @@ struct AppUI {
     // File choosers used by RPFM.
     file_chooser_open_packfile_dialog: FileChooserDialog,
     file_chooser_save_packfile_dialog: FileChooserDialog,
-    file_chooser_packedfile_import_csv: FileChooserDialog,
-    file_chooser_packedfile_export_csv: FileChooserDialog,
 
     // TreeView used to see the PackedFiles, and his TreeStore and TreeSelection.
     folder_tree_view: TreeView,
@@ -266,8 +264,6 @@ fn build_ui(application: &Application) {
         // File choosers used by RPFM.
         file_chooser_open_packfile_dialog: builder.get_object("gtk_file_chooser_open_packfile").unwrap(),
         file_chooser_save_packfile_dialog: builder.get_object("gtk_file_chooser_save_packfile").unwrap(),
-        file_chooser_packedfile_import_csv: builder.get_object("gtk_file_chooser_packedfile_import_csv").unwrap(),
-        file_chooser_packedfile_export_csv: builder.get_object("gtk_file_chooser_packedfile_export_csv").unwrap(),
 
         // TreeView used to see the PackedFiles, and his TreeStore and TreeSelection.
         folder_tree_view,
@@ -2656,7 +2652,7 @@ fn build_ui(application: &Application) {
             );
 
             // Set his filter to only admit ".pack" files.
-            file_chooser_filter_packfile(&file_chooser_add_from_packfile);
+            file_chooser_filter_packfile(&file_chooser_add_from_packfile, "*.pack");
 
             if file_chooser_add_from_packfile.run() == gtk_response_accept {
                 let pack_file_path = file_chooser_add_from_packfile.get_filename().expect("Couldn't open file");
@@ -3531,15 +3527,24 @@ fn build_ui(application: &Application) {
                                     // the accels working everywhere.
                                     if packed_file_tree_view.has_focus() {
 
+                                        let file_chooser_packedfile_import_csv = FileChooserNative::new(
+                                            "Select File to Import...",
+                                            &app_ui.window,
+                                            FileChooserAction::Open,
+                                            "Accept",
+                                            "Cancel"
+                                        );
+
+                                        file_chooser_filter_packfile(&file_chooser_packedfile_import_csv, "*.csv");
+
                                         // First we ask for the file to import.
-                                        if app_ui.file_chooser_packedfile_import_csv.run() == gtk_response_ok {
+                                        if file_chooser_packedfile_import_csv.run() == gtk_response_accept {
 
                                             // If there is an error importing, we report it.
                                             if let Err(error) = LocData::import_csv(
                                                 &mut packed_file_data_decoded.borrow_mut().packed_file_data,
-                                                &app_ui.file_chooser_packedfile_import_csv.get_filename().expect("Couldn't open file")
+                                                &file_chooser_packedfile_import_csv.get_filename().expect("Couldn't open file")
                                             ) {
-                                                app_ui.file_chooser_packedfile_import_csv.hide_on_delete();
                                                 return ui::show_dialog(&app_ui.error_dialog, error.cause());
                                             }
 
@@ -3550,7 +3555,6 @@ fn build_ui(application: &Application) {
                                             PackedFileLocTreeView::load_data_to_tree_view(&packed_file_data_decoded.borrow().packed_file_data, &packed_file_list_store);
                                             update_packed_file_data_loc(&*packed_file_data_decoded.borrow_mut(), &mut *pack_file_decoded.borrow_mut(), index as usize);
                                         }
-                                        app_ui.file_chooser_packedfile_import_csv.hide_on_delete();
                                     }
                                 }));
 
@@ -3568,16 +3572,23 @@ fn build_ui(application: &Application) {
                                     // the accels working everywhere.
                                     if packed_file_tree_view.has_focus() {
 
-                                        let tree_path = ui::get_tree_path_from_selection(&app_ui.folder_tree_selection, false);
-                                        app_ui.file_chooser_packedfile_export_csv.set_current_name(format!("{}.csv",&tree_path.last().unwrap()));
+                                        let file_chooser_packedfile_export_csv = FileChooserNative::new(
+                                            "Save CSV File...",
+                                            &app_ui.window,
+                                            FileChooserAction::Save,
+                                            "Save",
+                                            "Cancel"
+                                        );
 
-                                        if app_ui.file_chooser_packedfile_export_csv.run() == gtk_response_ok {
-                                            match LocData::export_csv(&packed_file_data_decoded.borrow_mut().packed_file_data, &app_ui.file_chooser_packedfile_export_csv.get_filename().expect("Couldn't open file")) {
+                                        let tree_path = ui::get_tree_path_from_selection(&app_ui.folder_tree_selection, false);
+                                        file_chooser_packedfile_export_csv.set_current_name(format!("{}.csv",&tree_path.last().unwrap()));
+
+                                        if file_chooser_packedfile_export_csv.run() == gtk_response_accept {
+                                            match LocData::export_csv(&packed_file_data_decoded.borrow_mut().packed_file_data, &file_chooser_packedfile_export_csv.get_filename().expect("Couldn't open file")) {
                                                 Ok(result) => ui::show_dialog(&app_ui.success_dialog, result),
                                                 Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause())
                                             }
                                         }
-                                        app_ui.file_chooser_packedfile_export_csv.hide_on_delete();
                                     }
                                 }));
                             }
@@ -4792,8 +4803,18 @@ fn build_ui(application: &Application) {
                                     // the accels working everywhere.
                                     if packed_file_tree_view.has_focus() {
 
+                                        let file_chooser_packedfile_import_csv = FileChooserNative::new(
+                                            "Select File to Import...",
+                                            &app_ui.window,
+                                            FileChooserAction::Open,
+                                            "Accept",
+                                            "Cancel"
+                                        );
+
+                                        file_chooser_filter_packfile(&file_chooser_packedfile_import_csv, "*.csv");
+
                                         // First we ask for the file to import.
-                                        if app_ui.file_chooser_packedfile_import_csv.run() == gtk_response_ok {
+                                        if file_chooser_packedfile_import_csv.run() == gtk_response_accept {
 
                                             // Just in case the import fails after importing (for example, due to importing a CSV from another table,
                                             // or from another version of the table, and it fails while loading to table or saving to PackFile)
@@ -4805,9 +4826,8 @@ fn build_ui(application: &Application) {
                                             // that it can be decoded properly, so we don't need to restore the table in this case.
                                             if let Err(error) = DBData::import_csv(
                                                 &mut packed_file_data_decoded.borrow_mut().packed_file_data,
-                                                &app_ui.file_chooser_packedfile_import_csv.get_filename().expect("Couldn't open file")
+                                                &file_chooser_packedfile_import_csv.get_filename().expect("Couldn't open file")
                                             ) {
-                                                app_ui.file_chooser_packedfile_import_csv.hide_on_delete();
                                                 return ui::show_dialog(&app_ui.error_dialog, error.cause());
                                             }
 
@@ -4816,14 +4836,12 @@ fn build_ui(application: &Application) {
 
                                             // If there is an error loading the data (wrong table imported?), report it and restore it from the old copy.
                                             if let Err(error) = PackedFileDBTreeView::load_data_to_tree_view(&packed_file_data_decoded.borrow().packed_file_data, &packed_file_list_store) {
-                                                app_ui.file_chooser_packedfile_import_csv.hide_on_delete();
                                                 restore_table = (true, error);
                                             }
 
                                             // If the table loaded properly, try to save the data to the encoded file.
                                             if !restore_table.0 {
                                                 if let Err(error) = update_packed_file_data_db(&*packed_file_data_decoded.borrow_mut(), &mut *pack_file_decoded.borrow_mut(), index as usize) {
-                                                    app_ui.file_chooser_packedfile_import_csv.hide_on_delete();
                                                     restore_table = (true, error);
                                                 }
                                             }
@@ -4834,7 +4852,6 @@ fn build_ui(application: &Application) {
                                                 ui::show_dialog(&app_ui.error_dialog, restore_table.1.cause());
                                             }
                                         }
-                                        app_ui.file_chooser_packedfile_import_csv.hide_on_delete();
                                     }
                                 }));
 
@@ -4852,18 +4869,25 @@ fn build_ui(application: &Application) {
                                     // the accels working everywhere.
                                     if packed_file_tree_view.has_focus() {
 
+                                        let file_chooser_packedfile_export_csv = FileChooserNative::new(
+                                            "Save CSV File...",
+                                            &app_ui.window,
+                                            FileChooserAction::Save,
+                                            "Save",
+                                            "Cancel"
+                                        );
+
                                         // Get it's tree_path and it's default name (table-table_name.csv)
                                         let tree_path = ui::get_tree_path_from_selection(&app_ui.folder_tree_selection, false);
-                                        app_ui.file_chooser_packedfile_export_csv.set_current_name(format!("{}-{}.csv", &tree_path[1], &tree_path.last().unwrap()));
+                                        file_chooser_packedfile_export_csv.set_current_name(format!("{}-{}.csv", &tree_path[1], &tree_path.last().unwrap()));
 
                                         // When we select the destination file, export it and report success or error.
-                                        if app_ui.file_chooser_packedfile_export_csv.run() == gtk_response_ok {
-                                            match DBData::export_csv(&packed_file_data_decoded.borrow_mut().packed_file_data, &app_ui.file_chooser_packedfile_export_csv.get_filename().expect("Couldn't open file")) {
+                                        if file_chooser_packedfile_export_csv.run() == gtk_response_accept {
+                                            match DBData::export_csv(&packed_file_data_decoded.borrow_mut().packed_file_data, &file_chooser_packedfile_export_csv.get_filename().expect("Couldn't open file")) {
                                                 Ok(result) => ui::show_dialog(&app_ui.success_dialog, result),
                                                 Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause()),
                                             }
                                         }
-                                        app_ui.file_chooser_packedfile_export_csv.hide_on_delete();
                                     }
                                 }));
                             }
@@ -5450,12 +5474,12 @@ fn check_updates(check_updates_dialog: Option<&MessageDialog>, status_bar: &Stat
     }
 }
 
-/// This function adds a "*.pack" Filter to the provided FileChooser.
-fn file_chooser_filter_packfile(file_chooser: &FileChooserNative) {
+/// This function adds a Filter to the provided FileChooser, using the `pattern` &str.
+fn file_chooser_filter_packfile(file_chooser: &FileChooserNative, pattern: &str) {
 
     // Set his filter to only admit ".pack" files.
     let filter = FileFilter::new();
-    filter.add_pattern("*.pack");
+    filter.add_pattern(pattern);
 
     // This function conflitcs with others, so we call it this way.
     FileFilterExt::set_name(&filter, "PackFiles");
