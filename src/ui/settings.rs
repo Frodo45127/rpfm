@@ -155,6 +155,7 @@ impl SettingsWindow {
         button_box.set_layout(ButtonBoxStyle::End);
         button_box.set_spacing(10);
 
+        let restore_default_button = Button::new_with_label("Restore Default");
         let cancel_button = Button::new_with_label("Cancel");
         let accept_button = Button::new_with_label("Accept");
 
@@ -188,6 +189,7 @@ impl SettingsWindow {
         extra_settings_frame.add(&extra_settings_grid);
 
         // ButtonBox packing stuff...
+        button_box.pack_start(&restore_default_button, false, false, 0);
         button_box.pack_start(&cancel_button, false, false, 0);
         button_box.pack_start(&accept_button, false, false, 0);
 
@@ -302,7 +304,8 @@ impl SettingsWindow {
             }
         ));
 
-        SettingsWindow {
+        // Create the SettingsWindow object and store it (We need it for the "Restore Default" button).
+        let window = SettingsWindow {
             settings_window,
             settings_path_my_mod_entry: my_mod_entry,
             settings_path_warhammer_2_entry: warhammer_2_entry,
@@ -315,7 +318,20 @@ impl SettingsWindow {
             settings_theme_font_button: font_settings_button,
             settings_cancel: cancel_button,
             settings_accept: accept_button,
-        }
+        };
+
+        // When we press the "Restore Default" button, we restore the settings to their "Default" values.
+        restore_default_button.connect_button_release_event(clone!(
+            window => move |_,_| {
+                let default_settings = Settings::new();
+                &window.load_to_settings_window(&default_settings);
+                load_gtk_settings(&window.settings_window, &default_settings);
+                Inhibit(false)
+            }
+        ));
+
+        // Now, return the window.
+        window
     }
 
     /// This function loads the data from the settings object to the settings window.
@@ -335,15 +351,9 @@ impl SettingsWindow {
         self.settings_theme_font_button.set_font_name(&settings.font);
 
         // Load the data to the entries.
-        if let Some(ref path) = settings.paths.my_mods_base_path {
-            self.settings_path_my_mod_entry.get_buffer().set_text(&path.to_string_lossy());
-        }
-        if let Some(ref path) = settings.paths.warhammer_2 {
-            self.settings_path_warhammer_2_entry.get_buffer().set_text(&path.to_string_lossy());
-        }
-        if let Some(ref path) = settings.paths.warhammer {
-            self.settings_path_warhammer_entry.get_buffer().set_text(&path.to_string_lossy());
-        }
+        self.settings_path_my_mod_entry.get_buffer().set_text(&settings.paths.my_mods_base_path.clone().unwrap_or(PathBuf::from("")).to_string_lossy());
+        self.settings_path_warhammer_2_entry.get_buffer().set_text(&settings.paths.warhammer_2.clone().unwrap_or(PathBuf::from("")).to_string_lossy());
+        self.settings_path_warhammer_entry.get_buffer().set_text(&settings.paths.warhammer.clone().unwrap_or(PathBuf::from("")).to_string_lossy());
 
         // Paint the entries and buttons.
         paint_entry(&self.settings_path_my_mod_entry, &self.settings_path_my_mod_button, &self.settings_accept);
@@ -560,4 +570,13 @@ fn update_entry_path(
             paint_entry(text_entry, text_button, accept_button);
         }
     }
+}
+
+/// This function loads the Theme and Font settings we have in our `Setting` object to GTK.
+pub fn load_gtk_settings(window: &ApplicationWindow, settings: &Settings) {
+
+    // Depending on our settings, load the GTK Theme we want to use.
+    let gtk_settings = window.get_settings().unwrap();
+    gtk_settings.set_property_gtk_application_prefer_dark_theme(settings.prefer_dark_theme);
+    gtk_settings.set_property_gtk_font_name(Some(&settings.font));
 }

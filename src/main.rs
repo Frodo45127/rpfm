@@ -47,7 +47,7 @@ use gtk::{
     AboutDialog, Box, Builder, WindowPosition, ApplicationWindow, FileFilter,
     TreeView, TreeSelection, TreeStore, MessageDialog, ScrolledWindow, Orientation, Application,
     CellRendererText, TreeViewColumn, Popover, Entry, Button, Image, ListStore, ResponseType,
-    ShortcutsWindow, ToVariant, Statusbar, FileChooserNative, FileChooserAction, SettingsExt
+    ShortcutsWindow, ToVariant, Statusbar, FileChooserNative, FileChooserAction
 };
 use pango::{
     AttrList, Attribute
@@ -1244,19 +1244,33 @@ fn build_ui(application: &Application) {
         // When we press the "Cancel" button, we close the window.
         settings_stuff.borrow().settings_cancel.connect_button_release_event(clone!(
             settings_stuff,
+            settings,
             app_ui => move |_,_| {
-            settings_stuff.borrow().settings_window.destroy();
-            app_ui.menu_bar_preferences.set_enabled(true);
-            Inhibit(false)
-        }));
+                settings_stuff.borrow().settings_window.destroy();
+                app_ui.menu_bar_preferences.set_enabled(true);
+
+                // Reload the Settings from the file so, if we have changed anything, it's undone.
+                *settings.borrow_mut() = Settings::load().unwrap_or_else(|_|Settings::new());
+                load_gtk_settings(&app_ui.window, &settings.borrow());
+
+                Inhibit(false)
+            }
+        ));
 
         // We catch the destroy event to restore the "Preferences" button.
         settings_stuff.borrow().settings_window.connect_delete_event(clone!(
+            settings,
             app_ui => move |settings_window, _| {
-            settings_window.destroy();
-            app_ui.menu_bar_preferences.set_enabled(true);
-            Inhibit(false)
-        }));
+                settings_window.destroy();
+                app_ui.menu_bar_preferences.set_enabled(true);
+
+                // Reload the Settings from the file so, if we have changed anything, it's undone.
+                *settings.borrow_mut() = Settings::load().unwrap_or_else(|_|Settings::new());
+                load_gtk_settings(&app_ui.window, &settings.borrow());
+
+                Inhibit(false)
+            }
+        ));
     }));
 
     // When we hit the "Quit" button.
@@ -5493,15 +5507,6 @@ fn file_chooser_filter_packfile(file_chooser: &FileChooserNative, pattern: &str)
     let filter = FileFilter::new();
     filter.add_pattern(pattern);
     file_chooser.add_filter(&filter);
-}
-
-/// This function loads the Theme and Font settings we have in our `Setting` object to GTK.
-fn load_gtk_settings(window: &ApplicationWindow, settings: &Settings) {
-
-    // Depending on our settings, load the GTK Theme we want to use.
-    let gtk_settings = window.get_settings().unwrap();
-    gtk_settings.set_property_gtk_application_prefer_dark_theme(settings.prefer_dark_theme);
-    gtk_settings.set_property_gtk_font_name(Some(&settings.font));
 }
 
 /// Main function.
