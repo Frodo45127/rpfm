@@ -19,6 +19,7 @@ use pango::{
 };
 use settings::Settings;
 use settings::GameInfo;
+use settings::GameSelected;
 
 /// `SettingsWindow`: This struct holds all the relevant stuff for the Settings Window.
 #[derive(Clone, Debug)]
@@ -144,7 +145,7 @@ impl SettingsWindow {
         default_game_label.set_size_request(170, 0);
         default_game_label.set_xalign(0.0);
         default_game_label.set_yalign(0.5);
-        for (index, game) in supported_games.iter().enumerate() {
+        for game in supported_games.iter() {
             game_list_combo.append(Some(&*game.folder_name), &game.display_name);
         }
 
@@ -392,7 +393,7 @@ impl MyModNewWindow {
 
     /// This function creates the entire "New mod" window. It requires the application object to pass
     /// the window to.
-    pub fn create_my_mod_new_window(application: &Application) -> MyModNewWindow {
+    pub fn create_my_mod_new_window(application: &Application, supported_games: &[GameInfo], game_selected: &GameSelected) -> MyModNewWindow {
 
         let my_mod_new_window = ApplicationWindow::new(application);
         my_mod_new_window.set_size_request(500, 0);
@@ -429,11 +430,10 @@ impl MyModNewWindow {
         selected_game_label.set_yalign(0.5);
 
         let selected_game_list_combo = ComboBoxText::new();
-        selected_game_list_combo.append(None, "Warhammer 2");
-        selected_game_list_combo.append(None, "Warhammer");
-        //selected_game_list_combo.append(None, "Attila");
-        //selected_game_list_combo.append(None, "Rome 2");
-        selected_game_list_combo.set_active(0);
+        for game in supported_games.iter() {
+            selected_game_list_combo.append(Some(&*game.folder_name), &game.display_name);
+        }
+        selected_game_list_combo.set_active_id(Some(&*game_selected.game));
 
         let mod_name_box = Box::new(Orientation::Horizontal, 0);
         mod_name_box.set_border_width(4);

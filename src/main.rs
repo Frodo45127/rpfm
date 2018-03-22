@@ -1309,6 +1309,7 @@ fn build_ui(application: &Application) {
         application,
         schema,
         game_selected,
+        supported_games,
         mode,
         pack_file_decoded => move |_,_| {
 
@@ -1316,7 +1317,7 @@ fn build_ui(application: &Application) {
         app_ui.menu_bar_my_mod_new.set_enabled(false);
 
         // Create the the "New mod" window and put all it's stuff into a variable.
-        let new_mod_stuff = Rc::new(RefCell::new(MyModNewWindow::create_my_mod_new_window(&application)));
+        let new_mod_stuff = Rc::new(RefCell::new(MyModNewWindow::create_my_mod_new_window(&application, &supported_games.borrow(), &game_selected.borrow())));
 
         // Make an initial check, to make sure all starts invalid.
         check_my_mod_new_mod_validity(&new_mod_stuff.borrow(), &settings.borrow());
