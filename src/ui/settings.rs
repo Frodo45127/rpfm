@@ -10,7 +10,7 @@ use url::Url;
 use gtk::prelude::*;
 use gdk::Gravity;
 use gtk::{
-    Entry, Box, Button, Frame, ComboBoxText, ApplicationWindow, WindowPosition, Orientation,
+    Entry, Button, Frame, ComboBoxText, ApplicationWindow, WindowPosition, Orientation,
     Label, ButtonBox, ButtonBoxStyle, Application, FileChooserNative, ResponseType, FileChooserAction,
     ReliefStyle, StyleContext, CheckButton, Grid, FontButton
 };
@@ -44,7 +44,6 @@ pub struct MyModNewWindow {
     pub my_mod_new_window: ApplicationWindow,
     pub my_mod_new_game_list_combo: ComboBoxText,
     pub my_mod_new_name_entry: Entry,
-    pub my_mod_new_name_is_valid_label: Label,
     pub my_mod_new_cancel: Button,
     pub my_mod_new_accept: Button,
 }
@@ -391,23 +390,30 @@ impl SettingsWindow {
 /// Implementation of `MyModNewWindow`.
 impl MyModNewWindow {
 
-    /// This function creates the entire "New mod" window. It requires the application object to pass
+    /// This function creates the entire "New Mod" window. It requires the application object to pass
     /// the window to.
-    pub fn create_my_mod_new_window(application: &Application, supported_games: &[GameInfo], game_selected: &GameSelected) -> MyModNewWindow {
+    pub fn create_my_mod_new_window(
+        application: &Application,
+        supported_games: &[GameInfo],
+        game_selected: &GameSelected,
+        settings: &Settings
+    ) -> MyModNewWindow {
 
         let my_mod_new_window = ApplicationWindow::new(application);
         my_mod_new_window.set_size_request(500, 0);
         my_mod_new_window.set_gravity(Gravity::Center);
         my_mod_new_window.set_position(WindowPosition::Center);
-        my_mod_new_window.set_title("New mod");
+        my_mod_new_window.set_title("New Mod");
         my_mod_new_window.set_icon_from_file(Path::new("img/rpfm.png")).unwrap();
 
         // Disable the menubar in this window.
         my_mod_new_window.set_show_menubar(false);
 
-        // One box to hold them all.
-        let big_boxx = Box::new(Orientation::Vertical, 0);
-        big_boxx.set_border_width(7);
+        // Stuff of the "New Mod" window.
+        let big_grid = Grid::new();
+        big_grid.set_border_width(6);
+        big_grid.set_row_spacing(6);
+        big_grid.set_column_spacing(3);
 
         let advices_frame = Frame::new(Some("Advices"));
         advices_frame.set_label_align(0.04, 0.5);
@@ -417,15 +423,22 @@ impl MyModNewWindow {
 	- Pick an simple name (it shouldn't end in *.pack).
 	- If you want to use multiple words, use \"_\" instead of \" \".
 	- You can't create a mod for a game that has no path set in the settings."));
-        advices_label.set_size_request(170, 0);
+        advices_label.set_size_request(-1, 0);
         advices_label.set_xalign(0.5);
         advices_label.set_yalign(0.5);
 
-        let selected_game_box = Box::new(Orientation::Horizontal, 0);
-        selected_game_box.set_border_width(4);
+        let mod_name_label = Label::new(Some("Name of the Mod:"));
+        mod_name_label.set_size_request(120, 0);
+        mod_name_label.set_xalign(0.0);
+        mod_name_label.set_yalign(0.5);
+
+        let mod_name_entry = Entry::new();
+        mod_name_entry.set_placeholder_text("For example: one_ring_for_me");
+        mod_name_entry.set_hexpand(true);
+        mod_name_entry.set_has_frame(false);
 
         let selected_game_label = Label::new(Some("Game of the Mod:"));
-        selected_game_label.set_size_request(125, 0);
+        selected_game_label.set_size_request(120, 0);
         selected_game_label.set_xalign(0.0);
         selected_game_label.set_yalign(0.5);
 
@@ -434,26 +447,11 @@ impl MyModNewWindow {
             selected_game_list_combo.append(Some(&*game.folder_name), &game.display_name);
         }
         selected_game_list_combo.set_active_id(Some(&*game_selected.game));
-
-        let mod_name_box = Box::new(Orientation::Horizontal, 0);
-        mod_name_box.set_border_width(4);
-
-        let mod_name_label = Label::new(Some("Name of the Mod:"));
-        mod_name_label.set_size_request(125, 0);
-        mod_name_label.set_xalign(0.0);
-        mod_name_label.set_yalign(0.5);
-
-        let mod_name_entry = Entry::new();
-        mod_name_entry.set_placeholder_text("For example: one_ring_for_me");
-
-        let is_name_valid_label = Label::new(Some("Invalid"));
-        is_name_valid_label.set_size_request(125, 0);
-        is_name_valid_label.set_xalign(0.5);
-        is_name_valid_label.set_yalign(0.5);
+        selected_game_list_combo.set_hexpand(true);
 
         let button_box = ButtonBox::new(Orientation::Horizontal);
         button_box.set_layout(ButtonBoxStyle::End);
-        button_box.set_spacing(10);
+        button_box.set_spacing(6);
 
         let cancel_button = Button::new_with_label("Cancel");
         let accept_button = Button::new_with_label("Accept");
@@ -461,32 +459,48 @@ impl MyModNewWindow {
         // Frame packing stuff...
         advices_frame.add(&advices_label);
 
-        // Input packing stuff...
-        selected_game_box.pack_start(&selected_game_label, false, false, 0);
-        selected_game_box.pack_end(&selected_game_list_combo, true, true, 0);
-
-        mod_name_box.pack_start(&mod_name_label, false, false, 0);
-        mod_name_box.pack_start(&mod_name_entry, true, true, 0);
-        mod_name_box.pack_end(&is_name_valid_label, false, false, 0);
-
         // ButtonBox packing stuff...
         button_box.pack_start(&cancel_button, false, false, 0);
         button_box.pack_start(&accept_button, false, false, 0);
 
         // General packing stuff...
-        big_boxx.pack_start(&advices_frame, false, false, 0);
-        big_boxx.pack_start(&selected_game_box, false, false, 0);
-        big_boxx.pack_start(&mod_name_box, false, false, 0);
-        big_boxx.pack_end(&button_box, false, false, 5);
+        big_grid.attach(&advices_frame, 0, 0, 2, 1);
+        big_grid.attach(&mod_name_label, 0, 1, 1, 1);
+        big_grid.attach(&mod_name_entry, 1, 1, 1, 1);
+        big_grid.attach(&selected_game_label, 0, 2, 1, 1);
+        big_grid.attach(&selected_game_list_combo, 1, 2, 1, 1);
+        big_grid.attach(&button_box, 0, 3, 2, 1);
 
-        my_mod_new_window.add(&big_boxx);
+        my_mod_new_window.add(&big_grid);
         my_mod_new_window.show_all();
+
+        // By default, the `mod_name_entry` will be empty, so let the ´Accept´ button disabled.
+        accept_button.set_sensitive(false);
+
+        // Events to check the Mod's Name is valid and available. This should be done while writing
+        // in `mod_name_entry` and when changing the selected game.
+        mod_name_entry.connect_changed(clone!(
+            settings,
+            selected_game_list_combo,
+            accept_button => move |text_entry| {
+                let selected_game = selected_game_list_combo.get_active_id().unwrap();
+                check_my_mod_validity(text_entry, selected_game, &settings, &accept_button);
+            }
+        ));
+
+        selected_game_list_combo.connect_changed(clone!(
+            mod_name_entry,
+            settings,
+            accept_button => move |selected_game_list_combo| {
+                let selected_game = selected_game_list_combo.get_active_id().unwrap();
+                check_my_mod_validity(&mod_name_entry, selected_game, &settings, &accept_button);
+            }
+        ));
 
         MyModNewWindow {
             my_mod_new_window,
             my_mod_new_game_list_combo: selected_game_list_combo,
             my_mod_new_name_entry: mod_name_entry,
-            my_mod_new_name_is_valid_label: is_name_valid_label,
             my_mod_new_cancel: cancel_button,
             my_mod_new_accept: accept_button,
         }
@@ -530,6 +544,54 @@ fn paint_entry(text_entry: &Entry, text_button: &Button, accept_button: &Button)
     // FIXME: Fix this shit.
     accept_button.set_relief(ReliefStyle::None);
     accept_button.set_relief(ReliefStyle::Normal);
+}
+
+/// Modification of `paint_entry`. In this one, the button painted red is the `Accept` button.
+fn check_my_mod_validity(
+    text_entry: &Entry,
+    selected_game: String,
+    settings: &Settings,
+    accept_button: &Button
+) {
+    let text = text_entry.get_buffer().get_text();
+    let attribute_list = AttrList::new();
+    let red = Attribute::new_background(65535, 35000, 35000).unwrap();
+
+    // If there is text and it doesn't have whitespaces...
+    if !text.is_empty() && !text.contains(' ') {
+
+        // If we have "MyMod" path configured (we SHOULD have it to access this window, but just in case...).
+        if let Some(ref mod_path) = settings.paths.my_mods_base_path {
+            let mut mod_path = mod_path.clone();
+            mod_path.push(selected_game);
+            mod_path.push(format!("{}.pack", text));
+
+            // If a mod with that name for that game already exists, disable the "Accept" button.
+            if mod_path.is_file() {
+
+                attribute_list.insert(red);
+                accept_button.set_sensitive(false);
+            }
+
+            // If the name is available, enable the `Accept` button.
+            else {
+                accept_button.set_sensitive(true);
+            }
+        }
+
+        // If there is no "MyMod" path configured, disable the button.
+        else {
+            attribute_list.insert(red);
+            accept_button.set_sensitive(false);
+        }
+    }
+
+    // If name is empty, disable the button but don't make the text red.
+    else {
+        accept_button.set_sensitive(false);
+    }
+
+    text_entry.set_attributes(&attribute_list);
 }
 
 /// This function gets a Folder from a Native FileChooser and put his path into the provided `Entry`.

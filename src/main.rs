@@ -49,9 +49,6 @@ use gtk::{
     CellRendererText, TreeViewColumn, Popover, Entry, Button, Image, ListStore, ResponseType,
     ShortcutsWindow, ToVariant, Statusbar, FileChooserNative, FileChooserAction
 };
-use pango::{
-    AttrList, Attribute
-};
 use sourceview::{
     Buffer, BufferExt, View, ViewExt, Language, LanguageManager, LanguageManagerExt
 };
@@ -1317,21 +1314,7 @@ fn build_ui(application: &Application) {
         app_ui.menu_bar_my_mod_new.set_enabled(false);
 
         // Create the the "New mod" window and put all it's stuff into a variable.
-        let new_mod_stuff = Rc::new(RefCell::new(MyModNewWindow::create_my_mod_new_window(&application, &supported_games.borrow(), &game_selected.borrow())));
-
-        // Make an initial check, to make sure all starts invalid.
-        check_my_mod_new_mod_validity(&new_mod_stuff.borrow(), &settings.borrow());
-
-        // When we write something in the "Mod Name" entry, we check if there is a mod for the selected
-        // game with that name already created.
-        new_mod_stuff.borrow().my_mod_new_name_entry.connect_key_release_event(clone!(
-            settings,
-            new_mod_stuff => move |_,_| {
-
-            // This will check the results. We don't need to know if it's true or false, just check.
-            check_my_mod_new_mod_validity(&new_mod_stuff.borrow(), &settings.borrow());
-            Inhibit(false)
-        }));
+        let new_mod_stuff = Rc::new(RefCell::new(MyModNewWindow::create_my_mod_new_window(&application, &supported_games.borrow(), &game_selected.borrow(), &settings.borrow())));
 
         // When we press the "Accept" button.
         new_mod_stuff.borrow().my_mod_new_accept.connect_button_release_event(clone!(
@@ -1344,8 +1327,7 @@ fn build_ui(application: &Application) {
             game_selected,
             pack_file_decoded => move |_,_| {
 
-            // If the name passes the checks, we create it. We do nothing otherwise.
-            if check_my_mod_new_mod_validity(&new_mod_stuff.borrow(), &settings.borrow()) {
+
 
                 // Get the mod name.
                 let mod_name = new_mod_stuff.borrow().my_mod_new_name_entry.get_buffer().get_text();
@@ -1606,9 +1588,9 @@ fn build_ui(application: &Application) {
                     new_mod_stuff.borrow().my_mod_new_window.destroy();
                     app_ui.menu_bar_my_mod_new.set_enabled(true);
                 }
+                Inhibit(false)
             }
-            Inhibit(false)
-        }));
+        ));
 
         // When we press the "Cancel" button, we close the window and re-enable the "New mod" action.
         new_mod_stuff.borrow().my_mod_new_cancel.connect_button_release_event(clone!(
@@ -5340,98 +5322,6 @@ fn update_first_row_decoded(packedfile: &[u8], list_store: &ListStore, index: &u
         index,
     );
     index
-}
-
-/// This function takes care of the checks needed when creating a new mod using the "My Mod" feature.
-/// It returns true or false, depending on the result of the checks.
-fn check_my_mod_new_mod_validity(new_mod_stuff: &MyModNewWindow, settings: &Settings) -> bool {
-
-    // True is valid, false is invalid.
-    let is_valid;
-
-    // Get the colour change stuff here, just once.
-    let attribute_list = AttrList::new();
-    let red = Attribute::new_background(65535, 0, 0).expect("Couldn't create new background");
-    let green = Attribute::new_background(0, 65535, 0).expect("Couldn't create new background");
-
-    // We get the selected game, and look on the settings it's path.
-    let selected_game = new_mod_stuff.my_mod_new_game_list_combo.get_active_text().map_or("Warhammer 2".to_string(), |v| v);
-    if let Some(ref my_mod_base_path) = settings.paths.my_mods_base_path {
-
-        // If his path is valid...
-        if my_mod_base_path.is_dir() {
-
-            // Get his game path.
-            let mut my_mod_path = my_mod_base_path.clone();
-            match &*selected_game {
-                "Warhammer 2" => my_mod_path.push("warhammer_2"),
-                "Warhammer" => my_mod_path.push("warhammer"),
-                "Attila" => my_mod_path.push("attila"),
-                "Rome 2" => my_mod_path.push("rome_2"),
-                _ => my_mod_path.push("if_you_see_this_folder_report_it"),
-            }
-
-            // The we build our mod's full path, using it's name (if it's valid), and check if already exists.
-            let new_name = new_mod_stuff.my_mod_new_name_entry.get_buffer().get_text();
-            if new_name.is_empty() || new_name.contains(' ') {
-                is_valid = false;
-            }
-            else {
-                my_mod_path.push(new_name);
-                my_mod_path.set_extension("pack");
-
-                // If it already exists, is not valid.
-                if my_mod_path.is_file() {
-                    is_valid = false;
-                }
-
-                // If it doesn't exists yet, is valid.
-                else {
-                    is_valid = true;
-                }
-            }
-        }
-
-        // If the currently saved path for my mods is invalid...
-        else {
-            is_valid = false;
-        }
-    }
-
-    // If there is no path at all, it's always invalid.
-    else {
-        is_valid = false;
-    }
-
-    // If is valid, we paint it green and enable the button.
-    if is_valid {
-
-        // We set the message green and "Valid".
-        attribute_list.insert(green);
-        new_mod_stuff.my_mod_new_name_is_valid_label.set_text("Valid");
-        new_mod_stuff.my_mod_new_name_is_valid_label.set_attributes(&attribute_list);
-
-        // We enable the "Accept" button.
-        new_mod_stuff.my_mod_new_accept.set_sensitive(true);
-
-        // We return true in the check.
-        true
-    }
-
-    // If it isn't, paint it red and disable it.
-    else {
-
-        // We set the message red and "Invalid".
-        attribute_list.insert(red);
-        new_mod_stuff.my_mod_new_name_is_valid_label.set_text("Invalid");
-        new_mod_stuff.my_mod_new_name_is_valid_label.set_attributes(&attribute_list);
-
-        // We disable the "Accept" button, so it doesn't allow you to overwrite other mods.
-        new_mod_stuff.my_mod_new_accept.set_sensitive(false);
-
-        // And return false.
-        false
-    }
 }
 
 /// This function checks if there is any newer version of RPFM released. If the dialog is None, it'll
