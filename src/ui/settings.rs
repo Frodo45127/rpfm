@@ -18,6 +18,7 @@ use pango::{
     AttrList, Attribute
 };
 use settings::Settings;
+use settings::GameInfo;
 
 /// `SettingsWindow`: This struct holds all the relevant stuff for the Settings Window.
 #[derive(Clone, Debug)]
@@ -53,7 +54,7 @@ impl SettingsWindow {
 
     /// This function creates the entire settings window. It requires the application object to pass
     /// the window to.
-    pub fn create_settings_window(application: &Application) -> SettingsWindow {
+    pub fn create_settings_window(application: &Application, supported_games: &[GameInfo]) -> SettingsWindow {
 
         let settings_window = ApplicationWindow::new(application);
         settings_window.set_size_request(700, 0);
@@ -143,10 +144,9 @@ impl SettingsWindow {
         default_game_label.set_size_request(170, 0);
         default_game_label.set_xalign(0.0);
         default_game_label.set_yalign(0.5);
-        game_list_combo.append(None, "Warhammer 2");
-        game_list_combo.append(None, "Warhammer");
-        //game_list_combo.append(None, "Attila");
-        //game_list_combo.append(None, "Rome 2");
+        for (index, game) in supported_games.iter().enumerate() {
+            game_list_combo.append(Some(&*game.folder_name), &game.display_name);
+        }
 
         game_list_combo.set_active(0);
         game_list_combo.set_hexpand(true);
@@ -336,15 +336,9 @@ impl SettingsWindow {
 
     /// This function loads the data from the settings object to the settings window.
     pub fn load_to_settings_window(&self, settings: &Settings) {
-        self.settings_game_list_combo.set_active(
-            match &*settings.default_game {
-                "warhammer_2" => 0,
-                "warhammer" => 1,
-                "attila" => 2,
-                "rome_2" => 3,
-                _ => 0,
-            }
-        );
+
+        // Load the "Default Game".
+        self.settings_game_list_combo.set_active_id(Some(&*settings.default_game));
 
         // Load the current Theme prefs.
         self.settings_theme_prefer_dark_theme.set_active(settings.prefer_dark_theme);
@@ -367,27 +361,28 @@ impl SettingsWindow {
         let mut settings = Settings::new();
 
         // We get his game's folder, depending on the selected game.
-        let selected_game = self.settings_game_list_combo.get_active_text().unwrap();
-        let selected_game_folder = match &*selected_game {
-            "Warhammer 2" => "warhammer_2",
-            "Warhammer" => "warhammer",
-            "Attila" => "attila",
-            "Rome 2" => "rome_2",
-            _ => "if_you_see_this_folder_report_it",
-        };
-        settings.default_game = selected_game_folder.to_owned();
+        settings.default_game = self.settings_game_list_combo.get_active_id().unwrap_or("Error. If you see this, pls report it.".to_owned());
+
+        // Get the Theme and Font settings.
         settings.prefer_dark_theme = self.settings_theme_prefer_dark_theme.get_active();
         settings.font = self.settings_theme_font_button.get_font_name().unwrap_or("Segoe UI 10".to_owned());
 
-        if Path::new(&self.settings_path_my_mod_entry.get_buffer().get_text()).is_dir() {
-            settings.paths.my_mods_base_path = Some(PathBuf::from(&self.settings_path_my_mod_entry.get_buffer().get_text()));
-        }
-        if Path::new(&self.settings_path_warhammer_2_entry.get_buffer().get_text()).is_dir() {
-            settings.paths.warhammer_2 = Some(PathBuf::from(&self.settings_path_warhammer_2_entry.get_buffer().get_text()));
-        }
-        if Path::new(&self.settings_path_warhammer_entry.get_buffer().get_text()).is_dir() {
-            settings.paths.warhammer = Some(PathBuf::from(&self.settings_path_warhammer_entry.get_buffer().get_text()));
-        }
+        // Only if we have valid directories, we save them. Otherwise we wipe them out.
+        settings.paths.my_mods_base_path = match Path::new(&self.settings_path_my_mod_entry.get_buffer().get_text()).is_dir() {
+            true => Some(PathBuf::from(&self.settings_path_my_mod_entry.get_buffer().get_text())),
+            false => None,
+        };
+
+        settings.paths.warhammer_2 = match Path::new(&self.settings_path_warhammer_2_entry.get_buffer().get_text()).is_dir() {
+            true => Some(PathBuf::from(&self.settings_path_warhammer_2_entry.get_buffer().get_text())),
+            false => None,
+        };
+
+        settings.paths.warhammer = match Path::new(&self.settings_path_warhammer_entry.get_buffer().get_text()).is_dir() {
+            true => Some(PathBuf::from(&self.settings_path_warhammer_entry.get_buffer().get_text())),
+            false => None,
+        };
+
         settings
     }
 }

@@ -284,7 +284,7 @@ fn build_ui(application: &Application) {
         menu_bar_my_mod_delete: SimpleAction::new("my-mod-delete", None),
         menu_bar_my_mod_install: SimpleAction::new("my-mod-install", None),
         menu_bar_my_mod_uninstall: SimpleAction::new("my-mod-uninstall", None),
-        menu_bar_change_game_selected: SimpleAction::new_stateful("change-game-selected", glib::VariantTy::new("s").ok(), &"warhammer-2".to_variant()),
+        menu_bar_change_game_selected: SimpleAction::new_stateful("change-game-selected", glib::VariantTy::new("s").ok(), &"warhammer_2".to_variant()),
 
         // Actions of the Context Menu for `folder_tree_view`.
         folder_tree_view_add_file: SimpleAction::new("add-file", None),
@@ -418,6 +418,10 @@ fn build_ui(application: &Application) {
     // We load the settings here, and in case they doesn't exist, we create them.
     let settings = Rc::new(RefCell::new(Settings::load().unwrap_or_else(|_|Settings::new())));
 
+    // We load the list of Supported Games here.
+    // TODO: Move this to a const when const fn reach stable in Rust.
+    let supported_games = Rc::new(RefCell::new(GameInfo::new()));
+
     // Load the GTK Settings, like the Theme and Font used.
     load_gtk_settings(&app_ui.window, &settings.borrow());
 
@@ -430,11 +434,11 @@ fn build_ui(application: &Application) {
     // And we prepare the stuff for the default game (paths, and those things).
     let game_selected = Rc::new(RefCell::new(GameSelected::new(&settings.borrow())));
     match &*settings.borrow().default_game {
-        "warhammer_2" => app_ui.menu_bar_change_game_selected.change_state(&"warhammer-2".to_variant()),
+        "warhammer_2" => app_ui.menu_bar_change_game_selected.change_state(&"warhammer_2".to_variant()),
         "warhammer" => app_ui.menu_bar_change_game_selected.change_state(&"warhammer".to_variant()),
         "attila" => app_ui.menu_bar_change_game_selected.change_state(&"attila".to_variant()),
-        "rome_2" => app_ui.menu_bar_change_game_selected.change_state(&"rome-2".to_variant()),
-        _ => app_ui.menu_bar_change_game_selected.change_state(&"warhammer-2".to_variant()),
+        "rome_2" => app_ui.menu_bar_change_game_selected.change_state(&"rome_2".to_variant()),
+        _ => app_ui.menu_bar_change_game_selected.change_state(&"warhammer_2".to_variant()),
     }
 
     // Prepare the "MyMod" menu. This... atrocity needs to be in the following places for MyMod to open PackFiles:
@@ -490,10 +494,10 @@ fn build_ui(application: &Application) {
                                     // That means our game_folder is a valid folder and it needs to be added to the menu.
                                     let mod_name = game_folder_file.file_name().unwrap_or(OsStr::new("invalid")).to_string_lossy().as_ref().to_owned();
                                     let mod_action = &*format!("my-mod-open-{}-{}", match &*game_folder_name {
-                                        "warhammer_2" => "warhammer-2",
+                                        "warhammer_2" => "warhammer_2",
                                         "warhammer" => "warhammer",
                                         "attila" => "attila",
-                                        "rome_2" => "rome-2",
+                                        "rome_2" => "rome_2",
                                         _ => "if you see this, please report it",
                                     }, valid_mod_index);
                                     game_submenu.append(Some(&*mod_name), Some(&*format!("app.{}", mod_action)));
@@ -559,7 +563,7 @@ fn build_ui(application: &Application) {
                                                                 game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.warhammer_2);
                                                                 app_ui.menu_bar_generate_dependency_pack_wh2.set_enabled(true);
                                                                 app_ui.menu_bar_patch_siege_ai_wh2.set_enabled(true);
-                                                                app_ui.menu_bar_change_game_selected.change_state(&"warhammer-2".to_variant());
+                                                                app_ui.menu_bar_change_game_selected.change_state(&"warhammer_2".to_variant());
                                                             },
                                                             "PFH4" | _ => {
                                                                 game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.warhammer_2);
@@ -803,7 +807,7 @@ fn build_ui(application: &Application) {
                                     game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.warhammer_2);
                                     app_ui.menu_bar_generate_dependency_pack_wh2.set_enabled(true);
                                     app_ui.menu_bar_patch_siege_ai_wh2.set_enabled(true);
-                                    app_ui.menu_bar_change_game_selected.change_state(&"warhammer-2".to_variant());
+                                    app_ui.menu_bar_change_game_selected.change_state(&"warhammer_2".to_variant());
                                 },
                                 "PFH4" | _ => {
                                     game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.warhammer_2);
@@ -1021,6 +1025,7 @@ fn build_ui(application: &Application) {
     app_ui.menu_bar_preferences.connect_activate(clone!(
         app_ui,
         game_selected,
+        supported_games,
         pack_file_decoded,
         settings,
         mode,
@@ -1030,7 +1035,7 @@ fn build_ui(application: &Application) {
         // We disable the button, so we can't start 2 settings windows at the same time.
         app_ui.menu_bar_preferences.set_enabled(false);
 
-        let settings_stuff = Rc::new(RefCell::new(ui::settings::SettingsWindow::create_settings_window(&application)));
+        let settings_stuff = Rc::new(RefCell::new(ui::settings::SettingsWindow::create_settings_window(&application, &supported_games.borrow())));
         settings_stuff.borrow().load_to_settings_window(&*settings.borrow());
 
         // When we press the "Accept" button.
@@ -1059,7 +1064,7 @@ fn build_ui(application: &Application) {
             match &*pack_file_decoded.borrow().pack_file_header.pack_file_id {
                 "PFH5" => {
                     game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.warhammer_2);
-                    app_ui.menu_bar_change_game_selected.change_state(&"warhammer-2".to_variant());
+                    app_ui.menu_bar_change_game_selected.change_state(&"warhammer_2".to_variant());
                 }
                 "PFH4" | _ => {
                     game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.warhammer_2);
@@ -1120,10 +1125,10 @@ fn build_ui(application: &Application) {
                                             // That means our game_folder is a valid folder and it needs to be added to the menu.
                                             let mod_name = game_folder_file.file_name().unwrap_or(OsStr::new("invalid")).to_string_lossy().as_ref().to_owned();
                                             let mod_action = &*format!("my-mod-open-{}-{}", match &*game_folder_name {
-                                                "warhammer_2" => "warhammer-2",
+                                                "warhammer_2" => "warhammer_2",
                                                 "warhammer" => "warhammer",
                                                 "attila" => "attila",
-                                                "rome_2" => "rome-2",
+                                                "rome_2" => "rome_2",
                                                 _ => "if you see this, please report it",
                                             }, valid_mod_index);
                                             game_submenu.append(Some(&*mod_name), Some(&*format!("app.{}", mod_action)));
@@ -1189,7 +1194,7 @@ fn build_ui(application: &Application) {
                                                                         game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.warhammer_2);
                                                                         app_ui.menu_bar_generate_dependency_pack_wh2.set_enabled(true);
                                                                         app_ui.menu_bar_patch_siege_ai_wh2.set_enabled(true);
-                                                                        app_ui.menu_bar_change_game_selected.change_state(&"warhammer-2".to_variant());
+                                                                        app_ui.menu_bar_change_game_selected.change_state(&"warhammer_2".to_variant());
                                                                     },
                                                                     "PFH4" | _ => {
                                                                         game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.warhammer_2);
@@ -1358,7 +1363,7 @@ fn build_ui(application: &Application) {
                 let packfile_id = match &*new_mod_stuff.borrow().my_mod_new_game_list_combo.get_active_text().unwrap() {
                     "warhammer_2" => {
                         game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.warhammer_2);
-                        app_ui.menu_bar_change_game_selected.change_state(&"warhammer-2".to_variant());
+                        app_ui.menu_bar_change_game_selected.change_state(&"warhammer_2".to_variant());
                         app_ui.menu_bar_generate_dependency_pack_wh2.set_enabled(true);
                         app_ui.menu_bar_patch_siege_ai_wh2.set_enabled(true);
                         "PFH5"
@@ -1477,10 +1482,10 @@ fn build_ui(application: &Application) {
                                                     // That means our game_folder is a valid folder and it needs to be added to the menu.
                                                     let mod_name = game_folder_file.file_name().unwrap_or(OsStr::new("invalid")).to_string_lossy().as_ref().to_owned();
                                                     let mod_action = &*format!("my-mod-open-{}-{}", match &*game_folder_name {
-                                                        "warhammer_2" => "warhammer-2",
+                                                        "warhammer_2" => "warhammer_2",
                                                         "warhammer" => "warhammer",
                                                         "attila" => "attila",
-                                                        "rome_2" => "rome-2",
+                                                        "rome_2" => "rome_2",
                                                         _ => "if you see this, please report it",
                                                     }, valid_mod_index);
                                                     game_submenu.append(Some(&*mod_name), Some(&*format!("app.{}", mod_action)));
@@ -1547,7 +1552,7 @@ fn build_ui(application: &Application) {
                                                                                 game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.warhammer_2);
                                                                                 app_ui.menu_bar_generate_dependency_pack_wh2.set_enabled(true);
                                                                                 app_ui.menu_bar_patch_siege_ai_wh2.set_enabled(true);
-                                                                                app_ui.menu_bar_change_game_selected.change_state(&"warhammer-2".to_variant());
+                                                                                app_ui.menu_bar_change_game_selected.change_state(&"warhammer_2".to_variant());
                                                                             },
                                                                             "PFH4" | _ => {
                                                                                 game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.warhammer_2);
@@ -1765,10 +1770,10 @@ fn build_ui(application: &Application) {
                                                     // That means our game_folder is a valid folder and it needs to be added to the menu.
                                                     let mod_name = game_folder_file.file_name().unwrap_or(OsStr::new("invalid")).to_string_lossy().as_ref().to_owned();
                                                     let mod_action = &*format!("my-mod-open-{}-{}", match &*game_folder_name {
-                                                        "warhammer_2" => "warhammer-2",
+                                                        "warhammer_2" => "warhammer_2",
                                                         "warhammer" => "warhammer",
                                                         "attila" => "attila",
-                                                        "rome_2" => "rome-2",
+                                                        "rome_2" => "rome_2",
                                                         _ => "if you see this, please report it",
                                                     }, valid_mod_index);
                                                     game_submenu.append(Some(&*mod_name), Some(&*format!("app.{}", mod_action)));
@@ -1834,7 +1839,7 @@ fn build_ui(application: &Application) {
                                                                                 game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.warhammer_2);
                                                                                 app_ui.menu_bar_generate_dependency_pack_wh2.set_enabled(true);
                                                                                 app_ui.menu_bar_patch_siege_ai_wh2.set_enabled(true);
-                                                                                app_ui.menu_bar_change_game_selected.change_state(&"warhammer-2".to_variant());
+                                                                                app_ui.menu_bar_change_game_selected.change_state(&"warhammer_2".to_variant());
                                                                             },
                                                                             "PFH4" | _ => {
                                                                                 game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.warhammer_2);
@@ -2015,9 +2020,9 @@ fn build_ui(application: &Application) {
         if let Some(state) = selected.clone() {
             let new_state: Option<String> = state.get();
             match &*new_state.unwrap() {
-                "warhammer-2" => {
+                "warhammer_2" => {
                     game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.warhammer_2);
-                    menu_bar_change_game_selected.change_state(&"warhammer-2".to_variant());
+                    menu_bar_change_game_selected.change_state(&"warhammer_2".to_variant());
                 }
                 "warhammer" | _ => {
                     game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.warhammer);
@@ -2028,7 +2033,7 @@ fn build_ui(application: &Application) {
                     game_selected.borrow_mut().change_game_selected(&settings.borrow().paths.attila);
                     menu_bar_change_game_selected.change_state(&"attila".to_variant());
                 }
-                "rome-2" => {
+                "rome_2" => {
                     game_selected.borrow_mut().change_game_selected(&settings.borrow().paths.rome_2);
                     menu_bar_change_game_selected.change_state(&"rome_2".to_variant());
                 }*/
@@ -5201,7 +5206,7 @@ fn build_ui(application: &Application) {
                                         game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.warhammer_2);
                                         app_ui.menu_bar_generate_dependency_pack_wh2.set_enabled(true);
                                         app_ui.menu_bar_patch_siege_ai_wh2.set_enabled(true);
-                                        app_ui.menu_bar_change_game_selected.change_state(&"warhammer-2".to_variant());
+                                        app_ui.menu_bar_change_game_selected.change_state(&"warhammer_2".to_variant());
                                     },
                                     "PFH4" | _ => {
                                         game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.warhammer_2);

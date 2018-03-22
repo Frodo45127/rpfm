@@ -108,7 +108,7 @@
                     <item>
                         <attribute name="label" translatable="yes">_Warhammer 2</attribute>
                         <attribute name="action">app.change-game-selected</attribute>
-                        <attribute name="target">warhammer-2</attribute>
+                        <attribute name="target">warhammer_2</attribute>
                     </item>
                     <item>
                         <attribute name="label" translatable="yes">War_hammer</attribute>
@@ -118,13 +118,13 @@
                     <!--
                     <item>
                         <attribute name="label" translatable="yes">_Atila</attribute>
-                        <attribute name="action">app.change-packfile-type</attribute>
-                        <attribute name="target">patch</attribute>
+                        <attribute name="action">app.change-game-selected</attribute>
+                        <attribute name="target">attila</attribute>
                     </item>
                     <item>
                         <attribute name="label" translatable="yes">_Rome 2</attribute>
-                        <attribute name="action">app.change-packfile-type</attribute>
-                        <attribute name="target">mod</attribute>
+                        <attribute name="action">app.change-game-selected</attribute>
+                        <attribute name="target">rome_2</attribute>
                     </item>
                 -->
                 </section>

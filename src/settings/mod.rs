@@ -8,12 +8,17 @@ use std::io::Write;
 
 use self::failure::Error;
 
+/// `GameInfo`: This struct holds all the info needed for a game to be "supported" by RPFM features.
+/// It's stores the following data:
+/// - `display_name`: This is the name it'll show up in the UI. For example, in a dropdown.
+/// - `folder_name`: This name is the name used for any internal operation. For example, for the MyMod stuff.
+#[derive(Clone, Debug)]
+pub struct GameInfo {
+    pub display_name: String,
+    pub folder_name: String,
+}
+
 /// This struct hold every setting of the program, and it's the one that we are going to serialize.
-/// The default game is the position in the list of the game:
-/// - 0 -> Warhammer 2.
-/// - 1 -> Warhammer 1.
-/// - 2 -> Attila.
-/// - 3 -> Rome 2.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Settings {
     pub paths: Paths,
@@ -40,7 +45,55 @@ pub struct GameSelected {
     pub game_data_path: Option<PathBuf>,
 }
 
-/// Implementation of Settings.
+/// Implementation of `GameInfo`.
+impl GameInfo {
+
+    /// This function creates a `GameInfo` for every supported game, and returns them in `Vec<GameInfo>`.
+    /// NOTE: This vector should NEVER be reordered.
+    pub fn new() -> Vec<Self> {
+
+        // List of supported games. To add one, just copy/paste one of the already supported, change
+        // the fields for the ones of the new game, and push it to this vector.
+        let mut supported_games = vec![];
+
+        // Warhammer 2
+        let game_info = GameInfo {
+            display_name: "Warhammer 2".to_owned(),
+            folder_name: "warhammer_2".to_owned(),
+        };
+
+        supported_games.push(game_info);
+
+        // Warhammer
+        let game_info = GameInfo {
+            display_name: "Warhammer".to_owned(),
+            folder_name: "warhammer".to_owned(),
+        };
+
+        supported_games.push(game_info);
+/*
+        // Attila
+        let game_info = GameInfo {
+            display_name: "Attila".to_owned(),
+            folder_name: "attila".to_owned(),
+        };
+
+        supported_games.push(game_info);
+
+        // Rome 2
+        let game_info = GameInfo {
+            display_name: "Rome 2".to_owned(),
+            folder_name: "rome_2".to_owned(),
+        };
+
+        supported_games.push(game_info);
+*/
+        // Return the list.
+        supported_games
+    }
+}
+
+/// Implementation of `Settings`.
 impl Settings {
 
     /// This function creates a new settings file with default values and loads it into memory.
@@ -76,7 +129,7 @@ impl Settings {
     }
 }
 
-/// Implementation of Paths.
+/// Implementation of `Paths`.
 impl Paths {
 
     /// This function creates a set of empty paths. Just for the initial creation of the settings file.
@@ -91,7 +144,7 @@ impl Paths {
     }
 }
 
-/// Implementation of GameSelected.
+/// Implementation of `GameSelected`.
 impl GameSelected {
 
     /// This functions returns a GameSelected populated with it's default values..
@@ -145,7 +198,7 @@ impl GameSelected {
         game_selected
     }
 
-    /// This functions just changes the values in GameSelected.
+    /// This functions just changes the values in `GameSelected`.
     pub fn change_game_selected(&mut self, game: &str, game_path: &Option<PathBuf>) {
         self.game = game.to_owned();
         self.game_path = game_path.clone();
