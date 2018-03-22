@@ -6,7 +6,7 @@ use self::failure::Error;
 
 use gtk::prelude::*;
 use gtk::{
-    Box, ScrolledWindow, Orientation, Button, Expander, Label, PolicyType, Entry
+    Box, ScrolledWindow, Orientation, Button, Expander, Label, PolicyType, Entry, Grid
 };
 
 use common::coding_helpers::*;
@@ -29,7 +29,7 @@ impl PackedFileRigidModelDataView {
     /// father and returns a PackedFileRigidModelDataView with all his data. This can fail, so
     /// we return a result.
     pub fn create_data_view(
-        packed_file_data_display: &Box,
+        packed_file_data_display: &Grid,
         packed_file_decoded: &::packedfile::rigidmodel::RigidModel
     ) -> Result<PackedFileRigidModelDataView, Error> {
 
@@ -41,6 +41,8 @@ impl PackedFileRigidModelDataView {
         // Inside it we put a box to fit all the labels and stuff properly.
         let packed_file_data_display_scroll = ScrolledWindow::new(None, None);
         let packed_file_data_display_scroll_inner_box = Box::new(Orientation::Vertical, 0);
+        packed_file_data_display_scroll.set_hexpand(true);
+        packed_file_data_display_scroll.set_vexpand(true);
 
         let rigid_model_game_box = Box::new(Orientation::Horizontal, 0);
         rigid_model_game_box.set_size_request(400, 0);
@@ -269,8 +271,8 @@ impl PackedFileRigidModelDataView {
         }
 
         packed_file_data_display_scroll.add(&packed_file_data_display_scroll_inner_box);
-        packed_file_data_display.add(&packed_file_save_button);
-        packed_file_data_display.pack_end(&packed_file_data_display_scroll, true, true, 0);
+        packed_file_data_display.attach(&packed_file_save_button, 0, 0, 1, 1);
+        packed_file_data_display.attach(&packed_file_data_display_scroll, 0, 1, 1, 1);
         packed_file_data_display.show_all();
 
         Ok(PackedFileRigidModelDataView {

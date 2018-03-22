@@ -4,7 +4,7 @@ extern crate gtk;
 use gtk::prelude::*;
 use gtk::{
     Box, TreeView, TreeSelection, ListStore, ScrolledWindow, Popover, Entry, ModelButton,
-    CellRendererText, TreeViewColumn, CellRendererToggle, Separator, Orientation
+    CellRendererText, TreeViewColumn, CellRendererToggle, Separator, Orientation, Grid
 };
 
 use ::packedfile::loc::LocData;
@@ -29,7 +29,7 @@ impl PackedFileLocTreeView{
 
     /// This function creates a new TreeView with "packed_file_data_display" as father and returns a
     /// PackedFileLocTreeView with all his data.
-    pub fn create_tree_view(packed_file_data_display: &Box) -> PackedFileLocTreeView {
+    pub fn create_tree_view(packed_file_data_display: &Grid) -> PackedFileLocTreeView {
 
         // First, we create the new ListStore, the new TreeView, and prepare the TreeView to display the data
         let packed_file_tree_view = TreeView::new();
@@ -165,8 +165,11 @@ impl PackedFileLocTreeView{
         packed_file_popover_menu.show_all();
 
         let packed_file_data_scroll = ScrolledWindow::new(None, None);
+        packed_file_data_scroll.set_hexpand(true);
+        packed_file_data_scroll.set_vexpand(true);
+
         packed_file_data_scroll.add(&packed_file_tree_view);
-        packed_file_data_display.pack_end(&packed_file_data_scroll, true, true, 0);
+        packed_file_data_display.attach(&packed_file_data_scroll, 0, 0, 1, 1);
         packed_file_data_display.show_all();
 
         packed_file_popover_menu.hide();

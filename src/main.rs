@@ -44,8 +44,8 @@ use gio::{
 };
 use gtk::prelude::*;
 use gtk::{
-    AboutDialog, Box, Builder, WindowPosition, ApplicationWindow, FileFilter,
-    TreeView, TreeSelection, TreeStore, MessageDialog, ScrolledWindow, Orientation, Application,
+    AboutDialog, Builder, WindowPosition, ApplicationWindow, FileFilter, Grid,
+    TreeView, TreeSelection, TreeStore, MessageDialog, ScrolledWindow, Application,
     CellRendererText, TreeViewColumn, Popover, Entry, Button, Image, ListStore, ResponseType,
     ShortcutsWindow, ToVariant, Statusbar, FileChooserNative, FileChooserAction
 };
@@ -138,7 +138,7 @@ struct AppUI {
     shortcuts_window: ShortcutsWindow,
 
     // This is the box where all the PackedFile Views are created.
-    packed_file_data_display: Box,
+    packed_file_data_display: Grid,
 
     // "About" window.
     about_window: AboutDialog,
@@ -2681,14 +2681,13 @@ fn build_ui(application: &Application) {
                         // We put a "Save" button in the top part, and left the lower part for an horizontal
                         // Box with the "Copy" button and the TreeView.
                         let folder_tree_view_extra_exit_button = Button::new_with_label("Exit \"Add file/folder from PackFile\" mode");
-                        app_ui.packed_file_data_display.add(&folder_tree_view_extra_exit_button);
-
-                        let packed_file_data_display_horizontal_box = Box::new(Orientation::Horizontal, 0);
-                        app_ui.packed_file_data_display.pack_end(&packed_file_data_display_horizontal_box, true, true, 0);
+                        folder_tree_view_extra_exit_button.set_vexpand(false);
+                        app_ui.packed_file_data_display.attach(&folder_tree_view_extra_exit_button, 0, 0, 2, 1);
 
                         // First, we create the "Copy" Button.
                         let folder_tree_view_extra_copy_button = Button::new_with_label("<=");
-                        packed_file_data_display_horizontal_box.add(&folder_tree_view_extra_copy_button);
+                        folder_tree_view_extra_exit_button.set_hexpand(false);
+                        app_ui.packed_file_data_display.attach(&folder_tree_view_extra_copy_button, 0, 1, 1, 1);
 
                         // Second, we create the new TreeView (in a ScrolledWindow) and his TreeStore.
                         let folder_tree_view_extra = TreeView::new();
@@ -2706,9 +2705,10 @@ fn build_ui(application: &Application) {
                         folder_tree_view_extra.set_headers_visible(false);
 
                         let folder_tree_view_extra_scroll = ScrolledWindow::new(None, None);
+                        folder_tree_view_extra_scroll.set_hexpand(true);
+                        folder_tree_view_extra_scroll.set_vexpand(true);
                         folder_tree_view_extra_scroll.add(&folder_tree_view_extra);
-
-                        packed_file_data_display_horizontal_box.pack_end(&folder_tree_view_extra_scroll, true, true, 0);
+                        app_ui.packed_file_data_display.attach(&folder_tree_view_extra_scroll, 1, 1, 1, 1);
 
                         // And show everything and lock the main PackFile's TreeView.
                         app_ui.packed_file_data_display.show_all();
@@ -3618,7 +3618,8 @@ fn build_ui(application: &Application) {
 
                         // Button for enabling the "Decoding" mode.
                         let packed_file_decode_mode_button = Button::new_with_label("Enter decoding mode");
-                        app_ui.packed_file_data_display.add(&packed_file_decode_mode_button);
+                        packed_file_decode_mode_button.set_hexpand(true);
+                        app_ui.packed_file_data_display.attach(&packed_file_decode_mode_button, 0, 0, 1, 1);
                         app_ui.packed_file_data_display.show_all();
 
                         let packed_file_data_encoded = Rc::new(RefCell::new(pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data.to_vec()));
@@ -3643,8 +3644,8 @@ fn build_ui(application: &Application) {
 
                             // We destroy the table view if exists, so we don't have to deal with resizing it.
                             let display_last_children = app_ui.packed_file_data_display.get_children();
-                            if display_last_children.last().unwrap() != packed_file_decode_mode_button {
-                                display_last_children.last().unwrap().destroy();
+                            if display_last_children.first().unwrap() != packed_file_decode_mode_button {
+                                display_last_children.first().unwrap().destroy();
                             }
 
                             // Then create the UI..
@@ -4924,12 +4925,14 @@ fn build_ui(application: &Application) {
                                 // First, we create a vertical Box, put a "Save" button in the top part, and left
                                 // the lower part for the SourceView.
                                 let packed_file_source_view_save_button = Button::new_with_label("Save to PackedFile");
-                                app_ui.packed_file_data_display.add(&packed_file_source_view_save_button);
+                                app_ui.packed_file_data_display.attach(&packed_file_source_view_save_button, 0, 0, 1, 1);
 
                                 // Second, we create the new SourceView (in a ScrolledWindow) and his buffer,
                                 // get his buffer and put the text in it.
                                 let packed_file_source_view_scroll = ScrolledWindow::new(None, None);
-                                app_ui.packed_file_data_display.pack_end(&packed_file_source_view_scroll, true, true, 0);
+                                packed_file_source_view_scroll.set_hexpand(true);
+                                packed_file_source_view_scroll.set_vexpand(true);
+                                app_ui.packed_file_data_display.attach(&packed_file_source_view_scroll, 0, 1, 1, 1);
 
                                 let packed_file_source_view_buffer: Buffer = Buffer::new(None);
                                 let packed_file_source_view = View::new_with_buffer(&packed_file_source_view_buffer);
@@ -5015,7 +5018,9 @@ fn build_ui(application: &Application) {
 
                                     let packed_file_source_view_scroll = ScrolledWindow::new(None, None);
                                     packed_file_source_view_scroll.add(&image);
-                                    app_ui.packed_file_data_display.pack_start(&packed_file_source_view_scroll, true, true, 0);
+                                    packed_file_source_view_scroll.set_hexpand(true);
+                                    packed_file_source_view_scroll.set_vexpand(true);
+                                    app_ui.packed_file_data_display.attach(&packed_file_source_view_scroll, 0, 0, 1, 1);
                                     app_ui.packed_file_data_display.show_all();
                                 }
                             }

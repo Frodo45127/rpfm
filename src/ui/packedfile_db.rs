@@ -14,7 +14,7 @@ use gtk::prelude::*;
 use gtk::{
     Box, TreeView, ListStore, ScrolledWindow, Button, Orientation, TextView, Label, Entry,
     CellRendererText, TreeViewColumn, CellRendererToggle, Type, WrapMode, Justification, Frame, CellRendererCombo,
-    TextTag, Popover, ModelButton, Paned, Switch, Separator
+    TextTag, Popover, ModelButton, Paned, Switch, Separator, Grid
 };
 
 use self::hex_slice::AsHex;
@@ -85,7 +85,7 @@ impl PackedFileDBTreeView{
     /// This function creates a new TreeView with "packed_file_data_display" as father and returns a
     /// PackedFileDBTreeView with all his data.
     pub fn create_tree_view(
-        packed_file_data_display: &Box,
+        packed_file_data_display: &Grid,
         packed_file_decoded: &DB,
         dependency_database: Option<Vec<PackedFile>>,
         local_dependency_database: &[PackedFile],
@@ -642,9 +642,12 @@ impl PackedFileDBTreeView{
         packed_file_popover_menu.show_all();
 
         let packed_file_data_scroll = ScrolledWindow::new(None, None);
+        packed_file_tree_view.set_hexpand(true);
+        packed_file_tree_view.set_vexpand(true);
 
         packed_file_data_scroll.add(&packed_file_tree_view);
-        packed_file_data_display.pack_start(&packed_file_data_scroll, true, true, 0);
+        packed_file_data_display.attach(&packed_file_data_scroll, 0, 1, 1, 1);
+
         packed_file_data_display.show_all();
 
         // We hide the popover by default.
@@ -775,12 +778,15 @@ impl PackedFileDBDecoder {
 
     /// This function creates the "Decoder" box with all the stuff needed to decode a table, and it
     /// returns that box.
-    pub fn create_decoder_view(packed_file_data_display: &Box) -> PackedFileDBDecoder {
+    pub fn create_decoder_view(packed_file_data_display: &Grid) -> PackedFileDBDecoder {
         // With this we create the "Decoder" box, under the DB Table.
         let decoder_box = Box::new(Orientation::Horizontal, 0);
         let decoder_box_scroll = ScrolledWindow::new(None, None);
         decoder_box_scroll.add(&decoder_box);
-        packed_file_data_display.pack_end(&decoder_box_scroll, true, true, 0);
+        packed_file_data_display.attach(&decoder_box_scroll, 0, 1, 1, 1);
+
+        decoder_box.set_hexpand(true);
+        decoder_box.set_vexpand(true);
 
         // Then we create the TextView for the raw data of the DB PackedFile.
         let raw_data_box = Box::new(Orientation::Horizontal, 0);
