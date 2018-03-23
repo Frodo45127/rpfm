@@ -13,8 +13,9 @@ use failure::Error;
 use gtk::prelude::*;
 use gtk::{
     Box, TreeView, ListStore, ScrolledWindow, Button, Orientation, TextView, Label, Entry,
-    CellRendererText, TreeViewColumn, CellRendererToggle, Type, WrapMode, Justification, Frame, CellRendererCombo,
-    TextTag, Popover, ModelButton, Paned, Switch, Separator, Grid
+    CellRendererText, TreeViewColumn, CellRendererToggle, Type, Frame, CellRendererCombo, CssProvider,
+    TextTag, Popover, ModelButton, Paned, Switch, Separator, Grid, ButtonBox, ButtonBoxStyle,
+    StyleContext
 };
 
 use self::hex_slice::AsHex;
@@ -39,9 +40,10 @@ pub struct PackedFileDBTreeView {
 /// Struct PackedFileDBDecoder: contains all the stuff we need to return to be able to decode DB PackedFiles.
 #[derive(Clone, Debug)]
 pub struct PackedFileDBDecoder {
+    pub data_initial_index: i32,
     pub raw_data_line_index: Label,
     pub raw_data: TextView,
-    //pub raw_data_decoded: TextView,
+    pub raw_data_decoded: TextView,
     pub table_type_label: Label,
     pub table_version_label: Label,
     pub table_entry_count_label: Label,
@@ -776,65 +778,95 @@ impl PackedFileDBTreeView{
 
 impl PackedFileDBDecoder {
 
-    /// This function creates the "Decoder" box with all the stuff needed to decode a table, and it
-    /// returns that box.
+    /// This function creates the "Decoder View" with all the stuff needed to decode a table, and it
+    /// returns it.
     pub fn create_decoder_view(packed_file_data_display: &Grid) -> PackedFileDBDecoder {
-        // With this we create the "Decoder" box, under the DB Table.
-        let decoder_box = Box::new(Orientation::Horizontal, 0);
-        let decoder_box_scroll = ScrolledWindow::new(None, None);
-        decoder_box_scroll.add(&decoder_box);
-        packed_file_data_display.attach(&decoder_box_scroll, 0, 1, 1, 1);
 
-        decoder_box.set_hexpand(true);
-        decoder_box.set_vexpand(true);
+        // With this we create the "Decoder View", under the "Enable decoding mode" button.
+        let decoder_grid_scroll = ScrolledWindow::new(None, None);
+        let decoder_grid = Grid::new();
+        decoder_grid.set_border_width(6);
+        decoder_grid.set_row_spacing(6);
+        decoder_grid.set_column_spacing(3);
 
-        // Then we create the TextView for the raw data of the DB PackedFile.
-        let raw_data_box = Box::new(Orientation::Horizontal, 0);
-        let raw_data_line_index = Label::new(None);
-        let raw_data = TextView::new();
-        //let raw_data_decoded = TextView::new();
+        // In the left side, there should be a Grid with the hex data.
+        let raw_data_grid = Grid::new();
+        let raw_data_index = Label::new(None);
+        let raw_data_hex = TextView::new();
+        let raw_data_decoded = TextView::new();
 
-        raw_data_line_index.set_xalign(1.0);
-        raw_data_line_index.set_yalign(0.0);
-        raw_data.set_justification(Justification::Fill);
-        raw_data.set_size_request(290, 0);
-        raw_data.set_wrap_mode(WrapMode::Word);
-        raw_data.set_right_margin(4);
-        raw_data.set_left_margin(4);
-        //raw_data_decoded.set_wrap_mode(WrapMode::Word);
+        // Config for the "Raw Data" stuff.
+        raw_data_grid.set_border_width(6);
+        raw_data_grid.set_row_spacing(6);
+        raw_data_grid.set_column_spacing(3);
 
-        raw_data_box.pack_start(&raw_data_line_index, false, false, 4);
-        raw_data_box.pack_start(&raw_data, false, false, 4);
-        //raw_data_box.pack_start(&raw_data_decoded, false, false, 4);
+        raw_data_index.set_vexpand(true);
+        raw_data_index.set_xalign(1.0);
+        raw_data_index.set_yalign(0.0);
 
-        // Then we set the TextTags to paint the hex_data.
-        let raw_data_text_buffer = raw_data.get_buffer().unwrap();
-        let raw_data_text_buffer_tag_table = raw_data_text_buffer.get_tag_table().unwrap();
+        // These two shouldn't be editables.
+        raw_data_hex.set_editable(false);
+        raw_data_decoded.set_editable(false);
 
-        // Tag for the header (Red Background)
-        let text_tag_header = TextTag::new(Some("header"));
-        text_tag_header.set_property_background(Some("red"));
-        raw_data_text_buffer_tag_table.add(&text_tag_header);
+        // Set the fonts of the labels to `monospace`, so we see them properly aligned.
+        let raw_data_index_style = raw_data_index.get_style_context().unwrap();
+        let raw_data_hex_style = raw_data_hex.get_style_context().unwrap();
+        let raw_data_decoded_style = raw_data_decoded.get_style_context().unwrap();
+        let raw_data_monospace_css = ".monospace-font { font-family: \"Courier New\", Courier, monospace } .monospace-font-bold { font-family: \"Courier New\", Courier, monospace; font-weight: bold; }".as_bytes();
 
-        // Tag for the current index (Yellow Background)
-        let text_tag_index = TextTag::new(Some("index"));
-        text_tag_index.set_property_background(Some("yellow"));
-        raw_data_text_buffer_tag_table.add(&text_tag_index);
+        let css_provider = CssProvider::new();
 
-        let packed_file_raw_data_scroll = ScrolledWindow::new(None, None);
-        packed_file_raw_data_scroll.set_size_request(350, 0);
+        css_provider.load_from_data(raw_data_monospace_css).unwrap();
 
-        // Then, the big box to put all the stuff we need to decode.
-        let packed_file_decoded_data_less_bigger_boxx = Box::new(Orientation::Horizontal, 0);
-        let packed_file_decoded_data_box = Box::new(Orientation::Vertical, 0);
+        raw_data_index_style.add_provider(&css_provider, 99);
+        raw_data_hex_style.add_provider(&css_provider, 99);
+        raw_data_decoded_style.add_provider(&css_provider, 99);
 
-        // Then, the box for all the labels, fields and buttons.
+        StyleContext::add_class(&raw_data_index_style, "monospace-font-bold");
+        StyleContext::add_class(&raw_data_hex_style, "monospace-font");
+        StyleContext::add_class(&raw_data_decoded_style, "monospace-font");
+
+        // Create the color tags for the Raw Data...
+        create_text_tags(&raw_data_hex);
+        create_text_tags(&raw_data_decoded);
+
+        // In the right side, there should be a Vertical Paned, with a grid on the top, and another
+        // on the bottom.
+        let decoded_data_paned = Paned::new(Orientation::Vertical);
+        let decoded_data_paned_top_grid = Grid::new();
+        let decoded_data_paned_bottom_grid = Grid::new();
+
+        decoded_data_paned.set_position(500);
+        decoded_data_paned_top_grid.set_border_width(6);
+        decoded_data_paned_top_grid.set_row_spacing(6);
+        decoded_data_paned_top_grid.set_column_spacing(3);
+        decoded_data_paned_bottom_grid.set_border_width(6);
+        decoded_data_paned_bottom_grid.set_row_spacing(6);
+        decoded_data_paned_bottom_grid.set_column_spacing(3);
+
+        // In the top grid, there should be a column with two buttons, and another with a ScrolledWindow,
+        // with a TreeView inside.
+
+        // Here we create the buttons to move the decoded rows up&down.
+        let row_up = ModelButton::new();
+        let row_down = ModelButton::new();
+
+        row_up.set_property_text(Some("Up"));
+        row_up.set_action_name("app.move_row_up");
+        row_down.set_property_text(Some("Down"));
+        row_down.set_action_name("app.move_row_down");
+
+        // And here, the ScrolledWindow and the TreeView.
+        let fields_tree_view_scroll = ScrolledWindow::new(None, None);
         let fields_tree_view = TreeView::new();
         let fields_list_store = ListStore::new(&[String::static_type(), String::static_type(), String::static_type(), bool::static_type(), String::static_type(), String::static_type(), String::static_type(), String::static_type()]);
         fields_tree_view.set_model(Some(&fields_list_store));
         fields_tree_view.set_margin_bottom(10);
+        fields_tree_view.set_hexpand(true);
+        fields_tree_view.set_vexpand(true);
 
         // This method of reordering crash the program on windows, so we only enable it for Linux.
+        // NOTE: this doesn't trigger `update_first_row_decoded`.
         if cfg!(target_os = "linux") {
 
             // Here we set the TreeView as "drag_dest" and "drag_source", so we can drag&drop things to it.
@@ -844,26 +876,8 @@ impl PackedFileDBDecoder {
             fields_tree_view.set_reorderable(true);
         }
 
-        // Here we create the buttons to move the decoded rows up&down.
-        let row_up = ModelButton::new();
-        let row_down = ModelButton::new();
-        row_up.set_property_text(Some("Up"));
-        row_down.set_property_text(Some("Down"));
-        row_up.set_action_name("app.move_row_up");
-        row_down.set_action_name("app.move_row_down");
-
-        let button_box = Box::new(Orientation::Vertical, 0);
-        button_box.pack_start(&row_up, true, true, 6);
-        button_box.pack_end(&row_down, true, true, 6);
-
-        let fields_tree_view_scroll = ScrolledWindow::new(None, None);
-        fields_tree_view_scroll.add(&fields_tree_view);
-        fields_tree_view_scroll.set_size_request(400, 200);
-
-        let tree_view_box = Box::new(Orientation::Horizontal, 6);
-        tree_view_box.pack_start(&button_box, false, false, 0);
-        tree_view_box.pack_start(&fields_tree_view_scroll, true, true, 0);
-
+        // These are the vectors to store the cells. We'll use them later on to get the events on
+        // the cells, so we can edit them properly.
         let mut fields_tree_view_cell_string = vec![];
 
         let column_index = TreeViewColumn::new();
@@ -965,16 +979,14 @@ impl PackedFileDBDecoder {
         fields_tree_view.append_column(&column_decoded);
         fields_tree_view.append_column(&column_description);
 
-        // Here we create the TextViews for the different decoding types.
-        let bool_box = Box::new(Orientation::Horizontal, 0);
-        let float_box = Box::new(Orientation::Horizontal, 0);
-        let integer_box = Box::new(Orientation::Horizontal, 0);
-        let long_integer_box = Box::new(Orientation::Horizontal, 0);
-        let string_u8_box = Box::new(Orientation::Horizontal, 0);
-        let string_u16_box = Box::new(Orientation::Horizontal, 0);
-        let optional_string_u8_box = Box::new(Orientation::Horizontal, 0);
-        let optional_string_u16_box = Box::new(Orientation::Horizontal, 0);
+        // From here, we config the bottom grid of the paned.
+        let decoded_types_grid = Grid::new();
 
+        decoded_types_grid.set_border_width(6);
+        decoded_types_grid.set_row_spacing(6);
+        decoded_types_grid.set_column_spacing(3);
+
+        // Here we create the TextViews for the different decoding types.
         let bool_label = Label::new(Some("Decoded as \"Bool\":"));
         let float_label = Label::new(Some("Decoded as \"Float\":"));
         let integer_label = Label::new(Some("Decoded as \"Integer\":"));
@@ -1019,14 +1031,37 @@ impl PackedFileDBDecoder {
         let optional_string_u8_entry = Entry::new();
         let optional_string_u16_entry = Entry::new();
 
-        bool_entry.set_size_request(400, 0);
-        float_entry.set_size_request(400, 0);
-        integer_entry.set_size_request(400, 0);
-        long_integer_entry.set_size_request(400, 0);
-        string_u8_entry.set_size_request(400, 0);
-        string_u16_entry.set_size_request(400, 0);
-        optional_string_u8_entry.set_size_request(400, 0);
-        optional_string_u16_entry.set_size_request(400, 0);
+        bool_entry.set_editable(false);
+        bool_entry.set_size_request(300, 0);
+        bool_entry.set_hexpand(true);
+
+        float_entry.set_editable(false);
+        float_entry.set_size_request(300, 0);
+        float_entry.set_hexpand(true);
+
+        integer_entry.set_editable(false);
+        integer_entry.set_size_request(300, 0);
+        integer_entry.set_hexpand(true);
+
+        long_integer_entry.set_editable(false);
+        long_integer_entry.set_size_request(300, 0);
+        long_integer_entry.set_hexpand(true);
+
+        string_u8_entry.set_editable(false);
+        string_u8_entry.set_size_request(300, 0);
+        string_u8_entry.set_hexpand(true);
+
+        string_u16_entry.set_editable(false);
+        string_u16_entry.set_size_request(300, 0);
+        string_u16_entry.set_hexpand(true);
+
+        optional_string_u8_entry.set_editable(false);
+        optional_string_u8_entry.set_size_request(300, 0);
+        optional_string_u8_entry.set_hexpand(true);
+
+        optional_string_u16_entry.set_editable(false);
+        optional_string_u16_entry.set_size_request(300, 0);
+        optional_string_u16_entry.set_hexpand(true);
 
         let use_bool_button = Button::new_with_label("Use this");
         let use_float_button = Button::new_with_label("Use this");
@@ -1037,78 +1072,64 @@ impl PackedFileDBDecoder {
         let use_optional_string_u8_button = Button::new_with_label("Use this");
         let use_optional_string_u16_button = Button::new_with_label("Use this");
 
-        bool_box.pack_start(&bool_label, false, false, 10);
-        bool_box.pack_end(&use_bool_button, true, false, 0);
-        bool_box.pack_end(&bool_entry, true, false, 0);
-        packed_file_decoded_data_box.pack_start(&bool_box, false, false, 2);
+        // From here, there is the stuff of the end column of the bottom paned.
+        let general_info_grid = Grid::new();
 
-        float_box.pack_start(&float_label, false, false, 10);
-        float_box.pack_end(&use_float_button, true, false, 0);
-        float_box.pack_end(&float_entry, true, false, 0);
-        packed_file_decoded_data_box.pack_start(&float_box, false, false, 2);
+        general_info_grid.set_border_width(6);
+        general_info_grid.set_row_spacing(6);
+        general_info_grid.set_column_spacing(3);
 
-        integer_box.pack_start(&integer_label, false, false, 10);
-        integer_box.pack_end(&use_integer_button, true, false, 0);
-        integer_box.pack_end(&integer_entry, true, false, 0);
-        packed_file_decoded_data_box.pack_start(&integer_box, false, false, 2);
-
-        long_integer_box.pack_start(&long_integer_label, false, false, 10);
-        long_integer_box.pack_end(&use_long_integer_button, true, false, 0);
-        long_integer_box.pack_end(&long_integer_entry, true, false, 0);
-        packed_file_decoded_data_box.pack_start(&long_integer_box, false, false, 2);
-
-        string_u8_box.pack_start(&string_u8_label, false, false, 10);
-        string_u8_box.pack_end(&use_string_u8_button, true, false, 0);
-        string_u8_box.pack_end(&string_u8_entry, true, false, 0);
-        packed_file_decoded_data_box.pack_start(&string_u8_box, false, false, 2);
-
-        string_u16_box.pack_start(&string_u16_label, false, false, 10);
-        string_u16_box.pack_end(&use_string_u16_button, true, false, 0);
-        string_u16_box.pack_end(&string_u16_entry, true, false, 0);
-        packed_file_decoded_data_box.pack_start(&string_u16_box, false, false, 2);
-
-        optional_string_u8_box.pack_start(&optional_string_u8_label, false, false, 10);
-        optional_string_u8_box.pack_end(&use_optional_string_u8_button, true, false, 0);
-        optional_string_u8_box.pack_end(&optional_string_u8_entry, true, false, 0);
-        packed_file_decoded_data_box.pack_start(&optional_string_u8_box, false, false, 2);
-
-        optional_string_u16_box.pack_start(&optional_string_u16_label, false, false, 10);
-        optional_string_u16_box.pack_end(&use_optional_string_u16_button, true, false, 0);
-        optional_string_u16_box.pack_end(&optional_string_u16_entry, true, false, 0);
-        packed_file_decoded_data_box.pack_start(&optional_string_u16_box, false, false, 2);
-
-        let delete_all_fields_button = Button::new_with_label("Remove all fields");
-        packed_file_decoded_data_box.pack_end(&delete_all_fields_button, false, true, 2);
-
-        // Then, we put another box (boxception) and put in it the data of the table, the buttons
-        // to set the field as "key" and for finishing the decoding.
-        let packed_file_field_settings_box = Box::new(Orientation::Vertical, 0);
-
-        // For the frame, we need an internal box, as a frame it seems only can hold one child.
+        // For the frame, we need an internal grid, as a frame it seems only can hold one child.
         let packed_file_table_info_frame = Frame::new(Some("Table info"));
-        let packed_file_field_info_frame_box = Box::new(Orientation::Vertical, 0);
+        let packed_file_field_info_grid = Grid::new();
 
-        let packed_file_field_settings_box_table_type = Box::new(Orientation::Horizontal, 0);
-        let packed_file_field_settings_box_table_version = Box::new(Orientation::Horizontal, 0);
-        let packed_file_field_settings_box_table_entry_count = Box::new(Orientation::Horizontal, 0);
+        packed_file_field_info_grid.set_border_width(6);
+        packed_file_field_info_grid.set_row_spacing(6);
+        packed_file_field_info_grid.set_column_spacing(3);
 
-        let packed_file_decoded_data_table_type_label = Label::new("Table type:");
-        let packed_file_decoded_data_table_version_label = Label::new("Table version:");
-        let packed_file_decoded_data_table_entry_count_label = Label::new("Table entry count:");
+        let table_info_type_label = Label::new("Table type:");
+        let table_info_version_label = Label::new("Table version:");
+        let table_info_entry_count_label = Label::new("Table entry count:");
 
-        let table_type_label = Label::new("0");
-        let table_version_label = Label::new("1");
-        let table_entry_count_label = Label::new("2");
+        table_info_type_label.set_xalign(0.0);
+        table_info_type_label.set_yalign(0.5);
+        table_info_version_label.set_xalign(0.0);
+        table_info_version_label.set_yalign(0.5);
+        table_info_entry_count_label.set_xalign(0.0);
+        table_info_entry_count_label.set_yalign(0.5);
 
-        let field_name_box = Box::new(Orientation::Horizontal, 0);
+        let table_type_decoded_label = Label::new(None);
+        let table_version_decoded_label = Label::new(None);
+        let table_entry_count_decoded_label = Label::new(None);
+
+        table_type_decoded_label.set_xalign(0.0);
+        table_type_decoded_label.set_yalign(0.5);
+        table_version_decoded_label.set_xalign(0.0);
+        table_version_decoded_label.set_yalign(0.5);
+        table_entry_count_decoded_label.set_xalign(0.0);
+        table_entry_count_decoded_label.set_yalign(0.5);
+
+        // Form the interior of the frame here.
+        packed_file_field_info_grid.attach(&table_info_type_label, 0, 0, 1, 1);
+        packed_file_field_info_grid.attach(&table_info_version_label, 0, 1, 1, 1);
+        packed_file_field_info_grid.attach(&table_info_entry_count_label, 0, 2, 1, 1);
+
+        packed_file_field_info_grid.attach(&table_type_decoded_label, 1, 0, 1, 1);
+        packed_file_field_info_grid.attach(&table_version_decoded_label, 1, 1, 1, 1);
+        packed_file_field_info_grid.attach(&table_entry_count_decoded_label, 1, 2, 1, 1);
+
+        packed_file_table_info_frame.add(&packed_file_field_info_grid);
+
+        // Here are all the extra settings of the decoded table.
         let field_name_label = Label::new("Field Name:");
         let field_name_entry = Entry::new();
-        field_name_entry.set_size_request(400, 0);
+        field_name_label.set_xalign(0.0);
+        field_name_label.set_yalign(0.5);
 
-        let field_is_key_box = Box::new(Orientation::Horizontal, 0);
         let is_key_field_label = Label::new("Key field");
         let is_key_field_switch = Switch::new();
-        let save_decoded_schema = Button::new_with_label("Finish It!");
+        is_key_field_label.set_xalign(0.0);
+        is_key_field_label.set_yalign(0.5);
 
         // Here we create a little TreeView with all the versions of this table we have, in case we
         // want to decode it based on another version's definition, to save time.
@@ -1118,7 +1139,6 @@ impl PackedFileDBDecoder {
 
         let all_table_versions_tree_view_scroll = ScrolledWindow::new(None, None);
         all_table_versions_tree_view_scroll.add(&all_table_versions_tree_view);
-        all_table_versions_tree_view_scroll.set_size_request(0, 100);
 
         let column_versions = TreeViewColumn::new();
         let cell_version = CellRendererText::new();
@@ -1131,60 +1151,118 @@ impl PackedFileDBDecoder {
         all_table_versions_tree_view.append_column(&column_versions);
 
         // Buttons to load and delete the selected version from the schema.
-        let box_definition = Box::new(Orientation::Horizontal, 0);
+        let button_box_definition = ButtonBox::new(Orientation::Horizontal);
+
+        button_box_definition.set_layout(ButtonBoxStyle::End);
+        button_box_definition.set_spacing(6);
+
         let load_definition = Button::new_with_label("Load");
         let remove_definition = Button::new_with_label("Remove");
 
-        packed_file_field_settings_box_table_type.pack_start(&packed_file_decoded_data_table_type_label, false, false, 2);
-        packed_file_field_settings_box_table_type.pack_start(&table_type_label, false, false, 2);
+        button_box_definition.pack_start(&load_definition, false, false, 0);
+        button_box_definition.pack_start(&remove_definition, false, false, 0);
 
-        packed_file_field_settings_box_table_version.pack_start(&packed_file_decoded_data_table_version_label, false, false, 2);
-        packed_file_field_settings_box_table_version.pack_start(&table_version_label, false, false, 2);
+        // These are the bottom buttons.
+        let bottom_box = ButtonBox::new(Orientation::Horizontal);
 
-        packed_file_field_settings_box_table_entry_count.pack_start(&packed_file_decoded_data_table_entry_count_label, false, false, 2);
-        packed_file_field_settings_box_table_entry_count.pack_start(&table_entry_count_label, false, false, 2);
+        bottom_box.set_layout(ButtonBoxStyle::End);
+        bottom_box.set_spacing(6);
 
-        field_name_box.pack_start(&field_name_label, false, false, 6);
-        field_name_box.pack_end(&field_name_entry, false, true, 4);
+        let delete_all_fields_button = Button::new_with_label("Remove all fields");
+        let save_decoded_schema = Button::new_with_label("Finish It!");
 
-        field_is_key_box.pack_start(&is_key_field_label, false, false, 6);
-        field_is_key_box.pack_end(&is_key_field_switch, false, true, 4);
+        bottom_box.pack_start(&delete_all_fields_button, false, false, 0);
+        bottom_box.pack_start(&save_decoded_schema, false, false, 0);
 
-        box_definition.pack_start(&load_definition, true, true, 4);
-        box_definition.pack_end(&remove_definition, true, true, 4);
+        // From here, there is just packing stuff....
 
-        packed_file_field_info_frame_box.pack_start(&packed_file_field_settings_box_table_type, false, false, 2);
-        packed_file_field_info_frame_box.pack_start(&packed_file_field_settings_box_table_version, false, false, 2);
-        packed_file_field_info_frame_box.pack_start(&packed_file_field_settings_box_table_entry_count, false, false, 2);
-        packed_file_table_info_frame.add(&packed_file_field_info_frame_box);
+        // Packing into the left ScrolledWindow...
+        raw_data_grid.attach(&raw_data_index, 0, 0, 1, 1);
+        raw_data_grid.attach(&raw_data_hex, 1, 0, 1, 1);
+        raw_data_grid.attach(&raw_data_decoded, 2, 0, 1, 1);
 
-        packed_file_field_settings_box.pack_start(&packed_file_table_info_frame, false, false, 2);
-        packed_file_field_settings_box.pack_start(&field_name_box, false, false, 2);
-        packed_file_field_settings_box.pack_start(&field_is_key_box, false, false, 2);
-        packed_file_field_settings_box.pack_start(&all_table_versions_tree_view_scroll, false, false, 2);
-        packed_file_field_settings_box.pack_start(&box_definition, false, false, 2);
-        packed_file_field_settings_box.pack_end(&save_decoded_schema, false, false, 2);
+        decoder_grid.attach(&raw_data_grid, 0, 0, 1, 1);
 
-        packed_file_decoded_data_less_bigger_boxx.pack_start(&packed_file_decoded_data_box, true, true, 0);
-        packed_file_decoded_data_less_bigger_boxx.pack_end(&packed_file_field_settings_box, true, true, 8);
+        // Packing into the rigth paned....
+        decoded_data_paned.pack1(&decoded_data_paned_top_grid, false, false);
+        decoded_data_paned.pack2(&decoded_data_paned_bottom_grid, false, false);
 
-        let paned_big_boxx = Paned::new(Orientation::Vertical);
-        paned_big_boxx.pack1(&tree_view_box, false, false);
-        paned_big_boxx.pack2(&packed_file_decoded_data_less_bigger_boxx, false, false);
+        decoder_grid.attach(&decoded_data_paned, 1, 0, 1, 1);
 
-        packed_file_raw_data_scroll.add(&raw_data_box);
-        decoder_box.add(&packed_file_raw_data_scroll);
-        decoder_box.pack_end(&paned_big_boxx, true, true, 6);
+        // Packing into the top side of the right paned...
+        decoded_data_paned_top_grid.attach(&row_up, 0, 0 ,1 ,1);
+        decoded_data_paned_top_grid.attach(&row_down, 0, 1 ,1 ,1);
 
+        fields_tree_view_scroll.add(&fields_tree_view);
+        decoded_data_paned_top_grid.attach(&fields_tree_view_scroll, 1, 0 ,1 ,2);
+
+        // Packing into the bottom side of the right paned...
+
+        // First column of the bottom grid...
+        decoded_types_grid.attach(&bool_label, 0, 0, 1, 1);
+        decoded_types_grid.attach(&bool_entry, 1, 0, 1, 1);
+        decoded_types_grid.attach(&use_bool_button, 2, 0, 1, 1);
+
+        decoded_types_grid.attach(&float_label, 0, 1, 1, 1);
+        decoded_types_grid.attach(&float_entry, 1, 1, 1, 1);
+        decoded_types_grid.attach(&use_float_button, 2, 1, 1, 1);
+
+        decoded_types_grid.attach(&integer_label, 0, 2, 1, 1);
+        decoded_types_grid.attach(&integer_entry, 1, 2, 1, 1);
+        decoded_types_grid.attach(&use_integer_button, 2, 2, 1, 1);
+
+        decoded_types_grid.attach(&long_integer_label, 0, 3, 1, 1);
+        decoded_types_grid.attach(&long_integer_entry, 1, 3, 1, 1);
+        decoded_types_grid.attach(&use_long_integer_button, 2, 3, 1, 1);
+
+        decoded_types_grid.attach(&string_u8_label, 0, 4, 1, 1);
+        decoded_types_grid.attach(&string_u8_entry, 1, 4, 1, 1);
+        decoded_types_grid.attach(&use_string_u8_button, 2, 4, 1, 1);
+
+        decoded_types_grid.attach(&string_u16_label, 0, 5, 1, 1);
+        decoded_types_grid.attach(&string_u16_entry, 1, 5, 1, 1);
+        decoded_types_grid.attach(&use_string_u16_button, 2, 5, 1, 1);
+
+        decoded_types_grid.attach(&optional_string_u8_label, 0, 6, 1, 1);
+        decoded_types_grid.attach(&optional_string_u8_entry, 1, 6, 1, 1);
+        decoded_types_grid.attach(&use_optional_string_u8_button, 2, 6, 1, 1);
+
+        decoded_types_grid.attach(&optional_string_u16_label, 0, 7, 1, 1);
+        decoded_types_grid.attach(&optional_string_u16_entry, 1, 7, 1, 1);
+        decoded_types_grid.attach(&use_optional_string_u16_button, 2, 7, 1, 1);
+
+        decoded_data_paned_bottom_grid.attach(&decoded_types_grid, 0, 0, 1, 1);
+
+        // Second column of the bottom grid...
+        general_info_grid.attach(&packed_file_table_info_frame, 0, 0, 2, 1);
+
+        general_info_grid.attach(&field_name_label, 0, 1, 1, 1);
+        general_info_grid.attach(&field_name_entry, 1, 1, 1, 1);
+
+        general_info_grid.attach(&is_key_field_label, 0, 2, 1, 1);
+        general_info_grid.attach(&is_key_field_switch, 1, 2, 1, 1);
+
+        general_info_grid.attach(&all_table_versions_tree_view_scroll, 0, 3, 2, 1);
+        general_info_grid.attach(&button_box_definition, 0, 4, 2, 1);
+
+        decoded_data_paned_bottom_grid.attach(&general_info_grid, 1, 0, 1, 10);
+
+        // Bottom of the bottom grid...
+        decoded_data_paned_bottom_grid.attach(&bottom_box, 0, 1, 2, 1);
+
+        // Packing into the decoder grid...
+        decoder_grid_scroll.add(&decoder_grid);
+        packed_file_data_display.attach(&decoder_grid_scroll, 0, 1, 1, 1);
         packed_file_data_display.show_all();
 
         PackedFileDBDecoder {
-            raw_data_line_index,
-            raw_data,
-            //raw_data_decoded,
-            table_type_label,
-            table_version_label,
-            table_entry_count_label,
+            data_initial_index: 0i32,
+            raw_data_line_index: raw_data_index,
+            raw_data: raw_data_hex,
+            raw_data_decoded,
+            table_type_label: table_type_decoded_label,
+            table_version_label: table_version_decoded_label,
+            table_entry_count_label: table_entry_count_decoded_label,
             bool_entry,
             float_entry,
             integer_entry,
@@ -1220,26 +1298,41 @@ impl PackedFileDBDecoder {
         }
     }
 
-    /// This function creates the "Decoder" box with all the stuff needed to decode a table.
+    /// This function loads the data from the selected table into the "Decoder View".
     pub fn load_data_to_decoder_view(
-        packed_file_decoder_view: &PackedFileDBDecoder,
+        packed_file_decoder_view: &mut PackedFileDBDecoder,
         packed_file_table_type: &str,
         packed_file_encoded: &[u8],
-        initial_index: usize
+        data_initial_index: usize
     ) -> Result<(), Error> {
+
+        // We don't need the entire PackedFile, just his begining. Otherwise, this function takes
+        // ages to finish.
+        let packed_file_encoded = if packed_file_encoded.len() > 16 * 60 { &packed_file_encoded[..16 * 60] }
+        else { packed_file_encoded };
+
+        // Get the header of the Table, if it's a table.
         let db_header = DBHeader::read(packed_file_encoded)?;
 
-        // This creates the "index" column at the left of the hex data.
-        let hex_lines = (packed_file_encoded.len() / 16) + 1;
+        // This creates the "index" column at the left of the hex data. The logic behind this, because
+        // even I have problems to understand it: lines are 4 packs of 4 bytes => 16 bytes. Amount of
+        // lines is "bytes we have / 16 + 1" (+ 1 because we want to show incomplete lines too).
+        // Then, the zeroes amount is the amount of chars the `hex_lines_amount` have after making it
+        // a string (i.e. 2DC will be 3) + 2 (+ 1 because we divided before between it's base `16`, and
+        // + 1 because we want a 0 before every entry).
+        let hex_lines_amount = (packed_file_encoded.len() / 16) + 1;
+        let zeroes_amount = format!("{:X}", hex_lines_amount).len() + 2;
+
         let mut hex_lines_text = String::new();
-        for hex_line in 0..hex_lines {
-            hex_lines_text.push_str(&format!("{:>0count$X}\n", hex_line * 16, count = 6));
+        for hex_line in 0..hex_lines_amount {
+            hex_lines_text.push_str(&format!("{:>0count$X}\n", hex_line * 16, count = zeroes_amount));
         }
         packed_file_decoder_view.raw_data_line_index.set_text(&hex_lines_text);
 
-        // This gets the hex data into place.
-        // FIXME: this is broken for very big files, don't know why.
+        // This gets the hex data into place. In big files, this takes ages, so we cut them if they
+        // are longer than 100 lines to speed up loading and fix a weird issue with big tables.
         let mut hex_raw_data = format!("{:X}", packed_file_encoded.as_hex());
+
         hex_raw_data.remove(0);
 
         // We need to do this 2 times, because the first one skips chars if they are consecutive.
@@ -1296,21 +1389,68 @@ impl PackedFileDBDecoder {
         let mut hex_raw_data = hex_raw_data.replace(" F]", " 0F]");
         hex_raw_data.pop();
 
-        packed_file_decoder_view.raw_data.get_buffer().unwrap().set_text(&hex_raw_data);
+        // `raw_data_hex` TextView.
+        {
+            let mut hex_raw_data_string = String::new();
 
-        // In theory, this should give us the equivalent byte to our index_data.
-        // In practice, I'm bad at maths.
-        let header_char = (initial_index * 3) as i32;
-        packed_file_decoder_view.raw_data.get_buffer().unwrap().apply_tag_by_name(
-            "header",
-            &packed_file_decoder_view.raw_data.get_buffer().unwrap().get_start_iter(),
-            &packed_file_decoder_view.raw_data.get_buffer().unwrap().get_iter_at_line_offset(0, header_char)
-        );
+            // This pushes a newline after 48 characters (2 for every byte + 1 whitespace).
+            for (j, i) in hex_raw_data.chars().enumerate() {
+                if j % 48 == 0 && j != 0 {
+                    hex_raw_data_string.push_str("\n");
+                }
+                hex_raw_data_string.push(i);
+            }
 
+            let raw_data_hex_buffer = packed_file_decoder_view.raw_data.get_buffer().unwrap();
+            raw_data_hex_buffer.set_text(&hex_raw_data_string);
+
+            // In theory, this should give us the equivalent byte to our index_data.
+            // In practice, I'm bad at maths.
+            let header_line = (data_initial_index * 3 / 48) as i32;
+            let header_char = (data_initial_index * 3 % 48) as i32;
+            raw_data_hex_buffer.apply_tag_by_name(
+                "header",
+                &raw_data_hex_buffer.get_start_iter(),
+                &raw_data_hex_buffer.get_iter_at_line_offset(header_line, header_char)
+            );
+        }
+
+        // `raw_data_decoded` TextView.
+        {
+            let mut hex_raw_data_decoded = String::new();
+
+            // This pushes a newline after 16 characters.
+            for (j, i) in packed_file_encoded.iter().enumerate() {
+                if j % 16 == 0 && j != 0 {
+                    hex_raw_data_decoded.push_str("\n");
+                }
+                let character = *i as char;
+                if character.is_alphanumeric() {
+                    hex_raw_data_decoded.push(character);
+                }
+                else {
+                    hex_raw_data_decoded.push('.');
+                }
+            }
+
+            let header_line = (data_initial_index / 16) as i32;
+            let header_char = (data_initial_index % 16) as i32;
+
+            let raw_data_decoded_buffer = packed_file_decoder_view.raw_data_decoded.get_buffer().unwrap();
+            raw_data_decoded_buffer.set_text(&hex_raw_data_decoded);
+            raw_data_decoded_buffer.apply_tag_by_name(
+                "header",
+                &raw_data_decoded_buffer.get_start_iter(),
+                &raw_data_decoded_buffer.get_iter_at_line_offset(header_line, header_char)
+            );
+        }
 
         packed_file_decoder_view.table_type_label.set_text(packed_file_table_type);
         packed_file_decoder_view.table_version_label.set_text(&format!("{}", db_header.0.packed_file_header_packed_file_version));
         packed_file_decoder_view.table_entry_count_label.set_text(&format!("{}", db_header.0.packed_file_header_packed_file_entry_count));
+
+        // Save the initial index, for future uses.
+        packed_file_decoder_view.data_initial_index = data_initial_index as i32;
         Ok(())
     }
 
@@ -1474,15 +1614,62 @@ impl PackedFileDBDecoder {
         packed_file_decoder.is_key_field_switch.set_state(false);
 
         // Then we set the TextTags to paint the hex_data.
-        let raw_data_text_buffer = packed_file_decoder.raw_data.get_buffer().unwrap();
+        let raw_data_hex_text_buffer = packed_file_decoder.raw_data.get_buffer().unwrap();
 
         // Clear the current index tag.
-        raw_data_text_buffer.remove_tag_by_name("index", &raw_data_text_buffer.get_start_iter(), &raw_data_text_buffer.get_end_iter());
+        raw_data_hex_text_buffer.remove_tag_by_name("index", &raw_data_hex_text_buffer.get_start_iter(), &raw_data_hex_text_buffer.get_end_iter());
+        raw_data_hex_text_buffer.remove_tag_by_name("entry", &raw_data_hex_text_buffer.get_start_iter(), &raw_data_hex_text_buffer.get_end_iter());
 
         // Set a new index tag.
-        let index_char_start = (index_data * 3) as i32;
-        let index_char_end = ((index_data * 3) + 2) as i32;
-        raw_data_text_buffer.apply_tag_by_name("index", &raw_data_text_buffer.get_iter_at_line_offset(0, index_char_start), &raw_data_text_buffer.get_iter_at_line_offset(0, index_char_end));
+        let index_line_start = (index_data * 3 / 48) as i32;
+        let index_line_end = (((index_data * 3) + 2) / 48) as i32;
+        let index_char_start = ((index_data * 3) % 48) as i32;
+        let index_char_end = (((index_data * 3) + 2) % 48) as i32;
+        raw_data_hex_text_buffer.apply_tag_by_name(
+            "index",
+            &raw_data_hex_text_buffer.get_iter_at_line_offset(index_line_start, index_char_start),
+            &raw_data_hex_text_buffer.get_iter_at_line_offset(index_line_end, index_char_end)
+        );
+
+        // Then, we paint the currently decoded entry. Just to look cool.
+        let header_line = ((packed_file_decoder.data_initial_index * 3) / 48) as i32;
+        let header_char = ((packed_file_decoder.data_initial_index * 3) % 48) as i32;
+        let index_line_end = ((index_data * 3) / 48) as i32;
+        let index_char_end = ((index_data * 3) % 48) as i32;
+        raw_data_hex_text_buffer.apply_tag_by_name(
+            "entry",
+            &raw_data_hex_text_buffer.get_iter_at_line_offset(header_line, header_char),
+            &raw_data_hex_text_buffer.get_iter_at_line_offset(index_line_end, index_char_end)
+        );
+
+        // And then, we do the same for `raw_decoded_data`.
+        let raw_data_decoded_text_buffer = packed_file_decoder.raw_data_decoded.get_buffer().unwrap();
+
+        // Clear the current index and entry tags.
+        raw_data_decoded_text_buffer.remove_tag_by_name("index", &raw_data_decoded_text_buffer.get_start_iter(), &raw_data_decoded_text_buffer.get_end_iter());
+        raw_data_decoded_text_buffer.remove_tag_by_name("entry", &raw_data_decoded_text_buffer.get_start_iter(), &raw_data_decoded_text_buffer.get_end_iter());
+
+        // Set a new index tag.
+        let index_line_start = (index_data / 16) as i32;
+        let index_line_end = ((index_data + 1) / 16) as i32;
+        let index_char_start = (index_data % 16) as i32;
+        let index_char_end = ((index_data + 1) % 16) as i32;
+        raw_data_decoded_text_buffer.apply_tag_by_name(
+            "index",
+            &raw_data_decoded_text_buffer.get_iter_at_line_offset(index_line_start, index_char_start),
+            &raw_data_decoded_text_buffer.get_iter_at_line_offset(index_line_end, index_char_end)
+        );
+
+        // Then, we paint the currently decoded entry. Just to look cool.
+        let header_line = (packed_file_decoder.data_initial_index / 16) as i32;
+        let header_char = (packed_file_decoder.data_initial_index % 16) as i32;
+        let index_line_end = (index_data / 16) as i32;
+        let index_char_end = (index_data % 16) as i32;
+        raw_data_decoded_text_buffer.apply_tag_by_name(
+            "entry",
+            &raw_data_decoded_text_buffer.get_iter_at_line_offset(header_line, header_char),
+            &raw_data_decoded_text_buffer.get_iter_at_line_offset(index_line_end, index_char_end)
+        );
 
         // Returns the new "index_data" to keep decoding.
         index_data
@@ -1738,4 +1925,27 @@ pub fn decode_data_by_fieldtype(field_data: &[u8], field_type: &FieldType, index
             }
         },
     }
+}
+
+/// This function creates the TextTags `header` and `index` for the provided TextView.
+pub fn create_text_tags(text_view: &TextView) {
+
+    // Get the TagTable of the Buffer of the TextView...
+    let text_buffer = text_view.get_buffer().unwrap();
+    let text_buffer_tag_table = text_buffer.get_tag_table().unwrap();
+
+    // Tag for the header (Red Background)
+    let text_tag_header = TextTag::new(Some("header"));
+    text_tag_header.set_property_background(Some("lightcoral"));
+    text_buffer_tag_table.add(&text_tag_header);
+
+    // Tag for the current index (Yellow Background)
+    let text_tag_index = TextTag::new(Some("index"));
+    text_tag_index.set_property_background(Some("goldenrod"));
+    text_buffer_tag_table.add(&text_tag_index);
+
+    // Tag for the currently decoded entry (Light Blue Background)
+    let text_tag_index = TextTag::new(Some("entry"));
+    text_tag_index.set_property_background(Some("lightblue"));
+    text_buffer_tag_table.add(&text_tag_index);
 }

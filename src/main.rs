@@ -3649,7 +3649,7 @@ fn build_ui(application: &Application) {
                             }
 
                             // Then create the UI..
-                            let packed_file_decoder = ui::packedfile_db::PackedFileDBDecoder::create_decoder_view(&app_ui.packed_file_data_display);
+                            let mut packed_file_decoder = ui::packedfile_db::PackedFileDBDecoder::create_decoder_view(&app_ui.packed_file_data_display);
 
                             // And only in case the db_header has been decoded, we do the rest.
                             match DBHeader::read(&packed_file_data_encoded.borrow()){
@@ -3667,7 +3667,7 @@ fn build_ui(application: &Application) {
 
                                     // If we managed to load all the static data successfully to the "Decoder" view, we set up all the button's events.
                                     match PackedFileDBDecoder::load_data_to_decoder_view(
-                                        &packed_file_decoder,
+                                        &mut packed_file_decoder,
                                         &*tree_path[1],
                                         &packed_file_data_encoded.borrow().to_vec(),
                                         initial_index
