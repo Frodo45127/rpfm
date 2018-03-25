@@ -3,7 +3,8 @@ extern crate num;
 
 use gtk::prelude::*;
 use gtk::{
-    MessageDialog, TreeStore, TreeSelection, TreeView, TreePath, Rectangle, Label, Justification, Grid
+    MessageDialog, TreeStore, TreeSelection, TreeView, TreePath, Rectangle, Label, Justification,
+    Grid, DialogFlags, MessageType, ButtonsType, ApplicationWindow, Statusbar
 };
 use std::cmp::Ordering;
 use std::path::PathBuf;
@@ -13,6 +14,7 @@ use packfile::packfile::PackFile;
 
 pub mod packedfile_loc;
 pub mod packedfile_db;
+pub mod packedfile_image;
 pub mod packedfile_rigidmodel;
 pub mod settings;
 
@@ -39,6 +41,15 @@ pub fn show_dialog<T: Display>(dialog: &MessageDialog, text: T) {
     dialog.set_property_secondary_text(Some(&text.to_string()));
     dialog.run();
     dialog.hide_on_delete();
+}
+
+
+/// This function shows a message in the Statusbar. For notification of common errors and low
+/// importance stuff. It requires:
+/// - text: something that implements the trait "Display", so we want to put in the Statusbar.
+pub fn show_message_in_statusbar<T: Display>(status_bar: &Statusbar, message: T) {
+    let message = &message.to_string();
+    status_bar.push(status_bar.get_context_id(message), message);
 }
 
 /// This function get the rect needed to put the popovers in the correct places when we create them,

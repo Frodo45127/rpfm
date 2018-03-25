@@ -69,6 +69,7 @@ use packedfile::rigidmodel::RigidModel;
 use settings::*;
 use ui::packedfile_db::*;
 use ui::packedfile_loc::*;
+use ui::packedfile_image::*;
 use ui::settings::*;
 use updater::LastestRelease;
 
@@ -5002,30 +5003,15 @@ fn build_ui(application: &Application) {
                         }
                     }
 
-                    // If it's an image, we just put it in a box and show it. Or... that was the intention.
-                    // We can't load them from memory, so we need to create them in the temp folder of the
-                    // system and then load them. A mess.
+                    // If it's an image it doesn't require any extra interaction. Just create the View
+                    // and show the Image.
                     "IMAGE" => {
-                        let mut temporal_file_path = std::env::temp_dir();
-                        temporal_file_path.push(tree_path.last().unwrap());
-                        match File::create(&temporal_file_path) {
-                            Ok(mut temporal_file) => {
-                                if let Err(error) = temporal_file.write_all(&(*pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data.to_vec())) {
-                                    ui::show_dialog(&app_ui.error_dialog, Error::from(error).cause());
-                                }
-                                else {
-                                    let image = Image::new_from_file(&temporal_file_path);
-
-                                    let packed_file_source_view_scroll = ScrolledWindow::new(None, None);
-                                    packed_file_source_view_scroll.add(&image);
-                                    packed_file_source_view_scroll.set_hexpand(true);
-                                    packed_file_source_view_scroll.set_vexpand(true);
-                                    app_ui.packed_file_data_display.attach(&packed_file_source_view_scroll, 0, 0, 1, 1);
-                                    app_ui.packed_file_data_display.show_all();
-                                }
-                            }
-                            Err(error) => ui::show_dialog(&app_ui.error_dialog, Error::from(error).cause()),
-                        }
+                        create_image_view(
+                            &app_ui.packed_file_data_display,
+                            &app_ui.status_bar,
+                            &tree_path.last().unwrap(),
+                            &pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data
+                        );
                     }
 
                     // If it's a rigidmodel, we decode it and take care of his update events.
@@ -5384,20 +5370,17 @@ fn check_updates(check_updates_dialog: Option<&MessageDialog>, status_bar: &Stat
                 last_version.remove(0);
                 last_version.split_off(5);
                 if last_version != VERSION {
-                    let message = &*format!("New update found. Check \"About/About\" for a link to the download.");
-                    let context_id = status_bar.get_context_id(message);
-                    status_bar.push(context_id, message);
+                    let message = "New update found. Check \"About/About\" for a link to the download.";
+                    ui::show_message_in_statusbar(status_bar, message);
                 }
                 else {
-                    let message = &*format!("No new updates available.");
-                    let context_id = status_bar.get_context_id(message);
-                    status_bar.push(context_id, message);
+                    let message = "No new updates available.";
+                    ui::show_message_in_statusbar(status_bar, message);
                 }
             }
             Err(_) => {
-                let message = &*format!("Error checking new updates.");
-                let context_id = status_bar.get_context_id(message);
-                status_bar.push(context_id, message);
+                let message = "Error while checking new updates.";
+                ui::show_message_in_statusbar(status_bar, message);
             }
         }
     }
