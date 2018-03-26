@@ -29,9 +29,8 @@ use std::path::PathBuf;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::fs::{
-    File, DirBuilder, copy, remove_file, remove_dir_all
+    DirBuilder, copy, remove_file, remove_dir_all
 };
-use std::io::Write;
 use std::env::args;
 
 use failure::Error;
@@ -46,7 +45,7 @@ use gtk::prelude::*;
 use gtk::{
     AboutDialog, Builder, WindowPosition, ApplicationWindow, FileFilter, Grid,
     TreeView, TreeSelection, TreeStore, MessageDialog, ScrolledWindow, Application,
-    CellRendererText, TreeViewColumn, Popover, Entry, Button, Image, ListStore, ResponseType,
+    CellRendererText, TreeViewColumn, Popover, Entry, Button, ListStore, ResponseType,
     ShortcutsWindow, ToVariant, Statusbar, FileChooserNative, FileChooserAction
 };
 use sourceview::{
@@ -413,12 +412,12 @@ fn build_ui(application: &Application) {
     let pack_file_decoded = Rc::new(RefCell::new(PackFile::new()));
     let pack_file_decoded_extra = Rc::new(RefCell::new(PackFile::new()));
 
-    // We load the settings here, and in case they doesn't exist, we create them.
-    let settings = Rc::new(RefCell::new(Settings::load().unwrap_or_else(|_|Settings::new())));
-
     // We load the list of Supported Games here.
     // TODO: Move this to a const when const fn reach stable in Rust.
     let supported_games = Rc::new(RefCell::new(GameInfo::new()));
+
+    // We load the settings here, and in case they doesn't exist, we create them.
+    let settings = Rc::new(RefCell::new(Settings::load(&supported_games.borrow()).unwrap_or_else(|_|Settings::new(&supported_games.borrow()))));
 
     // Load the GTK Settings, like the Theme and Font used.
     load_gtk_settings(&app_ui.window, &settings.borrow());
@@ -431,13 +430,9 @@ fn build_ui(application: &Application) {
 
     // And we prepare the stuff for the default game (paths, and those things).
     let game_selected = Rc::new(RefCell::new(GameSelected::new(&settings.borrow())));
-    match &*settings.borrow().default_game {
-        "warhammer_2" => app_ui.menu_bar_change_game_selected.change_state(&"warhammer_2".to_variant()),
-        "warhammer" => app_ui.menu_bar_change_game_selected.change_state(&"warhammer".to_variant()),
-        "attila" => app_ui.menu_bar_change_game_selected.change_state(&"attila".to_variant()),
-        "rome_2" => app_ui.menu_bar_change_game_selected.change_state(&"rome_2".to_variant()),
-        _ => app_ui.menu_bar_change_game_selected.change_state(&"warhammer_2".to_variant()),
-    }
+
+    // Set the default game as selected game.
+    app_ui.menu_bar_change_game_selected.change_state(&(&settings.borrow().default_game).to_variant());
 
     // Prepare the "MyMod" menu. This... atrocity needs to be in the following places for MyMod to open PackFiles:
     // - At the start of the program (here).
@@ -558,13 +553,13 @@ fn build_ui(application: &Application) {
                                                         // We choose the new GameSelected depending on what the open mod id is.
                                                         match &*pack_file_decoded.borrow().pack_file_header.pack_file_id {
                                                             "PFH5" => {
-                                                                game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.warhammer_2);
+                                                                game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.game_paths.iter().filter(|x| &x.game == "warhammer_2").map(|x| x.path.clone()).collect::<Option<PathBuf>>());
                                                                 app_ui.menu_bar_generate_dependency_pack_wh2.set_enabled(true);
                                                                 app_ui.menu_bar_patch_siege_ai_wh2.set_enabled(true);
                                                                 app_ui.menu_bar_change_game_selected.change_state(&"warhammer_2".to_variant());
                                                             },
                                                             "PFH4" | _ => {
-                                                                game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.warhammer_2);
+                                                                game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.game_paths.iter().filter(|x| &x.game == "warhammer").map(|x| x.path.clone()).collect::<Option<PathBuf>>());
                                                                 app_ui.menu_bar_generate_dependency_pack_wh.set_enabled(true);
                                                                 app_ui.menu_bar_patch_siege_ai_wh.set_enabled(true);
                                                                 app_ui.menu_bar_change_game_selected.change_state(&"warhammer".to_variant());
@@ -802,13 +797,13 @@ fn build_ui(application: &Application) {
                             // We choose the new GameSelected depending on what the open mod id is.
                             match &*pack_file_decoded.borrow().pack_file_header.pack_file_id {
                                 "PFH5" => {
-                                    game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.warhammer_2);
+                                    game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.game_paths.iter().filter(|x| &x.game == "warhammer_2").map(|x| x.path.clone()).collect::<Option<PathBuf>>());
                                     app_ui.menu_bar_generate_dependency_pack_wh2.set_enabled(true);
                                     app_ui.menu_bar_patch_siege_ai_wh2.set_enabled(true);
                                     app_ui.menu_bar_change_game_selected.change_state(&"warhammer_2".to_variant());
                                 },
                                 "PFH4" | _ => {
-                                    game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.warhammer_2);
+                                    game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.game_paths.iter().filter(|x| &x.game == "warhammer").map(|x| x.path.clone()).collect::<Option<PathBuf>>());
                                     app_ui.menu_bar_generate_dependency_pack_wh.set_enabled(true);
                                     app_ui.menu_bar_patch_siege_ai_wh.set_enabled(true);
                                     app_ui.menu_bar_change_game_selected.change_state(&"warhammer".to_variant());
@@ -1043,10 +1038,11 @@ fn build_ui(application: &Application) {
             settings_stuff,
             settings,
             game_selected,
+            supported_games,
             schema,
             mode,
             application => move |_,_| {
-            let new_settings = settings_stuff.borrow().save_from_settings_window();
+            let new_settings = settings_stuff.borrow().save_from_settings_window(&supported_games.borrow());
             *settings.borrow_mut() = new_settings;
             if let Err(error) = settings.borrow().save() {
                 ui::show_dialog(&app_ui.error_dialog, error.cause());
@@ -1061,11 +1057,11 @@ fn build_ui(application: &Application) {
             // Reset the game selected, just in case we changed it's path.
             match &*pack_file_decoded.borrow().pack_file_header.pack_file_id {
                 "PFH5" => {
-                    game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.warhammer_2);
+                    game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.game_paths.iter().filter(|x| &x.game == "warhammer_2").map(|x| x.path.clone()).collect::<Option<PathBuf>>());
                     app_ui.menu_bar_change_game_selected.change_state(&"warhammer_2".to_variant());
                 }
                 "PFH4" | _ => {
-                    game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.warhammer_2);
+                    game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.game_paths.iter().filter(|x| &x.game == "warhammer").map(|x| x.path.clone()).collect::<Option<PathBuf>>());
                     app_ui.menu_bar_change_game_selected.change_state(&"warhammer".to_variant());
                 }
             }
@@ -1189,13 +1185,13 @@ fn build_ui(application: &Application) {
                                                                 // We choose the new GameSelected depending on what the open mod id is.
                                                                 match &*pack_file_decoded.borrow().pack_file_header.pack_file_id {
                                                                     "PFH5" => {
-                                                                        game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.warhammer_2);
+                                                                        game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.game_paths.iter().filter(|x| &x.game == "warhammer_2").map(|x| x.path.clone()).collect::<Option<PathBuf>>());
                                                                         app_ui.menu_bar_generate_dependency_pack_wh2.set_enabled(true);
                                                                         app_ui.menu_bar_patch_siege_ai_wh2.set_enabled(true);
                                                                         app_ui.menu_bar_change_game_selected.change_state(&"warhammer_2".to_variant());
                                                                     },
                                                                     "PFH4" | _ => {
-                                                                        game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.warhammer_2);
+                                                                        game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.game_paths.iter().filter(|x| &x.game == "warhammer").map(|x| x.path.clone()).collect::<Option<PathBuf>>());
                                                                         app_ui.menu_bar_generate_dependency_pack_wh.set_enabled(true);
                                                                         app_ui.menu_bar_patch_siege_ai_wh.set_enabled(true);
                                                                         app_ui.menu_bar_change_game_selected.change_state(&"warhammer".to_variant());
@@ -1248,12 +1244,13 @@ fn build_ui(application: &Application) {
         settings_stuff.borrow().settings_cancel.connect_button_release_event(clone!(
             settings_stuff,
             settings,
+            supported_games,
             app_ui => move |_,_| {
                 settings_stuff.borrow().settings_window.destroy();
                 app_ui.menu_bar_preferences.set_enabled(true);
 
                 // Reload the Settings from the file so, if we have changed anything, it's undone.
-                *settings.borrow_mut() = Settings::load().unwrap_or_else(|_|Settings::new());
+                *settings.borrow_mut() = Settings::load(&supported_games.borrow()).unwrap_or_else(|_|Settings::new(&supported_games.borrow()));
                 load_gtk_settings(&app_ui.window, &settings.borrow());
 
                 Inhibit(false)
@@ -1263,12 +1260,13 @@ fn build_ui(application: &Application) {
         // We catch the destroy event to restore the "Preferences" button.
         settings_stuff.borrow().settings_window.connect_delete_event(clone!(
             settings,
+            supported_games,
             app_ui => move |settings_window, _| {
                 settings_window.destroy();
                 app_ui.menu_bar_preferences.set_enabled(true);
 
                 // Reload the Settings from the file so, if we have changed anything, it's undone.
-                *settings.borrow_mut() = Settings::load().unwrap_or_else(|_|Settings::new());
+                *settings.borrow_mut() = Settings::load(&supported_games.borrow()).unwrap_or_else(|_|Settings::new(&supported_games.borrow()));
                 load_gtk_settings(&app_ui.window, &settings.borrow());
 
                 Inhibit(false)
@@ -1346,14 +1344,14 @@ fn build_ui(application: &Application) {
                 // TreeView to show it.
                 let packfile_id = match &*new_mod_stuff.borrow().my_mod_new_game_list_combo.get_active_text().unwrap() {
                     "warhammer_2" => {
-                        game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.warhammer_2);
+                        game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.game_paths.iter().filter(|x| &x.game == "warhammer_2").map(|x| x.path.clone()).collect::<Option<PathBuf>>());
                         app_ui.menu_bar_change_game_selected.change_state(&"warhammer_2".to_variant());
                         app_ui.menu_bar_generate_dependency_pack_wh2.set_enabled(true);
                         app_ui.menu_bar_patch_siege_ai_wh2.set_enabled(true);
                         "PFH5"
                     },
                     "warhammer" | _ => {
-                        game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.warhammer_2);
+                        game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.game_paths.iter().filter(|x| &x.game == "warhammer").map(|x| x.path.clone()).collect::<Option<PathBuf>>());
                         app_ui.menu_bar_change_game_selected.change_state(&"warhammer".to_variant());
                         app_ui.menu_bar_generate_dependency_pack_wh.set_enabled(true);
                         app_ui.menu_bar_patch_siege_ai_wh.set_enabled(true);
@@ -1533,13 +1531,13 @@ fn build_ui(application: &Application) {
                                                                         // We choose the new GameSelected depending on what the open mod id is.
                                                                         match &*pack_file_decoded.borrow().pack_file_header.pack_file_id {
                                                                             "PFH5" => {
-                                                                                game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.warhammer_2);
+                                                                                game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.game_paths.iter().filter(|x| &x.game == "warhammer_2").map(|x| x.path.clone()).collect::<Option<PathBuf>>());
                                                                                 app_ui.menu_bar_generate_dependency_pack_wh2.set_enabled(true);
                                                                                 app_ui.menu_bar_patch_siege_ai_wh2.set_enabled(true);
                                                                                 app_ui.menu_bar_change_game_selected.change_state(&"warhammer_2".to_variant());
                                                                             },
                                                                             "PFH4" | _ => {
-                                                                                game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.warhammer_2);
+                                                                                game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.game_paths.iter().filter(|x| &x.game == "warhammer").map(|x| x.path.clone()).collect::<Option<PathBuf>>());
                                                                                 app_ui.menu_bar_generate_dependency_pack_wh.set_enabled(true);
                                                                                 app_ui.menu_bar_patch_siege_ai_wh.set_enabled(true);
                                                                                 app_ui.menu_bar_change_game_selected.change_state(&"warhammer".to_variant());
@@ -1820,13 +1818,13 @@ fn build_ui(application: &Application) {
                                                                         // We choose the new GameSelected depending on what the open mod id is.
                                                                         match &*pack_file_decoded.borrow().pack_file_header.pack_file_id {
                                                                             "PFH5" => {
-                                                                                game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.warhammer_2);
+                                                                                game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.game_paths.iter().filter(|x| &x.game == "warhammer_2").map(|x| x.path.clone()).collect::<Option<PathBuf>>());
                                                                                 app_ui.menu_bar_generate_dependency_pack_wh2.set_enabled(true);
                                                                                 app_ui.menu_bar_patch_siege_ai_wh2.set_enabled(true);
                                                                                 app_ui.menu_bar_change_game_selected.change_state(&"warhammer_2".to_variant());
                                                                             },
                                                                             "PFH4" | _ => {
-                                                                                game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.warhammer_2);
+                                                                                game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.game_paths.iter().filter(|x| &x.game == "warhammer_2").map(|x| x.path.clone()).collect::<Option<PathBuf>>());
                                                                                 app_ui.menu_bar_generate_dependency_pack_wh.set_enabled(true);
                                                                                 app_ui.menu_bar_patch_siege_ai_wh.set_enabled(true);
                                                                                 app_ui.menu_bar_change_game_selected.change_state(&"warhammer".to_variant());
@@ -1890,13 +1888,7 @@ fn build_ui(application: &Application) {
                     if let Some(ref my_mods_base_path) = settings.borrow().paths.my_mods_base_path {
 
                         // Get the game_path for the mod.
-                        let game_path = match &**game_folder_name {
-                            "warhammer_2" => settings.borrow().paths.warhammer_2.clone(),
-                            "warhammer" => settings.borrow().paths.warhammer.clone(),
-                            "attila" => settings.borrow().paths.attila.clone(),
-                            "rome_2" => settings.borrow().paths.rome_2.clone(),
-                            _ => Some(PathBuf::from("error")),
-                        };
+                        let game_path = settings.borrow().paths.game_paths.iter().filter(|x| &x.game == game_folder_name).map(|x| x.path.clone()).collect::<Option<PathBuf>>();
 
                         // If the game_path is configured.
                         if let Some(game_path) = game_path {
@@ -1954,13 +1946,7 @@ fn build_ui(application: &Application) {
                 Mode::MyMod {ref game_folder_name, ref mod_name} => {
 
                     // Get the game_path for the mod.
-                    let game_path = match &**game_folder_name {
-                        "warhammer_2" => settings.borrow().paths.warhammer_2.clone(),
-                        "warhammer" => settings.borrow().paths.warhammer.clone(),
-                        "attila" => settings.borrow().paths.attila.clone(),
-                        "rome_2" => settings.borrow().paths.rome_2.clone(),
-                        _ => Some(PathBuf::from("error")),
-                    };
+                    let game_path = settings.borrow().paths.game_paths.iter().filter(|x| &x.game == game_folder_name).map(|x| x.path.clone()).collect::<Option<PathBuf>>();
 
                     // If the game_path is configured.
                     if let Some(game_path) = game_path {
@@ -2001,27 +1987,16 @@ fn build_ui(application: &Application) {
     app_ui.menu_bar_change_game_selected.connect_activate(clone!(
         settings,
         game_selected => move |menu_bar_change_game_selected, selected| {
+
+        // Get the new state of the action.
         if let Some(state) = selected.clone() {
-            let new_state: Option<String> = state.get();
-            match &*new_state.unwrap() {
-                "warhammer_2" => {
-                    game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.warhammer_2);
-                    menu_bar_change_game_selected.change_state(&"warhammer_2".to_variant());
-                }
-                "warhammer" | _ => {
-                    game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.warhammer);
-                    menu_bar_change_game_selected.change_state(&"warhammer".to_variant());
-                }
-                /*
-                "attila" => {
-                    game_selected.borrow_mut().change_game_selected(&settings.borrow().paths.attila);
-                    menu_bar_change_game_selected.change_state(&"attila".to_variant());
-                }
-                "rome_2" => {
-                    game_selected.borrow_mut().change_game_selected(&settings.borrow().paths.rome_2);
-                    menu_bar_change_game_selected.change_state(&"rome_2".to_variant());
-                }*/
-            }
+            let new_state: String = state.get().unwrap();
+
+            // Change the state of the action.
+            menu_bar_change_game_selected.change_state(&new_state.to_variant());
+
+            // Change the `GameSelected` object.
+            game_selected.borrow_mut().change_game_selected(&new_state, &settings.borrow().paths.game_paths.iter().filter(|x| x.game == new_state).map(|x| x.path.clone()).collect::<Option<PathBuf>>());
         }
     }));
     /*
@@ -5177,13 +5152,13 @@ fn build_ui(application: &Application) {
                                 // We choose the new GameSelected depending on what the open mod id is.
                                 match &*pack_file_decoded.borrow().pack_file_header.pack_file_id {
                                     "PFH5" => {
-                                        game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.warhammer_2);
+                                        game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.game_paths.iter().filter(|x| &x.game == "warhammer_2").map(|x| x.path.clone()).collect::<Option<PathBuf>>());
                                         app_ui.menu_bar_generate_dependency_pack_wh2.set_enabled(true);
                                         app_ui.menu_bar_patch_siege_ai_wh2.set_enabled(true);
                                         app_ui.menu_bar_change_game_selected.change_state(&"warhammer_2".to_variant());
                                     },
                                     "PFH4" | _ => {
-                                        game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.warhammer_2);
+                                        game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.game_paths.iter().filter(|x| &x.game == "warhammer").map(|x| x.path.clone()).collect::<Option<PathBuf>>());
                                         app_ui.menu_bar_generate_dependency_pack_wh.set_enabled(true);
                                         app_ui.menu_bar_patch_siege_ai_wh.set_enabled(true);
                                         app_ui.menu_bar_change_game_selected.change_state(&"warhammer".to_variant());

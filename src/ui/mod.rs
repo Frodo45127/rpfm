@@ -4,7 +4,7 @@ extern crate num;
 use gtk::prelude::*;
 use gtk::{
     MessageDialog, TreeStore, TreeSelection, TreeView, TreePath, Rectangle, Label, Justification,
-    Grid, DialogFlags, MessageType, ButtonsType, ApplicationWindow, Statusbar
+    Grid, Statusbar
 };
 use std::cmp::Ordering;
 use std::path::PathBuf;
@@ -24,9 +24,9 @@ pub fn display_help_tips(packed_file_data_display: &Grid) {
         - You can rename anything (except the PackFile) by double-clicking it.
         - You can open a PackFile by dragging it to the big PackFile Tree View.
         - To patch an Attila model to work in Warhammer, select it and press \"Patch to Warhammer 1&2\".
-        - You can insta-patch your siege maps (if you're a mapper) with the \"Patch SiegeAI\" feature from the \"Special Stuff\" menu.".to_owned();
+        - You can insta-patch your siege maps (if you're a mapper) with the \"Patch SiegeAI\" feature from the \"Special Stuff\" menu.";
 
-    let packed_file_text_view_label: Label = Label::new(Some(&*tips));
+    let packed_file_text_view_label: Label = Label::new(Some(tips));
     packed_file_text_view_label.set_justify(Justification::Left);
 
     packed_file_data_display.attach(&packed_file_text_view_label, 0, 0, 1, 1);
@@ -42,7 +42,6 @@ pub fn show_dialog<T: Display>(dialog: &MessageDialog, text: T) {
     dialog.run();
     dialog.hide_on_delete();
 }
-
 
 /// This function shows a message in the Statusbar. For notification of common errors and low
 /// importance stuff. It requires:

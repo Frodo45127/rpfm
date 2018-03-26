@@ -26,11 +26,9 @@ use settings::GameSelected;
 pub struct SettingsWindow {
     pub settings_window: ApplicationWindow,
     pub settings_path_my_mod_entry: Entry,
-    pub settings_path_warhammer_2_entry: Entry,
-    pub settings_path_warhammer_entry: Entry,
     pub settings_path_my_mod_button: Button,
-    pub settings_path_warhammer_2_button: Button,
-    pub settings_path_warhammer_button: Button,
+    pub settings_path_entries: Vec<Entry>,
+    pub settings_path_buttons: Vec<Button>,
     pub settings_game_list_combo: ComboBoxText,
     pub settings_theme_prefer_dark_theme: CheckButton,
     pub settings_theme_font_button: FontButton,
@@ -82,35 +80,39 @@ impl SettingsWindow {
         paths_grid.set_row_spacing(3);
         paths_grid.set_column_spacing(3);
 
+        // The "MyMod" entry is created here.
         let my_mod_label = Label::new(Some("My mod's folder"));
-        let warhammer_2_label = Label::new(Some("TW: Warhammer 2 folder"));
-        let warhammer_label = Label::new(Some("TW: Warhammer folder"));
+        let my_mod_entry = Entry::new();
+        let my_mod_button = Button::new_with_label("...");
         my_mod_label.set_size_request(170, 0);
         my_mod_label.set_xalign(0.0);
         my_mod_label.set_yalign(0.5);
-        warhammer_2_label.set_size_request(170, 0);
-        warhammer_2_label.set_xalign(0.0);
-        warhammer_2_label.set_yalign(0.5);
-        warhammer_label.set_size_request(170, 0);
-        warhammer_label.set_xalign(0.0);
-        warhammer_label.set_yalign(0.5);
-
-        let my_mod_entry = Entry::new();
-        let warhammer_2_entry = Entry::new();
-        let warhammer_entry = Entry::new();
         my_mod_entry.set_has_frame(false);
         my_mod_entry.set_hexpand(true);
         my_mod_entry.set_placeholder_text("This is the folder where you want to store all \"MyMod\" related files.");
-        warhammer_2_entry.set_has_frame(false);
-        warhammer_2_entry.set_hexpand(true);
-        warhammer_2_entry.set_placeholder_text("This is the folder where you have Warhammer 2 installed.");
-        warhammer_entry.set_has_frame(false);
-        warhammer_entry.set_hexpand(true);
-        warhammer_entry.set_placeholder_text("This is the folder where you have Warhammer installed.");
 
-        let my_mod_button = Button::new_with_label("...");
-        let warhammer_2_button = Button::new_with_label("...");
-        let warhammer_button = Button::new_with_label("...");
+        // All the "Game" entries are created dinamically here, depending on the supported games.
+        let mut game_entries: Vec<Entry> = vec![];
+        let mut game_buttons: Vec<Button> = vec![];
+
+        for (index, game) in supported_games.iter().enumerate() {
+            let label = Label::new(Some(&*format!("TW: {} folder", game.display_name)));
+            let entry = Entry::new();
+            let button = Button::new_with_label("...");
+            label.set_size_request(170, 0);
+            label.set_xalign(0.0);
+            label.set_yalign(0.5);
+            entry.set_has_frame(false);
+            entry.set_hexpand(true);
+            entry.set_placeholder_text(&*format!("This is the folder where you have {} installed.", game.display_name));
+
+            paths_grid.attach(&label, 0, (index + 1) as i32, 1, 1);
+            paths_grid.attach(&entry, 1, (index + 1) as i32, 1, 1);
+            paths_grid.attach(&button, 2, (index + 1) as i32, 1, 1);
+
+            game_entries.push(entry);
+            game_buttons.push(button);
+        }
 
         let theme_frame = Frame::new(Some("Theme Settings"));
         let theme_grid = Grid::new();
@@ -164,14 +166,6 @@ impl SettingsWindow {
         paths_grid.attach(&my_mod_entry, 1, 0, 1, 1);
         paths_grid.attach(&my_mod_button, 2, 0, 1, 1);
 
-        paths_grid.attach(&warhammer_2_label, 0, 1, 1, 1);
-        paths_grid.attach(&warhammer_2_entry, 1, 1, 1, 1);
-        paths_grid.attach(&warhammer_2_button, 2, 1, 1, 1);
-
-        paths_grid.attach(&warhammer_label, 0, 2, 1, 1);
-        paths_grid.attach(&warhammer_entry, 1, 2, 1, 1);
-        paths_grid.attach(&warhammer_button, 2, 2, 1, 1);
-
         paths_frame.add(&paths_grid);
 
         // Theme Settings packing stuff...
@@ -221,12 +215,20 @@ impl SettingsWindow {
         // Check all the entries. If all are valid, enable the "Accept" button.
         // FIXME: Fix this shit.
         accept_button.connect_property_relief_notify(clone!(
-            my_mod_entry,
-            warhammer_2_entry,
-            warhammer_entry => move |accept_button| {
-                if (Path::new(&my_mod_entry.get_buffer().get_text()).is_dir() || my_mod_entry.get_buffer().get_text().is_empty()) &&
-                    (Path::new(&warhammer_2_entry.get_buffer().get_text()).is_dir() || warhammer_2_entry.get_buffer().get_text().is_empty()) &&
-                    (Path::new(&warhammer_entry.get_buffer().get_text()).is_dir() || warhammer_entry.get_buffer().get_text().is_empty()) {
+            game_entries,
+            my_mod_entry => move |accept_button| {
+                let mut invalid_path = false;
+                for game in game_entries.iter() {
+                    if Path::new(&game.get_buffer().get_text()).is_dir() || game.get_buffer().get_text().is_empty() {
+                        invalid_path = false;
+                    }
+                    else {
+                        invalid_path = true;
+                        break;
+                    }
+                }
+
+                if (Path::new(&my_mod_entry.get_buffer().get_text()).is_dir() || my_mod_entry.get_buffer().get_text().is_empty()) && !invalid_path {
                     accept_button.set_sensitive(true);
                 }
                 else {
@@ -240,18 +242,6 @@ impl SettingsWindow {
             accept_button,
             my_mod_button => move |text_entry| {
                 paint_entry(text_entry, &my_mod_button, &accept_button);
-            }
-        ));
-        warhammer_2_entry.connect_changed(clone!(
-            accept_button,
-            warhammer_2_button => move |text_entry| {
-                paint_entry(text_entry, &warhammer_2_button, &accept_button);
-            }
-        ));
-        warhammer_entry.connect_changed(clone!(
-            accept_button,
-            warhammer_button => move |text_entry| {
-                paint_entry(text_entry, &warhammer_button, &accept_button);
             }
         ));
 
@@ -272,48 +262,47 @@ impl SettingsWindow {
             }
         ));
 
-        warhammer_2_button.connect_button_release_event(clone!(
-            warhammer_2_entry,
-            warhammer_2_button,
-            accept_button,
-            settings_window => move |_,_| {
-                update_entry_path(
-                    &warhammer_2_entry,
-                    &warhammer_2_button,
-                    &accept_button,
-                    "Select Warhammer 2 Folder",
-                    &settings_window
-                );
-                Inhibit(false)
-            }
-        ));
+        // Create an iterator chaining every entry with his button.
+        let game_entries_cloned = game_entries.clone();
+        let game_buttons_cloned = game_buttons.clone();
+        let entries = game_entries_cloned.iter().cloned().zip(game_buttons_cloned.iter().cloned());
+        for (index, game) in entries.enumerate() {
 
-        warhammer_button.connect_button_release_event(clone!(
-            warhammer_entry,
-            warhammer_button,
-            accept_button,
-            settings_window => move |_,_| {
-                update_entry_path(
-                    &warhammer_entry,
-                    &warhammer_button,
-                    &accept_button,
-                    "Select Warhammer Folder",
-                    &settings_window
-                );
-                Inhibit(false)
-            }
-        ));
+            // When we change the path in the game's entry.
+            game.0.connect_changed(clone!(
+                accept_button,
+                game => move |text_entry| {
+                    paint_entry(text_entry, &game.1, &accept_button);
+                }
+            ));
+
+            // When we press the "..." buttons.
+            let supported_games = supported_games.to_vec();
+            game.1.connect_button_release_event(clone!(
+                game,
+                accept_button,
+                supported_games,
+                settings_window => move |_,_| {
+                    update_entry_path(
+                        &game.0,
+                        &game.1,
+                        &accept_button,
+                        &format!("Select {} Folder", &supported_games[index].display_name),
+                        &settings_window,
+                    );
+                    Inhibit(false)
+                }
+            ));
+        }
 
         // Create the SettingsWindow object and store it (We need it for the "Restore Default" button).
         let window = SettingsWindow {
             settings_window,
             settings_path_my_mod_entry: my_mod_entry,
-            settings_path_warhammer_2_entry: warhammer_2_entry,
-            settings_path_warhammer_entry: warhammer_entry,
-            settings_game_list_combo: game_list_combo,
             settings_path_my_mod_button: my_mod_button,
-            settings_path_warhammer_2_button: warhammer_2_button,
-            settings_path_warhammer_button: warhammer_button,
+            settings_path_entries: game_entries,
+            settings_path_buttons: game_buttons,
+            settings_game_list_combo: game_list_combo,
             settings_theme_prefer_dark_theme: prefer_dark_theme_checkbox,
             settings_theme_font_button: font_settings_button,
             settings_cancel: cancel_button,
@@ -321,9 +310,10 @@ impl SettingsWindow {
         };
 
         // When we press the "Restore Default" button, we restore the settings to their "Default" values.
+        let supported_games = supported_games.to_vec();
         restore_default_button.connect_button_release_event(clone!(
             window => move |_,_| {
-                let default_settings = Settings::new();
+                let default_settings = Settings::new(&supported_games);
                 &window.load_to_settings_window(&default_settings);
                 load_gtk_settings(&window.settings_window, &default_settings);
                 Inhibit(false)
@@ -346,19 +336,24 @@ impl SettingsWindow {
 
         // Load the data to the entries.
         self.settings_path_my_mod_entry.get_buffer().set_text(&settings.paths.my_mods_base_path.clone().unwrap_or(PathBuf::from("")).to_string_lossy());
-        self.settings_path_warhammer_2_entry.get_buffer().set_text(&settings.paths.warhammer_2.clone().unwrap_or(PathBuf::from("")).to_string_lossy());
-        self.settings_path_warhammer_entry.get_buffer().set_text(&settings.paths.warhammer.clone().unwrap_or(PathBuf::from("")).to_string_lossy());
+
+        // Load the data to the game entries.
+        let entries = self.settings_path_entries.iter().zip(self.settings_path_buttons.iter());
+        for (index, game) in entries.clone().enumerate() {
+            game.0.get_buffer().set_text(&settings.paths.game_paths[index].path.clone().unwrap_or(PathBuf::from("")).to_string_lossy());
+        }
 
         // Paint the entries and buttons.
         paint_entry(&self.settings_path_my_mod_entry, &self.settings_path_my_mod_button, &self.settings_accept);
-        paint_entry(&self.settings_path_warhammer_2_entry, &self.settings_path_warhammer_2_button, &self.settings_accept);
-        paint_entry(&self.settings_path_warhammer_entry, &self.settings_path_warhammer_button, &self.settings_accept);
+        for game in entries {
+            paint_entry(&game.0, &game.1, &self.settings_accept);
+        }
     }
 
     /// This function gets the data from the settings window and returns a Settings object with that
     /// data in it.
-    pub fn save_from_settings_window(&self) -> Settings {
-        let mut settings = Settings::new();
+    pub fn save_from_settings_window(&self, supported_games: &[GameInfo]) -> Settings {
+        let mut settings = Settings::new(supported_games);
 
         // We get his game's folder, depending on the selected game.
         settings.default_game = self.settings_game_list_combo.get_active_id().unwrap_or("Error. If you see this, pls report it.".to_owned());
@@ -373,15 +368,14 @@ impl SettingsWindow {
             false => None,
         };
 
-        settings.paths.warhammer_2 = match Path::new(&self.settings_path_warhammer_2_entry.get_buffer().get_text()).is_dir() {
-            true => Some(PathBuf::from(&self.settings_path_warhammer_2_entry.get_buffer().get_text())),
-            false => None,
-        };
-
-        settings.paths.warhammer = match Path::new(&self.settings_path_warhammer_entry.get_buffer().get_text()).is_dir() {
-            true => Some(PathBuf::from(&self.settings_path_warhammer_entry.get_buffer().get_text())),
-            false => None,
-        };
+        // For each entry, we get check if it's a valid directory and save it into `settings`.
+        let entries = self.settings_path_entries.iter().zip(self.settings_path_buttons.iter());
+        for (index, game) in entries.enumerate() {
+            settings.paths.game_paths[index].path = match Path::new(&game.0.get_buffer().get_text()).is_dir() {
+                true => Some(PathBuf::from(&game.0.get_buffer().get_text())),
+                false => None,
+            }
+        }
 
         settings
     }

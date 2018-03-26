@@ -31,10 +31,14 @@ pub struct Settings {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Paths {
     pub my_mods_base_path: Option<PathBuf>,
-    pub warhammer_2: Option<PathBuf>,
-    pub warhammer: Option<PathBuf>,
-    pub attila: Option<PathBuf>,
-    pub rome_2: Option<PathBuf>,
+    pub game_paths: Vec<GamePath>,
+}
+
+/// This struct should hold the name of a game (folder_name from GameInfo) and his path, if configured.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct GamePath {
+    pub game: String,
+    pub path: Option<PathBuf>,
 }
 
 /// This struct holds the data needed for the Game Selected.
@@ -71,7 +75,7 @@ impl GameInfo {
         };
 
         supported_games.push(game_info);
-/*
+        /*
         // Attila
         let game_info = GameInfo {
             display_name: "Attila".to_owned(),
@@ -97,10 +101,11 @@ impl GameInfo {
 impl Settings {
 
     /// This function creates a new settings file with default values and loads it into memory.
-    /// Should be run if no settings file has been found at the start of the program.
-    pub fn new() -> Settings {
-        Settings {
-            paths: Paths::new(),
+    /// Should be run if no settings file has been found at the start of the program. It requires
+    /// the list of supported games, so it can store the game paths properly.
+    pub fn new(supported_games: &[GameInfo]) -> Self {
+        Self {
+            paths: Paths::new(supported_games),
             default_game: "warhammer_2".to_owned(),
             prefer_dark_theme: false,
             font: "Segoe UI 10".to_owned()
@@ -108,9 +113,33 @@ impl Settings {
     }
 
     /// This function takes a settings.json file and reads it into a "Settings" object.
-    pub fn load() -> Result<Settings, Error> {
+    pub fn load(supported_games: &[GameInfo]) -> Result<Self, Error> {
         let settings_file = File::open("settings.json")?;
-        let settings = serde_json::from_reader(settings_file)?;
+        let mut settings: Self = serde_json::from_reader(settings_file)?;
+
+        // We need to make sure here that we have entries in `game_paths` for every supported game.
+        // Otherwise, it'll crash when trying to open the "Preferences" window.
+        if settings.paths.game_paths.len() < supported_games.len() {
+            for (index, game) in supported_games.iter().enumerate() {
+                if settings.paths.game_paths.get(index).is_some() {
+                    if settings.paths.game_paths[index].game != game.folder_name {
+
+                        // Something has changed the order of the Games, so we wipe all `GamePath`s
+                        // if we hit this, as some of them will be misplaced.
+                        settings.paths.game_paths = GamePath::new(supported_games);
+                    }
+                }
+                else {
+                    settings.paths.game_paths.push(
+                        GamePath {
+                            game: game.folder_name.to_owned(),
+                            path: None,
+                        }
+                    );
+                }
+            }
+        }
+
         Ok(settings)
     }
 
@@ -133,69 +162,56 @@ impl Settings {
 impl Paths {
 
     /// This function creates a set of empty paths. Just for the initial creation of the settings file.
-    pub fn new() -> Paths {
+    pub fn new(supported_games: &[GameInfo]) -> Paths {
         Paths {
             my_mods_base_path: None,
-            warhammer_2: None,
-            warhammer: None,
-            attila: None,
-            rome_2: None,
+            game_paths: GamePath::new(supported_games)
         }
+    }
+}
+
+/// Implementation of `GamePath`.
+impl GamePath {
+
+    /// This function returns a vector of GamePaths for supported Games.
+    pub fn new(supported_games: &[GameInfo]) -> Vec<Self> {
+
+        let mut game_paths = vec![];
+        for game in supported_games {
+            game_paths.push(
+                Self {
+                    game: game.folder_name.to_owned(),
+                    path: None,
+                }
+            )
+        }
+
+        game_paths
     }
 }
 
 /// Implementation of `GameSelected`.
 impl GameSelected {
 
-    /// This functions returns a GameSelected populated with it's default values..
-    pub fn new(settings: &Settings) -> GameSelected {
+    /// This functions returns a `GameSelected` populated with his default values.
+    pub fn new(settings: &Settings) -> Self {
 
-        let mut game_selected = GameSelected {
-            game: "warhammer_2".to_owned(),
-            game_path: None,
-            game_data_path: None
+        let game = settings.default_game.to_owned();
+        let game_path = settings.paths.game_paths.iter().filter(|x| x.game == game).map(|x| x.path.clone()).collect::<Option<PathBuf>>();
+        let game_data_path = match game_path {
+            Some(ref game_path) => {
+                let mut game_data_path = game_path.clone();
+                game_data_path.push("data");
+                Some(game_data_path)
+            },
+            None => None,
         };
 
-        match &*settings.default_game {
-            "warhammer_2" => {
-                game_selected.game = "warhammer_2".to_owned();
-                game_selected.game_path = settings.paths.warhammer_2.clone();
-                let mut data_path = game_selected.game_path.clone().unwrap_or(PathBuf::from("error"));
-                data_path.push("data");
-                game_selected.game_data_path = Some(data_path);
-            },
-
-            "warhammer" => {
-                game_selected.game = "warhammer".to_owned();
-                game_selected.game_path = settings.paths.warhammer.clone();
-                let mut data_path = game_selected.game_path.clone().unwrap_or(PathBuf::from("error"));
-                data_path.push("data");
-                game_selected.game_data_path = Some(data_path);
-            },
-
-            "attila" => {
-                game_selected.game = "attila".to_owned();
-                game_selected.game_path = settings.paths.attila.clone();
-                let mut data_path = game_selected.game_path.clone().unwrap_or(PathBuf::from("error"));
-                data_path.push("data");
-                game_selected.game_data_path = Some(data_path);
-            },
-
-            "rome_2" => {
-                game_selected.game = "rome_2".to_owned();
-                game_selected.game_path = settings.paths.rome_2.clone();
-                let mut data_path = game_selected.game_path.clone().unwrap_or(PathBuf::from("error"));
-                data_path.push("data");
-                game_selected.game_data_path = Some(data_path);
-            },
-
-            // This should be an error somewhere in the code.
-            _ => {
-                game_selected.game_path = None;
-            },
+        Self {
+            game,
+            game_path,
+            game_data_path,
         }
-
-        game_selected
     }
 
     /// This functions just changes the values in `GameSelected`.
