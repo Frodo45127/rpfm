@@ -6,23 +6,23 @@ use self::failure::Error;
 
 use gtk::prelude::*;
 use gtk::{
-    Box, ScrolledWindow, Orientation, Button, Expander, Label, PolicyType, Entry, Grid
+    ScrolledWindow, Button, Expander, Label, Entry, Grid
 };
 
 use common::coding_helpers::*;
+use packedfile::rigidmodel::RigidModel;
 
 /// Struct PackedFileRigidModelDataView: contains all the stuff we need to give to the program to
 /// show a TreeView with the data of a RigidModel file, allowing us to manipulate it.
 #[derive(Clone)]
 pub struct PackedFileRigidModelDataView {
-    pub packed_file_save_button: Button,
     pub rigid_model_game_label: Label,
     pub rigid_model_game_patch_button: Button,
     pub packed_file_texture_paths_index: Vec<u32>,
     pub packed_file_texture_paths: Vec<Vec<Entry>>,
 }
 
-/// Implementation of "PackedFileRigidModelDataView"
+/// Implementation of "PackedFileRigidModelDataView".
 impl PackedFileRigidModelDataView {
 
     /// This function creates a new Data View (custom layout) with "packed_file_data_display" as
@@ -30,53 +30,57 @@ impl PackedFileRigidModelDataView {
     /// we return a result.
     pub fn create_data_view(
         packed_file_data_display: &Grid,
-        packed_file_decoded: &::packedfile::rigidmodel::RigidModel
+        packed_file_decoded: &RigidModel
     ) -> Result<PackedFileRigidModelDataView, Error> {
 
-        // Button for saving the PackedFile. It goes before everything, so it's not included in the
-        // scrolledWindow.
-        let packed_file_save_button = Button::new_with_label("Save to PackedFile");
-
-        // Internal scrolledWindow, so if there are too many lods, we can scroll through them.
-        // Inside it we put a box to fit all the labels and stuff properly.
+        // Internal `ScrolledWindow`, so if there are too many lods, we can scroll through them.
+        // Inside it we put a Grid to fit all the labels and stuff properly.
         let packed_file_data_display_scroll = ScrolledWindow::new(None, None);
-        let packed_file_data_display_scroll_inner_box = Box::new(Orientation::Vertical, 0);
+        let packed_file_data_display_grid = Grid::new();
         packed_file_data_display_scroll.set_hexpand(true);
         packed_file_data_display_scroll.set_vexpand(true);
+        packed_file_data_display_grid.set_border_width(6);
+        packed_file_data_display_grid.set_row_spacing(6);
+        packed_file_data_display_grid.set_column_spacing(3);
 
-        let rigid_model_game_box = Box::new(Orientation::Horizontal, 0);
-        rigid_model_game_box.set_size_request(400, 0);
-
-        let rigid_model_game_label = Label::new(Some(
-            if packed_file_decoded.packed_file_header.packed_file_header_model_type == 6 {
-                "RigidModel compatible with: \"Attila\"."
-            }
-            else {
-                "RigidModel compatible with: \"Warhammer 1&2\"."
+        let compatible_label = Label::new(Some("RigidModel compatible with: "));
+        let game_label = Label::new(Some(
+            match packed_file_decoded.packed_file_header.packed_file_header_model_type {
+                6 => "Attila",
+                7 => "Warhammer 1&2",
+                _ => "Don't know."
             }
         ));
-        rigid_model_game_label.set_margin_start(4);
-        rigid_model_game_label.set_xalign(0.0);
-        rigid_model_game_label.set_yalign(0.5);
+        let patch_attila_to_warhammer_button = Button::new_with_label("Patch to Warhammer 1&2");
 
-        let rigid_model_game_patch_button = Button::new_with_label("Patch to Warhammer 1&2");
-        if packed_file_decoded.packed_file_header.packed_file_header_model_type == 6 {
-            rigid_model_game_patch_button.set_sensitive(true);
-        }
-        else {
-            rigid_model_game_patch_button.set_sensitive(false);
+        // Only enable it for Attila's RigidModels.
+        match packed_file_decoded.packed_file_header.packed_file_header_model_type {
+            6 => patch_attila_to_warhammer_button.set_sensitive(true),
+            _ => patch_attila_to_warhammer_button.set_sensitive(false),
         }
 
-        rigid_model_game_box.pack_start(&rigid_model_game_label, false, false, 0);
-        rigid_model_game_box.pack_end(&rigid_model_game_patch_button, false, false, 0);
+        let textures_label = Label::new(Some("Textures used by this RigidModel:"));
 
-        let rigid_model_textures_label = Label::new(Some("Textures used by this RigidModel:"));
-        rigid_model_textures_label.set_margin_start(4);
-        rigid_model_textures_label.set_xalign(0.0);
-        rigid_model_textures_label.set_yalign(0.5);
+        compatible_label.set_xalign(0.0);
+        compatible_label.set_yalign(0.5);
+        compatible_label.set_size_request(100, 0);
+        game_label.set_xalign(0.0);
+        game_label.set_yalign(0.5);
+        game_label.set_size_request(100, 0);
+        textures_label.set_xalign(0.0);
+        textures_label.set_yalign(0.5);
+        textures_label.set_size_request(100, 0);
 
-        packed_file_data_display_scroll_inner_box.pack_start(&rigid_model_game_box, false, false, 0);
-        packed_file_data_display_scroll_inner_box.pack_start(&rigid_model_textures_label, false, false, 0);
+        game_label.set_hexpand(true);
+
+        // Attach all the stuff already created to the grid.
+        packed_file_data_display_grid.attach(&compatible_label, 0, 0, 1, 1);
+        packed_file_data_display_grid.attach(&game_label, 1, 0, 1, 1);
+        packed_file_data_display_grid.attach(&patch_attila_to_warhammer_button, 2, 0, 1, 1);
+        packed_file_data_display_grid.attach(&textures_label, 0, 1, 1, 1);
+
+        packed_file_data_display_scroll.add(&packed_file_data_display_grid);
+        packed_file_data_display.attach(&packed_file_data_display_scroll, 0, 0, 1, 1);
 
         // The texture position should never change in the data, so we get the positions of all the
         // textures in the RigidModel.
@@ -126,7 +130,7 @@ impl PackedFileRigidModelDataView {
 
         // If none of these have worked, this is not a decodeable rigidmodel.
         else {
-            return Err(format_err!("Error while trying to get the texture directories (none has beem found)."))
+            return Err(format_err!("Error while trying to get the type of RigidModel (Texture Directories not found)."))
         }
 
         // Rules to diferentiate between decal, building/prop and units:
@@ -140,11 +144,13 @@ impl PackedFileRigidModelDataView {
         // If it's a decal...
         if texture_index.len() == 1 {
             let mut packed_file_texture_paths_lod = vec![];
-            let lod_texture_expander = Expander::new(Some(&*format!("Decal texture folder")));
-            let lod_texture_expander_box = Box::new(Orientation::Vertical, 0);
-            lod_texture_expander.add(&lod_texture_expander_box);
+            let lod_texture_expander = Expander::new(Some(&*format!("Decal Texture Directory")));
+            let lod_texture_expander_grid = Grid::new();
+            lod_texture_expander.add(&lod_texture_expander_grid);
+            lod_texture_expander_grid.set_border_width(6);
+            lod_texture_expander_grid.set_row_spacing(6);
+            lod_texture_expander_grid.set_column_spacing(3);
 
-            let texture_info_box = Box::new(Orientation::Horizontal, 0);
             let texture_type = Label::new(Some("Texture Directory:"));
             texture_type.set_xalign(0.0);
             texture_type.set_yalign(0.5);
@@ -156,31 +162,23 @@ impl PackedFileRigidModelDataView {
             match decode_string_u8_0padded(
                 &packed_file_decoded.packed_file_data.packed_file_data_lods_data[
                     texture_index[0] as usize..
-                    (texture_index[0] as u32 + 256u32) as usize
+                    (texture_index[0] as u32 + 255u32) as usize
                 ]
             ) {
                 Ok(result) => texture_path.get_buffer().set_text(&*result.0),
-                Err(_) => texture_path.get_buffer().set_text("Error while decoding."),
+                Err(_) =>  return Err(format_err!("Error while trying to get the Decal Texture Directory.")),
             };
 
             texture_path.get_buffer().set_max_length(Some(256u16));
             texture_path.set_editable(true);
+            texture_path.set_hexpand(true);
 
-            // We need to put a ScrolledWindow around the Entry, so we can move the
-            // text if it's too long.
-            let texture_path_scroll = ScrolledWindow::new(None, None);
-            texture_path_scroll.set_size_request(550, 0);
-            texture_path_scroll.set_policy(PolicyType::External, PolicyType::Never);
-            texture_path_scroll.set_max_content_width(500);
-            texture_path_scroll.add(&texture_path);
-
-            texture_info_box.pack_start(&texture_type, false, false, 10);
-            texture_info_box.pack_start(&texture_path_scroll, false, false, 0);
-            lod_texture_expander_box.pack_start(&texture_info_box, false, false, 0);
+            lod_texture_expander_grid.attach(&texture_type, 0, 0, 1, 1);
+            lod_texture_expander_grid.attach(&texture_path, 1, 0, 1, 1);
 
             packed_file_texture_paths_lod.push(texture_path);
             packed_file_texture_paths.push(packed_file_texture_paths_lod);
-            packed_file_data_display_scroll_inner_box.pack_start(&lod_texture_expander, false, false, 0);
+            packed_file_data_display_grid.attach(&lod_texture_expander, 0, 3, 3, 1);
         }
         else {
 
@@ -196,21 +194,26 @@ impl PackedFileRigidModelDataView {
 
                     let mut packed_file_texture_paths_lod = vec![];
                     let lod_texture_expander = Expander::new(Some(&*format!("Lod {}", lod + 1)));
-                    let lod_texture_expander_box = Box::new(Orientation::Vertical, 0);
-                    lod_texture_expander.add(&lod_texture_expander_box);
-
+                    let lod_texture_expander_grid = Grid::new();
+                    lod_texture_expander.add(&lod_texture_expander_grid);
+                    lod_texture_expander_grid.set_border_width(6);
+                    lod_texture_expander_grid.set_row_spacing(6);
+                    lod_texture_expander_grid.set_column_spacing(3);
 
                     // For each texture found (except the first of the group, thats their dir)...
                     for index in 1..6 {
 
                         // First, we get it's type.
-                        let texture_info_box = Box::new(Orientation::Horizontal, 0);
                         let texture_type = Label::new(Some(
 
                             //0 (Diffuse), 1 (Normal), 11 (Specular), 12 (Gloss), 3/10 (Mask), 5(no idea).
-                            match decode_integer_u32(&packed_file_decoded.packed_file_data.packed_file_data_lods_data[(texture_index[index + (lod * 6)] - 4) as usize..(texture_index[index + (lod * 6)] as usize)]) {
+                            match decode_integer_u32(
+                                &packed_file_decoded.packed_file_data.packed_file_data_lods_data[
+                                    (texture_index[index + (lod * 6)] - 4) as usize..
+                                    (texture_index[index + (lod * 6)] as usize)
+                                    ]
+                                ) {
                                 Ok(result) => {
-
                                     match result {
                                         0 => "Diffuse:",
                                         1 => "Normal:",
@@ -218,7 +221,7 @@ impl PackedFileRigidModelDataView {
                                         12 => "Gloss:",
                                         3 | 10 => "Mask:",
                                         5 => "Unknown:",
-                                        _ => return Err(format_err!("Error. Unknown mask type."))
+                                        _ => return Err(format_err!("Error while trying to get the Mask Type for a Texture: Unknown Mask Type."))
                                     }
                                 }
                                 Err(error) => return Err(error)
@@ -227,7 +230,6 @@ impl PackedFileRigidModelDataView {
 
                         texture_type.set_xalign(0.0);
                         texture_type.set_yalign(0.5);
-                        texture_type.set_size_request(60, 0);
 
                         // Then we get it's path, and put it in a gtk::Entry.
                         let texture_path = Entry::new();
@@ -239,46 +241,35 @@ impl PackedFileRigidModelDataView {
                             ]
                         ) {
                             Ok(result) => texture_path.get_buffer().set_text(&*result.0),
-                            Err(_) => texture_path.get_buffer().set_text("Error while decoding."),
+                            Err(_) =>  return Err(format_err!("Error while trying to get the a Texture Path.")),
                         };
 
                         texture_path.get_buffer().set_max_length(Some(256u16));
                         texture_path.set_editable(true);
+                        texture_path.set_hexpand(true);
 
-                        // We need to put a ScrolledWindow around the Entry, so we can move the
-                        // text if it's too long.
-                        let texture_path_scroll = ScrolledWindow::new(None, None);
-                        texture_path_scroll.set_size_request(650, 0);
-                        texture_path_scroll.set_policy(PolicyType::External, PolicyType::Never);
-                        texture_path_scroll.set_max_content_width(600);
-                        texture_path_scroll.add(&texture_path);
-
-                        texture_info_box.pack_start(&texture_type, false, false, 10);
-                        texture_info_box.pack_start(&texture_path_scroll, false, false, 0);
-                        lod_texture_expander_box.pack_start(&texture_info_box, false, false, 0);
+                        lod_texture_expander_grid.attach(&texture_type, 0, (index - 1) as i32, 1, 1);
+                        lod_texture_expander_grid.attach(&texture_path, 1, (index - 1) as i32, 1, 1);
 
                         packed_file_texture_paths_lod.push(texture_path);
                     }
                     packed_file_texture_paths.push(packed_file_texture_paths_lod);
-                    packed_file_data_display_scroll_inner_box.pack_start(&lod_texture_expander, false, false, 0);
+                    packed_file_data_display_grid.attach(&lod_texture_expander, 0, (lod + 2) as i32, 3, 1);
                 }
             }
 
             // If not, return error.
             else {
-                return Err(format_err!("Error while trying to get the texture directories (an irregular amount of them has been found)."))
+                return Err(format_err!("Error while trying to decode the selected RigidModel: Irregular amount of Textures per lod."))
             }
         }
 
-        packed_file_data_display_scroll.add(&packed_file_data_display_scroll_inner_box);
-        packed_file_data_display.attach(&packed_file_save_button, 0, 0, 1, 1);
-        packed_file_data_display.attach(&packed_file_data_display_scroll, 0, 1, 1, 1);
+        // If we reached this point, show it all.
         packed_file_data_display.show_all();
 
         Ok(PackedFileRigidModelDataView {
-            packed_file_save_button,
-            rigid_model_game_label,
-            rigid_model_game_patch_button,
+            rigid_model_game_label: game_label,
+            rigid_model_game_patch_button: patch_attila_to_warhammer_button,
             packed_file_texture_paths,
             packed_file_texture_paths_index: texture_index,
         })

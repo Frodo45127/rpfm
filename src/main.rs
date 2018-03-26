@@ -67,6 +67,7 @@ use ui::packedfile_db::*;
 use ui::packedfile_loc::*;
 use ui::packedfile_text::*;
 use ui::packedfile_image::*;
+use ui::packedfile_rigidmodel::*;
 use ui::settings::*;
 use updater::LastestRelease;
 
@@ -4898,25 +4899,33 @@ fn build_ui(application: &Application) {
                         );
 
                         // If we got the SourceView done, we save his buffer on change.
-                        if let Some(source_view_buffer) = source_view_buffer {
-                            source_view_buffer.connect_changed(clone!(
-                                app_ui,
-                                pack_file_decoded => move |source_view_buffer| {
-                                    let packed_file_data = coding_helpers::encode_string_u8(&source_view_buffer.get_slice(
-                                        &source_view_buffer.get_start_iter(),
-                                        &source_view_buffer.get_end_iter(),
-                                        true
-                                    ).unwrap());
+                        match source_view_buffer {
+                            Some(source_view_buffer) => {
+                                source_view_buffer.connect_changed(clone!(
+                                    app_ui,
+                                    pack_file_decoded => move |source_view_buffer| {
+                                        let packed_file_data = coding_helpers::encode_string_u8(&source_view_buffer.get_slice(
+                                            &source_view_buffer.get_start_iter(),
+                                            &source_view_buffer.get_end_iter(),
+                                            true
+                                        ).unwrap());
 
-                                    update_packed_file_data_text(
-                                        &packed_file_data,
-                                        &mut pack_file_decoded.borrow_mut(),
-                                        index as usize
-                                    );
+                                        update_packed_file_data_text(
+                                            &packed_file_data,
+                                            &mut pack_file_decoded.borrow_mut(),
+                                            index as usize
+                                        );
 
-                                    set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
-                                }
-                            ));
+                                        set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
+                                    }
+                                ));
+                            }
+
+                            // If none has been returned, there has been an error while decoding.
+                            None => {
+                                let message = "Error while trying to decode a Text PackedFile.";
+                                ui::show_message_in_statusbar(&app_ui.status_bar, message);
+                            }
                         }
                     }
 
@@ -4939,29 +4948,35 @@ fn build_ui(application: &Application) {
                             Ok(packed_file_data_decoded) => {
                                 let packed_file_data_view_stuff = match ui::packedfile_rigidmodel::PackedFileRigidModelDataView::create_data_view(&app_ui.packed_file_data_display, &packed_file_data_decoded){
                                     Ok(result) => result,
-                                    Err(error) => return ui::show_dialog(&app_ui.error_dialog, Error::from(error).cause()),
+                                    Err(error) => {
+                                        let message = format_err!("Error while trying to decode a RigidModel: {}", Error::from(error).cause());
+                                        return ui::show_message_in_statusbar(&app_ui.status_bar, message)
+                                    },
                                 };
-                                let packed_file_save_button = packed_file_data_view_stuff.packed_file_save_button;
-                                let rigid_model_game_patch_button = packed_file_data_view_stuff.rigid_model_game_patch_button;
-                                let rigid_model_game_label = packed_file_data_view_stuff.rigid_model_game_label;
-                                let packed_file_texture_paths = packed_file_data_view_stuff.packed_file_texture_paths;
-                                let packed_file_texture_paths_index = packed_file_data_view_stuff.packed_file_texture_paths_index;
+                                let patch_button = packed_file_data_view_stuff.rigid_model_game_patch_button;
+                                let game_label = packed_file_data_view_stuff.rigid_model_game_label;
+                                let texture_paths = packed_file_data_view_stuff.packed_file_texture_paths;
+                                let texture_paths_index = packed_file_data_view_stuff.packed_file_texture_paths_index;
                                 let packed_file_data_decoded = Rc::new(RefCell::new(packed_file_data_decoded));
 
                                 // When we hit the "Patch to Warhammer 1&2" button.
-                                rigid_model_game_patch_button.connect_button_release_event(clone!(
+                                patch_button.connect_button_release_event(clone!(
                                     app_ui,
                                     pack_file_decoded,
-                                    packed_file_data_decoded => move |rigid_model_game_patch_button, _| {
+                                    packed_file_data_decoded => move |patch_button, _| {
 
+                                    // Patch the RigidModel...
                                     let packed_file_data_patch_result = packfile::patch_rigid_model_attila_to_warhammer(&mut *packed_file_data_decoded.borrow_mut());
                                     match packed_file_data_patch_result {
                                         Ok(result) => {
-                                            rigid_model_game_patch_button.set_sensitive(false);
-                                            rigid_model_game_label.set_text("RigidModel compatible with: \"Warhammer 1&2\".");
 
+                                            // Disable the button and change his game...
+                                            patch_button.set_sensitive(false);
+                                            game_label.set_text("Warhammer 1&2");
+
+                                            // Save the changes to the PackFile....
                                             let mut success = false;
-                                            match ::packfile::update_packed_file_data_rigid(
+                                            match update_packed_file_data_rigid(
                                                 &*packed_file_data_decoded.borrow(),
                                                 &mut *pack_file_decoded.borrow_mut(),
                                                 index as usize
@@ -4972,6 +4987,8 @@ fn build_ui(application: &Application) {
                                                 },
                                                 Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause()),
                                             }
+
+                                            // If it works, set it as modified.
                                             if success {
                                                 set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
                                             }
@@ -4981,47 +4998,60 @@ fn build_ui(application: &Application) {
                                     Inhibit(false)
                                 }));
 
-                                // When we hit the "Save to PackFile" button.
-                                packed_file_save_button.connect_button_release_event(clone!(
-                                    app_ui,
-                                    pack_file_decoded,
-                                    packed_file_texture_paths,
-                                    packed_file_texture_paths_index,
-                                    packed_file_data_decoded => move |_ ,_|{
+                                // When we change any of the Paths...
+                                // TODO: It's extremely slow with big models. Need to find a way to fix it.
+                                for lod in &texture_paths {
+                                    for texture_path in lod {
+                                        texture_path.connect_changed(clone!(
+                                            pack_file_decoded,
+                                            packed_file_data_decoded,
+                                            texture_paths,
+                                            texture_paths_index,
+                                            app_ui => move |_| {
 
-                                    let new_data = match ui::packedfile_rigidmodel::PackedFileRigidModelDataView::return_data_from_data_view(
-                                        &packed_file_texture_paths,
-                                        &packed_file_texture_paths_index,
-                                        &mut (*packed_file_data_decoded.borrow_mut()).packed_file_data.packed_file_data_lods_data.to_vec()
-                                    ) {
-                                        Ok(new_data) => new_data,
-                                        Err(error) => {
-                                            ui::show_dialog(&app_ui.error_dialog, error.cause());
-                                            return Inhibit(false);
-                                        }
-                                    };
+                                                // Get the data from the View...
+                                                let new_data = match PackedFileRigidModelDataView::return_data_from_data_view(
+                                                    &texture_paths,
+                                                    &texture_paths_index,
+                                                    &mut (*packed_file_data_decoded.borrow_mut()).packed_file_data.packed_file_data_lods_data.to_vec()
+                                                ) {
+                                                    Ok(new_data) => new_data,
+                                                    Err(error) => {
+                                                        let message = format_err!("Error while trying to save changes to a RigidModel: {}", Error::from(error).cause());
+                                                        return ui::show_message_in_statusbar(&app_ui.status_bar, message)
+                                                    }
+                                                };
 
-                                    packed_file_data_decoded.borrow_mut().packed_file_data.packed_file_data_lods_data = new_data;
+                                                // Save it encoded into the opened RigidModel...
+                                                packed_file_data_decoded.borrow_mut().packed_file_data.packed_file_data_lods_data = new_data;
 
-                                    let mut success = false;
-                                    match ::packfile::update_packed_file_data_rigid(
-                                        &*packed_file_data_decoded.borrow(),
-                                        &mut *pack_file_decoded.borrow_mut(),
-                                        index as usize
-                                    ) {
-                                        Ok(result) => {
-                                            success = true;
-                                            ui::show_dialog(&app_ui.success_dialog, result)
-                                        },
-                                        Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause()),
+                                                // And then into the PackFile.
+                                                let success;
+                                                match update_packed_file_data_rigid(
+                                                    &*packed_file_data_decoded.borrow(),
+                                                    &mut *pack_file_decoded.borrow_mut(),
+                                                    index as usize
+                                                ) {
+                                                    Ok(_) => { success = true },
+                                                    Err(error) => {
+                                                        let message = format_err!("Error while trying to save changes to a RigidModel: {}", Error::from(error).cause());
+                                                        return ui::show_message_in_statusbar(&app_ui.status_bar, message)
+                                                    }
+                                                }
+
+                                                // If it works, set it as modified.
+                                                if success {
+                                                    set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
+                                                }
+                                            }
+                                        ));
                                     }
-                                    if success {
-                                        set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
-                                    }
-                                    Inhibit(false)
-                                }));
+                                }
                             }
-                            Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause()),
+                            Err(error) => {
+                                let message = format_err!("Error while trying to decoded a RigidModel: {}", Error::from(error).cause());
+                                return ui::show_message_in_statusbar(&app_ui.status_bar, message)
+                            }
                         }
                     }
 
