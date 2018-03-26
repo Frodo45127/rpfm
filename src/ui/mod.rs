@@ -12,8 +12,9 @@ use std::fmt::Display;
 
 use packfile::packfile::PackFile;
 
-pub mod packedfile_loc;
 pub mod packedfile_db;
+pub mod packedfile_loc;
+pub mod packedfile_text;
 pub mod packedfile_image;
 pub mod packedfile_rigidmodel;
 pub mod settings;
@@ -84,6 +85,8 @@ pub fn get_rect_for_popover(
 
     // If the TreeView has headers, fix the Y coordinate too.
     if tree_view.get_headers_visible() {
+
+        // FIXME: This needs to be get programatically, as it just work with font size 10.
         rect.y += 32; // 32 - height of the header.
     }
 

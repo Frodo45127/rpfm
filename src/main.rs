@@ -48,9 +48,6 @@ use gtk::{
     CellRendererText, TreeViewColumn, Popover, Entry, Button, ListStore, ResponseType,
     ShortcutsWindow, ToVariant, Statusbar, FileChooserNative, FileChooserAction
 };
-use sourceview::{
-    Buffer, BufferExt, View, ViewExt, Language, LanguageManager, LanguageManagerExt
-};
 
 use common::coding_helpers;
 use common::*;
@@ -68,6 +65,7 @@ use packedfile::rigidmodel::RigidModel;
 use settings::*;
 use ui::packedfile_db::*;
 use ui::packedfile_loc::*;
+use ui::packedfile_text::*;
 use ui::packedfile_image::*;
 use ui::settings::*;
 use updater::LastestRelease;
@@ -4892,89 +4890,33 @@ fn build_ui(application: &Application) {
                     // his language, if it's an specific language file.
                     "TEXT" => {
 
-                        // Before doing anything, we try to decode the data. Only if we success, we create
-                        // the SourceView and add the data to it.
-                        let packed_file_data_encoded = &*pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data;
-                        match coding_helpers::decode_string_u8(packed_file_data_encoded) {
-                            Ok(string) => {
+                        let source_view_buffer = create_text_view(
+                            &app_ui.packed_file_data_display,
+                            &app_ui.status_bar,
+                            &tree_path.last().unwrap(),
+                            &pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data
+                        );
 
-                                // First, we create a vertical Box, put a "Save" button in the top part, and left
-                                // the lower part for the SourceView.
-                                let packed_file_source_view_save_button = Button::new_with_label("Save to PackedFile");
-                                app_ui.packed_file_data_display.attach(&packed_file_source_view_save_button, 0, 0, 1, 1);
+                        // If we got the SourceView done, we save his buffer on change.
+                        if let Some(source_view_buffer) = source_view_buffer {
+                            source_view_buffer.connect_changed(clone!(
+                                app_ui,
+                                pack_file_decoded => move |source_view_buffer| {
+                                    let packed_file_data = coding_helpers::encode_string_u8(&source_view_buffer.get_slice(
+                                        &source_view_buffer.get_start_iter(),
+                                        &source_view_buffer.get_end_iter(),
+                                        true
+                                    ).unwrap());
 
-                                // Second, we create the new SourceView (in a ScrolledWindow) and his buffer,
-                                // get his buffer and put the text in it.
-                                let packed_file_source_view_scroll = ScrolledWindow::new(None, None);
-                                packed_file_source_view_scroll.set_hexpand(true);
-                                packed_file_source_view_scroll.set_vexpand(true);
-                                app_ui.packed_file_data_display.attach(&packed_file_source_view_scroll, 0, 1, 1, 1);
-
-                                let packed_file_source_view_buffer: Buffer = Buffer::new(None);
-                                let packed_file_source_view = View::new_with_buffer(&packed_file_source_view_buffer);
-
-                                // Third, we config the SourceView for our needs.
-                                packed_file_source_view.set_tab_width(4);
-                                packed_file_source_view.set_show_line_numbers(true);
-                                packed_file_source_view.set_indent_on_tab(true);
-                                packed_file_source_view.set_highlight_current_line(true);
-
-                                // Then, we get the Language of the file.
-                                let language_manager = LanguageManager::get_default().unwrap();
-                                let packedfile_language: Option<Language>;
-                                if tree_path.last().unwrap().ends_with(".xml") ||
-                                    tree_path.last().unwrap().ends_with(".xml.shader") ||
-                                    tree_path.last().unwrap().ends_with(".xml.material") ||
-                                    tree_path.last().unwrap().ends_with(".variantmeshdefinition") ||
-                                    tree_path.last().unwrap().ends_with(".environment") ||
-                                    tree_path.last().unwrap().ends_with(".lighting") ||
-                                    tree_path.last().unwrap().ends_with(".wsmodel") {
-                                    packedfile_language = language_manager.get_language("xml");
-                                }
-                                else if tree_path.last().unwrap().ends_with(".lua") {
-                                    packedfile_language = language_manager.get_language("lua");
-                                }
-                                else if tree_path.last().unwrap().ends_with(".csv") {
-                                    packedfile_language = language_manager.get_language("csv");
-                                }
-                                else if tree_path.last().unwrap().ends_with(".inl") {
-                                    packedfile_language = language_manager.get_language("cpp");
-                                }
-                                else {
-                                    packedfile_language = None;
-                                }
-
-                                // Then we set the Language of the file, if it has one.
-                                if let Some(language) = packedfile_language {
-                                    packed_file_source_view_buffer.set_language(&language);
-                                }
-
-                                packed_file_source_view_buffer.set_text(&*string);
-
-                                // And show everything.
-                                packed_file_source_view_scroll.add(&packed_file_source_view);
-                                app_ui.packed_file_data_display.show_all();
-
-                                // When we click in the "Save to PackedFile" button
-                                packed_file_source_view_save_button.connect_button_release_event(clone!(
-                                    app_ui,
-                                    pack_file_decoded => move |_,_| {
-                                    let packed_file_data_decoded = coding_helpers::encode_string_u8(&packed_file_source_view.get_buffer().unwrap().get_slice(
-                                        &packed_file_source_view.get_buffer().unwrap().get_start_iter(),
-                                        &packed_file_source_view.get_buffer().unwrap().get_end_iter(),
-                                        true).unwrap());
-
-                                    ::packfile::update_packed_file_data_text(
-                                        &packed_file_data_decoded,
-                                        &mut *pack_file_decoded.borrow_mut(),
-                                        index as usize);
+                                    update_packed_file_data_text(
+                                        &packed_file_data,
+                                        &mut pack_file_decoded.borrow_mut(),
+                                        index as usize
+                                    );
 
                                     set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
-
-                                    Inhibit(false)
-                                }));
-                            }
-                            Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause()),
+                                }
+                            ));
                         }
                     }
 
