@@ -439,170 +439,16 @@ fn build_ui(application: &Application) {
     // - At the end of MyMod deletion.
     // - At the end of settings update.
 
-    // First, we clear the list.
-    app_ui.my_mod_list.remove_all();
-
-    // If we have the "MyMod" path configured...
-    if let Some(ref my_mod_base_path) = settings.borrow().paths.my_mods_base_path {
-
-        // And can get without errors the folders in that path...
-        if let Ok(game_folder_list) = my_mod_base_path.read_dir() {
-
-            // We get all the games that have mods created (Folder exists and has at least a *.pack file inside).
-            for game_folder in game_folder_list {
-
-                // If the file/folder is valid, we see if it's one of our game's folder.
-                if let Ok(game_folder) = game_folder {
-                    if game_folder.path().is_dir() &&
-                        (
-                            game_folder.file_name().to_string_lossy() == "warhammer_2"||
-                            game_folder.file_name().to_string_lossy() == "warhammer" ||
-                            game_folder.file_name().to_string_lossy() == "attila" ||
-                            game_folder.file_name().to_string_lossy() == "rome_2"
-                        ) {
-
-                        // We create that game's menu here.
-                        let game_submenu: Menu = Menu::new();
-                        let game_folder_name = game_folder.file_name().to_string_lossy().as_ref().to_owned();
-
-                        // If there were no errors while reading the path...
-                        if let Ok(game_folder_files) = game_folder.path().read_dir() {
-
-                            // Index to count the valid packfiles.
-                            let mut valid_mod_index = 0;
-
-                            // We need to sort these files, so they appear sorted in the menu.
-                            // FIXME: remove this unwrap.
-                            let mut game_folder_files_sorted: Vec<_> = game_folder_files.map(|res| res.unwrap().path()).collect();
-                            game_folder_files_sorted.sort();
-
-                            // We get all the stuff in that game's folder...
-                            for game_folder_file in game_folder_files_sorted {
-
-                                // And it's a file that ends in .pack...
-                                if game_folder_file.is_file() &&
-                                    game_folder_file.extension().unwrap_or(OsStr::new("invalid")).to_string_lossy() =="pack" {
-
-                                    // That means our game_folder is a valid folder and it needs to be added to the menu.
-                                    let mod_name = game_folder_file.file_name().unwrap_or(OsStr::new("invalid")).to_string_lossy().as_ref().to_owned();
-                                    let mod_action = &*format!("my-mod-open-{}-{}", match &*game_folder_name {
-                                        "warhammer_2" => "warhammer_2",
-                                        "warhammer" => "warhammer",
-                                        "attila" => "attila",
-                                        "rome_2" => "rome_2",
-                                        _ => "if you see this, please report it",
-                                    }, valid_mod_index);
-                                    game_submenu.append(Some(&*mod_name), Some(&*format!("app.{}", mod_action)));
-
-                                    // We create the action for the new button.
-                                    let open_mod = SimpleAction::new(mod_action, None);
-                                    application.add_action(&open_mod);
-
-                                    // And when activating the mod button, we open it and set it as selected (chaos incoming).
-                                    open_mod.connect_activate(clone!(
-                                        app_ui,
-                                        settings,
-                                        schema,
-                                        mode,
-                                        game_folder_name,
-                                        game_selected,
-                                        pack_file_decoded => move |_,_| {
-                                            // If the current PackFile has been changed in any way, we pop up the "Are you sure?" message.
-                                            let lets_do_it = if pack_file_decoded.borrow().pack_file_extra_data.is_modified {
-                                                if app_ui.unsaved_dialog.run() == gtk_response_ok {
-                                                    app_ui.unsaved_dialog.hide_on_delete();
-                                                    true
-                                                } else {
-                                                    app_ui.unsaved_dialog.hide_on_delete();
-                                                    false
-                                                }
-                                            } else { true };
-
-                                            // If we got confirmation...
-                                            if lets_do_it {
-                                                let pack_file_path = game_folder_file.to_path_buf();
-                                                match packfile::open_packfile(pack_file_path) {
-                                                    Ok(pack_file_opened) => {
-                                                        *pack_file_decoded.borrow_mut() = pack_file_opened;
-                                                        ui::update_tree_view(&app_ui.folder_tree_store, &*pack_file_decoded.borrow());
-                                                        set_modified(false, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
-
-                                                        // Enable the selected mod.
-                                                        *mode.borrow_mut() = Mode::MyMod {
-                                                            game_folder_name: game_folder_name.to_owned(),
-                                                            mod_name: mod_name.to_owned(),
-                                                        };
-
-                                                        // We choose the right option, depending on our PackFile.
-                                                        match pack_file_decoded.borrow().pack_file_header.pack_file_type {
-                                                            0 => app_ui.menu_bar_change_packfile_type.change_state(&"boot".to_variant()),
-                                                            1 => app_ui.menu_bar_change_packfile_type.change_state(&"release".to_variant()),
-                                                            2 => app_ui.menu_bar_change_packfile_type.change_state(&"patch".to_variant()),
-                                                            3 => app_ui.menu_bar_change_packfile_type.change_state(&"mod".to_variant()),
-                                                            4 => app_ui.menu_bar_change_packfile_type.change_state(&"movie".to_variant()),
-                                                            _ => ui::show_dialog(&app_ui.error_dialog, format_err!("PackFile Type not valid.")),
-                                                        }
-
-                                                        // We deactive these menus, and only activate the one corresponding to our game.
-                                                        app_ui.menu_bar_generate_dependency_pack_wh2.set_enabled(false);
-                                                        app_ui.menu_bar_patch_siege_ai_wh2.set_enabled(false);
-                                                        app_ui.menu_bar_generate_dependency_pack_wh.set_enabled(false);
-                                                        app_ui.menu_bar_patch_siege_ai_wh.set_enabled(false);
-
-                                                        // We choose the new GameSelected depending on what the open mod id is.
-                                                        match &*pack_file_decoded.borrow().pack_file_header.pack_file_id {
-                                                            "PFH5" => {
-                                                                game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.game_paths.iter().filter(|x| &x.game == "warhammer_2").map(|x| x.path.clone()).collect::<Option<PathBuf>>());
-                                                                app_ui.menu_bar_generate_dependency_pack_wh2.set_enabled(true);
-                                                                app_ui.menu_bar_patch_siege_ai_wh2.set_enabled(true);
-                                                                app_ui.menu_bar_change_game_selected.change_state(&"warhammer_2".to_variant());
-                                                            },
-                                                            "PFH4" | _ => {
-                                                                game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.game_paths.iter().filter(|x| &x.game == "warhammer").map(|x| x.path.clone()).collect::<Option<PathBuf>>());
-                                                                app_ui.menu_bar_generate_dependency_pack_wh.set_enabled(true);
-                                                                app_ui.menu_bar_patch_siege_ai_wh.set_enabled(true);
-                                                                app_ui.menu_bar_change_game_selected.change_state(&"warhammer".to_variant());
-                                                            },
-                                                        }
-
-                                                        app_ui.menu_bar_save_packfile.set_enabled(true);
-                                                        app_ui.menu_bar_save_packfile_as.set_enabled(true);
-                                                        app_ui.menu_bar_change_packfile_type.set_enabled(true);
-
-                                                        // Enable the controls for "MyMod".
-                                                        app_ui.menu_bar_my_mod_delete.set_enabled(true);
-                                                        app_ui.menu_bar_my_mod_install.set_enabled(true);
-                                                        app_ui.menu_bar_my_mod_uninstall.set_enabled(true);
-
-                                                        // Try to load the Schema for this PackFile's game.
-                                                        *schema.borrow_mut() = Schema::load(&*pack_file_decoded.borrow().pack_file_header.pack_file_id).ok();
-                                                    }
-                                                    Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause()),
-                                                }
-                                            }
-                                    }));
-
-                                    valid_mod_index += 1;
-                                }
-                            }
-                        }
-
-                        // Only if the submenu has items, we add it to the big menu.
-                        if game_submenu.get_n_items() > 0 {
-                            let game_submenu_name = match &*game_folder_name {
-                                "warhammer_2" => "Warhammer 2",
-                                "warhammer" => "Warhammer",
-                                "attila" => "Attila",
-                                "rome_2" => "Rome 2",
-                                _ => "if you see this, please report it",
-                            };
-                            app_ui.my_mod_list.append_submenu(game_submenu_name, &game_submenu);
-                        }
-                    }
-                }
-            }
-        }
-    }
+    build_my_mod_menu(
+        application,
+        &app_ui,
+        &settings.borrow(),
+        &mut mode.borrow_mut(),
+        &mut schema.borrow_mut(),
+        &mut game_selected.borrow_mut(),
+        &supported_games.borrow(),
+        &mut pack_file_decoded.borrow_mut()
+    );
 
     // End of the "Getting Ready" part.
     // From here, it's all event handling.
@@ -767,66 +613,23 @@ fn build_ui(application: &Application) {
                 // errors, decode it, update the TreeView to show it and check his type for the Change PackFile
                 // Type option in the File menu.
                 if file_chooser_open_packfile.run() == gtk_response_accept {
-                    let pack_file_path = file_chooser_open_packfile.get_filename().expect("Couldn't open file");
-                    match packfile::open_packfile(pack_file_path) {
-                        Ok(pack_file_opened) => {
-                            *pack_file_decoded.borrow_mut() = pack_file_opened;
-                            ui::update_tree_view(&app_ui.folder_tree_store, &*pack_file_decoded.borrow());
-                            set_modified(false, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
+                    let pack_file_path = file_chooser_open_packfile.get_filename().unwrap_or(PathBuf::from("Path Error"));
 
-                            // Disable selected mod, if we are using it.
-                            *mode.borrow_mut() = Mode::Normal;
-
-                            // We choose the right option, depending on our PackFile.
-                            match pack_file_decoded.borrow().pack_file_header.pack_file_type {
-                                0 => app_ui.menu_bar_change_packfile_type.change_state(&"boot".to_variant()),
-                                1 => app_ui.menu_bar_change_packfile_type.change_state(&"release".to_variant()),
-                                2 => app_ui.menu_bar_change_packfile_type.change_state(&"patch".to_variant()),
-                                3 => app_ui.menu_bar_change_packfile_type.change_state(&"mod".to_variant()),
-                                4 => app_ui.menu_bar_change_packfile_type.change_state(&"movie".to_variant()),
-                                _ => ui::show_dialog(&app_ui.error_dialog, format_err!("PackFile Type not valid.")),
-                            }
-
-                            // We deactive these menus, and only activate the one corresponding to our game.
-                            app_ui.menu_bar_generate_dependency_pack_wh2.set_enabled(false);
-                            app_ui.menu_bar_patch_siege_ai_wh2.set_enabled(false);
-                            app_ui.menu_bar_generate_dependency_pack_wh.set_enabled(false);
-                            app_ui.menu_bar_patch_siege_ai_wh.set_enabled(false);
-
-                            // We choose the new GameSelected depending on what the open mod id is.
-                            match &*pack_file_decoded.borrow().pack_file_header.pack_file_id {
-                                "PFH5" => {
-                                    game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.game_paths.iter().filter(|x| &x.game == "warhammer_2").map(|x| x.path.clone()).collect::<Option<PathBuf>>());
-                                    app_ui.menu_bar_generate_dependency_pack_wh2.set_enabled(true);
-                                    app_ui.menu_bar_patch_siege_ai_wh2.set_enabled(true);
-                                    app_ui.menu_bar_change_game_selected.change_state(&"warhammer_2".to_variant());
-                                },
-                                "PFH4" | _ => {
-                                    game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.game_paths.iter().filter(|x| &x.game == "warhammer").map(|x| x.path.clone()).collect::<Option<PathBuf>>());
-                                    app_ui.menu_bar_generate_dependency_pack_wh.set_enabled(true);
-                                    app_ui.menu_bar_patch_siege_ai_wh.set_enabled(true);
-                                    app_ui.menu_bar_change_game_selected.change_state(&"warhammer".to_variant());
-                                },
-                            }
-
-                            // Enable the actions for PackFiles.
-                            app_ui.menu_bar_save_packfile.set_enabled(true);
-                            app_ui.menu_bar_save_packfile_as.set_enabled(true);
-                            app_ui.menu_bar_change_packfile_type.set_enabled(true);
-
-                            // Disable the controls for "MyMod".
-                            app_ui.menu_bar_my_mod_delete.set_enabled(false);
-                            app_ui.menu_bar_my_mod_install.set_enabled(false);
-                            app_ui.menu_bar_my_mod_uninstall.set_enabled(false);
-
-                            // Try to load the Schema for this PackFile's game.
-                            *schema.borrow_mut() = Schema::load(&*pack_file_decoded.borrow().pack_file_header.pack_file_id).ok();
-                        }
-                        Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause()),
-                    }
+                    // Open the PackFile (or die trying it!).
+                    if let Err(error) = open_packfile(
+                        pack_file_path,
+                        &app_ui,
+                        &settings.borrow(),
+                        &mut mode.borrow_mut(),
+                        &mut schema.borrow_mut(),
+                        &mut game_selected.borrow_mut(),
+                        (false, None),
+                        &mut pack_file_decoded.borrow_mut()
+                    ) { ui::show_dialog(&app_ui.error_dialog, error.cause()) };
                 }
             }
-    }));
+        }
+    ));
 
 
     // When we hit the "Save PackFile" button
@@ -1071,170 +874,16 @@ fn build_ui(application: &Application) {
             app_ui.menu_bar_my_mod_uninstall.set_enabled(false);
 
             // Recreate the "MyMod" menu (Atrocity incoming).
-            // First, we clear the list.
-            app_ui.my_mod_list.remove_all();
-
-            // If we have the "MyMod" path configured...
-            if let Some(ref my_mod_base_path) = settings.borrow().paths.my_mods_base_path {
-
-                // And can get without errors the folders in that path...
-                if let Ok(game_folder_list) = my_mod_base_path.read_dir() {
-
-                    // We get all the games that have mods created (Folder exists and has at least a *.pack file inside).
-                    for game_folder in game_folder_list {
-
-                        // If the file/folder is valid, we see if it's one of our game's folder.
-                        if let Ok(game_folder) = game_folder {
-                            if game_folder.path().is_dir() &&
-                                (
-                                    game_folder.file_name().to_string_lossy() == "warhammer_2"||
-                                    game_folder.file_name().to_string_lossy() == "warhammer" ||
-                                    game_folder.file_name().to_string_lossy() == "attila" ||
-                                    game_folder.file_name().to_string_lossy() == "rome_2"
-                                ) {
-
-                                // We create that game's menu here.
-                                let game_submenu: Menu = Menu::new();
-                                let game_folder_name = game_folder.file_name().to_string_lossy().as_ref().to_owned();
-
-                                // If there were no errors while reading the path...
-                                if let Ok(game_folder_files) = game_folder.path().read_dir() {
-
-                                    // Index to count the valid packfiles.
-                                    let mut valid_mod_index = 0;
-
-                                    // We need to sort these files, so they appear sorted in the menu.
-                                    // FIXME: remove this unwrap.
-                                    let mut game_folder_files_sorted: Vec<_> = game_folder_files.map(|res| res.unwrap().path()).collect();
-                                    game_folder_files_sorted.sort();
-
-                                    // We get all the stuff in that game's folder...
-                                    for game_folder_file in game_folder_files_sorted {
-
-                                        // And it's a file that ends in .pack...
-                                        if game_folder_file.is_file() &&
-                                            game_folder_file.extension().unwrap_or(OsStr::new("invalid")).to_string_lossy() =="pack" {
-
-                                            // That means our game_folder is a valid folder and it needs to be added to the menu.
-                                            let mod_name = game_folder_file.file_name().unwrap_or(OsStr::new("invalid")).to_string_lossy().as_ref().to_owned();
-                                            let mod_action = &*format!("my-mod-open-{}-{}", match &*game_folder_name {
-                                                "warhammer_2" => "warhammer_2",
-                                                "warhammer" => "warhammer",
-                                                "attila" => "attila",
-                                                "rome_2" => "rome_2",
-                                                _ => "if you see this, please report it",
-                                            }, valid_mod_index);
-                                            game_submenu.append(Some(&*mod_name), Some(&*format!("app.{}", mod_action)));
-
-                                            // We create the action for the new button.
-                                            let open_mod = SimpleAction::new(mod_action, None);
-                                            application.add_action(&open_mod);
-
-                                            // And when activating the mod button, we open it and set it as selected (chaos incoming).
-                                            open_mod.connect_activate(clone!(
-                                                app_ui,
-                                                settings,
-                                                schema,
-                                                mode,
-                                                game_folder_name,
-                                                game_selected,
-                                                pack_file_decoded => move |_,_| {
-                                                    // If the current PackFile has been changed in any way, we pop up the "Are you sure?" message.
-                                                    let lets_do_it = if pack_file_decoded.borrow().pack_file_extra_data.is_modified {
-                                                        if app_ui.unsaved_dialog.run() == gtk_response_ok {
-                                                            app_ui.unsaved_dialog.hide_on_delete();
-                                                            true
-                                                        } else {
-                                                            app_ui.unsaved_dialog.hide_on_delete();
-                                                            false
-                                                        }
-                                                    } else { true };
-
-                                                    // If we got confirmation...
-                                                    if lets_do_it {
-                                                        let pack_file_path = game_folder_file.to_path_buf();
-                                                        match packfile::open_packfile(pack_file_path) {
-                                                            Ok(pack_file_opened) => {
-                                                                *pack_file_decoded.borrow_mut() = pack_file_opened;
-                                                                ui::update_tree_view(&app_ui.folder_tree_store, &*pack_file_decoded.borrow());
-                                                                set_modified(false, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
-
-                                                                // Enable the selected mod.
-                                                                *mode.borrow_mut() = Mode::MyMod {
-                                                                    game_folder_name: game_folder_name.to_owned(),
-                                                                    mod_name: mod_name.to_owned(),
-                                                                };
-
-                                                                // We choose the right option, depending on our PackFile.
-                                                                match pack_file_decoded.borrow().pack_file_header.pack_file_type {
-                                                                    0 => app_ui.menu_bar_change_packfile_type.change_state(&"boot".to_variant()),
-                                                                    1 => app_ui.menu_bar_change_packfile_type.change_state(&"release".to_variant()),
-                                                                    2 => app_ui.menu_bar_change_packfile_type.change_state(&"patch".to_variant()),
-                                                                    3 => app_ui.menu_bar_change_packfile_type.change_state(&"mod".to_variant()),
-                                                                    4 => app_ui.menu_bar_change_packfile_type.change_state(&"movie".to_variant()),
-                                                                    _ => ui::show_dialog(&app_ui.error_dialog, format_err!("PackFile Type not valid.")),
-                                                                }
-
-                                                                // We deactive these menus, and only activate the one corresponding to our game.
-                                                                app_ui.menu_bar_generate_dependency_pack_wh2.set_enabled(false);
-                                                                app_ui.menu_bar_patch_siege_ai_wh2.set_enabled(false);
-                                                                app_ui.menu_bar_generate_dependency_pack_wh.set_enabled(false);
-                                                                app_ui.menu_bar_patch_siege_ai_wh.set_enabled(false);
-
-                                                                // We choose the new GameSelected depending on what the open mod id is.
-                                                                match &*pack_file_decoded.borrow().pack_file_header.pack_file_id {
-                                                                    "PFH5" => {
-                                                                        game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.game_paths.iter().filter(|x| &x.game == "warhammer_2").map(|x| x.path.clone()).collect::<Option<PathBuf>>());
-                                                                        app_ui.menu_bar_generate_dependency_pack_wh2.set_enabled(true);
-                                                                        app_ui.menu_bar_patch_siege_ai_wh2.set_enabled(true);
-                                                                        app_ui.menu_bar_change_game_selected.change_state(&"warhammer_2".to_variant());
-                                                                    },
-                                                                    "PFH4" | _ => {
-                                                                        game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.game_paths.iter().filter(|x| &x.game == "warhammer").map(|x| x.path.clone()).collect::<Option<PathBuf>>());
-                                                                        app_ui.menu_bar_generate_dependency_pack_wh.set_enabled(true);
-                                                                        app_ui.menu_bar_patch_siege_ai_wh.set_enabled(true);
-                                                                        app_ui.menu_bar_change_game_selected.change_state(&"warhammer".to_variant());
-                                                                    },
-                                                                }
-
-                                                                app_ui.menu_bar_save_packfile.set_enabled(true);
-                                                                app_ui.menu_bar_save_packfile_as.set_enabled(true);
-                                                                app_ui.menu_bar_change_packfile_type.set_enabled(true);
-
-                                                                // Enable the controls for "MyMod".
-                                                                app_ui.menu_bar_my_mod_delete.set_enabled(true);
-                                                                app_ui.menu_bar_my_mod_install.set_enabled(true);
-                                                                app_ui.menu_bar_my_mod_uninstall.set_enabled(true);
-
-                                                                // Try to load the Schema for this PackFile's game.
-                                                                *schema.borrow_mut() = Schema::load(&*pack_file_decoded.borrow().pack_file_header.pack_file_id).ok();
-                                                            }
-                                                            Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause()),
-                                                        }
-                                                    }
-                                            }));
-
-                                            valid_mod_index += 1;
-                                        }
-                                    }
-                                }
-
-                                // Only if the submenu has items, we add it to the big menu.
-                                if game_submenu.get_n_items() > 0 {
-                                    let game_submenu_name = match &*game_folder_name {
-                                        "warhammer_2" => "Warhammer 2",
-                                        "warhammer" => "Warhammer",
-                                        "attila" => "Attila",
-                                        "rome_2" => "Rome 2",
-                                        _ => "if you see this, please report it",
-                                    };
-                                    app_ui.my_mod_list.append_submenu(game_submenu_name, &game_submenu);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            build_my_mod_menu(
+                &application,
+                &app_ui,
+                &settings.borrow(),
+                &mut mode.borrow_mut(),
+                &mut schema.borrow_mut(),
+                &mut game_selected.borrow_mut(),
+                &supported_games.borrow(),
+                &mut pack_file_decoded.borrow_mut()
+            );
 
             Inhibit(false)
         }));
@@ -1322,6 +971,7 @@ fn build_ui(application: &Application) {
             settings,
             schema,
             mode,
+            supported_games,
             game_selected,
             pack_file_decoded => move |_,_| {
 
@@ -1416,171 +1066,16 @@ fn build_ui(application: &Application) {
                     app_ui.menu_bar_my_mod_uninstall.set_enabled(true);
 
                     // Recreate the "MyMod" menu (Atrocity incoming).
-                    // First, we clear the list.
-                    app_ui.my_mod_list.remove_all();
-
-                    // If we have the "MyMod" path configured...
-                    if let Some(ref my_mod_base_path) = settings.borrow().paths.my_mods_base_path {
-
-                        // And can get without errors the folders in that path...
-                        if let Ok(game_folder_list) = my_mod_base_path.read_dir() {
-
-                            // We get all the games that have mods created (Folder exists and has at least a *.pack file inside).
-                            for game_folder in game_folder_list {
-
-                                // If the file/folder is valid, we see if it's one of our game's folder.
-                                if let Ok(game_folder) = game_folder {
-                                    if game_folder.path().is_dir() &&
-                                        (
-                                            game_folder.file_name().to_string_lossy() == "warhammer_2"||
-                                            game_folder.file_name().to_string_lossy() == "warhammer" ||
-                                            game_folder.file_name().to_string_lossy() == "attila" ||
-                                            game_folder.file_name().to_string_lossy() == "rome_2"
-                                        ) {
-
-                                        // We create that game's menu here.
-                                        let game_submenu: Menu = Menu::new();
-                                        let game_folder_name = game_folder.file_name().to_string_lossy().as_ref().to_owned();
-
-                                        // If there were no errors while reading the path...
-                                        if let Ok(game_folder_files) = game_folder.path().read_dir() {
-
-                                            // Index to count the valid packfiles.
-                                            let mut valid_mod_index = 0;
-
-                                            // We need to sort these files, so they appear sorted in the menu.
-                                            // FIXME: remove this unwrap.
-                                            let mut game_folder_files_sorted: Vec<_> = game_folder_files.map(|res| res.unwrap().path()).collect();
-                                            game_folder_files_sorted.sort();
-
-                                            // We get all the stuff in that game's folder...
-                                            for game_folder_file in game_folder_files_sorted {
-
-                                                // And it's a file that ends in .pack...
-                                                if game_folder_file.is_file() &&
-                                                    game_folder_file.extension().unwrap_or(OsStr::new("invalid")).to_string_lossy() =="pack" {
-
-                                                    // That means our game_folder is a valid folder and it needs to be added to the menu.
-                                                    let mod_name = game_folder_file.file_name().unwrap_or(OsStr::new("invalid")).to_string_lossy().as_ref().to_owned();
-                                                    let mod_action = &*format!("my-mod-open-{}-{}", match &*game_folder_name {
-                                                        "warhammer_2" => "warhammer_2",
-                                                        "warhammer" => "warhammer",
-                                                        "attila" => "attila",
-                                                        "rome_2" => "rome_2",
-                                                        _ => "if you see this, please report it",
-                                                    }, valid_mod_index);
-                                                    game_submenu.append(Some(&*mod_name), Some(&*format!("app.{}", mod_action)));
-
-                                                    // We create the action for the new button.
-                                                    let open_mod = SimpleAction::new(mod_action, None);
-                                                    application.add_action(&open_mod);
-
-                                                    // And when activating the mod button, we open it and set it as selected (chaos incoming).
-                                                    open_mod.connect_activate(clone!(
-                                                        app_ui,
-                                                        settings,
-                                                        schema,
-                                                        mode,
-                                                        game_folder_name,
-                                                        game_selected,
-                                                        pack_file_decoded => move |_,_| {
-
-                                                            // If the current PackFile has been changed in any way, we pop up the "Are you sure?" message.
-                                                            let lets_do_it = if pack_file_decoded.borrow().pack_file_extra_data.is_modified {
-                                                                if app_ui.unsaved_dialog.run() == gtk_response_ok {
-                                                                    app_ui.unsaved_dialog.hide_on_delete();
-                                                                    true
-                                                                } else {
-                                                                    app_ui.unsaved_dialog.hide_on_delete();
-                                                                    false
-                                                                }
-                                                            } else { true };
-
-                                                            // If we got confirmation...
-                                                            if lets_do_it {
-                                                                let pack_file_path = game_folder_file.to_path_buf();
-                                                                match packfile::open_packfile(pack_file_path) {
-                                                                    Ok(pack_file_opened) => {
-                                                                        *pack_file_decoded.borrow_mut() = pack_file_opened;
-                                                                        ui::update_tree_view(&app_ui.folder_tree_store, &*pack_file_decoded.borrow());
-                                                                        set_modified(false, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
-
-                                                                        // Enable the selected mod.
-                                                                        *mode.borrow_mut() = Mode::MyMod {
-                                                                            game_folder_name: game_folder_name.to_owned(),
-                                                                            mod_name: mod_name.to_owned(),
-                                                                        };
-
-                                                                        // We choose the right option, depending on our PackFile.
-                                                                        match pack_file_decoded.borrow().pack_file_header.pack_file_type {
-                                                                            0 => app_ui.menu_bar_change_packfile_type.change_state(&"boot".to_variant()),
-                                                                            1 => app_ui.menu_bar_change_packfile_type.change_state(&"release".to_variant()),
-                                                                            2 => app_ui.menu_bar_change_packfile_type.change_state(&"patch".to_variant()),
-                                                                            3 => app_ui.menu_bar_change_packfile_type.change_state(&"mod".to_variant()),
-                                                                            4 => app_ui.menu_bar_change_packfile_type.change_state(&"movie".to_variant()),
-                                                                            _ => ui::show_dialog(&app_ui.error_dialog, format_err!("PackFile Type not valid.")),
-                                                                        }
-
-                                                                        // We deactive these menus, and only activate the one corresponding to our game.
-                                                                        app_ui.menu_bar_generate_dependency_pack_wh2.set_enabled(false);
-                                                                        app_ui.menu_bar_patch_siege_ai_wh2.set_enabled(false);
-                                                                        app_ui.menu_bar_generate_dependency_pack_wh.set_enabled(false);
-                                                                        app_ui.menu_bar_patch_siege_ai_wh.set_enabled(false);
-
-                                                                        // We choose the new GameSelected depending on what the open mod id is.
-                                                                        match &*pack_file_decoded.borrow().pack_file_header.pack_file_id {
-                                                                            "PFH5" => {
-                                                                                game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.game_paths.iter().filter(|x| &x.game == "warhammer_2").map(|x| x.path.clone()).collect::<Option<PathBuf>>());
-                                                                                app_ui.menu_bar_generate_dependency_pack_wh2.set_enabled(true);
-                                                                                app_ui.menu_bar_patch_siege_ai_wh2.set_enabled(true);
-                                                                                app_ui.menu_bar_change_game_selected.change_state(&"warhammer_2".to_variant());
-                                                                            },
-                                                                            "PFH4" | _ => {
-                                                                                game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.game_paths.iter().filter(|x| &x.game == "warhammer").map(|x| x.path.clone()).collect::<Option<PathBuf>>());
-                                                                                app_ui.menu_bar_generate_dependency_pack_wh.set_enabled(true);
-                                                                                app_ui.menu_bar_patch_siege_ai_wh.set_enabled(true);
-                                                                                app_ui.menu_bar_change_game_selected.change_state(&"warhammer".to_variant());
-                                                                            },
-                                                                        }
-
-                                                                        app_ui.menu_bar_save_packfile.set_enabled(true);
-                                                                        app_ui.menu_bar_save_packfile_as.set_enabled(true);
-                                                                        app_ui.menu_bar_change_packfile_type.set_enabled(true);
-
-                                                                        // Enable the controls for "MyMod".
-                                                                        app_ui.menu_bar_my_mod_delete.set_enabled(true);
-                                                                        app_ui.menu_bar_my_mod_install.set_enabled(true);
-                                                                        app_ui.menu_bar_my_mod_uninstall.set_enabled(true);
-
-                                                                        // Try to load the Schema for this PackFile's game.
-                                                                        *schema.borrow_mut() = Schema::load(&*pack_file_decoded.borrow().pack_file_header.pack_file_id).ok();
-                                                                    }
-                                                                    Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause()),
-                                                                }
-                                                            }
-                                                    }));
-
-                                                    valid_mod_index += 1;
-                                                }
-                                            }
-                                        }
-
-                                        // Only if the submenu has items, we add it to the big menu.
-                                        if game_submenu.get_n_items() > 0 {
-                                            let game_submenu_name = match &*game_folder_name {
-                                                "warhammer_2" => "Warhammer 2",
-                                                "warhammer" => "Warhammer",
-                                                "attila" => "Attila",
-                                                "rome_2" => "Rome 2",
-                                                _ => "if you see this, please report it",
-                                            };
-                                            app_ui.my_mod_list.append_submenu(game_submenu_name, &game_submenu);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    build_my_mod_menu(
+                        &application,
+                        &app_ui,
+                        &settings.borrow(),
+                        &mut mode.borrow_mut(),
+                        &mut schema.borrow_mut(),
+                        &mut game_selected.borrow_mut(),
+                        &supported_games.borrow(),
+                        &mut pack_file_decoded.borrow_mut()
+                    );
 
                     // And destroy the window.
                     new_mod_stuff.borrow().my_mod_new_window.destroy();
@@ -1704,170 +1199,18 @@ fn build_ui(application: &Application) {
                     // Clear the TreeView.
                     app_ui.folder_tree_store.clear();
 
-                    // First, we clear the list.
-                    app_ui.my_mod_list.remove_all();
+                    // Rebuild the "MyMod" menu.
+                    build_my_mod_menu(
+                        &application,
+                        &app_ui,
+                        &settings.borrow(),
+                        &mut mode.borrow_mut(),
+                        &mut schema.borrow_mut(),
+                        &mut game_selected.borrow_mut(),
+                        &supported_games.borrow(),
+                        &mut pack_file_decoded.borrow_mut()
+                    );
 
-                    // If we have the "MyMod" path configured...
-                    if let Some(ref my_mod_base_path) = settings.borrow().paths.my_mods_base_path {
-
-                        // And can get without errors the folders in that path...
-                        if let Ok(game_folder_list) = my_mod_base_path.read_dir() {
-
-                            // We get all the games that have mods created (Folder exists and has at least a *.pack file inside).
-                            for game_folder in game_folder_list {
-
-                                // If the file/folder is valid, we see if it's one of our game's folder.
-                                if let Ok(game_folder) = game_folder {
-                                    if game_folder.path().is_dir() &&
-                                        (
-                                            game_folder.file_name().to_string_lossy() == "warhammer_2"||
-                                            game_folder.file_name().to_string_lossy() == "warhammer" ||
-                                            game_folder.file_name().to_string_lossy() == "attila" ||
-                                            game_folder.file_name().to_string_lossy() == "rome_2"
-                                        ) {
-
-                                        // We create that game's menu here.
-                                        let game_submenu: Menu = Menu::new();
-                                        let game_folder_name = game_folder.file_name().to_string_lossy().as_ref().to_owned();
-
-                                        // If there were no errors while reading the path...
-                                        if let Ok(game_folder_files) = game_folder.path().read_dir() {
-
-                                            // Index to count the valid packfiles.
-                                            let mut valid_mod_index = 0;
-
-                                            // We need to sort these files, so they appear sorted in the menu.
-                                            // FIXME: remove this unwrap.
-                                            let mut game_folder_files_sorted: Vec<_> = game_folder_files.map(|res| res.unwrap().path()).collect();
-                                            game_folder_files_sorted.sort();
-
-                                            // We get all the stuff in that game's folder...
-                                            for game_folder_file in game_folder_files_sorted {
-
-                                                // And it's a file that ends in .pack...
-                                                if game_folder_file.is_file() &&
-                                                    game_folder_file.extension().unwrap_or(OsStr::new("invalid")).to_string_lossy() =="pack" {
-
-                                                    // That means our game_folder is a valid folder and it needs to be added to the menu.
-                                                    let mod_name = game_folder_file.file_name().unwrap_or(OsStr::new("invalid")).to_string_lossy().as_ref().to_owned();
-                                                    let mod_action = &*format!("my-mod-open-{}-{}", match &*game_folder_name {
-                                                        "warhammer_2" => "warhammer_2",
-                                                        "warhammer" => "warhammer",
-                                                        "attila" => "attila",
-                                                        "rome_2" => "rome_2",
-                                                        _ => "if you see this, please report it",
-                                                    }, valid_mod_index);
-                                                    game_submenu.append(Some(&*mod_name), Some(&*format!("app.{}", mod_action)));
-
-                                                    // We create the action for the new button.
-                                                    let open_mod = SimpleAction::new(mod_action, None);
-                                                    application.add_action(&open_mod);
-
-                                                    // And when activating the mod button, we open it and set it as selected (chaos incoming).
-                                                    open_mod.connect_activate(clone!(
-                                                        app_ui,
-                                                        schema,
-                                                        settings,
-                                                        mode,
-                                                        game_folder_name,
-                                                        game_selected,
-                                                        pack_file_decoded => move |_,_| {
-                                                            // If the current PackFile has been changed in any way, we pop up the "Are you sure?" message.
-                                                            let lets_do_it = if pack_file_decoded.borrow().pack_file_extra_data.is_modified {
-                                                                if app_ui.unsaved_dialog.run() == gtk_response_ok {
-                                                                    app_ui.unsaved_dialog.hide_on_delete();
-                                                                    true
-                                                                } else {
-                                                                    app_ui.unsaved_dialog.hide_on_delete();
-                                                                    false
-                                                                }
-                                                            } else { true };
-
-                                                            // If we got confirmation...
-                                                            if lets_do_it {
-                                                                let pack_file_path = game_folder_file.to_path_buf();
-                                                                match packfile::open_packfile(pack_file_path) {
-                                                                    Ok(pack_file_opened) => {
-                                                                        *pack_file_decoded.borrow_mut() = pack_file_opened;
-                                                                        ui::update_tree_view(&app_ui.folder_tree_store, &*pack_file_decoded.borrow());
-                                                                        set_modified(false, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
-
-                                                                        // Enable the selected mod.
-                                                                        *mode.borrow_mut() = Mode::MyMod {
-                                                                            game_folder_name: game_folder_name.to_owned(),
-                                                                            mod_name: mod_name.to_owned(),
-                                                                        };
-
-                                                                        // We choose the right option, depending on our PackFile.
-                                                                        match pack_file_decoded.borrow().pack_file_header.pack_file_type {
-                                                                            0 => app_ui.menu_bar_change_packfile_type.change_state(&"boot".to_variant()),
-                                                                            1 => app_ui.menu_bar_change_packfile_type.change_state(&"release".to_variant()),
-                                                                            2 => app_ui.menu_bar_change_packfile_type.change_state(&"patch".to_variant()),
-                                                                            3 => app_ui.menu_bar_change_packfile_type.change_state(&"mod".to_variant()),
-                                                                            4 => app_ui.menu_bar_change_packfile_type.change_state(&"movie".to_variant()),
-                                                                            _ => ui::show_dialog(&app_ui.error_dialog, format_err!("PackFile Type not valid.")),
-                                                                        }
-
-                                                                        // We deactive these menus, and only activate the one corresponding to our game.
-                                                                        app_ui.menu_bar_generate_dependency_pack_wh2.set_enabled(false);
-                                                                        app_ui.menu_bar_patch_siege_ai_wh2.set_enabled(false);
-                                                                        app_ui.menu_bar_generate_dependency_pack_wh.set_enabled(false);
-                                                                        app_ui.menu_bar_patch_siege_ai_wh.set_enabled(false);
-
-                                                                        // We choose the new GameSelected depending on what the open mod id is.
-                                                                        match &*pack_file_decoded.borrow().pack_file_header.pack_file_id {
-                                                                            "PFH5" => {
-                                                                                game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.game_paths.iter().filter(|x| &x.game == "warhammer_2").map(|x| x.path.clone()).collect::<Option<PathBuf>>());
-                                                                                app_ui.menu_bar_generate_dependency_pack_wh2.set_enabled(true);
-                                                                                app_ui.menu_bar_patch_siege_ai_wh2.set_enabled(true);
-                                                                                app_ui.menu_bar_change_game_selected.change_state(&"warhammer_2".to_variant());
-                                                                            },
-                                                                            "PFH4" | _ => {
-                                                                                game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.game_paths.iter().filter(|x| &x.game == "warhammer_2").map(|x| x.path.clone()).collect::<Option<PathBuf>>());
-                                                                                app_ui.menu_bar_generate_dependency_pack_wh.set_enabled(true);
-                                                                                app_ui.menu_bar_patch_siege_ai_wh.set_enabled(true);
-                                                                                app_ui.menu_bar_change_game_selected.change_state(&"warhammer".to_variant());
-                                                                            },
-                                                                        }
-
-                                                                        app_ui.menu_bar_save_packfile.set_enabled(true);
-                                                                        app_ui.menu_bar_save_packfile_as.set_enabled(true);
-                                                                        app_ui.menu_bar_change_packfile_type.set_enabled(true);
-
-                                                                        // Enable the controls for "MyMod".
-                                                                        app_ui.menu_bar_my_mod_delete.set_enabled(true);
-                                                                        app_ui.menu_bar_my_mod_install.set_enabled(true);
-                                                                        app_ui.menu_bar_my_mod_uninstall.set_enabled(true);
-
-                                                                        // Try to load the Schema for this PackFile's game.
-                                                                        *schema.borrow_mut() = Schema::load(&*pack_file_decoded.borrow().pack_file_header.pack_file_id).ok();
-                                                                    }
-                                                                    Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause()),
-                                                                }
-                                                            }
-                                                    }));
-
-                                                    valid_mod_index += 1;
-                                                }
-                                            }
-                                        }
-
-                                        // Only if the submenu has items, we add it to the big menu.
-                                        if game_submenu.get_n_items() > 0 {
-                                            let game_submenu_name = match &*game_folder_name {
-                                                "warhammer_2" => "Warhammer 2",
-                                                "warhammer" => "Warhammer",
-                                                "attila" => "Attila",
-                                                "rome_2" => "Rome 2",
-                                                _ => "if you see this, please report it",
-                                            };
-                                            app_ui.my_mod_list.append_submenu(game_submenu_name, &game_submenu);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
                     ui::show_dialog(&app_ui.success_dialog, format!("MyMod \"{}\" deleted.", old_mod_name));
                 }
             }
@@ -5095,62 +4438,18 @@ fn build_ui(application: &Application) {
                 match info {
                     0 => {
                         let pack_file_path = Url::parse(&selection_data.get_uris()[0]).unwrap().to_file_path().unwrap();
-                        match packfile::open_packfile(pack_file_path) {
-                            Ok(pack_file_opened) => {
 
-                                *pack_file_decoded.borrow_mut() = pack_file_opened;
-                                ui::update_tree_view(&app_ui.folder_tree_store, &*pack_file_decoded.borrow());
-                                set_modified(false, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
-
-                                // Disable selected mod, if we are using it.
-                                *mode.borrow_mut() = Mode::Normal;
-
-                                // We choose the right option, depending on our PackFile.
-                                match pack_file_decoded.borrow().pack_file_header.pack_file_type {
-                                    0 => app_ui.menu_bar_change_packfile_type.change_state(&"boot".to_variant()),
-                                    1 => app_ui.menu_bar_change_packfile_type.change_state(&"release".to_variant()),
-                                    2 => app_ui.menu_bar_change_packfile_type.change_state(&"patch".to_variant()),
-                                    3 => app_ui.menu_bar_change_packfile_type.change_state(&"mod".to_variant()),
-                                    4 => app_ui.menu_bar_change_packfile_type.change_state(&"movie".to_variant()),
-                                    _ => ui::show_dialog(&app_ui.error_dialog, format_err!("PackFile Type not valid.")),
-                                }
-
-                                // We deactive these menus, and only activate the one corresponding to our game.
-                                app_ui.menu_bar_generate_dependency_pack_wh2.set_enabled(false);
-                                app_ui.menu_bar_patch_siege_ai_wh2.set_enabled(false);
-                                app_ui.menu_bar_generate_dependency_pack_wh.set_enabled(false);
-                                app_ui.menu_bar_patch_siege_ai_wh.set_enabled(false);
-
-                                // We choose the new GameSelected depending on what the open mod id is.
-                                match &*pack_file_decoded.borrow().pack_file_header.pack_file_id {
-                                    "PFH5" => {
-                                        game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.game_paths.iter().filter(|x| &x.game == "warhammer_2").map(|x| x.path.clone()).collect::<Option<PathBuf>>());
-                                        app_ui.menu_bar_generate_dependency_pack_wh2.set_enabled(true);
-                                        app_ui.menu_bar_patch_siege_ai_wh2.set_enabled(true);
-                                        app_ui.menu_bar_change_game_selected.change_state(&"warhammer_2".to_variant());
-                                    },
-                                    "PFH4" | _ => {
-                                        game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.game_paths.iter().filter(|x| &x.game == "warhammer").map(|x| x.path.clone()).collect::<Option<PathBuf>>());
-                                        app_ui.menu_bar_generate_dependency_pack_wh.set_enabled(true);
-                                        app_ui.menu_bar_patch_siege_ai_wh.set_enabled(true);
-                                        app_ui.menu_bar_change_game_selected.change_state(&"warhammer".to_variant());
-                                    },
-                                }
-
-                                app_ui.menu_bar_save_packfile.set_enabled(true);
-                                app_ui.menu_bar_save_packfile_as.set_enabled(true);
-                                app_ui.menu_bar_change_packfile_type.set_enabled(true);
-
-                                // Disable the controls for "MyMod".
-                                app_ui.menu_bar_my_mod_delete.set_enabled(false);
-                                app_ui.menu_bar_my_mod_install.set_enabled(false);
-                                app_ui.menu_bar_my_mod_uninstall.set_enabled(false);
-
-                                // Try to load the Schema for this PackFile's game.
-                                *schema.borrow_mut() = Schema::load(&*pack_file_decoded.borrow().pack_file_header.pack_file_id).ok();
-                            }
-                            Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause()),
-                        }
+                        // Open the PackFile (or die trying it!).
+                        if let Err(error) = open_packfile(
+                            pack_file_path,
+                            &app_ui,
+                            &settings.borrow(),
+                            &mut mode.borrow_mut(),
+                            &mut schema.borrow_mut(),
+                            &mut game_selected.borrow_mut(),
+                            (false, None),
+                            &mut pack_file_decoded.borrow_mut()
+                        ) { ui::show_dialog(&app_ui.error_dialog, error.cause()) };
                     }
                     _ => ui::show_dialog(&app_ui.error_dialog, format!("This type of event is not yet used.")),
                 }
@@ -5338,6 +4637,253 @@ fn file_chooser_filter_packfile(file_chooser: &FileChooserNative, pattern: &str)
     let filter = FileFilter::new();
     filter.add_pattern(pattern);
     file_chooser.add_filter(&filter);
+}
+
+/// This function opens the PackFile at the provided Path, and sets all the stuff needed, depending
+/// on the situation.
+fn open_packfile(
+    pack_file_path: PathBuf,
+    app_ui: &AppUI,
+    settings: &Settings,
+    mode: &mut Mode,
+    schema: &mut Option<Schema>,
+    game_selected: &mut GameSelected,
+    is_my_mod: (bool, Option<String>),
+    mut pack_file_decoded: &mut PackFile,
+) -> Result<(), Error> {
+    match packfile::open_packfile(pack_file_path) {
+        Ok(pack_file_opened) => {
+
+            // Get the PackFile into our main PackFile...
+            *pack_file_decoded = pack_file_opened;
+
+            // Update the Window and the TreeView with his data...
+            set_modified(false, &app_ui.window, &mut pack_file_decoded);
+            ui::update_tree_view(&app_ui.folder_tree_store, pack_file_decoded);
+
+            // If we are opening a "MyMod", set it to "MyMod" mode. Set it to "Normal" otherwise.
+            *mode = if is_my_mod.0 {
+
+                // Remove the ".pack" from his name.
+                let mut mod_name = pack_file_decoded.pack_file_extra_data.file_name.to_owned();
+                mod_name.pop();
+                mod_name.pop();
+                mod_name.pop();
+                mod_name.pop();
+                mod_name.pop();
+
+                Mode::MyMod {
+                    game_folder_name: is_my_mod.1.clone().unwrap(),
+                    mod_name,
+                }
+            } else { Mode::Normal };
+
+            // We choose the right option, depending on our PackFile.
+            match pack_file_decoded.pack_file_header.pack_file_type {
+                0 => app_ui.menu_bar_change_packfile_type.change_state(&"boot".to_variant()),
+                1 => app_ui.menu_bar_change_packfile_type.change_state(&"release".to_variant()),
+                2 => app_ui.menu_bar_change_packfile_type.change_state(&"patch".to_variant()),
+                3 => app_ui.menu_bar_change_packfile_type.change_state(&"mod".to_variant()),
+                4 => app_ui.menu_bar_change_packfile_type.change_state(&"movie".to_variant()),
+                _ => ui::show_dialog(&app_ui.error_dialog, format_err!("PackFile Type not valid.")),
+            }
+
+            // We deactive these menus, and only activate the one corresponding to our game.
+            app_ui.menu_bar_generate_dependency_pack_wh2.set_enabled(false);
+            app_ui.menu_bar_patch_siege_ai_wh2.set_enabled(false);
+            app_ui.menu_bar_generate_dependency_pack_wh.set_enabled(false);
+            app_ui.menu_bar_patch_siege_ai_wh.set_enabled(false);
+
+            // If it's a "MyMod", we choose the game selected depending on his folder's name.
+            if is_my_mod.0 {
+                let game_name = is_my_mod.1.clone().unwrap();
+                game_selected.change_game_selected(&game_name, &settings.paths.game_paths.iter().filter(|x| &x.game == &game_name).map(|x| x.path.clone()).collect::<Option<PathBuf>>());
+                app_ui.menu_bar_change_game_selected.change_state(&game_name.to_variant());
+
+                match &*game_name {
+                    "warhammer_2" => {
+                        app_ui.menu_bar_generate_dependency_pack_wh2.set_enabled(true);
+                        app_ui.menu_bar_patch_siege_ai_wh2.set_enabled(true);
+                    },
+                    "warhammer" | _ => {
+                        app_ui.menu_bar_generate_dependency_pack_wh.set_enabled(true);
+                        app_ui.menu_bar_patch_siege_ai_wh.set_enabled(true);
+                    },
+                }
+            }
+
+            // If it's not a "MyMod", we choose the new GameSelected depending on what the open mod id is.
+            else {
+                match &*pack_file_decoded.pack_file_header.pack_file_id {
+                    "PFH5" => {
+                        game_selected.change_game_selected("warhammer_2", &settings.paths.game_paths.iter().filter(|x| &x.game == "warhammer_2").map(|x| x.path.clone()).collect::<Option<PathBuf>>());
+                        app_ui.menu_bar_change_game_selected.change_state(&"warhammer_2".to_variant());
+                        app_ui.menu_bar_generate_dependency_pack_wh2.set_enabled(true);
+                        app_ui.menu_bar_patch_siege_ai_wh2.set_enabled(true);
+                    },
+                    "PFH4" | _ => {
+                        game_selected.change_game_selected("warhammer", &settings.paths.game_paths.iter().filter(|x| &x.game == "warhammer").map(|x| x.path.clone()).collect::<Option<PathBuf>>());
+                        app_ui.menu_bar_change_game_selected.change_state(&"warhammer".to_variant());
+                        app_ui.menu_bar_generate_dependency_pack_wh.set_enabled(true);
+                        app_ui.menu_bar_patch_siege_ai_wh.set_enabled(true);
+                    },
+                }
+            }
+
+            // Enable the "PackFile Management" actions.
+            app_ui.menu_bar_save_packfile.set_enabled(true);
+            app_ui.menu_bar_save_packfile_as.set_enabled(true);
+            app_ui.menu_bar_change_packfile_type.set_enabled(true);
+
+            // If we are opening a "MyMod", enable his actions. Disable them otherwise.
+            if is_my_mod.0 {
+
+                // Enable the controls for "MyMod".
+                app_ui.menu_bar_my_mod_delete.set_enabled(true);
+                app_ui.menu_bar_my_mod_install.set_enabled(true);
+                app_ui.menu_bar_my_mod_uninstall.set_enabled(true);
+            }
+            else {
+                // Disable the controls for "MyMod".
+                app_ui.menu_bar_my_mod_delete.set_enabled(false);
+                app_ui.menu_bar_my_mod_install.set_enabled(false);
+                app_ui.menu_bar_my_mod_uninstall.set_enabled(false);
+            }
+
+            // Try to load the Schema for this PackFile's game.
+            *schema = Schema::load(&pack_file_decoded.pack_file_header.pack_file_id).ok();
+
+            // Return success.
+            Ok(())
+        }
+
+        // In case of error while opening the PackFile, return the error.
+        Err(error) => Err(error),
+    }
+}
+
+/// This function takes care of the re-creation of the "MyMod" list in the following moments:
+/// - At the start of the program (here).
+/// - At the end of MyMod deletion.
+/// - At the end of MyMod creation.
+/// - At the end of settings update.
+fn build_my_mod_menu(
+    application: &Application,
+    app_ui: &AppUI,
+    settings: &Settings,
+    mode: &mut Mode,
+    schema: &mut Option<Schema>,
+    game_selected: &mut GameSelected,
+    supported_games: &[GameInfo],
+    pack_file_decoded: &mut PackFile,
+) {
+    // First, we clear the list.
+    app_ui.my_mod_list.remove_all();
+
+    // If we have the "MyMod" path configured...
+    if let Some(ref my_mod_base_path) = settings.paths.my_mods_base_path {
+
+        // And can get without errors the folders in that path...
+        if let Ok(game_folder_list) = my_mod_base_path.read_dir() {
+
+            // We get all the games that have mods created (Folder exists and has at least a *.pack file inside).
+            for game_folder in game_folder_list {
+
+                // If the file/folder is valid, we see if it's one of our supported game's folder.
+                if let Ok(game_folder) = game_folder {
+
+                    let supported_folders = supported_games.iter().map(|x| x.folder_name.to_owned()).collect::<Vec<String>>();
+                    if game_folder.path().is_dir() && supported_folders.contains(&game_folder.file_name().to_string_lossy().as_ref().to_owned()) {
+
+                        // We create that game's menu here.
+                        let game_submenu: Menu = Menu::new();
+                        let game_folder_name = game_folder.file_name().to_string_lossy().as_ref().to_owned();
+
+                        // If there were no errors while reading the path...
+                        if let Ok(game_folder_files) = game_folder.path().read_dir() {
+
+                            // Index to count the valid packfiles.
+                            let mut valid_mod_index = 0;
+
+                            // We need to sort these files, so they appear sorted in the menu.
+                            // FIXME: remove this unwrap.
+                            let mut game_folder_files_sorted: Vec<_> = game_folder_files.map(|res| res.unwrap().path()).collect();
+                            game_folder_files_sorted.sort();
+
+                            // We get all the stuff in that game's folder...
+                            for game_folder_file in game_folder_files_sorted {
+
+                                // And it's a file that ends in .pack...
+                                if game_folder_file.is_file() &&
+                                    game_folder_file.extension().unwrap_or(OsStr::new("invalid")).to_string_lossy() =="pack" {
+
+                                    // That means our game_folder is a valid folder and it needs to be added to the menu.
+                                    let mod_name = game_folder_file.file_name().unwrap_or(OsStr::new("invalid")).to_string_lossy().as_ref().to_owned();
+                                    let mod_action = &*format!("my-mod-open-{}-{}", game_folder_name, valid_mod_index);
+                                    game_submenu.append(Some(&*mod_name), Some(&*format!("app.{}", mod_action)));
+
+                                    // We create the action for the new button.
+                                    let open_mod = SimpleAction::new(mod_action, None);
+                                    application.add_action(&open_mod);
+
+                                    // And when activating the mod button, we open it and set it as selected (chaos incoming).
+                                    let game_folder_name = Rc::new(RefCell::new(game_folder_name.clone()));
+                                    let mode = Rc::new(RefCell::new(mode.clone()));
+                                    let schema = Rc::new(RefCell::new(schema.clone()));
+                                    let game_selected = Rc::new(RefCell::new(game_selected.clone()));
+                                    let pack_file_decoded = Rc::new(RefCell::new(pack_file_decoded.clone()));
+                                    open_mod.connect_activate(clone!(
+                                        app_ui,
+                                        settings,
+                                        schema,
+                                        mode,
+                                        game_folder_name,
+                                        game_selected,
+                                        pack_file_decoded => move |_,_| {
+                                            // If the current PackFile has been changed in any way, we pop up the "Are you sure?" message.
+                                            let lets_do_it = if pack_file_decoded.borrow().pack_file_extra_data.is_modified {
+                                                if app_ui.unsaved_dialog.run() == -5 {
+                                                    app_ui.unsaved_dialog.hide_on_delete();
+                                                    true
+                                                } else {
+                                                    app_ui.unsaved_dialog.hide_on_delete();
+                                                    false
+                                                }
+                                            } else { true };
+
+                                            // If we got confirmation...
+                                            if lets_do_it {
+                                                let pack_file_path = game_folder_file.to_path_buf();
+
+                                                // Open the PackFile (or die trying it!).
+                                                if let Err(error) = open_packfile(
+                                                    pack_file_path,
+                                                    &app_ui,
+                                                    &settings,
+                                                    &mut mode.borrow_mut(),
+                                                    &mut schema.borrow_mut(),
+                                                    &mut game_selected.borrow_mut(),
+                                                    (true, Some(game_folder_name.borrow().to_owned())),
+                                                    &mut pack_file_decoded.borrow_mut()
+                                                ) { ui::show_dialog(&app_ui.error_dialog, error.cause()) };
+                                            }
+                                    }));
+
+                                    valid_mod_index += 1;
+                                }
+                            }
+                        }
+
+                        // Only if the submenu has items, we add it to the big menu.
+                        if game_submenu.get_n_items() > 0 {
+                            let game_submenu_name = supported_games.iter().filter(|x| game_folder_name == x.folder_name).map(|x| x.display_name.to_owned()).collect::<String>();
+                            app_ui.my_mod_list.append_submenu(Some(&*format!("{}", game_submenu_name)), &game_submenu);
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 /// Main function.

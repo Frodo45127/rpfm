@@ -235,7 +235,7 @@ pub fn update_tree_view_expand_path(
 /// displayed in the TreeView.
 /// It requires:
 /// - folder_tree_store: &TreeStore that the TreeView uses.
-/// - pack_file_decoded: &mut PackFile we have opened, to get the data for the TreeView.
+/// - pack_file_decoded: &PackFile we have opened, to get the data for the TreeView.
 pub fn update_tree_view(
     folder_tree_store: &TreeStore,
     pack_file_decoded: &PackFile
