@@ -4,7 +4,7 @@ extern crate num;
 use gtk::prelude::*;
 use gtk::{
     MessageDialog, TreeStore, TreeSelection, TreeView, TreePath, Rectangle, Label, Justification,
-    Grid, Statusbar
+    Grid, Statusbar, MessageType, ButtonsType, DialogFlags, ApplicationWindow, ResponseType
 };
 use std::cmp::Ordering;
 use std::path::PathBuf;
@@ -50,6 +50,37 @@ pub fn show_dialog<T: Display>(dialog: &MessageDialog, text: T) {
 pub fn show_message_in_statusbar<T: Display>(status_bar: &Statusbar, message: T) {
     let message = &message.to_string();
     status_bar.push(status_bar.get_context_id(message), message);
+}
+
+/// This function shows a message asking for confirmation. For use in operations that implies unsaved
+/// data loss.
+pub fn are_you_sure(parent_window: &ApplicationWindow, is_modified: bool) -> bool {
+
+    // If the mod has been modified, create the dialog. Otherwise, return true.
+    if is_modified {
+        let are_you_sure_dialog = MessageDialog::new(
+            Some(parent_window),
+            DialogFlags::from_bits(1).unwrap(),
+            MessageType::Error,
+            ButtonsType::None,
+            "Are you sure?"
+        );
+
+        are_you_sure_dialog.add_button("Cancel", -6);
+        are_you_sure_dialog.add_button("Accept", -3);
+        are_you_sure_dialog.set_property_secondary_text(Some("There are some changes yet to save."));
+
+        // If the current PackFile has been changed in any way, we pop up the "Are you sure?" message.
+        let response_ok: i32 = ResponseType::Accept.into();
+
+        if are_you_sure_dialog.run() == response_ok {
+            are_you_sure_dialog.destroy();
+            true
+        } else {
+            are_you_sure_dialog.destroy();
+            false
+        }
+    } else { true }
 }
 
 /// This function get the rect needed to put the popovers in the correct places when we create them,

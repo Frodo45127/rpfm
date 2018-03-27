@@ -145,7 +145,6 @@ struct AppUI {
     // Informative dialogs.
     error_dialog: MessageDialog,
     success_dialog: MessageDialog,
-    unsaved_dialog: MessageDialog,
     delete_my_mod_dialog: MessageDialog,
     check_updates_dialog: MessageDialog,
 
@@ -240,7 +239,6 @@ fn build_ui(application: &Application) {
         // Informative dialogs.
         error_dialog: builder.get_object("gtk_error_dialog").unwrap(),
         success_dialog: builder.get_object("gtk_success_dialog").unwrap(),
-        unsaved_dialog: builder.get_object("gtk_unsaved_dialog").unwrap(),
         delete_my_mod_dialog: builder.get_object("gtk_delete_my_mod_dialog").unwrap(),
         check_updates_dialog: builder.get_object("gtk_check_updates_dialog").unwrap(),
 
@@ -443,11 +441,11 @@ fn build_ui(application: &Application) {
         application,
         &app_ui,
         &settings.borrow(),
-        &mut mode.borrow_mut(),
-        &mut schema.borrow_mut(),
-        &mut game_selected.borrow_mut(),
+        mode.clone(),
+        schema.clone(),
+        game_selected.clone(),
         &supported_games.borrow(),
-        &mut pack_file_decoded.borrow_mut()
+        pack_file_decoded.clone()
     );
 
     // End of the "Getting Ready" part.
@@ -459,16 +457,12 @@ fn build_ui(application: &Application) {
         pack_file_decoded,
         app_ui => move |_,_| {
 
-        // If the current PackFile has been changed in any way, we pop up the "Are you sure?" message.
-        if pack_file_decoded.borrow().pack_file_extra_data.is_modified {
-            if app_ui.unsaved_dialog.run() == gtk_response_ok {
-                application.quit();
-            } else {
-                app_ui.unsaved_dialog.hide_on_delete();
+            // If the current PackFile has been changed in any way, we pop up the "Are you sure?" message.
+            if ui::are_you_sure(&app_ui.window, pack_file_decoded.borrow().pack_file_extra_data.is_modified) {
+
+                // If we got confirmation...
+                application.quit()
             }
-        } else {
-           application.quit();
-        }
 
         Inhibit(true)
     }));
@@ -511,18 +505,7 @@ fn build_ui(application: &Application) {
         pack_file_decoded => move |_,_| {
 
             // If the current PackFile has been changed in any way, we pop up the "Are you sure?" message.
-            let lets_do_it = if pack_file_decoded.borrow().pack_file_extra_data.is_modified {
-                if app_ui.unsaved_dialog.run() == gtk_response_ok {
-                    app_ui.unsaved_dialog.hide_on_delete();
-                    true
-                } else {
-                    app_ui.unsaved_dialog.hide_on_delete();
-                    false
-                }
-            } else { true };
-
-            // If we got confirmation...
-            if lets_do_it {
+            if ui::are_you_sure(&app_ui.window, pack_file_decoded.borrow().pack_file_extra_data.is_modified) {
 
                 // We deactive these menus, and only activate the one corresponding to our game.
                 app_ui.menu_bar_generate_dependency_pack_wh2.set_enabled(false);
@@ -577,19 +560,9 @@ fn build_ui(application: &Application) {
         pack_file_decoded => move |_,_| {
 
             // If the current PackFile has been changed in any way, we pop up the "Are you sure?" message.
-            let lets_do_it = if pack_file_decoded.borrow().pack_file_extra_data.is_modified {
-                if app_ui.unsaved_dialog.run() == gtk_response_ok {
-                    app_ui.unsaved_dialog.hide_on_delete();
-                    true
-                } else {
-                    app_ui.unsaved_dialog.hide_on_delete();
-                    false
-                }
-            } else { true };
+            if ui::are_you_sure(&app_ui.window, pack_file_decoded.borrow().pack_file_extra_data.is_modified) {
 
-            // If we got confirmation...
-            if lets_do_it {
-
+                // If we got confirmation...
                 let file_chooser_open_packfile = FileChooserNative::new(
                     "Open PackFile...",
                     &app_ui.window,
@@ -878,11 +851,11 @@ fn build_ui(application: &Application) {
                 &application,
                 &app_ui,
                 &settings.borrow(),
-                &mut mode.borrow_mut(),
-                &mut schema.borrow_mut(),
-                &mut game_selected.borrow_mut(),
+                mode.clone(),
+                schema.clone(),
+                game_selected.clone(),
                 &supported_games.borrow(),
-                &mut pack_file_decoded.borrow_mut()
+                pack_file_decoded.clone()
             );
 
             Inhibit(false)
@@ -929,16 +902,11 @@ fn build_ui(application: &Application) {
         app_ui => move |_,_| {
 
             // If the current PackFile has been changed in any way, we pop up the "Are you sure?" message.
-            if pack_file_decoded.borrow().pack_file_extra_data.is_modified {
-                if app_ui.unsaved_dialog.run() == gtk_response_ok {
-                    application.quit();
-                } else {
-                    app_ui.unsaved_dialog.hide_on_delete();
-                }
-            } else {
+            if ui::are_you_sure(&app_ui.window, pack_file_decoded.borrow().pack_file_extra_data.is_modified) {
                 application.quit();
             }
-    }));
+        }
+    ));
 
     /*
     --------------------------------------------------------
@@ -1070,11 +1038,11 @@ fn build_ui(application: &Application) {
                         &application,
                         &app_ui,
                         &settings.borrow(),
-                        &mut mode.borrow_mut(),
-                        &mut schema.borrow_mut(),
-                        &mut game_selected.borrow_mut(),
+                        mode.clone(),
+                        schema.clone(),
+                        game_selected.clone(),
                         &supported_games.borrow(),
-                        &mut pack_file_decoded.borrow_mut()
+                        pack_file_decoded.clone()
                     );
 
                     // And destroy the window.
@@ -1204,11 +1172,11 @@ fn build_ui(application: &Application) {
                         &application,
                         &app_ui,
                         &settings.borrow(),
-                        &mut mode.borrow_mut(),
-                        &mut schema.borrow_mut(),
-                        &mut game_selected.borrow_mut(),
+                        mode.clone(),
+                        schema.clone(),
+                        game_selected.clone(),
                         &supported_games.borrow(),
-                        &mut pack_file_decoded.borrow_mut()
+                        pack_file_decoded.clone()
                     );
 
                     ui::show_dialog(&app_ui.success_dialog, format!("MyMod \"{}\" deleted.", old_mod_name));
@@ -4423,18 +4391,9 @@ fn build_ui(application: &Application) {
         pack_file_decoded => move |_, _, _, _, selection_data, info, _| {
 
             // If the current PackFile has been changed in any way, we pop up the "Are you sure?" message.
-            let lets_do_it = if pack_file_decoded.borrow().pack_file_extra_data.is_modified {
-                if app_ui.unsaved_dialog.run() == gtk_response_ok {
-                    app_ui.unsaved_dialog.hide_on_delete();
-                    true
-                } else {
-                    app_ui.unsaved_dialog.hide_on_delete();
-                    false
-                }
-            } else { true };
+            if ui::are_you_sure(&app_ui.window, pack_file_decoded.borrow().pack_file_extra_data.is_modified) {
 
-            // If we got confirmation...
-            if lets_do_it {
+                // If we got confirmation...
                 match info {
                     0 => {
                         let pack_file_path = Url::parse(&selection_data.get_uris()[0]).unwrap().to_file_path().unwrap();
@@ -4771,11 +4730,11 @@ fn build_my_mod_menu(
     application: &Application,
     app_ui: &AppUI,
     settings: &Settings,
-    mode: &mut Mode,
-    schema: &mut Option<Schema>,
-    game_selected: &mut GameSelected,
+    mode: Rc<RefCell<Mode>>,
+    schema: Rc<RefCell<Option<Schema>>>,
+    game_selected: Rc<RefCell<GameSelected>>,
     supported_games: &[GameInfo],
-    pack_file_decoded: &mut PackFile,
+    pack_file_decoded: Rc<RefCell<PackFile>>,
 ) {
     // First, we clear the list.
     app_ui.my_mod_list.remove_all();
@@ -4828,10 +4787,7 @@ fn build_my_mod_menu(
 
                                     // And when activating the mod button, we open it and set it as selected (chaos incoming).
                                     let game_folder_name = Rc::new(RefCell::new(game_folder_name.clone()));
-                                    let mode = Rc::new(RefCell::new(mode.clone()));
-                                    let schema = Rc::new(RefCell::new(schema.clone()));
-                                    let game_selected = Rc::new(RefCell::new(game_selected.clone()));
-                                    let pack_file_decoded = Rc::new(RefCell::new(pack_file_decoded.clone()));
+
                                     open_mod.connect_activate(clone!(
                                         app_ui,
                                         settings,
@@ -4840,19 +4796,11 @@ fn build_my_mod_menu(
                                         game_folder_name,
                                         game_selected,
                                         pack_file_decoded => move |_,_| {
-                                            // If the current PackFile has been changed in any way, we pop up the "Are you sure?" message.
-                                            let lets_do_it = if pack_file_decoded.borrow().pack_file_extra_data.is_modified {
-                                                if app_ui.unsaved_dialog.run() == -5 {
-                                                    app_ui.unsaved_dialog.hide_on_delete();
-                                                    true
-                                                } else {
-                                                    app_ui.unsaved_dialog.hide_on_delete();
-                                                    false
-                                                }
-                                            } else { true };
 
-                                            // If we got confirmation...
-                                            if lets_do_it {
+                                            // If the current PackFile has been changed in any way, we pop up the "Are you sure?" message.
+                                            if ui::are_you_sure(&app_ui.window, pack_file_decoded.borrow().pack_file_extra_data.is_modified) {
+
+                                                // If we got confirmation...
                                                 let pack_file_path = game_folder_file.to_path_buf();
 
                                                 // Open the PackFile (or die trying it!).
@@ -4867,7 +4815,8 @@ fn build_my_mod_menu(
                                                     &mut pack_file_decoded.borrow_mut()
                                                 ) { ui::show_dialog(&app_ui.error_dialog, error.cause()) };
                                             }
-                                    }));
+                                        }
+                                    ));
 
                                     valid_mod_index += 1;
                                 }
