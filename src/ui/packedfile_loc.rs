@@ -50,6 +50,10 @@ impl PackedFileLocTreeView{
         cell_text.set_property_editable(true);
         cell_tooltip.set_activatable(true);
 
+        // TODO: Make this respond dinamically to the font size.
+        // Reduce the size of the checkbox.
+        cell_tooltip.set_property_indicator_size(16i32);
+
         let column_index = TreeViewColumn::new();
         let column_key = TreeViewColumn::new();
         let column_text = TreeViewColumn::new();

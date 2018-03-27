@@ -180,6 +180,9 @@ impl PackedFileDBTreeView{
             match field.field_type {
                 FieldType::Boolean => {
                     let cell_bool = CellRendererToggle::new();
+                    // TODO: Make this respond dinamically to the font size.
+                    // Reduce the size of the checkbox.
+                    cell_bool.set_property_indicator_size(16i32);
                     cell_bool.set_activatable(true);
                     let column_bool = TreeViewColumn::new();
                     column_bool.set_title(&field_name);
