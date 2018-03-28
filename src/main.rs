@@ -568,6 +568,7 @@ fn build_ui(application: &Application) {
                 // Disable selected mod, if we are using it.
                 *mode.borrow_mut() = Mode::Normal;
 
+                // Enable the PackFile controls.
                 app_ui.menu_bar_save_packfile.set_enabled(true);
                 app_ui.menu_bar_save_packfile_as.set_enabled(true);
                 app_ui.menu_bar_change_packfile_type.set_enabled(true);
@@ -646,12 +647,12 @@ fn build_ui(application: &Application) {
         game_selected,
         pack_file_decoded => move |_,_| {
 
-        // First, we check if our PackFile has a path. If it doesn't have it, we launch the Save
+        // First, we check if our PackFile has a path. If it doesn't have it, we launch the "Save"
         // Dialog and set the current name in the entry of the dialog to his name.
         // When we hit "Accept", we get the selected path, encode the PackFile, and save it to that
         // path. After that, we update the TreeView to reflect the name change and hide the dialog.
         let mut pack_file_path: Option<PathBuf> = None;
-        if !pack_file_decoded.borrow().pack_file_extra_data.file_path.exists() {
+        if !pack_file_decoded.borrow().pack_file_extra_data.file_path.is_file() {
             let file_chooser_save_packfile = FileChooserNative::new(
                 "Save PackFile...",
                 &app_ui.window,
@@ -672,7 +673,7 @@ fn build_ui(application: &Application) {
             }
 
             if file_chooser_save_packfile.run() == gtk_response_accept {
-                pack_file_path = Some(file_chooser_save_packfile.get_filename().expect("Couldn't open file"));
+                pack_file_path = Some(file_chooser_save_packfile.get_filename().unwrap());
 
                 let mut success = false;
                 match packfile::save_packfile(&mut *pack_file_decoded.borrow_mut(), pack_file_path) {
@@ -731,7 +732,7 @@ fn build_ui(application: &Application) {
         );
 
         // If we are saving an existing PackFile with another name, we start in his current path.
-        if pack_file_decoded.borrow().pack_file_extra_data.file_path.exists() {
+        if pack_file_decoded.borrow().pack_file_extra_data.file_path.is_file() {
             file_chooser_save_packfile.set_filename(&pack_file_decoded.borrow().pack_file_extra_data.file_path);
         }
 
@@ -1030,13 +1031,7 @@ fn build_ui(application: &Application) {
 
                 // We get his game's folder, depending on the selected game.
                 let selected_game = new_mod_stuff.borrow().my_mod_new_game_list_combo.get_active_text().unwrap();
-                let selected_game_folder = match &*selected_game {
-                    "Warhammer 2" => "warhammer_2",
-                    "Warhammer" => "warhammer",
-                    "Attila" => "attila",
-                    "Rome 2" => "rome_2",
-                    _ => "if_you_see_this_folder_report_it",
-                };
+                let selected_game_folder = supported_games.borrow().iter().filter(|x| x.display_name == selected_game).map(|x| x.folder_name.to_owned()).collect::<String>();
                 my_mod_path.push(selected_game_folder.to_owned());
 
                 // Just in case the folder doesn't exist, we try to create it. It's save to ignore this result.
