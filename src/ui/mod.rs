@@ -1,10 +1,13 @@
 // In this file are all the helper functions used by the UI (mainly GTK here)
 extern crate num;
+extern crate gdk_pixbuf;
 
+use self::gdk_pixbuf::Pixbuf;
 use gtk::prelude::*;
 use gtk::{
     MessageDialog, TreeStore, TreeSelection, TreeView, TreePath, Rectangle, Label, Justification,
-    Grid, Statusbar, MessageType, ButtonsType, DialogFlags, ApplicationWindow, ResponseType
+    Grid, Statusbar, MessageType, ButtonsType, DialogFlags, ApplicationWindow, ResponseType,
+    AboutDialog, License, WindowPosition
 };
 use std::cmp::Ordering;
 use std::path::PathBuf;
@@ -18,6 +21,53 @@ pub mod packedfile_text;
 pub mod packedfile_image;
 pub mod packedfile_rigidmodel;
 pub mod settings;
+
+//----------------------------------------------------------------------------//
+//             UI Creation functions (to build the UI on start)
+//----------------------------------------------------------------------------//
+
+/// This function creates an `AboutDialog` with all the credits, logo, license... done, and returns it.
+pub fn create_about_window(
+    version: &str,
+    rpfm_path: &PathBuf,
+) -> AboutDialog {
+
+    // Create the `AboutDialog`.
+    let about_dialog = AboutDialog::new();
+
+    // Configure the `AboutDialog` with all our stuff.
+    about_dialog.set_program_name("Rusted PackFile Manager");
+    about_dialog.set_version(version);
+    about_dialog.set_license_type(License::MitX11);
+    about_dialog.set_website("https://github.com/Frodo45127/rpfm");
+    about_dialog.set_website_label("Source code and more info here :)");
+    about_dialog.set_comments(Some("Made by modders, for modders."));
+
+    // Config the icon for the "About" window. If this fails, something went wrong when setting the paths,
+    // so crash the program, as we don't know what more is broken.
+    let icon_path = PathBuf::from(format!("{}/img/rpfm.png", rpfm_path.to_string_lossy()));
+    about_dialog.set_icon_from_file(&icon_path).unwrap();
+    about_dialog.set_logo(&Pixbuf::new_from_file(&icon_path).unwrap());
+
+    // Credits stuff.
+    about_dialog.add_credit_section("Created and Programmed by", &["Frodo45127"]);
+    about_dialog.add_credit_section("Icon by", &["Maruka"]);
+    about_dialog.add_credit_section("RigidModel research by", &["Mr.Jox", "Der Spaten", "Maruka", "Frodo45127"]);
+    about_dialog.add_credit_section("DB Schemas by", &["PFM team"]);
+    about_dialog.add_credit_section("Windows's theme", &["\"Materia for GTK3\" by nana-4"]);
+    about_dialog.add_credit_section("Special thanks to", &["- PFM team (for providing the community\n   with awesome modding tools).", "- CA (for being a mod-friendly company)."]);
+
+    // Center the `AboutDialog` in the middle of the screen.
+    about_dialog.set_position(WindowPosition::Center);
+
+    // Return the `AboutDialog`.
+    about_dialog
+}
+
+
+//----------------------------------------------------------------------------//
+//              Utility functions (helpers and stuff like that)
+//----------------------------------------------------------------------------//
 
 /// This function shows a Message in the specified Grid.
 pub fn display_help_tips(packed_file_data_display: &Grid) {

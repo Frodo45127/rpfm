@@ -16,7 +16,6 @@ extern crate serde_json;
 extern crate failure;
 extern crate gtk;
 extern crate gdk;
-extern crate gdk_pixbuf;
 extern crate glib;
 extern crate gio;
 extern crate pango;
@@ -37,8 +36,6 @@ use std::env::args;
 use failure::Error;
 use url::Url;
 use restson::RestClient;
-use gdk::Gravity;
-use gdk_pixbuf::Pixbuf;
 use gio::prelude::*;
 use gio::{
     SimpleAction, Menu, MenuExt, MenuModel
@@ -254,7 +251,7 @@ fn build_ui(application: &Application) {
         packed_file_data_display: builder.get_object("gtk_packed_file_data_display").unwrap(),
 
         // "About" window.
-        about_window: builder.get_object("gtk_window_about").unwrap(),
+        about_window: ui::create_about_window(VERSION, &rpfm_path),
 
         // Informative dialogs.
         error_dialog: builder.get_object("gtk_error_dialog").unwrap(),
@@ -333,28 +330,6 @@ fn build_ui(application: &Application) {
     app_ui.shortcuts_window.set_size_request(600, 400);
     app_ui.window.set_help_overlay(Some(&app_ui.shortcuts_window));
 
-    // Config stuff for `app_ui.about_window`.
-    app_ui.about_window.set_program_name("Rusted PackFile Manager");
-    app_ui.about_window.set_version(VERSION);
-    app_ui.about_window.set_license_type(gtk::License::MitX11);
-    app_ui.about_window.set_website("https://github.com/Frodo45127/rpfm");
-    app_ui.about_window.set_website_label("Source code and more info here :)");
-    app_ui.about_window.set_comments(Some("Made by modders, for modders."));
-
-    // Config the icon for the "About" window. If this fails, something went wrong when setting the paths,
-    // so crash the program, as we don't know what more is broken.
-    app_ui.about_window.set_icon_from_file(&Path::new(&format!("{}/img/rpfm.png", rpfm_path.to_string_lossy()))).unwrap();
-
-    let about_window_icon = Pixbuf::new_from_file(&Path::new(&format!("{}/img/rpfm.png", rpfm_path.to_string_lossy()))).unwrap();
-    app_ui.about_window.set_logo(&about_window_icon);
-
-    app_ui.about_window.add_credit_section("Created and Programmed by", &["Frodo45127"]);
-    app_ui.about_window.add_credit_section("Icon by", &["Maruka"]);
-    app_ui.about_window.add_credit_section("RigidModel research by", &["Mr.Jox", "Der Spaten", "Maruka", "Frodo45127"]);
-    app_ui.about_window.add_credit_section("DB Schemas by", &["PFM team"]);
-    app_ui.about_window.add_credit_section("Windows's theme", &["\"Materia for GTK3\" by nana-4"]);
-    app_ui.about_window.add_credit_section("Special thanks to", &["- PFM team (for providing the community\n   with awesome modding tools).", "- CA (for being a mod-friendly company)."]);
-
     // Config stuff for MenuBar Actions.
     application.add_action(&app_ui.menu_bar_new_packfile);
     application.add_action(&app_ui.menu_bar_open_packfile);
@@ -408,7 +383,6 @@ fn build_ui(application: &Application) {
 
     // We center the window after being loaded, so the load of the display tips don't move it to the left.
     app_ui.window.set_position(WindowPosition::Center);
-    app_ui.window.set_gravity(Gravity::Center);
 
     // This is to get the new schemas. It's controlled by a global const.
     if GENERATE_NEW_SCHEMA {
