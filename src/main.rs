@@ -144,7 +144,6 @@ struct AppUI {
     // Informative dialogs.
     error_dialog: MessageDialog,
     success_dialog: MessageDialog,
-    delete_my_mod_dialog: MessageDialog,
     check_updates_dialog: MessageDialog,
 
     // Popover for renaming PackedFiles and folders.
@@ -256,7 +255,6 @@ fn build_ui(application: &Application) {
         // Informative dialogs.
         error_dialog: builder.get_object("gtk_error_dialog").unwrap(),
         success_dialog: builder.get_object("gtk_success_dialog").unwrap(),
-        delete_my_mod_dialog: builder.get_object("gtk_delete_my_mod_dialog").unwrap(),
         check_updates_dialog: builder.get_object("gtk_check_updates_dialog").unwrap(),
 
         // Popover for renaming PackedFiles and folders.
@@ -402,10 +400,9 @@ fn build_ui(application: &Application) {
     // PackedFiles to our opened PackFile.
     let is_folder_tree_view_locked = Rc::new(RefCell::new(false));
 
-    // Here we define the `Ok` and `Accept` responses for GTK, as it seems Restson causes them to
-    // fail to compile if we get them to i32 directly in the `if` statement.
+    // Here we define the `Accept` response for GTK, as it seems Restson causes it to fail to compile
+    // if we get them to i32 directly in the `if` statement.
     // NOTE: For some bizarre reason, GTKFileChoosers return `Ok`, while native ones return `Accept`.
-    let gtk_response_ok: i32 = ResponseType::Ok.into();
     let gtk_response_accept: i32 = ResponseType::Accept.into();
 
     // We need two PackFiles:
@@ -464,7 +461,7 @@ fn build_ui(application: &Application) {
         app_ui => move |_,_| {
 
             // If the current PackFile has been changed in any way, we pop up the "Are you sure?" message.
-            if ui::are_you_sure(&app_ui.window, pack_file_decoded.borrow().pack_file_extra_data.is_modified) {
+            if ui::are_you_sure(&app_ui.window, pack_file_decoded.borrow().pack_file_extra_data.is_modified, false) {
 
                 // If we got confirmation...
                 application.quit()
@@ -512,7 +509,7 @@ fn build_ui(application: &Application) {
         pack_file_decoded => move |_,_| {
 
             // If the current PackFile has been changed in any way, we pop up the "Are you sure?" message.
-            if ui::are_you_sure(&app_ui.window, pack_file_decoded.borrow().pack_file_extra_data.is_modified) {
+            if ui::are_you_sure(&app_ui.window, pack_file_decoded.borrow().pack_file_extra_data.is_modified, false) {
 
                 // We deactive these menus, and only activate the one corresponding to our game.
                 app_ui.menu_bar_generate_dependency_pack_wh2.set_enabled(false);
@@ -569,7 +566,7 @@ fn build_ui(application: &Application) {
         pack_file_decoded => move |_,_| {
 
             // If the current PackFile has been changed in any way, we pop up the "Are you sure?" message.
-            if ui::are_you_sure(&app_ui.window, pack_file_decoded.borrow().pack_file_extra_data.is_modified) {
+            if ui::are_you_sure(&app_ui.window, pack_file_decoded.borrow().pack_file_extra_data.is_modified, false) {
 
                 // If we got confirmation...
                 let file_chooser_open_packfile = FileChooserNative::new(
@@ -917,7 +914,7 @@ fn build_ui(application: &Application) {
         app_ui => move |_,_| {
 
             // If the current PackFile has been changed in any way, we pop up the "Are you sure?" message.
-            if ui::are_you_sure(&app_ui.window, pack_file_decoded.borrow().pack_file_extra_data.is_modified) {
+            if ui::are_you_sure(&app_ui.window, pack_file_decoded.borrow().pack_file_extra_data.is_modified, false) {
                 application.quit();
             }
         }
@@ -1092,19 +1089,10 @@ fn build_ui(application: &Application) {
         mode,
         pack_file_decoded => move |_,_| {
 
-            // This will delete stuff from disk, so we need to be sure we want to do it.
-            let lets_do_it = if app_ui.delete_my_mod_dialog.run() == gtk_response_ok {
-                app_ui.delete_my_mod_dialog.hide_on_delete();
-                true
-            } else {
-                app_ui.delete_my_mod_dialog.hide_on_delete();
-                false
-            };
+            // This will delete stuff from disk, so we pop up the "Are you sure?" message to avoid accidents.
+            if ui::are_you_sure(&app_ui.window, true, true) {
 
-            // If we got confirmation...
-            if lets_do_it {
-
-                // We can't change my_mod_selected while it's borrowed, so we need to set this to true
+                // We can't change `my_mod_selected` while it's borrowed, so we need to set this to true
                 // if we deleted the current "MyMod", and deal with changing it after ending the borrow.
                 let my_mod_selected_deleted;
                 let old_mod_name: String;
@@ -1116,8 +1104,9 @@ fn build_ui(application: &Application) {
 
                             // We get his path.
                             let mut my_mod_path = my_mods_base_path.to_path_buf();
-                            my_mod_path.push(game_folder_name.to_owned());
-                            my_mod_path.push(mod_name.to_owned());
+                            my_mod_path.push(&game_folder_name);
+                            my_mod_path.push(&mod_name);
+                            println!("{:?}", my_mod_path);
 
                             // We check that path exists.
                             if !my_mod_path.is_file() {
@@ -4302,7 +4291,7 @@ fn build_ui(application: &Application) {
         pack_file_decoded => move |_, _, _, _, selection_data, info, _| {
 
             // If the current PackFile has been changed in any way, we pop up the "Are you sure?" message.
-            if ui::are_you_sure(&app_ui.window, pack_file_decoded.borrow().pack_file_extra_data.is_modified) {
+            if ui::are_you_sure(&app_ui.window, pack_file_decoded.borrow().pack_file_extra_data.is_modified, false) {
 
                 // If we got confirmation...
                 match info {
@@ -4725,7 +4714,7 @@ fn build_my_mod_menu(
                                         pack_file_decoded => move |_,_| {
 
                                             // If the current PackFile has been changed in any way, we pop up the "Are you sure?" message.
-                                            if ui::are_you_sure(&app_ui.window, pack_file_decoded.borrow().pack_file_extra_data.is_modified) {
+                                            if ui::are_you_sure(&app_ui.window, pack_file_decoded.borrow().pack_file_extra_data.is_modified, false) {
 
                                                 // If we got confirmation...
                                                 let pack_file_path = game_folder_file.to_path_buf();

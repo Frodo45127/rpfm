@@ -104,7 +104,7 @@ pub fn show_message_in_statusbar<T: Display>(status_bar: &Statusbar, message: T)
 
 /// This function shows a message asking for confirmation. For use in operations that implies unsaved
 /// data loss.
-pub fn are_you_sure(parent_window: &ApplicationWindow, is_modified: bool) -> bool {
+pub fn are_you_sure(parent_window: &ApplicationWindow, is_modified: bool, is_delete_my_mod: bool) -> bool {
 
     // If the mod has been modified, create the dialog. Otherwise, return true.
     if is_modified {
@@ -118,7 +118,14 @@ pub fn are_you_sure(parent_window: &ApplicationWindow, is_modified: bool) -> boo
 
         are_you_sure_dialog.add_button("Cancel", -6);
         are_you_sure_dialog.add_button("Accept", -3);
-        are_you_sure_dialog.set_property_secondary_text(Some("There are some changes yet to save."));
+
+
+        let message = if is_delete_my_mod {
+            "You are going to delete this mod from your disk. There is no way to recover it after that."
+        } else {
+            "There are some changes yet to save."
+        };
+        are_you_sure_dialog.set_property_secondary_text(Some(message));
 
         // If the current PackFile has been changed in any way, we pop up the "Are you sure?" message.
         let response_ok: i32 = ResponseType::Accept.into();
