@@ -4472,7 +4472,28 @@ fn build_ui(application: &Application) {
                     _ => ui::show_dialog(&app_ui.error_dialog, format!("This type of event is not yet used.")),
                 }
             }
-    }));
+        }
+    ));
+
+    // If we have an argument (we open RPFM by clicking in a PackFile directly)...
+    if arguments.len() > 1 {
+
+        // Get the PackFile's path and...
+        let pack_file_path = PathBuf::from(&arguments[1]);
+
+        // Open the PackFile (or die trying it!).
+        if let Err(error) = open_packfile(
+            pack_file_path,
+            &rpfm_path,
+            &app_ui,
+            &settings.borrow(),
+            &mut mode.borrow_mut(),
+            &mut schema.borrow_mut(),
+            &mut game_selected.borrow_mut(),
+            (false, None),
+            &mut pack_file_decoded.borrow_mut()
+        ) { ui::show_dialog(&app_ui.error_dialog, error.cause()) };
+    }
 }
 
 //-----------------------------------------------------------------------------
