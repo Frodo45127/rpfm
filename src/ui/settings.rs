@@ -52,14 +52,17 @@ impl SettingsWindow {
 
     /// This function creates the entire settings window. It requires the application object to pass
     /// the window to.
-    pub fn create_settings_window(application: &Application, supported_games: &[GameInfo]) -> SettingsWindow {
+    pub fn create_settings_window(application: &Application, rpfm_path: &PathBuf, supported_games: &[GameInfo]) -> SettingsWindow {
 
         let settings_window = ApplicationWindow::new(application);
         settings_window.set_size_request(700, 0);
         settings_window.set_gravity(Gravity::Center);
         settings_window.set_position(WindowPosition::Center);
         settings_window.set_title("Settings");
-        settings_window.set_icon_from_file(Path::new("img/rpfm.png")).unwrap();
+
+        // Config the icon for the Settings Window. If this fails, something went wrong when setting the paths,
+        // so crash the program, as we don't know what more is broken.
+        settings_window.set_icon_from_file(&Path::new(&format!("{}/img/rpfm.png", rpfm_path.to_string_lossy()))).unwrap();
 
         // Disable the menubar in this window.
         settings_window.set_show_menubar(false);
@@ -390,7 +393,8 @@ impl MyModNewWindow {
         application: &Application,
         supported_games: &[GameInfo],
         game_selected: &GameSelected,
-        settings: &Settings
+        settings: &Settings,
+        rpfm_path: &PathBuf
     ) -> MyModNewWindow {
 
         let my_mod_new_window = ApplicationWindow::new(application);
@@ -398,7 +402,10 @@ impl MyModNewWindow {
         my_mod_new_window.set_gravity(Gravity::Center);
         my_mod_new_window.set_position(WindowPosition::Center);
         my_mod_new_window.set_title("New Mod");
-        my_mod_new_window.set_icon_from_file(Path::new("img/rpfm.png")).unwrap();
+
+        // Config the icon for the New "MyMod" Window. If this fails, something went wrong when setting the paths,
+        // so crash the program, as we don't know what more is broken.
+        my_mod_new_window.set_icon_from_file(&Path::new(&format!("{}/img/rpfm.png", rpfm_path.to_string_lossy()))).unwrap();
 
         // Disable the menubar in this window.
         my_mod_new_window.set_show_menubar(false);

@@ -113,8 +113,11 @@ impl Settings {
     }
 
     /// This function takes a settings.json file and reads it into a "Settings" object.
-    pub fn load(supported_games: &[GameInfo]) -> Result<Self, Error> {
-        let settings_file = File::open("settings.json")?;
+    pub fn load(path: &PathBuf, supported_games: &[GameInfo]) -> Result<Self, Error> {
+        let mut settings_path = path.clone();
+        settings_path.push("settings.json");
+
+        let settings_file = File::open(settings_path)?;
         let mut settings: Self = serde_json::from_reader(settings_file)?;
 
         // We need to make sure here that we have entries in `game_paths` for every supported game.
@@ -144,9 +147,12 @@ impl Settings {
     }
 
     /// This function takes the Settings object and saves it into a settings.json file.
-    pub fn save(&self) -> Result<(), Error> {
+    pub fn save(&self, path: &PathBuf) -> Result<(), Error> {
+        let mut settings_path = path.clone();
+        settings_path.push("settings.json");
+
         let settings_json = serde_json::to_string_pretty(self);
-        match File::create(PathBuf::from("settings.json")) {
+        match File::create(settings_path) {
             Ok(mut file) => {
                 match file.write_all(settings_json.unwrap().as_bytes()) {
                     Ok(_) => Ok(()),

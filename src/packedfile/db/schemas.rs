@@ -115,14 +115,17 @@ impl Schema {
     }
 
     /// This function takes an schema file and reads it into a "Schema" object.
-    pub fn load(packfile_id: &str) -> Result<Schema, Error> {
+    pub fn load(rpfm_path: &PathBuf, packfile_id: &str) -> Result<Schema, Error> {
+
+        let mut schemas_path = rpfm_path.clone();
+        schemas_path.push("schemas");
 
         // We use the PackFile ID to load the right schema:
         // - PFH5 -> warhammer 2.
         // - PFH4 -> warhammer.
         let schema_file = match packfile_id {
-            "PFH5" => File::open("schemas/schema_wh2.json")?,
-            "PFH4" => File::open("schemas/schema_wh.json")?,
+            "PFH5" => File::open(PathBuf::from(format!("{}/schema_wh2.json", schemas_path.to_string_lossy())))?,
+            "PFH4" => File::open(PathBuf::from(format!("{}/schema_wh.json", schemas_path.to_string_lossy())))?,
             _ => return Err(format_err!("Error while loading schema:\nPackFile ID unknown."))
         };
 
@@ -131,14 +134,18 @@ impl Schema {
     }
 
     /// This function takes an "Schema" object and saves it into a schema file.
-    pub fn save(schema: &Schema, packfile_id: &str) -> Result<(), Error> {
+    pub fn save(schema: &Schema, rpfm_path: &PathBuf, packfile_id: &str) -> Result<(), Error> {
+
         let schema_json = serde_json::to_string_pretty(schema);
+        let mut schemas_path = rpfm_path.clone();
+        schemas_path.push("schemas");
+
         let schema_file = match packfile_id {
-            "PFH5" => "schemas/schema_wh2.json",
-            "PFH4" => "schemas/schema_wh.json",
+            "PFH5" => PathBuf::from(format!("{}/schema_wh2.json", schemas_path.to_string_lossy())),
+            "PFH4" => PathBuf::from(format!("{}/schema_wh.json", schemas_path.to_string_lossy())),
             _ => return Err(format_err!("Error while loading schema:\nPackFile ID unknown."))
         };
-        match File::create(PathBuf::from(schema_file)) {
+        match File::create(schema_file) {
             Ok(mut file) => {
                 match file.write_all(schema_json.unwrap().as_bytes()) {
                     Ok(_) => Ok(()),

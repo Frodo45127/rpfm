@@ -16,6 +16,7 @@ extern crate serde_json;
 extern crate failure;
 extern crate gtk;
 extern crate gdk;
+extern crate gdk_pixbuf;
 extern crate glib;
 extern crate gio;
 extern crate pango;
@@ -25,7 +26,7 @@ extern crate restson;
 extern crate url;
 
 use std::ffi::OsStr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::fs::{
@@ -37,6 +38,7 @@ use failure::Error;
 use url::Url;
 use restson::RestClient;
 use gdk::Gravity;
+use gdk_pixbuf::Pixbuf;
 use gio::prelude::*;
 use gio::{
     SimpleAction, Menu, MenuExt, MenuModel
@@ -198,6 +200,24 @@ struct AppUI {
 /// One Function to bring them all and in the darkness bind them.
 fn build_ui(application: &Application) {
 
+    // We get all the Arguments provided when starting RPFM. Why? If we are opening a PackFile by
+    // double-clicking on it (for example, with file asociation in windows) our current dir is the
+    // one where the PackFile is, not where the `rpfm-code.exe` is. So RPFM gets confused and it
+    // doesn't find his settings, his schemas,... To fix this, we need to get the folder where the
+    // executable is and use it as a base for all the path stuff. Note that this should only work on
+    // release, as the way it works it's used by cargo to run the debug builds.
+    let arguments = args().collect::<Vec<String>>();
+
+    // In debug mode, we just take the current path (so we don't break debug builds). In Release mode,
+    // we take the `.exe` path. We use unwrap here because in case of fail, we want to crash RPFM.
+    let rpfm_path: PathBuf = if cfg!(debug_assertions) {
+        std::env::current_dir().unwrap()
+    } else {
+        let mut path = std::env::current_exe().unwrap();
+        path.pop();
+        path
+    };
+
     // We import the Glade design and get all the UI objects into variables.
     let glade_design = include_str!("gtk/main.glade");
     let help_window = include_str!("gtk/help.ui");
@@ -292,6 +312,10 @@ fn build_ui(application: &Application) {
     // enabled or disabled per window.
     application.set_menubar(&app_ui.menu_bar);
 
+    // Config the icon for the main window. If this fails, something went wrong when setting the paths,
+    // so crash the program, as we don't know what more is broken.
+    app_ui.window.set_icon_from_file(&Path::new(&format!("{}/img/rpfm.png", rpfm_path.to_string_lossy()))).unwrap();
+
     // Config stuff for `app_ui.folder_tree_view`.
     app_ui.folder_tree_view.set_model(Some(&app_ui.folder_tree_store));
 
@@ -316,6 +340,13 @@ fn build_ui(application: &Application) {
     app_ui.about_window.set_website("https://github.com/Frodo45127/rpfm");
     app_ui.about_window.set_website_label("Source code and more info here :)");
     app_ui.about_window.set_comments(Some("Made by modders, for modders."));
+
+    // Config the icon for the "About" window. If this fails, something went wrong when setting the paths,
+    // so crash the program, as we don't know what more is broken.
+    app_ui.about_window.set_icon_from_file(&Path::new(&format!("{}/img/rpfm.png", rpfm_path.to_string_lossy()))).unwrap();
+
+    let about_window_icon = Pixbuf::new_from_file(&Path::new(&format!("{}/img/rpfm.png", rpfm_path.to_string_lossy()))).unwrap();
+    app_ui.about_window.set_logo(&about_window_icon);
 
     app_ui.about_window.add_credit_section("Created and Programmed by", &["Frodo45127"]);
     app_ui.about_window.add_credit_section("Icon by", &["Maruka"]);
@@ -386,7 +417,7 @@ fn build_ui(application: &Application) {
         // The second one should contain all the tables of the game, extracted directly from `data.pack`.
         let assembly_kit_schemas_path: PathBuf = PathBuf::from("/home/frodo45127/schema_stuff/db_schemas/");
         let testing_tables_path: PathBuf = PathBuf::from("/home/frodo45127/schema_stuff/db_tables/");
-        match import_schema(&assembly_kit_schemas_path, &testing_tables_path) {
+        match import_schema(&assembly_kit_schemas_path, &testing_tables_path, &rpfm_path) {
             Ok(_) => ui::show_dialog(&app_ui.success_dialog, format!("Success creating a new DB Schema file.")),
             Err(error) => return ui::show_dialog(&app_ui.error_dialog, format!("Error while creating a new DB Schema file:\n{}", error.cause())),
         }
@@ -414,7 +445,7 @@ fn build_ui(application: &Application) {
     let supported_games = Rc::new(RefCell::new(GameInfo::new()));
 
     // We load the settings here, and in case they doesn't exist, we create them.
-    let settings = Rc::new(RefCell::new(Settings::load(&supported_games.borrow()).unwrap_or_else(|_|Settings::new(&supported_games.borrow()))));
+    let settings = Rc::new(RefCell::new(Settings::load(&rpfm_path, &supported_games.borrow()).unwrap_or_else(|_|Settings::new(&supported_games.borrow()))));
 
     // Load the GTK Settings, like the Theme and Font used.
     load_gtk_settings(&app_ui.window, &settings.borrow());
@@ -445,7 +476,8 @@ fn build_ui(application: &Application) {
         schema.clone(),
         game_selected.clone(),
         &supported_games.borrow(),
-        pack_file_decoded.clone()
+        pack_file_decoded.clone(),
+        &rpfm_path
     );
 
     // End of the "Getting Ready" part.
@@ -501,6 +533,7 @@ fn build_ui(application: &Application) {
         app_ui,
         schema,
         game_selected,
+        rpfm_path,
         mode,
         pack_file_decoded => move |_,_| {
 
@@ -545,7 +578,7 @@ fn build_ui(application: &Application) {
                 app_ui.menu_bar_my_mod_uninstall.set_enabled(false);
 
                 // Try to load the Schema for this PackFile's game.
-                *schema.borrow_mut() = Schema::load(&*pack_file_decoded.borrow().pack_file_header.pack_file_id).ok();
+                *schema.borrow_mut() = Schema::load(&rpfm_path, &*pack_file_decoded.borrow().pack_file_header.pack_file_id).ok();
             }
     }));
 
@@ -554,6 +587,7 @@ fn build_ui(application: &Application) {
     app_ui.menu_bar_open_packfile.connect_activate(clone!(
         app_ui,
         game_selected,
+        rpfm_path,
         schema,
         settings,
         mode,
@@ -591,6 +625,7 @@ fn build_ui(application: &Application) {
                     // Open the PackFile (or die trying it!).
                     if let Err(error) = open_packfile(
                         pack_file_path,
+                        &rpfm_path,
                         &app_ui,
                         &settings.borrow(),
                         &mut mode.borrow_mut(),
@@ -796,6 +831,7 @@ fn build_ui(application: &Application) {
         supported_games,
         pack_file_decoded,
         settings,
+        rpfm_path,
         mode,
         application,
         schema => move |_,_| {
@@ -803,7 +839,7 @@ fn build_ui(application: &Application) {
         // We disable the button, so we can't start 2 settings windows at the same time.
         app_ui.menu_bar_preferences.set_enabled(false);
 
-        let settings_stuff = Rc::new(RefCell::new(ui::settings::SettingsWindow::create_settings_window(&application, &supported_games.borrow())));
+        let settings_stuff = Rc::new(RefCell::new(ui::settings::SettingsWindow::create_settings_window(&application, &rpfm_path, &supported_games.borrow())));
         settings_stuff.borrow().load_to_settings_window(&*settings.borrow());
 
         // When we press the "Accept" button.
@@ -814,12 +850,13 @@ fn build_ui(application: &Application) {
             settings,
             game_selected,
             supported_games,
+            rpfm_path,
             schema,
             mode,
             application => move |_,_| {
             let new_settings = settings_stuff.borrow().save_from_settings_window(&supported_games.borrow());
             *settings.borrow_mut() = new_settings;
-            if let Err(error) = settings.borrow().save() {
+            if let Err(error) = settings.borrow().save(&rpfm_path) {
                 ui::show_dialog(&app_ui.error_dialog, error.cause());
             }
             settings_stuff.borrow().settings_window.destroy();
@@ -855,7 +892,8 @@ fn build_ui(application: &Application) {
                 schema.clone(),
                 game_selected.clone(),
                 &supported_games.borrow(),
-                pack_file_decoded.clone()
+                pack_file_decoded.clone(),
+                &rpfm_path
             );
 
             Inhibit(false)
@@ -865,13 +903,14 @@ fn build_ui(application: &Application) {
         settings_stuff.borrow().settings_cancel.connect_button_release_event(clone!(
             settings_stuff,
             settings,
+            rpfm_path,
             supported_games,
             app_ui => move |_,_| {
                 settings_stuff.borrow().settings_window.destroy();
                 app_ui.menu_bar_preferences.set_enabled(true);
 
                 // Reload the Settings from the file so, if we have changed anything, it's undone.
-                *settings.borrow_mut() = Settings::load(&supported_games.borrow()).unwrap_or_else(|_|Settings::new(&supported_games.borrow()));
+                *settings.borrow_mut() = Settings::load(&rpfm_path, &supported_games.borrow()).unwrap_or_else(|_|Settings::new(&supported_games.borrow()));
                 load_gtk_settings(&app_ui.window, &settings.borrow());
 
                 Inhibit(false)
@@ -881,13 +920,14 @@ fn build_ui(application: &Application) {
         // We catch the destroy event to restore the "Preferences" button.
         settings_stuff.borrow().settings_window.connect_delete_event(clone!(
             settings,
+            rpfm_path,
             supported_games,
             app_ui => move |settings_window, _| {
                 settings_window.destroy();
                 app_ui.menu_bar_preferences.set_enabled(true);
 
                 // Reload the Settings from the file so, if we have changed anything, it's undone.
-                *settings.borrow_mut() = Settings::load(&supported_games.borrow()).unwrap_or_else(|_|Settings::new(&supported_games.borrow()));
+                *settings.borrow_mut() = Settings::load(&rpfm_path, &supported_games.borrow()).unwrap_or_else(|_|Settings::new(&supported_games.borrow()));
                 load_gtk_settings(&app_ui.window, &settings.borrow());
 
                 Inhibit(false)
@@ -922,6 +962,7 @@ fn build_ui(application: &Application) {
         schema,
         game_selected,
         supported_games,
+        rpfm_path,
         mode,
         pack_file_decoded => move |_,_| {
 
@@ -929,7 +970,7 @@ fn build_ui(application: &Application) {
         app_ui.menu_bar_my_mod_new.set_enabled(false);
 
         // Create the the "New mod" window and put all it's stuff into a variable.
-        let new_mod_stuff = Rc::new(RefCell::new(MyModNewWindow::create_my_mod_new_window(&application, &supported_games.borrow(), &game_selected.borrow(), &settings.borrow())));
+        let new_mod_stuff = Rc::new(RefCell::new(MyModNewWindow::create_my_mod_new_window(&application, &supported_games.borrow(), &game_selected.borrow(), &settings.borrow(), &rpfm_path)));
 
         // When we press the "Accept" button.
         new_mod_stuff.borrow().my_mod_new_accept.connect_button_release_event(clone!(
@@ -940,10 +981,9 @@ fn build_ui(application: &Application) {
             schema,
             mode,
             supported_games,
+            rpfm_path,
             game_selected,
             pack_file_decoded => move |_,_| {
-
-
 
                 // Get the mod name.
                 let mod_name = new_mod_stuff.borrow().my_mod_new_name_entry.get_buffer().get_text();
@@ -1042,7 +1082,8 @@ fn build_ui(application: &Application) {
                         schema.clone(),
                         game_selected.clone(),
                         &supported_games.borrow(),
-                        pack_file_decoded.clone()
+                        pack_file_decoded.clone(),
+                        &rpfm_path
                     );
 
                     // And destroy the window.
@@ -1078,6 +1119,7 @@ fn build_ui(application: &Application) {
         settings,
         schema,
         game_selected,
+        rpfm_path,
         mode,
         pack_file_decoded => move |_,_| {
 
@@ -1176,7 +1218,8 @@ fn build_ui(application: &Application) {
                         schema.clone(),
                         game_selected.clone(),
                         &supported_games.borrow(),
-                        pack_file_decoded.clone()
+                        pack_file_decoded.clone(),
+                        &rpfm_path
                     );
 
                     ui::show_dialog(&app_ui.success_dialog, format!("MyMod \"{}\" deleted.", old_mod_name));
@@ -1351,6 +1394,7 @@ fn build_ui(application: &Application) {
     // When we hit the "Generate Dependency Pack" button.
     app_ui.menu_bar_generate_dependency_pack_wh2.connect_activate(clone!(
         app_ui,
+        rpfm_path,
         game_selected => move |_,_| {
 
             // Get the data folder of game_selected and try to create our dependency PackFile.
@@ -1364,13 +1408,16 @@ fn build_ui(application: &Application) {
                             data_packfile.pack_file_header.packed_file_count = data_packfile.pack_file_data.packed_files.len() as u32;
 
                             // Just in case the folder doesn't exists, we try to create it.
-                            match DirBuilder::new().create(PathBuf::from("dependency_packs")) {
+                            let mut dep_packs_path = rpfm_path.clone();
+                            dep_packs_path.push("dependency_packs");
+
+                            match DirBuilder::new().create(&dep_packs_path) {
                                 Ok(_) | Err(_) => {},
                             }
 
                             let pack_file_path = match &*game_selected.borrow().game {
-                                "warhammer_2" => PathBuf::from("dependency_packs/wh2.pack"),
-                                "warhammer" | _ => PathBuf::from("dependency_packs/wh.pack")
+                                "warhammer_2" => PathBuf::from(format!("{}/wh2.pack", dep_packs_path.to_string_lossy())),
+                                "warhammer" | _ => PathBuf::from(format!("{}/wh.pack", dep_packs_path.to_string_lossy())),
                             };
 
                             match packfile::save_packfile(data_packfile, Some(pack_file_path)) {
@@ -1422,6 +1469,7 @@ fn build_ui(application: &Application) {
     // When we hit the "Generate Dependency Pack" button (Warhammer).
     app_ui.menu_bar_generate_dependency_pack_wh.connect_activate(clone!(
         game_selected,
+        rpfm_path,
         app_ui => move |_,_| {
 
             // Get the data folder of game_selected and try to create our dependency PackFile.
@@ -1435,13 +1483,16 @@ fn build_ui(application: &Application) {
                             data_packfile.pack_file_header.packed_file_count = data_packfile.pack_file_data.packed_files.len() as u32;
 
                             // Just in case the folder doesn't exists, we try to create it.
-                            match DirBuilder::new().create(PathBuf::from("dependency_packs")) {
+                            let mut dep_packs_path = rpfm_path.clone();
+                            dep_packs_path.push("dependency_packs");
+
+                            match DirBuilder::new().create(&dep_packs_path) {
                                 Ok(_) | Err(_) => {},
                             }
 
                             let pack_file_path = match &*game_selected.borrow().game {
-                                "warhammer_2" => PathBuf::from("dependency_packs/wh2.pack"),
-                                "warhammer" | _ => PathBuf::from("dependency_packs/wh.pack")
+                                "warhammer_2" => PathBuf::from(format!("{}/wh2.pack", dep_packs_path.to_string_lossy())),
+                                "warhammer" | _ => PathBuf::from(format!("{}/wh.pack", dep_packs_path.to_string_lossy())),
                             };
 
                             match packfile::save_packfile(data_packfile, Some(pack_file_path)) {
@@ -2445,6 +2496,7 @@ fn build_ui(application: &Application) {
         application,
         schema,
         app_ui,
+        rpfm_path,
         pack_file_decoded,
         is_folder_tree_view_locked => move |_| {
 
@@ -2922,6 +2974,7 @@ fn build_ui(application: &Application) {
                             application,
                             schema,
                             tree_path,
+                            rpfm_path,
                             app_ui,
                             pack_file_decoded => move |packed_file_decode_mode_button ,_|{
 
@@ -3454,6 +3507,7 @@ fn build_ui(application: &Application) {
                                                 schema,
                                                 table_definition,
                                                 tree_path,
+                                                rpfm_path,
                                                 pack_file_decoded,
                                                 packed_file_decoder => move |_ ,_| {
 
@@ -3476,7 +3530,7 @@ fn build_ui(application: &Application) {
                                                             }
                                                             table_definition.borrow_mut().fields = packed_file_decoder.return_data_from_data_view();
                                                             schema.tables_definitions[table_definitions_index as usize].add_table_definition(table_definition.borrow().clone());
-                                                            match Schema::save(&schema, &*pack_file_decoded.borrow().pack_file_header.pack_file_id) {
+                                                            match Schema::save(&schema, &rpfm_path, &*pack_file_decoded.borrow().pack_file_header.pack_file_id) {
                                                                 Ok(_) => ui::show_dialog(&app_ui.success_dialog, format!("Schema saved successfully.")),
                                                                 Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause()),
                                                             }
@@ -3535,9 +3589,12 @@ fn build_ui(application: &Application) {
                             Ok(packed_file_data_decoded) => {
 
                                 // We try to get the "data" database, to check dependencies.
+                                let mut dep_packs_path = rpfm_path.clone();
+                                dep_packs_path.push("dependency_packs");
+
                                 let pack_file_path = match &*game_selected.borrow().game {
-                                    "warhammer_2" => PathBuf::from("dependency_packs/wh2.pack"),
-                                    "warhammer" | _ => PathBuf::from("dependency_packs/wh.pack")
+                                    "warhammer_2" => PathBuf::from(format!("{}/wh2.pack", dep_packs_path.to_string_lossy())),
+                                    "warhammer" | _ => PathBuf::from(format!("{}/wh.pack", dep_packs_path.to_string_lossy())),
                                 };
 
                                 let dependency_database = match packfile::open_packfile(pack_file_path) {
@@ -4387,6 +4444,7 @@ fn build_ui(application: &Application) {
         settings,
         schema,
         game_selected,
+        rpfm_path,
         mode,
         pack_file_decoded => move |_, _, _, _, selection_data, info, _| {
 
@@ -4401,6 +4459,7 @@ fn build_ui(application: &Application) {
                         // Open the PackFile (or die trying it!).
                         if let Err(error) = open_packfile(
                             pack_file_path,
+                            &rpfm_path,
                             &app_ui,
                             &settings.borrow(),
                             &mut mode.borrow_mut(),
@@ -4602,6 +4661,7 @@ fn file_chooser_filter_packfile(file_chooser: &FileChooserNative, pattern: &str)
 /// on the situation.
 fn open_packfile(
     pack_file_path: PathBuf,
+    rpfm_path: &PathBuf,
     app_ui: &AppUI,
     settings: &Settings,
     mode: &mut Mode,
@@ -4710,7 +4770,7 @@ fn open_packfile(
             }
 
             // Try to load the Schema for this PackFile's game.
-            *schema = Schema::load(&pack_file_decoded.pack_file_header.pack_file_id).ok();
+            *schema = Schema::load(&rpfm_path, &pack_file_decoded.pack_file_header.pack_file_id).ok();
 
             // Return success.
             Ok(())
@@ -4735,6 +4795,7 @@ fn build_my_mod_menu(
     game_selected: Rc<RefCell<GameSelected>>,
     supported_games: &[GameInfo],
     pack_file_decoded: Rc<RefCell<PackFile>>,
+    rpfm_path: &PathBuf,
 ) {
     // First, we clear the list.
     app_ui.my_mod_list.remove_all();
@@ -4794,6 +4855,7 @@ fn build_my_mod_menu(
                                         schema,
                                         mode,
                                         game_folder_name,
+                                        rpfm_path,
                                         game_selected,
                                         pack_file_decoded => move |_,_| {
 
@@ -4806,6 +4868,7 @@ fn build_my_mod_menu(
                                                 // Open the PackFile (or die trying it!).
                                                 if let Err(error) = open_packfile(
                                                     pack_file_path,
+                                                    &rpfm_path,
                                                     &app_ui,
                                                     &settings,
                                                     &mut mode.borrow_mut(),
