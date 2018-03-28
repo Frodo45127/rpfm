@@ -4556,18 +4556,9 @@ fn open_packfile(
 
             // If we are opening a "MyMod", set it to "MyMod" mode. Set it to "Normal" otherwise.
             *mode = if is_my_mod.0 {
-
-                // Remove the ".pack" from his name.
-                let mut mod_name = pack_file_decoded.pack_file_extra_data.file_name.to_owned();
-                mod_name.pop();
-                mod_name.pop();
-                mod_name.pop();
-                mod_name.pop();
-                mod_name.pop();
-
                 Mode::MyMod {
                     game_folder_name: is_my_mod.1.clone().unwrap(),
-                    mod_name,
+                    mod_name: pack_file_decoded.pack_file_extra_data.file_name.to_owned(),
                 }
             } else { Mode::Normal };
 
