@@ -1357,74 +1357,16 @@ fn build_ui(application: &Application) {
     app_ui.menu_bar_patch_siege_ai_wh2.connect_activate(clone!(
         app_ui,
         pack_file_decoded => move |_,_| {
-
-        // First, we try to patch the PackFile. If there are no errors, we save the result in a tuple.
-        // Then we check that tuple and, if it's a success, we save the PackFile and update the TreeView.
-        let mut sucessful_patching = (false, String::new());
-        match packfile::patch_siege_ai(&mut *pack_file_decoded.borrow_mut()) {
-            Ok(result) => sucessful_patching = (true, result),
-            Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause())
+            patch_siege_ai(&app_ui, pack_file_decoded.clone());
         }
-        if sucessful_patching.0 {
-            let mut success = false;
-            match packfile::save_packfile( &mut *pack_file_decoded.borrow_mut(), None) {
-                Ok(result) => {
-                    success = true;
-                    ui::show_dialog(&app_ui.success_dialog, format!("{}\n\n{}", sucessful_patching.1, result));
-                },
-                Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause())
-            }
-            if success {
-                ui::update_tree_view_expand_path(
-                    &app_ui.folder_tree_store,
-                    &*pack_file_decoded.borrow(),
-                    &app_ui.folder_tree_selection,
-                    &app_ui.folder_tree_view,
-                    false
-                );
-            }
-        }
-    }));
+    ));
 
     // When we hit the "Generate Dependency Pack" button.
     app_ui.menu_bar_generate_dependency_pack_wh2.connect_activate(clone!(
         app_ui,
         rpfm_path,
         game_selected => move |_,_| {
-
-            // Get the data folder of game_selected and try to create our dependency PackFile.
-            match game_selected.borrow().game_data_path {
-                Some(ref path) => {
-                    let mut data_pack_path = path.to_path_buf();
-                    data_pack_path.push("data.pack");
-                    match packfile::open_packfile(data_pack_path) {
-                        Ok(ref mut data_packfile) => {
-                            data_packfile.pack_file_data.packed_files.retain(|packed_file| packed_file.packed_file_path.starts_with(&["db".to_owned()]));
-                            data_packfile.pack_file_header.packed_file_count = data_packfile.pack_file_data.packed_files.len() as u32;
-
-                            // Just in case the folder doesn't exists, we try to create it.
-                            let mut dep_packs_path = rpfm_path.clone();
-                            dep_packs_path.push("dependency_packs");
-
-                            match DirBuilder::new().create(&dep_packs_path) {
-                                Ok(_) | Err(_) => {},
-                            }
-
-                            let pack_file_path = match &*game_selected.borrow().game {
-                                "warhammer_2" => PathBuf::from(format!("{}/wh2.pack", dep_packs_path.to_string_lossy())),
-                                "warhammer" | _ => PathBuf::from(format!("{}/wh.pack", dep_packs_path.to_string_lossy())),
-                            };
-
-                            match packfile::save_packfile(data_packfile, Some(pack_file_path)) {
-                                Ok(_) => ui::show_dialog(&app_ui.success_dialog, format_err!("Dependency pack created.")),
-                                Err(error) => ui::show_dialog(&app_ui.error_dialog, format_err!("Error: generated dependency pack couldn't be saved. {:?}", error)),
-                            }
-                        }
-                        Err(_) => ui::show_dialog(&app_ui.error_dialog, format_err!("Error: data.pack couldn't be open."))
-                    }
-                },
-                None => ui::show_dialog(&app_ui.error_dialog, format_err!("Error: data path of the game not found."))
-            }
+            generate_dependency_pack(&app_ui, &rpfm_path, game_selected.clone());
         }
     ));
 
@@ -1432,74 +1374,16 @@ fn build_ui(application: &Application) {
     app_ui.menu_bar_patch_siege_ai_wh.connect_activate(clone!(
         app_ui,
         pack_file_decoded => move |_,_| {
-
-        // First, we try to patch the PackFile. If there are no errors, we save the result in a tuple.
-        // Then we check that tuple and, if it's a success, we save the PackFile and update the TreeView.
-        let mut sucessful_patching = (false, String::new());
-        match packfile::patch_siege_ai(&mut *pack_file_decoded.borrow_mut()) {
-            Ok(result) => sucessful_patching = (true, result),
-            Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause())
+            patch_siege_ai(&app_ui, pack_file_decoded.clone());
         }
-        if sucessful_patching.0 {
-            let mut success = false;
-            match packfile::save_packfile( &mut *pack_file_decoded.borrow_mut(), None) {
-                Ok(result) => {
-                    success = true;
-                    ui::show_dialog(&app_ui.success_dialog, format!("{}\n\n{}", sucessful_patching.1, result));
-                },
-                Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause())
-            }
-            if success {
-                ui::update_tree_view_expand_path(
-                    &app_ui.folder_tree_store,
-                    &*pack_file_decoded.borrow(),
-                    &app_ui.folder_tree_selection,
-                    &app_ui.folder_tree_view,
-                    false
-                );
-            }
-        }
-    }));
+    ));
 
     // When we hit the "Generate Dependency Pack" button (Warhammer).
     app_ui.menu_bar_generate_dependency_pack_wh.connect_activate(clone!(
         game_selected,
         rpfm_path,
         app_ui => move |_,_| {
-
-            // Get the data folder of game_selected and try to create our dependency PackFile.
-            match game_selected.borrow().game_data_path {
-                Some(ref path) => {
-                    let mut data_pack_path = path.to_path_buf();
-                    data_pack_path.push("data.pack");
-                    match packfile::open_packfile(data_pack_path) {
-                        Ok(ref mut data_packfile) => {
-                            data_packfile.pack_file_data.packed_files.retain(|packed_file| packed_file.packed_file_path.starts_with(&["db".to_owned()]));
-                            data_packfile.pack_file_header.packed_file_count = data_packfile.pack_file_data.packed_files.len() as u32;
-
-                            // Just in case the folder doesn't exists, we try to create it.
-                            let mut dep_packs_path = rpfm_path.clone();
-                            dep_packs_path.push("dependency_packs");
-
-                            match DirBuilder::new().create(&dep_packs_path) {
-                                Ok(_) | Err(_) => {},
-                            }
-
-                            let pack_file_path = match &*game_selected.borrow().game {
-                                "warhammer_2" => PathBuf::from(format!("{}/wh2.pack", dep_packs_path.to_string_lossy())),
-                                "warhammer" | _ => PathBuf::from(format!("{}/wh.pack", dep_packs_path.to_string_lossy())),
-                            };
-
-                            match packfile::save_packfile(data_packfile, Some(pack_file_path)) {
-                                Ok(_) => ui::show_dialog(&app_ui.success_dialog, format_err!("Dependency pack created.")),
-                                Err(error) => ui::show_dialog(&app_ui.error_dialog, format_err!("Error: generated dependency pack couldn't be saved. {:?}", error)),
-                            }
-                        }
-                        Err(_) => ui::show_dialog(&app_ui.error_dialog, format_err!("Error: data.pack couldn't be open."))
-                    }
-                },
-                None => ui::show_dialog(&app_ui.error_dialog, format_err!("Error: data path of the game not found."))
-            }
+            generate_dependency_pack(&app_ui, &rpfm_path, game_selected.clone());
         }
     ));
 
@@ -4911,6 +4795,82 @@ fn build_my_mod_menu(
                 }
             }
         }
+    }
+}
+
+/// This function serves as a common function for all the "Patch SiegeAI" buttons from "Special Stuff".
+fn patch_siege_ai(
+    app_ui: &AppUI,
+    pack_file_decoded: Rc<RefCell<PackFile>>,
+) {
+
+    // First, we try to patch the PackFile. If there are no errors, we save the result in a tuple.
+    // Then we check that tuple and, if it's a success, we save the PackFile and update the TreeView.
+    let mut sucessful_patching = (false, String::new());
+    match packfile::patch_siege_ai(&mut *pack_file_decoded.borrow_mut()) {
+        Ok(result) => sucessful_patching = (true, result),
+        Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause())
+    }
+    if sucessful_patching.0 {
+        let mut success = false;
+        match packfile::save_packfile( &mut *pack_file_decoded.borrow_mut(), None) {
+            Ok(result) => {
+                success = true;
+                ui::show_dialog(&app_ui.success_dialog, format!("{}\n\n{}", sucessful_patching.1, result));
+            },
+            Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause())
+        }
+        if success {
+            ui::update_tree_view_expand_path(
+                &app_ui.folder_tree_store,
+                &*pack_file_decoded.borrow(),
+                &app_ui.folder_tree_selection,
+                &app_ui.folder_tree_view,
+                false
+            );
+        }
+    }
+}
+
+/// This function serves as a common function for all the "Generate Dependency Pack" buttons from "Special Stuff".
+fn generate_dependency_pack(
+    app_ui: &AppUI,
+    rpfm_path: &PathBuf,
+    game_selected: Rc<RefCell<GameSelected>>,
+) {
+
+    // Get the data folder of game_selected and try to create our dependency PackFile.
+    match game_selected.borrow().game_data_path {
+        Some(ref path) => {
+            let mut data_pack_path = path.to_path_buf();
+            data_pack_path.push("data.pack");
+            match packfile::open_packfile(data_pack_path) {
+                Ok(ref mut data_packfile) => {
+                    data_packfile.pack_file_data.packed_files.retain(|packed_file| packed_file.packed_file_path.starts_with(&["db".to_owned()]));
+                    data_packfile.pack_file_header.packed_file_count = data_packfile.pack_file_data.packed_files.len() as u32;
+
+                    // Just in case the folder doesn't exists, we try to create it.
+                    let mut dep_packs_path = rpfm_path.clone();
+                    dep_packs_path.push("dependency_packs");
+
+                    match DirBuilder::new().create(&dep_packs_path) {
+                        Ok(_) | Err(_) => {},
+                    }
+
+                    let pack_file_path = match &*game_selected.borrow().game {
+                        "warhammer_2" => PathBuf::from(format!("{}/wh2.pack", dep_packs_path.to_string_lossy())),
+                        "warhammer" | _ => PathBuf::from(format!("{}/wh.pack", dep_packs_path.to_string_lossy())),
+                    };
+
+                    match packfile::save_packfile(data_packfile, Some(pack_file_path)) {
+                        Ok(_) => ui::show_dialog(&app_ui.success_dialog, format_err!("Dependency pack created.")),
+                        Err(error) => ui::show_dialog(&app_ui.error_dialog, format_err!("Error: generated dependency pack couldn't be saved. {:?}", error)),
+                    }
+                }
+                Err(_) => ui::show_dialog(&app_ui.error_dialog, format_err!("Error: data.pack couldn't be open."))
+            }
+        },
+        None => ui::show_dialog(&app_ui.error_dialog, format_err!("Error: data path of the game not found."))
     }
 }
 
