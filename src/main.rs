@@ -21,7 +21,6 @@ extern crate gio;
 extern crate pango;
 extern crate sourceview;
 extern crate num;
-extern crate restson;
 extern crate url;
 
 use std::ffi::OsStr;
@@ -35,7 +34,6 @@ use std::env::args;
 
 use failure::Error;
 use url::Url;
-use restson::RestClient;
 use gio::prelude::*;
 use gio::{
     SimpleAction, Menu, MenuExt, MenuModel
@@ -68,7 +66,7 @@ use ui::packedfile_text::*;
 use ui::packedfile_image::*;
 use ui::packedfile_rigidmodel::*;
 use ui::settings::*;
-use updater::LastestRelease;
+use ui::updater::*;
 
 /// This macro is used to clone the variables into the closures without the compiler complaining.
 /// This should be BEFORE the `mod xxx` stuff, so submodules can use it too.
@@ -144,7 +142,6 @@ struct AppUI {
     // Informative dialogs.
     error_dialog: MessageDialog,
     success_dialog: MessageDialog,
-    check_updates_dialog: MessageDialog,
 
     // Popover for renaming PackedFiles and folders.
     rename_popover: Popover,
@@ -255,7 +252,6 @@ fn build_ui(application: &Application) {
         // Informative dialogs.
         error_dialog: builder.get_object("gtk_error_dialog").unwrap(),
         success_dialog: builder.get_object("gtk_success_dialog").unwrap(),
-        check_updates_dialog: builder.get_object("gtk_check_updates_dialog").unwrap(),
 
         // Popover for renaming PackedFiles and folders.
         rename_popover: builder.get_object("gtk_rename_popover").unwrap(),
@@ -368,7 +364,7 @@ fn build_ui(application: &Application) {
     app_ui.folder_tree_view.drag_dest_set(gtk::DestDefaults::ALL, &targets, gdk::DragAction::COPY);
 
     // Check for updates at the start. Currently this hangs the UI, so do it before showing the UI.
-    check_updates(None, &app_ui.status_bar);
+    check_updates(&VERSION, None, Some(&app_ui.status_bar));
 
     // Then we display the "Tips" text.
     ui::display_help_tips(&app_ui.packed_file_data_display);
@@ -1359,16 +1355,17 @@ fn build_ui(application: &Application) {
     // When we hit the "Check Updates" button.
     app_ui.menu_bar_check_updates.connect_activate(clone!(
         app_ui => move |_,_| {
-        check_updates(Some(&app_ui.check_updates_dialog), &app_ui.status_bar)
-    }));
+            check_updates(&VERSION, Some(&app_ui.window), None);
+        }
+    ));
 
     // When we hit the "About" button.
     app_ui.menu_bar_about.connect_activate(clone!(
         app_ui => move |_,_| {
-        app_ui.about_window.run();
-        app_ui.about_window.hide_on_delete();
-    }));
-
+            app_ui.about_window.run();
+            app_ui.about_window.hide_on_delete();
+        }
+    ));
 
     /*
     --------------------------------------------------------
@@ -4440,77 +4437,6 @@ fn update_first_row_decoded(packedfile: &[u8], list_store: &ListStore, index: &u
         index,
     );
     index
-}
-
-/// This function checks if there is any newer version of RPFM released. If the dialog is None, it'll
-/// show the result in the status bar.
-fn check_updates(check_updates_dialog: Option<&MessageDialog>, status_bar: &Statusbar) {
-
-    // Create new client with API base URL
-    let mut client = RestClient::new("https://api.github.com").unwrap();
-    client.set_header_raw("User-Agent", "Mozilla/5.0 (X11; Linux x86_64; rv:59.0) Gecko/20100101 Firefox/59.0");
-
-    // If we got a dialog, use it.
-    if let Some(check_updates_dialog) = check_updates_dialog {
-
-        // GET http://httpbin.org/anything and deserialize the result automatically
-        match client.get(()) {
-            Ok(last_release) => {
-
-                let last_release: LastestRelease = last_release;
-
-                // All this depends on the fact that the releases are called "vX.X.X". We only compare
-                // numbers here, so we remove everything else.
-                let mut last_version = last_release.name.to_owned();
-                last_version.remove(0);
-                last_version.split_off(5);
-                if last_version != VERSION {
-                    check_updates_dialog.set_property_text(Some(&format!("New update found: {}", last_release.name)));
-                    check_updates_dialog.set_property_secondary_text(Some(&format!("Download available here:\n<a href=\"{}\">{}</a>\n\nChanges:\n{}", last_release.html_url, last_release.html_url, last_release.body)));
-                }
-                else {
-                    check_updates_dialog.set_property_text(Some(&format!("No new updates available")));
-                    check_updates_dialog.set_property_secondary_text(Some(&format!("More luck next time :)")));
-                }
-            }
-            Err(_) => {
-                check_updates_dialog.set_property_text(Some(&format!("Error checking new updates")));
-                check_updates_dialog.set_property_secondary_text(Some(&format!("Mmmm if this happends, there has been a problem with your connection to the Github.com server.\n\nPlease, make sure you can access to <a href=\"https:\\\\api.github.com\">https:\\\\api.github.com</a>")));
-            }
-        }
-        check_updates_dialog.run();
-        check_updates_dialog.hide_on_delete();
-    }
-
-    // If there is no dialog, use the status bar to display the result.
-    else {
-
-        // GET http://httpbin.org/anything and deserialize the result automatically
-        match client.get(()) {
-            Ok(last_release) => {
-
-                let last_release: LastestRelease = last_release;
-
-                // All this depends on the fact that the releases are called "vX.X.X". We only compare
-                // numbers here, so we remove everything else.
-                let mut last_version = last_release.name.to_owned();
-                last_version.remove(0);
-                last_version.split_off(5);
-                if last_version != VERSION {
-                    let message = "New update found. Check \"About/About\" for a link to the download.";
-                    ui::show_message_in_statusbar(status_bar, message);
-                }
-                else {
-                    let message = "No new updates available.";
-                    ui::show_message_in_statusbar(status_bar, message);
-                }
-            }
-            Err(_) => {
-                let message = "Error while checking new updates.";
-                ui::show_message_in_statusbar(status_bar, message);
-            }
-        }
-    }
 }
 
 /// This function adds a Filter to the provided FileChooser, using the `pattern` &str.
