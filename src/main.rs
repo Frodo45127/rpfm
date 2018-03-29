@@ -357,20 +357,11 @@ fn build_ui(application: &Application) {
     let targets = vec![gtk::TargetEntry::new("text/uri-list", gtk::TargetFlags::OTHER_APP, 0)];
     app_ui.folder_tree_view.drag_dest_set(gtk::DestDefaults::ALL, &targets, gdk::DragAction::COPY);
 
-    // Check for updates at the start. Currently this hangs the UI, so do it before showing the UI.
-    check_updates(&VERSION, None, Some(&app_ui.status_bar));
-
     // Then we display the "Tips" text.
     ui::display_help_tips(&app_ui.packed_file_data_display);
 
     // We link the main ApplicationWindow to the application.
     app_ui.window.set_application(Some(application));
-
-    // We bring up the main window.
-    app_ui.window.show_all();
-
-    // We center the window after being loaded, so the load of the display tips don't move it to the left.
-    app_ui.window.set_position(WindowPosition::Center);
 
     // This is to get the new schemas. It's controlled by a global const.
     if GENERATE_NEW_SCHEMA {
@@ -428,7 +419,6 @@ fn build_ui(application: &Application) {
     // - At the end of MyMod creation.
     // - At the end of MyMod deletion.
     // - At the end of settings update.
-
     build_my_mod_menu(
         application,
         &app_ui,
@@ -440,6 +430,16 @@ fn build_ui(application: &Application) {
         pack_file_decoded.clone(),
         &rpfm_path
     );
+
+    // Check for updates at the start if we have this option enabled. Currently this hangs the UI,
+    // so do it before showing the UI.
+    if settings.borrow().check_updates_on_start {
+        check_updates(&VERSION, None, Some(&app_ui.status_bar));
+    }
+
+    // We bring up the main window.
+    app_ui.window.set_position(WindowPosition::Center);
+    app_ui.window.show_all();
 
     // End of the "Getting Ready" part.
     // From here, it's all event handling.
