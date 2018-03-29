@@ -95,29 +95,29 @@ mod settings;
 mod updater;
 
 
-// This constant gets RPFM's version from the "Cargo.toml" file, so we don't have to change it
-// in two different places in every update.
+/// This constant gets RPFM's version from the `Cargo.toml` file, so we don't have to change it
+/// in two different places in every update.
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-// This constant is used to enable or disable the generation of a new Schema file in compile time.
-// If you don't want to explicity create a new Schema for a game, leave this disabled.
+/// This constant is used to enable or disable the generation of a new Schema file in compile time.
+/// If you don't want to explicity create a new Schema for a game, leave this disabled.
 const GENERATE_NEW_SCHEMA: bool = false;
 
-// This enum represent the current "Operational Mode" for RPFM. The allowed modes are:
-// - `Normal`: Use the default behavior for everything. This is the Default mode.
-// - `MyMod`: Use the `MyMod` specific behavior. This mode is used when you have a "MyMod" selected.
-//          This mode holds a tuple `(game_folder_name, mod_name)`. `game_folder_name` is the
-//          folder name for that game in "MyMod"'s folder, like "warhammer_2" or "rome_2").
-//          `mod_name` is the name of the PackFile with `.pack` at the end.
+/// This enum represent the current "Operational Mode" for RPFM. The allowed modes are:
+/// - `Normal`: Use the default behavior for everything. This is the Default mode.
+/// - `MyMod`: Use the `MyMod` specific behavior. This mode is used when you have a "MyMod" selected.
+///   This mode holds a tuple `(game_folder_name, mod_name)`:
+///  - `game_folder_name` is the folder name for that game in "MyMod"s folder, like `warhammer_2` or `rome_2`).
+///  - `mod_name` is the name of the PackFile with `.pack` at the end.
 #[derive(Clone)]
 enum Mode {
     MyMod{ game_folder_name: String, mod_name: String },
     Normal,
 }
 
-// This struct will store almost the entirety of the UI stuff, so it's not a fucking chaos when
-// going inside/outside closures. The exceptions for this struct is stuff generated after RPFM is
-// started, like the TreeView for DB PackedFiles or the DB Decoder View.
+/// This struct contains almost the entirety of the UI stuff, so it's not a fucking chaos when
+/// going inside/outside closures. The exceptions for this struct is stuff generated after RPFM is
+/// started, like the TreeView for DB PackedFiles or the DB Decoder View.
 #[derive(Clone)]
 struct AppUI {
 
@@ -548,7 +548,8 @@ fn build_ui(application: &Application) {
                 // Try to load the Schema for this PackFile's game.
                 *schema.borrow_mut() = Schema::load(&rpfm_path, &*pack_file_decoded.borrow().pack_file_header.pack_file_id).ok();
             }
-    }));
+        }
+    ));
 
 
     // When we hit the "Open PackFile" button.
