@@ -5,6 +5,7 @@ extern crate failure;
 use std::path::PathBuf;
 use std::fs::File;
 use std::io::Write;
+use std::io::BufReader;
 
 use self::failure::Error;
 use super::schemas_importer;
@@ -124,8 +125,8 @@ impl Schema {
         // - PFH5 -> warhammer 2.
         // - PFH4 -> warhammer.
         let schema_file = match packfile_id {
-            "PFH5" => File::open(PathBuf::from(format!("{}/schema_wh2.json", schemas_path.to_string_lossy())))?,
-            "PFH4" => File::open(PathBuf::from(format!("{}/schema_wh.json", schemas_path.to_string_lossy())))?,
+            "PFH5" => BufReader::new(File::open(PathBuf::from(format!("{}/schema_wh2.json", schemas_path.to_string_lossy())))?),
+            "PFH4" => BufReader::new(File::open(PathBuf::from(format!("{}/schema_wh.json", schemas_path.to_string_lossy())))?),
             _ => return Err(format_err!("Error while loading schema:\nPackFile ID unknown."))
         };
 
