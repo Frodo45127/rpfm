@@ -31,6 +31,7 @@ pub mod updater;
 pub fn create_about_window(
     version: &str,
     rpfm_path: &PathBuf,
+    parent_window: &ApplicationWindow
 ) -> AboutDialog {
 
     // Create the `AboutDialog`.
@@ -59,6 +60,9 @@ pub fn create_about_window(
 
     // Center the `AboutDialog` in the middle of the screen.
     about_dialog.set_position(WindowPosition::Center);
+
+    // Give a father to the poor orphan...
+    about_dialog.set_transient_for(parent_window);
 
     // Return the `AboutDialog`.
     about_dialog

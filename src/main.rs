@@ -227,12 +227,17 @@ fn build_ui(application: &Application) {
     let folder_tree_view_context_menu_model = builder.get_object("context_menu_packfile").unwrap();
     let folder_tree_view_context_menu = Popover::new_from_model(Some(&folder_tree_view), &folder_tree_view_context_menu_model);
 
+    // We need to have the Main Window before creating the `AppUI`, so we can use it as father of the
+    // `AboutDialog`.
+    let window: ApplicationWindow = builder.get_object("gtk_window").unwrap();
+    let about_window: AboutDialog = ui::create_about_window(VERSION, &rpfm_path, &window);
+
     // First, create the AppUI to hold all the UI stuff. All the stuff here it's from the executable
     // so we can unwrap it without any problems.
     let app_ui = AppUI {
 
         // Main window.
-        window: builder.get_object("gtk_window").unwrap(),
+        window,
 
         // MenuBar at the top of the Window.
         menu_bar: builder.get_object("menubar").unwrap(),
@@ -247,7 +252,7 @@ fn build_ui(application: &Application) {
         packed_file_data_display: builder.get_object("gtk_packed_file_data_display").unwrap(),
 
         // "About" window.
-        about_window: ui::create_about_window(VERSION, &rpfm_path),
+        about_window,
 
         // Informative dialogs.
         error_dialog: builder.get_object("gtk_error_dialog").unwrap(),
