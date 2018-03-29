@@ -122,7 +122,7 @@ pub fn are_you_sure(parent_window: &ApplicationWindow, is_modified: bool, is_del
 
         are_you_sure_dialog.add_button("Cancel", -6);
         are_you_sure_dialog.add_button("Accept", -3);
-
+        are_you_sure_dialog.set_title("Are you sure?");
 
         let message = if is_delete_my_mod {
             "You are going to delete this mod from your disk. There is no way to recover it after that."
