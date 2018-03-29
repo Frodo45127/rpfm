@@ -28,11 +28,11 @@ pub mod updater;
 //----------------------------------------------------------------------------//
 
 /// This function creates an `AboutDialog` with all the credits, logo, license... done, and returns it.
-pub fn create_about_window(
+pub fn show_about_window(
     version: &str,
     rpfm_path: &PathBuf,
     parent_window: &ApplicationWindow
-) -> AboutDialog {
+) {
 
     // Create the `AboutDialog`.
     let about_dialog = AboutDialog::new();
@@ -64,8 +64,9 @@ pub fn create_about_window(
     // Give a father to the poor orphan...
     about_dialog.set_transient_for(parent_window);
 
-    // Return the `AboutDialog`.
-    about_dialog
+    // Run the `AboutDialog`.
+    about_dialog.run();
+    about_dialog.destroy();
 }
 
 

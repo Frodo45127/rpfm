@@ -40,7 +40,7 @@ use gio::{
 };
 use gtk::prelude::*;
 use gtk::{
-    AboutDialog, Builder, WindowPosition, ApplicationWindow, FileFilter, Grid,
+    Builder, WindowPosition, ApplicationWindow, FileFilter, Grid,
     TreeView, TreeSelection, TreeStore, MessageDialog, ScrolledWindow, Application,
     CellRendererText, TreeViewColumn, Popover, Entry, Button, ListStore, ResponseType,
     ShortcutsWindow, ToVariant, Statusbar, FileChooserNative, FileChooserAction
@@ -136,9 +136,6 @@ struct AppUI {
     // This is the box where all the PackedFile Views are created.
     packed_file_data_display: Grid,
 
-    // "About" window.
-    about_window: AboutDialog,
-
     // Informative dialogs.
     error_dialog: MessageDialog,
     success_dialog: MessageDialog,
@@ -227,17 +224,12 @@ fn build_ui(application: &Application) {
     let folder_tree_view_context_menu_model = builder.get_object("context_menu_packfile").unwrap();
     let folder_tree_view_context_menu = Popover::new_from_model(Some(&folder_tree_view), &folder_tree_view_context_menu_model);
 
-    // We need to have the Main Window before creating the `AppUI`, so we can use it as father of the
-    // `AboutDialog`.
-    let window: ApplicationWindow = builder.get_object("gtk_window").unwrap();
-    let about_window: AboutDialog = ui::create_about_window(VERSION, &rpfm_path, &window);
-
     // First, create the AppUI to hold all the UI stuff. All the stuff here it's from the executable
     // so we can unwrap it without any problems.
     let app_ui = AppUI {
 
         // Main window.
-        window,
+        window: builder.get_object("gtk_window").unwrap(),
 
         // MenuBar at the top of the Window.
         menu_bar: builder.get_object("menubar").unwrap(),
@@ -250,9 +242,6 @@ fn build_ui(application: &Application) {
 
         // This is the box where all the PackedFile Views are created.
         packed_file_data_display: builder.get_object("gtk_packed_file_data_display").unwrap(),
-
-        // "About" window.
-        about_window,
 
         // Informative dialogs.
         error_dialog: builder.get_object("gtk_error_dialog").unwrap(),
@@ -1367,9 +1356,9 @@ fn build_ui(application: &Application) {
 
     // When we hit the "About" button.
     app_ui.menu_bar_about.connect_activate(clone!(
+        rpfm_path,
         app_ui => move |_,_| {
-            app_ui.about_window.run();
-            app_ui.about_window.hide_on_delete();
+            ui::show_about_window(VERSION, &rpfm_path, &app_ui.window);
         }
     ));
 
