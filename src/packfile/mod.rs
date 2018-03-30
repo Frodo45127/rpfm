@@ -84,7 +84,7 @@ pub fn open_packfile(pack_file_path: PathBuf) -> Result<packfile::PackFile, Erro
 /// It requires:
 /// - pack_file: a &mut pack_file::PackFile. It's the PackFile we are going to save.
 /// - new_path: an Option<PathBuf> with the path were we are going to save the PackFile. None if we
-///             are saving it in the same path it's when we opened it.
+///   are saving it in the same path it's when we opened it.
 pub fn save_packfile(
     pack_file: &mut packfile::PackFile,
     new_path: Option<PathBuf>

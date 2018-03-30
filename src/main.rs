@@ -597,28 +597,71 @@ fn build_ui(application: &Application) {
 
     // When we hit the "Save PackFile" button
     app_ui.menu_bar_save_packfile.connect_activate(clone!(
-        app_ui,
-        game_selected,
-        pack_file_decoded => move |_,_| {
+        pack_file_decoded,
+        app_ui => move |_,_| {
 
-        // First, we check if our PackFile has a path. If it doesn't have it, we launch the "Save"
-        // Dialog and set the current name in the entry of the dialog to his name.
-        // When we hit "Accept", we get the selected path, encode the PackFile, and save it to that
-        // path. After that, we update the TreeView to reflect the name change and hide the dialog.
-        let mut pack_file_path: Option<PathBuf> = None;
-        if !pack_file_decoded.borrow().pack_file_extra_data.file_path.is_file() {
+            // If our PackFile already exists in the filesystem, we save it to that file directly.
+            if pack_file_decoded.borrow().pack_file_extra_data.file_path.is_file() {
+
+                // We try to save the PackFile at the provided path...
+                let success = match packfile::save_packfile(&mut *pack_file_decoded.borrow_mut(), None) {
+                    Ok(result) => {
+                        ui::show_dialog(&app_ui.window, true, result);
+                        true
+                    },
+                    Err(error) => {
+                        ui::show_dialog(&app_ui.window, false, error.cause());
+                        false
+                    }
+                };
+
+                // If we succeed...
+                if success {
+
+                    // Set the mod as "Not modified".
+                    set_modified(false, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
+                }
+            }
+
+            // If our PackFile doesn't exist in the filesystem (it's new, or the base PackFile has been deleted),
+            // we trigger the "Save as" dialog.
+            else { app_ui.menu_bar_save_packfile_as.activate(None); }
+        }
+    ));
+
+
+    // When we hit the "Save PackFile as" button.
+    app_ui.menu_bar_save_packfile_as.connect_activate(clone!(
+        pack_file_decoded,
+        game_selected,
+        app_ui,
+        mode => move |_,_| {
+
+            // Create the FileChooserNative.
             let file_chooser_save_packfile = FileChooserNative::new(
-                "Save PackFile...",
+                "Save PackFile as...",
                 &app_ui.window,
                 FileChooserAction::Save,
                 "Save",
                 "Cancel"
             );
 
+            // We want to ask before overwriting files. Just in case. Otherwise, there can be an accident.
+            file_chooser_save_packfile.set_do_overwrite_confirmation(true);
+
+            // We are only interested in seeing ".pack" files.
+            file_chooser_filter_packfile(&file_chooser_save_packfile, "*.pack");
+
+            // We put the current name of the file as "Suggested" name.
             file_chooser_save_packfile.set_current_name(&pack_file_decoded.borrow().pack_file_extra_data.file_name);
 
-            // In case we have a default path for the game selected, we use it as base path for saving files.
-            if let Some(ref path) = game_selected.borrow().game_data_path {
+            // If we are saving an existing PackFile with another name, we start in his current path.
+            if pack_file_decoded.borrow().pack_file_extra_data.file_path.is_file() {
+                file_chooser_save_packfile.set_filename(&pack_file_decoded.borrow().pack_file_extra_data.file_path);
+            }
+
+            // In case we have a default path for the game selected and that path is valid, we use it as base path for saving our PackFile.
+            else if let Some(ref path) = game_selected.borrow().game_data_path {
 
                 // We check it actually exists before setting it.
                 if path.is_dir() {
@@ -626,111 +669,48 @@ fn build_ui(application: &Application) {
                 }
             }
 
+            // If we hit "Accept" (and "Accept" again if we are overwriting a PackFile)...
             if file_chooser_save_packfile.run() == gtk_response_accept {
-                pack_file_path = Some(file_chooser_save_packfile.get_filename().unwrap());
 
-                let mut success = false;
-                match packfile::save_packfile(&mut *pack_file_decoded.borrow_mut(), pack_file_path) {
+                // Get the new PackFile's path.
+                let mut file_path = file_chooser_save_packfile.get_filename().unwrap();
+
+                // If the new PackFile's name doesn't end in ".pack", we add it at the end.
+                if !file_path.ends_with(".pack") { file_path.set_extension("pack"); }
+
+                // We try to save the PackFile at the provided path...
+                let success = match packfile::save_packfile(&mut *pack_file_decoded.borrow_mut(), Some(file_path)) {
                     Ok(result) => {
-                        success = true;
                         ui::show_dialog(&app_ui.window, true, result);
+                        true
                     },
-                    Err(error) => ui::show_dialog(&app_ui.window, false, error.cause())
-                }
+                    Err(error) => {
+                        ui::show_dialog(&app_ui.window, false, error.cause());
+                        false
+                    }
+                };
+
+                // If we succeed...
                 if success {
-                    // If saved, we reset the title to unmodified.
+
+                    // Set the mod as "Not modified".
                     set_modified(false, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
+
+                    // Update the TreeView to reflect the possible PackFile name change.
                     ui::update_tree_view_expand_path(
                         &app_ui.folder_tree_store,
                         &*pack_file_decoded.borrow(),
                         &app_ui.folder_tree_selection,
                         &app_ui.folder_tree_view,
-                        false
+                        true
                     );
+
+                    // Set the current "Operational Mode" to Normal, just in case "MyMod" is the current one.
+                    disable_my_mod_mode(&app_ui, mode.clone());
                 }
-
             }
         }
-
-        // If the PackFile has a path, we just encode it and save it into that path.
-        else {
-            let mut success = false;
-            match packfile::save_packfile(&mut *pack_file_decoded.borrow_mut(), pack_file_path) {
-                Ok(result) => {
-                    success = true;
-                    ui::show_dialog(&app_ui.window, true, result);
-                },
-                Err(error) => ui::show_dialog(&app_ui.window, false, error.cause())
-            }
-            if success {
-                // If saved, we reset the title to unmodified.
-                set_modified(false, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
-            }
-        }
-    }));
-
-
-    // When we hit the "Save PackFile as" button.
-    app_ui.menu_bar_save_packfile_as.connect_activate(clone!(
-        game_selected,
-        app_ui,
-        mode,
-        pack_file_decoded => move |_,_| {
-
-        let file_chooser_save_packfile = FileChooserNative::new(
-            "Save PackFile...",
-            &app_ui.window,
-            FileChooserAction::Save,
-            "Save",
-            "Cancel"
-        );
-
-        // If we are saving an existing PackFile with another name, we start in his current path.
-        if pack_file_decoded.borrow().pack_file_extra_data.file_path.is_file() {
-            file_chooser_save_packfile.set_filename(&pack_file_decoded.borrow().pack_file_extra_data.file_path);
-        }
-
-        // In case we have a default path for the game selected, we use it as base path for saving files.
-        else if let Some(ref path) = game_selected.borrow().game_data_path {
-            file_chooser_save_packfile.set_current_name(&pack_file_decoded.borrow().pack_file_extra_data.file_name);
-
-            // We check it actually exists before setting it.
-            if path.is_dir() {
-                file_chooser_save_packfile.set_current_folder(path);
-            }
-        }
-
-        if file_chooser_save_packfile.run() == gtk_response_accept {
-            let mut success = false;
-            match packfile::save_packfile(
-               &mut *pack_file_decoded.borrow_mut(),
-               Some(file_chooser_save_packfile.get_filename().expect("Couldn't open file"))) {
-                    Ok(result) => {
-                        success = true;
-                        ui::show_dialog(&app_ui.window, true, result);
-                    },
-                    Err(error) => ui::show_dialog(&app_ui.window, false, error.cause())
-            }
-            if success {
-                set_modified(false, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
-                ui::update_tree_view_expand_path(
-                    &app_ui.folder_tree_store,
-                    &*pack_file_decoded.borrow(),
-                    &app_ui.folder_tree_selection,
-                    &app_ui.folder_tree_view,
-                    false
-                );
-
-                // If we save the mod as another, we are no longer using "MyMod".
-                *mode.borrow_mut() = Mode::Normal;
-
-                // Disable the controls for "MyMod".
-                app_ui.menu_bar_my_mod_delete.set_enabled(false);
-                app_ui.menu_bar_my_mod_install.set_enabled(false);
-                app_ui.menu_bar_my_mod_uninstall.set_enabled(false);
-            }
-        }
-    }));
+    ));
 
     // When changing the type of the open PackFile.
     app_ui.menu_bar_change_packfile_type.connect_activate(clone!(
@@ -4737,6 +4717,22 @@ fn generate_dependency_pack(
         },
         None => ui::show_dialog(&app_ui.window, false, "Error: data path of the game not found.")
     }
+}
+
+/// This function is used to "Disable MyMod". It not only sets the "Operational Mode" to `Normal`,
+/// but it also takes care of disabling all the signals related with the "MyMod" Mode.
+fn disable_my_mod_mode(
+    app_ui: &AppUI,
+    mode: Rc<RefCell<Mode>>,
+) {
+
+    // Set the current mode to `Normal`.
+    *mode.borrow_mut() = Mode::Normal;
+
+    // Disable all "MyMod" related actions, except "New MyMod".
+    app_ui.menu_bar_my_mod_delete.set_enabled(false);
+    app_ui.menu_bar_my_mod_install.set_enabled(false);
+    app_ui.menu_bar_my_mod_uninstall.set_enabled(false);
 }
 
 /// Main function.
