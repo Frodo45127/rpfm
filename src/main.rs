@@ -494,9 +494,6 @@ fn build_ui(application: &Application) {
             // If the current PackFile has been changed in any way, we pop up the "Are you sure?" message.
             if ui::are_you_sure(&app_ui.window, pack_file_decoded.borrow().pack_file_extra_data.is_modified, false) {
 
-                // We deactive all "Special Stuff" actions.
-                disable_special_stuff(&app_ui);
-
                 // Get the ID for the new PackFile.
                 let pack_file_id = supported_games.borrow().iter().filter(|x| x.folder_name == game_selected.borrow().game).map(|x| x.id.to_owned()).collect::<String>();
 
@@ -510,7 +507,7 @@ fn build_ui(application: &Application) {
                 set_modified(false, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
 
                 // Enable the actions available for the PackFile from the `MenuBar`.
-                enable_packfile_actions(&app_ui, game_selected.clone());
+                enable_packfile_actions(&app_ui, game_selected.clone(), true);
 
                 // Set the current "Operational Mode" to Normal, as this is a "New" mod.
                 set_my_mod_mode(&app_ui, mode.clone(), None);
@@ -940,9 +937,6 @@ fn build_ui(application: &Application) {
                     // Get the PackFile name.
                     let full_mod_name = format!("{}.pack", mod_name);
 
-                    // We deactive all "Special Stuff" actions.
-                    disable_special_stuff(&app_ui);
-
                     // Change the `GameSelected` with the one we have chosen for the new "MyMod".
                     let new_mod_game = &*new_mod_stuff.borrow().my_mod_new_game_list_combo.get_active_id().unwrap().to_owned();
                     app_ui.menu_bar_change_game_selected.activate(Some(&new_mod_game.to_variant()));
@@ -960,7 +954,7 @@ fn build_ui(application: &Application) {
                     set_modified(false, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
 
                     // Enable the actions available for the PackFile from the `MenuBar`.
-                    enable_packfile_actions(&app_ui, game_selected.clone());
+                    enable_packfile_actions(&app_ui, game_selected.clone(), true);
 
                     // Get his new path from the base "MyMod" path + `new_mod_game`.
                     let mut my_mod_path = settings.borrow().paths.my_mods_base_path.clone().unwrap();
@@ -1058,14 +1052,17 @@ fn build_ui(application: &Application) {
             // This will delete stuff from disk, so we pop up the "Are you sure?" message to avoid accidents.
             if ui::are_you_sure(&app_ui.window, true, true) {
 
-                // We can't change `my_mod_selected` while it's borrowed, so we need to set this to true
-                // if we deleted the current "MyMod", and deal with changing it after ending the borrow.
-                let my_mod_selected_deleted;
+                // We want to keep our "MyMod" name for the success message, so we store it here.
                 let old_mod_name: String;
 
-                // If we have a "MyMod" selected, and the "MyMod" path is configured...
-                match *mode.borrow() {
+                // If we have a "MyMod" selected...
+                let mod_deleted = match *mode.borrow() {
                     Mode::MyMod {ref game_folder_name, ref mod_name} => {
+
+                        // We save the name of the PackFile for later use.
+                        old_mod_name = mod_name.to_owned();
+
+                        // And the "MyMod" path is configured...
                         if let Some(ref my_mods_base_path) = settings.borrow().paths.my_mods_base_path {
 
                             // We get his path.
@@ -1075,59 +1072,58 @@ fn build_ui(application: &Application) {
 
                             // We check that path exists.
                             if !my_mod_path.is_file() {
-                                return ui::show_dialog(&app_ui.window, false, "PackFile File doesn't exist.");
+                                return ui::show_dialog(&app_ui.window, false, "PackFile doesn't exist.");
                             }
 
-                            // And we delete it.
+                            // And we delete that PackFile.
                             if let Err(error) = remove_file(&my_mod_path).map_err(|error| Error::from(error)) {
                                 return ui::show_dialog(&app_ui.window, false, error.cause());
                             }
 
-                            my_mod_selected_deleted = true;
-                            old_mod_name = mod_name.to_owned();
-
-                            // Now we try to delete his asset folder.
-                            let mut asset_folder = mod_name.to_owned();
-                            asset_folder.pop();
-                            asset_folder.pop();
-                            asset_folder.pop();
-                            asset_folder.pop();
-                            asset_folder.pop();
-                            my_mod_path.pop();
-                            my_mod_path.push(asset_folder);
+                            // Now we get his asset folder.
+                            let mut my_mod_assets_path = my_mod_path.clone();
+                            my_mod_assets_path.pop();
+                            my_mod_assets_path.push(&my_mod_path.file_stem().unwrap().to_string_lossy().as_ref().to_owned());
 
                             // We check that path exists. This is optional, so it should allow the deletion
                             // process to continue with a warning.
-                            if !my_mod_path.is_dir() {
+                            if !my_mod_assets_path.is_dir() {
                                 ui::show_dialog(&app_ui.window, false, "Mod deleted, but his assets folder hasn't been found.");
                             }
 
-                            // And we delete it if it passed the test before.
-                            else if let Err(error) = remove_dir_all(&my_mod_path).map_err(|error| Error::from(error)) {
+                            // If the assets folder exists, we try to delete it.
+                            else if let Err(error) = remove_dir_all(&my_mod_assets_path).map_err(|error| Error::from(error)) {
                                 return ui::show_dialog(&app_ui.window, false, error.cause());
                             }
 
+                            // We return true, as we have delete the files of the "MyMod".
+                            true
                         }
+
+                        // If the "MyMod" path is not configured, return an error.
                         else {
                             return ui::show_dialog(&app_ui.window, false, "MyMod base path not configured.");
                         }
                     }
+
+                    // If we don't have a "MyMod" selected, return an error.
                     Mode::Normal => return ui::show_dialog(&app_ui.window, false, "MyMod not selected."),
-                }
+                };
 
-                // If we deleted it, we allow chaos to form below.
-                if my_mod_selected_deleted {
+                // If we deleted the "MyMod", we allow chaos to form below.
+                if mod_deleted {
 
-                    // Set the selected mod to None.
-                    *mode.borrow_mut() = Mode::Normal;
-
-                    // Disable the controls for "MyMod".
-                    app_ui.menu_bar_my_mod_delete.set_enabled(false);
-                    app_ui.menu_bar_my_mod_install.set_enabled(false);
-                    app_ui.menu_bar_my_mod_uninstall.set_enabled(false);
+                    // Set the current "Operational Mode" to `Normal`.
+                    set_my_mod_mode(&app_ui, mode.clone(), None);
 
                     // Replace the open PackFile with a dummy one, like during boot.
                     *pack_file_decoded.borrow_mut() = PackFile::new();
+
+                    // Disable the actions available for the PackFile from the `MenuBar`.
+                    enable_packfile_actions(&app_ui, game_selected.clone(), false);
+
+                    // Set the dummy mod as "Not modified".
+                    set_modified(false, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
 
                     // Clear the TreeView.
                     app_ui.folder_tree_store.clear();
@@ -1145,6 +1141,7 @@ fn build_ui(application: &Application) {
                         &rpfm_path
                     );
 
+                    // Show the "MyMod" deleted Dialog.
                     ui::show_dialog(&app_ui.window, true, format!("MyMod \"{}\" deleted.", old_mod_name));
                 }
             }
@@ -1155,50 +1152,54 @@ fn build_ui(application: &Application) {
     app_ui.menu_bar_my_mod_install.connect_activate(clone!(
         app_ui,
         mode,
+        game_selected,
         settings => move |_,_| {
 
             // Depending on our current "Mode", we choose what to do.
             match *mode.borrow() {
+
+                // If we have a "MyMod" selected...
                 Mode::MyMod {ref game_folder_name, ref mod_name} => {
 
+                    // And the "MyMod" path is configured...
                     if let Some(ref my_mods_base_path) = settings.borrow().paths.my_mods_base_path {
 
-                        // Get the game_path for the mod.
-                        let game_path = settings.borrow().paths.game_paths.iter().filter(|x| &x.game == game_folder_name).map(|x| x.path.clone()).collect::<Option<PathBuf>>();
+                        // Get the `game_data_path` of the game.
+                        let game_data_path = game_selected.borrow().game_data_path.clone();
 
-                        // If the game_path is configured.
-                        if let Some(game_path) = game_path {
+                        // If we have a `game_data_path` for the current `GameSelected`...
+                        if let Some(mut game_data_path) = game_data_path {
 
-                            // We get his original path.
+                            // We get the "MyMod"s PackFile path.
                             let mut my_mod_path = my_mods_base_path.to_path_buf();
-                            my_mod_path.push(game_folder_name.to_owned());
-                            my_mod_path.push(mod_name.to_owned());
+                            my_mod_path.push(&game_folder_name);
+                            my_mod_path.push(&mod_name);
 
-                            // We check that path exists.
+                            // We check that the "MyMod"s PackFile exists.
                             if !my_mod_path.is_file() {
-                                return ui::show_dialog(&app_ui.window, false, "Source PackFile doesn't exist.");
+                                return ui::show_dialog(&app_ui.window, false, "PackFile doesn't exist.");
                             }
 
-                            // And his destination path.
-                            let mut game_path = game_path.to_path_buf();
-                            game_path.push("data");
-
-                            // We check that path exists.
-                            if !my_mod_path.is_dir() {
-                                return ui::show_dialog(&app_ui.window, false, "Destination folder (../data) doesn't exist. You sure you configured the right folder for the game?");
+                            // We check that the destination path exists.
+                            if !game_data_path.is_dir() {
+                                return ui::show_dialog(&app_ui.window, false, "Destination folder (..xxx/data) doesn't exist. You sure you configured the right folder for the game?");
                             }
 
-                            // And his destination file.
-                            game_path.push(mod_name.to_owned());
+                            // Get the destination path for the PackFile with the PackFile included.
+                            game_data_path.push(&mod_name);
 
-                            // And copy it to the destination.
-                            if let Err(error) = copy(my_mod_path, game_path).map_err(|error| Error::from(error)) {
+                            // And copy the PackFile to his destination. If the copy fails, return an error.
+                            if let Err(error) = copy(my_mod_path, game_data_path).map_err(|error| Error::from(error)) {
                                 return ui::show_dialog(&app_ui.window, false, error.cause());
                             }
                         }
+
+                        // If we don't have a `game_data_path` configured for the current `GameSelected`...
                         else {
                             return ui::show_dialog(&app_ui.window, false, "Game folder path not configured.");
                         }
+
+                    // If the "MyMod" path is not configured, return an error.
                     }
                     else {
                         ui::show_dialog(&app_ui.window, false, "MyMod base path not configured.");
@@ -1215,38 +1216,45 @@ fn build_ui(application: &Application) {
     app_ui.menu_bar_my_mod_uninstall.connect_activate(clone!(
         app_ui,
         mode,
-        settings => move |_,_| {
+        game_selected => move |_,_| {
 
             // Depending on our current "Mode", we choose what to do.
             match *mode.borrow() {
-                Mode::MyMod {ref game_folder_name, ref mod_name} => {
 
-                    // Get the game_path for the mod.
-                    let game_path = settings.borrow().paths.game_paths.iter().filter(|x| &x.game == game_folder_name).map(|x| x.path.clone()).collect::<Option<PathBuf>>();
+                // If we have a "MyMod" selected...
+                Mode::MyMod {game_folder_name: _, ref mod_name} => {
 
-                    // If the game_path is configured.
-                    if let Some(game_path) = game_path {
+                    // Get the `game_data_path` of the game.
+                    let game_data_path = game_selected.borrow().game_data_path.clone();
 
-                        // And his destination path.
-                        let mut installed_mod_path = game_path.to_path_buf();
-                        installed_mod_path.push("data");
-                        installed_mod_path.push(mod_name.to_owned());
+                    // If we have a `game_data_path` for the current `GameSelected`...
+                    if let Some(mut game_data_path) = game_data_path {
 
-                        // We check that path exists.
-                        if !installed_mod_path.is_file() {
-                            return ui::show_dialog(&app_ui.window, false, "The currently selected mod is not installed");
+                        // Get the destination path for the PackFile with the PackFile included.
+                        game_data_path.push(&mod_name);
+
+                        // We check that the "MyMod" is actually installed in the provided path.
+                        if !game_data_path.is_file() {
+                            return ui::show_dialog(&app_ui.window, false, "The currently selected \"MyMod\" is not installed.");
                         }
+
+                        // If the "MyMod" is installed...
                         else {
-                            // And remove the mod from the data folder of the game.
-                            if let Err(error) = remove_file(installed_mod_path).map_err(|error| Error::from(error)) {
+
+                            // We remove it. If there is a problem deleting it, return an error dialog.
+                            if let Err(error) = remove_file(game_data_path).map_err(|error| Error::from(error)) {
                                 return ui::show_dialog(&app_ui.window, false, error.cause());
                             }
                         }
                     }
+
+                    // If we don't have a `game_data_path` configured for the current `GameSelected`...
                     else {
                         ui::show_dialog(&app_ui.window, false, "Game folder path not configured.");
                     }
                 }
+
+                // If we have no MyMod selected, return an error.
                 Mode::Normal => ui::show_dialog(&app_ui.window, false, "MyMod not selected."),
             }
         }
@@ -4768,37 +4776,40 @@ fn set_my_mod_mode(
     }
 }
 
-/// This function disables all actions in the "Special Stuff" submenu. Usefull for when we want to
-/// change the game selected for a mod.
-fn disable_special_stuff(app_ui: &AppUI) {
+/// This function enables or disables the actions from the `MenuBar` needed when we open a PackFile.
+/// NOTE: To disable the "Special Stuff" actions, we use `disable`
+fn enable_packfile_actions(app_ui: &AppUI, game_selected: Rc<RefCell<GameSelected>>, enable: bool) {
 
-    // Warhammer 2 actions...
-    app_ui.menu_bar_generate_dependency_pack_wh2.set_enabled(false);
-    app_ui.menu_bar_patch_siege_ai_wh2.set_enabled(false);
+    // Enable or disable the actions from "PackFile" Submenu.
+    app_ui.menu_bar_save_packfile.set_enabled(enable);
+    app_ui.menu_bar_save_packfile_as.set_enabled(enable);
+    app_ui.menu_bar_change_packfile_type.set_enabled(enable);
 
-    // Warhammer actions...
-    app_ui.menu_bar_generate_dependency_pack_wh.set_enabled(false);
-    app_ui.menu_bar_patch_siege_ai_wh.set_enabled(false);
-}
+    // Only if we are enabling...
+    if enable {
 
-/// This function enables the actions from the `MenuBar` needed when we open a PackFile.
-fn enable_packfile_actions(app_ui: &AppUI, game_selected: Rc<RefCell<GameSelected>>) {
+        // Enable the actions from the "Special Stuff" Submenu.
+        match &*game_selected.borrow().game {
+            "warhammer_2" => {
+                app_ui.menu_bar_generate_dependency_pack_wh2.set_enabled(true);
+                app_ui.menu_bar_patch_siege_ai_wh2.set_enabled(true);
+            },
+            "warhammer" | _ => {
+                app_ui.menu_bar_generate_dependency_pack_wh.set_enabled(true);
+                app_ui.menu_bar_patch_siege_ai_wh.set_enabled(true);
+            },
+        }
+    }
 
-    // Enable the actions from "PackFile" Submenu.
-    app_ui.menu_bar_save_packfile.set_enabled(true);
-    app_ui.menu_bar_save_packfile_as.set_enabled(true);
-    app_ui.menu_bar_change_packfile_type.set_enabled(true);
+    // If we are disabling...
+    else {
+        // Disable Warhammer 2 actions...
+        app_ui.menu_bar_generate_dependency_pack_wh2.set_enabled(false);
+        app_ui.menu_bar_patch_siege_ai_wh2.set_enabled(false);
 
-    // Enable the actions from the "Special Stuff" Submenu.
-    match &*game_selected.borrow().game {
-        "warhammer_2" => {
-            app_ui.menu_bar_generate_dependency_pack_wh2.set_enabled(true);
-            app_ui.menu_bar_patch_siege_ai_wh2.set_enabled(true);
-        },
-        "warhammer" | _ => {
-            app_ui.menu_bar_generate_dependency_pack_wh.set_enabled(true);
-            app_ui.menu_bar_patch_siege_ai_wh.set_enabled(true);
-        },
+        // Disable actions...
+        app_ui.menu_bar_generate_dependency_pack_wh.set_enabled(false);
+        app_ui.menu_bar_patch_siege_ai_wh.set_enabled(false);
     }
 }
 
