@@ -448,9 +448,9 @@ fn build_ui(application: &Application) {
                 // If we got confirmation...
                 application.quit()
             }
-
-        Inhibit(true)
-    }));
+            Inhibit(true)
+        }
+    ));
 
     //By default, these actions are disabled until a PackFile is created or opened.
     app_ui.menu_bar_save_packfile.set_enabled(false);
@@ -481,11 +481,12 @@ fn build_ui(application: &Application) {
     --------------------------------------------------------
     */
 
-    // When we hit the "New PackFile" button.
+    // When we hit the "New PackFile" button or use his shortcut.
     app_ui.menu_bar_new_packfile.connect_activate(clone!(
         app_ui,
         schema,
         game_selected,
+        supported_games,
         rpfm_path,
         mode,
         pack_file_decoded => move |_,_| {
@@ -493,43 +494,26 @@ fn build_ui(application: &Application) {
             // If the current PackFile has been changed in any way, we pop up the "Are you sure?" message.
             if ui::are_you_sure(&app_ui.window, pack_file_decoded.borrow().pack_file_extra_data.is_modified, false) {
 
-                // We deactive these menus, and only activate the one corresponding to our game.
-                app_ui.menu_bar_generate_dependency_pack_wh2.set_enabled(false);
-                app_ui.menu_bar_patch_siege_ai_wh2.set_enabled(false);
-                app_ui.menu_bar_generate_dependency_pack_wh.set_enabled(false);
-                app_ui.menu_bar_patch_siege_ai_wh.set_enabled(false);
+                // We deactive all "Special Stuff" actions.
+                disable_special_stuff(&app_ui);
 
-                // We just create a new PackFile with a name, set his type to Mod and update the
-                // TreeView to show it.
-                let packfile_id = match &*game_selected.borrow().game {
-                    "warhammer_2" => {
-                        app_ui.menu_bar_generate_dependency_pack_wh2.set_enabled(true);
-                        app_ui.menu_bar_patch_siege_ai_wh2.set_enabled(true);
-                        "PFH5"
-                    },
-                    "warhammer" | _ => {
-                        app_ui.menu_bar_generate_dependency_pack_wh.set_enabled(true);
-                        app_ui.menu_bar_patch_siege_ai_wh.set_enabled(true);
-                        "PFH4"
-                    },
-                };
+                // Get the ID for the new PackFile.
+                let pack_file_id = supported_games.borrow().iter().filter(|x| x.folder_name == game_selected.borrow().game).map(|x| x.id.to_owned()).collect::<String>();
 
-                *pack_file_decoded.borrow_mut() = packfile::new_packfile("unknown.pack".to_string(), packfile_id);
+                // Create the new PackFile.
+                *pack_file_decoded.borrow_mut() = packfile::new_packfile("unknown.pack".to_string(), &pack_file_id);
+
+                // Load the data from the PackFile into the TreeView.
                 ui::update_tree_view(&app_ui.folder_tree_store, &*pack_file_decoded.borrow());
+
+                // Set the new mod as "Not modified".
                 set_modified(false, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
 
-                // Disable selected mod, if we are using it.
-                *mode.borrow_mut() = Mode::Normal;
+                // Enable the actions available for the PackFile from the `MenuBar`.
+                enable_packfile_actions(&app_ui, game_selected.clone());
 
-                // Enable the PackFile controls.
-                app_ui.menu_bar_save_packfile.set_enabled(true);
-                app_ui.menu_bar_save_packfile_as.set_enabled(true);
-                app_ui.menu_bar_change_packfile_type.set_enabled(true);
-
-                // Disable the controls for "MyMod".
-                app_ui.menu_bar_my_mod_delete.set_enabled(false);
-                app_ui.menu_bar_my_mod_install.set_enabled(false);
-                app_ui.menu_bar_my_mod_uninstall.set_enabled(false);
+                // Set the current "Operational Mode" to Normal, as this is a "New" mod.
+                disable_my_mod_mode(&app_ui, mode.clone());
 
                 // Try to load the Schema for this PackFile's game.
                 *schema.borrow_mut() = Schema::load(&rpfm_path, &*pack_file_decoded.borrow().pack_file_header.pack_file_id).ok();
@@ -560,6 +544,7 @@ fn build_ui(application: &Application) {
                     "Cancel"
                 );
 
+                // We only want to open PackFiles, so only show them.
                 file_chooser_filter_packfile(&file_chooser_open_packfile, "*.pack");
 
                 // In case we have a default path for the game selected, we use it as base path for opening files.
@@ -571,15 +556,12 @@ fn build_ui(application: &Application) {
                     }
                 }
 
-                // When we select the file to open, we get his path, open it and, if there has been no
-                // errors, decode it, update the TreeView to show it and check his type for the Change PackFile
-                // Type option in the File menu.
+                // If we hit "Accept"...
                 if file_chooser_open_packfile.run() == gtk_response_accept {
-                    let pack_file_path = file_chooser_open_packfile.get_filename().unwrap_or(PathBuf::from("Path Error"));
 
                     // Open the PackFile (or die trying it!).
                     if let Err(error) = open_packfile(
-                        pack_file_path,
+                        file_chooser_open_packfile.get_filename().unwrap(),
                         &rpfm_path,
                         &app_ui,
                         &settings.borrow(),
@@ -712,52 +694,53 @@ fn build_ui(application: &Application) {
         }
     ));
 
-    // When changing the type of the open PackFile.
+    // When changing the type of the opened PackFile.
     app_ui.menu_bar_change_packfile_type.connect_activate(clone!(
         app_ui,
         pack_file_decoded => move |menu_bar_change_packfile_type, selected_type| {
-        if let Some(state) = selected_type.clone() {
-            let new_state: Option<String> = state.get();
-            match &*new_state.unwrap() {
-                "boot" => {
-                    if pack_file_decoded.borrow().pack_file_header.pack_file_type != 0 {
-                        pack_file_decoded.borrow_mut().pack_file_header.pack_file_type = 0;
-                        menu_bar_change_packfile_type.change_state(&"boot".to_variant());
-                        set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
+            if let Some(state) = selected_type.clone() {
+                let new_state: Option<String> = state.get();
+                match &*new_state.unwrap() {
+                    "boot" => {
+                        if pack_file_decoded.borrow().pack_file_header.pack_file_type != 0 {
+                            pack_file_decoded.borrow_mut().pack_file_header.pack_file_type = 0;
+                            menu_bar_change_packfile_type.change_state(&"boot".to_variant());
+                            set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
+                        }
                     }
-                }
-                "release" => {
-                    if pack_file_decoded.borrow().pack_file_header.pack_file_type != 1 {
-                        pack_file_decoded.borrow_mut().pack_file_header.pack_file_type = 1;
-                        menu_bar_change_packfile_type.change_state(&"release".to_variant());
-                        set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
+                    "release" => {
+                        if pack_file_decoded.borrow().pack_file_header.pack_file_type != 1 {
+                            pack_file_decoded.borrow_mut().pack_file_header.pack_file_type = 1;
+                            menu_bar_change_packfile_type.change_state(&"release".to_variant());
+                            set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
+                        }
                     }
-                }
-                "patch" => {
-                    if pack_file_decoded.borrow().pack_file_header.pack_file_type != 2 {
-                        pack_file_decoded.borrow_mut().pack_file_header.pack_file_type = 2;
-                        menu_bar_change_packfile_type.change_state(&"patch".to_variant());
-                        set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
+                    "patch" => {
+                        if pack_file_decoded.borrow().pack_file_header.pack_file_type != 2 {
+                            pack_file_decoded.borrow_mut().pack_file_header.pack_file_type = 2;
+                            menu_bar_change_packfile_type.change_state(&"patch".to_variant());
+                            set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
+                        }
                     }
-                }
-                "mod" => {
-                    if pack_file_decoded.borrow().pack_file_header.pack_file_type != 3 {
-                        pack_file_decoded.borrow_mut().pack_file_header.pack_file_type = 3;
-                        menu_bar_change_packfile_type.change_state(&"mod".to_variant());
-                        set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
+                    "mod" => {
+                        if pack_file_decoded.borrow().pack_file_header.pack_file_type != 3 {
+                            pack_file_decoded.borrow_mut().pack_file_header.pack_file_type = 3;
+                            menu_bar_change_packfile_type.change_state(&"mod".to_variant());
+                            set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
+                        }
                     }
-                }
-                "movie" => {
-                    if pack_file_decoded.borrow().pack_file_header.pack_file_type != 4 {
-                        pack_file_decoded.borrow_mut().pack_file_header.pack_file_type = 4;
-                        menu_bar_change_packfile_type.change_state(&"movie".to_variant());
-                        set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
+                    "movie" => {
+                        if pack_file_decoded.borrow().pack_file_header.pack_file_type != 4 {
+                            pack_file_decoded.borrow_mut().pack_file_header.pack_file_type = 4;
+                            menu_bar_change_packfile_type.change_state(&"movie".to_variant());
+                            set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
+                        }
                     }
+                    _ => ui::show_dialog(&app_ui.window, false, "PackFile Type not valid."),
                 }
-                _ => ui::show_dialog(&app_ui.window, false, "PackFile Type not valid."),
             }
         }
-    }));
+    ));
 
     // When we hit the "Preferences" button.
     app_ui.menu_bar_preferences.connect_activate(clone!(
@@ -771,104 +754,135 @@ fn build_ui(application: &Application) {
         application,
         schema => move |_,_| {
 
-        // We disable the button, so we can't start 2 settings windows at the same time.
-        app_ui.menu_bar_preferences.set_enabled(false);
+            // We disable the action, so we can't start 2 settings windows at the same time.
+            app_ui.menu_bar_preferences.set_enabled(false);
 
-        let settings_stuff = Rc::new(RefCell::new(ui::settings::SettingsWindow::create_settings_window(&application, &rpfm_path, &supported_games.borrow())));
-        settings_stuff.borrow().load_to_settings_window(&*settings.borrow());
+            // We create the "Settings Window" and load our current settings to it.
+            let settings_stuff = Rc::new(RefCell::new(SettingsWindow::create_settings_window(&application, &rpfm_path, &supported_games.borrow())));
+            settings_stuff.borrow().load_to_settings_window(&*settings.borrow());
 
-        // When we press the "Accept" button.
-        settings_stuff.borrow().settings_accept.connect_button_release_event(clone!(
-            pack_file_decoded,
-            app_ui,
-            settings_stuff,
-            settings,
-            game_selected,
-            supported_games,
-            rpfm_path,
-            schema,
-            mode,
-            application => move |_,_| {
-            let new_settings = settings_stuff.borrow().save_from_settings_window(&supported_games.borrow());
-            *settings.borrow_mut() = new_settings;
-            if let Err(error) = settings.borrow().save(&rpfm_path) {
-                ui::show_dialog(&app_ui.window, false, error.cause());
-            }
-            settings_stuff.borrow().settings_window.destroy();
-            app_ui.menu_bar_preferences.set_enabled(true);
+            // When we press the "Accept" button.
+            settings_stuff.borrow().settings_accept.connect_button_release_event(clone!(
+                pack_file_decoded,
+                app_ui,
+                settings_stuff,
+                settings,
+                game_selected,
+                supported_games,
+                rpfm_path,
+                schema,
+                mode,
+                application => move |_,_| {
 
-            // If we change any setting, disable the selected mod. We have currently no proper way to check
-            // if the "My mod" path has changed, so we disable the selected "My Mod" when changing any setting.
-            *mode.borrow_mut() = Mode::Normal;
+                    // Save a copy of our old `Settings` to use in the checks below.
+                    let old_settings = settings.borrow().clone();
 
-            // Reset the game selected, just in case we changed it's path.
-            match &*pack_file_decoded.borrow().pack_file_header.pack_file_id {
-                "PFH5" => {
-                    game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.game_paths.iter().filter(|x| &x.game == "warhammer_2").map(|x| x.path.clone()).collect::<Option<PathBuf>>());
-                    app_ui.menu_bar_change_game_selected.change_state(&"warhammer_2".to_variant());
+                    // Save the current `Settings` from the "Settings Window" as our new `Settings`.
+                    *settings.borrow_mut() = settings_stuff.borrow().save_from_settings_window(&supported_games.borrow());
+
+                    // Save our new `Settings` to a settings file, and report in case of error.
+                    if let Err(error) = settings.borrow().save(&rpfm_path) {
+                        ui::show_dialog(&app_ui.window, false, error.cause());
+                    }
+
+                    // Destroy the "Settings Window".
+                    settings_stuff.borrow().settings_window.destroy();
+
+                    // Restore the action, so we can open another "Settings Window" again.
+                    app_ui.menu_bar_preferences.set_enabled(true);
+
+                    // If we changed the "MyMod's Folder" path...
+                    if settings.borrow().paths.my_mods_base_path != old_settings.paths.my_mods_base_path {
+
+                        // And we have currently opened a "MyMod"...
+                        match *mode.borrow() {
+                            Mode::MyMod {mod_name: _, game_folder_name: _} => {
+
+                                // We disable the "MyMod" mode, but leave the PackFile open, so the user doesn't lose any unsaved change.
+                                disable_my_mod_mode(&app_ui, mode.clone());
+
+                                // Then recreate the "MyMod" submenu.
+                                build_my_mod_menu(
+                                    &application,
+                                    &app_ui,
+                                    &settings.borrow(),
+                                    mode.clone(),
+                                    schema.clone(),
+                                    game_selected.clone(),
+                                    &supported_games.borrow(),
+                                    pack_file_decoded.clone(),
+                                    &rpfm_path
+                                );
+                            }
+                            _ => {}
+                        }
+                    }
+
+                    // If we have changed the path of any of the games, and that game is the current `GameSelected`,
+                    // update the current `GameSelected`.
+                    let new_game_paths = settings.borrow().paths.game_paths.clone();
+                    let game_paths = new_game_paths.iter().zip(old_settings.paths.game_paths.iter());
+                    let changed_paths_games = game_paths.filter(|x| x.0.path != x.1.path).map(|x| x.0.game.to_owned()).collect::<Vec<String>>();
+
+                    // If our current `GameSelected` is in the `changed_paths_games` list...
+                    if changed_paths_games.contains(&game_selected.borrow().game) {
+
+                        // Re-select the same game, so `GameSelected` update his paths.
+                        let new_game_selected = game_selected.borrow().game.to_owned();
+                        app_ui.menu_bar_change_game_selected.activate(Some(&new_game_selected.to_variant()));
+                    }
+                    Inhibit(false)
                 }
-                "PFH4" | _ => {
-                    game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.game_paths.iter().filter(|x| &x.game == "warhammer").map(|x| x.path.clone()).collect::<Option<PathBuf>>());
-                    app_ui.menu_bar_change_game_selected.change_state(&"warhammer".to_variant());
+            ));
+
+            // When we press the "Cancel" button, we close the window.
+            settings_stuff.borrow().settings_cancel.connect_button_release_event(clone!(
+                settings_stuff,
+                settings,
+                rpfm_path,
+                supported_games,
+                app_ui => move |_,_| {
+
+                    // Destroy the "Settings Window".
+                    settings_stuff.borrow().settings_window.destroy();
+
+                    // Restore the action, so we can open another "Settings Window" again.
+                    app_ui.menu_bar_preferences.set_enabled(true);
+
+                    // Reload the old `Settings` from the "Settings File" so, if we have changed anything, it's undone.
+                    *settings.borrow_mut() = Settings::load(&rpfm_path, &supported_games.borrow()).unwrap_or_else(|_|Settings::new(&supported_games.borrow()));
+
+                    // Reload the GTK-Related settings.
+                    load_gtk_settings(&app_ui.window, &settings.borrow());
+
+                    Inhibit(false)
                 }
-            }
+            ));
 
-            // Disable the controls for "MyMod".
-            app_ui.menu_bar_my_mod_delete.set_enabled(false);
-            app_ui.menu_bar_my_mod_install.set_enabled(false);
-            app_ui.menu_bar_my_mod_uninstall.set_enabled(false);
+            // We catch the destroy event to restore the "Preferences" button.
+            settings_stuff.borrow().settings_window.connect_delete_event(clone!(
+                settings,
+                rpfm_path,
+                supported_games,
+                app_ui => move |settings_window, _| {
 
-            // Recreate the "MyMod" menu (Atrocity incoming).
-            build_my_mod_menu(
-                &application,
-                &app_ui,
-                &settings.borrow(),
-                mode.clone(),
-                schema.clone(),
-                game_selected.clone(),
-                &supported_games.borrow(),
-                pack_file_decoded.clone(),
-                &rpfm_path
-            );
+                    // Destroy the "Settings Window".
+                    settings_window.destroy();
 
-            Inhibit(false)
-        }));
+                    // Restore the action, so we can open another "Settings Window" again.
+                    app_ui.menu_bar_preferences.set_enabled(true);
 
-        // When we press the "Cancel" button, we close the window.
-        settings_stuff.borrow().settings_cancel.connect_button_release_event(clone!(
-            settings_stuff,
-            settings,
-            rpfm_path,
-            supported_games,
-            app_ui => move |_,_| {
-                settings_stuff.borrow().settings_window.destroy();
-                app_ui.menu_bar_preferences.set_enabled(true);
+                    // Reload the old `Settings` from the "Settings File" so, if we have changed anything, it's undone.
+                    *settings.borrow_mut() = Settings::load(&rpfm_path, &supported_games.borrow()).unwrap_or_else(|_|Settings::new(&supported_games.borrow()));
 
-                // Reload the Settings from the file so, if we have changed anything, it's undone.
-                *settings.borrow_mut() = Settings::load(&rpfm_path, &supported_games.borrow()).unwrap_or_else(|_|Settings::new(&supported_games.borrow()));
-                load_gtk_settings(&app_ui.window, &settings.borrow());
+                    // Reload the GTK-Related settings.
+                    load_gtk_settings(&app_ui.window, &settings.borrow());
 
-                Inhibit(false)
-            }
-        ));
-
-        // We catch the destroy event to restore the "Preferences" button.
-        settings_stuff.borrow().settings_window.connect_delete_event(clone!(
-            settings,
-            rpfm_path,
-            supported_games,
-            app_ui => move |settings_window, _| {
-                settings_window.destroy();
-                app_ui.menu_bar_preferences.set_enabled(true);
-
-                // Reload the Settings from the file so, if we have changed anything, it's undone.
-                *settings.borrow_mut() = Settings::load(&rpfm_path, &supported_games.borrow()).unwrap_or_else(|_|Settings::new(&supported_games.borrow()));
-                load_gtk_settings(&app_ui.window, &settings.borrow());
-
-                Inhibit(false)
-            }
-        ));
-    }));
+                    Inhibit(false)
+                }
+            ));
+        }
+    ));
 
     // When we hit the "Quit" button.
     app_ui.menu_bar_quit.connect_activate(clone!(
@@ -4733,6 +4747,40 @@ fn disable_my_mod_mode(
     app_ui.menu_bar_my_mod_delete.set_enabled(false);
     app_ui.menu_bar_my_mod_install.set_enabled(false);
     app_ui.menu_bar_my_mod_uninstall.set_enabled(false);
+}
+
+/// This function disables all actions in the "Special Stuff" submenu. Usefull for when we want to
+/// change the game selected for a mod.
+fn disable_special_stuff(app_ui: &AppUI) {
+
+    // Warhammer 2 actions...
+    app_ui.menu_bar_generate_dependency_pack_wh2.set_enabled(false);
+    app_ui.menu_bar_patch_siege_ai_wh2.set_enabled(false);
+
+    // Warhammer actions...
+    app_ui.menu_bar_generate_dependency_pack_wh.set_enabled(false);
+    app_ui.menu_bar_patch_siege_ai_wh.set_enabled(false);
+}
+
+/// This function enables the actions from the `MenuBar` needed when we open a PackFile.
+fn enable_packfile_actions(app_ui: &AppUI, game_selected: Rc<RefCell<GameSelected>>) {
+
+    // Enable the actions from "PackFile" Submenu.
+    app_ui.menu_bar_save_packfile.set_enabled(true);
+    app_ui.menu_bar_save_packfile_as.set_enabled(true);
+    app_ui.menu_bar_change_packfile_type.set_enabled(true);
+
+    // Enable the actions from the "Special Stuff" Submenu.
+    match &*game_selected.borrow().game {
+        "warhammer_2" => {
+            app_ui.menu_bar_generate_dependency_pack_wh2.set_enabled(true);
+            app_ui.menu_bar_patch_siege_ai_wh2.set_enabled(true);
+        },
+        "warhammer" | _ => {
+            app_ui.menu_bar_generate_dependency_pack_wh.set_enabled(true);
+            app_ui.menu_bar_patch_siege_ai_wh.set_enabled(true);
+        },
+    }
 }
 
 /// Main function.

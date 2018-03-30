@@ -373,7 +373,7 @@ impl SettingsWindow {
         let mut settings = Settings::new(supported_games);
 
         // We get his game's folder, depending on the selected game.
-        settings.default_game = self.settings_game_list_combo.get_active_id().unwrap_or("Error. If you see this, pls report it.".to_owned());
+        settings.default_game = self.settings_game_list_combo.get_active_id().unwrap();
 
         // Get the "Check Updates on Start" setting.
         settings.check_updates_on_start = self.settings_extra_check_updates_on_start.get_active();

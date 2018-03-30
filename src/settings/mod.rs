@@ -12,10 +12,12 @@ use self::failure::Error;
 /// It's stores the following data:
 /// - `display_name`: This is the name it'll show up in the UI. For example, in a dropdown.
 /// - `folder_name`: This name is the name used for any internal operation. For example, for the MyMod stuff.
+/// - `id`: This is the ID used at the start of every PackFile for that game.
 #[derive(Clone, Debug)]
 pub struct GameInfo {
     pub display_name: String,
     pub folder_name: String,
+    pub id: String,
 }
 
 /// This struct hold every setting of the program, and it's the one that we are going to serialize.
@@ -43,6 +45,7 @@ pub struct GamePath {
 }
 
 /// This struct holds the data needed for the Game Selected.
+/// NOTE: `game` is in this format: `warhammer_2`.
 #[derive(Clone, Debug)]
 pub struct GameSelected {
     pub game: String,
@@ -65,6 +68,7 @@ impl GameInfo {
         let game_info = GameInfo {
             display_name: "Warhammer 2".to_owned(),
             folder_name: "warhammer_2".to_owned(),
+            id: "PFH5".to_owned(),
         };
 
         supported_games.push(game_info);
@@ -73,6 +77,7 @@ impl GameInfo {
         let game_info = GameInfo {
             display_name: "Warhammer".to_owned(),
             folder_name: "warhammer".to_owned(),
+            id: "PFH4".to_owned(),
         };
 
         supported_games.push(game_info);
