@@ -41,7 +41,7 @@ use gio::{
 use gtk::prelude::*;
 use gtk::{
     Builder, WindowPosition, ApplicationWindow, FileFilter, Grid,
-    TreeView, TreeSelection, TreeStore, MessageDialog, ScrolledWindow, Application,
+    TreeView, TreeSelection, TreeStore, ScrolledWindow, Application,
     CellRendererText, TreeViewColumn, Popover, Entry, Button, ListStore, ResponseType,
     ShortcutsWindow, ToVariant, Statusbar, FileChooserNative, FileChooserAction
 };
@@ -135,10 +135,6 @@ struct AppUI {
 
     // This is the box where all the PackedFile Views are created.
     packed_file_data_display: Grid,
-
-    // Informative dialogs.
-    error_dialog: MessageDialog,
-    success_dialog: MessageDialog,
 
     // Popover for renaming PackedFiles and folders.
     rename_popover: Popover,
@@ -242,10 +238,6 @@ fn build_ui(application: &Application) {
 
         // This is the box where all the PackedFile Views are created.
         packed_file_data_display: builder.get_object("gtk_packed_file_data_display").unwrap(),
-
-        // Informative dialogs.
-        error_dialog: builder.get_object("gtk_error_dialog").unwrap(),
-        success_dialog: builder.get_object("gtk_success_dialog").unwrap(),
 
         // Popover for renaming PackedFiles and folders.
         rename_popover: builder.get_object("gtk_rename_popover").unwrap(),
@@ -371,8 +363,8 @@ fn build_ui(application: &Application) {
         let assembly_kit_schemas_path: PathBuf = PathBuf::from("/home/frodo45127/schema_stuff/db_schemas/");
         let testing_tables_path: PathBuf = PathBuf::from("/home/frodo45127/schema_stuff/db_tables/");
         match import_schema(&assembly_kit_schemas_path, &testing_tables_path, &rpfm_path) {
-            Ok(_) => ui::show_dialog(&app_ui.success_dialog, format!("Success creating a new DB Schema file.")),
-            Err(error) => return ui::show_dialog(&app_ui.error_dialog, format!("Error while creating a new DB Schema file:\n{}", error.cause())),
+            Ok(_) => ui::show_dialog(&app_ui.window, true, "Schema successfully created."),
+            Err(error) => return ui::show_dialog(&app_ui.window, false, format!("Error while creating a new DB Schema file:\n{}", error.cause())),
         }
     }
 
@@ -596,7 +588,7 @@ fn build_ui(application: &Application) {
                         &mut game_selected.borrow_mut(),
                         (false, None),
                         &mut pack_file_decoded.borrow_mut()
-                    ) { ui::show_dialog(&app_ui.error_dialog, error.cause()) };
+                    ) { ui::show_dialog(&app_ui.window, false, error.cause()) };
                 }
             }
         }
@@ -641,9 +633,9 @@ fn build_ui(application: &Application) {
                 match packfile::save_packfile(&mut *pack_file_decoded.borrow_mut(), pack_file_path) {
                     Ok(result) => {
                         success = true;
-                        ui::show_dialog(&app_ui.success_dialog, result);
+                        ui::show_dialog(&app_ui.window, true, result);
                     },
-                    Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause())
+                    Err(error) => ui::show_dialog(&app_ui.window, false, error.cause())
                 }
                 if success {
                     // If saved, we reset the title to unmodified.
@@ -666,9 +658,9 @@ fn build_ui(application: &Application) {
             match packfile::save_packfile(&mut *pack_file_decoded.borrow_mut(), pack_file_path) {
                 Ok(result) => {
                     success = true;
-                    ui::show_dialog(&app_ui.success_dialog, result);
+                    ui::show_dialog(&app_ui.window, true, result);
                 },
-                Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause())
+                Err(error) => ui::show_dialog(&app_ui.window, false, error.cause())
             }
             if success {
                 // If saved, we reset the title to unmodified.
@@ -715,9 +707,9 @@ fn build_ui(application: &Application) {
                Some(file_chooser_save_packfile.get_filename().expect("Couldn't open file"))) {
                     Ok(result) => {
                         success = true;
-                        ui::show_dialog(&app_ui.success_dialog, result);
+                        ui::show_dialog(&app_ui.window, true, result);
                     },
-                    Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause())
+                    Err(error) => ui::show_dialog(&app_ui.window, false, error.cause())
             }
             if success {
                 set_modified(false, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
@@ -782,7 +774,7 @@ fn build_ui(application: &Application) {
                         set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
                     }
                 }
-                _ => ui::show_dialog(&app_ui.error_dialog, format_err!("PackFile Type not valid.")),
+                _ => ui::show_dialog(&app_ui.window, false, "PackFile Type not valid."),
             }
         }
     }));
@@ -820,7 +812,7 @@ fn build_ui(application: &Application) {
             let new_settings = settings_stuff.borrow().save_from_settings_window(&supported_games.borrow());
             *settings.borrow_mut() = new_settings;
             if let Err(error) = settings.borrow().save(&rpfm_path) {
-                ui::show_dialog(&app_ui.error_dialog, error.cause());
+                ui::show_dialog(&app_ui.window, false, error.cause());
             }
             settings_stuff.borrow().settings_window.destroy();
             app_ui.menu_bar_preferences.set_enabled(true);
@@ -1013,7 +1005,7 @@ fn build_ui(application: &Application) {
 
                 // Then we save it.
                 if let Err(error) = packfile::save_packfile(&mut pack_file_decoded.borrow_mut(), Some(my_mod_path)) {
-                    ui::show_dialog(&app_ui.error_dialog, error.cause());
+                    ui::show_dialog(&app_ui.window, false, error.cause());
                 }
 
                 // If there was no error while saving, we destroy the window and reenable the "New mod" button.
@@ -1097,16 +1089,15 @@ fn build_ui(application: &Application) {
                             let mut my_mod_path = my_mods_base_path.to_path_buf();
                             my_mod_path.push(&game_folder_name);
                             my_mod_path.push(&mod_name);
-                            println!("{:?}", my_mod_path);
 
                             // We check that path exists.
                             if !my_mod_path.is_file() {
-                                return ui::show_dialog(&app_ui.error_dialog, format_err!("Source PackFile doesn't exist."));
+                                return ui::show_dialog(&app_ui.window, false, "PackFile File doesn't exist.");
                             }
 
                             // And we delete it.
                             if let Err(error) = remove_file(&my_mod_path).map_err(|error| Error::from(error)) {
-                                return ui::show_dialog(&app_ui.error_dialog, error.cause());
+                                return ui::show_dialog(&app_ui.window, false, error.cause());
                             }
 
                             my_mod_selected_deleted = true;
@@ -1125,20 +1116,20 @@ fn build_ui(application: &Application) {
                             // We check that path exists. This is optional, so it should allow the deletion
                             // process to continue with a warning.
                             if !my_mod_path.is_dir() {
-                                ui::show_dialog(&app_ui.error_dialog, format_err!("Mod deleted, but his assets folder hasn't been found."));
+                                ui::show_dialog(&app_ui.window, false, "Mod deleted, but his assets folder hasn't been found.");
                             }
 
                             // And we delete it if it passed the test before.
                             else if let Err(error) = remove_dir_all(&my_mod_path).map_err(|error| Error::from(error)) {
-                                return ui::show_dialog(&app_ui.error_dialog, error.cause());
+                                return ui::show_dialog(&app_ui.window, false, error.cause());
                             }
 
                         }
                         else {
-                            return ui::show_dialog(&app_ui.error_dialog, format_err!("MyMod base path not configured."));
+                            return ui::show_dialog(&app_ui.window, false, "MyMod base path not configured.");
                         }
                     }
-                    Mode::Normal => return ui::show_dialog(&app_ui.error_dialog, format_err!("MyMod not selected.")),
+                    Mode::Normal => return ui::show_dialog(&app_ui.window, false, "MyMod not selected."),
                 }
 
                 // If we deleted it, we allow chaos to form below.
@@ -1171,7 +1162,7 @@ fn build_ui(application: &Application) {
                         &rpfm_path
                     );
 
-                    ui::show_dialog(&app_ui.success_dialog, format!("MyMod \"{}\" deleted.", old_mod_name));
+                    ui::show_dialog(&app_ui.window, true, format!("MyMod \"{}\" deleted.", old_mod_name));
                 }
             }
         }
@@ -1202,7 +1193,7 @@ fn build_ui(application: &Application) {
 
                             // We check that path exists.
                             if !my_mod_path.is_file() {
-                                return ui::show_dialog(&app_ui.error_dialog, format_err!("Source PackFile doesn't exist."));
+                                return ui::show_dialog(&app_ui.window, false, "Source PackFile doesn't exist.");
                             }
 
                             // And his destination path.
@@ -1211,7 +1202,7 @@ fn build_ui(application: &Application) {
 
                             // We check that path exists.
                             if !my_mod_path.is_dir() {
-                                return ui::show_dialog(&app_ui.error_dialog, format_err!("Destination folder (../data) doesn't exist. You sure you configured the right folder for the game?"));
+                                return ui::show_dialog(&app_ui.window, false, "Destination folder (../data) doesn't exist. You sure you configured the right folder for the game?");
                             }
 
                             // And his destination file.
@@ -1219,20 +1210,20 @@ fn build_ui(application: &Application) {
 
                             // And copy it to the destination.
                             if let Err(error) = copy(my_mod_path, game_path).map_err(|error| Error::from(error)) {
-                                return ui::show_dialog(&app_ui.error_dialog, error.cause());
+                                return ui::show_dialog(&app_ui.window, false, error.cause());
                             }
                         }
                         else {
-                            return ui::show_dialog(&app_ui.error_dialog, format_err!("Game folder path not configured."));
+                            return ui::show_dialog(&app_ui.window, false, "Game folder path not configured.");
                         }
                     }
                     else {
-                        ui::show_dialog(&app_ui.error_dialog, format_err!("MyMod base path not configured."));
+                        ui::show_dialog(&app_ui.window, false, "MyMod base path not configured.");
                     }
                 }
 
                 // If we have no MyMod selected, return an error.
-                Mode::Normal => ui::show_dialog(&app_ui.error_dialog, format_err!("MyMod not selected.")),
+                Mode::Normal => ui::show_dialog(&app_ui.window, false, "MyMod not selected."),
             }
         }
     ));
@@ -1260,20 +1251,20 @@ fn build_ui(application: &Application) {
 
                         // We check that path exists.
                         if !installed_mod_path.is_file() {
-                            return ui::show_dialog(&app_ui.error_dialog, format_err!("The currently selected mod is not installed"));
+                            return ui::show_dialog(&app_ui.window, false, "The currently selected mod is not installed");
                         }
                         else {
                             // And remove the mod from the data folder of the game.
                             if let Err(error) = remove_file(installed_mod_path).map_err(|error| Error::from(error)) {
-                                return ui::show_dialog(&app_ui.error_dialog, error.cause());
+                                return ui::show_dialog(&app_ui.window, false, error.cause());
                             }
                         }
                     }
                     else {
-                        ui::show_dialog(&app_ui.error_dialog, format_err!("Game folder path not configured."));
+                        ui::show_dialog(&app_ui.window, false, "Game folder path not configured.");
                     }
                 }
-                Mode::Normal => ui::show_dialog(&app_ui.error_dialog, format_err!("MyMod not selected.")),
+                Mode::Normal => ui::show_dialog(&app_ui.window, false, "MyMod not selected."),
             }
         }
     ));
@@ -1508,7 +1499,7 @@ fn build_ui(application: &Application) {
                                     let mut success = false;
                                     match packfile::add_file_to_packfile(&mut *pack_file_decoded.borrow_mut(), path, tree_path) {
                                         Ok(_) => success = true,
-                                        Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause())
+                                        Err(error) => ui::show_dialog(&app_ui.window, false, error.cause())
                                     }
                                     if success {
                                         set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
@@ -1531,7 +1522,7 @@ fn build_ui(application: &Application) {
                                     let mut success = false;
                                     match packfile::add_file_to_packfile(&mut *pack_file_decoded.borrow_mut(), path, tree_path) {
                                         Ok(_) => success = true,
-                                        Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause())
+                                        Err(error) => ui::show_dialog(&app_ui.window, false, error.cause())
                                     }
                                     if success {
                                         set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
@@ -1548,7 +1539,7 @@ fn build_ui(application: &Application) {
                         }
                     }
                     else {
-                        return ui::show_dialog(&app_ui.error_dialog, format_err!("MyMod base folder not configured."));
+                        return ui::show_dialog(&app_ui.window, false, "MyMod base folder not configured.");
                     }
                 },
 
@@ -1563,7 +1554,7 @@ fn build_ui(application: &Application) {
                             let mut success = false;
                             match packfile::add_file_to_packfile(&mut *pack_file_decoded.borrow_mut(), path, tree_path) {
                                 Ok(_) => success = true,
-                                Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause())
+                                Err(error) => ui::show_dialog(&app_ui.window, false, error.cause())
                             }
                             if success {
                                 set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
@@ -1697,11 +1688,11 @@ fn build_ui(application: &Application) {
                                                             file_errors += 1;
                                                         }
                                                     }
-                                                    Err(_) => ui::show_dialog(&app_ui.error_dialog, format_err!("Error adding file/s to the PackFile")),
+                                                    Err(_) => ui::show_dialog(&app_ui.window, false, "Error adding file/s to the PackFile"),
                                                 }
                                             }
                                             if file_errors > 0 {
-                                                ui::show_dialog(&app_ui.error_dialog, format!("{} file/s that you wanted to add already exist in the Packfile.", file_errors));
+                                                ui::show_dialog(&app_ui.window, false, format!("{} file/s that you wanted to add already exist in the Packfile.", file_errors));
                                             }
                                             set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
                                             ui::update_tree_view_expand_path(
@@ -1712,7 +1703,7 @@ fn build_ui(application: &Application) {
                                                 false
                                             );
                                         }
-                                        Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause()),
+                                        Err(error) => ui::show_dialog(&app_ui.window, false, error.cause()),
                                     }
                                 }
 
@@ -1739,11 +1730,11 @@ fn build_ui(application: &Application) {
                                                             file_errors += 1;
                                                         }
                                                     }
-                                                    Err(_) => ui::show_dialog(&app_ui.error_dialog, format_err!("Error adding file/s to the PackFile")),
+                                                    Err(_) => ui::show_dialog(&app_ui.window, false, "Error adding file/s to the PackFile"),
                                                 }
                                             }
                                             if file_errors > 0 {
-                                                ui::show_dialog(&app_ui.error_dialog, format!("{} file/s that you wanted to add already exist in the Packfile.", file_errors));
+                                                ui::show_dialog(&app_ui.window, false, format!("{} file/s that you wanted to add already exist in the Packfile.", file_errors));
                                             }
                                             set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
                                             ui::update_tree_view_expand_path(
@@ -1754,14 +1745,14 @@ fn build_ui(application: &Application) {
                                                 false
                                             );
                                         }
-                                        Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause()),
+                                        Err(error) => ui::show_dialog(&app_ui.window, false, error.cause()),
                                     }
                                 }
                             }
                         }
                     }
                     else {
-                        return ui::show_dialog(&app_ui.error_dialog, format_err!("MyMod base folder not configured."));
+                        return ui::show_dialog(&app_ui.window, false, "MyMod base folder not configured.");
                     }
                 }
 
@@ -1783,11 +1774,11 @@ fn build_ui(application: &Application) {
                                                     file_errors += 1;
                                                 }
                                             }
-                                            Err(_) => ui::show_dialog(&app_ui.error_dialog, format_err!("Error adding file/s to the PackFile")),
+                                            Err(_) => ui::show_dialog(&app_ui.window, false, "Error adding file/s to the PackFile"),
                                         }
                                     }
                                     if file_errors > 0 {
-                                        ui::show_dialog(&app_ui.error_dialog, format!("{} file/s that you wanted to add already exist in the Packfile.", file_errors));
+                                        ui::show_dialog(&app_ui.window, false, format!("{} file/s that you wanted to add already exist in the Packfile.", file_errors));
                                     }
                                     set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
                                     ui::update_tree_view_expand_path(
@@ -1798,7 +1789,7 @@ fn build_ui(application: &Application) {
                                         false
                                     );
                                 }
-                                Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause()),
+                                Err(error) => ui::show_dialog(&app_ui.window, false, error.cause()),
                             }
                         }
                     }
@@ -1919,7 +1910,7 @@ fn build_ui(application: &Application) {
                                 &tree_path_destination,
                             ) {
                                 Ok(_) => packed_file_added = true,
-                                Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause()),
+                                Err(error) => ui::show_dialog(&app_ui.window, false, error.cause()),
                             }
                             if packed_file_added {
                                 set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
@@ -1954,7 +1945,7 @@ fn build_ui(application: &Application) {
                         }));
 
                     }
-                    Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause()),
+                    Err(error) => ui::show_dialog(&app_ui.window, false, error.cause()),
                 }
             }
         }
@@ -1977,7 +1968,7 @@ fn build_ui(application: &Application) {
             let mut success = false;
             match packfile::delete_from_packfile(&mut *pack_file_decoded.borrow_mut(), &tree_path) {
                 Ok(_) => success = true,
-                Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause())
+                Err(error) => ui::show_dialog(&app_ui.window, false, error.cause())
             }
             if success {
                 set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
@@ -2062,12 +2053,12 @@ fn build_ui(application: &Application) {
                                     &extraction_final_folder
                                 ) {
 
-                                    Ok(result) => ui::show_dialog(&app_ui.success_dialog, result),
-                                    Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause())
+                                    Ok(result) => ui::show_dialog(&app_ui.window, true, result),
+                                    Err(error) => ui::show_dialog(&app_ui.window, false, error.cause())
                                 }
                             }
                             else {
-                                return ui::show_dialog(&app_ui.error_dialog, format_err!("MyMod base path not configured."));
+                                return ui::show_dialog(&app_ui.window, false, "MyMod base path not configured.");
                             }
                         }
 
@@ -2090,8 +2081,8 @@ fn build_ui(application: &Application) {
                                     &file_chooser_extract_file.get_filename().expect("Couldn't open file")
                                 ) {
 
-                                    Ok(result) => ui::show_dialog(&app_ui.success_dialog, result),
-                                    Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause())
+                                    Ok(result) => ui::show_dialog(&app_ui.window, true, result),
+                                    Err(error) => ui::show_dialog(&app_ui.window, false, error.cause())
                                 }
                             }
                         }
@@ -2147,13 +2138,12 @@ fn build_ui(application: &Application) {
                                     &tree_path,
                                     &extraction_final_folder
                                 ) {
-
-                                    Ok(result) => ui::show_dialog(&app_ui.success_dialog, result),
-                                    Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause())
+                                    Ok(result) => ui::show_dialog(&app_ui.window, true, result),
+                                    Err(error) => ui::show_dialog(&app_ui.window, false, error.cause())
                                 }
                             }
                             else {
-                                return ui::show_dialog(&app_ui.error_dialog, format_err!("MyMod base path not configured."));
+                                return ui::show_dialog(&app_ui.window, false, "MyMod base path not configured.");
                             }
                         }
 
@@ -2174,8 +2164,8 @@ fn build_ui(application: &Application) {
                                     &tree_path,
                                     &file_chooser_extract_folder.get_filename().expect("Couldn't open file")) {
 
-                                    Ok(result) => ui::show_dialog(&app_ui.success_dialog, result),
-                                    Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause())
+                                    Ok(result) => ui::show_dialog(&app_ui.window, true, result),
+                                    Err(error) => ui::show_dialog(&app_ui.window, false, error.cause())
                                 }
                             }
                         }
@@ -2220,12 +2210,12 @@ fn build_ui(application: &Application) {
                                     &extraction_final_folder
                                 ) {
 
-                                    Ok(result) => ui::show_dialog(&app_ui.success_dialog, result),
-                                    Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause())
+                                    Ok(result) => ui::show_dialog(&app_ui.window, true, result),
+                                    Err(error) => ui::show_dialog(&app_ui.window, false, error.cause())
                                 }
                             }
                             else {
-                                return ui::show_dialog(&app_ui.error_dialog, format_err!("MyMod base path not configured."));
+                                return ui::show_dialog(&app_ui.window, false, "MyMod base path not configured.");
                             }
                         }
 
@@ -2246,14 +2236,14 @@ fn build_ui(application: &Application) {
                                     &tree_path,
                                     &file_chooser_extract_folder.get_filename().expect("Couldn't open file")) {
 
-                                    Ok(result) => ui::show_dialog(&app_ui.success_dialog, result),
-                                    Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause())
+                                    Ok(result) => ui::show_dialog(&app_ui.window, true, result),
+                                    Err(error) => ui::show_dialog(&app_ui.window, false, error.cause())
                                 }
                             }
                         }
                     }
                 }
-                TreePathType::None => ui::show_dialog(&app_ui.error_dialog, format!("You can't extract non-existent files.")),
+                TreePathType::None => ui::show_dialog(&app_ui.window, false, "You can't extract non-existent files."),
             }
         }
     }));
@@ -2304,7 +2294,7 @@ fn build_ui(application: &Application) {
                         app_ui.rename_popover.popdown();
                         name_changed = true;
                     }
-                    Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause())
+                    Err(error) => ui::show_dialog(&app_ui.window, false, error.cause())
                 }
                 if name_changed {
                     ui::update_tree_view_expand_path(
@@ -2483,13 +2473,13 @@ fn build_ui(application: &Application) {
                                         }
 
                                         if new_text.is_empty() {
-                                            ui::show_dialog(&app_ui.error_dialog, format!("Only my hearth can be empty."));
+                                            ui::show_dialog(&app_ui.window, false, "Only my hearth can be empty.");
                                         }
                                         else if new_text.contains(' ') {
-                                            ui::show_dialog(&app_ui.error_dialog, format!("Spaces are not valid characters."));
+                                            ui::show_dialog(&app_ui.window, false, "Spaces are not valid characters.");
                                         }
                                         else if key_already_exists {
-                                            ui::show_dialog(&app_ui.error_dialog, format!("This key is already in the Loc PackedFile."));
+                                            ui::show_dialog(&app_ui.window, false, "This key is already in the Loc PackedFile.");
                                         }
 
                                         // If it has passed all the checks without error, we update the Loc PackedFile
@@ -2650,7 +2640,7 @@ fn build_ui(application: &Application) {
                                                     index as usize);
                                                 set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
                                             }
-                                            Err(error) => ui::show_dialog(&app_ui.error_dialog, format!("You can only add an \"ENTIRE NUMBER\" of rows. Like 4, or 6. Maybe 5, who knows? But definetly not \"{}\".", Error::from(error).cause())),
+                                            Err(error) => ui::show_dialog(&app_ui.window, false, format!("You can only add an \"ENTIRE NUMBER\" of rows. Like 4, or 6. Maybe 5, who knows? But definetly not \"{}\".", Error::from(error).cause())),
                                         }
                                     }
                                 }));
@@ -2733,7 +2723,7 @@ fn build_ui(application: &Application) {
                                                 &mut packed_file_data_decoded.borrow_mut().packed_file_data,
                                                 &file_chooser_packedfile_import_csv.get_filename().expect("Couldn't open file")
                                             ) {
-                                                return ui::show_dialog(&app_ui.error_dialog, error.cause());
+                                                return ui::show_dialog(&app_ui.window, false, error.cause());
                                             }
 
                                             // From this point, if the file has been imported properly, we mark the PackFile as "Modified".
@@ -2773,14 +2763,14 @@ fn build_ui(application: &Application) {
 
                                         if file_chooser_packedfile_export_csv.run() == gtk_response_accept {
                                             match LocData::export_csv(&packed_file_data_decoded.borrow_mut().packed_file_data, &file_chooser_packedfile_export_csv.get_filename().expect("Couldn't open file")) {
-                                                Ok(result) => ui::show_dialog(&app_ui.success_dialog, result),
-                                                Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause())
+                                                Ok(result) => ui::show_dialog(&app_ui.window, true, result),
+                                                Err(error) => ui::show_dialog(&app_ui.window, false, error.cause())
                                             }
                                         }
                                     }
                                 }));
                             }
-                            Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause()),
+                            Err(error) => ui::show_dialog(&app_ui.window, false, error.cause()),
                         }
 
                     }
@@ -2799,7 +2789,7 @@ fn build_ui(application: &Application) {
                             Some(ref schema) => DB::read(&packed_file_data_encoded.borrow(), &*tree_path[1], &schema.clone()),
                             None => {
                                 packed_file_decode_mode_button.set_sensitive(false);
-                                return ui::show_dialog(&app_ui.error_dialog, format_err!("There is no Schema loaded for this game."))
+                                return ui::show_dialog(&app_ui.window, false, "There is no Schema loaded for this game.")
                             },
                         };
 
@@ -3292,7 +3282,7 @@ fn build_ui(application: &Application) {
                                                                     initial_index,
                                                                 );
                                                             }
-                                                            None => ui::show_dialog(&app_ui.error_dialog, format_err!("Cannot load a version of a table from a non-existant Schema."))
+                                                            None => ui::show_dialog(&app_ui.window, false, "Cannot load a version of a table from a non-existant Schema.")
                                                         }
                                                     }
 
@@ -3324,10 +3314,10 @@ fn build_ui(application: &Application) {
 
                                                                     // If it worked, update the list.
                                                                     Ok(_) => PackedFileDBDecoder::update_versions_list(&packed_file_decoder, schema, &*tree_path[1]),
-                                                                    Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause()),
+                                                                    Err(error) => ui::show_dialog(&app_ui.window, false, error.cause()),
                                                                 }
                                                             }
-                                                            None => ui::show_dialog(&app_ui.error_dialog, format_err!("Cannot delete a version from a non-existant Schema."))
+                                                            None => ui::show_dialog(&app_ui.window, false, "Cannot delete a version from a non-existant Schema.")
                                                         }
                                                     }
 
@@ -3365,14 +3355,14 @@ fn build_ui(application: &Application) {
                                                             table_definition.borrow_mut().fields = packed_file_decoder.return_data_from_data_view();
                                                             schema.tables_definitions[table_definitions_index as usize].add_table_definition(table_definition.borrow().clone());
                                                             match Schema::save(&schema, &rpfm_path, &*pack_file_decoded.borrow().pack_file_header.pack_file_id) {
-                                                                Ok(_) => ui::show_dialog(&app_ui.success_dialog, format!("Schema saved successfully.")),
-                                                                Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause()),
+                                                                Ok(_) => ui::show_dialog(&app_ui.window, true, "Schema successfully saved."),
+                                                                Err(error) => ui::show_dialog(&app_ui.window, false, error.cause()),
                                                             }
 
                                                             // After all that, we need to update the version list, as this may have created a new version.
                                                             PackedFileDBDecoder::update_versions_list(&packed_file_decoder, schema, &*tree_path[1]);
                                                         }
-                                                        None => ui::show_dialog(&app_ui.error_dialog, format_err!("Cannot save this table's definitions:\nSchemas for this game are not supported yet."))
+                                                        None => ui::show_dialog(&app_ui.window, false, "Cannot save this table's definitions:\nSchemas for this game are not supported, yet.")
                                                     }
 
                                                 Inhibit(false)
@@ -3410,10 +3400,10 @@ fn build_ui(application: &Application) {
                                                 }));
                                             }
                                         }
-                                        Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause()),
+                                        Err(error) => ui::show_dialog(&app_ui.window, false, error.cause()),
                                     }
                                 },
-                                Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause()),
+                                Err(error) => ui::show_dialog(&app_ui.window, false, error.cause()),
                             }
                             Inhibit(false)
                         }));
@@ -3447,7 +3437,7 @@ fn build_ui(application: &Application) {
                                     &schema.borrow().clone().unwrap()
                                 ) {
                                     Ok(data) => data,
-                                    Err(error) => return ui::show_dialog(&app_ui.error_dialog, error.cause())
+                                    Err(error) => return ui::show_dialog(&app_ui.window, false, error.cause())
                                 };
 
                                 let packed_file_tree_view = packed_file_tree_view_stuff.packed_file_tree_view;
@@ -3466,7 +3456,7 @@ fn build_ui(application: &Application) {
                                     &packed_file_data_decoded.borrow().packed_file_data,
                                     &packed_file_list_store
                                 ) {
-                                    return ui::show_dialog(&app_ui.error_dialog, error.cause());
+                                    return ui::show_dialog(&app_ui.window, false, error.cause());
                                 }
 
                                 // Before setting up the actions, we clean the previous ones.
@@ -3564,12 +3554,12 @@ fn build_ui(application: &Application) {
                                                 Ok(data) => {
                                                     packed_file_data_decoded.borrow_mut().packed_file_data.packed_file_data = data;
                                                     if let Err(error) = ::packfile::update_packed_file_data_db(&*packed_file_data_decoded.borrow_mut(), &mut *pack_file_decoded.borrow_mut(), index as usize) {
-                                                        ui::show_dialog(&app_ui.error_dialog, error.cause());
+                                                        ui::show_dialog(&app_ui.window, false, error.cause());
                                                     }
                                                     set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
 
                                                 }
-                                                Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause()),
+                                                Err(error) => ui::show_dialog(&app_ui.window, false, error.cause()),
                                             }
                                         }
                                     }));
@@ -3594,12 +3584,12 @@ fn build_ui(application: &Application) {
                                             Ok(data) => {
                                                 packed_file_data_decoded.borrow_mut().packed_file_data.packed_file_data = data;
                                                 if let Err(error) = ::packfile::update_packed_file_data_db(&*packed_file_data_decoded.borrow_mut(), &mut *pack_file_decoded.borrow_mut(), index as usize) {
-                                                    ui::show_dialog(&app_ui.error_dialog, error.cause());
+                                                    ui::show_dialog(&app_ui.window, false, error.cause());
                                                 }
                                                 set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
 
                                             }
-                                            Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause()),
+                                            Err(error) => ui::show_dialog(&app_ui.window, false, error.cause()),
                                         }
                                     }));
                                 }
@@ -3623,12 +3613,12 @@ fn build_ui(application: &Application) {
                                             Ok(data) => {
                                                 packed_file_data_decoded.borrow_mut().packed_file_data.packed_file_data = data;
                                                 if let Err(error) = ::packfile::update_packed_file_data_db(&*packed_file_data_decoded.borrow_mut(), &mut *pack_file_decoded.borrow_mut(), index as usize) {
-                                                    ui::show_dialog(&app_ui.error_dialog, error.cause());
+                                                    ui::show_dialog(&app_ui.window, false, error.cause());
                                                 }
                                                 set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
 
                                             }
-                                            Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause()),
+                                            Err(error) => ui::show_dialog(&app_ui.window, false, error.cause()),
                                         }
                                     }));
                                 }
@@ -3654,15 +3644,15 @@ fn build_ui(application: &Application) {
                                                     Ok(data) => {
                                                         packed_file_data_decoded.borrow_mut().packed_file_data.packed_file_data = data;
                                                         if let Err(error) = ::packfile::update_packed_file_data_db(&*packed_file_data_decoded.borrow_mut(), &mut *pack_file_decoded.borrow_mut(), index as usize) {
-                                                            ui::show_dialog(&app_ui.error_dialog, error.cause());
+                                                            ui::show_dialog(&app_ui.window, false, error.cause());
                                                         }
                                                         set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
 
                                                     }
-                                                    Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause()),
+                                                    Err(error) => ui::show_dialog(&app_ui.window, false, error.cause()),
                                                 }
                                             }
-                                            Err(error) => ui::show_dialog(&app_ui.error_dialog, Error::from(error).cause()),
+                                            Err(error) => ui::show_dialog(&app_ui.window, false, Error::from(error).cause()),
                                         }
                                     }));
                                 }
@@ -3688,15 +3678,15 @@ fn build_ui(application: &Application) {
                                                     Ok(data) => {
                                                         packed_file_data_decoded.borrow_mut().packed_file_data.packed_file_data = data;
                                                         if let Err(error) = ::packfile::update_packed_file_data_db(&*packed_file_data_decoded.borrow_mut(), &mut *pack_file_decoded.borrow_mut(), index as usize) {
-                                                            ui::show_dialog(&app_ui.error_dialog, error.cause());
+                                                            ui::show_dialog(&app_ui.window, false, error.cause());
                                                         }
                                                         set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
 
                                                     }
-                                                    Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause()),
+                                                    Err(error) => ui::show_dialog(&app_ui.window, false, error.cause()),
                                                 }
                                             }
-                                            Err(error) => ui::show_dialog(&app_ui.error_dialog, Error::from(error).cause()),
+                                            Err(error) => ui::show_dialog(&app_ui.window, false, Error::from(error).cause()),
                                         }
                                     }));
                                 }
@@ -3722,15 +3712,15 @@ fn build_ui(application: &Application) {
                                                     Ok(data) => {
                                                         packed_file_data_decoded.borrow_mut().packed_file_data.packed_file_data = data;
                                                         if let Err(error) = ::packfile::update_packed_file_data_db(&*packed_file_data_decoded.borrow_mut(), &mut *pack_file_decoded.borrow_mut(), index as usize) {
-                                                            ui::show_dialog(&app_ui.error_dialog, error.cause());
+                                                            ui::show_dialog(&app_ui.window, false, error.cause());
                                                         }
                                                         set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
 
                                                     }
-                                                    Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause()),
+                                                    Err(error) => ui::show_dialog(&app_ui.window, false, error.cause()),
                                                 }
                                             }
-                                            Err(error) => ui::show_dialog(&app_ui.error_dialog, Error::from(error).cause()),
+                                            Err(error) => ui::show_dialog(&app_ui.window, false, Error::from(error).cause()),
                                         }
                                     }));
                                 }
@@ -3758,12 +3748,12 @@ fn build_ui(application: &Application) {
                                             Ok(data) => {
                                                 packed_file_data_decoded.borrow_mut().packed_file_data.packed_file_data = data;
                                                 if let Err(error) = ::packfile::update_packed_file_data_db(&*packed_file_data_decoded.borrow_mut(), &mut *pack_file_decoded.borrow_mut(), index as usize) {
-                                                    ui::show_dialog(&app_ui.error_dialog, error.cause());
+                                                    ui::show_dialog(&app_ui.window, false, error.cause());
                                                 }
                                                 set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
 
                                             }
-                                            Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause()),
+                                            Err(error) => ui::show_dialog(&app_ui.window, false, error.cause()),
                                         }
                                     }));
                                 }
@@ -3865,15 +3855,15 @@ fn build_ui(application: &Application) {
                                                     Ok(data) => {
                                                         packed_file_data_decoded.borrow_mut().packed_file_data.packed_file_data = data;
                                                         if let Err(error) = ::packfile::update_packed_file_data_db(&*packed_file_data_decoded.borrow_mut(), &mut *pack_file_decoded.borrow_mut(), index as usize) {
-                                                            ui::show_dialog(&app_ui.error_dialog, error.cause());
+                                                            ui::show_dialog(&app_ui.window, false, error.cause());
                                                         }
                                                         set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
 
                                                     }
-                                                    Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause()),
+                                                    Err(error) => ui::show_dialog(&app_ui.window, false, error.cause()),
                                                 }
                                             }
-                                            Err(_) => ui::show_dialog(&app_ui.error_dialog, format!("You can only add an \"ENTIRE NUMBER\" of rows. Like 4, or 6. Maybe 5, who knows?")),
+                                            Err(_) => ui::show_dialog(&app_ui.window, false, "You can only add an \"ENTIRE NUMBER\" of rows. Like 4, or 6. Maybe 5, who knows?"),
                                         }
                                     }
                                 }));
@@ -3914,12 +3904,12 @@ fn build_ui(application: &Application) {
                                                 Ok(data) => {
                                                     packed_file_data_decoded.borrow_mut().packed_file_data.packed_file_data = data;
                                                     if let Err(error) = ::packfile::update_packed_file_data_db(&*packed_file_data_decoded.borrow_mut(), &mut *pack_file_decoded.borrow_mut(), index as usize) {
-                                                        ui::show_dialog(&app_ui.error_dialog, error.cause());
+                                                        ui::show_dialog(&app_ui.window, false, error.cause());
                                                     }
                                                     set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
 
                                                 }
-                                                Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause()),
+                                                Err(error) => ui::show_dialog(&app_ui.window, false, error.cause()),
                                             }
                                         }
                                     }
@@ -3970,12 +3960,12 @@ fn build_ui(application: &Application) {
                                                 Ok(data) => {
                                                     packed_file_data_decoded.borrow_mut().packed_file_data.packed_file_data = data;
                                                     if let Err(error) = ::packfile::update_packed_file_data_db(&*packed_file_data_decoded.borrow_mut(), &mut *pack_file_decoded.borrow_mut(), index as usize) {
-                                                        ui::show_dialog(&app_ui.error_dialog, error.cause());
+                                                        ui::show_dialog(&app_ui.window, false, error.cause());
                                                     }
                                                     set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
 
                                                 }
-                                                Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause()),
+                                                Err(error) => ui::show_dialog(&app_ui.window, false, error.cause()),
                                             }
                                         }
                                     }
@@ -4022,7 +4012,7 @@ fn build_ui(application: &Application) {
                                                 &mut packed_file_data_decoded.borrow_mut().packed_file_data,
                                                 &file_chooser_packedfile_import_csv.get_filename().expect("Couldn't open file")
                                             ) {
-                                                return ui::show_dialog(&app_ui.error_dialog, error.cause());
+                                                return ui::show_dialog(&app_ui.window, false, error.cause());
                                             }
 
                                             // Here we mark the PackFile as "Modified".
@@ -4043,7 +4033,7 @@ fn build_ui(application: &Application) {
                                             // If the import broke somewhere along the way, restore the old table and report the error.
                                             if restore_table.0 {
                                                 packed_file_data_decoded.borrow_mut().packed_file_data = packed_file_data_copy;
-                                                ui::show_dialog(&app_ui.error_dialog, restore_table.1.cause());
+                                                ui::show_dialog(&app_ui.window, false, restore_table.1.cause());
                                             }
                                         }
                                     }
@@ -4078,14 +4068,14 @@ fn build_ui(application: &Application) {
                                         // When we select the destination file, export it and report success or error.
                                         if file_chooser_packedfile_export_csv.run() == gtk_response_accept {
                                             match DBData::export_csv(&packed_file_data_decoded.borrow_mut().packed_file_data, &file_chooser_packedfile_export_csv.get_filename().expect("Couldn't open file")) {
-                                                Ok(result) => ui::show_dialog(&app_ui.success_dialog, result),
-                                                Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause()),
+                                                Ok(result) => ui::show_dialog(&app_ui.window, true, result),
+                                                Err(error) => ui::show_dialog(&app_ui.window, false, error.cause()),
                                             }
                                         }
                                     }
                                 }));
                             }
-                            Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause()),
+                            Err(error) => ui::show_dialog(&app_ui.window, false, error.cause()),
                         }
                     }
 
@@ -4185,9 +4175,9 @@ fn build_ui(application: &Application) {
                                             ) {
                                                 Ok(_) => {
                                                     success = true;
-                                                    ui::show_dialog(&app_ui.success_dialog, result);
+                                                    ui::show_dialog(&app_ui.window, true, result);
                                                 },
-                                                Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause()),
+                                                Err(error) => ui::show_dialog(&app_ui.window, false, error.cause()),
                                             }
 
                                             // If it works, set it as modified.
@@ -4195,7 +4185,7 @@ fn build_ui(application: &Application) {
                                                 set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
                                             }
                                         },
-                                        Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause()),
+                                        Err(error) => ui::show_dialog(&app_ui.window, false, error.cause()),
                                     }
                                     Inhibit(false)
                                 }));
@@ -4301,9 +4291,9 @@ fn build_ui(application: &Application) {
                             &mut game_selected.borrow_mut(),
                             (false, None),
                             &mut pack_file_decoded.borrow_mut()
-                        ) { ui::show_dialog(&app_ui.error_dialog, error.cause()) };
+                        ) { ui::show_dialog(&app_ui.window, false, error.cause()) };
                     }
-                    _ => ui::show_dialog(&app_ui.error_dialog, format!("This type of event is not yet used.")),
+                    _ => ui::show_dialog(&app_ui.window, false, "This type of event is not yet used."),
                 }
             }
         }
@@ -4326,7 +4316,7 @@ fn build_ui(application: &Application) {
             &mut game_selected.borrow_mut(),
             (false, None),
             &mut pack_file_decoded.borrow_mut()
-        ) { ui::show_dialog(&app_ui.error_dialog, error.cause()) };
+        ) { ui::show_dialog(&app_ui.window, false, error.cause()) };
     }
 }
 
@@ -4479,7 +4469,7 @@ fn open_packfile(
                 2 => app_ui.menu_bar_change_packfile_type.change_state(&"patch".to_variant()),
                 3 => app_ui.menu_bar_change_packfile_type.change_state(&"mod".to_variant()),
                 4 => app_ui.menu_bar_change_packfile_type.change_state(&"movie".to_variant()),
-                _ => ui::show_dialog(&app_ui.error_dialog, format_err!("PackFile Type not valid.")),
+                _ => ui::show_dialog(&app_ui.window, false, "PackFile Type not valid."),
             }
 
             // We deactive these menus, and only activate the one corresponding to our game.
@@ -4651,7 +4641,7 @@ fn build_my_mod_menu(
                                                     &mut game_selected.borrow_mut(),
                                                     (true, Some(game_folder_name.borrow().to_owned())),
                                                     &mut pack_file_decoded.borrow_mut()
-                                                ) { ui::show_dialog(&app_ui.error_dialog, error.cause()) };
+                                                ) { ui::show_dialog(&app_ui.window, false, error.cause()) };
                                             }
                                         }
                                     ));
@@ -4684,16 +4674,16 @@ fn patch_siege_ai(
     let mut sucessful_patching = (false, String::new());
     match packfile::patch_siege_ai(&mut *pack_file_decoded.borrow_mut()) {
         Ok(result) => sucessful_patching = (true, result),
-        Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause())
+        Err(error) => ui::show_dialog(&app_ui.window, false, error.cause())
     }
     if sucessful_patching.0 {
         let mut success = false;
         match packfile::save_packfile( &mut *pack_file_decoded.borrow_mut(), None) {
             Ok(result) => {
                 success = true;
-                ui::show_dialog(&app_ui.success_dialog, format!("{}\n\n{}", sucessful_patching.1, result));
+                ui::show_dialog(&app_ui.window, true, format!("{}\n\n{}", sucessful_patching.1, result));
             },
-            Err(error) => ui::show_dialog(&app_ui.error_dialog, error.cause())
+            Err(error) => ui::show_dialog(&app_ui.window, false, error.cause())
         }
         if success {
             ui::update_tree_view_expand_path(
@@ -4738,14 +4728,14 @@ fn generate_dependency_pack(
                     };
 
                     match packfile::save_packfile(data_packfile, Some(pack_file_path)) {
-                        Ok(_) => ui::show_dialog(&app_ui.success_dialog, format_err!("Dependency pack created.")),
-                        Err(error) => ui::show_dialog(&app_ui.error_dialog, format_err!("Error: generated dependency pack couldn't be saved. {:?}", error)),
+                        Ok(_) => ui::show_dialog(&app_ui.window, true, "Dependency pack created. Remember to re-create it if you update the game ;)."),
+                        Err(error) => ui::show_dialog(&app_ui.window, false, format_err!("Error: generated dependency pack couldn't be saved. {:?}", error)),
                     }
                 }
-                Err(_) => ui::show_dialog(&app_ui.error_dialog, format_err!("Error: data.pack couldn't be open."))
+                Err(_) => ui::show_dialog(&app_ui.window, false, "Error: data.pack couldn't be open.")
             }
         },
-        None => ui::show_dialog(&app_ui.error_dialog, format_err!("Error: data path of the game not found."))
+        None => ui::show_dialog(&app_ui.window, false, "Error: data path of the game not found.")
     }
 }
 

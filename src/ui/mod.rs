@@ -27,7 +27,7 @@ pub mod updater;
 //             UI Creation functions (to build the UI on start)
 //----------------------------------------------------------------------------//
 
-/// This function creates an `AboutDialog` with all the credits, logo, license... done, and returns it.
+/// This function creates an `AboutDialog` with all the credits, logo, license... done, and shows it.
 pub fn show_about_window(
     version: &str,
     rpfm_path: &PathBuf,
@@ -69,7 +69,6 @@ pub fn show_about_window(
     about_dialog.destroy();
 }
 
-
 //----------------------------------------------------------------------------//
 //              Utility functions (helpers and stuff like that)
 //----------------------------------------------------------------------------//
@@ -89,18 +88,39 @@ pub fn display_help_tips(packed_file_data_display: &Grid) {
     packed_file_data_display.show_all();
 }
 
-/// This function shows a Dialog window with some text. For notification of success and errors.
+/// This function shows a "Success" or "Error" Dialog with some text. For notification of success and
+/// high importance errors.
 /// It requires:
-/// - dialog: &MessageDialog object. It's the dialog windows we are going to use.
+/// - parent_window: a reference to the `Window` that'll act as "parent" of the dialog.
+/// - is_success: true for "Success" Dialog, false for "Error" Dialog.
 /// - text: something that implements the trait "Display", so we want to put in the dialog window.
-pub fn show_dialog<T: Display>(dialog: &MessageDialog, text: T) {
+pub fn show_dialog<T: Display>(parent_window: &ApplicationWindow, is_success: bool, text: T) {
+
+    // Depending on the type of the dialog, set everything specific here.
+    let title = if is_success { "Success!" } else { "Error!" };
+    let message_type = if is_success { MessageType::Info } else { MessageType::Error };
+
+    // Create the dialog...
+    let dialog = MessageDialog::new(
+        Some(parent_window),
+        DialogFlags::from_bits(1).unwrap(),
+        message_type,
+        ButtonsType::Ok,
+        &title
+    );
+
+    // Set the title and secondary text.
+    dialog.set_title(&title);
     dialog.set_property_secondary_text(Some(&text.to_string()));
+
+    // Run & Destroy the Dialog.
     dialog.run();
-    dialog.hide_on_delete();
+    dialog.destroy();
 }
 
 /// This function shows a message in the Statusbar. For notification of common errors and low
 /// importance stuff. It requires:
+/// - status_bar: a reference to the `Statusbar` where to show the message.
 /// - text: something that implements the trait "Display", so we want to put in the Statusbar.
 pub fn show_message_in_statusbar<T: Display>(status_bar: &Statusbar, message: T) {
     let message = &message.to_string();
