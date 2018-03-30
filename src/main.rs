@@ -513,7 +513,7 @@ fn build_ui(application: &Application) {
                 enable_packfile_actions(&app_ui, game_selected.clone());
 
                 // Set the current "Operational Mode" to Normal, as this is a "New" mod.
-                disable_my_mod_mode(&app_ui, mode.clone());
+                set_my_mod_mode(&app_ui, mode.clone(), None);
 
                 // Try to load the Schema for this PackFile's game.
                 *schema.borrow_mut() = Schema::load(&rpfm_path, &*pack_file_decoded.borrow().pack_file_header.pack_file_id).ok();
@@ -688,7 +688,7 @@ fn build_ui(application: &Application) {
                     );
 
                     // Set the current "Operational Mode" to Normal, just in case "MyMod" is the current one.
-                    disable_my_mod_mode(&app_ui, mode.clone());
+                    set_my_mod_mode(&app_ui, mode.clone(), None);
                 }
             }
         }
@@ -754,7 +754,7 @@ fn build_ui(application: &Application) {
         application,
         schema => move |_,_| {
 
-            // We disable the action, so we can't start 2 settings windows at the same time.
+            // We disable the action, so we can't start 2 "Settings" windows at the same time.
             app_ui.menu_bar_preferences.set_enabled(false);
 
             // We create the "Settings Window" and load our current settings to it.
@@ -799,7 +799,7 @@ fn build_ui(application: &Application) {
                             Mode::MyMod {mod_name: _, game_folder_name: _} => {
 
                                 // We disable the "MyMod" mode, but leave the PackFile open, so the user doesn't lose any unsaved change.
-                                disable_my_mod_mode(&app_ui, mode.clone());
+                                set_my_mod_mode(&app_ui, mode.clone(), None);
 
                                 // Then recreate the "MyMod" submenu.
                                 build_my_mod_menu(
@@ -915,145 +915,134 @@ fn build_ui(application: &Application) {
         mode,
         pack_file_decoded => move |_,_| {
 
-        // We disable the button, so we can't open two new mod windows at the same time.
-        app_ui.menu_bar_my_mod_new.set_enabled(false);
+            // We disable the action, so we can't start 2 "New MyMod" windows at the same time.
+            app_ui.menu_bar_my_mod_new.set_enabled(false);
 
-        // Create the the "New mod" window and put all it's stuff into a variable.
-        let new_mod_stuff = Rc::new(RefCell::new(MyModNewWindow::create_my_mod_new_window(&application, &supported_games.borrow(), &game_selected.borrow(), &settings.borrow(), &rpfm_path)));
+            // Create the the "New MyMod" window and put all it's stuff into a variable.
+            let new_mod_stuff = Rc::new(RefCell::new(MyModNewWindow::create_my_mod_new_window(&application, &supported_games.borrow(), &game_selected.borrow(), &settings.borrow(), &rpfm_path)));
 
-        // When we press the "Accept" button.
-        new_mod_stuff.borrow().my_mod_new_accept.connect_button_release_event(clone!(
-            new_mod_stuff,
-            application,
-            app_ui,
-            settings,
-            schema,
-            mode,
-            supported_games,
-            rpfm_path,
-            game_selected,
-            pack_file_decoded => move |_,_| {
+            // When we press the "Accept" button.
+            new_mod_stuff.borrow().my_mod_new_accept.connect_button_release_event(clone!(
+                new_mod_stuff,
+                application,
+                app_ui,
+                settings,
+                schema,
+                mode,
+                supported_games,
+                rpfm_path,
+                game_selected,
+                pack_file_decoded => move |_,_| {
 
-                // Get the mod name.
-                let mod_name = new_mod_stuff.borrow().my_mod_new_name_entry.get_buffer().get_text();
+                    // Get the mod name.
+                    let mod_name = new_mod_stuff.borrow().my_mod_new_name_entry.get_buffer().get_text();
 
-                // Get the PackFile name.
-                let full_mod_name = format!("{}.pack", mod_name);
+                    // Get the PackFile name.
+                    let full_mod_name = format!("{}.pack", mod_name);
 
-                // We deactive these menus, and only activate the one corresponding to our game.
-                app_ui.menu_bar_generate_dependency_pack_wh2.set_enabled(false);
-                app_ui.menu_bar_patch_siege_ai_wh2.set_enabled(false);
-                app_ui.menu_bar_generate_dependency_pack_wh.set_enabled(false);
-                app_ui.menu_bar_patch_siege_ai_wh.set_enabled(false);
+                    // We deactive all "Special Stuff" actions.
+                    disable_special_stuff(&app_ui);
 
-                // We just create a new PackFile with a name, set his type to Mod and update the
-                // TreeView to show it.
-                let packfile_id = match &*new_mod_stuff.borrow().my_mod_new_game_list_combo.get_active_text().unwrap() {
-                    "warhammer_2" => {
-                        game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.borrow().paths.game_paths.iter().filter(|x| &x.game == "warhammer_2").map(|x| x.path.clone()).collect::<Option<PathBuf>>());
-                        app_ui.menu_bar_change_game_selected.change_state(&"warhammer_2".to_variant());
-                        app_ui.menu_bar_generate_dependency_pack_wh2.set_enabled(true);
-                        app_ui.menu_bar_patch_siege_ai_wh2.set_enabled(true);
-                        "PFH5"
-                    },
-                    "warhammer" | _ => {
-                        game_selected.borrow_mut().change_game_selected("warhammer", &settings.borrow().paths.game_paths.iter().filter(|x| &x.game == "warhammer").map(|x| x.path.clone()).collect::<Option<PathBuf>>());
-                        app_ui.menu_bar_change_game_selected.change_state(&"warhammer".to_variant());
-                        app_ui.menu_bar_generate_dependency_pack_wh.set_enabled(true);
-                        app_ui.menu_bar_patch_siege_ai_wh.set_enabled(true);
-                        "PFH4"
-                    },
-                };
+                    // Change the `GameSelected` with the one we have chosen for the new "MyMod".
+                    let new_mod_game = &*new_mod_stuff.borrow().my_mod_new_game_list_combo.get_active_id().unwrap().to_owned();
+                    app_ui.menu_bar_change_game_selected.activate(Some(&new_mod_game.to_variant()));
 
-                *pack_file_decoded.borrow_mut() = packfile::new_packfile(full_mod_name.to_owned(), packfile_id);
-                ui::update_tree_view(&app_ui.folder_tree_store, &*pack_file_decoded.borrow());
-                set_modified(false, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
+                    // Get the ID for the new PackFile.
+                    let pack_file_id = supported_games.borrow().iter().filter(|x| x.folder_name == game_selected.borrow().game).map(|x| x.id.to_owned()).collect::<String>();
 
-                // Enable the disabled actions...
-                app_ui.menu_bar_save_packfile.set_enabled(true);
-                app_ui.menu_bar_save_packfile_as.set_enabled(true);
-                app_ui.menu_bar_change_packfile_type.set_enabled(true);
+                    // Create the new PackFile.
+                    *pack_file_decoded.borrow_mut() = packfile::new_packfile(full_mod_name.to_owned(), &pack_file_id);
 
-                // Get his new path.
-                let mut my_mod_path = settings.borrow().paths.my_mods_base_path.clone().unwrap();
+                    // Load the data from the PackFile into the TreeView.
+                    ui::update_tree_view(&app_ui.folder_tree_store, &*pack_file_decoded.borrow());
 
-                // We get his game's folder, depending on the selected game.
-                let selected_game = new_mod_stuff.borrow().my_mod_new_game_list_combo.get_active_text().unwrap();
-                let selected_game_folder = supported_games.borrow().iter().filter(|x| x.display_name == selected_game).map(|x| x.folder_name.to_owned()).collect::<String>();
-                my_mod_path.push(selected_game_folder.to_owned());
+                    // Set the new mod as "Not modified".
+                    set_modified(false, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
 
-                // Just in case the folder doesn't exist, we try to create it. It's save to ignore this result.
-                match DirBuilder::new().create(&my_mod_path){
-                    Ok(_) | Err(_) => { /* This returns ok if it created the folder and err if it already exist. */ }
-                };
+                    // Enable the actions available for the PackFile from the `MenuBar`.
+                    enable_packfile_actions(&app_ui, game_selected.clone());
 
-                // We need to create another folder inside game's folder with the name of the mod, to store extracted files.
-                let mut extracted_files_path = my_mod_path.to_path_buf();
-                extracted_files_path.push(mod_name.to_owned());
-                match DirBuilder::new().create(&extracted_files_path) {
-                    Ok(_) | Err(_) => { /* This returns ok if it created the folder and err if it already exist. */ }
-                };
+                    // Get his new path from the base "MyMod" path + `new_mod_game`.
+                    let mut my_mod_path = settings.borrow().paths.my_mods_base_path.clone().unwrap();
+                    my_mod_path.push(&new_mod_game);
 
-                // Add the PackFile name to the full path.
-                my_mod_path.push(full_mod_name.to_owned());
-
-                // Then we save it.
-                if let Err(error) = packfile::save_packfile(&mut pack_file_decoded.borrow_mut(), Some(my_mod_path)) {
-                    ui::show_dialog(&app_ui.window, false, error.cause());
-                }
-
-                // If there was no error while saving, we destroy the window and reenable the "New mod" button.
-                else {
-
-                    // Mark it as "selected"
-                    *mode.borrow_mut() = Mode::MyMod {
-                        game_folder_name: selected_game_folder.to_owned(),
-                        mod_name: full_mod_name,
+                    // Just in case the folder doesn't exist, we try to create it. It's save to ignore this result.
+                    match DirBuilder::new().create(&my_mod_path){
+                        Ok(_) | Err(_) => { /* This returns ok if it created the folder and err if it already exist. */ }
                     };
 
-                    // Enable the controls for "MyMod".
-                    app_ui.menu_bar_my_mod_delete.set_enabled(true);
-                    app_ui.menu_bar_my_mod_install.set_enabled(true);
-                    app_ui.menu_bar_my_mod_uninstall.set_enabled(true);
+                    // We need to create another folder inside the game's folder with the name of the new "MyMod", to store extracted files.
+                    let mut my_mod_private_folder = my_mod_path.to_path_buf();
+                    my_mod_private_folder.push(mod_name.to_owned());
+                    match DirBuilder::new().create(&my_mod_private_folder) {
+                        Ok(_) | Err(_) => { /* This returns ok if it created the folder and err if it already exist. */ }
+                    };
 
-                    // Recreate the "MyMod" menu (Atrocity incoming).
-                    build_my_mod_menu(
-                        &application,
-                        &app_ui,
-                        &settings.borrow(),
-                        mode.clone(),
-                        schema.clone(),
-                        game_selected.clone(),
-                        &supported_games.borrow(),
-                        pack_file_decoded.clone(),
-                        &rpfm_path
-                    );
+                    // Add the PackFile name to the full path.
+                    my_mod_path.push(full_mod_name.to_owned());
 
-                    // And destroy the window.
-                    new_mod_stuff.borrow().my_mod_new_window.destroy();
-                    app_ui.menu_bar_my_mod_new.set_enabled(true);
+                    // Then we try to save the new "MyMod"s PackFile, and show a message in case of error.
+                    if let Err(error) = packfile::save_packfile(&mut pack_file_decoded.borrow_mut(), Some(my_mod_path.to_owned())) {
+                        ui::show_dialog(&app_ui.window, false, error.cause());
+                    }
+
+                    // If the new "MyMod" has been saved successfully...
+                    else {
+
+                        // Set the current "Operational Mode" to `MyMod`.
+                        set_my_mod_mode(&app_ui, mode.clone(), Some(my_mod_path));
+
+                        // Recreate the "MyMod" menu.
+                        build_my_mod_menu(
+                            &application,
+                            &app_ui,
+                            &settings.borrow(),
+                            mode.clone(),
+                            schema.clone(),
+                            game_selected.clone(),
+                            &supported_games.borrow(),
+                            pack_file_decoded.clone(),
+                            &rpfm_path
+                        );
+
+                        // Destroy the "New MyMod" window,
+                        new_mod_stuff.borrow().my_mod_new_window.destroy();
+
+                        // Restore the action, so we can open another "New MyMod" window again.
+                        app_ui.menu_bar_my_mod_new.set_enabled(true);
+                    }
+                    Inhibit(false)
                 }
-                Inhibit(false)
-            }
-        ));
+            ));
 
-        // When we press the "Cancel" button, we close the window and re-enable the "New mod" action.
-        new_mod_stuff.borrow().my_mod_new_cancel.connect_button_release_event(clone!(
-            new_mod_stuff,
-            app_ui => move |_,_| {
-            new_mod_stuff.borrow().my_mod_new_window.destroy();
-            app_ui.menu_bar_my_mod_new.set_enabled(true);
-            Inhibit(false)
-        }));
+            // When we press the "Cancel" button, we close the window and re-enable the "New mod" action.
+            new_mod_stuff.borrow().my_mod_new_cancel.connect_button_release_event(clone!(
+                new_mod_stuff,
+                app_ui => move |_,_| {
 
-        // We catch the destroy event to restore the "New mod" action.
-        new_mod_stuff.borrow().my_mod_new_window.connect_delete_event(clone!(
-            app_ui => move |my_mod_new_window, _| {
-            my_mod_new_window.destroy();
-            app_ui.menu_bar_my_mod_new.set_enabled(true);
-            Inhibit(false)
-        }));
-    }));
+                    // Destroy the "New MyMod" window,
+                    new_mod_stuff.borrow().my_mod_new_window.destroy();
+
+                    // Restore the action, so we can open another "New MyMod" window again.
+                    app_ui.menu_bar_my_mod_new.set_enabled(true);
+                    Inhibit(false)
+                }
+            ));
+
+            // We catch the destroy event to restore the "New mod" action.
+            new_mod_stuff.borrow().my_mod_new_window.connect_delete_event(clone!(
+                app_ui => move |my_mod_new_window, _| {
+
+                    // Destroy the "New MyMod" window,
+                    my_mod_new_window.destroy();
+
+                    // Restore the action, so we can open another "New MyMod" window again.
+                    app_ui.menu_bar_my_mod_new.set_enabled(true);
+                    Inhibit(false)
+                }
+            ));
+        }
+    ));
 
     // When we hit the "Delete" button.
     app_ui.menu_bar_my_mod_delete.connect_activate(clone!(
@@ -4733,20 +4722,50 @@ fn generate_dependency_pack(
     }
 }
 
-/// This function is used to "Disable MyMod". It not only sets the "Operational Mode" to `Normal`,
-/// but it also takes care of disabling all the signals related with the "MyMod" Mode.
-fn disable_my_mod_mode(
+/// This function is used to set the current "Operational Mode". It not only sets the "Operational Mode",
+/// but it also takes care of disabling or enabling all the signals related with the "MyMod" Mode.
+/// If `my_mod_path` is None, we want to set the `Normal` mode. Otherwise set the `MyMod` mode.
+fn set_my_mod_mode(
     app_ui: &AppUI,
     mode: Rc<RefCell<Mode>>,
+    my_mod_path: Option<PathBuf>,
 ) {
+    // Check if we provided a "my_mod_path".
+    match my_mod_path {
 
-    // Set the current mode to `Normal`.
-    *mode.borrow_mut() = Mode::Normal;
+        // If we have a `my_mod_path`...
+        Some(my_mod_path) => {
 
-    // Disable all "MyMod" related actions, except "New MyMod".
-    app_ui.menu_bar_my_mod_delete.set_enabled(false);
-    app_ui.menu_bar_my_mod_install.set_enabled(false);
-    app_ui.menu_bar_my_mod_uninstall.set_enabled(false);
+            // Get the `folder_name` and the `mod_name` of our "MyMod".
+            let mut path = my_mod_path.clone();
+            let mod_name = path.file_name().unwrap().to_string_lossy().as_ref().to_owned();
+            path.pop();
+            let game_folder_name = path.file_name().unwrap().to_string_lossy().as_ref().to_owned();
+
+            // Set the current mode to `MyMod`.
+            *mode.borrow_mut() = Mode::MyMod {
+                game_folder_name,
+                mod_name,
+            };
+
+            // Enable the controls for "MyMod".
+            app_ui.menu_bar_my_mod_delete.set_enabled(true);
+            app_ui.menu_bar_my_mod_install.set_enabled(true);
+            app_ui.menu_bar_my_mod_uninstall.set_enabled(true);
+        }
+
+        // If `None` has been provided...
+        None => {
+
+            // Set the current mode to `Normal`.
+            *mode.borrow_mut() = Mode::Normal;
+
+            // Disable all "MyMod" related actions, except "New MyMod".
+            app_ui.menu_bar_my_mod_delete.set_enabled(false);
+            app_ui.menu_bar_my_mod_install.set_enabled(false);
+            app_ui.menu_bar_my_mod_uninstall.set_enabled(false);
+        }
+    }
 }
 
 /// This function disables all actions in the "Special Stuff" submenu. Usefull for when we want to

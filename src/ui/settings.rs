@@ -418,7 +418,7 @@ impl MyModNewWindow {
         my_mod_new_window.set_size_request(500, 0);
         my_mod_new_window.set_gravity(Gravity::Center);
         my_mod_new_window.set_position(WindowPosition::Center);
-        my_mod_new_window.set_title("New Mod");
+        my_mod_new_window.set_title("New MyMod");
 
         // Config the icon for the New "MyMod" Window. If this fails, something went wrong when setting the paths,
         // so crash the program, as we don't know what more is broken.
