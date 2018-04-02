@@ -40,9 +40,9 @@ use gio::{
 };
 use gtk::prelude::*;
 use gtk::{
-    Builder, WindowPosition, ApplicationWindow, FileFilter, Grid,
-    TreeView, TreeSelection, TreeStore, ScrolledWindow, Application,
-    CellRendererText, TreeViewColumn, Popover, Entry, Button, ListStore, ResponseType,
+    Builder, WindowPosition, ApplicationWindow, FileFilter, Grid, TreePath,
+    TreeView, TreeSelection, TreeStore, ScrolledWindow, Application, CellRendererMode,
+    CellRendererText, TreeViewColumn, Popover, Button, ListStore, ResponseType,
     ShortcutsWindow, ToVariant, Statusbar, FileChooserNative, FileChooserAction
 };
 
@@ -136,12 +136,6 @@ struct AppUI {
     // This is the box where all the PackedFile Views are created.
     packed_file_data_display: Grid,
 
-    // Popover for renaming PackedFiles and folders.
-    rename_popover: Popover,
-
-    // Text entry for the "Rename" Popover.
-    rename_popover_text_entry: Entry,
-
     // Status bar at the bottom of the program. To show informative messages.
     status_bar: Statusbar,
 
@@ -178,6 +172,7 @@ struct AppUI {
     folder_tree_view_add_file: SimpleAction,
     folder_tree_view_add_folder: SimpleAction,
     folder_tree_view_add_from_packfile: SimpleAction,
+    folder_tree_view_rename_packedfile: SimpleAction,
     folder_tree_view_delete_packedfile: SimpleAction,
     folder_tree_view_extract_packedfile: SimpleAction,
 }
@@ -239,12 +234,6 @@ fn build_ui(application: &Application) {
         // This is the box where all the PackedFile Views are created.
         packed_file_data_display: builder.get_object("gtk_packed_file_data_display").unwrap(),
 
-        // Popover for renaming PackedFiles and folders.
-        rename_popover: builder.get_object("gtk_rename_popover").unwrap(),
-
-        // Text entry for the "Rename" Popover.
-        rename_popover_text_entry: builder.get_object("gtk_rename_popover_text_entry").unwrap(),
-
         // Status bar at the bottom of the program. To show informative messages.
         status_bar: builder.get_object("gtk_bottom_status_bar").unwrap(),
 
@@ -281,6 +270,7 @@ fn build_ui(application: &Application) {
         folder_tree_view_add_file: SimpleAction::new("add-file", None),
         folder_tree_view_add_folder: SimpleAction::new("add-folder", None),
         folder_tree_view_add_from_packfile: SimpleAction::new("add-from-packfile", None),
+        folder_tree_view_rename_packedfile: SimpleAction::new("rename-packedfile", None),
         folder_tree_view_delete_packedfile: SimpleAction::new("delete-packedfile", None),
         folder_tree_view_extract_packedfile: SimpleAction::new("extract-packedfile", None),
     };
@@ -296,14 +286,17 @@ fn build_ui(application: &Application) {
     // Config stuff for `app_ui.folder_tree_view`.
     app_ui.folder_tree_view.set_model(Some(&app_ui.folder_tree_store));
 
-    let column = TreeViewColumn::new();
-    let cell = CellRendererText::new();
-    column.pack_start(&cell, true);
-    column.add_attribute(&cell, "text", 0);
+    let folder_tree_view_column = TreeViewColumn::new();
+    let folder_tree_view_cell = CellRendererText::new();
+    folder_tree_view_cell.set_property_editable(true);
+    folder_tree_view_cell.set_property_mode(CellRendererMode::Activatable);
+    folder_tree_view_column.pack_start(&folder_tree_view_cell, true);
+    folder_tree_view_column.add_attribute(&folder_tree_view_cell, "text", 0);
 
-    app_ui.folder_tree_view.append_column(&column);
+    app_ui.folder_tree_view.append_column(&folder_tree_view_column);
     app_ui.folder_tree_view.set_margin_bottom(10);
     app_ui.folder_tree_view.set_enable_search(false);
+    app_ui.folder_tree_view.set_activate_on_single_click(true);
 
     // Config stuff for `app_ui.shortcuts_window`.
     app_ui.shortcuts_window.set_title("Shortcuts");
@@ -334,6 +327,7 @@ fn build_ui(application: &Application) {
     application.add_action(&app_ui.folder_tree_view_add_file);
     application.add_action(&app_ui.folder_tree_view_add_folder);
     application.add_action(&app_ui.folder_tree_view_add_from_packfile);
+    application.add_action(&app_ui.folder_tree_view_rename_packedfile);
     application.add_action(&app_ui.folder_tree_view_delete_packedfile);
     application.add_action(&app_ui.folder_tree_view_extract_packedfile);
 
@@ -341,6 +335,7 @@ fn build_ui(application: &Application) {
     application.set_accels_for_action("app.add-file", &["<Primary>a"]);
     application.set_accels_for_action("app.add-folder", &["<Primary>d"]);
     application.set_accels_for_action("app.add-from-packfile", &["<Primary>w"]);
+    application.set_accels_for_action("app.rename-packedfile", &["<Primary>r"]);
     application.set_accels_for_action("app.delete-packedfile", &["<Primary>Delete"]);
     application.set_accels_for_action("app.extract-packedfile", &["<Primary>e"]);
     application.set_accels_for_action("win.show-help-overlay", &["<Primary><Shift>h"]);
@@ -1356,52 +1351,56 @@ fn build_ui(application: &Application) {
     app_ui.folder_tree_view.connect_button_release_event(clone!(
         app_ui => move |_,button| {
 
-        if button.get_button() == 3 && app_ui.folder_tree_selection.count_selected_rows() > 0 {
-            let rect = ui::get_rect_for_popover(&app_ui.folder_tree_view, Some(button.get_position()));
+            // If we Right-Click and there is something selected...
+            if button.get_button() == 3 && app_ui.folder_tree_selection.count_selected_rows() > 0 {
 
-            app_ui.folder_tree_view_context_menu.set_pointing_to(&rect);
-            app_ui.folder_tree_view_context_menu.popup();
+                // Get a Rectangle over the selected line, and popup the Contextual Menu.
+                let rect = ui::get_rect_for_popover(&app_ui.folder_tree_view, Some(button.get_position()));
+                app_ui.folder_tree_view_context_menu.set_pointing_to(&rect);
+                app_ui.folder_tree_view_context_menu.popup();
+            }
+            Inhibit(false)
         }
-        Inhibit(false)
-    }));
+    ));
 
     // We check every action possible for the selected file when changing the cursor.
     app_ui.folder_tree_view.connect_cursor_changed(clone!(
         pack_file_decoded,
         app_ui => move |_| {
 
-        let tree_path = ui::get_tree_path_from_selection(&app_ui.folder_tree_selection, false);
-        for packed_file in &*pack_file_decoded.borrow().pack_file_data.packed_files {
+            let tree_path = ui::get_tree_path_from_selection(&app_ui.folder_tree_selection, false);
+            for packed_file in &*pack_file_decoded.borrow().pack_file_data.packed_files {
 
-            // If the selection is a file.
-            if packed_file.packed_file_path == tree_path {
-                app_ui.folder_tree_view_add_file.set_enabled(false);
-                app_ui.folder_tree_view_add_folder.set_enabled(false);
-                app_ui.folder_tree_view_add_from_packfile.set_enabled(false);
+                // If the selection is a file.
+                if packed_file.packed_file_path == tree_path {
+                    app_ui.folder_tree_view_add_file.set_enabled(false);
+                    app_ui.folder_tree_view_add_folder.set_enabled(false);
+                    app_ui.folder_tree_view_add_from_packfile.set_enabled(false);
+                    app_ui.folder_tree_view_delete_packedfile.set_enabled(true);
+                    app_ui.folder_tree_view_extract_packedfile.set_enabled(true);
+                    break;
+                }
+            }
+
+            // If it's the PackFile.
+            if tree_path.is_empty() {
+                app_ui.folder_tree_view_add_file.set_enabled(true);
+                app_ui.folder_tree_view_add_folder.set_enabled(true);
+                app_ui.folder_tree_view_add_from_packfile.set_enabled(true);
+                app_ui.folder_tree_view_delete_packedfile.set_enabled(false);
+                app_ui.folder_tree_view_extract_packedfile.set_enabled(true);
+            }
+
+            // If this is triggered, the selection is a folder.
+            else {
+                app_ui.folder_tree_view_add_file.set_enabled(true);
+                app_ui.folder_tree_view_add_folder.set_enabled(true);
+                app_ui.folder_tree_view_add_from_packfile.set_enabled(true);
                 app_ui.folder_tree_view_delete_packedfile.set_enabled(true);
                 app_ui.folder_tree_view_extract_packedfile.set_enabled(true);
-                break;
             }
         }
-
-        // If it's the PackFile.
-        if tree_path.is_empty() {
-            app_ui.folder_tree_view_add_file.set_enabled(true);
-            app_ui.folder_tree_view_add_folder.set_enabled(true);
-            app_ui.folder_tree_view_add_from_packfile.set_enabled(true);
-            app_ui.folder_tree_view_delete_packedfile.set_enabled(false);
-            app_ui.folder_tree_view_extract_packedfile.set_enabled(true);
-        }
-
-        // If this is triggered, the selection is a folder.
-        else {
-            app_ui.folder_tree_view_add_file.set_enabled(true);
-            app_ui.folder_tree_view_add_folder.set_enabled(true);
-            app_ui.folder_tree_view_add_from_packfile.set_enabled(true);
-            app_ui.folder_tree_view_delete_packedfile.set_enabled(true);
-            app_ui.folder_tree_view_extract_packedfile.set_enabled(true);
-        }
-    }));
+    ));
 
     // When we hit the "Add file" button.
     app_ui.folder_tree_view_add_file.connect_activate(clone!(
@@ -1942,6 +1941,103 @@ fn build_ui(application: &Application) {
         }
     }));
 
+    // The "Rename" action requires multiple things to happend, so we group them together.
+    {
+        let old_snake = Rc::new(RefCell::new(String::new()));
+
+        // When we hit the "Rename file/folder" button, we start editing the file we want to rename.
+        app_ui.folder_tree_view_rename_packedfile.connect_activate(clone!(
+            app_ui,
+            old_snake,
+            folder_tree_view_cell,
+            pack_file_decoded => move |_,_|{
+
+                // We hide the context menu.
+                app_ui.folder_tree_view_context_menu.popdown();
+
+                // We only do something in case the focus is in the TreeView. This should stop problems with
+                // the accels working everywhere.
+                if app_ui.folder_tree_view.has_focus() {
+
+                    // If we have at least one file selected...
+                    if app_ui.folder_tree_selection.get_selected_rows().0.len() >= 1 {
+
+                        // If the selected file/folder turns out to be the PackFile, stop right there, criminal scum.
+                        let tree_path = ui::get_tree_path_from_selection(&app_ui.folder_tree_selection, true);
+                        if let TreePathType::PackFile = get_type_of_selected_tree_path(&tree_path, &*pack_file_decoded.borrow()) {
+                            return
+                        }
+
+                        // Set the cells to "Editable" mode, so we can edit them.
+                        folder_tree_view_cell.set_property_mode(CellRendererMode::Editable);
+
+                        // Get the `TreePath` of what we want to rename.
+                        let tree_path: TreePath = app_ui.folder_tree_selection.get_selected_rows().0[0].clone();
+
+                        // Get the old name of the file/folder, for restoring purpouses.
+                        let tree_iter = app_ui.folder_tree_store.get_iter(&tree_path).unwrap();
+                        *old_snake.borrow_mut() = app_ui.folder_tree_store.get_value(&tree_iter, 0).get().unwrap();
+
+                        // Start editing the name at the selected `TreePath`.
+                        app_ui.folder_tree_view.set_cursor(&tree_path, Some(&folder_tree_view_column), true);
+                    }
+                }
+            }
+        ));
+
+        // When the edition is finished...
+        folder_tree_view_cell.connect_edited(clone!(
+            pack_file_decoded,
+            old_snake,
+            app_ui => move |cell,_, new_name| {
+
+                // Get the `tree_path` of the selected file/folder...
+                let tree_path = ui::get_tree_path_from_selection(&app_ui.folder_tree_selection, true);
+
+                // And try to rename it.
+                let success = match packfile::rename_packed_file(&mut *pack_file_decoded.borrow_mut(), &tree_path, &new_name) {
+                    Ok(_) => true,
+                    Err(error) => {
+                        ui::show_dialog(&app_ui.window, false, error.cause());
+                        false
+                    }
+                };
+
+                // If we renamed the file/folder successfully...
+                if success {
+
+                    // Set the mod as "Modified".
+                    set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
+
+                    // Rebuild the TreeView.
+                    ui::update_tree_view_expand_path(
+                        &app_ui.folder_tree_store,
+                        &*pack_file_decoded.borrow(),
+                        &app_ui.folder_tree_selection,
+                        &app_ui.folder_tree_view,
+                        true
+                    );
+                }
+
+                // If we didn't rename the file, restore his old name.
+                else {
+                    cell.set_property_text(Some(&old_snake.borrow()));
+                }
+
+                // Set the cells back to "Activatable" mode.
+                cell.set_property_mode(CellRendererMode::Activatable);
+            }
+        ));
+
+        // When the edition is canceled...
+        folder_tree_view_cell.connect_editing_canceled(move |cell| {
+
+                // Set the cells back to "Activatable" mode.
+                cell.set_property_mode(CellRendererMode::Activatable);
+            }
+        );
+    }
+
     // When we hit the "Delete file/folder" button.
     app_ui.folder_tree_view_delete_packedfile.connect_activate(clone!(
         app_ui,
@@ -2245,75 +2341,15 @@ fn build_ui(application: &Application) {
     --------------------------------------------------------
     */
 
-    // When we double-click something in the TreeView (or click something already selected).
+    // When we double-click a file in the TreeView, try to decode it with his codec, if it's implemented.
     app_ui.folder_tree_view.connect_row_activated(clone!(
-        app_ui,
-        pack_file_decoded => move |_,_,_| {
-
-        // We need to NOT ALLOW to change PackFile names, as it causes problems with "MyMod", and it's
-        // actually broken for normal mods.
-        let tree_path = ui::get_tree_path_from_selection(&app_ui.folder_tree_selection, true);
-        if let TreePathType::PackFile = get_type_of_selected_tree_path(&tree_path, &*pack_file_decoded.borrow()) {
-            return
-        }
-
-        // First, we get the variable for the new name and spawn the popover.
-        let new_name: Rc<RefCell<String>> = Rc::new(RefCell::new(String::new()));
-        let rect = ui::get_rect_for_popover(&app_ui.folder_tree_view, None);
-        app_ui.rename_popover.set_pointing_to(&rect);
-        app_ui.rename_popover_text_entry.get_buffer().set_text(tree_path.last().unwrap());
-        app_ui.rename_popover.popup();
-
-        // Now, in the "New Name" popup, we wait until "Enter" (65293) is hit AND released.
-        // In that point, we try to rename the file/folder selected. If we success, the TreeView is
-        // updated. If not, we get a Dialog saying why.
-        app_ui.rename_popover.connect_key_release_event(clone!(
-            app_ui,
-            pack_file_decoded,
-            new_name => move |_, key| {
-
-            // Get his path (so it doesn't remember his old path).
-            let tree_path = ui::get_tree_path_from_selection(&app_ui.folder_tree_selection, true);
-
-            // Get the key pressed.
-            let key_val = key.get_keyval();
-            if key_val == 65293 {
-                let mut name_changed = false;
-                *new_name.borrow_mut() = app_ui.rename_popover_text_entry.get_buffer().get_text();
-                match packfile::rename_packed_file(&mut *pack_file_decoded.borrow_mut(), &tree_path, &*new_name.borrow()) {
-                    Ok(_) => {
-                        app_ui.rename_popover.popdown();
-                        name_changed = true;
-                    }
-                    Err(error) => ui::show_dialog(&app_ui.window, false, error.cause())
-                }
-                if name_changed {
-                    ui::update_tree_view_expand_path(
-                        &app_ui.folder_tree_store,
-                        &*pack_file_decoded.borrow(),
-                        &app_ui.folder_tree_selection,
-                        &app_ui.folder_tree_view,
-                        true
-                    );
-                    set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
-                }
-                app_ui.rename_popover_text_entry.get_buffer().set_text("");
-            }
-            // We need to set this to true to avoid the Enter re-fire this event again and again.
-            Inhibit(true)
-        }));
-    }));
-
-
-    // When you select a file in the TreeView, decode it with his codec, if it's implemented.
-    app_ui.folder_tree_view.connect_cursor_changed(clone!(
         game_selected,
         application,
         schema,
         app_ui,
         rpfm_path,
         pack_file_decoded,
-        is_folder_tree_view_locked => move |_| {
+        is_folder_tree_view_locked => move |_,_,_| {
 
         // Before anything else, we need to check if the TreeView is unlocked. Otherwise we don't
         // execute anything from here.

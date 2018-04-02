@@ -187,29 +187,28 @@
                     <item>
                         <attribute name="label" translatable="yes">Add _File</attribute>
                         <attribute name="action">app.add-file</attribute>
-                        <attribute name="accel">&lt;Primary&gt;a</attribute>
                     </item>
                     <item>
                         <attribute name="label" translatable="yes">Add Fol_der</attribute>
                         <attribute name="action">app.add-folder</attribute>
-                        <attribute name="accel">&lt;Shift&gt;f</attribute>
                     </item>
                     <item>
                         <attribute name="label" translatable="yes">Add from _PackFile</attribute>
                         <attribute name="action">app.add-from-packfile</attribute>
-                        <attribute name="accel">&lt;Shift&gt;p</attribute>
                     </item>
                 </section>
             </submenu>
             <item>
+                <attribute name="label" translatable="yes">_Rename</attribute>
+                <attribute name="action">app.rename-packedfile</attribute>
+            </item>
+            <item>
                 <attribute name="label" translatable="yes">_Delete</attribute>
                 <attribute name="action">app.delete-packedfile</attribute>
-                <attribute name="accel">Delete</attribute>
             </item>
             <item>
                 <attribute name="label" translatable="yes">_Extract</attribute>
                 <attribute name="action">app.extract-packedfile</attribute>
-                <attribute name="accel">&lt;Shift&gt;e</attribute>
             </item>
         </section>
     </menu>
