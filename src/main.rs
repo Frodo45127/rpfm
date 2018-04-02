@@ -2341,6 +2341,67 @@ fn build_ui(application: &Application) {
     --------------------------------------------------------
     */
 
+    // When we press "->", we expand the selected folder (if it's a folder). We do the oposite thing with "<-".
+    app_ui.folder_tree_view.connect_key_release_event(clone!(
+        pack_file_decoded,
+        app_ui => move |_, key| {
+
+            // We only do something in case the focus is in the TreeView. This should stop problems with
+            // the accels working everywhere.
+            if app_ui.folder_tree_view.has_focus() {
+
+                // Get the pressed key.
+                let key_val = key.get_keyval();
+
+                // If we press "->"...
+                if key_val == 65363 {
+
+                    // We get whatever is selected.
+                    let tree_path = ui::get_tree_path_from_selection(&app_ui.folder_tree_selection, true);
+
+                    // We get the type of the selected thing.
+                    match get_type_of_selected_tree_path(&tree_path, &*pack_file_decoded.borrow()) {
+
+                        // If the selected thing it's `PackFile` or `Folder`...
+                        TreePathType::PackFile | TreePathType::Folder(_) => {
+
+                            // Get his `TreePath`.
+                            let tree_path: TreePath = app_ui.folder_tree_selection.get_selected_rows().0[0].clone();
+
+                            // And expand it.
+                            app_ui.folder_tree_view.expand_row(&tree_path, false);
+                        },
+                        _ => {},
+                    }
+                }
+
+                // If we press "<-"...
+                else if key_val == 65361 {
+
+                    // We get whatever is selected.
+                    let tree_path = ui::get_tree_path_from_selection(&app_ui.folder_tree_selection, true);
+
+                    // We get the type of the selected thing.
+                    match get_type_of_selected_tree_path(&tree_path, &*pack_file_decoded.borrow()) {
+
+                        // If the selected thing it's `PackFile` or `Folder`...
+                        TreePathType::PackFile | TreePathType::Folder(_) => {
+
+                            // Get his `TreePath`.
+                            let tree_path: TreePath = app_ui.folder_tree_selection.get_selected_rows().0[0].clone();
+
+                            // And collapse it.
+                            app_ui.folder_tree_view.collapse_row(&tree_path);
+                        },
+                        _ => {},
+                    }
+                }
+            }
+
+            Inhibit(false)
+        }
+    ));
+
     // When we double-click a file in the TreeView, try to decode it with his codec, if it's implemented.
     app_ui.folder_tree_view.connect_row_activated(clone!(
         game_selected,
