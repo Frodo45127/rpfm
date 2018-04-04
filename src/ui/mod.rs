@@ -5,14 +5,15 @@ extern crate gdk_pixbuf;
 use self::gdk_pixbuf::Pixbuf;
 use gtk::prelude::*;
 use gtk::{
-    MessageDialog, TreeStore, TreeSelection, TreeView, TreePath, Rectangle, Label, Justification,
+    MessageDialog, TreeStore, TreeSelection, TreeView, Rectangle, Label, Justification,
     Grid, Statusbar, MessageType, ButtonsType, DialogFlags, ApplicationWindow, ResponseType,
-    AboutDialog, License, WindowPosition
+    AboutDialog, License, WindowPosition, TreeIter
 };
 use std::cmp::Ordering;
 use std::path::PathBuf;
 use std::fmt::Display;
 
+use common::*;
 use packfile::packfile::PackFile;
 
 pub mod packedfile_db;
@@ -72,6 +73,21 @@ pub fn show_about_window(
 //----------------------------------------------------------------------------//
 //              Utility functions (helpers and stuff like that)
 //----------------------------------------------------------------------------//
+
+/// This enum has the different possible operations we want to do over a `TreeView`. The options are:
+/// - Build: Build the entire `TreeView` from nothing.
+/// - Add: Add a File/Folder to the `TreeView`. Requires the path in the `TreeView`, without the mod's name.
+/// - AddFromPackFile: Add a File/Folder from another `TreeView`. Requires `source_path`, `destination_path`, the extra `TreeStore` and the extra `TreeSelection`.
+/// - Delete: Remove a File/Folder from the `TreeView`.
+/// - Rename: Change the name of a File/Folder from the TreeView. Requires the new name.
+#[derive(Clone, Debug)]
+pub enum TreeViewOperation {
+    Build,
+    Add(Vec<String>),
+    AddFromPackFile(Vec<String>, Vec<String>, Vec<Vec<String>>),
+    Delete,
+    Rename(String),
+}
 
 /// This function shows a Message in the specified Grid.
 pub fn display_help_tips(packed_file_data_display: &Grid) {
@@ -301,168 +317,551 @@ pub fn get_tree_path_from_selection(
     tree_path
 }
 
-/// This function recreates the entire TreeView (as it's a pain to update it) and expand the selected
-/// TreePath, or the first parent (the PackFile) if there is nothing selected.
+/// This function is used to get the complete Path (path in a GTKTreeView) of a `TreeIter` of the
+/// TreeView. I'm sure there are other ways to do it, but the TreeView has proven to be a mystery
+/// BEYOND MY COMPREHENSION, so we use this for now.
 /// It requires:
-/// - folder_tree_store: &TreeStore that the TreeView uses.
-/// - mut pack_file_decoded: &mut PackFile we have opened, to get the data for the TreeView.
-/// - folder_tree_selection: &TreeSelection, if there is something selected when we run this.
-/// - folder_tree_view: &TreeView to update.
-/// - climb_to_parent: True if we want to expand the parent of the selection, not the selection itself.
-pub fn update_tree_view_expand_path(
+/// - tree_iter: &TreeIter of the TreeView we want to know his Path.
+/// - tree_store: &TreeStore of our TreeView.
+/// - include_packfile: bool. True if we want the Path to include the PackFile's name.
+pub fn get_path_from_tree_iter(
+    tree_iter: &TreeIter,
+    tree_store: &TreeStore,
+    include_packfile: bool
+) -> Vec<String> {
+
+    let mut tree_path: Vec<String> = vec![];
+
+    // We create the full tree_path from the tree_path we have and the TreePath of the folder
+    // selected in the TreeView (adding the new parents at the end of the vector, and then
+    // reversing the vector).
+    let mut me = tree_iter.clone();
+    let mut path_completed = false;
+    while !path_completed {
+        tree_path.push(tree_store.get_value(&me, 0).get().unwrap());
+        match tree_store.iter_parent(&me) {
+            Some(parent) => {
+                me = parent.clone();
+                path_completed = false;
+            },
+            None => path_completed = true,
+        };
+    }
+
+    // We only want to keep the name of the PackFile on specific situations.
+    if !include_packfile {
+        tree_path.pop();
+    }
+    tree_path.reverse();
+
+    // Return the tree_path (from parent to children)
+    tree_path
+}
+
+/// This function updates the provided `TreeView`, depending on the operation we want to do.
+/// It requires:
+/// - folder_tree_store: `&TreeStore` that the `TreeView` uses.
+/// - mut pack_file_decoded: `&mut PackFile` we have opened, to get the data for the `TreeView`.
+/// - folder_tree_selection: `&TreeSelection`, if there is something selected when we run this.
+/// - operation: the `TreeViewOperation` we want to realise.
+/// - type: the type of whatever is selected.
+pub fn update_treeview(
     folder_tree_store: &TreeStore,
     pack_file_decoded: &PackFile,
     folder_tree_selection: &TreeSelection,
-    folder_tree_view: &TreeView,
-    climb_to_parent: bool
+    operation: TreeViewOperation,
+    selection_type: TreePathType,
 ) {
 
-    // We get the currently selected path in indices (a Vec<i32>). If there is nothing selected,
-    // we get the first iter instead (the PackFile).
-    let mut tree_path_index: Vec<i32> = vec![];
-    let tree_path_index_selected: Vec<i32>;
-    let selected_path = folder_tree_selection.get_selected();
-    match selected_path {
-        Some(path) => {
-            tree_path_index = path.0.get_path(&path.1).unwrap().get_indices();
-            tree_path_index_selected = tree_path_index.to_vec();
-            if tree_path_index.len() > 1 && climb_to_parent {
-                tree_path_index.pop();
-            }
-        }
-        None => {
-            tree_path_index.push(0);
-            tree_path_index_selected = tree_path_index.to_vec();
-        }
+    // We act depending on the operation requested.
+    match operation {
 
-    }
+        // If we want to build a new TreeView...
+        TreeViewOperation::Build => {
 
-    // Then we update the TreeView with all the data and expand the path we got before.
-    update_tree_view(folder_tree_store, pack_file_decoded);
-    folder_tree_view.expand_to_path(&TreePath::new_from_indicesv(&tree_path_index));
-    folder_tree_selection.select_path(&TreePath::new_from_indicesv(&tree_path_index_selected));
-}
+            // First, we clean the TreeStore
+            folder_tree_store.clear();
 
-/// This function clears the current TreeView, takes all the data needed for the new one, sort it
-/// properly (folder -> file, A -> Z), takes care of duplicates and push it to the TreeStore so it's
-/// displayed in the TreeView.
-/// It requires:
-/// - folder_tree_store: &TreeStore that the TreeView uses.
-/// - pack_file_decoded: &PackFile we have opened, to get the data for the TreeView.
-pub fn update_tree_view(
-    folder_tree_store: &TreeStore,
-    pack_file_decoded: &PackFile
-){
+            // Second, we set as the big_parent, the base for the folders of the TreeView, a fake folder
+            // with the name of the PackFile. All big things start with a lie.
+            let big_parent = folder_tree_store.insert_with_values(None, None, &[0], &[&format!("{}", pack_file_decoded.pack_file_extra_data.file_name)]);
 
-    // First, we clean the TreeStore
-    folder_tree_store.clear();
-
-    // Second, we set as the big_parent, the base for the folders of the TreeView, a fake folder
-    // with the name of the PackFile.
-    let big_parent = folder_tree_store.insert_with_values(None, None, &[0], &[&format!("{}", pack_file_decoded.pack_file_extra_data.file_name)]);
-
-    // Third, we get all the paths of the PackedFiles inside the Packfile in a Vector.
-    let mut sorted_path_list = vec![];
-    for i in &pack_file_decoded.pack_file_data.packed_files {
-        sorted_path_list.push(&i.packed_file_path);
-    }
-
-    // Fourth, we sort that vector using this horrific monster I don't want to touch again using
-    // the following format:
-    // - FolderA
-    // - FolderB
-    // - FileA
-    // - FileB
-    sorted_path_list.sort_unstable_by(|a, b| {
-        let mut index = 0;
-        loop {
-
-            // If both options have the same name.
-            if a[index] == b[index] {
-
-                // If A doesn't have more children, but B has them, A is a file and B a folder.
-                if index == (a.len() - 1) && index < (b.len() - 1) {
-                    return Ordering::Greater
-                }
-
-                // If B doesn't have more children, but A has them, B is a file and A a folder.
-                else if index < (a.len() - 1) && index == (b.len() - 1) {
-                    return Ordering::Less
-                }
-
-                // If both options still has children, continue the loop.
-                else if index < (a.len() - 1) && index < (b.len() - 1) {
-                    index += 1;
-                    continue;
-                }
-            }
-            // If both options have different name,...
-            // If both are the same type (both have children, or none have them), doesn't matter if
-            // they are files or folder. Just compare them to see what one it's first.
-            else if (index == (a.len() - 1) && index == (b.len() - 1)) ||
-                (index < (a.len() - 1) && index < (b.len() - 1)) {
-                return a.cmp(b)
+            // Third, we get all the paths of the PackedFiles inside the Packfile in a Vector.
+            let mut sorted_path_list = vec![];
+            for i in &pack_file_decoded.pack_file_data.packed_files {
+                sorted_path_list.push(&i.packed_file_path);
             }
 
-            // If A doesn't have more children, but B has them, A is a file and B a folder.
-            else if index == (a.len() - 1) && index < (b.len() - 1) {
-                return Ordering::Greater
+            // Fourth, we sort that vector using this horrific monster I don't want to touch again, using
+            // the following format:
+            // - FolderA
+            // - FolderB
+            // - FileA
+            // - FileB
+            sorted_path_list.sort_unstable_by(|a, b| {
+                let mut index = 0;
+                loop {
 
-            }
-            // If B doesn't have more children, but A has them, B is a file and A a folder.
-            else if index < (a.len() - 1) && index == (b.len() - 1) {
-                return Ordering::Less
-            }
-        }
-    });
+                    // If both options have the same name.
+                    if a[index] == b[index] {
 
-    // Once we get the entire path list sorted, we add the paths to the TreeStore one by one,
-    // skipping duplicate entries.
-    for i in &sorted_path_list {
-
-        // First, we reset the parent to the big_parent (the PackFile).
-        let mut parent = big_parent.clone();
-
-        // Then, we form the path ("parent -> child" style path) to add to the TreeStore.
-        for j in i.iter() {
-
-            // If it's the last string in the file path, it's a file, so we add it to the TreeStore.
-            if j == i.last().unwrap() {
-                parent = folder_tree_store.insert_with_values(Some(&parent), None, &[0], &[&format!("{}", j)]);
-            }
-
-            // If it's a folder, we check first if it's already in the TreeStore using the following
-            // logic:
-            // If the current parent has a child, it should be a folder already in the TreeStore,
-            // so we check all his children. If any of them is equal to the current folder we are
-            // trying to add and it has at least one child, it's a folder exactly like the one we are
-            // trying to add, so that one becomes our new parent. If there is no equal folder to
-            // the one we are trying to add, we add it, turn it into the new parent, and repeat.
-            else {
-                let mut duplicate_found = false;
-                if folder_tree_store.iter_has_child(&parent) {
-                    let mut no_more_childrens = false;
-                    let current_child = folder_tree_store.iter_children(&parent).unwrap();
-                    while !no_more_childrens {
-                        let current_child_text: String = folder_tree_store.get_value(&current_child, 0).get().unwrap();
-                        if &current_child_text == j && folder_tree_store.iter_has_child(&current_child) {
-                            parent = current_child;
-                            duplicate_found = true;
-                            break;
+                        // If A doesn't have more children, but B has them, A is a file and B a folder.
+                        if index == (a.len() - 1) && index < (b.len() - 1) {
+                            return Ordering::Greater
                         }
-                        if !folder_tree_store.iter_next(&current_child) {
-                            no_more_childrens = true;
+
+                        // If B doesn't have more children, but A has them, B is a file and A a folder.
+                        else if index < (a.len() - 1) && index == (b.len() - 1) {
+                            return Ordering::Less
+                        }
+
+                        // If both options still has children, continue the loop.
+                        else if index < (a.len() - 1) && index < (b.len() - 1) {
+                            index += 1;
+                            continue;
                         }
                     }
-                    if duplicate_found {
-                        continue;
-                    } else {
+                    // If both options have different name,...
+                    // If both are the same type (both have children, or none have them), doesn't matter if
+                    // they are files or folder. Just compare them to see what one it's first.
+                    else if (index == (a.len() - 1) && index == (b.len() - 1)) ||
+                        (index < (a.len() - 1) && index < (b.len() - 1)) {
+                        return a.cmp(b)
+                    }
+
+                    // If A doesn't have more children, but B has them, A is a file and B a folder.
+                    else if index == (a.len() - 1) && index < (b.len() - 1) {
+                        return Ordering::Greater
+
+                    }
+                    // If B doesn't have more children, but A has them, B is a file and A a folder.
+                    else if index < (a.len() - 1) && index == (b.len() - 1) {
+                        return Ordering::Less
+                    }
+                }
+            });
+
+            // Once we get the entire path list sorted, we add the paths to the TreeStore one by one,
+            // skipping duplicate entries.
+            for i in &sorted_path_list {
+
+                // First, we reset the parent to the big_parent (the PackFile).
+                let mut parent = big_parent.clone();
+
+                // Then, we form the path ("parent -> child" style path) to add to the TreeStore.
+                for j in i.iter() {
+
+                    // If it's the last string in the file path, it's a file, so we add it to the TreeStore.
+                    if j == i.last().unwrap() {
                         parent = folder_tree_store.insert_with_values(Some(&parent), None, &[0], &[&format!("{}", j)]);
                     }
-                } else {
-                    parent = folder_tree_store.insert_with_values(Some(&parent), None, &[0], &[&format!("{}", j)]);
+
+                    // If it's a folder, we check first if it's already in the TreeStore using the following
+                    // logic:
+                    // If the current parent has a child, it should be a folder already in the TreeStore,
+                    // so we check all his children. If any of them is equal to the current folder we are
+                    // trying to add and it has at least one child, it's a folder exactly like the one we are
+                    // trying to add, so that one becomes our new parent. If there is no equal folder to
+                    // the one we are trying to add, we add it, turn it into the new parent, and repeat.
+                    else {
+                        let mut duplicate_found = false;
+                        if folder_tree_store.iter_has_child(&parent) {
+                            let mut no_more_childrens = false;
+                            let current_child = folder_tree_store.iter_children(&parent).unwrap();
+                            while !no_more_childrens {
+                                let current_child_text: String = folder_tree_store.get_value(&current_child, 0).get().unwrap();
+                                if &current_child_text == j && folder_tree_store.iter_has_child(&current_child) {
+                                    parent = current_child;
+                                    duplicate_found = true;
+                                    break;
+                                }
+                                if !folder_tree_store.iter_next(&current_child) {
+                                    no_more_childrens = true;
+                                }
+                            }
+                            if duplicate_found {
+                                continue;
+                            } else {
+                                parent = folder_tree_store.insert_with_values(Some(&parent), None, &[0], &[&format!("{}", j)]);
+                            }
+                        } else {
+                            parent = folder_tree_store.insert_with_values(Some(&parent), None, &[0], &[&format!("{}", j)]);
+                        }
+                    }
                 }
             }
+        },
+
+        // If we want to add a file/folder to the `TreeView`...
+        TreeViewOperation::Add(path) => {
+
+            // If we got the `TreeIter` for the PackFile...
+            if let Some(mut tree_iter) = folder_tree_store.get_iter_first() {
+
+                // Index, to know what field of `path` use in each iteration.
+                let mut index = 0;
+
+                // Initiate an endless loop of space and time...
+                loop {
+
+                    // If we are using the last thing in the path, it's a file. Otherwise, is a folder.
+                    let new_type = if path.len() - 1 == index { TreePathType::File((vec![String::new()],1)) } else { TreePathType::Folder(vec![String::new()]) };
+
+                    // If the current `TreeIter` has a child...
+                    if folder_tree_store.iter_has_child(&tree_iter) {
+
+                        // Move our test `TreeIter` to his first child.
+                        let mut tree_iter_test = folder_tree_store.iter_children(&tree_iter).unwrap();
+
+                        // Variable to know when to finish the next loop.
+                        let mut childs_looped = true;
+
+                        // Loop through all the childs to see if what we want to add already exists.
+                        while childs_looped {
+
+                            // Get the current iter's text.
+                            let current_iter_text: String = folder_tree_store.get_value(&tree_iter_test, 0).get().unwrap();
+
+                            // If it's the same that we want to add...
+                            if current_iter_text == path[index] {
+
+                                // Get both types.
+                                let current_path = get_path_from_tree_iter(&tree_iter_test, &folder_tree_store, true);
+                                let current_type = get_type_of_selected_tree_path(&current_path, &pack_file_decoded);
+
+                                // And both are files...
+                                if current_type == TreePathType::File((vec![String::new()],1)) && new_type == TreePathType::File((vec![String::new()],1)) {
+
+                                    // We run away...
+                                    break;
+                                }
+
+                                // If both are folder...
+                                else if current_type == TreePathType::Folder(vec![String::new()]) && new_type == TreePathType::Folder(vec![String::new()]) {
+
+                                    // Move to that folder.
+                                    tree_iter = tree_iter_test.clone();
+
+                                    // Increase the Index.
+                                    index += 1;
+
+                                    // And run away...
+                                    break;
+                                }
+                            }
+
+                            // If there is no more childs...
+                            if !folder_tree_store.iter_next(&tree_iter_test) {
+
+                                // Stop the loop.
+                                childs_looped = false;
+
+                                // Create a new empty child and move to it.
+                                tree_iter = folder_tree_store.prepend(&tree_iter);
+
+                                // Set his value.
+                                folder_tree_store.set_value(&tree_iter, 0, &path[index].to_value());
+
+                                // Sort properly the `TreeStore` to show the renamed file in his proper place.
+                                sort_tree_view(folder_tree_store, pack_file_decoded, new_type.clone(), &tree_iter);
+
+                                // Increase the index.
+                                index += 1;
+                            }
+                        }
+
+                        // If our current type is a File, we reached the end of the path.
+                        if new_type == TreePathType::File((vec![String::new()],1)) { break; }
+
+                    }
+
+                    // If it doesn't have a child...
+                    else {
+
+                        // Create a new empty child and move to it.
+                        tree_iter = folder_tree_store.prepend(&tree_iter);
+
+                        // Set his value.
+                        folder_tree_store.set_value(&tree_iter, 0, &path[index].to_value());
+
+                        // Sort properly the `TreeStore` to show the renamed file in his proper place.
+                        sort_tree_view(folder_tree_store, pack_file_decoded, new_type.clone(), &tree_iter);
+
+                        // Increase the index.
+                        index += 1;
+
+                        // If our current type is a File, we reached the end of the path.
+                        if new_type == TreePathType::File((vec![String::new()],1)) { break; }
+                    }
+                }
+            }
+        },
+
+        // If we want to add a file/folder from another `TreeView`...
+        TreeViewOperation::AddFromPackFile(mut source_prefix, destination_prefix, new_files_list) => {
+
+            // If his path is something...
+            if source_prefix.len() > 0 {
+
+                // Take our the last folder.
+                source_prefix.pop();
+
+            }
+
+            // For each file...
+            for file in new_files_list.iter() {
+
+                // Filter his new path.
+                let mut filtered_source_path = file[source_prefix.len()..].to_vec();
+                let mut final_path = destination_prefix.to_vec();
+                final_path.append(&mut filtered_source_path);
+
+                // Add it to our PackFile's `TreeView`.
+                update_treeview(
+                    folder_tree_store,
+                    pack_file_decoded,
+                    folder_tree_selection,
+                    TreeViewOperation::Add(final_path),
+                    TreePathType::File((vec![String::new()],1)),
+                );
+            }
+        },
+
+        // If we want to delete something from the `TreeView`...
+        TreeViewOperation::Delete => {
+
+            // Then we see what type the selected thing is.
+            match selection_type {
+
+                // If it's a PackedFile or a Folder...
+                TreePathType::File(_) | TreePathType::Folder(_) => {
+
+                    // If we have something selected (just in case)...
+                    if let Some(selection) = folder_tree_selection.get_selected() {
+
+                        // We get his `TreeIter`.
+                        let mut tree_iter = selection.1;
+
+                        // Begin the endless loop of war and dead.
+                        loop {
+
+                            // Get his parent. We can unwrap here because we are never to reach this with a iter without parent.
+                            let parent = folder_tree_store.iter_parent(&tree_iter).unwrap();
+
+                            // Remove it from the `TreeStore`.
+                            folder_tree_store.remove(&tree_iter);
+
+                            // If the parent has any more childs or it's in root level (PackFile), stop.
+                            if folder_tree_store.iter_has_child(&parent) || folder_tree_store.iter_depth(&parent) == 0 {
+                                break;
+                            }
+
+                            // If we don't have any reason to stop, replace the `tree_iter` with his parent.
+                            else {
+                                tree_iter = parent;
+                            }
+                        }
+                    }
+                }
+
+                // If it's a PackFile...
+                TreePathType::PackFile => {
+
+                    // First, we clear the TreeStore.
+                    folder_tree_store.clear();
+
+                    // Then we add the PackFile to it. This effectively deletes all the PackedFiles in the PackFile.
+                    folder_tree_store.insert_with_values(None, None, &[0], &[&format!("{}", pack_file_decoded.pack_file_extra_data.file_name)]);
+                },
+
+                // If we don't have anything selected, we do nothing.
+                TreePathType::None => {},
+            }
+        },
+
+        // If we want to rename something...
+        TreeViewOperation::Rename(new_name) => {
+
+            // If we got his `TreeIter`....
+            if let Some(selection) = folder_tree_selection.get_selected() {
+
+                // We get our `TreeIter`.
+                let mut tree_iter = selection.1;
+
+                // We change the "Name" of the file/folder.
+                folder_tree_store.set_value(&tree_iter, 0, &new_name.to_value());
+
+                // Sort properly the `TreeStore` to show the renamed file in his proper place.
+                sort_tree_view(folder_tree_store, pack_file_decoded, selection_type, &tree_iter)
+            }
+        },
+    }
+}
+
+/// This function is meant to sort newly added items in a `TreeView`. Pls note that the provided
+/// `&TreeIter` MUST BE VALID. Otherwise, this can CTD the entire program.
+fn sort_tree_view(
+    folder_tree_store: &TreeStore,
+    pack_file_decoded: &PackFile,
+    selection_type: TreePathType,
+    tree_iter: &TreeIter
+) {
+
+    // Get the previous and next `TreeIter`s.
+    let tree_iter_previous = tree_iter.clone();
+    let tree_iter_next = tree_iter.clone();
+
+    let iter_previous_exists = folder_tree_store.iter_previous(&tree_iter_previous);
+    let iter_next_exists = folder_tree_store.iter_next(&tree_iter_next);
+
+    // If the previous iter is valid, get their path and their type.
+    let previous_type = if iter_previous_exists {
+
+        let path_previous = get_path_from_tree_iter(&tree_iter_previous, &folder_tree_store, true);
+        get_type_of_selected_tree_path(&path_previous, &pack_file_decoded)
+    }
+
+    // Otherwise, return the type as `None`.
+    else { TreePathType::None };
+
+    // If the next iter is valid, get their path and their type.
+    let next_type = if iter_next_exists {
+
+        let path_next = get_path_from_tree_iter(&tree_iter_next, &folder_tree_store, true);
+        get_type_of_selected_tree_path(&path_next, &pack_file_decoded)
+    }
+
+    // Otherwise, return the type as `None`.
+    else { TreePathType::None };
+
+    // We get the boolean to determinate the direction to move (true -> up, false -> down).
+    // If the previous and the next `TreeIter`s are `None`, we don't need to move.
+    let direction = if previous_type == TreePathType::None && next_type == TreePathType::None { return }
+
+    // If the top one is `None`, but the bottom one isn't, we go down.
+    else if previous_type == TreePathType::None && next_type != TreePathType::None { false }
+
+    // If the bottom one is `None`, but the top one isn't, we go up.
+    else if previous_type != TreePathType::None && next_type == TreePathType::None { true }
+
+    // If the top one is a folder, and the bottom one is a file, get the type of our iter.
+    else if previous_type == TreePathType::Folder(vec![String::new()]) && next_type == TreePathType::File((vec![String::new()], 1)) {
+        if selection_type == TreePathType::Folder(vec![String::new()]) { true } else { false }
+    }
+
+    // If the two around it are the same type, compare them and decide.
+    else {
+
+        // Get the previous, current and next texts.
+        let previous_name: String = folder_tree_store.get_value(&tree_iter_previous, 0).get().unwrap();
+        let current_name: String = folder_tree_store.get_value(&tree_iter, 0).get().unwrap();
+        let next_name: String = folder_tree_store.get_value(&tree_iter_next, 0).get().unwrap();
+
+        // If, after sorting, the previous hasn't changed position, it shouldn't go up.
+        let name_list = vec![previous_name.to_owned(), current_name.to_owned()];
+        let mut name_list_sorted = vec![previous_name.to_owned(), current_name.to_owned()];
+        name_list_sorted.sort();
+        if name_list == name_list_sorted {
+
+            // If, after sorting, the next hasn't changed position, it shouldn't go down.
+            let name_list = vec![current_name.to_owned(), next_name.to_owned()];
+            let mut name_list_sorted = vec![current_name.to_owned(), next_name.to_owned()];
+            name_list_sorted.sort();
+            if name_list == name_list_sorted {
+
+                // In this case, we don't move.
+                return
+            }
+
+            // Go down.
+            else { false }
         }
+
+        // Go up.
+        else { true }
+    };
+
+    // We "sort" it among his peers.
+    loop {
+
+        // Get the `TreeIter` we want to compare with, depending on our direction.
+        let tree_iter_second = tree_iter.clone();
+        let iter_second_is_valid = if direction { folder_tree_store.iter_previous(&tree_iter_second) } else { folder_tree_store.iter_next(&tree_iter_second) };
+
+        // If `tree_iter_second` is valid...
+        if iter_second_is_valid {
+
+            // Get their path.
+            let path_second = get_path_from_tree_iter(&tree_iter_second, &folder_tree_store, true);
+
+            // Get the type of both `TreeIter`.
+            let second_type = get_type_of_selected_tree_path(&path_second, &pack_file_decoded);
+
+            // If we have something of the same type than our `TreeIter`...
+            if second_type == selection_type {
+
+                // Get the other `TreeIter`s text.
+                let second_name: String = folder_tree_store.get_value(&tree_iter_second, 0).get().unwrap();
+                let current_name: String = folder_tree_store.get_value(&tree_iter, 0).get().unwrap();
+
+                // Depending on our direction, we sort one way or another
+                if direction {
+
+                    // For previous `TreeIter`...
+                    let name_list = vec![second_name.to_owned(), current_name.to_owned()];
+                    let mut name_list_sorted = vec![second_name.to_owned(), current_name.to_owned()];
+                    name_list_sorted.sort();
+
+                    // If the order hasn't changed...
+                    if name_list == name_list_sorted {
+
+                        // We are done.
+                        break;
+                    }
+
+                    // If they have changed positions...
+                    else {
+
+                        // We swap them, and update them for the next loop.
+                        folder_tree_store.swap(&tree_iter, &tree_iter_second);
+                    }
+
+                }
+
+                else {
+
+                    // For next `TreeIter`...
+                    let name_list = vec![current_name.to_owned(), second_name.to_owned()];
+                    let mut name_list_sorted = vec![current_name.to_owned(), second_name.to_owned()];
+                    name_list_sorted.sort();
+
+                    // If the order hasn't changed...
+                    if name_list == name_list_sorted {
+
+                        // We are done.
+                        break;
+                    }
+
+                    // If they have changed positions...
+                    else {
+
+                        // We swap them, and update them for the next loop.
+                        folder_tree_store.swap(&tree_iter, &tree_iter_second);
+                    }
+
+                }
+            }
+
+            // If the top one is a File and the bottom one a Folder, it's an special situation. Just swap them.
+            else if selection_type == TreePathType::File((vec![String::new()], 1)) && next_type == TreePathType::Folder(vec![String::new()]) {
+                folder_tree_store.swap(&tree_iter, &tree_iter_second);
+            }
+
+            // If the type is different and it's not an special situation, we can't move anymore.
+            else { break; }
+        }
+
+        // If the `TreeIter` is invalid, we can't move anymore.
+        else { break; }
     }
 }

@@ -60,6 +60,7 @@ use packedfile::db::schemas::*;
 use packedfile::db::schemas_importer::*;
 use packedfile::rigidmodel::RigidModel;
 use settings::*;
+use ui::*;
 use ui::packedfile_db::*;
 use ui::packedfile_loc::*;
 use ui::packedfile_text::*;
@@ -495,8 +496,14 @@ fn build_ui(application: &Application) {
                 // Create the new PackFile.
                 *pack_file_decoded.borrow_mut() = packfile::new_packfile("unknown.pack".to_string(), &pack_file_id);
 
-                // Load the data from the PackFile into the TreeView.
-                ui::update_tree_view(&app_ui.folder_tree_store, &*pack_file_decoded.borrow());
+                // Build the `TreeView`.
+                ui::update_treeview(
+                    &app_ui.folder_tree_store,
+                    &*pack_file_decoded.borrow(),
+                    &app_ui.folder_tree_selection,
+                    TreeViewOperation::Build,
+                    TreePathType::None,
+                );
 
                 // Set the new mod as "Not modified".
                 set_modified(false, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
@@ -653,7 +660,7 @@ fn build_ui(application: &Application) {
                 if !file_path.ends_with(".pack") { file_path.set_extension("pack"); }
 
                 // We try to save the PackFile at the provided path...
-                let success = match packfile::save_packfile(&mut *pack_file_decoded.borrow_mut(), Some(file_path)) {
+                let success = match packfile::save_packfile(&mut *pack_file_decoded.borrow_mut(), Some(file_path.to_path_buf())) {
                     Ok(result) => {
                         ui::show_dialog(&app_ui.window, true, result);
                         true
@@ -670,13 +677,16 @@ fn build_ui(application: &Application) {
                     // Set the mod as "Not modified".
                     set_modified(false, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
 
+                    // Select the first `TreeIter`, so the rename works.
+                    app_ui.folder_tree_selection.select_iter(&app_ui.folder_tree_store.get_iter_first().unwrap());
+
                     // Update the TreeView to reflect the possible PackFile name change.
-                    ui::update_tree_view_expand_path(
+                    ui::update_treeview(
                         &app_ui.folder_tree_store,
                         &*pack_file_decoded.borrow(),
                         &app_ui.folder_tree_selection,
-                        &app_ui.folder_tree_view,
-                        true
+                        TreeViewOperation::Rename(file_path.file_name().unwrap().to_string_lossy().as_ref().to_owned()),
+                        TreePathType::None,
                     );
 
                     // Set the current "Operational Mode" to Normal, just in case "MyMod" is the current one.
@@ -942,8 +952,14 @@ fn build_ui(application: &Application) {
                     // Create the new PackFile.
                     *pack_file_decoded.borrow_mut() = packfile::new_packfile(full_mod_name.to_owned(), &pack_file_id);
 
-                    // Load the data from the PackFile into the TreeView.
-                    ui::update_tree_view(&app_ui.folder_tree_store, &*pack_file_decoded.borrow());
+                    // Build the `TreeView`.
+                    ui::update_treeview(
+                        &app_ui.folder_tree_store,
+                        &*pack_file_decoded.borrow(),
+                        &app_ui.folder_tree_selection,
+                        TreeViewOperation::Build,
+                        TreePathType::None,
+                    );
 
                     // Set the new mod as "Not modified".
                     set_modified(false, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
@@ -1368,36 +1384,54 @@ fn build_ui(application: &Application) {
         pack_file_decoded,
         app_ui => move |_| {
 
-            let tree_path = ui::get_tree_path_from_selection(&app_ui.folder_tree_selection, false);
-            for packed_file in &*pack_file_decoded.borrow().pack_file_data.packed_files {
+            // Get the path of the selected thing.
+            let tree_path = ui::get_tree_path_from_selection(&app_ui.folder_tree_selection, true);
 
-                // If the selection is a file.
-                if packed_file.packed_file_path == tree_path {
+            // Get the type of the selected thing.
+            let selection_type = get_type_of_selected_tree_path(&tree_path, &pack_file_decoded.borrow());
+
+            // Depending on the type of the selected thing, we enable or disable different actions.
+            match selection_type {
+
+                // If it's a file...
+                TreePathType::File(_) => {
                     app_ui.folder_tree_view_add_file.set_enabled(false);
                     app_ui.folder_tree_view_add_folder.set_enabled(false);
                     app_ui.folder_tree_view_add_from_packfile.set_enabled(false);
+                    app_ui.folder_tree_view_rename_packedfile.set_enabled(true);
                     app_ui.folder_tree_view_delete_packedfile.set_enabled(true);
                     app_ui.folder_tree_view_extract_packedfile.set_enabled(true);
-                    break;
-                }
-            }
+                },
 
-            // If it's the PackFile.
-            if tree_path.is_empty() {
-                app_ui.folder_tree_view_add_file.set_enabled(true);
-                app_ui.folder_tree_view_add_folder.set_enabled(true);
-                app_ui.folder_tree_view_add_from_packfile.set_enabled(true);
-                app_ui.folder_tree_view_delete_packedfile.set_enabled(false);
-                app_ui.folder_tree_view_extract_packedfile.set_enabled(true);
-            }
+                // If it's a folder...
+                TreePathType::Folder(_) => {
+                    app_ui.folder_tree_view_add_file.set_enabled(true);
+                    app_ui.folder_tree_view_add_folder.set_enabled(true);
+                    app_ui.folder_tree_view_add_from_packfile.set_enabled(true);
+                    app_ui.folder_tree_view_rename_packedfile.set_enabled(true);
+                    app_ui.folder_tree_view_delete_packedfile.set_enabled(true);
+                    app_ui.folder_tree_view_extract_packedfile.set_enabled(true);
+                },
 
-            // If this is triggered, the selection is a folder.
-            else {
-                app_ui.folder_tree_view_add_file.set_enabled(true);
-                app_ui.folder_tree_view_add_folder.set_enabled(true);
-                app_ui.folder_tree_view_add_from_packfile.set_enabled(true);
-                app_ui.folder_tree_view_delete_packedfile.set_enabled(true);
-                app_ui.folder_tree_view_extract_packedfile.set_enabled(true);
+                // If it's the PackFile...
+                TreePathType::PackFile => {
+                    app_ui.folder_tree_view_add_file.set_enabled(true);
+                    app_ui.folder_tree_view_add_folder.set_enabled(true);
+                    app_ui.folder_tree_view_add_from_packfile.set_enabled(true);
+                    app_ui.folder_tree_view_rename_packedfile.set_enabled(false);
+                    app_ui.folder_tree_view_delete_packedfile.set_enabled(true);
+                    app_ui.folder_tree_view_extract_packedfile.set_enabled(true);
+                },
+
+                // If there is nothing selected...
+                TreePathType::None => {
+                    app_ui.folder_tree_view_add_file.set_enabled(false);
+                    app_ui.folder_tree_view_add_folder.set_enabled(false);
+                    app_ui.folder_tree_view_add_from_packfile.set_enabled(false);
+                    app_ui.folder_tree_view_rename_packedfile.set_enabled(false);
+                    app_ui.folder_tree_view_delete_packedfile.set_enabled(false);
+                    app_ui.folder_tree_view_extract_packedfile.set_enabled(false);
+                },
             }
         }
     ));
@@ -1409,14 +1443,14 @@ fn build_ui(application: &Application) {
         mode,
         pack_file_decoded => move |_,_| {
 
-        // First, we hide the context menu, then we pick the file selected and add it to the Packfile.
-        // After that, we update the TreeView.
+        // First, we hide the context menu.
         app_ui.folder_tree_view_context_menu.popdown();
 
         // We only do something in case the focus is in the TreeView. This should stop problems with
         // the accels working everywhere.
         if app_ui.folder_tree_view.has_focus() {
 
+            // Create our `FileChooser` to select the files to add.
             let file_chooser_add_file_to_packfile = FileChooserNative::new(
                 "Select File...",
                 &app_ui.window,
@@ -1425,26 +1459,19 @@ fn build_ui(application: &Application) {
                 "Cancel"
             );
 
+            // Check the current "Operational Mode".
             match *mode.borrow() {
 
-                // If there is a "MyMod" selected, we need to add whatever we want to add
-                // directly to the mod's assets folder.
+                // If we are in "MyMod" mode...
                 Mode::MyMod {ref game_folder_name, ref mod_name} => {
+
                     // In theory, if we reach this line this should always exist. In theory I should be rich.
                     if let Some(ref my_mods_base_path) = settings.borrow().paths.my_mods_base_path {
 
-                        // We get his original path.
+                        // We get the assets path for the selected "MyMod".
                         let mut my_mod_path = my_mods_base_path.to_path_buf();
-                        my_mod_path.push(game_folder_name.to_owned());
-
-                        // We need his folder, not his PackFile name.
-                        let mut folder_name = mod_name.to_owned();
-                        folder_name.pop();
-                        folder_name.pop();
-                        folder_name.pop();
-                        folder_name.pop();
-                        folder_name.pop();
-                        my_mod_path.push(folder_name);
+                        my_mod_path.push(&game_folder_name);
+                        my_mod_path.push(Path::new(&mod_name).file_stem().unwrap().to_string_lossy().as_ref().to_owned());
 
                         // We check that path exists, and create it if it doesn't.
                         if !my_mod_path.is_dir() {
@@ -1456,7 +1483,7 @@ fn build_ui(application: &Application) {
                         // Then we set that path as current path for the "Add PackedFile" file chooser.
                         file_chooser_add_file_to_packfile.set_current_folder(&my_mod_path);
 
-                        // And run the file_chooser.
+                        // If we hit "Accept"...
                         if file_chooser_add_file_to_packfile.run() == gtk_response_accept {
 
                             // Get the names of the files to add.
@@ -1469,36 +1496,38 @@ fn build_ui(application: &Application) {
                                 // file in the TreeView, so we add the file with a custom tree_path.
                                 if path.starts_with(&my_mod_path) {
 
-                                    // Remove from their path the base mod path (leaving only their future tree_path).
-                                    let mut index = 0;
-                                    let mut path_vec = path.iter().map(|t| t.to_str().unwrap().to_string()).collect::<Vec<String>>();
-                                    let mut my_mod_path_vec = my_mod_path.iter().map(|t| t.to_str().unwrap().to_string()).collect::<Vec<String>>();
-                                    loop {
-                                        if index < path_vec.len() && index < my_mod_path_vec.len() &&
-                                            path_vec[index] != my_mod_path_vec[index] {
-                                            break;
-                                        }
-                                        else if index == path_vec.len() || index == my_mod_path_vec.len() {
-                                            break;
-                                        }
-                                        index += 1;
-                                    }
+                                    // Turn both paths into `Vec<String>`, so we can compare them better.
+                                    let path_vec = path.iter().map(|t| t.to_str().unwrap().to_string()).collect::<Vec<String>>();
+                                    let my_mod_path_vec = my_mod_path.iter().map(|t| t.to_str().unwrap().to_string()).collect::<Vec<String>>();
 
+                                    // Get the index from where his future tree_path starts.
+                                    let index = my_mod_path_vec.len();
+
+                                    // Get his `TreeView` tree_path.
                                     let tree_path = path_vec[index..].to_vec();
 
-                                    let mut success = false;
-                                    match packfile::add_file_to_packfile(&mut *pack_file_decoded.borrow_mut(), path, tree_path) {
-                                        Ok(_) => success = true,
-                                        Err(error) => ui::show_dialog(&app_ui.window, false, error.cause())
-                                    }
+                                    // Try to add it to the PackFile.
+                                    let success = match packfile::add_file_to_packfile(&mut *pack_file_decoded.borrow_mut(), path, tree_path.to_vec()) {
+                                        Ok(_) => true,
+                                        Err(error) => {
+                                            ui::show_dialog(&app_ui.window, false, error.cause());
+                                            false
+                                        }
+                                    };
+
+                                    // If we had success adding it...
                                     if success {
+
+                                        // Set the mod as "Modified".
                                         set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
-                                        ui::update_tree_view_expand_path(
+
+                                        // Update the TreeView to show the newly added PackedFile.
+                                        ui::update_treeview(
                                             &app_ui.folder_tree_store,
                                             &*pack_file_decoded.borrow(),
                                             &app_ui.folder_tree_selection,
-                                            &app_ui.folder_tree_view,
-                                            false
+                                            TreeViewOperation::Add(tree_path.to_vec()),
+                                            TreePathType::None,
                                         );
                                     }
                                 }
@@ -1506,22 +1535,31 @@ fn build_ui(application: &Application) {
                                 // If not, we get their tree_path like a normal file.
                                 else {
 
-                                    // Get his usual tree_path.
+                                    // Get his `TreeView` path.
                                     let tree_path = ui::get_tree_path_from_pathbuf(path, &app_ui.folder_tree_selection, true);
 
-                                    let mut success = false;
-                                    match packfile::add_file_to_packfile(&mut *pack_file_decoded.borrow_mut(), path, tree_path) {
-                                        Ok(_) => success = true,
-                                        Err(error) => ui::show_dialog(&app_ui.window, false, error.cause())
-                                    }
+                                    // Try to add it to the PackFile.
+                                    let success = match packfile::add_file_to_packfile(&mut *pack_file_decoded.borrow_mut(), path, tree_path.to_vec()) {
+                                        Ok(_) => true,
+                                        Err(error) => {
+                                            ui::show_dialog(&app_ui.window, false, error.cause());
+                                            false
+                                        }
+                                    };
+
+                                    // If we had success adding it...
                                     if success {
+
+                                        // Set the mod as "Modified".
                                         set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
-                                        ui::update_tree_view_expand_path(
+
+                                        // Update the TreeView to show the newly added PackedFile.
+                                        ui::update_treeview(
                                             &app_ui.folder_tree_store,
                                             &*pack_file_decoded.borrow(),
                                             &app_ui.folder_tree_selection,
-                                            &app_ui.folder_tree_view,
-                                            false
+                                            TreeViewOperation::Add(tree_path.to_vec()),
+                                            TreePathType::None,
                                         );
                                     }
                                 }
@@ -1535,25 +1573,41 @@ fn build_ui(application: &Application) {
 
                 // If there is no "MyMod" selected, we just keep the normal behavior.
                 Mode::Normal => {
+
+                    // If we hit the "Accept" button...
                     if file_chooser_add_file_to_packfile.run() == gtk_response_accept {
 
+                        // Get all the files selected.
                         let paths = file_chooser_add_file_to_packfile.get_filenames();
+
+                        // For each file to add...
                         for path in &paths {
 
+                            // Get his `TreeView` path.
                             let tree_path = ui::get_tree_path_from_pathbuf(path, &app_ui.folder_tree_selection, true);
-                            let mut success = false;
-                            match packfile::add_file_to_packfile(&mut *pack_file_decoded.borrow_mut(), path, tree_path) {
-                                Ok(_) => success = true,
-                                Err(error) => ui::show_dialog(&app_ui.window, false, error.cause())
-                            }
+
+                            // Try to add it to the PackFile.
+                            let success = match packfile::add_file_to_packfile(&mut *pack_file_decoded.borrow_mut(), path, tree_path.to_vec()) {
+                                Ok(_) => true,
+                                Err(error) => {
+                                    ui::show_dialog(&app_ui.window, false, error.cause());
+                                    false
+                                }
+                            };
+
+                            // If we had success adding it...
                             if success {
+
+                                // Set the mod as "Modified".
                                 set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
-                                ui::update_tree_view_expand_path(
+
+                                // Update the TreeView to show the newly added PackedFile.
+                                ui::update_treeview(
                                     &app_ui.folder_tree_store,
                                     &*pack_file_decoded.borrow(),
                                     &app_ui.folder_tree_selection,
-                                    &app_ui.folder_tree_view,
-                                    false
+                                    TreeViewOperation::Add(tree_path.to_vec()),
+                                    TreePathType::None,
                                 );
                             }
                         }
@@ -1571,222 +1625,277 @@ fn build_ui(application: &Application) {
         mode,
         pack_file_decoded => move |_,_| {
 
-        // First, we hide the context menu. Then we get the folder selected and we get all the files
-        // in him and his subfolders. After that, for every one of those files, we strip his path,
-        // leaving then with only the part that will be added to the PackedFile and we add it to the
-        // PackFile. After all that, if we added any of the files to the PackFile, we update the
-        // TreeView.
-        app_ui.folder_tree_view_context_menu.popdown();
+            // First, we hide the context menu.
+            app_ui.folder_tree_view_context_menu.popdown();
 
-        // We only do something in case the focus is in the TreeView. This should stop problems with
-        // the accels working everywhere.
-        if app_ui.folder_tree_view.has_focus() {
+            // We only do something in case the focus is in the TreeView. This should stop problems with
+            // the accels working everywhere.
+            if app_ui.folder_tree_view.has_focus() {
 
-            let file_chooser_add_folder_to_packfile = FileChooserNative::new(
-                "Select Folder...",
-                &app_ui.window,
-                FileChooserAction::SelectFolder,
-                "Accept",
-                "Cancel"
-            );
+                // Create the `FileChooser`.
+                let file_chooser_add_folder_to_packfile = FileChooserNative::new(
+                    "Select Folder...",
+                    &app_ui.window,
+                    FileChooserAction::SelectFolder,
+                    "Accept",
+                    "Cancel"
+                );
 
-            match *mode.borrow() {
+                // Check the current "Operational Mode".
+                match *mode.borrow() {
 
-                // If there is a "MyMod" selected, we need to add whatever we want to add
-                // directly to the mod's assets folder.
-                Mode::MyMod {ref game_folder_name, ref mod_name} => {
-                    // In theory, if we reach this line this should always exist. In theory I should be rich.
-                    if let Some(ref my_mods_base_path) = settings.borrow().paths.my_mods_base_path {
+                    // If the current mode is "MyMod"...
+                    Mode::MyMod {ref game_folder_name, ref mod_name} => {
 
-                        // We get his original path.
-                        let mut my_mod_path = my_mods_base_path.to_path_buf();
-                        my_mod_path.push(game_folder_name.to_owned());
+                        // In theory, if we reach this line this should always exist. In theory I should be rich.
+                        if let Some(ref my_mods_base_path) = settings.borrow().paths.my_mods_base_path {
 
-                        // We need his folder, not his PackFile name.
-                        let mut folder_name = mod_name.to_owned();
-                        folder_name.pop();
-                        folder_name.pop();
-                        folder_name.pop();
-                        folder_name.pop();
-                        folder_name.pop();
-                        my_mod_path.push(folder_name);
+                            // We get the assets path for the selected "MyMod".
+                            let mut my_mod_path = my_mods_base_path.to_path_buf();
+                            my_mod_path.push(&game_folder_name);
+                            my_mod_path.push(Path::new(&mod_name).file_stem().unwrap().to_string_lossy().as_ref().to_owned());
 
-                        // We check that path exists, and create it if it doesn't.
-                        if !my_mod_path.is_dir() {
-                            match DirBuilder::new().create(&my_mod_path) {
-                                Ok(_) | Err(_) => { /* This returns ok if it created the folder and err if it already exist. */ }
-                            };
+                            // We check that path exists, and create it if it doesn't.
+                            if !my_mod_path.is_dir() {
+                                match DirBuilder::new().create(&my_mod_path) {
+                                    Ok(_) | Err(_) => { /* This returns ok if it created the folder and err if it already exist. */ }
+                                };
+                            }
+
+                            // Then we set that path as current path for the "Add PackedFile" file chooser.
+                            file_chooser_add_folder_to_packfile.set_current_folder(&my_mod_path);
+
+                            // If we hit "Accept"...
+                            if file_chooser_add_folder_to_packfile.run() == gtk_response_accept {
+
+                                // Get the selected folders.
+                                let folders = file_chooser_add_folder_to_packfile.get_filenames();
+
+                                // For each folder...
+                                for folder in &folders {
+
+                                    // If we are inside the mod's folder, we need to "emulate" the path to then
+                                    // file in the TreeView, so we add the file with a custom tree_path.
+                                    if folder.starts_with(&my_mod_path) {
+
+                                        // Turn both paths into `Vec<String>`, so we can compare them better.
+                                        let path_vec = folder.iter().map(|t| t.to_str().unwrap().to_string()).collect::<Vec<String>>();
+                                        let my_mod_path_vec = my_mod_path.iter().map(|t| t.to_str().unwrap().to_string()).collect::<Vec<String>>();
+
+                                        // Get the index from where his future tree_path starts.
+                                        let index = my_mod_path_vec.len();
+
+                                        // Get his `TreeView` tree_path.
+                                        let tree_path = path_vec[index..].to_vec();
+
+                                        // Get the "Prefix" of the folder.
+                                        let mut big_parent_prefix = folder.clone();
+                                        big_parent_prefix.pop();
+
+                                        // Get all the files inside that folder recursively.
+                                        match get_files_from_subdir(folder) {
+
+                                            // If we succeed...
+                                            Ok(file_path_list) => {
+
+                                                // For each file...
+                                                for file_path in file_path_list {
+
+                                                    // Remove his prefix, leaving only the path from the folder onwards.
+                                                    match file_path.strip_prefix(&big_parent_prefix) {
+
+                                                        // If there is no problem...
+                                                        Ok(filtered_path) => {
+
+                                                            // Then get their unique tree_path, combining our current tree_path
+                                                            // with the filtered_path we got for them.
+                                                            let mut filtered_path = filtered_path.iter().map(|t| t.to_str().unwrap().to_string()).collect::<Vec<String>>();
+                                                            let mut tree_path = tree_path.clone();
+                                                            tree_path.pop();
+                                                            tree_path.append(&mut filtered_path);
+
+                                                            // Try to add it to the PackFile.
+                                                            let success = match packfile::add_file_to_packfile(&mut *pack_file_decoded.borrow_mut(), &file_path.to_path_buf(), tree_path.to_vec()) {
+                                                                Ok(_) => true,
+                                                                Err(error) => {
+                                                                    ui::show_dialog(&app_ui.window, false, error.cause());
+                                                                    false
+                                                                }
+                                                            };
+
+                                                            // If we had success adding it...
+                                                            if success {
+
+                                                                // Set the mod as "Modified".
+                                                                set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
+
+                                                                // Update the TreeView to show the newly added PackedFile.
+                                                                ui::update_treeview(
+                                                                    &app_ui.folder_tree_store,
+                                                                    &*pack_file_decoded.borrow(),
+                                                                    &app_ui.folder_tree_selection,
+                                                                    TreeViewOperation::Add(tree_path.to_vec()),
+                                                                    TreePathType::None,
+                                                                );
+                                                            }
+                                                        }
+
+                                                        // If there is an error while removing the prefix...
+                                                        Err(_) => ui::show_dialog(&app_ui.window, false, format!("Error adding the following file to the PackFile:\n\n{:?}\n\nThe file's path doesn't start with {:?}", file_path, big_parent_prefix)),
+                                                    }
+                                                }
+                                            }
+
+                                            // If there is an error while getting the files to add...
+                                            Err(_) => ui::show_dialog(&app_ui.window, false, "Error while getting the files to add to the PackFile."),
+                                        }
+                                    }
+
+                                    // If not, we get their tree_path like a normal folder.
+                                    else {
+
+                                        // Get the "Prefix" of the folder.
+                                        let mut big_parent_prefix = folder.clone();
+                                        big_parent_prefix.pop();
+
+                                        // Get all the files inside that folder recursively.
+                                        match get_files_from_subdir(folder) {
+
+                                            // If we succeed...
+                                            Ok(file_path_list) => {
+
+                                                // For each file...
+                                                for file_path in file_path_list {
+
+                                                    // Remove his prefix, leaving only the path from the folder onwards.
+                                                    match file_path.strip_prefix(&big_parent_prefix) {
+
+                                                        // If there is no problem...
+                                                        Ok(filtered_path) => {
+
+                                                            // Get his `tree_path`.
+                                                            let tree_path = get_tree_path_from_pathbuf(&filtered_path.to_path_buf(), &app_ui.folder_tree_selection, false);
+
+                                                            // Try to add it to the PackFile.
+                                                            let success = match packfile::add_file_to_packfile(&mut *pack_file_decoded.borrow_mut(), &file_path.to_path_buf(), tree_path.to_vec()) {
+                                                                Ok(_) => true,
+                                                                Err(error) => {
+                                                                    ui::show_dialog(&app_ui.window, false, error.cause());
+                                                                    false
+                                                                }
+                                                            };
+
+                                                            // If we had success adding it...
+                                                            if success {
+
+                                                                // Set the mod as "Modified".
+                                                                set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
+
+                                                                // Update the TreeView to show the newly added PackedFile.
+                                                                ui::update_treeview(
+                                                                    &app_ui.folder_tree_store,
+                                                                    &*pack_file_decoded.borrow(),
+                                                                    &app_ui.folder_tree_selection,
+                                                                    TreeViewOperation::Add(tree_path.to_vec()),
+                                                                    TreePathType::None,
+                                                                );
+                                                            }
+                                                        }
+
+                                                        // If there is an error while removing the prefix...
+                                                        Err(_) => ui::show_dialog(&app_ui.window, false, format!("Error adding the following file to the PackFile:\n\n{:?}\n\nThe file's path doesn't start with {:?}", file_path, big_parent_prefix)),
+                                                    }
+                                                }
+                                            }
+
+                                            // If there is an error while getting the files to add...
+                                            Err(_) => ui::show_dialog(&app_ui.window, false, "Error while getting the files to add to the PackFile."),
+                                        }
+                                    }
+                                }
+                            }
                         }
+                        else {
+                            return ui::show_dialog(&app_ui.window, false, "MyMod base folder not configured.");
+                        }
+                    }
 
-                        // Then we set that path as current path for the "Add PackedFile" file chooser.
-                        file_chooser_add_folder_to_packfile.set_current_folder(&my_mod_path);
+                    // If there is no "MyMod" selected, we just keep the normal behavior.
+                    Mode::Normal => {
 
-                        // Run the file chooser.
+                        // If we hit "Accept"...
                         if file_chooser_add_folder_to_packfile.run() == gtk_response_accept {
 
-                            // Get the folders.
+                            // Get the folders we want to add.
                             let folders = file_chooser_add_folder_to_packfile.get_filenames();
 
                             // For each folder...
                             for folder in &folders {
 
-                                // If we are inside the mod's folder, we need to "emulate" the path to then
-                                // file in the TreeView, so we add the file with a custom tree_path.
-                                if folder.starts_with(&my_mod_path) {
+                                // Get the "Prefix" of the folder.
+                                let mut big_parent_prefix = folder.clone();
+                                big_parent_prefix.pop();
 
-                                    // Remove from their path the base mod path (leaving only their future tree_path).
-                                    let mut index = 0;
-                                    let mut path_vec = folder.iter().map(|t| t.to_str().unwrap().to_string()).collect::<Vec<String>>();
-                                    let mut my_mod_path_vec = my_mod_path.iter().map(|t| t.to_str().unwrap().to_string()).collect::<Vec<String>>();
-                                    loop {
-                                        if index < path_vec.len() && index < my_mod_path_vec.len() &&
-                                            path_vec[index] != my_mod_path_vec[index] {
-                                            break;
-                                        }
-                                        else if index == path_vec.len() || index == my_mod_path_vec.len() {
-                                            break;
-                                        }
-                                        index += 1;
-                                    }
+                                // Get all the files inside that folder recursively.
+                                match get_files_from_subdir(folder) {
 
-                                    let tree_path = path_vec[index..].to_vec();
+                                    // If we succeed...
+                                    Ok(file_path_list) => {
 
-                                    // Get the path of the folder without the "final" folder we want to add.
-                                    let mut big_parent_prefix = folder.clone();
-                                    big_parent_prefix.pop();
+                                        // For each file...
+                                        for file_path in file_path_list {
 
-                                    // Get all the files from that folder.
-                                    match ::common::get_files_from_subdir(folder) {
-                                        Ok(file_path_list) => {
-                                            let mut file_errors = 0;
+                                            // Remove his prefix, leaving only the path from the folder onwards.
+                                            match file_path.strip_prefix(&big_parent_prefix) {
 
-                                            // For each file in that folder...
-                                            for file in file_path_list {
+                                                // If there is no problem...
+                                                Ok(filtered_path) => {
 
-                                                // Leave them only with the path from the folder we want to add to the end.
-                                                match file.strip_prefix(&big_parent_prefix) {
-                                                    Ok(filtered_path) => {
+                                                    // Get his `tree_path`.
+                                                    let tree_path = get_tree_path_from_pathbuf(&filtered_path.to_path_buf(), &app_ui.folder_tree_selection, false);
 
-                                                        // Then get their unique tree_path, combining our current tree_path
-                                                        // with the filtered_path we got for them.
-                                                        let mut filtered_path = filtered_path.iter().map(|t| t.to_str().unwrap().to_string()).collect::<Vec<String>>();
-                                                        let mut tree_path = tree_path.clone();
-                                                        tree_path.pop();
-                                                        tree_path.append(&mut filtered_path);
-
-                                                        if packfile::add_file_to_packfile(&mut *pack_file_decoded.borrow_mut(), &file.to_path_buf(), tree_path).is_err() {
-                                                            file_errors += 1;
+                                                    // Try to add it to the PackFile.
+                                                    let success = match packfile::add_file_to_packfile(&mut *pack_file_decoded.borrow_mut(), &file_path.to_path_buf(), tree_path.to_vec()) {
+                                                        Ok(_) => true,
+                                                        Err(error) => {
+                                                            ui::show_dialog(&app_ui.window, false, error.cause());
+                                                            false
                                                         }
+                                                    };
+
+                                                    // If we had success adding it...
+                                                    if success {
+
+                                                        // Set the mod as "Modified".
+                                                        set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
+
+                                                        // Update the TreeView to show the newly added PackedFile.
+                                                        ui::update_treeview(
+                                                            &app_ui.folder_tree_store,
+                                                            &*pack_file_decoded.borrow(),
+                                                            &app_ui.folder_tree_selection,
+                                                            TreeViewOperation::Add(tree_path.to_vec()),
+                                                            TreePathType::None,
+                                                        );
                                                     }
-                                                    Err(_) => ui::show_dialog(&app_ui.window, false, "Error adding file/s to the PackFile"),
                                                 }
+
+                                                // If there is an error while removing the prefix...
+                                                Err(_) => ui::show_dialog(&app_ui.window, false, format!("Error adding the following file to the PackFile:\n\n{:?}\n\nThe file's path doesn't start with {:?}", file_path, big_parent_prefix)),
                                             }
-                                            if file_errors > 0 {
-                                                ui::show_dialog(&app_ui.window, false, format!("{} file/s that you wanted to add already exist in the Packfile.", file_errors));
-                                            }
-                                            set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
-                                            ui::update_tree_view_expand_path(
-                                                &app_ui.folder_tree_store,
-                                                &*pack_file_decoded.borrow(),
-                                                &app_ui.folder_tree_selection,
-                                                &app_ui.folder_tree_view,
-                                                false
-                                            );
-                                        }
-                                        Err(error) => ui::show_dialog(&app_ui.window, false, error.cause()),
-                                    }
-                                }
-
-                                // If not, we get their tree_path like a normal folder.
-                                else {
-
-                                    // Get the path of the folder without the "final" folder we want to add.
-                                    let mut big_parent_prefix = folder.clone();
-                                    big_parent_prefix.pop();
-
-                                    // Get all the files from that folder.
-                                    match ::common::get_files_from_subdir(folder) {
-                                        Ok(file_path_list) => {
-                                            let mut file_errors = 0;
-
-                                            // For each file in that folder...
-                                            for i in file_path_list {
-
-                                                // Leave them only with the path from the folder we want to add to the end.
-                                                match i.strip_prefix(&big_parent_prefix) {
-                                                    Ok(filtered_path) => {
-                                                        let tree_path = ui::get_tree_path_from_pathbuf(&filtered_path.to_path_buf(), &app_ui.folder_tree_selection, false);
-                                                        if packfile::add_file_to_packfile(&mut *pack_file_decoded.borrow_mut(), &i.to_path_buf(), tree_path).is_err() {
-                                                            file_errors += 1;
-                                                        }
-                                                    }
-                                                    Err(_) => ui::show_dialog(&app_ui.window, false, "Error adding file/s to the PackFile"),
-                                                }
-                                            }
-                                            if file_errors > 0 {
-                                                ui::show_dialog(&app_ui.window, false, format!("{} file/s that you wanted to add already exist in the Packfile.", file_errors));
-                                            }
-                                            set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
-                                            ui::update_tree_view_expand_path(
-                                                &app_ui.folder_tree_store,
-                                                &*pack_file_decoded.borrow(),
-                                                &app_ui.folder_tree_selection,
-                                                &app_ui.folder_tree_view,
-                                                false
-                                            );
-                                        }
-                                        Err(error) => ui::show_dialog(&app_ui.window, false, error.cause()),
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    else {
-                        return ui::show_dialog(&app_ui.window, false, "MyMod base folder not configured.");
-                    }
-                }
-
-                // If there is no "MyMod" selected, we just keep the normal behavior.
-                Mode::Normal => {
-                    if file_chooser_add_folder_to_packfile.run() == gtk_response_accept {
-                        let folders = file_chooser_add_folder_to_packfile.get_filenames();
-                        for folder in &folders {
-                            let mut big_parent_prefix = folder.clone();
-                            big_parent_prefix.pop();
-                            match ::common::get_files_from_subdir(folder) {
-                                Ok(file_path_list) => {
-                                    let mut file_errors = 0;
-                                    for i in file_path_list {
-                                        match i.strip_prefix(&big_parent_prefix) {
-                                            Ok(filtered_path) => {
-                                                let tree_path = ui::get_tree_path_from_pathbuf(&filtered_path.to_path_buf(), &app_ui.folder_tree_selection, false);
-                                                if packfile::add_file_to_packfile(&mut *pack_file_decoded.borrow_mut(), &i.to_path_buf(), tree_path).is_err() {
-                                                    file_errors += 1;
-                                                }
-                                            }
-                                            Err(_) => ui::show_dialog(&app_ui.window, false, "Error adding file/s to the PackFile"),
                                         }
                                     }
-                                    if file_errors > 0 {
-                                        ui::show_dialog(&app_ui.window, false, format!("{} file/s that you wanted to add already exist in the Packfile.", file_errors));
-                                    }
-                                    set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
-                                    ui::update_tree_view_expand_path(
-                                        &app_ui.folder_tree_store,
-                                        &*pack_file_decoded.borrow(),
-                                        &app_ui.folder_tree_selection,
-                                        &app_ui.folder_tree_view,
-                                        false
-                                    );
+
+                                    // If there is an error while getting the files to add...
+                                    Err(_) => ui::show_dialog(&app_ui.window, false, "Error while getting the files to add to the PackFile."),
                                 }
-                                Err(error) => ui::show_dialog(&app_ui.window, false, error.cause()),
                             }
                         }
                     }
                 }
             }
         }
-    }));
+    ));
 
     // When we hit the "Add file/folder from PackFile" button.
     app_ui.folder_tree_view_add_from_packfile.connect_activate(clone!(
@@ -1795,151 +1904,213 @@ fn build_ui(application: &Application) {
         pack_file_decoded_extra,
         is_folder_tree_view_locked => move |_,_| {
 
-        // First, we hide the context menu, then we pick the PackFile selected.
-        // After that, we update the TreeView.
-        app_ui.folder_tree_view_context_menu.popdown();
+            // First, we hide the context menu.
+            app_ui.folder_tree_view_context_menu.popdown();
 
-        // We only do something in case the focus is in the TreeView. This should stop problems with
-        // the accels working everywhere.
-        if app_ui.folder_tree_view.has_focus() {
+            // We only do something in case the focus is in the TreeView. This should stop problems with
+            // the accels working everywhere.
+            if app_ui.folder_tree_view.has_focus() {
 
-            // Then, we destroy any children that the packed_file_data_display we use may have, cleaning it.
-            let childrens_to_utterly_destroy = app_ui.packed_file_data_display.get_children();
-            if !childrens_to_utterly_destroy.is_empty() {
-                for i in &childrens_to_utterly_destroy {
-                    i.destroy();
-                }
-            }
-
-            let file_chooser_add_from_packfile = FileChooserNative::new(
-                "Select PackFile...",
-                &app_ui.window,
-                FileChooserAction::Open,
-                "Accept",
-                "Cancel"
-            );
-
-            // Set his filter to only admit ".pack" files.
-            file_chooser_filter_packfile(&file_chooser_add_from_packfile, "*.pack");
-
-            if file_chooser_add_from_packfile.run() == gtk_response_accept {
-                let pack_file_path = file_chooser_add_from_packfile.get_filename().expect("Couldn't open file");
-                match packfile::open_packfile(pack_file_path) {
-
-                    // If the extra PackFile is valid, we create a box with a button to exit this mode
-                    // and a TreeView of the PackFile data.
-                    Ok(pack_file_opened) => {
-
-                        // We put a "Save" button in the top part, and left the lower part for an horizontal
-                        // Box with the "Copy" button and the TreeView.
-                        let folder_tree_view_extra_exit_button = Button::new_with_label("Exit \"Add file/folder from PackFile\" mode");
-                        folder_tree_view_extra_exit_button.set_vexpand(false);
-                        app_ui.packed_file_data_display.attach(&folder_tree_view_extra_exit_button, 0, 0, 2, 1);
-
-                        // First, we create the "Copy" Button.
-                        let folder_tree_view_extra_copy_button = Button::new_with_label("<=");
-                        folder_tree_view_extra_exit_button.set_hexpand(false);
-                        app_ui.packed_file_data_display.attach(&folder_tree_view_extra_copy_button, 0, 1, 1, 1);
-
-                        // Second, we create the new TreeView (in a ScrolledWindow) and his TreeStore.
-                        let folder_tree_view_extra = TreeView::new();
-                        let folder_tree_store_extra = TreeStore::new(&[String::static_type()]);
-                        folder_tree_view_extra.set_model(Some(&folder_tree_store_extra));
-
-                        let column_extra = TreeViewColumn::new();
-                        let cell_extra = CellRendererText::new();
-                        column_extra.pack_start(&cell_extra, true);
-                        column_extra.add_attribute(&cell_extra, "text", 0);
-
-                        folder_tree_view_extra.append_column(&column_extra);
-                        folder_tree_view_extra.set_enable_tree_lines(true);
-                        folder_tree_view_extra.set_enable_search(false);
-                        folder_tree_view_extra.set_headers_visible(false);
-
-                        let folder_tree_view_extra_scroll = ScrolledWindow::new(None, None);
-                        folder_tree_view_extra_scroll.set_hexpand(true);
-                        folder_tree_view_extra_scroll.set_vexpand(true);
-                        folder_tree_view_extra_scroll.add(&folder_tree_view_extra);
-                        app_ui.packed_file_data_display.attach(&folder_tree_view_extra_scroll, 1, 1, 1, 1);
-
-                        // And show everything and lock the main PackFile's TreeView.
-                        app_ui.packed_file_data_display.show_all();
-                        *is_folder_tree_view_locked.borrow_mut() = true;
-
-                        *pack_file_decoded_extra.borrow_mut() = pack_file_opened;
-                        ui::update_tree_view(&folder_tree_store_extra, &*pack_file_decoded_extra.borrow());
-
-                        // We need to check here if the selected destiny is not a file. Otherwise
-                        // we disable the "Copy" button.
-                        app_ui.folder_tree_selection.connect_changed(clone!(
-                        folder_tree_view_extra_copy_button,
-                        pack_file_decoded => move |folder_tree_selection| {
-                            let tree_path = ui::get_tree_path_from_selection(folder_tree_selection, true);
-
-                            // Only in case it's not a file, we enable the "Copy" Button.
-                            match get_type_of_selected_tree_path(&tree_path, &*pack_file_decoded.borrow()) {
-                                TreePathType::File(_) => folder_tree_view_extra_copy_button.set_sensitive(false),
-                                TreePathType::Folder(_) | TreePathType::PackFile | TreePathType::None => folder_tree_view_extra_copy_button.set_sensitive(true),
-                            }
-                        }));
-
-                        // When we click in the "Copy" button (<=).
-                        folder_tree_view_extra_copy_button.connect_button_release_event(clone!(
-                            app_ui,
-                            pack_file_decoded,
-                            pack_file_decoded_extra,
-                            folder_tree_view_extra => move |_,_| {
-
-                            let tree_path_source = ui::get_tree_path_from_selection(&folder_tree_view_extra.get_selection(), true);
-                            let tree_path_destination = ui::get_tree_path_from_selection(&app_ui.folder_tree_selection, true);
-                            let mut packed_file_added = false;
-                            match packfile::add_packedfile_to_packfile(
-                                &*pack_file_decoded_extra.borrow(),
-                                &mut *pack_file_decoded.borrow_mut(),
-                                &tree_path_source,
-                                &tree_path_destination,
-                            ) {
-                                Ok(_) => packed_file_added = true,
-                                Err(error) => ui::show_dialog(&app_ui.window, false, error.cause()),
-                            }
-                            if packed_file_added {
-                                set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
-                                ui::update_tree_view_expand_path(
-                                    &app_ui.folder_tree_store,
-                                    &*pack_file_decoded.borrow(),
-                                    &app_ui.folder_tree_selection,
-                                    &app_ui.folder_tree_view,
-                                    false
-                                );
-                            }
-
-                            Inhibit(false)
-                        }));
-
-                        // When we click in the "Exit "Add file/folder from PackFile" mode" button.
-                        folder_tree_view_extra_exit_button.connect_button_release_event(clone!(
-                            app_ui,
-                            is_folder_tree_view_locked => move |_,_| {
-                            *is_folder_tree_view_locked.borrow_mut() = false;
-
-                            // We need to destroy any children that the packed_file_data_display we use may have, cleaning it.
-                            let children_to_utterly_destroy = app_ui.packed_file_data_display.get_children();
-                            if !children_to_utterly_destroy.is_empty() {
-                                for i in &children_to_utterly_destroy {
-                                    i.destroy();
-                                }
-                            }
-                            ui::display_help_tips(&app_ui.packed_file_data_display);
-
-                            Inhibit(false)
-                        }));
-
+                // Then, we destroy any children that the packed_file_data_display we use may have, cleaning it.
+                let childrens_to_utterly_destroy = app_ui.packed_file_data_display.get_children();
+                if !childrens_to_utterly_destroy.is_empty() {
+                    for i in &childrens_to_utterly_destroy {
+                        i.destroy();
                     }
-                    Err(error) => ui::show_dialog(&app_ui.window, false, error.cause()),
+                }
+
+                // Create the `FileChooser`.
+                let file_chooser_add_from_packfile = FileChooserNative::new(
+                    "Select PackFile...",
+                    &app_ui.window,
+                    FileChooserAction::Open,
+                    "Accept",
+                    "Cancel"
+                );
+
+                // Set his filter to only admit ".pack" files.
+                file_chooser_filter_packfile(&file_chooser_add_from_packfile, "*.pack");
+
+                // If we hit "Accept"...
+                if file_chooser_add_from_packfile.run() == gtk_response_accept {
+
+                    // Try to open the selected PackFile.
+                    match packfile::open_packfile(file_chooser_add_from_packfile.get_filename().unwrap()) {
+
+                        // If the extra PackFile is valid...
+                        Ok(pack_file_opened) => {
+
+                            // We create the "Exit" and "Copy" buttons.
+                            let exit_button = Button::new_with_label("Exit \"Add file/folder from PackFile\" mode");
+                            let copy_button = Button::new_with_label("<=");
+                            exit_button.set_vexpand(false);
+                            copy_button.set_hexpand(false);
+
+                            // We attach them to the main grid.
+                            app_ui.packed_file_data_display.attach(&exit_button, 0, 0, 2, 1);
+                            app_ui.packed_file_data_display.attach(&copy_button, 0, 1, 1, 1);
+
+                            // We create the new TreeView (in a ScrolledWindow) and his TreeStore.
+                            let folder_tree_view_extra = TreeView::new();
+                            let folder_tree_store_extra = TreeStore::new(&[String::static_type()]);
+                            folder_tree_view_extra.set_model(Some(&folder_tree_store_extra));
+
+                            // We create his column.
+                            let column_extra = TreeViewColumn::new();
+                            let cell_extra = CellRendererText::new();
+                            column_extra.pack_start(&cell_extra, true);
+                            column_extra.add_attribute(&cell_extra, "text", 0);
+
+                            // Configuration for the `TreeView`.
+                            folder_tree_view_extra.append_column(&column_extra);
+                            folder_tree_view_extra.set_enable_tree_lines(true);
+                            folder_tree_view_extra.set_enable_search(false);
+                            folder_tree_view_extra.set_headers_visible(false);
+
+                            // We create an `ScrolledWindow` for the `TreeView`.
+                            let folder_tree_view_extra_scroll = ScrolledWindow::new(None, None);
+                            folder_tree_view_extra_scroll.set_hexpand(true);
+                            folder_tree_view_extra_scroll.set_vexpand(true);
+                            folder_tree_view_extra_scroll.add(&folder_tree_view_extra);
+                            app_ui.packed_file_data_display.attach(&folder_tree_view_extra_scroll, 1, 1, 1, 1);
+
+                            // Show everything.
+                            app_ui.packed_file_data_display.show_all();
+
+                            // Block the main `TreeView` from decoding stuff.
+                            *is_folder_tree_view_locked.borrow_mut() = true;
+
+                            // Store the second PackFile's data.
+                            *pack_file_decoded_extra.borrow_mut() = pack_file_opened;
+
+                            // Build the second `TreeView`.
+                            ui::update_treeview(
+                                &folder_tree_store_extra,
+                                &*pack_file_decoded_extra.borrow(),
+                                &folder_tree_view_extra.get_selection(),
+                                TreeViewOperation::Build,
+                                TreePathType::None,
+                            );
+
+                            // We need to check here if the selected destination is not a file. Otherwise,
+                            // we should disable the "Copy" button.
+                            app_ui.folder_tree_selection.connect_changed(clone!(
+                            copy_button,
+                            pack_file_decoded => move |folder_tree_selection| {
+
+                                    // Get his path.
+                                    let tree_path = ui::get_tree_path_from_selection(folder_tree_selection, true);
+
+                                    // Only in case it's not a file, we enable the "Copy" Button.
+                                    match get_type_of_selected_tree_path(&tree_path, &*pack_file_decoded.borrow()) {
+                                        TreePathType::File(_) => copy_button.set_sensitive(false),
+                                        _ => copy_button.set_sensitive(true),
+                                    }
+                                }
+                            ));
+
+                            // When we click in the "Copy" button (<=).
+                            copy_button.connect_button_release_event(clone!(
+                                app_ui,
+                                pack_file_decoded,
+                                pack_file_decoded_extra,
+                                folder_tree_view_extra => move |_,_| {
+
+                                    // Get his source & destination paths.
+                                    let tree_path_source = ui::get_tree_path_from_selection(&folder_tree_view_extra.get_selection(), true);
+                                    let tree_path_destination = ui::get_tree_path_from_selection(&app_ui.folder_tree_selection, true);
+
+                                    // Get the source & destination types.
+                                    let selection_type = get_type_of_selected_tree_path(&tree_path_destination, &pack_file_decoded.borrow());
+
+                                    // Try to add the PackedFile to the main PackFile.
+                                    let success = match packfile::add_packedfile_to_packfile(
+                                        &*pack_file_decoded_extra.borrow(),
+                                        &mut *pack_file_decoded.borrow_mut(),
+                                        &tree_path_source,
+                                        &tree_path_destination,
+                                    ) {
+                                        Ok(_) => true,
+                                        Err(error) => {
+                                            ui::show_dialog(&app_ui.window, false, error.cause());
+                                            false
+                                        }
+                                    };
+
+                                    // If it succeed...
+                                    if success {
+
+                                        // Set the mod as "Modified".
+                                        set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
+
+                                        // Get the new "Prefix" for the PackedFiles.
+                                        let mut source_prefix = tree_path_source;
+
+                                        // Remove the PackFile's name from it.
+                                        source_prefix.reverse();
+                                        source_prefix.pop();
+                                        source_prefix.reverse();
+
+                                        // Get the new "Prefix" for the Destination PackedFiles.
+                                        let mut destination_prefix = tree_path_destination;
+
+                                        // Remove the PackFile's name from it.
+                                        destination_prefix.reverse();
+                                        destination_prefix.pop();
+                                        destination_prefix.reverse();
+
+                                        // Get all the PackedFiles to copy.
+                                        let path_list: Vec<Vec<String>> = pack_file_decoded_extra.borrow()
+                                            .pack_file_data.packed_files
+                                            .iter()
+                                            .filter(|x| x.packed_file_path.starts_with(&source_prefix))
+                                            .map(|x| x.packed_file_path.to_vec())
+                                            .collect();
+
+                                        // Update the TreeView to show the newly added PackedFiles.
+                                        ui::update_treeview(
+                                            &app_ui.folder_tree_store,
+                                            &*pack_file_decoded.borrow(),
+                                            &app_ui.folder_tree_selection,
+                                            TreeViewOperation::AddFromPackFile(source_prefix.to_vec(), destination_prefix.to_vec(), path_list),
+                                            selection_type,
+                                        );
+                                    }
+
+                                    Inhibit(false)
+                                }
+                            ));
+
+                            // When we click in the "Exit "Add file/folder from PackFile" mode" button.
+                            exit_button.connect_button_release_event(clone!(
+                                app_ui,
+                                is_folder_tree_view_locked => move |_,_| {
+
+                                    // Unlock the `TreeView`.
+                                    *is_folder_tree_view_locked.borrow_mut() = false;
+
+                                    // We need to destroy any children that the packed_file_data_display we use may have, cleaning it.
+                                    let children_to_utterly_destroy = app_ui.packed_file_data_display.get_children();
+                                    if !children_to_utterly_destroy.is_empty() {
+                                        for i in &children_to_utterly_destroy {
+                                            i.destroy();
+                                        }
+                                    }
+
+                                    // Show the "Tips".
+                                    ui::display_help_tips(&app_ui.packed_file_data_display);
+
+                                    Inhibit(false)
+                                }
+                            ));
+
+                        }
+                        Err(error) => ui::show_dialog(&app_ui.window, false, error.cause()),
+                    }
                 }
             }
         }
-    }));
+    ));
 
     // The "Rename" action requires multiple things to happend, so we group them together.
     {
@@ -1994,6 +2165,9 @@ fn build_ui(application: &Application) {
                 // Get the `tree_path` of the selected file/folder...
                 let tree_path = ui::get_tree_path_from_selection(&app_ui.folder_tree_selection, true);
 
+                // Get his type.
+                let selection_type = get_type_of_selected_tree_path(&tree_path, &pack_file_decoded.borrow());
+
                 // And try to rename it.
                 let success = match packfile::rename_packed_file(&mut *pack_file_decoded.borrow_mut(), &tree_path, &new_name) {
                     Ok(_) => true,
@@ -2009,13 +2183,13 @@ fn build_ui(application: &Application) {
                     // Set the mod as "Modified".
                     set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
 
-                    // Rebuild the TreeView.
-                    ui::update_tree_view_expand_path(
+                    // Rename whatever is selected (and his childs, if it have any) from the `TreeView`.
+                    ui::update_treeview(
                         &app_ui.folder_tree_store,
                         &*pack_file_decoded.borrow(),
                         &app_ui.folder_tree_selection,
-                        &app_ui.folder_tree_view,
-                        true
+                        TreeViewOperation::Rename(new_name.to_owned()),
+                        selection_type,
                     );
                 }
 
@@ -2043,33 +2217,47 @@ fn build_ui(application: &Application) {
         app_ui,
         pack_file_decoded => move |_,_|{
 
-        // We hide the context menu, then we get the selected file/folder, delete it and update the
-        // TreeView. Pretty simple, actually.
-        app_ui.folder_tree_view_context_menu.popdown();
+            // We hide the context menu, then we get the selected file/folder, delete it and update the
+            // TreeView. Pretty simple, actually.
+            app_ui.folder_tree_view_context_menu.popdown();
 
-        // We only do something in case the focus is in the TreeView. This should stop problems with
-        // the accels working everywhere.
-        if app_ui.folder_tree_view.has_focus() {
+            // We only do something in case the focus is in the TreeView. This should stop problems with
+            // the accels working everywhere.
+            if app_ui.folder_tree_view.has_focus() {
 
-            let tree_path = ui::get_tree_path_from_selection(&app_ui.folder_tree_selection, true);
-            let mut success = false;
-            match packfile::delete_from_packfile(&mut *pack_file_decoded.borrow_mut(), &tree_path) {
-                Ok(_) => success = true,
-                Err(error) => ui::show_dialog(&app_ui.window, false, error.cause())
-            }
-            if success {
-                set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
-                ui::update_tree_view_expand_path(
-                    &app_ui.folder_tree_store,
-                    &*pack_file_decoded.borrow(),
-                    &app_ui.folder_tree_selection,
-                    &app_ui.folder_tree_view,
-                    true
-                );
+                // Get his `tree_path`.
+                let tree_path = ui::get_tree_path_from_selection(&app_ui.folder_tree_selection, true);
+
+                // Get his type.
+                let selection_type = get_type_of_selected_tree_path(&tree_path, &pack_file_decoded.borrow());
+
+                // Try to delete whatever is selected.
+                let success = match packfile::delete_from_packfile(&mut *pack_file_decoded.borrow_mut(), &tree_path) {
+                    Ok(_) => true,
+                    Err(error) => {
+                        ui::show_dialog(&app_ui.window, false, error.cause());
+                        false
+                    }
+                };
+
+                // If we succeed...
+                if success {
+
+                    // Set the mod as "Modified".
+                    set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
+
+                    // Remove whatever is selected (and his childs, if it have any) from the `TreeView`.
+                    ui::update_treeview(
+                        &app_ui.folder_tree_store,
+                        &*pack_file_decoded.borrow(),
+                        &app_ui.folder_tree_selection,
+                        TreeViewOperation::Delete,
+                        selection_type,
+                    );
+                }
             }
         }
-    }));
-
+    ));
 
     // When we hit the "Extract file/folder" button.
     app_ui.folder_tree_view_extract_packedfile.connect_activate(clone!(
@@ -2078,262 +2266,166 @@ fn build_ui(application: &Application) {
         mode,
         pack_file_decoded => move |_,_|{
 
-        // First, we hide the context menu.
-        app_ui.folder_tree_view_context_menu.popdown();
+            // First, we hide the context menu.
+            app_ui.folder_tree_view_context_menu.popdown();
 
-        // We only do something in case the focus is in the TreeView. This should stop problems with
-        // the accels working everywhere.
-        if app_ui.folder_tree_view.has_focus() {
-            let tree_path = ui::get_tree_path_from_selection(&app_ui.folder_tree_selection, true);
+            // We only do something in case the focus is in the TreeView. This should stop problems with
+            // the accels working everywhere.
+            if app_ui.folder_tree_view.has_focus() {
 
-            // Then, we check with the correlation data if the tree_path is a folder or a file.
-            // Both (folder and file) are processed in the same way but we need a different
-            // FileChooser for files and folders, so we check first what it's.
-            match get_type_of_selected_tree_path(&tree_path, &*pack_file_decoded.borrow()) {
-                TreePathType::File(_) => {
-                    match *mode.borrow() {
+                // Get the selected path, both in complete and incomplete forms.
+                let tree_path = ui::get_tree_path_from_selection(&app_ui.folder_tree_selection, true);
+                let mut tree_path_incomplete = tree_path.to_vec();
+                tree_path_incomplete.reverse();
+                tree_path_incomplete.pop();
+                tree_path_incomplete.reverse();
 
-                        // If there is a "MyMod" selected, we need to extract whatever we want to extracted
-                        // directly to the mod's assets folder.
-                        Mode::MyMod {ref game_folder_name, mod_name: _} => {
-                            // In theory, if we reach this line this should always exist. In theory I should be rich.
-                            if let Some(ref my_mods_base_path) = settings.borrow().paths.my_mods_base_path {
+                // Get the type of the selection.
+                let selection_type = get_type_of_selected_tree_path(&tree_path, &*pack_file_decoded.borrow());
 
-                                // We get his base path (where the PackFile is).
-                                let mut my_mod_base_folder = my_mods_base_path.to_path_buf();
-                                my_mod_base_folder.push(game_folder_name.to_owned());
+                // Check the current "Operational Mode".
+                match *mode.borrow() {
 
-                                // Now we create the folder structure of the parents of that PackedFile in the
-                                // assets folder, so we have a full structure replicating the PackFile when we
-                                // extract stuff from the PackFile.
-                                let mut extraction_final_folder = my_mod_base_folder;
-                                let mut tree_path = tree_path.to_vec();
-                                let tree_path_len = tree_path.len();
+                    // If we have a "MyMod" selected...
+                    Mode::MyMod {ref game_folder_name, ref mod_name} => {
 
-                                for (index, folder) in tree_path.iter_mut().enumerate() {
+                        // In theory, if we reach this line this should always exist. In theory I should be rich.
+                        if let Some(ref my_mods_base_path) = settings.borrow().paths.my_mods_base_path {
 
-                                    // The PackFile ".pack" extension NEEDS to be removed.
-                                    if index == 0 && folder.ends_with(".pack"){
+                            // We get the assets folder of our mod.
+                            let mut my_mod_path = my_mods_base_path.to_path_buf();
+                            my_mod_path.push(&game_folder_name);
+                            my_mod_path.push(Path::new(&mod_name).file_stem().unwrap().to_string_lossy().as_ref().to_owned());
 
-                                        // How to remove the last five characters of a string, lazy way.
-                                        folder.pop();
-                                        folder.pop();
-                                        folder.pop();
-                                        folder.pop();
-                                        folder.pop();
-                                    }
+                            // We check that path exists, and create it if it doesn't.
+                            if !my_mod_path.is_dir() {
+                                match DirBuilder::new().create(&my_mod_path) {
+                                    Ok(_) | Err(_) => { /* This returns ok if it created the folder and err if it already exist. */ }
+                                };
+                            }
+
+                            // Create the path for the final destination of the file.
+                            let mut extraction_final_folder = my_mod_path.to_path_buf();
+
+                            // If it's a file or a folder...
+                            if selection_type == TreePathType::File((vec![String::new()], 1)) || selection_type == TreePathType::Folder(vec![String::new()]) {
+
+                                // If it's a folder, remove the last directory, as that one will be created when extracting.
+                                if selection_type == TreePathType::Folder(vec![String::new()]) { tree_path_incomplete.pop(); }
+
+                                // For each folder in his path...
+                                for (index, folder) in tree_path_incomplete.iter().enumerate() {
+
+                                    // Complete the extracted path.
                                     extraction_final_folder.push(folder);
 
                                     // The last thing in the path is the new file, so we don't have to
                                     // create a folder for it.
-                                    if index < (tree_path_len - 1) {
+                                    if index < (tree_path_incomplete.len() - 1) {
                                         match DirBuilder::new().create(&extraction_final_folder) {
                                             Ok(_) | Err(_) => { /* This returns ok if it created the folder and err if it already exist. */ }
                                         };
                                     }
                                 }
-
-                                // And finally, we extract our file to the desired destiny.
-                                match packfile::extract_from_packfile(
-                                    &*pack_file_decoded.borrow(),
-                                    &tree_path,
-                                    &extraction_final_folder
-                                ) {
-
-                                    Ok(result) => ui::show_dialog(&app_ui.window, true, result),
-                                    Err(error) => ui::show_dialog(&app_ui.window, false, error.cause())
-                                }
                             }
-                            else {
-                                return ui::show_dialog(&app_ui.window, false, "MyMod base path not configured.");
+
+                            // And finally, we extract our file to the desired destiny.
+                            match packfile::extract_from_packfile(
+                                &*pack_file_decoded.borrow(),
+                                &tree_path,
+                                &extraction_final_folder
+                            ) {
+                                Ok(result) => ui::show_dialog(&app_ui.window, true, result),
+                                Err(error) => ui::show_dialog(&app_ui.window, false, error.cause())
                             }
                         }
 
-                        // If there is no "MyMod" selected, extract normally.
-                        Mode::Normal => {
-
-                            let file_chooser_extract_file = FileChooserNative::new(
-                                "Select File destination...",
-                                &app_ui.window,
-                                FileChooserAction::Save,
-                                "Extract",
-                                "Cancel"
-                            );
-
-                            file_chooser_extract_file.set_current_name(&tree_path.last().unwrap());
-                            if file_chooser_extract_file.run() == gtk_response_accept {
-                                match packfile::extract_from_packfile(
-                                    &*pack_file_decoded.borrow(),
-                                    &tree_path,
-                                    &file_chooser_extract_file.get_filename().expect("Couldn't open file")
-                                ) {
-
-                                    Ok(result) => ui::show_dialog(&app_ui.window, true, result),
-                                    Err(error) => ui::show_dialog(&app_ui.window, false, error.cause())
-                                }
-                            }
+                        // If there is no "MyMod" path configured, report it.
+                        else {
+                            return ui::show_dialog(&app_ui.window, false, "MyMod base path not configured.");
                         }
                     }
 
-                },
-                TreePathType::Folder(_) => {
+                    // If there is no "MyMod" selected, extract normally.
+                    Mode::Normal => {
 
-                    match *mode.borrow() {
+                        // Create the `FileChooser`.
+                        let file_chooser_extract =
 
-                        // If there is a "MyMod" selected, we need to extract whatever we want to extracted
-                        // directly to the mod's assets folder.
-                        Mode::MyMod {ref game_folder_name, mod_name: _} => {
+                            // If we have selected a file...
+                            if selection_type == TreePathType::File((vec![String::new()], 1)) {
 
-                            // In theory, if we reach this line this should always exist. In theory I should be rich.
-                            if let Some(ref my_mods_base_path) = settings.borrow().paths.my_mods_base_path {
+                                // Create a `FileChooser` to extract files.
+                                FileChooserNative::new(
+                                    "Select File destination...",
+                                    &app_ui.window,
+                                    FileChooserAction::Save,
+                                    "Extract",
+                                    "Cancel"
+                                )
+                            }
 
-                                // We get his base path (where the PackFile is).
-                                let mut my_mod_base_folder = my_mods_base_path.to_path_buf();
-                                my_mod_base_folder.push(game_folder_name.to_owned());
+                            // If we have selected a folder or the PackFile...
+                            else if selection_type == TreePathType::Folder(vec![String::new()]) ||
+                                 selection_type == TreePathType::PackFile {
 
-                                // Now we create the folder structure of the parents of that PackedFile in the
-                                // assets folder, so we have a full structure replicating the PackFile when we
-                                // extract stuff from the PackFile.
-                                let mut extraction_final_folder = my_mod_base_folder;
-                                let mut tree_path_tweaked = tree_path.to_vec();
+                                // Create a `FileChooser` to extract folders.
+                                FileChooserNative::new(
+                                    "Select Folder destination...",
+                                    &app_ui.window,
+                                    FileChooserAction::CreateFolder,
+                                    "Extract",
+                                    "Cancel"
+                                )
+                            }
 
-                                // The last folder is the one the extraction function will create, so we
-                                // remove it from the path.
-                                tree_path_tweaked.pop();
+                            // Otherwise, return an error.
+                            else {
+                                return ui::show_dialog(&app_ui.window, false, "You can't extract non-existent files.");
+                            };
 
-                                for (index, folder) in tree_path_tweaked.iter_mut().enumerate() {
+                        // If we have selected a file...
+                        if selection_type == TreePathType::File((vec![String::new()], 1)) {
 
-                                    // The PackFile ".pack" extension NEEDS to be removed.
-                                    if index == 0 && folder.ends_with(".pack"){
+                            // Set the `FileChooser` current name to the PackFile's name.
+                            file_chooser_extract.set_current_name(&tree_path.last().unwrap());
+                        }
 
-                                        // How to remove the last five characters of a string, lazy way.
-                                        folder.pop();
-                                        folder.pop();
-                                        folder.pop();
-                                        folder.pop();
-                                        folder.pop();
-                                    }
-                                    extraction_final_folder.push(folder);
-                                    match DirBuilder::new().create(&extraction_final_folder) {
+                        // If we hit "Extract"...
+                        if file_chooser_extract.run() == gtk_response_accept {
+
+                            // Get the extraction path.
+                            let mut extraction_path = file_chooser_extract.get_filename().unwrap();
+
+                            // If we have selected the PackFile...
+                            if selection_type == TreePathType::PackFile {
+
+                                // Add the PackFile's name to the path.
+                                extraction_path.push(&app_ui.folder_tree_store.get_value(&app_ui.folder_tree_store.get_iter_first().unwrap(), 0).get::<String>().unwrap());
+
+                                // We check that path exists, and create it if it doesn't.
+                                if !extraction_path.is_dir() {
+                                    match DirBuilder::new().create(&extraction_path) {
                                         Ok(_) | Err(_) => { /* This returns ok if it created the folder and err if it already exist. */ }
                                     };
                                 }
-
-                                // And finally, we extract our file to the desired destiny.
-                                match packfile::extract_from_packfile(
-                                    &*pack_file_decoded.borrow(),
-                                    &tree_path,
-                                    &extraction_final_folder
-                                ) {
-                                    Ok(result) => ui::show_dialog(&app_ui.window, true, result),
-                                    Err(error) => ui::show_dialog(&app_ui.window, false, error.cause())
-                                }
                             }
-                            else {
-                                return ui::show_dialog(&app_ui.window, false, "MyMod base path not configured.");
-                            }
-                        }
 
-                        // If there is no "MyMod" selected, extract normally.
-                        Mode::Normal => {
-
-                            let file_chooser_extract_folder = FileChooserNative::new(
-                                "Select Folder destination...",
-                                &app_ui.window,
-                                FileChooserAction::CreateFolder,
-                                "Extract",
-                                "Cancel"
-                            );
-
-                            if file_chooser_extract_folder.run() == gtk_response_accept {
-                                match packfile::extract_from_packfile(
-                                    &*pack_file_decoded.borrow(),
-                                    &tree_path,
-                                    &file_chooser_extract_folder.get_filename().expect("Couldn't open file")) {
-
-                                    Ok(result) => ui::show_dialog(&app_ui.window, true, result),
-                                    Err(error) => ui::show_dialog(&app_ui.window, false, error.cause())
-                                }
+                            // Try to extract the PackFile.
+                            match packfile::extract_from_packfile(
+                                &*pack_file_decoded.borrow(),
+                                &tree_path,
+                                &extraction_path
+                            ) {
+                                Ok(result) => ui::show_dialog(&app_ui.window, true, result),
+                                Err(error) => ui::show_dialog(&app_ui.window, false, error.cause())
                             }
                         }
                     }
                 }
-                TreePathType::PackFile => {
-
-                    match *mode.borrow() {
-
-                        // If there is a "MyMod" selected, we need to extract whatever we want to extracted
-                        // directly to the mod's assets folder.
-                        Mode::MyMod {ref game_folder_name, mod_name: _} => {
-                            // In theory, if we reach this line this should always exist. In theory I should be rich.
-                            if let Some(ref my_mods_base_path) = settings.borrow().paths.my_mods_base_path {
-
-                                // We get his base path (where the PackFile is).
-                                let mut my_mod_base_folder = my_mods_base_path.to_path_buf();
-                                my_mod_base_folder.push(game_folder_name.to_owned());
-
-                                // Now we create the folder structure of the parents of that PackedFile in the
-                                // assets folder, so we have a full structure replicating the PackFile when we
-                                // extract stuff from the PackFile.
-                                let mut extraction_final_folder = my_mod_base_folder;
-                                let mut pack_file_name = tree_path[0].to_owned();
-
-                                // How to remove the last five characters of a string in a Vec<String>, lazy way.
-                                pack_file_name.pop();
-                                pack_file_name.pop();
-                                pack_file_name.pop();
-                                pack_file_name.pop();
-                                pack_file_name.pop();
-
-                                extraction_final_folder.push(pack_file_name);
-                                match DirBuilder::new().create(&extraction_final_folder) {
-                                    Ok(_) | Err(_) => { /* This returns ok if it created the folder and err if it already exist. */ }
-                                };
-
-                                // And finally, we extract our file to the desired destiny.
-                                match packfile::extract_from_packfile(
-                                    &*pack_file_decoded.borrow(),
-                                    &tree_path,
-                                    &extraction_final_folder
-                                ) {
-
-                                    Ok(result) => ui::show_dialog(&app_ui.window, true, result),
-                                    Err(error) => ui::show_dialog(&app_ui.window, false, error.cause())
-                                }
-                            }
-                            else {
-                                return ui::show_dialog(&app_ui.window, false, "MyMod base path not configured.");
-                            }
-                        }
-
-                        // If there is no "MyMod" selected, extract normally.
-                        Mode::Normal => {
-
-                            let file_chooser_extract_folder = FileChooserNative::new(
-                                "Select Folder destination...",
-                                &app_ui.window,
-                                FileChooserAction::CreateFolder,
-                                "Extract",
-                                "Cancel"
-                            );
-
-                            if file_chooser_extract_folder.run() == gtk_response_accept {
-                                match packfile::extract_from_packfile(
-                                    &*pack_file_decoded.borrow(),
-                                    &tree_path,
-                                    &file_chooser_extract_folder.get_filename().expect("Couldn't open file")) {
-
-                                    Ok(result) => ui::show_dialog(&app_ui.window, true, result),
-                                    Err(error) => ui::show_dialog(&app_ui.window, false, error.cause())
-                                }
-                            }
-                        }
-                    }
-                }
-                TreePathType::None => ui::show_dialog(&app_ui.window, false, "You can't extract non-existent files."),
             }
         }
-    }));
+    ));
 
     /*
     --------------------------------------------------------
@@ -4540,7 +4632,15 @@ fn open_packfile(
 
             // Update the Window and the TreeView with his data...
             set_modified(false, &app_ui.window, &mut pack_file_decoded);
-            ui::update_tree_view(&app_ui.folder_tree_store, pack_file_decoded);
+
+            // Build the `TreeView`.
+            ui::update_treeview(
+                &app_ui.folder_tree_store,
+                &pack_file_decoded,
+                &app_ui.folder_tree_selection,
+                TreeViewOperation::Build,
+                TreePathType::None,
+            );
 
             // If we are opening a "MyMod", set it to "MyMod" mode. Set it to "Normal" otherwise.
             *mode = if is_my_mod.0 {
@@ -4773,13 +4873,18 @@ fn patch_siege_ai(
             },
             Err(error) => ui::show_dialog(&app_ui.window, false, error.cause())
         }
+
+        // If it succeed...
         if success {
-            ui::update_tree_view_expand_path(
+
+            // TODO: Make this update, not rebuild.
+            // Rebuild the `TreeView`.
+            ui::update_treeview(
                 &app_ui.folder_tree_store,
                 &*pack_file_decoded.borrow(),
                 &app_ui.folder_tree_selection,
-                &app_ui.folder_tree_view,
-                false
+                TreeViewOperation::Build,
+                TreePathType::None,
             );
         }
     }

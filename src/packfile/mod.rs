@@ -150,7 +150,7 @@ pub fn add_file_to_packfile(
         Ok(format!("File added."))
     }
     else {
-        Err(format_err!("There is already a file with that name in that folder. Delete that file first."))
+        Err(format_err!("The PackedFile \"{}\" already exist. Ignored.", tree_path.last().unwrap()))
     }
 }
 

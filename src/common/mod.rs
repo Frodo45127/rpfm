@@ -16,13 +16,28 @@ pub mod coding_helpers;
 #[cfg(test)]
 pub mod tests;
 
-/// This enum has the different types of selected items in a TreeView.
+/// This enum has the different types of selected items in a TreeView. File has (tree_path without
+/// the mod's name, index in PackFile). Folder has the tree_path without the mod's name.
 #[derive(Clone, Debug)]
 pub enum TreePathType {
     File((Vec<String>, usize)),
     Folder(Vec<String>),
     PackFile,
     None,
+}
+
+
+/// Custom implementation of `PartialEq` for `TreePathType`.
+impl PartialEq for TreePathType {
+    fn eq(&self, other: &TreePathType) -> bool {
+        match (self, other) {
+            (&TreePathType::File((_,_)), &TreePathType::File((_,_))) => true,
+            (&TreePathType::Folder(_), &TreePathType::Folder(_)) => true,
+            (&TreePathType::PackFile, &TreePathType::PackFile) => true,
+            (&TreePathType::None, &TreePathType::None) => true,
+            _ => false,
+        }
+    }
 }
 
 /// This function checks if the PackedFile at the given TreePath is a file or a folder. Please note
