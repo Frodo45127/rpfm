@@ -448,28 +448,19 @@ fn build_ui(application: &Application) {
         }
     ));
 
-    //By default, these actions are disabled until a PackFile is created or opened.
-    app_ui.menu_bar_save_packfile.set_enabled(false);
-    app_ui.menu_bar_save_packfile_as.set_enabled(false);
-    app_ui.menu_bar_change_packfile_type.set_enabled(false);
+    // Set the current "Operational Mode" to `Normal`.
+    set_my_mod_mode(&app_ui, mode.clone(), None);
 
-    // We deactive these menus, and only activate the one corresponding to our game.
-    app_ui.menu_bar_generate_dependency_pack_wh2.set_enabled(false);
-    app_ui.menu_bar_patch_siege_ai_wh2.set_enabled(false);
-    app_ui.menu_bar_generate_dependency_pack_wh.set_enabled(false);
-    app_ui.menu_bar_patch_siege_ai_wh.set_enabled(false);
+    // Disable the "PackFile Management" actions by default.
+    enable_packfile_actions(&app_ui, game_selected.clone(), false);
 
-    // These needs to be disabled by default at start too.
+    // Disable all the Contextual Menu actions by default.
     app_ui.folder_tree_view_add_file.set_enabled(false);
     app_ui.folder_tree_view_add_folder.set_enabled(false);
     app_ui.folder_tree_view_add_from_packfile.set_enabled(false);
+    app_ui.folder_tree_view_rename_packedfile.set_enabled(false);
     app_ui.folder_tree_view_delete_packedfile.set_enabled(false);
     app_ui.folder_tree_view_extract_packedfile.set_enabled(false);
-
-    // And these three.
-    app_ui.menu_bar_my_mod_delete.set_enabled(false);
-    app_ui.menu_bar_my_mod_install.set_enabled(false);
-    app_ui.menu_bar_my_mod_uninstall.set_enabled(false);
 
     /*
     --------------------------------------------------------
@@ -564,9 +555,9 @@ fn build_ui(application: &Application) {
                         &rpfm_path,
                         &app_ui,
                         &settings.borrow(),
-                        &mut mode.borrow_mut(),
+                        mode.clone(),
                         &mut schema.borrow_mut(),
-                        &mut game_selected.borrow_mut(),
+                        game_selected.clone(),
                         (false, None),
                         &mut pack_file_decoded.borrow_mut()
                     ) { ui::show_dialog(&app_ui.window, false, error.cause()) };
@@ -4466,9 +4457,9 @@ fn build_ui(application: &Application) {
                             &rpfm_path,
                             &app_ui,
                             &settings.borrow(),
-                            &mut mode.borrow_mut(),
+                            mode.clone(),
                             &mut schema.borrow_mut(),
-                            &mut game_selected.borrow_mut(),
+                            game_selected.clone(),
                             (false, None),
                             &mut pack_file_decoded.borrow_mut()
                         ) { ui::show_dialog(&app_ui.window, false, error.cause()) };
@@ -4491,9 +4482,9 @@ fn build_ui(application: &Application) {
             &rpfm_path,
             &app_ui,
             &settings.borrow(),
-            &mut mode.borrow_mut(),
+            mode,
             &mut schema.borrow_mut(),
-            &mut game_selected.borrow_mut(),
+            game_selected,
             (false, None),
             &mut pack_file_decoded.borrow_mut()
         ) { ui::show_dialog(&app_ui.window, false, error.cause()) };
@@ -4618,13 +4609,13 @@ fn open_packfile(
     rpfm_path: &PathBuf,
     app_ui: &AppUI,
     settings: &Settings,
-    mode: &mut Mode,
+    mode: Rc<RefCell<Mode>>,
     schema: &mut Option<Schema>,
-    game_selected: &mut GameSelected,
+    game_selected: Rc<RefCell<GameSelected>>,
     is_my_mod: (bool, Option<String>),
     mut pack_file_decoded: &mut PackFile,
 ) -> Result<(), Error> {
-    match packfile::open_packfile(pack_file_path) {
+    match packfile::open_packfile(pack_file_path.to_path_buf()) {
         Ok(pack_file_opened) => {
 
             // Get the PackFile into our main PackFile...
@@ -4642,14 +4633,6 @@ fn open_packfile(
                 TreePathType::None,
             );
 
-            // If we are opening a "MyMod", set it to "MyMod" mode. Set it to "Normal" otherwise.
-            *mode = if is_my_mod.0 {
-                Mode::MyMod {
-                    game_folder_name: is_my_mod.1.clone().unwrap(),
-                    mod_name: pack_file_decoded.pack_file_extra_data.file_name.to_owned(),
-                }
-            } else { Mode::Normal };
-
             // We choose the right option, depending on our PackFile.
             match pack_file_decoded.pack_file_header.pack_file_type {
                 0 => app_ui.menu_bar_change_packfile_type.change_state(&"boot".to_variant()),
@@ -4660,67 +4643,42 @@ fn open_packfile(
                 _ => ui::show_dialog(&app_ui.window, false, "PackFile Type not valid."),
             }
 
-            // We deactive these menus, and only activate the one corresponding to our game.
-            app_ui.menu_bar_generate_dependency_pack_wh2.set_enabled(false);
-            app_ui.menu_bar_patch_siege_ai_wh2.set_enabled(false);
-            app_ui.menu_bar_generate_dependency_pack_wh.set_enabled(false);
-            app_ui.menu_bar_patch_siege_ai_wh.set_enabled(false);
+            // Disable the "PackFile Management" actions.
+            enable_packfile_actions(&app_ui, game_selected.clone(), false);
 
             // If it's a "MyMod", we choose the game selected depending on his folder's name.
             if is_my_mod.0 {
+
+                // Set `GameSelected` depending on the folder of the "MyMod".
                 let game_name = is_my_mod.1.clone().unwrap();
-                game_selected.change_game_selected(&game_name, &settings.paths.game_paths.iter().filter(|x| &x.game == &game_name).map(|x| x.path.clone()).collect::<Option<PathBuf>>());
+                game_selected.borrow_mut().change_game_selected(&game_name, &settings.paths.game_paths.iter().filter(|x| &x.game == &game_name).map(|x| x.path.clone()).collect::<Option<PathBuf>>());
                 app_ui.menu_bar_change_game_selected.change_state(&game_name.to_variant());
 
-                match &*game_name {
-                    "warhammer_2" => {
-                        app_ui.menu_bar_generate_dependency_pack_wh2.set_enabled(true);
-                        app_ui.menu_bar_patch_siege_ai_wh2.set_enabled(true);
-                    },
-                    "warhammer" | _ => {
-                        app_ui.menu_bar_generate_dependency_pack_wh.set_enabled(true);
-                        app_ui.menu_bar_patch_siege_ai_wh.set_enabled(true);
-                    },
-                }
+                // Set the current "Operational Mode" to `MyMod`.
+                set_my_mod_mode(&app_ui, mode.clone(), Some(pack_file_path));
             }
 
             // If it's not a "MyMod", we choose the new GameSelected depending on what the open mod id is.
             else {
+
+                // Set `GameSelected` depending on the ID of the PackFile.
                 match &*pack_file_decoded.pack_file_header.pack_file_id {
                     "PFH5" => {
-                        game_selected.change_game_selected("warhammer_2", &settings.paths.game_paths.iter().filter(|x| &x.game == "warhammer_2").map(|x| x.path.clone()).collect::<Option<PathBuf>>());
+                        game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.paths.game_paths.iter().filter(|x| &x.game == "warhammer_2").map(|x| x.path.clone()).collect::<Option<PathBuf>>());
                         app_ui.menu_bar_change_game_selected.change_state(&"warhammer_2".to_variant());
-                        app_ui.menu_bar_generate_dependency_pack_wh2.set_enabled(true);
-                        app_ui.menu_bar_patch_siege_ai_wh2.set_enabled(true);
                     },
                     "PFH4" | _ => {
-                        game_selected.change_game_selected("warhammer", &settings.paths.game_paths.iter().filter(|x| &x.game == "warhammer").map(|x| x.path.clone()).collect::<Option<PathBuf>>());
+                        game_selected.borrow_mut().change_game_selected("warhammer", &settings.paths.game_paths.iter().filter(|x| &x.game == "warhammer").map(|x| x.path.clone()).collect::<Option<PathBuf>>());
                         app_ui.menu_bar_change_game_selected.change_state(&"warhammer".to_variant());
-                        app_ui.menu_bar_generate_dependency_pack_wh.set_enabled(true);
-                        app_ui.menu_bar_patch_siege_ai_wh.set_enabled(true);
                     },
                 }
+
+                // Set the current "Operational Mode" to `Normal`.
+                set_my_mod_mode(&app_ui, mode.clone(), None);
             }
 
             // Enable the "PackFile Management" actions.
-            app_ui.menu_bar_save_packfile.set_enabled(true);
-            app_ui.menu_bar_save_packfile_as.set_enabled(true);
-            app_ui.menu_bar_change_packfile_type.set_enabled(true);
-
-            // If we are opening a "MyMod", enable his actions. Disable them otherwise.
-            if is_my_mod.0 {
-
-                // Enable the controls for "MyMod".
-                app_ui.menu_bar_my_mod_delete.set_enabled(true);
-                app_ui.menu_bar_my_mod_install.set_enabled(true);
-                app_ui.menu_bar_my_mod_uninstall.set_enabled(true);
-            }
-            else {
-                // Disable the controls for "MyMod".
-                app_ui.menu_bar_my_mod_delete.set_enabled(false);
-                app_ui.menu_bar_my_mod_install.set_enabled(false);
-                app_ui.menu_bar_my_mod_uninstall.set_enabled(false);
-            }
+            enable_packfile_actions(&app_ui, game_selected.clone(), true);
 
             // Try to load the Schema for this PackFile's game.
             *schema = Schema::load(&rpfm_path, &pack_file_decoded.pack_file_header.pack_file_id).ok();
@@ -4824,9 +4782,9 @@ fn build_my_mod_menu(
                                                     &rpfm_path,
                                                     &app_ui,
                                                     &settings,
-                                                    &mut mode.borrow_mut(),
+                                                    mode.clone(),
                                                     &mut schema.borrow_mut(),
-                                                    &mut game_selected.borrow_mut(),
+                                                    game_selected.clone(),
                                                     (true, Some(game_folder_name.borrow().to_owned())),
                                                     &mut pack_file_decoded.borrow_mut()
                                                 ) { ui::show_dialog(&app_ui.window, false, error.cause()) };
@@ -4996,10 +4954,11 @@ fn enable_packfile_actions(app_ui: &AppUI, game_selected: Rc<RefCell<GameSelecte
                 app_ui.menu_bar_generate_dependency_pack_wh2.set_enabled(true);
                 app_ui.menu_bar_patch_siege_ai_wh2.set_enabled(true);
             },
-            "warhammer" | _ => {
+            "warhammer" => {
                 app_ui.menu_bar_generate_dependency_pack_wh.set_enabled(true);
                 app_ui.menu_bar_patch_siege_ai_wh.set_enabled(true);
             },
+            _ => {},
         }
     }
 
