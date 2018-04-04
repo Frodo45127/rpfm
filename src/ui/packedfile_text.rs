@@ -3,8 +3,9 @@ extern crate std;
 extern crate gtk;
 extern crate sourceview;
 
+use sourceview::prelude::*;
 use sourceview::{
-    Buffer, BufferExt, View, ViewExt, Language, LanguageManager, LanguageManagerExt
+    Buffer, View, Language, LanguageManager, StyleScheme, StyleSchemeManager
 };
 use gtk::prelude::*;
 use gtk::{ScrolledWindow, Grid, Statusbar};
@@ -41,6 +42,12 @@ pub fn create_text_view(
             source_view.set_show_line_numbers(true);
             source_view.set_indent_on_tab(true);
             source_view.set_highlight_current_line(true);
+
+            // Set the syntax hightlight to "monokai-extended".
+            // TODO: Make this be toggleable through the preferences window.
+            let style_scheme_manager = StyleSchemeManager::get_default().unwrap();
+            let style: Option<StyleScheme> = style_scheme_manager.get_scheme("monokai-extended");
+            if let Some(style) = style { source_view_buffer.set_style_scheme(&style); }
 
             // We attach it to the main grid.
             packed_file_data_display.attach(&source_view_scroll, 0, 0, 1, 1);
