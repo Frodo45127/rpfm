@@ -53,7 +53,7 @@
   - [ ] Pref: Allow to disable Cross-Table dependencies to improve performance.
   - [ ] PackFile Management: Improve interaction in case of duplicate files while adding them to the PackFile.
   - [ ] PackFile Management: Open PackFile directly from data folder.
-  - [ ] PackFile Management: Don't try to decode the files if the selection has been done with right-click (or a better alternative for this).
+  - [x] PackFile Management: Don't try to decode the files if the selection has been done with right-click (or a better alternative for this).
   - [ ] PackFile Management: Delete multiple selected things at the same time.
   - [ ] PackFile Management: Extract multiple selected things at the same time.
   - [ ] PackFile Management: Move the load of the DB schemas to background (so it doesn't lock the UI) and make it happen on opening the PackFile (so we load only the needed schema).
@@ -88,5 +88,6 @@
   - [ ] Pref: Remember custom column widths (not so sure if I'll manage to make this one... or if it'll be done, but to the list it goes).
   - [ ] Code Tests, to ensure I don't break something with a code change.... again.
   - [ ] Something to not load entire PackFiles to Ram (optional, as this causes problems seen in PFM),
-  - [ ] Rework how the entire TreeView works (including better controls to fold/expand the folders).
+  - [x] Rework how the entire TreeView works (including better controls to fold/expand the folders).
   - [x] Allow to open a PackFile directly by associating it with RPFM.
+  - [ ] Reverse conversion for models, so modders can use Attila's Variant Editor with Warhammer models.
