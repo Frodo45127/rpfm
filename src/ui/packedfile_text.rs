@@ -71,17 +71,26 @@ pub fn create_text_view(
                 // Get the `Completion` of our `View`.
                 let completion = source_view.get_completion().unwrap();
 
-                // Get the list of functions for autocompletion.
+                // Get the lists of lua keywods and TW functions for autocompletion.
+                let keyword_list = get_keyword_list();
                 let fn_list = get_function_list();
 
                 // Enable autocompletion from a secondary buffer with all the functions and stuff.
-                let secondary_buffer = Buffer::new(None);
-                secondary_buffer.begin_not_undoable_action();
-                secondary_buffer.set_text(&fn_list);
-                secondary_buffer.end_not_undoable_action();
-                let lua_provider = CompletionWords::new(Some("Total War Functions"), None);
-                lua_provider.register(&secondary_buffer);
-                completion.add_provider(&lua_provider).unwrap();
+                let fn_buffer = Buffer::new(None);
+                fn_buffer.begin_not_undoable_action();
+                fn_buffer.set_text(&fn_list);
+                fn_buffer.end_not_undoable_action();
+                let tw_fn_provider = CompletionWords::new(Some("Total War Functions"), None);
+                tw_fn_provider.register(&fn_buffer);
+                completion.add_provider(&tw_fn_provider).unwrap();
+
+                let keyword_buffer = Buffer::new(None);
+                keyword_buffer.begin_not_undoable_action();
+                keyword_buffer.set_text(&keyword_list);
+                keyword_buffer.end_not_undoable_action();
+                let lua_keyword_provider = CompletionWords::new(Some("Lua Keywords"), None);
+                lua_keyword_provider.register(&keyword_buffer);
+                completion.add_provider(&lua_keyword_provider).unwrap();
 
                 // Enable autocompletion with words from the same file.
                 let local_provider = CompletionWords::new(Some("Current File"), None);
@@ -390,5 +399,29 @@ fn get_function_list() -> String {
     add_building_to_force
     add_units_to_faction_mercenary_pool
     add_units_to_province_mercenary_pool
+".to_owned()
+}
+
+// Complete list of lua keywords.
+fn get_keyword_list() -> String {
+    "and
+    break
+    do
+    else
+    elseif
+    end
+    for
+    function
+    goto
+    if
+    in
+    local
+    not
+    or
+    repeat
+    return
+    then
+    until
+    while
 ".to_owned()
 }
