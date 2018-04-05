@@ -5,7 +5,7 @@ extern crate sourceview;
 
 use sourceview::prelude::*;
 use sourceview::{
-    Buffer, View, Language, LanguageManager, StyleScheme, StyleSchemeManager
+    Buffer, View, Language, LanguageManager, StyleScheme, StyleSchemeManager, CompletionWords
 };
 use gtk::prelude::*;
 use gtk::{ScrolledWindow, Grid, Statusbar};
@@ -66,6 +66,29 @@ pub fn create_text_view(
                 language_manager.get_language("xml")
             }
             else if packed_file_name.ends_with(".lua") {
+
+                // Completion Stuff from here.
+                // Get the `Completion` of our `View`.
+                let completion = source_view.get_completion().unwrap();
+
+                // Get the list of functions for autocompletion.
+                let fn_list = get_function_list();
+
+                // Enable autocompletion from a secondary buffer with all the functions and stuff.
+                let secondary_buffer = Buffer::new(None);
+                secondary_buffer.begin_not_undoable_action();
+                secondary_buffer.set_text(&fn_list);
+                secondary_buffer.end_not_undoable_action();
+                let lua_provider = CompletionWords::new(Some("Total War Functions"), None);
+                lua_provider.register(&secondary_buffer);
+                completion.add_provider(&lua_provider).unwrap();
+
+                // Enable autocompletion with words from the same file.
+                let local_provider = CompletionWords::new(Some("Current File"), None);
+                local_provider.register(&source_view_buffer);
+                completion.add_provider(&local_provider).unwrap();
+
+                // Return the Language.
                 language_manager.get_language("lua")
             }
             else if packed_file_name.ends_with(".csv") {
@@ -88,7 +111,9 @@ pub fn create_text_view(
             }
 
             // Add the text to the SourceView.
+            source_view_buffer.begin_not_undoable_action();
             source_view_buffer.set_text(&*text);
+            source_view_buffer.end_not_undoable_action();
 
             // And show everything.
             source_view_scroll.add(&source_view);
@@ -105,4 +130,265 @@ pub fn create_text_view(
             return None
         }
     }
+}
+
+// Complete list of lua functions used in Total War: Warhammer, filtered so we can use it.
+// Source: https://pastebin.com/9v2wtZPy
+fn get_function_list() -> String {
+    "enable_ui
+    add_restricted_building_level_record
+    remove_restricted_building_level_record
+    add_restricted_building_level_record_for_faction
+    remove_restricted_building_level_record_for_faction
+    add_custom_battlefield
+    remove_custom_battlefield
+    add_visibility_trigger
+    remove_visibility_trigger
+    add_location_trigger
+    remove_location_trigger
+    disable_elections
+    register_movies
+    disable_movement_for_ai_under_shroud
+    cancel_actions_for
+    shown_message
+    pending_auto_show_messages
+    compare_localised_string
+    advance_to_next_campaign
+    add_time_trigger
+    remove_time_trigger
+    scroll_camera
+    scroll_camera_with_direction
+    stop_camera
+    set_camera_position
+    get_camera_position
+    fade_scene
+    dismiss_advice
+    disable_movement_for_character
+    disable_movement_for_faction
+    show_shroud
+    take_shroud_snapshot
+    restore_shroud_from_snapshot
+    make_neighbouring_regions_visible_in_shroud
+    make_neighbouring_regions_seen_in_shroud
+    make_sea_region_visible_in_shroud
+    make_sea_region_seen_in_shroud
+    force_diplomacy
+    force_diplomacy_new
+    display_turns
+    stop_user_input
+    steal_user_input
+    steal_escape_key
+    is_new_game
+    save_named_value
+    load_named_value
+    disable_shopping_for_ai_under_shroud
+    add_settlement_model_override
+    add_building_model_override
+    remove_settlement_model_override
+    remove_building_model_override
+    optional_extras_for_episodics
+    award_experience_level
+    add_agent_experience
+    enable_auto_generated_missions
+    add_unit_model_overrides
+    add_attack_of_opportunity_overrides
+    remove_attack_of_opportunity_overrides
+    register_instant_movie
+    register_outro_movie
+    show_message_event
+    show_message_event_located
+    grant_unit
+    grant_unit_to_character
+    force_assassination_success_for_human
+    force_garrison_infiltration_success_for_human
+    set_tax_rate
+    exempt_region_from_tax
+    exempt_province_from_tax_for_all_factions_and_set_default
+    disable_rebellions_worldwide
+    force_declare_war
+    force_make_peace
+    force_add_trait
+    force_remove_trait
+    force_add_ancillary
+    add_ancillary_to_faction
+    force_add_skill
+    add_marker
+    remove_marker
+    add_vfx
+    remove_vfx
+    force_make_trade_agreement
+    move_to
+    teleport_to
+    join_garrison
+    leave_garrison
+    attack
+    attack_region
+    seek_exchange
+    set_looting_options_disabled_for_human
+    disable_saving_game
+    set_non_scripted_traits_disabled
+    set_non_scripted_ancillaries_disabled
+    set_technology_research_disabled
+    set_liberation_options_disabled
+    set_ui_notification_of_victory_disabled
+    enable_movement_for_character
+    enable_movement_for_faction
+    create_force
+    create_force_with_general
+    create_force_with_existing_general
+    create_force_with_full_diplomatic_discovery
+    disable_end_turn
+    end_turn
+    force_normal_character_locomotion_speed_for_turn
+    hide_character
+    unhide_character
+    add_circle_area_trigger
+    add_outline_area_trigger
+    remove_area_trigger
+    dismiss_advice_at_end_turn
+    disable_shortcut
+    apply_effect_bundle
+    remove_effect_bundle
+    apply_effect_bundle_to_force
+    remove_effect_bundle_from_force
+    apply_effect_bundle_to_characters_force
+    remove_effect_bundle_from_characters_force
+    apply_effect_bundle_to_region
+    remove_effect_bundle_from_region
+    create_agent
+    instantly_dismantle_building
+    instantly_upgrade_building
+    win_next_autoresolve_battle
+    modify_next_autoresolve_battle
+    replenish_action_points
+    zero_action_points
+    override_ui
+    kill_character
+    wound_character
+    force_agent_action_success_for_human
+    instantly_repair_building
+    render_campaign_to_file
+    force_character_force_into_stance
+    model
+    set_region_abandoned
+    override_attacker_win_chance_prediction
+    transfer_region_to_faction
+    suppress_all_event_feed_event_types
+    whitelist_event_feed_event_type
+    event_feed_event_type_pending
+    highlight_movement_extents
+    highlight_selected_character_zoc
+    spawn_rogue_army
+    create_storm_for_region
+    trigger_mission
+    trigger_dilemma
+    trigger_incident
+    trigger_custom_mission
+    trigger_custom_mission_from_string
+    cancel_custom_mission
+    trigger_custom_dilemma
+    grant_faction_handover
+    set_campaign_ai_force_all_factions_boardering_humans_to_have_invasion_behaviour
+    set_campaign_ai_force_all_factions_boardering_human_vassals_to_have_invasion_behaviour
+    technology_osmosis_for_playables_enable_culture
+    technology_osmosis_for_playables_enable_all
+    force_make_vassal
+    force_alliance
+    force_grant_military_access
+    force_rebellion_in_region
+    treasury_mod
+    lock_technology
+    unlock_technology
+    set_general_offered_dilemma_permitted
+    instant_set_building_health_percent
+    make_son_come_of_age
+    allow_player_to_embark_navies
+    force_change_cai_faction_personality
+    set_ignore_end_of_turn_public_order
+    set_only_allow_basic_recruit_stance
+    set_imperium_level_change_disabled
+    set_character_experience_disabled
+    set_character_skill_tier_limit
+    set_event_generation_enabled
+    autosave_at_next_opportunity
+    add_event_restricted_unit_record
+    remove_event_restricted_unit_record
+    add_event_restricted_unit_record_for_faction
+    remove_event_restricted_unit_record_for_faction
+    add_event_restricted_building_record
+    remove_event_restricted_building_record
+    add_event_restricted_building_record_for_faction
+    remove_event_restricted_building_record_for_faction
+    set_ai_uses_human_display_speed
+    set_public_order_of_province_for_region
+    set_public_order_disabled_for_province_for_region
+    set_public_order_disabled_for_province_for_region_for_all_factions_and_set_default
+    make_region_visible_in_shroud
+    make_region_seen_in_shroud
+    modify_faction_slaves_in_a_faction
+    modify_faction_slaves_in_a_faction_province
+    add_development_points_to_region
+    faction_set_food_factor_multiplier
+    faction_set_food_factor_value
+    faction_mod_food_factor_value
+    faction_add_pooled_resource
+    add_interactable_campaign_marker
+    remove_interactable_campaign_marker
+    complete_scripted_mission_objective
+    set_scripted_mission_text
+    spawn_unique_agent
+    spawn_unique_agent_at_region
+    spawn_unique_agent_at_character
+    add_character_vfx
+    remove_character_vfx
+    add_garrison_residence_vfx
+    remove_garrison_residence_vfx
+    pooled_resource_mod
+    perform_ritual
+    rollback_linked_ritual_chain
+    set_ritual_unlocked
+    set_ritual_chain_unlocked
+    set_ritual_in_chain_unlocked
+    make_diplomacy_available
+    remove_unit_from_character
+    skip_winds_of_magic_gambler
+    spawn_character_to_pool
+    override_building_chain_display
+    cai_strategic_stance_manager_block_all_stances_but_that_specified_towards_target_faction
+    cai_strategic_stance_manager_promote_specified_stance_towards_target_faction
+    cai_strategic_stance_manager_promote_specified_stance_towards_target_faction_by_number
+    cai_force_personality_change
+    cai_force_personality_change_with_override_round_number
+    cai_strategic_stance_manager_force_stance_update_between_factions
+    cai_strategic_stance_manager_set_stance_promotion_between_factions_for_a_given_stance
+    cai_strategic_stance_manager_clear_all_promotions_between_factions
+    cai_strategic_stance_manager_set_stance_blocking_between_factions_for_a_given_stance
+    cai_strategic_stance_manager_clear_all_blocking_between_factions
+    cai_disable_movement_for_character
+    cai_disable_movement_for_faction
+    cai_enable_movement_for_character
+    cai_enable_movement_for_faction
+    cai_disable_command_assignment_for_character
+    cai_enable_command_assignment_for_character
+    faction_offers_peace_to_other_faction
+    disable_pathfinding_restriction
+    set_character_immortality
+    set_character_unique
+    spawn_character_into_family_tree
+    appoint_character_to_most_expensive_force
+    play_movie_in_ui
+    trigger_music_state
+    is_benchmark_mode
+    cinematic
+    filesystem_lookup
+    disable_event_feed_events
+    lock_starting_general_recruitment
+    unlock_starting_general_recruitment
+    toggle_dilemma_generation
+    toggle_incident_generation
+    toggle_mission_generation
+    add_building_to_force
+    add_units_to_faction_mercenary_pool
+    add_units_to_province_mercenary_pool
+".to_owned()
 }
