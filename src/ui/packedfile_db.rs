@@ -133,7 +133,7 @@ impl PackedFileDBTreeView{
         tree_view.set_rubber_banding(true);
         tree_view.set_has_tooltip(true);
         tree_view.set_enable_search(false);
-        tree_view.set_search_column(1);
+        tree_view.set_search_column(0);
         tree_view.set_margin_bottom(10);
 
         // We create the "Index" cell and column.
@@ -669,6 +669,35 @@ impl PackedFileDBTreeView{
         // This should put the key columns in order.
         for column in key_columns.iter().rev() {
             tree_view.move_column_after(column, Some(&column_index));
+        }
+
+        // This is the logic to set the "Search" column.
+        // For each field...
+        for (index, field) in table_definition.fields.iter().enumerate() {
+
+            // If there is one named "key"...
+            if field.field_name == "key" {
+
+                // Set it as the search column.
+                tree_view.set_search_column((index + 1) as i32);
+
+                // Stop the loop.
+                break;
+            }
+        }
+
+        // If we haven't set it yet...
+        if tree_view.get_search_column() == 0 {
+
+            // If there are any "Key" columns...
+            if !key_columns.is_empty() {
+
+                // Set the first "Key" column as the search column.
+                tree_view.set_search_column(key_columns[0].get_sort_column_id());
+            }
+
+            // Otherwise, just use the first Non-Index column.
+            else { tree_view.set_search_column(1); }
         }
 
         // Here we create the Popover menu. It's created and destroyed with the table because otherwise
