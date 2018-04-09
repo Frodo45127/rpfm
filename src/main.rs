@@ -41,7 +41,7 @@ use gio::{
 use gdk::Atom;
 use gtk::prelude::*;
 use gtk::{
-    Builder, WindowPosition, ApplicationWindow, FileFilter, Grid, TreePath, Clipboard,
+    Builder, ApplicationWindow, FileFilter, Grid, TreePath, Clipboard,
     TreeView, TreeSelection, TreeStore, ScrolledWindow, Application, CellRendererMode, TreeIter,
     CellRendererText, TreeViewColumn, Popover, Button, ListStore, ResponseType,
     ShortcutsWindow, ToVariant, Statusbar, FileChooserNative, FileChooserAction, ToValue
@@ -424,7 +424,6 @@ fn build_ui(application: &Application) {
     }
 
     // We bring up the main window.
-    app_ui.window.set_position(WindowPosition::Center);
     app_ui.window.show_all();
 
     // End of the "Getting Ready" part.
@@ -786,7 +785,7 @@ fn build_ui(application: &Application) {
             app_ui.menu_bar_preferences.set_enabled(false);
 
             // We create the "Settings Window" and load our current settings to it.
-            let settings_stuff = Rc::new(RefCell::new(SettingsWindow::create_settings_window(&application, &rpfm_path, &supported_games.borrow())));
+            let settings_stuff = Rc::new(RefCell::new(SettingsWindow::create_settings_window(&application, &app_ui.window, &rpfm_path, &supported_games.borrow())));
             settings_stuff.borrow().load_to_settings_window(&*settings.borrow());
 
             // When we press the "Accept" button.
@@ -963,7 +962,7 @@ fn build_ui(application: &Application) {
             app_ui.menu_bar_my_mod_new.set_enabled(false);
 
             // Create the the "New MyMod" window and put all it's stuff into a variable.
-            let new_mod_stuff = Rc::new(RefCell::new(MyModNewWindow::create_my_mod_new_window(&application, &supported_games.borrow(), &game_selected.borrow(), &settings.borrow(), &rpfm_path)));
+            let new_mod_stuff = Rc::new(RefCell::new(MyModNewWindow::create_my_mod_new_window(&application, &app_ui.window, &supported_games.borrow(), &game_selected.borrow(), &settings.borrow(), &rpfm_path)));
 
             // When we press the "Accept" button.
             new_mod_stuff.borrow().my_mod_new_accept.connect_button_release_event(clone!(

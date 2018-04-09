@@ -186,7 +186,7 @@ pub fn show_about_window(
     about_dialog.add_credit_section("Special thanks to", &["- PFM team (for providing the community\n   with awesome modding tools).", "- CA (for being a mod-friendly company)."]);
 
     // Center the `AboutDialog` in the middle of the screen.
-    about_dialog.set_position(WindowPosition::Center);
+    about_dialog.set_position(WindowPosition::CenterOnParent);
 
     // Give a father to the poor orphan...
     about_dialog.set_transient_for(parent_window);

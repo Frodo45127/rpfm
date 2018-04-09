@@ -8,7 +8,6 @@ use std::path::{
 };
 use url::Url;
 use gtk::prelude::*;
-use gdk::Gravity;
 use gtk::{
     Entry, Button, Frame, ComboBoxText, ApplicationWindow, WindowPosition, Orientation,
     Label, ButtonBox, ButtonBoxStyle, Application, FileChooserNative, ResponseType, FileChooserAction,
@@ -53,12 +52,12 @@ impl SettingsWindow {
 
     /// This function creates the entire settings window. It requires the application object to pass
     /// the window to.
-    pub fn create_settings_window(application: &Application, rpfm_path: &PathBuf, supported_games: &[GameInfo]) -> SettingsWindow {
+    pub fn create_settings_window(application: &Application, parent: &ApplicationWindow, rpfm_path: &PathBuf, supported_games: &[GameInfo]) -> SettingsWindow {
 
         let settings_window = ApplicationWindow::new(application);
         settings_window.set_size_request(700, 0);
-        settings_window.set_gravity(Gravity::Center);
-        settings_window.set_position(WindowPosition::Center);
+        settings_window.set_transient_for(parent);
+        settings_window.set_position(WindowPosition::CenterOnParent);
         settings_window.set_title("Settings");
 
         // Config the icon for the Settings Window. If this fails, something went wrong when setting the paths,
@@ -408,6 +407,7 @@ impl MyModNewWindow {
     /// the window to.
     pub fn create_my_mod_new_window(
         application: &Application,
+        parent: &ApplicationWindow,
         supported_games: &[GameInfo],
         game_selected: &GameSelected,
         settings: &Settings,
@@ -416,8 +416,8 @@ impl MyModNewWindow {
 
         let my_mod_new_window = ApplicationWindow::new(application);
         my_mod_new_window.set_size_request(500, 0);
-        my_mod_new_window.set_gravity(Gravity::Center);
-        my_mod_new_window.set_position(WindowPosition::Center);
+        my_mod_new_window.set_transient_for(parent);
+        my_mod_new_window.set_position(WindowPosition::CenterOnParent);
         my_mod_new_window.set_title("New MyMod");
 
         // Config the icon for the New "MyMod" Window. If this fails, something went wrong when setting the paths,
