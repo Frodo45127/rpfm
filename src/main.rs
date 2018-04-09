@@ -428,6 +428,7 @@ fn build_ui(application: &Application) {
         game_selected.clone(),
         supported_games.clone(),
         pack_file_decoded.clone(),
+        pack_file_decoded_extra.clone(),
         &rpfm_path
     );
 
@@ -501,10 +502,26 @@ fn build_ui(application: &Application) {
         supported_games,
         rpfm_path,
         mode,
+        pack_file_decoded_extra,
         pack_file_decoded => move |_,_| {
 
             // If the current PackFile has been changed in any way, we pop up the "Are you sure?" message.
             if ui::are_you_sure(&app_ui.window, pack_file_decoded.borrow().pack_file_extra_data.is_modified, false) {
+
+                // If there is no secondary PackFile opened using the "Data View" at the right side...
+                if pack_file_decoded_extra.borrow().pack_file_extra_data.file_name.is_empty() {
+
+                    // We need to destroy any children that the packed_file_data_display we use may have, cleaning it.
+                    let children_to_utterly_destroy = app_ui.packed_file_data_display.get_children();
+                    if !children_to_utterly_destroy.is_empty() {
+                        for i in &children_to_utterly_destroy {
+                            i.destroy();
+                        }
+                    }
+
+                    // Show the "Tips".
+                    display_help_tips(&app_ui.packed_file_data_display);
+                }
 
                 // Get the ID for the new PackFile.
                 let pack_file_id = supported_games.borrow().iter().filter(|x| x.folder_name == game_selected.borrow().game).map(|x| x.id.to_owned()).collect::<String>();
@@ -549,6 +566,7 @@ fn build_ui(application: &Application) {
         settings,
         mode,
         supported_games,
+        pack_file_decoded_extra,
         pack_file_decoded => move |_,_| {
 
             // If the current PackFile has been changed in any way, we pop up the "Are you sure?" message.
@@ -590,6 +608,7 @@ fn build_ui(application: &Application) {
                         game_selected.clone(),
                         (false, None),
                         pack_file_decoded.clone(),
+                        pack_file_decoded_extra.clone()
                     ) { ui::show_dialog(&app_ui.window, false, error.cause()) };
                 }
             }
@@ -775,6 +794,7 @@ fn build_ui(application: &Application) {
         rpfm_path,
         mode,
         application,
+        pack_file_decoded_extra,
         schema => move |_,_| {
 
             // We disable the action, so we can't start 2 "Settings" windows at the same time.
@@ -795,6 +815,7 @@ fn build_ui(application: &Application) {
                 rpfm_path,
                 schema,
                 mode,
+                pack_file_decoded_extra,
                 application => move |_,_| {
 
                     // Save a copy of our old `Settings` to use in the checks below.
@@ -834,6 +855,7 @@ fn build_ui(application: &Application) {
                                     game_selected.clone(),
                                     supported_games.clone(),
                                     pack_file_decoded.clone(),
+                                    pack_file_decoded_extra.clone(),
                                     &rpfm_path
                                 );
                             }
@@ -949,6 +971,7 @@ fn build_ui(application: &Application) {
         supported_games,
         rpfm_path,
         mode,
+        pack_file_decoded_extra,
         pack_file_decoded => move |_,_| {
 
             // We disable the action, so we can't start 2 "New MyMod" windows at the same time.
@@ -968,6 +991,7 @@ fn build_ui(application: &Application) {
                 supported_games,
                 rpfm_path,
                 game_selected,
+                pack_file_decoded_extra,
                 pack_file_decoded => move |_,_| {
 
                     // Get the mod name.
@@ -1044,6 +1068,7 @@ fn build_ui(application: &Application) {
                             game_selected.clone(),
                             supported_games.clone(),
                             pack_file_decoded.clone(),
+                            pack_file_decoded_extra.clone(),
                             &rpfm_path
                         );
 
@@ -1096,6 +1121,7 @@ fn build_ui(application: &Application) {
         rpfm_path,
         mode,
         supported_games,
+        pack_file_decoded_extra,
         pack_file_decoded => move |_,_| {
 
             // This will delete stuff from disk, so we pop up the "Are you sure?" message to avoid accidents.
@@ -1187,6 +1213,7 @@ fn build_ui(application: &Application) {
                         game_selected.clone(),
                         supported_games.clone(),
                         pack_file_decoded.clone(),
+                        pack_file_decoded_extra.clone(),
                         &rpfm_path
                     );
 
@@ -2123,7 +2150,11 @@ fn build_ui(application: &Application) {
                             // When we click in the "Exit "Add file/folder from PackFile" mode" button.
                             exit_button.connect_button_release_event(clone!(
                                 app_ui,
+                                pack_file_decoded_extra,
                                 is_folder_tree_view_locked => move |_,_| {
+
+                                    // Remove the `pack_file_decoded_extra` from memory.
+                                    *pack_file_decoded_extra.borrow_mut() = PackFile::new();
 
                                     // Unlock the `TreeView`.
                                     *is_folder_tree_view_locked.borrow_mut() = false;
@@ -5391,6 +5422,7 @@ fn build_ui(application: &Application) {
         rpfm_path,
         mode,
         supported_games,
+        pack_file_decoded_extra,
         pack_file_decoded => move |_, _, _, _, selection_data, info, _| {
 
             // If the current PackFile has been changed in any way, we pop up the "Are you sure?" message.
@@ -5413,6 +5445,7 @@ fn build_ui(application: &Application) {
                             game_selected.clone(),
                             (false, None),
                             pack_file_decoded.clone(),
+                            pack_file_decoded_extra.clone()
                         ) { ui::show_dialog(&app_ui.window, false, error.cause()) };
                     }
                     _ => ui::show_dialog(&app_ui.window, false, "This type of event is not yet used."),
@@ -5439,6 +5472,7 @@ fn build_ui(application: &Application) {
             game_selected,
             (false, None),
             pack_file_decoded.clone(),
+            pack_file_decoded_extra.clone()
         ) { ui::show_dialog(&app_ui.window, false, error.cause()) };
     }
 }
@@ -5583,9 +5617,25 @@ fn open_packfile(
     game_selected: Rc<RefCell<GameSelected>>,
     is_my_mod: (bool, Option<String>),
     pack_file_decoded: Rc<RefCell<PackFile>>,
+    pack_file_decoded_extra: Rc<RefCell<PackFile>>,
 ) -> Result<(), Error> {
     match packfile::open_packfile(pack_file_path.to_path_buf()) {
         Ok(pack_file_opened) => {
+
+            // If there is no secondary PackFile opened using the "Data View" at the right side...
+            if pack_file_decoded_extra.borrow().pack_file_extra_data.file_name.is_empty() {
+
+                // We need to destroy any children that the packed_file_data_display we use may have, cleaning it.
+                let children_to_utterly_destroy = app_ui.packed_file_data_display.get_children();
+                if !children_to_utterly_destroy.is_empty() {
+                    for i in &children_to_utterly_destroy {
+                        i.destroy();
+                    }
+                }
+
+                // Show the "Tips".
+                display_help_tips(&app_ui.packed_file_data_display);
+            }
 
             // Get the PackFile into our main PackFile...
             *pack_file_decoded.borrow_mut() = pack_file_opened;
@@ -5678,6 +5728,7 @@ fn build_my_mod_menu(
     game_selected: Rc<RefCell<GameSelected>>,
     supported_games: Rc<RefCell<Vec<GameInfo>>>,
     pack_file_decoded: Rc<RefCell<PackFile>>,
+    pack_file_decoded_extra: Rc<RefCell<PackFile>>,
     rpfm_path: &PathBuf,
 ) {
     // First, we clear the list.
@@ -5744,6 +5795,7 @@ fn build_my_mod_menu(
                                         rpfm_path,
                                         supported_games,
                                         game_selected,
+                                        pack_file_decoded_extra,
                                         pack_file_decoded => move |_,_| {
 
                                             // If the current PackFile has been changed in any way, we pop up the "Are you sure?" message.
@@ -5764,6 +5816,7 @@ fn build_my_mod_menu(
                                                     game_selected.clone(),
                                                     (true, Some(game_folder_name.borrow().to_owned())),
                                                     pack_file_decoded.clone(),
+                                                    pack_file_decoded_extra.clone()
                                                 ) { ui::show_dialog(&app_ui.window, false, error.cause()) };
                                             }
                                         }
