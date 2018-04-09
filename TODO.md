@@ -16,24 +16,22 @@
 ### PackedFile Management:
   - [x] RigidModel:
     - [x] Rework current decoding process to be more reliable with multiple Lods.
-  - [ ] Loc:
+  - [x] Loc:
     - [x] Edit rows.
     - [x] Add rows.
     - [x] Delete rows.
-    - [ ] Copy rows.
-    - [ ] Cut rows.
-    - [ ] Paste rows.
+    - [x] Copy rows.
+    - [x] Paste rows.
     - [x] Import from csv.
     - [x] Export to csv.
-  - [ ] DB:
-    - [ ] Table View:
+  - [x] DB:
+    - [x] Table View:
       - [x] Edit rows.
       - [x] Add rows.
       - [x] Delete rows.
       - [x] Clone rows.
-      - [ ] Copy rows.
-      - [ ] Cut rows.
-      - [ ] Paste rows.
+      - [x] Copy rows.
+      - [x] Paste rows.
       - [x] Import from csv.
       - [x] Export to csv.
     - [x] Decoder View:
@@ -42,10 +40,10 @@
       - [x] Load old definitions of an undecoded table.
       - [x] Manipulate decoded columns.
       - [x] Update "First row decoded" field on column order change.
-	- [ ] Others:
-	  - [x] Decode simple text files (with syntax highlight if possible).
-	  - [x] Show images in the program (png, jpeg, jpg, tga).
-	  - [ ] Show dds files in the program.
+  - [ ] Others:
+    - [x] Decode simple text files (with syntax highlight if possible).
+    - [x] Show images in the program (png, jpeg, jpg, tga).
+    - [ ] Show dds files in the program.
 
 ### QoL Improvements:
   - [ ] All: Improve the general behavior of the program.
