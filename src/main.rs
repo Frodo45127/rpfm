@@ -5723,7 +5723,10 @@ fn build_my_mod_menu(
                                     // That means our game_folder is a valid folder and it needs to be added to the menu.
                                     let mod_name = game_folder_file.file_name().unwrap_or(OsStr::new("invalid")).to_string_lossy().as_ref().to_owned();
                                     let mod_action = &*format!("my-mod-open-{}-{}", game_folder_name, valid_mod_index);
-                                    game_submenu.append(Some(&*mod_name), Some(&*format!("app.{}", mod_action)));
+
+                                    // GTK have... behavior that needs to be changed when showing "_".
+                                    let mod_name_visual = mod_name.replace('_', "__");
+                                    game_submenu.append(Some(&*mod_name_visual), Some(&*format!("app.{}", mod_action)));
 
                                     // We create the action for the new button.
                                     let open_mod = SimpleAction::new(mod_action, None);
