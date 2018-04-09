@@ -7,10 +7,11 @@ use gtk::prelude::*;
 use gtk::{
     MessageDialog, TreeStore, TreeSelection, TreeView, Rectangle, Label, Justification,
     Grid, Statusbar, MessageType, ButtonsType, DialogFlags, ApplicationWindow, ResponseType,
-    AboutDialog, License, WindowPosition, TreeIter
+    AboutDialog, License, WindowPosition, TreeIter, Application, Paned, Orientation, CellRendererMode,
+    TreeViewColumn, CellRendererText, ScrolledWindow
 };
 use std::cmp::Ordering;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::fmt::Display;
 
 use common::*;
@@ -24,9 +25,134 @@ pub mod packedfile_rigidmodel;
 pub mod settings;
 pub mod updater;
 
+/// This struct is what we return to create the main window at the start of the program.
+pub struct MainWindow {
+
+    // Main window.
+    pub window: ApplicationWindow,
+
+    // This is the box where all the PackedFile Views are created.
+    pub packed_file_data_display: Grid,
+
+    // Status bar at the bottom of the program. To show informative messages.
+    pub status_bar: Statusbar,
+
+    // TreeView used to see the PackedFiles, and his TreeStore and TreeSelection.
+    pub folder_tree_view: TreeView,
+    pub folder_tree_store: TreeStore,
+    pub folder_tree_selection: TreeSelection,
+
+    // Column and cells for the `TreeView`.
+    pub folder_tree_view_cell: CellRendererText,
+    pub folder_tree_view_column: TreeViewColumn,
+}
+
 //----------------------------------------------------------------------------//
 //             UI Creation functions (to build the UI on start)
 //----------------------------------------------------------------------------//
+
+/// Implementation of `MainWindow`.
+impl MainWindow {
+
+    /// This function builds the Main Window at the start of the program. Because Glade is too buggy to use it.
+    pub fn create_main_window(application: &Application, rpfm_path: &PathBuf) -> Self {
+
+        // Create the main `ApplicationWindow`.
+        let window = ApplicationWindow::new(application);
+        window.set_position(WindowPosition::Center);
+        window.set_title("Rusted PackFile Manager");
+
+        // Config the icon for the main window. If this fails, something went wrong when setting the paths,
+        // so crash the program, as we don't know what more is broken.
+        window.set_icon_from_file(&Path::new(&format!("{}/img/rpfm.png", rpfm_path.to_string_lossy()))).unwrap();
+
+        // Create the `Grid` that'll hold everything except the top `MenuBar`.
+        let main_grid = Grid::new();
+        main_grid.set_border_width(6);
+        main_grid.set_row_spacing(3);
+        main_grid.set_column_spacing(3);
+
+        // Attach it to the main window.
+        window.add(&main_grid);
+
+        // Create the `Paned`.
+        let paned = Paned::new(Orientation::Horizontal);
+        paned.set_position(350);
+        paned.set_wide_handle(true);
+        paned.set_size_request(1100, 350);
+
+        // Create the `ScrolledWindow` for the `TreeView`.
+        let folder_scroll = ScrolledWindow::new(None, None);
+        folder_scroll.set_hexpand(true);
+        folder_scroll.set_vexpand(true);
+
+        // Create the `TreeView`.
+        let folder_tree_view = TreeView::new();
+        let folder_tree_store = TreeStore::new(&[String::static_type()]);
+        let folder_tree_selection = folder_tree_view.get_selection();
+
+        // Add the `TreeView` to the `ScrolledWindow`.
+        folder_scroll.add(&folder_tree_view);
+
+        // Config stuff for the `TreeView`.
+        folder_tree_view.set_model(Some(&folder_tree_store));
+
+        let folder_tree_view_column = TreeViewColumn::new();
+        let folder_tree_view_cell = CellRendererText::new();
+        folder_tree_view_cell.set_property_editable(true);
+        folder_tree_view_cell.set_property_mode(CellRendererMode::Activatable);
+        folder_tree_view_column.pack_start(&folder_tree_view_cell, true);
+        folder_tree_view_column.add_attribute(&folder_tree_view_cell, "text", 0);
+
+        folder_tree_view.append_column(&folder_tree_view_column);
+        folder_tree_view.set_margin_bottom(10);
+        folder_tree_view.set_enable_search(false);
+        folder_tree_view.set_search_column(0);
+        folder_tree_view.set_activate_on_single_click(true);
+        folder_tree_view.set_headers_visible(false);
+        folder_tree_view.set_enable_tree_lines(true);
+
+        // Create the data `Grid`.
+        let packed_file_data_display = Grid::new();
+
+        // Attach them to the `Paned`.
+        paned.add1(&folder_scroll);
+        paned.add2(&packed_file_data_display);
+
+        // Create the `Statusbar`.
+        let status_bar = Statusbar::new();
+        status_bar.set_margin_bottom(0);
+        status_bar.set_margin_top(0);
+        status_bar.set_margin_start(0);
+        status_bar.set_margin_end(0);
+
+        // Attach the `Paned` and the `Statusbar` to the main `Grid`.
+        main_grid.attach(&paned, 0, 0, 1, 1);
+        main_grid.attach(&status_bar, 0, 1, 1, 1);
+
+        // Return the `MainWindow` struct.
+        Self {
+
+            // Main window.
+            window,
+
+            // This is the box where all the PackedFile Views are created.
+            packed_file_data_display,
+
+            // Status bar at the bottom of the program. To show informative messages.
+            status_bar,
+
+            // TreeView used to see the PackedFiles, and his TreeStore and TreeSelection.
+            folder_tree_view,
+            folder_tree_store,
+            folder_tree_selection,
+
+            // Column and cells for the `TreeView`.
+            folder_tree_view_cell,
+            folder_tree_view_column,
+        }
+    }
+}
 
 /// This function creates an `AboutDialog` with all the credits, logo, license... done, and shows it.
 pub fn show_about_window(
@@ -381,7 +507,7 @@ pub fn update_treeview(
 
             // FIXME: This CTDs RPFM due to changing the cursor... which triggers a callback that tries to borrow
             // the packfile already borrowed here. For now I've forced the clear to trigger before calling this
-            // function when we do a `TreeViewOperation::Build`, but that's a dirty hack and need to be fixed. 
+            // function when we do a `TreeViewOperation::Build`, but that's a dirty hack and need to be fixed.
             //
             // First, we clean the TreeStore
             //folder_tree_store.clear();

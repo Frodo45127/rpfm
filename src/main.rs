@@ -149,6 +149,10 @@ struct AppUI {
     folder_tree_store: TreeStore,
     folder_tree_selection: TreeSelection,
 
+    // Column and cells for the `TreeView`.
+    folder_tree_view_cell: CellRendererText,
+    folder_tree_view_column: TreeViewColumn,
+
     // Context Menu Popover for `folder_tree_view`. It's build from a Model, stored here too.
     folder_tree_view_context_menu: Popover,
     folder_tree_view_context_menu_model: MenuModel,
@@ -209,20 +213,20 @@ fn build_ui(application: &Application) {
     let clipboard = Clipboard::get(&clipboard_atom);
 
     // We import the Glade design and get all the UI objects into variables.
-    let glade_design = include_str!("gtk/main.glade");
     let help_window = include_str!("gtk/help.ui");
     let menus = include_str!("gtk/menus.ui");
-    let builder = Builder::new_from_string(glade_design);
+    let builder = Builder::new_from_string(help_window);
 
     // We add all the UI onjects to the same builder. You know, one to rule them all.
-    builder.add_from_string(help_window).unwrap();
     builder.add_from_string(menus).unwrap();
+
+    // Create the main window.
+    let main_window = MainWindow::create_main_window(application, &rpfm_path);
 
     // The Context Menu Popover for `folder_tree_view` it's a little tricky to get. We need to
     // get the stuff it's based on and then create it and put it into the AppUI.
-    let folder_tree_view = builder.get_object("gtk_folder_tree_view").unwrap();
     let folder_tree_view_context_menu_model = builder.get_object("context_menu_packfile").unwrap();
-    let folder_tree_view_context_menu = Popover::new_from_model(Some(&folder_tree_view), &folder_tree_view_context_menu_model);
+    let folder_tree_view_context_menu = Popover::new_from_model(Some(&main_window.folder_tree_view), &folder_tree_view_context_menu_model);
 
     // First, create the AppUI to hold all the UI stuff. All the stuff here it's from the executable
     // so we can unwrap it without any problems.
@@ -232,7 +236,7 @@ fn build_ui(application: &Application) {
         clipboard,
 
         // Main window.
-        window: builder.get_object("gtk_window").unwrap(),
+        window: main_window.window,
 
         // MenuBar at the top of the Window.
         menu_bar: builder.get_object("menubar").unwrap(),
@@ -244,15 +248,19 @@ fn build_ui(application: &Application) {
         shortcuts_window: builder.get_object("shortcuts-main-window").unwrap(),
 
         // This is the box where all the PackedFile Views are created.
-        packed_file_data_display: builder.get_object("gtk_packed_file_data_display").unwrap(),
+        packed_file_data_display: main_window.packed_file_data_display,
 
         // Status bar at the bottom of the program. To show informative messages.
-        status_bar: builder.get_object("gtk_bottom_status_bar").unwrap(),
+        status_bar: main_window.status_bar,
 
         // TreeView used to see the PackedFiles, and his TreeStore and TreeSelection.
-        folder_tree_view,
-        folder_tree_store: TreeStore::new(&[String::static_type()]),
-        folder_tree_selection: builder.get_object("gtk_folder_tree_view_selection").unwrap(),
+        folder_tree_view: main_window.folder_tree_view,
+        folder_tree_store: main_window.folder_tree_store,
+        folder_tree_selection: main_window.folder_tree_selection,
+
+        // Column and cells for the `TreeView`.
+        folder_tree_view_cell: main_window.folder_tree_view_cell,
+        folder_tree_view_column: main_window.folder_tree_view_column,
 
         // Context Menu Popover for `folder_tree_view`. It's build from a Model, stored here too.
         folder_tree_view_context_menu,
@@ -290,26 +298,6 @@ fn build_ui(application: &Application) {
     // Set the main menu bar for the app. This one can appear in all the windows and needs to be
     // enabled or disabled per window.
     application.set_menubar(&app_ui.menu_bar);
-
-    // Config the icon for the main window. If this fails, something went wrong when setting the paths,
-    // so crash the program, as we don't know what more is broken.
-    app_ui.window.set_icon_from_file(&Path::new(&format!("{}/img/rpfm.png", rpfm_path.to_string_lossy()))).unwrap();
-
-    // Config stuff for `app_ui.folder_tree_view`.
-    app_ui.folder_tree_view.set_model(Some(&app_ui.folder_tree_store));
-
-    let folder_tree_view_column = TreeViewColumn::new();
-    let folder_tree_view_cell = CellRendererText::new();
-    folder_tree_view_cell.set_property_editable(true);
-    folder_tree_view_cell.set_property_mode(CellRendererMode::Activatable);
-    folder_tree_view_column.pack_start(&folder_tree_view_cell, true);
-    folder_tree_view_column.add_attribute(&folder_tree_view_cell, "text", 0);
-
-    app_ui.folder_tree_view.append_column(&folder_tree_view_column);
-    app_ui.folder_tree_view.set_margin_bottom(10);
-    app_ui.folder_tree_view.set_enable_search(false);
-    app_ui.folder_tree_view.set_search_column(0);
-    app_ui.folder_tree_view.set_activate_on_single_click(true);
 
     // Config stuff for `app_ui.shortcuts_window`.
     app_ui.shortcuts_window.set_title("Shortcuts");
@@ -359,9 +347,6 @@ fn build_ui(application: &Application) {
 
     // Then we display the "Tips" text.
     ui::display_help_tips(&app_ui.packed_file_data_display);
-
-    // We link the main ApplicationWindow to the application.
-    app_ui.window.set_application(Some(application));
 
     // This is to get the new schemas. It's controlled by a global const.
     if GENERATE_NEW_SCHEMA {
@@ -2190,7 +2175,6 @@ fn build_ui(application: &Application) {
         app_ui.folder_tree_view_rename_packedfile.connect_activate(clone!(
             app_ui,
             old_snake,
-            folder_tree_view_cell,
             pack_file_decoded => move |_,_|{
 
                 // We hide the context menu.
@@ -2210,7 +2194,7 @@ fn build_ui(application: &Application) {
                         }
 
                         // Set the cells to "Editable" mode, so we can edit them.
-                        folder_tree_view_cell.set_property_mode(CellRendererMode::Editable);
+                        app_ui.folder_tree_view_cell.set_property_mode(CellRendererMode::Editable);
 
                         // Get the `TreePath` of what we want to rename.
                         let tree_path: TreePath = app_ui.folder_tree_selection.get_selected_rows().0[0].clone();
@@ -2220,14 +2204,14 @@ fn build_ui(application: &Application) {
                         *old_snake.borrow_mut() = app_ui.folder_tree_store.get_value(&tree_iter, 0).get().unwrap();
 
                         // Start editing the name at the selected `TreePath`.
-                        app_ui.folder_tree_view.set_cursor(&tree_path, Some(&folder_tree_view_column), true);
+                        app_ui.folder_tree_view.set_cursor(&tree_path, Some(&app_ui.folder_tree_view_column), true);
                     }
                 }
             }
         ));
 
         // When the edition is finished...
-        folder_tree_view_cell.connect_edited(clone!(
+        app_ui.folder_tree_view_cell.connect_edited(clone!(
             pack_file_decoded,
             old_snake,
             app_ui => move |cell,_, new_name| {
@@ -2274,7 +2258,7 @@ fn build_ui(application: &Application) {
         ));
 
         // When the edition is canceled...
-        folder_tree_view_cell.connect_editing_canceled(move |cell| {
+        app_ui.folder_tree_view_cell.connect_editing_canceled(move |cell| {
 
                 // Set the cells back to "Activatable" mode.
                 cell.set_property_mode(CellRendererMode::Activatable);
