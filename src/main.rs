@@ -2663,8 +2663,8 @@ fn build_ui(application: &Application) {
                                     application.set_accels_for_action("app.packedfile_loc_delete_rows", &["<Shift>Delete"]);
                                     application.set_accels_for_action("app.packedfile_loc_copy_cell", &["<Primary>c"]);
                                     application.set_accels_for_action("app.packedfile_loc_paste_cell", &["<Primary>v"]);
-                                    application.set_accels_for_action("app.packedfile_loc_copy_rows", &["<Primary><Shift>c"]);
-                                    application.set_accels_for_action("app.packedfile_loc_paste_rows", &["<Primary><Shift>v"]);
+                                    application.set_accels_for_action("app.packedfile_loc_copy_rows", &["<Primary>z"]);
+                                    application.set_accels_for_action("app.packedfile_loc_paste_rows", &["<Primary>x"]);
                                     application.set_accels_for_action("app.packedfile_loc_import_csv", &["<Primary><Shift>i"]);
                                     application.set_accels_for_action("app.packedfile_loc_export_csv", &["<Primary><Shift>e"]);
 
@@ -4006,8 +4006,8 @@ fn build_ui(application: &Application) {
                                     application.set_accels_for_action("app.packedfile_db_copy_cell", &["<Primary>c"]);
                                     application.set_accels_for_action("app.packedfile_db_paste_cell", &["<Primary>v"]);
                                     application.set_accels_for_action("app.packedfile_db_clone_rows", &["<Primary><Shift>d"]);
-                                    application.set_accels_for_action("app.packedfile_db_copy_rows", &["<Primary><Shift>c"]);
-                                    application.set_accels_for_action("app.packedfile_db_paste_rows", &["<Primary><Shift>v"]);
+                                    application.set_accels_for_action("app.packedfile_db_copy_rows", &["<Primary>z"]);
+                                    application.set_accels_for_action("app.packedfile_db_paste_rows", &["<Primary>x"]);
                                     application.set_accels_for_action("app.packedfile_db_import_csv", &["<Primary><Shift>i"]);
                                     application.set_accels_for_action("app.packedfile_db_export_csv", &["<Primary><Shift>e"]);
 

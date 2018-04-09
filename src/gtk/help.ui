@@ -151,6 +151,38 @@
                                 <property name="title" translatable="yes">Delete row</property>
                             </object>
                         </child>
+                        
+                        <child>
+                            <object class="GtkShortcutsShortcut">
+                                <property name="visible">1</property>
+                                <property name="accelerator">&lt;Ctrl&gt;c</property>
+                                <property name="title" translatable="yes">Copy cell</property>
+                            </object>
+                        </child>
+
+                        <child>
+                            <object class="GtkShortcutsShortcut">
+                                <property name="visible">1</property>
+                                <property name="accelerator">&lt;Ctrl&gt;v</property>
+                                <property name="title" translatable="yes">Paste cell</property>
+                            </object>
+                        </child>
+
+                        <child>
+                            <object class="GtkShortcutsShortcut">
+                                <property name="visible">1</property>
+                                <property name="accelerator">&lt;Ctrl&gt;z</property>
+                                <property name="title" translatable="yes">Copy row</property>
+                            </object>
+                        </child>
+
+                        <child>
+                            <object class="GtkShortcutsShortcut">
+                                <property name="visible">1</property>
+                                <property name="accelerator">&lt;Ctrl&gt;x</property>
+                                <property name="title" translatable="yes">Paste row</property>
+                            </object>
+                        </child>
 
                         <child>
                             <object class="GtkShortcutsShortcut">
@@ -196,8 +228,40 @@
                         <child>
                             <object class="GtkShortcutsShortcut">
                                 <property name="visible">1</property>
+                                <property name="accelerator">&lt;Ctrl&gt;c</property>
+                                <property name="title" translatable="yes">Copy cell</property>
+                            </object>
+                        </child>
+
+                        <child>
+                            <object class="GtkShortcutsShortcut">
+                                <property name="visible">1</property>
+                                <property name="accelerator">&lt;Ctrl&gt;v</property>
+                                <property name="title" translatable="yes">Paste cell</property>
+                            </object>
+                        </child>
+
+                        <child>
+                            <object class="GtkShortcutsShortcut">
+                                <property name="visible">1</property>
                                 <property name="accelerator">&lt;Ctrl&gt;&lt;Shift&gt;d</property>
                                 <property name="title" translatable="yes">Clone row</property>
+                            </object>
+                        </child>
+
+                        <child>
+                            <object class="GtkShortcutsShortcut">
+                                <property name="visible">1</property>
+                                <property name="accelerator">&lt;Ctrl&gt;z</property>
+                                <property name="title" translatable="yes">Copy row</property>
+                            </object>
+                        </child>
+
+                        <child>
+                            <object class="GtkShortcutsShortcut">
+                                <property name="visible">1</property>
+                                <property name="accelerator">&lt;Ctrl&gt;x</property>
+                                <property name="title" translatable="yes">Paste row</property>
                             </object>
                         </child>
 
@@ -216,7 +280,6 @@
                                 <property name="title" translatable="yes">Export to CSV</property>
                             </object>
                         </child>
-
                     </object>
                 </child>
 
