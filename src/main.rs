@@ -474,6 +474,19 @@ fn build_ui(application: &Application) {
     app_ui.folder_tree_view_delete_packedfile.set_enabled(false);
     app_ui.folder_tree_view_extract_packedfile.set_enabled(false);
 
+    // If there is a "MyMod" path set in the settings...
+    if let Some(ref path) = settings.borrow().paths.my_mods_base_path {
+
+        // And it's a valid directory, enable the "New MyMod" button.
+        if path.is_dir() { app_ui.menu_bar_my_mod_new.set_enabled(true); }
+
+        // Otherwise, disable it.
+        else { app_ui.menu_bar_my_mod_new.set_enabled(false); }
+    }
+
+    // Otherwise, disable it.
+    else { app_ui.menu_bar_my_mod_new.set_enabled(false); }
+
     /*
     --------------------------------------------------------
                      Superior Menu: "File"
@@ -827,6 +840,19 @@ fn build_ui(application: &Application) {
                             _ => {}
                         }
                     }
+
+                    // If there is a "MyMod" path set in the settings...
+                    if let Some(ref path) = settings.borrow().paths.my_mods_base_path {
+
+                        // And it's a valid directory, enable the "New MyMod" button.
+                        if path.is_dir() { app_ui.menu_bar_my_mod_new.set_enabled(true); }
+
+                        // Otherwise, disable it.
+                        else { app_ui.menu_bar_my_mod_new.set_enabled(false); }
+                    }
+
+                    // Otherwise, disable it.
+                    else { app_ui.menu_bar_my_mod_new.set_enabled(false); }
 
                     // If we have changed the path of any of the games, and that game is the current `GameSelected`,
                     // update the current `GameSelected`.
