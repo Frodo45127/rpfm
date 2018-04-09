@@ -219,7 +219,7 @@ impl SettingsWindow {
         // Event to change the Font used.
         font_settings_button.connect_font_set(clone!(
             gtk_settings => move |font_settings_button| {
-                let new_font = font_settings_button.get_font_name().unwrap_or("Segoe UI 10".to_owned());
+                let new_font = font_settings_button.get_font_name().unwrap_or("Segoe UI 9".to_owned());
                 gtk_settings.set_property_gtk_font_name(Some(&new_font));
             }
         ));
@@ -380,7 +380,7 @@ impl SettingsWindow {
 
         // Get the Theme and Font settings.
         settings.prefer_dark_theme = self.settings_theme_prefer_dark_theme.get_active();
-        settings.font = self.settings_theme_font_button.get_font_name().unwrap_or("Segoe UI 10".to_owned());
+        settings.font = self.settings_theme_font_button.get_font_name().unwrap_or("Segoe UI 9".to_owned());
 
         // Only if we have valid directories, we save them. Otherwise we wipe them out.
         settings.paths.my_mods_base_path = match Path::new(&self.settings_path_my_mod_entry.get_buffer().get_text()).is_dir() {

@@ -119,7 +119,7 @@ impl Settings {
             paths: Paths::new(supported_games),
             default_game: "warhammer_2".to_owned(),
             prefer_dark_theme: false,
-            font: "Segoe UI 10".to_owned(),
+            font: "Segoe UI 9".to_owned(),
             check_updates_on_start: true,
         }
     }
