@@ -379,8 +379,12 @@ pub fn update_treeview(
         // If we want to build a new TreeView...
         TreeViewOperation::Build => {
 
+            // FIXME: This CTDs RPFM due to changing the cursor... which triggers a callback that tries to borrow
+            // the packfile already borrowed here. For now I've forced the clear to trigger before calling this
+            // function when we do a `TreeViewOperation::Build`, but that's a dirty hack and need to be fixed. 
+            //
             // First, we clean the TreeStore
-            folder_tree_store.clear();
+            //folder_tree_store.clear();
 
             // Second, we set as the big_parent, the base for the folders of the TreeView, a fake folder
             // with the name of the PackFile. All big things start with a lie.

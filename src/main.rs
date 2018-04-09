@@ -499,6 +499,9 @@ fn build_ui(application: &Application) {
                 // Create the new PackFile.
                 *pack_file_decoded.borrow_mut() = packfile::new_packfile("unknown.pack".to_string(), &pack_file_id);
 
+                // Clear the `TreeView` before updating it (fixes CTD with borrowed PackFile).
+                app_ui.folder_tree_store.clear();
+
                 // Build the `TreeView`.
                 ui::update_treeview(
                     &app_ui.folder_tree_store,
@@ -573,7 +576,7 @@ fn build_ui(application: &Application) {
                         &supported_games.borrow(),
                         game_selected.clone(),
                         (false, None),
-                        &mut pack_file_decoded.borrow_mut()
+                        pack_file_decoded.clone(),
                     ) { ui::show_dialog(&app_ui.window, false, error.cause()) };
                 }
             }
@@ -956,6 +959,9 @@ fn build_ui(application: &Application) {
 
                     // Create the new PackFile.
                     *pack_file_decoded.borrow_mut() = packfile::new_packfile(full_mod_name.to_owned(), &pack_file_id);
+
+                    // Clear the `TreeView` before updating it (fixes CTD with borrowed PackFile).
+                    app_ui.folder_tree_store.clear();
 
                     // Build the `TreeView`.
                     ui::update_treeview(
@@ -5380,7 +5386,7 @@ fn build_ui(application: &Application) {
                             &supported_games.borrow(),
                             game_selected.clone(),
                             (false, None),
-                            &mut pack_file_decoded.borrow_mut()
+                            pack_file_decoded.clone(),
                         ) { ui::show_dialog(&app_ui.window, false, error.cause()) };
                     }
                     _ => ui::show_dialog(&app_ui.window, false, "This type of event is not yet used."),
@@ -5406,7 +5412,7 @@ fn build_ui(application: &Application) {
             &supported_games.borrow(),
             game_selected,
             (false, None),
-            &mut pack_file_decoded.borrow_mut()
+            pack_file_decoded.clone(),
         ) { ui::show_dialog(&app_ui.window, false, error.cause()) };
     }
 }
@@ -5550,28 +5556,31 @@ fn open_packfile(
     supported_games: &[GameInfo],
     game_selected: Rc<RefCell<GameSelected>>,
     is_my_mod: (bool, Option<String>),
-    mut pack_file_decoded: &mut PackFile,
+    pack_file_decoded: Rc<RefCell<PackFile>>,
 ) -> Result<(), Error> {
     match packfile::open_packfile(pack_file_path.to_path_buf()) {
         Ok(pack_file_opened) => {
 
             // Get the PackFile into our main PackFile...
-            *pack_file_decoded = pack_file_opened;
+            *pack_file_decoded.borrow_mut() = pack_file_opened;
 
             // Update the Window and the TreeView with his data...
-            set_modified(false, &app_ui.window, &mut pack_file_decoded);
+            set_modified(false, &app_ui.window, &mut pack_file_decoded.borrow_mut());
+
+            // Clear the `TreeView` before updating it (fixes CTD with borrowed PackFile).
+            app_ui.folder_tree_store.clear();
 
             // Build the `TreeView`.
             ui::update_treeview(
                 &app_ui.folder_tree_store,
-                &pack_file_decoded,
+                &pack_file_decoded.borrow(),
                 &app_ui.folder_tree_selection,
                 TreeViewOperation::Build,
                 TreePathType::None,
             );
 
             // We choose the right option, depending on our PackFile.
-            match pack_file_decoded.pack_file_header.pack_file_type {
+            match pack_file_decoded.borrow().pack_file_header.pack_file_type {
                 0 => app_ui.menu_bar_change_packfile_type.change_state(&"boot".to_variant()),
                 1 => app_ui.menu_bar_change_packfile_type.change_state(&"release".to_variant()),
                 2 => app_ui.menu_bar_change_packfile_type.change_state(&"patch".to_variant()),
@@ -5599,7 +5608,7 @@ fn open_packfile(
             else {
 
                 // Set `GameSelected` depending on the ID of the PackFile.
-                match &*pack_file_decoded.pack_file_header.pack_file_id {
+                match &*pack_file_decoded.borrow().pack_file_header.pack_file_id {
                     "PFH5" => {
                         game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.paths.game_paths.iter().filter(|x| &x.game == "warhammer_2").map(|x| x.path.clone()).collect::<Option<PathBuf>>(), &supported_games);
                         app_ui.menu_bar_change_game_selected.change_state(&"warhammer_2".to_variant());
@@ -5618,7 +5627,7 @@ fn open_packfile(
             enable_packfile_actions(&app_ui, game_selected.clone(), true);
 
             // Try to load the Schema for this PackFile's game.
-            *schema = Schema::load(&rpfm_path, &pack_file_decoded.pack_file_header.pack_file_id).ok();
+            *schema = Schema::load(&rpfm_path, &pack_file_decoded.borrow().pack_file_header.pack_file_id).ok();
 
             // Return success.
             Ok(())
@@ -5725,7 +5734,7 @@ fn build_my_mod_menu(
                                                     &supported_games.borrow(),
                                                     game_selected.clone(),
                                                     (true, Some(game_folder_name.borrow().to_owned())),
-                                                    &mut pack_file_decoded.borrow_mut()
+                                                    pack_file_decoded.clone(),
                                                 ) { ui::show_dialog(&app_ui.window, false, error.cause()) };
                                             }
                                         }
@@ -5773,6 +5782,9 @@ fn patch_siege_ai(
 
         // If it succeed...
         if success {
+
+            // Clear the `TreeView` before updating it (fixes CTD with borrowed PackFile).
+            app_ui.folder_tree_store.clear();
 
             // TODO: Make this update, not rebuild.
             // Rebuild the `TreeView`.
