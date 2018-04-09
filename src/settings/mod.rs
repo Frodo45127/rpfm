@@ -13,11 +13,13 @@ use self::failure::Error;
 /// - `display_name`: This is the name it'll show up in the UI. For example, in a dropdown.
 /// - `folder_name`: This name is the name used for any internal operation. For example, for the MyMod stuff.
 /// - `id`: This is the ID used at the start of every PackFile for that game.
+/// - `dependency_pack`: The name of the "Dependency" PackFile for that game.
 #[derive(Clone, Debug)]
 pub struct GameInfo {
     pub display_name: String,
     pub folder_name: String,
     pub id: String,
+    pub dependency_pack: String,
 }
 
 /// This struct hold every setting of the program, and it's the one that we are going to serialize.
@@ -51,6 +53,7 @@ pub struct GameSelected {
     pub game: String,
     pub game_path: Option<PathBuf>,
     pub game_data_path: Option<PathBuf>,
+    pub game_dependency_packfile_path: PathBuf,
 }
 
 /// Implementation of `GameInfo`.
@@ -69,6 +72,7 @@ impl GameInfo {
             display_name: "Warhammer 2".to_owned(),
             folder_name: "warhammer_2".to_owned(),
             id: "PFH5".to_owned(),
+            dependency_pack: "wh2.pack".to_owned(),
         };
 
         supported_games.push(game_info);
@@ -78,6 +82,7 @@ impl GameInfo {
             display_name: "Warhammer".to_owned(),
             folder_name: "warhammer".to_owned(),
             id: "PFH4".to_owned(),
+            dependency_pack: "wh.pack".to_owned(),
         };
 
         supported_games.push(game_info);
@@ -207,7 +212,7 @@ impl GamePath {
 impl GameSelected {
 
     /// This functions returns a `GameSelected` populated with his default values.
-    pub fn new(settings: &Settings) -> Self {
+    pub fn new(settings: &Settings, rpfm_path: &PathBuf, supported_games: &[GameInfo]) -> Self {
 
         let game = settings.default_game.to_owned();
         let game_path = settings.paths.game_paths.iter().filter(|x| x.game == game).map(|x| x.path.clone()).collect::<Option<PathBuf>>();
@@ -220,15 +225,20 @@ impl GameSelected {
             None => None,
         };
 
+        let mut game_dependency_packfile_path = rpfm_path.to_path_buf();
+        game_dependency_packfile_path.push("dependency_packs");
+        game_dependency_packfile_path.push(supported_games.iter().filter(|x| x.folder_name == game).map(|x| x.dependency_pack.clone()).collect::<String>());
+
         Self {
             game,
             game_path,
             game_data_path,
+            game_dependency_packfile_path,
         }
     }
 
     /// This functions just changes the values in `GameSelected`.
-    pub fn change_game_selected(&mut self, game: &str, game_path: &Option<PathBuf>) {
+    pub fn change_game_selected(&mut self, game: &str, game_path: &Option<PathBuf>, supported_games: &[GameInfo]) {
         self.game = game.to_owned();
         self.game_path = game_path.clone();
 
@@ -237,5 +247,8 @@ impl GameSelected {
             data_path.push("data");
             self.game_data_path = Some(data_path);
         }
+
+        self.game_dependency_packfile_path.pop();
+        self.game_dependency_packfile_path.push(supported_games.iter().filter(|x| x.folder_name == game).map(|x| x.dependency_pack.clone()).collect::<String>());
     }
 }
