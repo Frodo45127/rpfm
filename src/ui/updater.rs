@@ -141,6 +141,7 @@ pub fn check_updates(current_version: &str, use_dialog: Option<&ApplicationWindo
         );
 
         // Show the "Changes" of the release in the `MessageDialog`.
+        check_updates_dialog.set_title("Checking for updates...");
         check_updates_dialog.set_property_secondary_use_markup(true);
         check_updates_dialog.set_property_secondary_text(Some(&message.1));
 
