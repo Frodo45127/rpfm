@@ -5,7 +5,7 @@ extern crate gdk_pixbuf;
 use self::gdk_pixbuf::Pixbuf;
 use gtk::prelude::*;
 use gtk::{
-    MessageDialog, TreeStore, TreeSelection, TreeView, Rectangle, Label, Justification,
+    MessageDialog, TreeStore, TreeSelection, TreeView, Rectangle, Label,
     Grid, Statusbar, MessageType, ButtonsType, DialogFlags, ApplicationWindow, ResponseType,
     AboutDialog, License, WindowPosition, TreeIter, Application, Paned, Orientation, CellRendererMode,
     TreeViewColumn, CellRendererText, ScrolledWindow
@@ -218,15 +218,19 @@ pub enum TreeViewOperation {
 /// This function shows a Message in the specified Grid.
 pub fn display_help_tips(packed_file_data_display: &Grid) {
     let tips = "Welcome to Rusted PackFile Manager! Here you have some tips on how to use it:
-        - You can rename anything (except the PackFile) by double-clicking it.
+        - You can see all the hotkeys in \"About/Shortcuts\".
+        - To search in a DB Table or Loc PackedFile, hit \"Ctrl + F\" and write.
         - You can open a PackFile by dragging it to the big PackFile Tree View.
         - To patch an Attila model to work in Warhammer, select it and press \"Patch to Warhammer 1&2\".
         - You can insta-patch your siege maps (if you're a mapper) with the \"Patch SiegeAI\" feature from the \"Special Stuff\" menu.";
 
-    let packed_file_text_view_label: Label = Label::new(Some(tips));
-    packed_file_text_view_label.set_justify(Justification::Left);
+    let label = Label::new(Some(tips));
+    label.set_xalign(0.5);
+    label.set_yalign(0.5);
+    label.set_hexpand(true);
+    label.set_vexpand(true);
 
-    packed_file_data_display.attach(&packed_file_text_view_label, 0, 0, 1, 1);
+    packed_file_data_display.attach(&label, 0, 0, 1, 1);
     packed_file_data_display.show_all();
 }
 
