@@ -535,7 +535,7 @@ fn build_ui(application: &Application) {
                 set_my_mod_mode(&app_ui, mode.clone(), None);
 
                 // Try to load the Schema for this PackFile's game.
-                *schema.borrow_mut() = Schema::load(&rpfm_path, &*pack_file_decoded.borrow().pack_file_header.pack_file_id).ok();
+                *schema.borrow_mut() = Schema::load(&rpfm_path, &supported_games.borrow().iter().filter(|x| x.folder_name == *game_selected.borrow().game).map(|x| x.schema.to_owned()).collect::<String>()).ok();
             }
         }
     ));
@@ -2561,6 +2561,7 @@ fn build_ui(application: &Application) {
         app_ui,
         settings,
         rpfm_path,
+        supported_games,
         pack_file_decoded,
         is_folder_tree_view_locked => move |_,_,_| {
 
@@ -3345,8 +3346,9 @@ fn build_ui(application: &Application) {
                                 tree_path,
                                 rpfm_path,
                                 app_ui,
-                                packed_file_data_encoded,
-                                pack_file_decoded => move |decode_mode_button ,_| {
+                                supported_games,
+                                game_selected,
+                                packed_file_data_encoded => move |decode_mode_button ,_| {
 
                                     // We need to disable the button. Otherwise, things will get weird.
                                     decode_mode_button.set_sensitive(false);
@@ -3848,7 +3850,8 @@ fn build_ui(application: &Application) {
                                                         table_definition,
                                                         tree_path,
                                                         rpfm_path,
-                                                        pack_file_decoded,
+                                                        supported_games,
+                                                        game_selected,
                                                         packed_file_decoder => move |_ ,_| {
 
                                                             // Check if the Schema actually exists. This should never show up if the schema exists,
@@ -3881,7 +3884,7 @@ fn build_ui(application: &Application) {
                                                                     schema.tables_definitions[table_definitions_index as usize].add_table_definition(table_definition.borrow().clone());
 
                                                                     // And try to save the main `Schema`.
-                                                                    match Schema::save(&schema, &rpfm_path, &*pack_file_decoded.borrow().pack_file_header.pack_file_id) {
+                                                                    match Schema::save(&schema, &rpfm_path, &supported_games.borrow().iter().filter(|x| x.folder_name == *game_selected.borrow().game).map(|x| x.schema.to_owned()).collect::<String>()) {
                                                                         Ok(_) => ui::show_dialog(&app_ui.window, true, "Schema successfully saved."),
                                                                         Err(error) => ui::show_dialog(&app_ui.window, false, error.cause()),
                                                                     }
@@ -5686,7 +5689,16 @@ fn open_packfile(
             enable_packfile_actions(&app_ui, game_selected.clone(), true);
 
             // Try to load the Schema for this PackFile's game.
-            *schema = Schema::load(&rpfm_path, &pack_file_decoded.borrow().pack_file_header.pack_file_id).ok();
+            *schema = Schema::load(&rpfm_path, &supported_games.iter().filter(|x| x.folder_name == *game_selected.borrow().game).map(|x| x.schema.to_owned()).collect::<String>()).ok();
+
+            // Test to see if every DB Table can be decoded.
+            //for i in pack_file_decoded.borrow().pack_file_data.packed_files.iter() {
+            //    if i.packed_file_path.starts_with(&["db".to_owned()]) {
+            //        if let Err(error) = DB::read(&i.packed_file_data, &i.packed_file_path[1], &schema.clone().unwrap()) {
+            //            println!("{:?}, {:?}", i.packed_file_path, error);
+            //        }
+            //    }
+            //}
 
             // Return success.
             Ok(())

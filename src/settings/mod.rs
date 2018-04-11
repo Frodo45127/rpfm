@@ -20,6 +20,7 @@ pub struct GameInfo {
     pub folder_name: String,
     pub id: String,
     pub dependency_pack: String,
+    pub schema: String,
 }
 
 /// This struct hold every setting of the program, and it's the one that we are going to serialize.
@@ -73,6 +74,7 @@ impl GameInfo {
             folder_name: "warhammer_2".to_owned(),
             id: "PFH5".to_owned(),
             dependency_pack: "wh2.pack".to_owned(),
+            schema: "schema_wh.json".to_owned(),
         };
 
         supported_games.push(game_info);
@@ -83,6 +85,7 @@ impl GameInfo {
             folder_name: "warhammer".to_owned(),
             id: "PFH4".to_owned(),
             dependency_pack: "wh.pack".to_owned(),
+            schema: "schema_wh.json".to_owned(),
         };
 
         supported_games.push(game_info);
