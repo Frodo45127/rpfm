@@ -54,7 +54,6 @@
   - [x] PackFile Management: Don't try to decode the files if the selection has been done with right-click (or a better alternative for this).
   - [ ] PackFile Management: Delete multiple selected things at the same time.
   - [ ] PackFile Management: Extract multiple selected things at the same time.
-  - [ ] PackFile Management: Move the load of the DB schemas to background (so it doesn't lock the UI) and make it happen on opening the PackFile (so we load only the needed schema).
   - [ ] PackedFile Management: Make it so right-clicking a row doesn't unselect the rest.
   - [x] PackedFile Management: Make the "column name rewriting" on opening table, instead on creation (to work better with dependencies).
   - [x] PackedFile Management: Improve decoder hex-view... so it's not broken.
@@ -80,7 +79,7 @@
   - [ ] Patch Attila's cs2.parsed to Warhammer format (for custom buildings).
   - [ ] Automatic creation of prefabs from maps (to ease mapmaking).
   - [ ] Extra theming options.
-  - [ ] LUA files autocompletion.
+  - [x] LUA files autocompletion.
   - [x] Font size selection.
   - [x] Migrate filechooser dialogs to use native dialogs.
   - [ ] Pref: Remember custom column widths (not so sure if I'll manage to make this one... or if it'll be done, but to the list it goes).
