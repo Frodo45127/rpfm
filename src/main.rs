@@ -1329,21 +1329,36 @@ fn build_ui(application: &Application) {
 
     // When changing the selected game.
     app_ui.menu_bar_change_game_selected.connect_activate(clone!(
+        app_ui,
+        mode,
         settings,
         supported_games,
+        pack_file_decoded,
         game_selected => move |menu_bar_change_game_selected, selected| {
 
-        // Get the new state of the action.
-        if let Some(state) = selected.clone() {
-            let new_state: String = state.get().unwrap();
+            // Get the new state of the action.
+            if let Some(state) = selected.clone() {
+                let new_state: String = state.get().unwrap();
 
-            // Change the state of the action.
-            menu_bar_change_game_selected.change_state(&new_state.to_variant());
+                // Change the state of the action.
+                menu_bar_change_game_selected.change_state(&new_state.to_variant());
 
-            // Change the `GameSelected` object.
-            game_selected.borrow_mut().change_game_selected(&new_state, &settings.borrow().paths.game_paths.iter().filter(|x| x.game == new_state).map(|x| x.path.clone()).collect::<Option<PathBuf>>(), &supported_games.borrow());
+                // Change the `GameSelected` object.
+                game_selected.borrow_mut().change_game_selected(&new_state, &settings.borrow().paths.game_paths.iter().filter(|x| x.game == new_state).map(|x| x.path.clone()).collect::<Option<PathBuf>>(), &supported_games.borrow());
+
+                // If we have a PackFile opened....
+                if !pack_file_decoded.borrow().pack_file_extra_data.file_name.is_empty() {
+
+                    // Re-enable the "PackFile Management" actions, so the "Special Stuff" menu gets updated properly.
+                    enable_packfile_actions(&app_ui, game_selected.clone(), false);
+                    enable_packfile_actions(&app_ui, game_selected.clone(), true);
+
+                    // Set the current "Operational Mode" to `Normal` (In case we were in `MyMod` mode).
+                    set_my_mod_mode(&app_ui, mode.clone(), None);
+                }
+            }
         }
-    }));
+    ));
     /*
     --------------------------------------------------------
                  Superior Menu: "Special Stuff"
@@ -5897,15 +5912,9 @@ fn generate_dependency_pack(
                     let mut dep_packs_path = rpfm_path.clone();
                     dep_packs_path.push("dependency_packs");
 
-                    match DirBuilder::new().create(&dep_packs_path) {
-                        Ok(_) | Err(_) => {},
-                    }
+                    match DirBuilder::new().create(&dep_packs_path) { Ok(_) | Err(_) => {}, }
 
-                    let pack_file_path = match &*game_selected.borrow().game {
-                        "warhammer_2" => PathBuf::from(format!("{}/wh2.pack", dep_packs_path.to_string_lossy())),
-                        "warhammer" | _ => PathBuf::from(format!("{}/wh.pack", dep_packs_path.to_string_lossy())),
-                    };
-
+                    let pack_file_path = game_selected.borrow().game_dependency_packfile_path.to_path_buf();
                     match packfile::save_packfile(data_packfile, Some(pack_file_path)) {
                         Ok(_) => ui::show_dialog(&app_ui.window, true, "Dependency pack created. Remember to re-create it if you update the game ;)."),
                         Err(error) => ui::show_dialog(&app_ui.window, false, format_err!("Error: generated dependency pack couldn't be saved. {:?}", error)),
