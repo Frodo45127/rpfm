@@ -691,7 +691,7 @@ pub fn update_treeview(
                                 childs_looped = false;
 
                                 // Create a new empty child and move to it.
-                                tree_iter = folder_tree_store.prepend(&tree_iter);
+                                tree_iter = folder_tree_store.append(&tree_iter);
 
                                 // Set his value.
                                 folder_tree_store.set_value(&tree_iter, 0, &path[index].to_value());
@@ -713,7 +713,7 @@ pub fn update_treeview(
                     else {
 
                         // Create a new empty child and move to it.
-                        tree_iter = folder_tree_store.prepend(&tree_iter);
+                        tree_iter = folder_tree_store.append(&tree_iter);
 
                         // Set his value.
                         folder_tree_store.set_value(&tree_iter, 0, &path[index].to_value());
