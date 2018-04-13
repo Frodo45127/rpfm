@@ -94,16 +94,12 @@ impl PackedFileRigidModelDataView {
             // If we founded that, it's a building/prop/decal, so we try to get the positions where
             // his texture paths are.
             let mut index = 0;
-            loop {
-                match packed_file_decoded.packed_file_data.packed_file_data_lods_data[index..]
-                    .windows(12)
-                    .position(|window: &[u8]| String::from_utf8_lossy(window) == "rigidmodels/") {
-                        Some(position) => {
-                            texture_index.push((position + index) as u32);
-                            index += position + 1;
-                        },
-                        None => break,
-                }
+            while let Some(position) = packed_file_decoded.packed_file_data.packed_file_data_lods_data[index..]
+                .windows(12)
+                .position(|window: &[u8]| String::from_utf8_lossy(window) == "rigidmodels/") {
+
+                texture_index.push((position + index) as u32);
+                index += position + 1;
             }
         }
 
@@ -115,16 +111,12 @@ impl PackedFileRigidModelDataView {
             // If we founded that, it's a building/prop/decal, so we try to get the positions where
             // his texture paths are.
             let mut index = 0;
-            loop {
-                match packed_file_decoded.packed_file_data.packed_file_data_lods_data[index..]
-                    .windows(14)
-                    .position(|window: &[u8]| String::from_utf8_lossy(window) == "variantmeshes/") {
-                        Some(position) => {
-                            texture_index.push((position + index) as u32);
-                            index += position + 1;
-                        },
-                        None => break,
-                }
+            while let Some(position) = packed_file_decoded.packed_file_data.packed_file_data_lods_data[index..]
+                .windows(14)
+                .position(|window: &[u8]| String::from_utf8_lossy(window) == "variantmeshes/") {
+
+                texture_index.push((position + index) as u32);
+                index += position + 1;
             }
         }
 
@@ -180,88 +172,86 @@ impl PackedFileRigidModelDataView {
             packed_file_texture_paths.push(packed_file_texture_paths_lod);
             packed_file_data_display_grid.attach(&lod_texture_expander, 0, 3, 3, 1);
         }
-        else {
 
-            // If we can subdivide the amount of textures found in the rigidmodel, we have the first
-            // one to be the directory, and the other five to be the textures of the lod.
-            if texture_index.len() % 6 == 0 {
+        // If we can subdivide the amount of textures found in the rigidmodel, we have the first
+        // one to be the directory, and the other five to be the textures of the lod.
+        else if texture_index.len() % 6 == 0 {
 
-                // We are going to change our lod every 6 indexes...
-                let lods = texture_index.len() / 6;
+            // We are going to change our lod every 6 indexes...
+            let lods = texture_index.len() / 6;
 
-                // For each lod...
-                for lod in 0..lods {
+            // For each lod...
+            for lod in 0..lods {
 
-                    let mut packed_file_texture_paths_lod = vec![];
-                    let lod_texture_expander = Expander::new(Some(&*format!("Lod {}", lod + 1)));
-                    let lod_texture_expander_grid = Grid::new();
-                    lod_texture_expander.add(&lod_texture_expander_grid);
-                    lod_texture_expander_grid.set_border_width(6);
-                    lod_texture_expander_grid.set_row_spacing(6);
-                    lod_texture_expander_grid.set_column_spacing(3);
+                let mut packed_file_texture_paths_lod = vec![];
+                let lod_texture_expander = Expander::new(Some(&*format!("Lod {}", lod + 1)));
+                let lod_texture_expander_grid = Grid::new();
+                lod_texture_expander.add(&lod_texture_expander_grid);
+                lod_texture_expander_grid.set_border_width(6);
+                lod_texture_expander_grid.set_row_spacing(6);
+                lod_texture_expander_grid.set_column_spacing(3);
 
-                    // For each texture found (except the first of the group, thats their dir)...
-                    for index in 1..6 {
+                // For each texture found (except the first of the group, thats their dir)...
+                for index in 1..6 {
 
-                        // First, we get it's type.
-                        let texture_type = Label::new(Some(
+                    // First, we get it's type.
+                    let texture_type = Label::new(Some(
 
-                            //0 (Diffuse), 1 (Normal), 11 (Specular), 12 (Gloss), 3/10 (Mask), 5(no idea).
-                            match decode_integer_u32(
-                                &packed_file_decoded.packed_file_data.packed_file_data_lods_data[
-                                    (texture_index[index + (lod * 6)] - 4) as usize..
-                                    (texture_index[index + (lod * 6)] as usize)
-                                    ]
-                                ) {
-                                Ok(result) => {
-                                    match result {
-                                        0 => "Diffuse:",
-                                        1 => "Normal:",
-                                        11 => "Specular:",
-                                        12 => "Gloss:",
-                                        3 | 10 => "Mask:",
-                                        5 => "Unknown:",
-                                        _ => return Err(format_err!("Error while trying to get the Mask Type for a Texture: Unknown Mask Type."))
-                                    }
-                                }
-                                Err(error) => return Err(error)
-                            }
-                        ));
-
-                        texture_type.set_xalign(0.0);
-                        texture_type.set_yalign(0.5);
-
-                        // Then we get it's path, and put it in a gtk::Entry.
-                        let texture_path = Entry::new();
-
-                        match decode_string_u8_0padded(
+                        //0 (Diffuse), 1 (Normal), 11 (Specular), 12 (Gloss), 3/10 (Mask), 5(no idea).
+                        match decode_integer_u32(
                             &packed_file_decoded.packed_file_data.packed_file_data_lods_data[
-                                texture_index[index + (lod * 6)] as usize..
-                                (texture_index[index + (lod * 6)] as u32 + 255u32) as usize
-                            ]
-                        ) {
-                            Ok(result) => texture_path.get_buffer().set_text(&*result.0),
-                            Err(_) =>  return Err(format_err!("Error while trying to get the a Texture Path.")),
-                        };
+                                (texture_index[index + (lod * 6)] - 4) as usize..
+                                (texture_index[index + (lod * 6)] as usize)
+                                ]
+                            ) {
+                            Ok(result) => {
+                                match result {
+                                    0 => "Diffuse:",
+                                    1 => "Normal:",
+                                    11 => "Specular:",
+                                    12 => "Gloss:",
+                                    3 | 10 => "Mask:",
+                                    5 => "Unknown:",
+                                    _ => return Err(format_err!("Error while trying to get the Mask Type for a Texture: Unknown Mask Type."))
+                                }
+                            }
+                            Err(error) => return Err(error)
+                        }
+                    ));
 
-                        texture_path.get_buffer().set_max_length(Some(256u16));
-                        texture_path.set_editable(true);
-                        texture_path.set_hexpand(true);
+                    texture_type.set_xalign(0.0);
+                    texture_type.set_yalign(0.5);
 
-                        lod_texture_expander_grid.attach(&texture_type, 0, (index - 1) as i32, 1, 1);
-                        lod_texture_expander_grid.attach(&texture_path, 1, (index - 1) as i32, 1, 1);
+                    // Then we get it's path, and put it in a gtk::Entry.
+                    let texture_path = Entry::new();
 
-                        packed_file_texture_paths_lod.push(texture_path);
-                    }
-                    packed_file_texture_paths.push(packed_file_texture_paths_lod);
-                    packed_file_data_display_grid.attach(&lod_texture_expander, 0, (lod + 2) as i32, 3, 1);
+                    match decode_string_u8_0padded(
+                        &packed_file_decoded.packed_file_data.packed_file_data_lods_data[
+                            texture_index[index + (lod * 6)] as usize..
+                            (texture_index[index + (lod * 6)] as u32 + 255u32) as usize
+                        ]
+                    ) {
+                        Ok(result) => texture_path.get_buffer().set_text(&*result.0),
+                        Err(_) =>  return Err(format_err!("Error while trying to get the a Texture Path.")),
+                    };
+
+                    texture_path.get_buffer().set_max_length(Some(256u16));
+                    texture_path.set_editable(true);
+                    texture_path.set_hexpand(true);
+
+                    lod_texture_expander_grid.attach(&texture_type, 0, (index - 1) as i32, 1, 1);
+                    lod_texture_expander_grid.attach(&texture_path, 1, (index - 1) as i32, 1, 1);
+
+                    packed_file_texture_paths_lod.push(texture_path);
                 }
+                packed_file_texture_paths.push(packed_file_texture_paths_lod);
+                packed_file_data_display_grid.attach(&lod_texture_expander, 0, (lod + 2) as i32, 3, 1);
             }
+        }
 
-            // If not, return error.
-            else {
-                return Err(format_err!("Error while trying to decode the selected RigidModel: Irregular amount of Textures per lod."))
-            }
+        // If not, return error.
+        else {
+            return Err(format_err!("Error while trying to decode the selected RigidModel: Irregular amount of Textures per lod."))
         }
 
         // If we reached this point, show it all.

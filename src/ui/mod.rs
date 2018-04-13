@@ -252,11 +252,11 @@ pub fn show_dialog<T: Display>(parent_window: &ApplicationWindow, is_success: bo
         DialogFlags::from_bits(1).unwrap(),
         message_type,
         ButtonsType::Ok,
-        &title
+        title
     );
 
     // Set the title and secondary text.
-    dialog.set_title(&title);
+    dialog.set_title(title);
     dialog.set_property_secondary_text(Some(&text.to_string()));
 
     // Run & Destroy the Dialog.
@@ -500,7 +500,7 @@ pub fn update_treeview(
     pack_file_decoded: &PackFile,
     folder_tree_selection: &TreeSelection,
     operation: TreeViewOperation,
-    selection_type: TreePathType,
+    selection_type: &TreePathType,
 ) {
 
     // We act depending on the operation requested.
@@ -660,8 +660,8 @@ pub fn update_treeview(
                             if current_iter_text == path[index] {
 
                                 // Get both types.
-                                let current_path = get_path_from_tree_iter(&tree_iter_test, &folder_tree_store, true);
-                                let current_type = get_type_of_selected_tree_path(&current_path, &pack_file_decoded);
+                                let current_path = get_path_from_tree_iter(&tree_iter_test, folder_tree_store, true);
+                                let current_type = get_type_of_selected_tree_path(&current_path, pack_file_decoded);
 
                                 // And both are files...
                                 if current_type == TreePathType::File((vec![String::new()],1)) && new_type == TreePathType::File((vec![String::new()],1)) {
@@ -697,7 +697,7 @@ pub fn update_treeview(
                                 folder_tree_store.set_value(&tree_iter, 0, &path[index].to_value());
 
                                 // Sort properly the `TreeStore` to show the renamed file in his proper place.
-                                sort_tree_view(folder_tree_store, pack_file_decoded, new_type.clone(), &tree_iter);
+                                sort_tree_view(folder_tree_store, pack_file_decoded, &new_type, &tree_iter);
 
                                 // Increase the index.
                                 index += 1;
@@ -719,7 +719,7 @@ pub fn update_treeview(
                         folder_tree_store.set_value(&tree_iter, 0, &path[index].to_value());
 
                         // Sort properly the `TreeStore` to show the renamed file in his proper place.
-                        sort_tree_view(folder_tree_store, pack_file_decoded, new_type.clone(), &tree_iter);
+                        sort_tree_view(folder_tree_store, pack_file_decoded, &new_type, &tree_iter);
 
                         // Increase the index.
                         index += 1;
@@ -735,7 +735,7 @@ pub fn update_treeview(
         TreeViewOperation::AddFromPackFile(mut source_prefix, destination_prefix, new_files_list) => {
 
             // If his path is something...
-            if source_prefix.len() > 0 {
+            if !source_prefix.is_empty() {
 
                 // Take our the last folder.
                 source_prefix.pop();
@@ -743,7 +743,7 @@ pub fn update_treeview(
             }
 
             // For each file...
-            for file in new_files_list.iter() {
+            for file in &new_files_list {
 
                 // Filter his new path.
                 let mut filtered_source_path = file[source_prefix.len()..].to_vec();
@@ -756,7 +756,7 @@ pub fn update_treeview(
                     pack_file_decoded,
                     folder_tree_selection,
                     TreeViewOperation::Add(final_path),
-                    TreePathType::File((vec![String::new()],1)),
+                    &TreePathType::File((vec![String::new()],1)),
                 );
             }
         },
@@ -765,7 +765,7 @@ pub fn update_treeview(
         TreeViewOperation::Delete => {
 
             // Then we see what type the selected thing is.
-            match selection_type {
+            match *selection_type {
 
                 // If it's a PackedFile or a Folder...
                 TreePathType::File(_) | TreePathType::Folder(_) => {
@@ -837,7 +837,7 @@ pub fn update_treeview(
 fn sort_tree_view(
     folder_tree_store: &TreeStore,
     pack_file_decoded: &PackFile,
-    selection_type: TreePathType,
+    selection_type: &TreePathType,
     tree_iter: &TreeIter
 ) {
 
@@ -851,8 +851,8 @@ fn sort_tree_view(
     // If the previous iter is valid, get their path and their type.
     let previous_type = if iter_previous_exists {
 
-        let path_previous = get_path_from_tree_iter(&tree_iter_previous, &folder_tree_store, true);
-        get_type_of_selected_tree_path(&path_previous, &pack_file_decoded)
+        let path_previous = get_path_from_tree_iter(&tree_iter_previous, folder_tree_store, true);
+        get_type_of_selected_tree_path(&path_previous, pack_file_decoded)
     }
 
     // Otherwise, return the type as `None`.
@@ -861,8 +861,8 @@ fn sort_tree_view(
     // If the next iter is valid, get their path and their type.
     let next_type = if iter_next_exists {
 
-        let path_next = get_path_from_tree_iter(&tree_iter_next, &folder_tree_store, true);
-        get_type_of_selected_tree_path(&path_next, &pack_file_decoded)
+        let path_next = get_path_from_tree_iter(&tree_iter_next, folder_tree_store, true);
+        get_type_of_selected_tree_path(&path_next, pack_file_decoded)
     }
 
     // Otherwise, return the type as `None`.
@@ -880,7 +880,7 @@ fn sort_tree_view(
 
     // If the top one is a folder, and the bottom one is a file, get the type of our iter.
     else if previous_type == TreePathType::Folder(vec![String::new()]) && next_type == TreePathType::File((vec![String::new()], 1)) {
-        if selection_type == TreePathType::Folder(vec![String::new()]) { true } else { false }
+        if selection_type == &TreePathType::Folder(vec![String::new()]) { true } else { false }
     }
 
     // If the two around it are the same type, compare them and decide.
@@ -888,7 +888,7 @@ fn sort_tree_view(
 
         // Get the previous, current and next texts.
         let previous_name: String = folder_tree_store.get_value(&tree_iter_previous, 0).get().unwrap();
-        let current_name: String = folder_tree_store.get_value(&tree_iter, 0).get().unwrap();
+        let current_name: String = folder_tree_store.get_value(tree_iter, 0).get().unwrap();
         let next_name: String = folder_tree_store.get_value(&tree_iter_next, 0).get().unwrap();
 
         // If, after sorting, the previous hasn't changed position, it shouldn't go up.
@@ -926,17 +926,17 @@ fn sort_tree_view(
         if iter_second_is_valid {
 
             // Get their path.
-            let path_second = get_path_from_tree_iter(&tree_iter_second, &folder_tree_store, true);
+            let path_second = get_path_from_tree_iter(&tree_iter_second, folder_tree_store, true);
 
             // Get the type of both `TreeIter`.
-            let second_type = get_type_of_selected_tree_path(&path_second, &pack_file_decoded);
+            let second_type = get_type_of_selected_tree_path(&path_second, pack_file_decoded);
 
             // If we have something of the same type than our `TreeIter`...
-            if second_type == selection_type {
+            if second_type == *selection_type {
 
                 // Get the other `TreeIter`s text.
                 let second_name: String = folder_tree_store.get_value(&tree_iter_second, 0).get().unwrap();
-                let current_name: String = folder_tree_store.get_value(&tree_iter, 0).get().unwrap();
+                let current_name: String = folder_tree_store.get_value(tree_iter, 0).get().unwrap();
 
                 // Depending on our direction, we sort one way or another
                 if direction {
@@ -957,7 +957,7 @@ fn sort_tree_view(
                     else {
 
                         // We swap them, and update them for the next loop.
-                        folder_tree_store.swap(&tree_iter, &tree_iter_second);
+                        folder_tree_store.swap(tree_iter, &tree_iter_second);
                     }
 
                 }
@@ -980,15 +980,15 @@ fn sort_tree_view(
                     else {
 
                         // We swap them, and update them for the next loop.
-                        folder_tree_store.swap(&tree_iter, &tree_iter_second);
+                        folder_tree_store.swap(tree_iter, &tree_iter_second);
                     }
 
                 }
             }
 
             // If the top one is a File and the bottom one a Folder, it's an special situation. Just swap them.
-            else if selection_type == TreePathType::File((vec![String::new()], 1)) && next_type == TreePathType::Folder(vec![String::new()]) {
-                folder_tree_store.swap(&tree_iter, &tree_iter_second);
+            else if selection_type == &TreePathType::File((vec![String::new()], 1)) && next_type == TreePathType::Folder(vec![String::new()]) {
+                folder_tree_store.swap(tree_iter, &tree_iter_second);
             }
 
             // If the type is different and it's not an special situation, we can't move anymore.

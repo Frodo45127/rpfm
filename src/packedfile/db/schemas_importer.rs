@@ -100,7 +100,7 @@ pub fn import_schema(
         }
     }
 
-    Schema::save(&schema, &rpfm_path, "PFH5")?;
+    Schema::save(&schema, rpfm_path, "PFH5")?;
 
     Ok(())
 }

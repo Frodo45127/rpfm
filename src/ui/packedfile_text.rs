@@ -26,7 +26,7 @@ pub fn create_text_view(
     // Before doing anything, we try to decode the data. Only if we success, we create
     // the SourceView and add the data to it.
     // NOTE: This only works for UTF-8 encoded files. Check their encoding before adding them here to be decoded.
-    match decode_string_u8(&packed_file_data) {
+    match decode_string_u8(packed_file_data) {
         Ok(text) => {
 
             // We create the new SourceView (in a ScrolledWindow) and his buffer,
@@ -128,7 +128,8 @@ pub fn create_text_view(
             source_view_scroll.add(&source_view);
             packed_file_data_display.show_all();
 
-            return Some(source_view_buffer)
+            // Return the view.
+            Some(source_view_buffer)
         }
         Err(_) => {
 
@@ -136,7 +137,8 @@ pub fn create_text_view(
             let message = format!("Error while trying to open the following file: \"{}\".", packed_file_name);
             show_message_in_statusbar(status_bar, message);
 
-            return None
+            // Return None.
+            None
         }
     }
 }

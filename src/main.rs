@@ -2,8 +2,9 @@
 // his events.
 
 // Disable these two clippy linters. They throw a lot of false positives, and it's a pain in the ass
-// to separate their warnings from the rest.
-#![allow(doc_markdown,useless_format)]
+// to separate their warnings from the rest. Also, disable "match_bool" because the methods it suggest
+// are harder to read than a match. And "redundant_closure", because the suggerences it gives doesn't work.
+#![allow(doc_markdown,useless_format,match_bool,redundant_closure)]
 
 // This disables the terminal window, so it doesn't show up when executing RPFM in Windows.
 #![windows_subsystem = "windows"]
@@ -418,19 +419,19 @@ fn build_ui(application: &Application) {
         application,
         &app_ui,
         &settings.borrow(),
-        mode.clone(),
-        schema.clone(),
-        game_selected.clone(),
-        supported_games.clone(),
-        pack_file_decoded.clone(),
-        pack_file_decoded_extra.clone(),
+        &mode,
+        &schema,
+        &game_selected,
+        &supported_games,
+        &pack_file_decoded,
+        &pack_file_decoded_extra,
         &rpfm_path
     );
 
     // Check for updates at the start if we have this option enabled. Currently this hangs the UI,
     // so do it before showing the UI.
     if settings.borrow().check_updates_on_start {
-        check_updates(&VERSION, None, Some(&app_ui.status_bar));
+        check_updates(VERSION, None, Some(&app_ui.status_bar));
     }
 
     // We bring up the main window.
@@ -456,10 +457,10 @@ fn build_ui(application: &Application) {
     ));
 
     // Set the current "Operational Mode" to `Normal`.
-    set_my_mod_mode(&app_ui, mode.clone(), None);
+    set_my_mod_mode(&app_ui, &mode, None);
 
     // Disable the "PackFile Management" actions by default.
-    enable_packfile_actions(&app_ui, game_selected.clone(), false);
+    enable_packfile_actions(&app_ui, &game_selected, false);
 
     // Disable all the Contextual Menu actions by default.
     app_ui.folder_tree_view_add_file.set_enabled(false);
@@ -532,17 +533,17 @@ fn build_ui(application: &Application) {
                     &*pack_file_decoded.borrow(),
                     &app_ui.folder_tree_selection,
                     TreeViewOperation::Build,
-                    TreePathType::None,
+                    &TreePathType::None,
                 );
 
                 // Set the new mod as "Not modified".
                 set_modified(false, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
 
                 // Enable the actions available for the PackFile from the `MenuBar`.
-                enable_packfile_actions(&app_ui, game_selected.clone(), true);
+                enable_packfile_actions(&app_ui, &game_selected, true);
 
                 // Set the current "Operational Mode" to Normal, as this is a "New" mod.
-                set_my_mod_mode(&app_ui, mode.clone(), None);
+                set_my_mod_mode(&app_ui, &mode, None);
 
                 // Try to load the Schema for this PackFile's game.
                 *schema.borrow_mut() = Schema::load(&rpfm_path, &supported_games.borrow().iter().filter(|x| x.folder_name == *game_selected.borrow().game).map(|x| x.schema.to_owned()).collect::<String>()).ok();
@@ -596,13 +597,13 @@ fn build_ui(application: &Application) {
                         &rpfm_path,
                         &app_ui,
                         &settings.borrow(),
-                        mode.clone(),
+                        &mode,
                         &mut schema.borrow_mut(),
                         &supported_games.borrow(),
-                        game_selected.clone(),
-                        (false, None),
-                        pack_file_decoded.clone(),
-                        pack_file_decoded_extra.clone()
+                        &game_selected,
+                        &(false, None),
+                        &pack_file_decoded,
+                        &pack_file_decoded_extra
                     ) { ui::show_dialog(&app_ui.window, false, error.cause()) };
                 }
             }
@@ -720,11 +721,11 @@ fn build_ui(application: &Application) {
                         &*pack_file_decoded.borrow(),
                         &app_ui.folder_tree_selection,
                         TreeViewOperation::Rename(file_path.file_name().unwrap().to_string_lossy().as_ref().to_owned()),
-                        TreePathType::None,
+                        &TreePathType::None,
                     );
 
                     // Set the current "Operational Mode" to Normal, just in case "MyMod" is the current one.
-                    set_my_mod_mode(&app_ui, mode.clone(), None);
+                    set_my_mod_mode(&app_ui, &mode, None);
                 }
             }
         }
@@ -833,27 +834,24 @@ fn build_ui(application: &Application) {
                     if settings.borrow().paths.my_mods_base_path != old_settings.paths.my_mods_base_path {
 
                         // And we have currently opened a "MyMod"...
-                        match *mode.borrow() {
-                            Mode::MyMod {mod_name: _, game_folder_name: _} => {
+                        if let Mode::MyMod{..} = *mode.borrow() {
 
-                                // We disable the "MyMod" mode, but leave the PackFile open, so the user doesn't lose any unsaved change.
-                                set_my_mod_mode(&app_ui, mode.clone(), None);
+                            // We disable the "MyMod" mode, but leave the PackFile open, so the user doesn't lose any unsaved change.
+                            set_my_mod_mode(&app_ui, &mode, None);
 
-                                // Then recreate the "MyMod" submenu.
-                                build_my_mod_menu(
-                                    &application,
-                                    &app_ui,
-                                    &settings.borrow(),
-                                    mode.clone(),
-                                    schema.clone(),
-                                    game_selected.clone(),
-                                    supported_games.clone(),
-                                    pack_file_decoded.clone(),
-                                    pack_file_decoded_extra.clone(),
-                                    &rpfm_path
-                                );
-                            }
-                            _ => {}
+                            // Then recreate the "MyMod" submenu.
+                            build_my_mod_menu(
+                                &application,
+                                &app_ui,
+                                &settings.borrow(),
+                                &mode,
+                                &schema,
+                                &game_selected,
+                                &supported_games,
+                                &pack_file_decoded,
+                                &pack_file_decoded_extra,
+                                &rpfm_path
+                            );
                         }
                     }
 
@@ -1013,14 +1011,14 @@ fn build_ui(application: &Application) {
                         &*pack_file_decoded.borrow(),
                         &app_ui.folder_tree_selection,
                         TreeViewOperation::Build,
-                        TreePathType::None,
+                        &TreePathType::None,
                     );
 
                     // Set the new mod as "Not modified".
                     set_modified(false, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
 
                     // Enable the actions available for the PackFile from the `MenuBar`.
-                    enable_packfile_actions(&app_ui, game_selected.clone(), true);
+                    enable_packfile_actions(&app_ui, &game_selected, true);
 
                     // Get his new path from the base "MyMod" path + `new_mod_game`.
                     let mut my_mod_path = settings.borrow().paths.my_mods_base_path.clone().unwrap();
@@ -1050,19 +1048,19 @@ fn build_ui(application: &Application) {
                     else {
 
                         // Set the current "Operational Mode" to `MyMod`.
-                        set_my_mod_mode(&app_ui, mode.clone(), Some(my_mod_path));
+                        set_my_mod_mode(&app_ui, &mode, Some(my_mod_path));
 
                         // Recreate the "MyMod" menu.
                         build_my_mod_menu(
                             &application,
                             &app_ui,
                             &settings.borrow(),
-                            mode.clone(),
-                            schema.clone(),
-                            game_selected.clone(),
-                            supported_games.clone(),
-                            pack_file_decoded.clone(),
-                            pack_file_decoded_extra.clone(),
+                            &mode,
+                            &schema,
+                            &game_selected,
+                            &supported_games,
+                            &pack_file_decoded,
+                            &pack_file_decoded_extra,
                             &rpfm_path
                         );
 
@@ -1145,7 +1143,7 @@ fn build_ui(application: &Application) {
                             }
 
                             // And we delete that PackFile.
-                            if let Err(error) = remove_file(&my_mod_path).map_err(|error| Error::from(error)) {
+                            if let Err(error) = remove_file(&my_mod_path).map_err(Error::from) {
                                 return ui::show_dialog(&app_ui.window, false, error.cause());
                             }
 
@@ -1161,7 +1159,7 @@ fn build_ui(application: &Application) {
                             }
 
                             // If the assets folder exists, we try to delete it.
-                            else if let Err(error) = remove_dir_all(&my_mod_assets_path).map_err(|error| Error::from(error)) {
+                            else if let Err(error) = remove_dir_all(&my_mod_assets_path).map_err(Error::from) {
                                 return ui::show_dialog(&app_ui.window, false, error.cause());
                             }
 
@@ -1183,13 +1181,13 @@ fn build_ui(application: &Application) {
                 if mod_deleted {
 
                     // Set the current "Operational Mode" to `Normal`.
-                    set_my_mod_mode(&app_ui, mode.clone(), None);
+                    set_my_mod_mode(&app_ui, &mode, None);
 
                     // Replace the open PackFile with a dummy one, like during boot.
                     *pack_file_decoded.borrow_mut() = PackFile::new();
 
                     // Disable the actions available for the PackFile from the `MenuBar`.
-                    enable_packfile_actions(&app_ui, game_selected.clone(), false);
+                    enable_packfile_actions(&app_ui, &game_selected, false);
 
                     // Set the dummy mod as "Not modified".
                     set_modified(false, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
@@ -1202,12 +1200,12 @@ fn build_ui(application: &Application) {
                         &application,
                         &app_ui,
                         &settings.borrow(),
-                        mode.clone(),
-                        schema.clone(),
-                        game_selected.clone(),
-                        supported_games.clone(),
-                        pack_file_decoded.clone(),
-                        pack_file_decoded_extra.clone(),
+                        &mode,
+                        &schema,
+                        &game_selected,
+                        &supported_games,
+                        &pack_file_decoded,
+                        &pack_file_decoded_extra,
                         &rpfm_path
                     );
 
@@ -1259,7 +1257,7 @@ fn build_ui(application: &Application) {
                             game_data_path.push(&mod_name);
 
                             // And copy the PackFile to his destination. If the copy fails, return an error.
-                            if let Err(error) = copy(my_mod_path, game_data_path).map_err(|error| Error::from(error)) {
+                            if let Err(error) = copy(my_mod_path, game_data_path).map_err(Error::from) {
                                 return ui::show_dialog(&app_ui.window, false, error.cause());
                             }
                         }
@@ -1292,7 +1290,7 @@ fn build_ui(application: &Application) {
             match *mode.borrow() {
 
                 // If we have a "MyMod" selected...
-                Mode::MyMod {game_folder_name: _, ref mod_name} => {
+                Mode::MyMod {ref mod_name,..} => {
 
                     // Get the `game_data_path` of the game.
                     let game_data_path = game_selected.borrow().game_data_path.clone();
@@ -1308,13 +1306,9 @@ fn build_ui(application: &Application) {
                             return ui::show_dialog(&app_ui.window, false, "The currently selected \"MyMod\" is not installed.");
                         }
 
-                        // If the "MyMod" is installed...
-                        else {
-
-                            // We remove it. If there is a problem deleting it, return an error dialog.
-                            if let Err(error) = remove_file(game_data_path).map_err(|error| Error::from(error)) {
-                                return ui::show_dialog(&app_ui.window, false, error.cause());
-                            }
+                        // If the "MyMod" is installed, we remove it. If there is a problem deleting it, return an error dialog.
+                        else if let Err(error) = remove_file(game_data_path).map_err(Error::from) {
+                            return ui::show_dialog(&app_ui.window, false, error.cause());
                         }
                     }
 
@@ -1360,11 +1354,11 @@ fn build_ui(application: &Application) {
                 if !pack_file_decoded.borrow().pack_file_extra_data.file_name.is_empty() {
 
                     // Re-enable the "PackFile Management" actions, so the "Special Stuff" menu gets updated properly.
-                    enable_packfile_actions(&app_ui, game_selected.clone(), false);
-                    enable_packfile_actions(&app_ui, game_selected.clone(), true);
+                    enable_packfile_actions(&app_ui, &game_selected, false);
+                    enable_packfile_actions(&app_ui, &game_selected, true);
 
                     // Set the current "Operational Mode" to `Normal` (In case we were in `MyMod` mode).
-                    set_my_mod_mode(&app_ui, mode.clone(), None);
+                    set_my_mod_mode(&app_ui, &mode, None);
                 }
             }
         }
@@ -1379,7 +1373,7 @@ fn build_ui(application: &Application) {
     app_ui.menu_bar_patch_siege_ai_wh2.connect_activate(clone!(
         app_ui,
         pack_file_decoded => move |_,_| {
-            patch_siege_ai(&app_ui, pack_file_decoded.clone());
+            patch_siege_ai(&app_ui, &pack_file_decoded);
         }
     ));
 
@@ -1388,7 +1382,7 @@ fn build_ui(application: &Application) {
         app_ui,
         rpfm_path,
         game_selected => move |_,_| {
-            generate_dependency_pack(&app_ui, &rpfm_path, game_selected.clone());
+            generate_dependency_pack(&app_ui, &rpfm_path, &game_selected);
         }
     ));
 
@@ -1398,7 +1392,7 @@ fn build_ui(application: &Application) {
         app_ui,
         pack_file_decoded,
         game_selected => move |_,_| {
-            create_prefab(&application, &app_ui, game_selected.clone(), pack_file_decoded.clone());
+            create_prefab(&application, &app_ui, &game_selected, &pack_file_decoded);
         }
     ));
 
@@ -1406,7 +1400,7 @@ fn build_ui(application: &Application) {
     app_ui.menu_bar_patch_siege_ai_wh.connect_activate(clone!(
         app_ui,
         pack_file_decoded => move |_,_| {
-            patch_siege_ai(&app_ui, pack_file_decoded.clone());
+            patch_siege_ai(&app_ui, &pack_file_decoded);
         }
     ));
 
@@ -1415,7 +1409,7 @@ fn build_ui(application: &Application) {
         game_selected,
         rpfm_path,
         app_ui => move |_,_| {
-            generate_dependency_pack(&app_ui, &rpfm_path, game_selected.clone());
+            generate_dependency_pack(&app_ui, &rpfm_path, &game_selected);
         }
     ));
 
@@ -1425,7 +1419,7 @@ fn build_ui(application: &Application) {
         app_ui,
         pack_file_decoded,
         game_selected => move |_,_| {
-            create_prefab(&application, &app_ui, game_selected.clone(), pack_file_decoded.clone());
+            create_prefab(&application, &app_ui, &game_selected, &pack_file_decoded);
         }
     ));
 
@@ -1438,7 +1432,7 @@ fn build_ui(application: &Application) {
     // When we hit the "Check Updates" button.
     app_ui.menu_bar_check_updates.connect_activate(clone!(
         app_ui => move |_,_| {
-            check_updates(&VERSION, Some(&app_ui.window), None);
+            check_updates(VERSION, Some(&app_ui.window), None);
         }
     ));
 
@@ -1622,7 +1616,7 @@ fn build_ui(application: &Application) {
                                             &*pack_file_decoded.borrow(),
                                             &app_ui.folder_tree_selection,
                                             TreeViewOperation::Add(tree_path.to_vec()),
-                                            TreePathType::None,
+                                            &TreePathType::None,
                                         );
                                     }
                                 }
@@ -1654,7 +1648,7 @@ fn build_ui(application: &Application) {
                                             &*pack_file_decoded.borrow(),
                                             &app_ui.folder_tree_selection,
                                             TreeViewOperation::Add(tree_path.to_vec()),
-                                            TreePathType::None,
+                                            &TreePathType::None,
                                         );
                                     }
                                 }
@@ -1702,7 +1696,7 @@ fn build_ui(application: &Application) {
                                     &*pack_file_decoded.borrow(),
                                     &app_ui.folder_tree_selection,
                                     TreeViewOperation::Add(tree_path.to_vec()),
-                                    TreePathType::None,
+                                    &TreePathType::None,
                                 );
                             }
                         }
@@ -1830,7 +1824,7 @@ fn build_ui(application: &Application) {
                                                                     &*pack_file_decoded.borrow(),
                                                                     &app_ui.folder_tree_selection,
                                                                     TreeViewOperation::Add(tree_path.to_vec()),
-                                                                    TreePathType::None,
+                                                                    &TreePathType::None,
                                                                 );
                                                             }
                                                         }
@@ -1892,7 +1886,7 @@ fn build_ui(application: &Application) {
                                                                     &*pack_file_decoded.borrow(),
                                                                     &app_ui.folder_tree_selection,
                                                                     TreeViewOperation::Add(tree_path.to_vec()),
-                                                                    TreePathType::None,
+                                                                    &TreePathType::None,
                                                                 );
                                                             }
                                                         }
@@ -1970,7 +1964,7 @@ fn build_ui(application: &Application) {
                                                             &*pack_file_decoded.borrow(),
                                                             &app_ui.folder_tree_selection,
                                                             TreeViewOperation::Add(tree_path.to_vec()),
-                                                            TreePathType::None,
+                                                            &TreePathType::None,
                                                         );
                                                     }
                                                 }
@@ -2084,7 +2078,7 @@ fn build_ui(application: &Application) {
                                 &*pack_file_decoded_extra.borrow(),
                                 &folder_tree_view_extra.get_selection(),
                                 TreeViewOperation::Build,
-                                TreePathType::None,
+                                &TreePathType::None,
                             );
 
                             // We need to check here if the selected destination is not a file. Otherwise,
@@ -2168,7 +2162,7 @@ fn build_ui(application: &Application) {
                                             &*pack_file_decoded.borrow(),
                                             &app_ui.folder_tree_selection,
                                             TreeViewOperation::AddFromPackFile(source_prefix.to_vec(), destination_prefix.to_vec(), path_list),
-                                            selection_type,
+                                            &selection_type,
                                         );
                                     }
 
@@ -2267,7 +2261,7 @@ fn build_ui(application: &Application) {
                 let selection_type = get_type_of_selected_tree_path(&tree_path, &pack_file_decoded.borrow());
 
                 // And try to rename it.
-                let success = match packfile::rename_packed_file(&mut *pack_file_decoded.borrow_mut(), &tree_path, &new_name) {
+                let success = match packfile::rename_packed_file(&mut *pack_file_decoded.borrow_mut(), &tree_path, new_name) {
                     Ok(_) => true,
                     Err(error) => {
                         ui::show_dialog(&app_ui.window, false, error.cause());
@@ -2287,7 +2281,7 @@ fn build_ui(application: &Application) {
                         &*pack_file_decoded.borrow(),
                         &app_ui.folder_tree_selection,
                         TreeViewOperation::Rename(new_name.to_owned()),
-                        selection_type,
+                        &selection_type,
                     );
                 }
 
@@ -2350,7 +2344,7 @@ fn build_ui(application: &Application) {
                         &*pack_file_decoded.borrow(),
                         &app_ui.folder_tree_selection,
                         TreeViewOperation::Delete,
-                        selection_type,
+                        &selection_type,
                     );
                 }
             }
@@ -3011,7 +3005,7 @@ fn build_ui(application: &Application) {
 
                                                             // Get the text from the focused cell and put it into the `Clipboard`.
                                                             app_ui.clipboard.set_text(
-                                                                &packed_file_stuff.list_store.get_value(
+                                                                packed_file_stuff.list_store.get_value(
                                                                     &packed_file_stuff.list_store.get_iter(&tree_path).unwrap(),
                                                                     column.get_sort_column_id(),
                                                                 ).get::<&str>().unwrap()
@@ -3080,28 +3074,24 @@ fn build_ui(application: &Application) {
                                                             }
                                                         }
 
-                                                        // Otherwise...
-                                                        else {
+                                                        // Otherwise, if we got the state of the toggle from the `Clipboard`...
+                                                        else if let Some(data) = app_ui.clipboard.wait_for_text() {
 
-                                                            // If we got the state of the toggle from the `Clipboard`...
-                                                            if let Some(data) = app_ui.clipboard.wait_for_text() {
+                                                            // Update his value.
+                                                            packed_file_stuff.list_store.set_value(&packed_file_stuff.list_store.get_iter(&tree_path).unwrap(), column.get_sort_column_id() as u32, &data.to_value());
 
-                                                                // Update his value.
-                                                                packed_file_stuff.list_store.set_value(&packed_file_stuff.list_store.get_iter(&tree_path).unwrap(), column.get_sort_column_id() as u32, &data.to_value());
+                                                            // Replace the old encoded data with the new one.
+                                                            packed_file_data_decoded.borrow_mut().packed_file_data = PackedFileLocTreeView::return_data_from_tree_view(&packed_file_stuff.list_store);
 
-                                                                // Replace the old encoded data with the new one.
-                                                                packed_file_data_decoded.borrow_mut().packed_file_data = PackedFileLocTreeView::return_data_from_tree_view(&packed_file_stuff.list_store);
+                                                            // Update the PackFile to reflect the changes.
+                                                            update_packed_file_data_loc(
+                                                                &*packed_file_data_decoded.borrow_mut(),
+                                                                &mut *pack_file_decoded.borrow_mut(),
+                                                                index as usize
+                                                            );
 
-                                                                // Update the PackFile to reflect the changes.
-                                                                update_packed_file_data_loc(
-                                                                    &*packed_file_data_decoded.borrow_mut(),
-                                                                    &mut *pack_file_decoded.borrow_mut(),
-                                                                    index as usize
-                                                                );
-
-                                                                // Set the mod as "Modified".
-                                                                set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
-                                                            }
+                                                            // Set the mod as "Modified".
+                                                            set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
                                                         }
                                                     }
                                                 }
@@ -3141,12 +3131,12 @@ fn build_ui(application: &Application) {
                                                         // - A comma between columns.
                                                         // - A \n at the end of the row.
                                                         copy_string.push_str("\"");
-                                                        copy_string.push_str(packed_file_stuff.list_store.get_value(&row, 1).get::<&str>().unwrap());
+                                                        copy_string.push_str(packed_file_stuff.list_store.get_value(row, 1).get::<&str>().unwrap());
                                                         copy_string.push_str("\",\"");
-                                                        copy_string.push_str(packed_file_stuff.list_store.get_value(&row, 2).get::<&str>().unwrap());
+                                                        copy_string.push_str(packed_file_stuff.list_store.get_value(row, 2).get::<&str>().unwrap());
                                                         copy_string.push_str("\",\"");
                                                         copy_string.push_str(
-                                                            match packed_file_stuff.list_store.get_value(&row, 3).get::<bool>().unwrap() {
+                                                            match packed_file_stuff.list_store.get_value(row, 3).get::<bool>().unwrap() {
                                                                 true => "true",
                                                                 false => "false",
                                                             }
@@ -3182,7 +3172,7 @@ fn build_ui(application: &Application) {
                                                     let mut fields_data = vec![];
 
                                                     // Get the type of the data copied. If it's in CSV format...
-                                                    if let Some(_) = data.find("\",\"") {
+                                                    if data.find("\",\"").is_some() {
 
                                                         // For each row in the data we received...
                                                         for row in data.lines() {
@@ -3374,7 +3364,7 @@ fn build_ui(application: &Application) {
 
                             let packed_file_data_encoded = &(pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data);
                             let packed_file_data_decoded = match *schema.borrow() {
-                                Some(ref schema) => DB::read(&packed_file_data_encoded, &*tree_path[1], &schema),
+                                Some(ref schema) => DB::read(packed_file_data_encoded, &*tree_path[1], schema),
                                 None => return ui::show_dialog(&app_ui.window, false, "There is no Schema loaded for this game."),
                             };
 
@@ -3609,7 +3599,7 @@ fn build_ui(application: &Application) {
                                                         packed_file_decoder => move |_ ,_|{
 
                                                             // Get a copy of our current index.
-                                                            let index_data_copy = index_data.borrow().clone();
+                                                            let index_data_copy = *index_data.borrow();
 
                                                             // Add the field to the table, update it, and get the new "index_data".
                                                             *index_data.borrow_mut() = PackedFileDBDecoder::use_this(
@@ -3632,7 +3622,7 @@ fn build_ui(application: &Application) {
                                                         packed_file_decoder => move |_ ,_|{
 
                                                             // Get a copy of our current index.
-                                                            let index_data_copy = index_data.borrow().clone();
+                                                            let index_data_copy = *index_data.borrow();
 
                                                             // Add the field to the table, update it, and get the new "index_data".
                                                             *index_data.borrow_mut() = PackedFileDBDecoder::use_this(
@@ -3655,7 +3645,7 @@ fn build_ui(application: &Application) {
                                                         packed_file_decoder => move |_ ,_|{
 
                                                             // Get a copy of our current index.
-                                                            let index_data_copy = index_data.borrow().clone();
+                                                            let index_data_copy = *index_data.borrow();
 
                                                             // Add the field to the table, update it, and get the new "index_data".
                                                             *index_data.borrow_mut() = PackedFileDBDecoder::use_this(
@@ -3678,7 +3668,7 @@ fn build_ui(application: &Application) {
                                                         packed_file_decoder => move |_ ,_|{
 
                                                             // Get a copy of our current index.
-                                                            let index_data_copy = index_data.borrow().clone();
+                                                            let index_data_copy = *index_data.borrow();
 
                                                             // Add the field to the table, update it, and get the new "index_data".
                                                             *index_data.borrow_mut() = PackedFileDBDecoder::use_this(
@@ -3701,7 +3691,7 @@ fn build_ui(application: &Application) {
                                                         packed_file_decoder => move |_ ,_|{
 
                                                             // Get a copy of our current index.
-                                                            let index_data_copy = index_data.borrow().clone();
+                                                            let index_data_copy = *index_data.borrow();
 
                                                             // Add the field to the table, update it, and get the new "index_data".
                                                             *index_data.borrow_mut() = PackedFileDBDecoder::use_this(
@@ -3724,7 +3714,7 @@ fn build_ui(application: &Application) {
                                                         packed_file_decoder => move |_ ,_|{
 
                                                             // Get a copy of our current index.
-                                                            let index_data_copy = index_data.borrow().clone();
+                                                            let index_data_copy = *index_data.borrow();
 
                                                             // Add the field to the table, update it, and get the new "index_data".
                                                             *index_data.borrow_mut() = PackedFileDBDecoder::use_this(
@@ -3747,7 +3737,7 @@ fn build_ui(application: &Application) {
                                                         packed_file_decoder => move |_ ,_|{
 
                                                             // Get a copy of our current index.
-                                                            let index_data_copy = index_data.borrow().clone();
+                                                            let index_data_copy = *index_data.borrow();
 
                                                             // Add the field to the table, update it, and get the new "index_data".
                                                             *index_data.borrow_mut() = PackedFileDBDecoder::use_this(
@@ -3770,7 +3760,7 @@ fn build_ui(application: &Application) {
                                                         packed_file_decoder => move |_ ,_|{
 
                                                             // Get a copy of our current index.
-                                                            let index_data_copy = index_data.borrow().clone();
+                                                            let index_data_copy = *index_data.borrow();
 
                                                             // Add the field to the table, update it, and get the new "index_data".
                                                             *index_data.borrow_mut() = PackedFileDBDecoder::use_this(
@@ -3929,7 +3919,7 @@ fn build_ui(application: &Application) {
                                                                     schema.tables_definitions[table_definitions_index as usize].add_table_definition(table_definition.borrow().clone());
 
                                                                     // And try to save the main `Schema`.
-                                                                    match Schema::save(&schema, &rpfm_path, &supported_games.borrow().iter().filter(|x| x.folder_name == *game_selected.borrow().game).map(|x| x.schema.to_owned()).collect::<String>()) {
+                                                                    match Schema::save(schema, &rpfm_path, &supported_games.borrow().iter().filter(|x| x.folder_name == *game_selected.borrow().game).map(|x| x.schema.to_owned()).collect::<String>()) {
                                                                         Ok(_) => ui::show_dialog(&app_ui.window, true, "Schema successfully saved."),
                                                                         Err(error) => ui::show_dialog(&app_ui.window, false, error.cause()),
                                                                     }
@@ -4018,7 +4008,7 @@ fn build_ui(application: &Application) {
                                     let packed_file_stuff = match ui::packedfile_db::PackedFileDBTreeView::create_tree_view(
                                         &app_ui.packed_file_data_display,
                                         &*packed_file_data_decoded.borrow(),
-                                        dependency_database,
+                                        &dependency_database,
                                         &pack_file_decoded.borrow().pack_file_data.packed_files,
                                         &schema.borrow().clone().unwrap(),
                                         &settings.borrow(),
@@ -4795,7 +4785,7 @@ fn build_ui(application: &Application) {
                                                                         };
                                                                     },
                                                                     FieldType::Float => {
-                                                                        if let Ok(_) = data.parse::<f32>() {
+                                                                        if data.parse::<f32>().is_ok() {
                                                                             packed_file_stuff.list_store.set_value(&row, column, &data.to_value());
                                                                         } else { return ui::show_dialog(&app_ui.window, false, "Error while trying to paste a cell to a DB PackedFile:\n\nThe value provided is not a valid F32.") }
                                                                     },
@@ -4945,18 +4935,18 @@ fn build_ui(application: &Application) {
 
                                                             // If it's a boolean, get "true" or "false".
                                                             FieldType::Boolean => {
-                                                                match packed_file_stuff.list_store.get_value(&row, column as i32).get::<bool>().unwrap() {
+                                                                match packed_file_stuff.list_store.get_value(row, column as i32).get::<bool>().unwrap() {
                                                                     true => "true".to_owned(),
                                                                     false => "false".to_owned(),
                                                                 }
                                                             }
 
                                                             // If it's an Integer or a Long Integer, turn it into a `String`. Don't know why, but otherwise integer columns crash the program.
-                                                            FieldType::Integer => format!("{}", packed_file_stuff.list_store.get_value(&row, column as i32).get::<i32>().unwrap()),
-                                                            FieldType::LongInteger => format!("{}", packed_file_stuff.list_store.get_value(&row, column as i32).get::<i64>().unwrap()),
+                                                            FieldType::Integer => format!("{}", packed_file_stuff.list_store.get_value(row, column as i32).get::<i32>().unwrap()),
+                                                            FieldType::LongInteger => format!("{}", packed_file_stuff.list_store.get_value(row, column as i32).get::<i64>().unwrap()),
 
                                                             // If it's any other type, just decode it as `String`.
-                                                            _ => packed_file_stuff.list_store.get_value(&row, column as i32).get::<String>().unwrap(),
+                                                            _ => packed_file_stuff.list_store.get_value(row, column as i32).get::<String>().unwrap(),
                                                         };
 
                                                         // Add the text to the copied row.
@@ -5005,7 +4995,7 @@ fn build_ui(application: &Application) {
                                                     let mut fields_data = vec![];
 
                                                     // Get the type of the data copied. If it's in CSV format...
-                                                    if let Some(_) = data.find("\",\"") {
+                                                    if data.find("\",\"").is_some() {
 
                                                         // For each row in the data we received...
                                                         for row in data.lines() {
@@ -5083,7 +5073,7 @@ fn build_ui(application: &Application) {
                                                                         };
                                                                     },
                                                                     FieldType::Float => {
-                                                                        if let Ok(_) = field.parse::<f32>() {
+                                                                        if field.parse::<f32>().is_ok() {
                                                                             packed_file_stuff.list_store.set_value(&tree_iter, (index + 1) as u32, &field.to_value());
                                                                         } else { return ui::show_dialog(&app_ui.window, false, "Error while trying to paste a cell to a DB PackedFile:\n\nThe value provided is not a valid F32.") }
                                                                     },
@@ -5269,7 +5259,7 @@ fn build_ui(application: &Application) {
                             let source_view_buffer = create_text_view(
                                 &app_ui.packed_file_data_display,
                                 &app_ui.status_bar,
-                                &tree_path.last().unwrap(),
+                                tree_path.last().unwrap(),
                                 &pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data
                             );
 
@@ -5310,7 +5300,7 @@ fn build_ui(application: &Application) {
                             create_image_view(
                                 &app_ui.packed_file_data_display,
                                 &app_ui.status_bar,
-                                &tree_path.last().unwrap(),
+                                tree_path.last().unwrap(),
                                 &pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data
                             );
                         }
@@ -5324,7 +5314,7 @@ fn build_ui(application: &Application) {
                                     let packed_file_data_view_stuff = match ui::packedfile_rigidmodel::PackedFileRigidModelDataView::create_data_view(&app_ui.packed_file_data_display, &packed_file_data_decoded){
                                         Ok(result) => result,
                                         Err(error) => {
-                                            let message = format_err!("Error while trying to decode a RigidModel: {}", Error::from(error).cause());
+                                            let message = format_err!("Error while trying to decode a RigidModel: {}", error.cause());
                                             return ui::show_message_in_statusbar(&app_ui.status_bar, message)
                                         },
                                     };
@@ -5392,7 +5382,7 @@ fn build_ui(application: &Application) {
                                                     ) {
                                                         Ok(new_data) => new_data,
                                                         Err(error) => {
-                                                            let message = format_err!("Error while trying to save changes to a RigidModel: {}", Error::from(error).cause());
+                                                            let message = format_err!("Error while trying to save changes to a RigidModel: {}", error.cause());
                                                             return ui::show_message_in_statusbar(&app_ui.status_bar, message)
                                                         }
                                                     };
@@ -5409,7 +5399,7 @@ fn build_ui(application: &Application) {
                                                     ) {
                                                         Ok(_) => { success = true },
                                                         Err(error) => {
-                                                            let message = format_err!("Error while trying to save changes to a RigidModel: {}", Error::from(error).cause());
+                                                            let message = format_err!("Error while trying to save changes to a RigidModel: {}", error.cause());
                                                             return ui::show_message_in_statusbar(&app_ui.status_bar, message)
                                                         }
                                                     }
@@ -5424,7 +5414,7 @@ fn build_ui(application: &Application) {
                                     }
                                 }
                                 Err(error) => {
-                                    let message = format_err!("Error while trying to decoded a RigidModel: {}", Error::from(error).cause());
+                                    let message = format_err!("Error while trying to decoded a RigidModel: {}", error.cause());
                                     return ui::show_message_in_statusbar(&app_ui.status_bar, message)
                                 }
                             }
@@ -5470,13 +5460,13 @@ fn build_ui(application: &Application) {
                             &rpfm_path,
                             &app_ui,
                             &settings.borrow(),
-                            mode.clone(),
+                            &mode,
                             &mut schema.borrow_mut(),
                             &supported_games.borrow(),
-                            game_selected.clone(),
-                            (false, None),
-                            pack_file_decoded.clone(),
-                            pack_file_decoded_extra.clone()
+                            &game_selected,
+                            &(false, None),
+                            &pack_file_decoded,
+                            &pack_file_decoded_extra
                         ) { ui::show_dialog(&app_ui.window, false, error.cause()) };
                     }
                     _ => ui::show_dialog(&app_ui.window, false, "This type of event is not yet used."),
@@ -5497,13 +5487,13 @@ fn build_ui(application: &Application) {
             &rpfm_path,
             &app_ui,
             &settings.borrow(),
-            mode,
+            &mode,
             &mut schema.borrow_mut(),
             &supported_games.borrow(),
-            game_selected,
-            (false, None),
-            pack_file_decoded.clone(),
-            pack_file_decoded_extra.clone()
+            &game_selected,
+            &(false, None),
+            &pack_file_decoded,
+            &pack_file_decoded_extra
         ) { ui::show_dialog(&app_ui.window, false, error.cause()) };
     }
 }
@@ -5642,13 +5632,13 @@ fn open_packfile(
     rpfm_path: &PathBuf,
     app_ui: &AppUI,
     settings: &Settings,
-    mode: Rc<RefCell<Mode>>,
+    mode: &Rc<RefCell<Mode>>,
     schema: &mut Option<Schema>,
     supported_games: &[GameInfo],
-    game_selected: Rc<RefCell<GameSelected>>,
-    is_my_mod: (bool, Option<String>),
-    pack_file_decoded: Rc<RefCell<PackFile>>,
-    pack_file_decoded_extra: Rc<RefCell<PackFile>>,
+    game_selected: &Rc<RefCell<GameSelected>>,
+    is_my_mod: &(bool, Option<String>),
+    pack_file_decoded: &Rc<RefCell<PackFile>>,
+    pack_file_decoded_extra: &Rc<RefCell<PackFile>>,
 ) -> Result<(), Error> {
     match packfile::open_packfile(pack_file_path.to_path_buf()) {
         Ok(pack_file_opened) => {
@@ -5683,7 +5673,7 @@ fn open_packfile(
                 &pack_file_decoded.borrow(),
                 &app_ui.folder_tree_selection,
                 TreeViewOperation::Build,
-                TreePathType::None,
+                &TreePathType::None,
             );
 
             // We choose the right option, depending on our PackFile.
@@ -5697,18 +5687,18 @@ fn open_packfile(
             }
 
             // Disable the "PackFile Management" actions.
-            enable_packfile_actions(&app_ui, game_selected.clone(), false);
+            enable_packfile_actions(app_ui, game_selected, false);
 
             // If it's a "MyMod", we choose the game selected depending on his folder's name.
             if is_my_mod.0 {
 
                 // Set `GameSelected` depending on the folder of the "MyMod".
                 let game_name = is_my_mod.1.clone().unwrap();
-                game_selected.borrow_mut().change_game_selected(&game_name, &settings.paths.game_paths.iter().filter(|x| &x.game == &game_name).map(|x| x.path.clone()).collect::<Option<PathBuf>>(), &supported_games);
+                game_selected.borrow_mut().change_game_selected(&game_name, &settings.paths.game_paths.iter().filter(|x| x.game == game_name).map(|x| x.path.clone()).collect::<Option<PathBuf>>(), supported_games);
                 app_ui.menu_bar_change_game_selected.change_state(&game_name.to_variant());
 
                 // Set the current "Operational Mode" to `MyMod`.
-                set_my_mod_mode(&app_ui, mode.clone(), Some(pack_file_path));
+                set_my_mod_mode(app_ui, mode, Some(pack_file_path));
             }
 
             // If it's not a "MyMod", we choose the new GameSelected depending on what the open mod id is.
@@ -5717,24 +5707,24 @@ fn open_packfile(
                 // Set `GameSelected` depending on the ID of the PackFile.
                 match &*pack_file_decoded.borrow().pack_file_header.pack_file_id {
                     "PFH5" => {
-                        game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.paths.game_paths.iter().filter(|x| &x.game == "warhammer_2").map(|x| x.path.clone()).collect::<Option<PathBuf>>(), &supported_games);
+                        game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.paths.game_paths.iter().filter(|x| &x.game == "warhammer_2").map(|x| x.path.clone()).collect::<Option<PathBuf>>(), supported_games);
                         app_ui.menu_bar_change_game_selected.change_state(&"warhammer_2".to_variant());
                     },
                     "PFH4" | _ => {
-                        game_selected.borrow_mut().change_game_selected("warhammer", &settings.paths.game_paths.iter().filter(|x| &x.game == "warhammer").map(|x| x.path.clone()).collect::<Option<PathBuf>>(), &supported_games);
+                        game_selected.borrow_mut().change_game_selected("warhammer", &settings.paths.game_paths.iter().filter(|x| &x.game == "warhammer").map(|x| x.path.clone()).collect::<Option<PathBuf>>(), supported_games);
                         app_ui.menu_bar_change_game_selected.change_state(&"warhammer".to_variant());
                     },
                 }
 
                 // Set the current "Operational Mode" to `Normal`.
-                set_my_mod_mode(&app_ui, mode.clone(), None);
+                set_my_mod_mode(app_ui, mode, None);
             }
 
             // Enable the "PackFile Management" actions.
-            enable_packfile_actions(&app_ui, game_selected.clone(), true);
+            enable_packfile_actions(app_ui, game_selected, true);
 
             // Try to load the Schema for this PackFile's game.
-            *schema = Schema::load(&rpfm_path, &supported_games.iter().filter(|x| x.folder_name == *game_selected.borrow().game).map(|x| x.schema.to_owned()).collect::<String>()).ok();
+            *schema = Schema::load(rpfm_path, &supported_games.iter().filter(|x| x.folder_name == *game_selected.borrow().game).map(|x| x.schema.to_owned()).collect::<String>()).ok();
 
             // Test to see if every DB Table can be decoded.
             //for i in pack_file_decoded.borrow().pack_file_data.packed_files.iter() {
@@ -5763,12 +5753,12 @@ fn build_my_mod_menu(
     application: &Application,
     app_ui: &AppUI,
     settings: &Settings,
-    mode: Rc<RefCell<Mode>>,
-    schema: Rc<RefCell<Option<Schema>>>,
-    game_selected: Rc<RefCell<GameSelected>>,
-    supported_games: Rc<RefCell<Vec<GameInfo>>>,
-    pack_file_decoded: Rc<RefCell<PackFile>>,
-    pack_file_decoded_extra: Rc<RefCell<PackFile>>,
+    mode: &Rc<RefCell<Mode>>,
+    schema: &Rc<RefCell<Option<Schema>>>,
+    game_selected: &Rc<RefCell<GameSelected>>,
+    supported_games: &Rc<RefCell<Vec<GameInfo>>>,
+    pack_file_decoded: &Rc<RefCell<PackFile>>,
+    pack_file_decoded_extra: &Rc<RefCell<PackFile>>,
     rpfm_path: &PathBuf,
 ) {
     // First, we clear the list.
@@ -5809,10 +5799,10 @@ fn build_my_mod_menu(
 
                                 // And it's a file that ends in .pack...
                                 if game_folder_file.is_file() &&
-                                    game_folder_file.extension().unwrap_or(OsStr::new("invalid")).to_string_lossy() =="pack" {
+                                    game_folder_file.extension().unwrap_or_else(||OsStr::new("invalid")).to_string_lossy() =="pack" {
 
                                     // That means our game_folder is a valid folder and it needs to be added to the menu.
-                                    let mod_name = game_folder_file.file_name().unwrap_or(OsStr::new("invalid")).to_string_lossy().as_ref().to_owned();
+                                    let mod_name = game_folder_file.file_name().unwrap_or_else(||OsStr::new("invalid")).to_string_lossy().as_ref().to_owned();
                                     let mod_action = &*format!("my-mod-open-{}-{}", game_folder_name, valid_mod_index);
 
                                     // GTK have... behavior that needs to be changed when showing "_".
@@ -5850,13 +5840,13 @@ fn build_my_mod_menu(
                                                     &rpfm_path,
                                                     &app_ui,
                                                     &settings,
-                                                    mode.clone(),
+                                                    &mode,
                                                     &mut schema.borrow_mut(),
                                                     &supported_games.borrow(),
-                                                    game_selected.clone(),
-                                                    (true, Some(game_folder_name.borrow().to_owned())),
-                                                    pack_file_decoded.clone(),
-                                                    pack_file_decoded_extra.clone()
+                                                    &game_selected,
+                                                    &(true, Some(game_folder_name.borrow().to_owned())),
+                                                    &pack_file_decoded,
+                                                    &pack_file_decoded_extra
                                                 ) { ui::show_dialog(&app_ui.window, false, error.cause()) };
                                             }
                                         }
@@ -5882,7 +5872,7 @@ fn build_my_mod_menu(
 /// This function serves as a common function for all the "Patch SiegeAI" buttons from "Special Stuff".
 fn patch_siege_ai(
     app_ui: &AppUI,
-    pack_file_decoded: Rc<RefCell<PackFile>>,
+    pack_file_decoded: &Rc<RefCell<PackFile>>,
 ) {
 
     // First, we try to patch the PackFile. If there are no errors, we save the result in a tuple.
@@ -5915,7 +5905,7 @@ fn patch_siege_ai(
                 &*pack_file_decoded.borrow(),
                 &app_ui.folder_tree_selection,
                 TreeViewOperation::Build,
-                TreePathType::None,
+                &TreePathType::None,
             );
         }
     }
@@ -5925,7 +5915,7 @@ fn patch_siege_ai(
 fn generate_dependency_pack(
     app_ui: &AppUI,
     rpfm_path: &PathBuf,
-    game_selected: Rc<RefCell<GameSelected>>,
+    game_selected: &Rc<RefCell<GameSelected>>,
 ) {
 
     // Get the data folder of game_selected and try to create our dependency PackFile.
@@ -5961,8 +5951,8 @@ fn generate_dependency_pack(
 fn create_prefab(
     application: &Application,
     app_ui: &AppUI,
-    game_selected: Rc<RefCell<GameSelected>>,
-    pack_file_decoded: Rc<RefCell<PackFile>>,
+    game_selected: &Rc<RefCell<GameSelected>>,
+    pack_file_decoded: &Rc<RefCell<PackFile>>,
 ) {
     // Create the list of PackedFiles to "move".
     let mut prefab_catchments: Vec<(usize, Vec<String>)>= vec![];
@@ -5992,7 +5982,7 @@ fn create_prefab(
         app_ui.window.set_sensitive(false);
 
         // Create the "New Name" window...
-        let new_prefab_stuff = NewPrefabWindow::create_new_prefab_window(&application, &app_ui.window, &prefab_catchments);
+        let new_prefab_stuff = NewPrefabWindow::create_new_prefab_window(application, &app_ui.window, &prefab_catchments);
 
         // If we hit the "Accept" button....
         new_prefab_stuff.accept_button.connect_button_release_event(clone!(
@@ -6036,7 +6026,7 @@ fn create_prefab(
 
                         // Get the ".terry" file of the map.
                         let files = get_files_from_subdir(&terry_map).unwrap();
-                        let terry_file = files.iter().filter(|x| x.file_name().unwrap().to_string_lossy().as_ref().to_owned().ends_with(".terry")).map(|x| x.clone()).collect::<Vec<PathBuf>>();
+                        let terry_file = files.iter().filter(|x| x.file_name().unwrap().to_string_lossy().as_ref().to_owned().ends_with(".terry")).cloned().collect::<Vec<PathBuf>>();
                         let mut file = File::open(&terry_file[0]).unwrap();
                         let mut terry_file_string = String::new();
                         file.read_to_string(&mut terry_file_string).unwrap();
@@ -6078,7 +6068,7 @@ fn create_prefab(
                         destination_terry.push(format!("{}.terry", prefab_name));
 
                         // Try to copy the layer file to his destination.
-                        if let Err(error) = copy(layer_file, destination_layer).map_err(|error| Error::from(error)) {
+                        if let Err(error) = copy(layer_file, destination_layer).map_err(Error::from) {
                             ui::show_dialog(&app_ui.window, false, error.cause());
                         }
 
@@ -6102,7 +6092,7 @@ fn create_prefab(
 
                         match File::create(&destination_terry) {
                             Ok(mut file) => {
-                                if let Err(error) = file.write_all(&prefab_terry_file.as_bytes()).map_err(|error| Error::from(error)) {
+                                if let Err(error) = file.write_all(prefab_terry_file.as_bytes()).map_err(Error::from) {
                                     ui::show_dialog(&app_ui.window, false, error.cause());
                                 }
                             }
@@ -6142,7 +6132,7 @@ fn create_prefab(
                     &*pack_file_decoded.borrow(),
                     &app_ui.folder_tree_selection,
                     TreeViewOperation::Build,
-                    TreePathType::None,
+                    &TreePathType::None,
                 );
 
                 Inhibit(false)
@@ -6188,7 +6178,7 @@ fn create_prefab(
 /// If `my_mod_path` is None, we want to set the `Normal` mode. Otherwise set the `MyMod` mode.
 fn set_my_mod_mode(
     app_ui: &AppUI,
-    mode: Rc<RefCell<Mode>>,
+    mode: &Rc<RefCell<Mode>>,
     my_mod_path: Option<PathBuf>,
 ) {
     // Check if we provided a "my_mod_path".
@@ -6231,7 +6221,7 @@ fn set_my_mod_mode(
 
 /// This function enables or disables the actions from the `MenuBar` needed when we open a PackFile.
 /// NOTE: To disable the "Special Stuff" actions, we use `disable`
-fn enable_packfile_actions(app_ui: &AppUI, game_selected: Rc<RefCell<GameSelected>>, enable: bool) {
+fn enable_packfile_actions(app_ui: &AppUI, game_selected: &Rc<RefCell<GameSelected>>, enable: bool) {
 
     // Enable or disable the actions from "PackFile" Submenu.
     app_ui.menu_bar_save_packfile.set_enabled(enable);

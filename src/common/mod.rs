@@ -31,9 +31,9 @@ pub enum TreePathType {
 impl PartialEq for TreePathType {
     fn eq(&self, other: &TreePathType) -> bool {
         match (self, other) {
-            (&TreePathType::File((_,_)), &TreePathType::File((_,_))) => true,
-            (&TreePathType::Folder(_), &TreePathType::Folder(_)) => true,
-            (&TreePathType::PackFile, &TreePathType::PackFile) => true,
+            (&TreePathType::File((_,_)), &TreePathType::File((_,_))) |
+            (&TreePathType::Folder(_), &TreePathType::Folder(_)) |
+            (&TreePathType::PackFile, &TreePathType::PackFile) |
             (&TreePathType::None, &TreePathType::None) => true,
             _ => false,
         }

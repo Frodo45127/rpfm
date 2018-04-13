@@ -25,7 +25,7 @@ pub fn create_image_view(
         Ok(mut temporal_file) => {
 
             // If there is an error while trying to write the image to the TEMP folder, report it.
-            if let Err(_) = temporal_file.write_all(image_data) {
+            if temporal_file.write_all(image_data).is_err() {
                 let message = format!("Error while trying to open the following image: \"{}\".", image_name);
                 show_message_in_statusbar(status_bar, message);
             }

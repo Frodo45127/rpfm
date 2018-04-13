@@ -168,8 +168,7 @@ impl LocData {
             let mut text: String = String::new();
             let tooltip: bool;
 
-            let done = false;
-            while !done {
+            loop {
 
                 // The first 2 bytes of a String is the length of the String in reversed utf-16.
                 if entry_size_byte_offset == 0 && entry_field < 2 {
@@ -261,7 +260,7 @@ impl SerializableToCSV for LocData {
         // Get the file and it's entries.
         match reader_builder.from_path(&csv_file_path) {
             Ok(mut reader) => {
-                
+
                 // We create here the vector to store the date while it's being decoded.
                 let mut new_packed_file_data = vec![];
 

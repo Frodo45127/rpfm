@@ -245,42 +245,42 @@ pub fn encode_bool(bool_decoded: bool) -> u8 {
 /// the next thing to decode is.
 #[allow(dead_code)]
 pub fn decode_packedfile_integer_u16(packed_file_data: &[u8], index: usize) -> Result<(u16, usize), Error> {
-    decode_integer_u16(&packed_file_data).map(|result| (result, index + 2))
+    decode_integer_u16(packed_file_data).map(|result| (result, index + 2))
 }
 
 /// This function allow us to decode an UTF-32 encoded integer, returning with it the byte where
 /// the next thing to decode is.
 #[allow(dead_code)]
 pub fn decode_packedfile_integer_u32(packed_file_data: &[u8], index: usize) -> Result<(u32, usize), Error> {
-    decode_integer_u32(&packed_file_data).map(|result| (result, index + 4))
+    decode_integer_u32(packed_file_data).map(|result| (result, index + 4))
 }
 
 /// This function allow us to decode an encoded Long Integer (u64), returning with it the byte where
 /// the next thing to decode is.
 #[allow(dead_code)]
 pub fn decode_packedfile_integer_u64(packed_file_data: &[u8], index: usize) -> Result<(u64, usize), Error> {
-    decode_integer_u64(&packed_file_data).map(|result| (result, index + 8))
+    decode_integer_u64(packed_file_data).map(|result| (result, index + 8))
 }
 
 /// This function allow us to decode an UTF-32 encoded signed integer, returning with it the byte where
 /// the next thing to decode is.
 #[allow(dead_code)]
 pub fn decode_packedfile_integer_i32(packed_file_data: &[u8], index: usize) -> Result<(i32, usize), Error> {
-    decode_integer_i32(&packed_file_data).map(|result| (result, index + 4))
+    decode_integer_i32(packed_file_data).map(|result| (result, index + 4))
 }
 
 /// This function allow us to decode an encoded signed Long Integer (i64), returning with it the byte where
 /// the next thing to decode is.
 #[allow(dead_code)]
 pub fn decode_packedfile_integer_i64(packed_file_data: &[u8], index: usize) -> Result<(i64, usize), Error> {
-    decode_integer_i64(&packed_file_data).map(|result| (result, index + 8))
+    decode_integer_i64(packed_file_data).map(|result| (result, index + 8))
 }
 
 /// This function allow us to decode an UTF-32 encoded float, returning with it the byte where
 /// the next thing to decode is.
 #[allow(dead_code)]
 pub fn decode_packedfile_float_f32(packed_file_data: &[u8], index: usize) -> Result<(f32, usize), Error> {
-    decode_float_f32(&packed_file_data).map(|result| (result, index + 4))
+    decode_float_f32(packed_file_data).map(|result| (result, index + 4))
 }
 
 /// This function allow us to decode an UTF-8 encoded String, returning with it the byte where

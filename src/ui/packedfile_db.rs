@@ -92,7 +92,7 @@ impl PackedFileDBTreeView{
     pub fn create_tree_view(
         packed_file_data_display: &Grid,
         packed_file_decoded: &DB,
-        dependency_database: Option<Vec<PackedFile>>,
+        dependency_database: &Option<Vec<PackedFile>>,
         local_dependency_database: &[PackedFile],
         master_schema: &Schema,
         settings: &Settings,
@@ -300,7 +300,7 @@ impl PackedFileDBTreeView{
                             let mut origin_combo_data = vec![];
 
                             // If we have a database PackFile to check for refs...
-                            if let Some(ref dependency_database) = dependency_database {
+                            if let Some(ref dependency_database) = *dependency_database {
 
                                 // For each table in the database...
                                 for table in dependency_database {
@@ -483,7 +483,7 @@ impl PackedFileDBTreeView{
                             let mut origin_combo_data = vec![];
 
                             // If we have a database PackFile to check for refs...
-                            if let Some(ref dependency_database) = dependency_database {
+                            if let Some(ref dependency_database) = *dependency_database {
 
                                 // For each table in the database...
                                 for table in dependency_database {
@@ -938,7 +938,7 @@ impl PackedFileDBDecoder {
         let raw_data_index_style = raw_data_index.get_style_context().unwrap();
         let raw_data_hex_style = raw_data_hex.get_style_context().unwrap();
         let raw_data_decoded_style = raw_data_decoded.get_style_context().unwrap();
-        let raw_data_monospace_css = ".monospace-font { font-family: \"Courier New\", Courier, monospace } .monospace-font-bold { font-family: \"Courier New\", Courier, monospace; font-weight: bold; }".as_bytes();
+        let raw_data_monospace_css = b".monospace-font { font-family: \"Courier New\", Courier, monospace } .monospace-font-bold { font-family: \"Courier New\", Courier, monospace; font-weight: bold; }";
 
         let css_provider = CssProvider::new();
 
@@ -1811,7 +1811,7 @@ impl PackedFileDBDecoder {
         packed_file_decoder.all_table_versions_list_store.clear();
 
         // And get all the versions of this table, and list them in their TreeView, if we have any.
-        if let Some(table_versions_list) = DB::get_schema_versions_list(table_name, &schema) {
+        if let Some(table_versions_list) = DB::get_schema_versions_list(table_name, schema) {
             for version in table_versions_list {
                 packed_file_decoder.all_table_versions_list_store.insert_with_values(None, &[0], &[&version.version]);
             }
@@ -1960,7 +1960,7 @@ impl PackedFileDBDecoder {
         // Try to add the field, and update the index with it.
         index_data = PackedFileDBDecoder::add_field_to_data_view(
             self,
-            &packed_file_data_encoded,
+            packed_file_data_encoded,
             &table_definition.borrow(),
             &self.field_name_entry.get_buffer().get_text(),
             field_type,
@@ -1974,7 +1974,7 @@ impl PackedFileDBDecoder {
         // Update all the dinamyc data of the "Decoder" view.
         PackedFileDBDecoder::update_decoder_view(
             self,
-            &packed_file_data_encoded,
+            packed_file_data_encoded,
             None,
             index_data,
         );

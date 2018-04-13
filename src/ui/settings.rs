@@ -226,7 +226,7 @@ impl SettingsWindow {
         // Event to change the Font used.
         font_settings_button.connect_font_set(clone!(
             gtk_settings => move |font_settings_button| {
-                let new_font = font_settings_button.get_font_name().unwrap_or("Segoe UI 9".to_owned());
+                let new_font = font_settings_button.get_font_name().unwrap_or_else(|| String::from("Segoe UI 9"));
                 gtk_settings.set_property_gtk_font_name(Some(&new_font));
             }
         ));
@@ -238,7 +238,7 @@ impl SettingsWindow {
             game_entries,
             my_mod_entry => move |accept_button| {
                 let mut invalid_path = false;
-                for game in game_entries.iter() {
+                for game in &game_entries {
                     if Path::new(&game.get_buffer().get_text()).is_dir() || game.get_buffer().get_text().is_empty() {
                         invalid_path = false;
                     }
@@ -335,7 +335,7 @@ impl SettingsWindow {
         restore_default_button.connect_button_release_event(clone!(
             window => move |_,_| {
                 let default_settings = Settings::new(&supported_games);
-                &window.load_to_settings_window(&default_settings);
+                window.load_to_settings_window(&default_settings);
                 load_gtk_settings(&window.settings_window, &default_settings);
                 Inhibit(false)
             }
@@ -359,18 +359,18 @@ impl SettingsWindow {
         self.settings_theme_font_button.set_font_name(&settings.font);
 
         // Load the data to the entries.
-        self.settings_path_my_mod_entry.get_buffer().set_text(&settings.paths.my_mods_base_path.clone().unwrap_or(PathBuf::from("")).to_string_lossy());
+        self.settings_path_my_mod_entry.get_buffer().set_text(&settings.paths.my_mods_base_path.clone().unwrap_or_else(||PathBuf::new()).to_string_lossy());
 
         // Load the data to the game entries.
         let entries = self.settings_path_entries.iter().zip(self.settings_path_buttons.iter());
         for (index, game) in entries.clone().enumerate() {
-            game.0.get_buffer().set_text(&settings.paths.game_paths[index].path.clone().unwrap_or(PathBuf::from("")).to_string_lossy());
+            game.0.get_buffer().set_text(&settings.paths.game_paths[index].path.clone().unwrap_or_else(||PathBuf::new()).to_string_lossy());
         }
 
         // Paint the entries and buttons.
         paint_entry(&self.settings_path_my_mod_entry, &self.settings_path_my_mod_button, &self.settings_accept);
         for game in entries {
-            paint_entry(&game.0, &game.1, &self.settings_accept);
+            paint_entry(game.0, game.1, &self.settings_accept);
         }
     }
 
@@ -387,7 +387,7 @@ impl SettingsWindow {
 
         // Get the Theme and Font settings.
         settings.prefer_dark_theme = self.settings_theme_prefer_dark_theme.get_active();
-        settings.font = self.settings_theme_font_button.get_font_name().unwrap_or("Segoe UI 9".to_owned());
+        settings.font = self.settings_theme_font_button.get_font_name().unwrap_or_else(|| String::from("Segoe UI 9"));
 
         // Only if we have valid directories, we save them. Otherwise we wipe them out.
         settings.paths.my_mods_base_path = match Path::new(&self.settings_path_my_mod_entry.get_buffer().get_text()).is_dir() {
@@ -544,7 +544,7 @@ impl NewPrefabWindow {
     ) -> Self {
 
         // Create the "New Name" window...
-        let window = ApplicationWindow::new(&application);
+        let window = ApplicationWindow::new(application);
         window.set_size_request(500, 0);
         window.set_transient_for(parent);
         window.set_position(WindowPosition::CenterOnParent);
@@ -633,7 +633,7 @@ impl NewPrefabWindow {
         accept_button.connect_property_relief_notify(clone!(
             entries => move |accept_button| {
                 let mut invalid_name = false;
-                for entry in entries.iter() {
+                for entry in &entries {
                     if entry.get_text().unwrap().contains(' ') || entry.get_text().unwrap().is_empty() {
                         invalid_name = true;
                         break;

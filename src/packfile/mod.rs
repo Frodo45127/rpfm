@@ -582,7 +582,7 @@ pub fn rename_packed_file(
                     Err(format_err!("This name is already being used by another folder in this path."))
                 }
             }
-            TreePathType::PackFile => Err(format_err!("This should never happen.")),
+            TreePathType::PackFile |
             TreePathType::None => Err(format_err!("This should never happen.")),
         }
     }

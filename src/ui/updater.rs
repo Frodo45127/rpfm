@@ -69,43 +69,37 @@ pub fn check_updates(current_version: &str, use_dialog: Option<&ApplicationWindo
                 }
 
                 // If the lastest released version the same than the current version...
+                // We check the second number in the versions, and repeat.
+                else if second.0 < second.1 {
+
+                    // No update. We are using a newer build than the last build released (dev?).
+                    APIResponse::SuccessNoUpdate
+                }
+                else if second.0 > second.1 {
+
+                    // New major update. No more checks needed.
+                    APIResponse::SuccessNewUpdate(last_release)
+                }
+
+                // If the lastest released version the same than the current version...
+                // We check the last number in the versions, and repeat.
+                else if third.0 < third.1 {
+
+                    // No update. We are using a newer build than the last build released (dev?).
+                    APIResponse::SuccessNoUpdate
+                }
+
+                // If the lastest released version only has the last number higher, is a hotfix.
+                else if third.0 > third.1 {
+
+                    // New major update. No more checks needed.
+                    APIResponse::SuccessNewUpdateHotfix(last_release)
+                }
+
+                // If both versions are the same, it's a tie. We should never be able to reach this,
+                // thanks to the else a few lines below, but better safe than sorry.
                 else {
-
-                    // We check the second number in the versions, and repeat.
-                    if second.0 < second.1 {
-
-                        // No update. We are using a newer build than the last build released (dev?).
-                        APIResponse::SuccessNoUpdate
-                    }
-                    else if second.0 > second.1 {
-
-                        // New major update. No more checks needed.
-                        APIResponse::SuccessNewUpdate(last_release)
-                    }
-
-                    // If the lastest released version the same than the current version...
-                    else {
-
-                        // We check the last number in the versions, and repeat.
-                        if third.0 < third.1 {
-
-                            // No update. We are using a newer build than the last build released (dev?).
-                            APIResponse::SuccessNoUpdate
-                        }
-
-                        // If the lastest released version only has the last number higher, is a hotfix.
-                        else if third.0 > third.1 {
-
-                            // New major update. No more checks needed.
-                            APIResponse::SuccessNewUpdateHotfix(last_release)
-                        }
-
-                        // If both versions are the same, it's a tie. We should never be able to reach this,
-                        // thanks to the else a few lines below, but better safe than sorry.
-                        else {
-                            APIResponse::SuccessNoUpdate
-                        }
-                    }
+                    APIResponse::SuccessNoUpdate
                 }
             }
 
@@ -157,9 +151,9 @@ pub fn check_updates(current_version: &str, use_dialog: Option<&ApplicationWindo
         let message: String = match apiresponse {
             APIResponse::SuccessNewUpdate(last_release) => format!("New mayor update found: \"{}\".", last_release.name),
             APIResponse::SuccessNewUpdateHotfix(last_release) => format!("New minor update/hotfix found: \"{}\".", last_release.name),
-            APIResponse::SuccessNoUpdate => "No new updates available.".to_owned(),
-            APIResponse::SuccessUnknownVersion => "Error while checking new updates :(".to_owned(),
-            APIResponse::Error => "Error while checking new updates :(".to_owned(),
+            APIResponse::SuccessNoUpdate => String::from("No new updates available."),
+            APIResponse::SuccessUnknownVersion |
+            APIResponse::Error => String::from("Error while checking new updates :("),
         };
         ui::show_message_in_statusbar(status_bar, &message);
     }
