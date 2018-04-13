@@ -143,6 +143,10 @@
                                 <attribute name="label" translatable="yes">_Patch SiegeAI</attribute>
                                 <attribute name="action">app.patch-siege-ai-wh2</attribute>
                             </item>
+                            <item>
+                                <attribute name="label" translatable="yes">_Create Map Prefab</attribute>
+                                <attribute name="action">app.create-map-prefab-wh2</attribute>
+                            </item>
                         </section>
                     </submenu>
 
@@ -156,6 +160,10 @@
                             <item>
                                 <attribute name="label" translatable="yes">_Patch SiegeAI</attribute>
                                 <attribute name="action">app.patch-siege-ai-wh</attribute>
+                            </item>
+                            <item>
+                                <attribute name="label" translatable="yes">_Create Map Prefab</attribute>
+                                <attribute name="action">app.create-map-prefab-wh</attribute>
                             </item>
                         </section>
                     </submenu>

@@ -31,6 +31,10 @@ use std::fs::{
     DirBuilder, copy, remove_file, remove_dir_all
 };
 use std::env::args;
+use std::fs::File;
+use std::io::{
+    Read, Write
+};
 
 use failure::Error;
 use url::Url;
@@ -166,8 +170,10 @@ struct AppUI {
     menu_bar_quit: SimpleAction,
     menu_bar_generate_dependency_pack_wh2: SimpleAction,
     menu_bar_patch_siege_ai_wh2: SimpleAction,
+    menu_bar_create_map_prefab_wh2: SimpleAction,
     menu_bar_generate_dependency_pack_wh: SimpleAction,
     menu_bar_patch_siege_ai_wh: SimpleAction,
+    menu_bar_create_map_prefab_wh: SimpleAction,
     menu_bar_check_updates: SimpleAction,
     menu_bar_about: SimpleAction,
     menu_bar_change_packfile_type: SimpleAction,
@@ -275,8 +281,10 @@ fn build_ui(application: &Application) {
         menu_bar_quit: SimpleAction::new("quit", None),
         menu_bar_generate_dependency_pack_wh2: SimpleAction::new("generate-dependency-pack-wh2", None),
         menu_bar_patch_siege_ai_wh2: SimpleAction::new("patch-siege-ai-wh2", None),
+        menu_bar_create_map_prefab_wh2: SimpleAction::new("create-map-prefab-wh2", None),
         menu_bar_generate_dependency_pack_wh: SimpleAction::new("generate-dependency-pack-wh", None),
         menu_bar_patch_siege_ai_wh: SimpleAction::new("patch-siege-ai-wh", None),
+        menu_bar_create_map_prefab_wh: SimpleAction::new("create-map-prefab-wh", None),
         menu_bar_check_updates: SimpleAction::new("check-updates", None),
         menu_bar_about: SimpleAction::new("about", None),
         menu_bar_change_packfile_type: SimpleAction::new_stateful("change-packfile-type", glib::VariantTy::new("s").ok(), &"mod".to_variant()),
@@ -313,8 +321,10 @@ fn build_ui(application: &Application) {
     application.add_action(&app_ui.menu_bar_quit);
     application.add_action(&app_ui.menu_bar_generate_dependency_pack_wh2);
     application.add_action(&app_ui.menu_bar_patch_siege_ai_wh2);
+    application.add_action(&app_ui.menu_bar_create_map_prefab_wh2);
     application.add_action(&app_ui.menu_bar_generate_dependency_pack_wh);
     application.add_action(&app_ui.menu_bar_patch_siege_ai_wh);
+    application.add_action(&app_ui.menu_bar_create_map_prefab_wh);
     application.add_action(&app_ui.menu_bar_about);
     application.add_action(&app_ui.menu_bar_check_updates);
     application.add_action(&app_ui.menu_bar_change_packfile_type);
@@ -1382,6 +1392,16 @@ fn build_ui(application: &Application) {
         }
     ));
 
+    // When we hit the "Create Map Prefab" button.
+    app_ui.menu_bar_create_map_prefab_wh2.connect_activate(clone!(
+        application,
+        app_ui,
+        pack_file_decoded,
+        game_selected => move |_,_| {
+            create_prefab(&application, &app_ui, game_selected.clone(), pack_file_decoded.clone());
+        }
+    ));
+
     // When we hit the "Patch SiegeAI" button (Warhammer).
     app_ui.menu_bar_patch_siege_ai_wh.connect_activate(clone!(
         app_ui,
@@ -1396,6 +1416,16 @@ fn build_ui(application: &Application) {
         rpfm_path,
         app_ui => move |_,_| {
             generate_dependency_pack(&app_ui, &rpfm_path, game_selected.clone());
+        }
+    ));
+
+    // When we hit the "Create Map Prefab" button (Warhammer).
+    app_ui.menu_bar_create_map_prefab_wh.connect_activate(clone!(
+        application,
+        app_ui,
+        pack_file_decoded,
+        game_selected => move |_,_| {
+            create_prefab(&application, &app_ui, game_selected.clone(), pack_file_decoded.clone());
         }
     ));
 
@@ -5927,6 +5957,232 @@ fn generate_dependency_pack(
     }
 }
 
+/// This function serves as a common function to all the "Create Prefab" buttons from "Special Stuff".
+fn create_prefab(
+    application: &Application,
+    app_ui: &AppUI,
+    game_selected: Rc<RefCell<GameSelected>>,
+    pack_file_decoded: Rc<RefCell<PackFile>>,
+) {
+    // Create the list of PackedFiles to "move".
+    let mut prefab_catchments: Vec<(usize, Vec<String>)>= vec![];
+
+    // For each PackedFile...
+    for (index, packed_file) in pack_file_decoded.borrow().pack_file_data.packed_files.iter().enumerate() {
+
+        // If it's in the exported map's folder...
+        if packed_file.packed_file_path.starts_with(&["terrain".to_string(), "tiles".to_string(), "battle".to_string(), "_assembly_kit".to_string()]) {
+
+            // Get his name.
+            let packed_file_name = packed_file.packed_file_path.last().unwrap();
+
+            // If it's one of the exported layers...
+            if packed_file_name.starts_with("catchment") && packed_file_name.ends_with(".bin") {
+
+                // Add it to the list.
+                prefab_catchments.push((index, packed_file.packed_file_path.to_vec()));
+            }
+        }
+    }
+
+    // If we found at least one catchment PackedFile...
+    if !prefab_catchments.is_empty() {
+
+        // Disable the main window, so the user can't do anything until all the prefabs are processed.
+        app_ui.window.set_sensitive(false);
+
+        // Create the "New Name" window...
+        let new_prefab_stuff = NewPrefabWindow::create_new_prefab_window(&application, &app_ui.window, &prefab_catchments);
+
+        // If we hit the "Accept" button....
+        new_prefab_stuff.accept_button.connect_button_release_event(clone!(
+            app_ui,
+            pack_file_decoded,
+            game_selected,
+            new_prefab_stuff => move |_,_| {
+
+                // Pair together the prefab_catchments with the entries list.
+                let prefab_list = prefab_catchments.iter().zip(new_prefab_stuff.entries.iter());
+
+                // For each prefab...
+                for prefab in prefab_list.clone() {
+
+                    // Get the new name for the prefab.
+                    let prefab_name = prefab.1.get_text().unwrap();
+
+                    // Change his path, so it's now shown in the correct folder.
+                    pack_file_decoded.borrow_mut().pack_file_data.packed_files[(prefab.0).0].packed_file_path = vec!["prefabs".to_owned(), format!("{}.bmd", prefab_name)];
+
+                    // If we have the Game's path configured...
+                    if let Some(ref game_path) = game_selected.borrow().game_path {
+
+                        // Get the old path.
+                        let old_path = &(prefab.0).1;
+
+                        // Get the ID of the map.
+                        let mut path = old_path.to_vec();
+                        path.pop();
+                        let id = path.last().unwrap();
+
+                        // Get the path of the map.
+                        let mut terry_map = game_path.to_path_buf();
+                        terry_map.push("assembly_kit");
+                        terry_map.push("raw_data");
+                        terry_map.push("terrain");
+                        terry_map.push("tiles");
+                        terry_map.push("battle");
+                        terry_map.push("_assembly_kit");
+                        terry_map.push(id);
+
+                        // Get the ".terry" file of the map.
+                        let files = get_files_from_subdir(&terry_map).unwrap();
+                        let terry_file = files.iter().filter(|x| x.file_name().unwrap().to_string_lossy().as_ref().to_owned().ends_with(".terry")).map(|x| x.clone()).collect::<Vec<PathBuf>>();
+                        let mut file = File::open(&terry_file[0]).unwrap();
+                        let mut terry_file_string = String::new();
+                        file.read_to_string(&mut terry_file_string).unwrap();
+
+                        // Get the ID of the current catchment in the map.
+                        let catchment_number = &old_path.last().unwrap()[..12];
+                        let line = terry_file_string.find(&format!("bmd_export_type=\"{}\"/>", catchment_number)).unwrap();
+                        terry_file_string.truncate(line);
+                        let id_index = terry_file_string.rfind(" id=\"").unwrap();
+                        let id_layer = &terry_file_string[(id_index + 5)..(id_index + 20)];
+
+                        // Get the corresponding layer file.
+                        let mut layer_file = terry_file[0].to_path_buf();
+                        let layer_file_name = layer_file.file_stem().unwrap().to_string_lossy().as_ref().to_owned();
+                        layer_file.pop();
+                        layer_file.push(format!("{}.{}.layer", layer_file_name, id_layer));
+
+                        // Get the destination path.
+                        let mut destination_folder = game_path.to_path_buf();
+                        destination_folder.push("assembly_kit");
+                        destination_folder.push("raw_data");
+                        destination_folder.push("art");
+                        destination_folder.push("prefabs");
+                        destination_folder.push("battle");
+                        destination_folder.push("custom_prefabs");
+
+                        // We check that path exists, and create it if it doesn't.
+                        if !destination_folder.is_dir() {
+                            match DirBuilder::new().create(&destination_folder) {
+                                Ok(_) | Err(_) => { /* This returns ok if it created the folder and err if it already exist. */ }
+                            };
+                        }
+
+                        // Get the full path for the prefab's layer and terry files.
+                        let mut destination_layer = destination_folder.to_path_buf();
+                        let mut destination_terry = destination_folder.to_path_buf();
+
+                        destination_layer.push(format!("{}.{}.layer", prefab_name, id_layer));
+                        destination_terry.push(format!("{}.terry", prefab_name));
+
+                        // Try to copy the layer file to his destination.
+                        if let Err(error) = copy(layer_file, destination_layer).map_err(|error| Error::from(error)) {
+                            ui::show_dialog(&app_ui.window, false, error.cause());
+                        }
+
+                        // Try to write the prefab's terry file into his destination.
+                        let prefab_terry_file = format!("<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+                            <project version=\"20\" id=\"15afc3311fc3488\">
+                              <pc type=\"QTU::ProjectPrefab\">
+                                <data database=\"battle\"/>
+                              </pc>
+                              <pc type=\"QTU::Scene\">
+                                <data version=\"25\">
+                                  <entity id=\"{}\" name=\"Default\">
+                                    <ECFileLayer export=\"true\" bmd_export_type=\"\"/>
+                                  </entity>
+                                </data>
+                              </pc>
+                              <pc type=\"QTU::Terrain\"/>
+                            </project>"
+                            , id_layer
+                        );
+
+                        match File::create(&destination_terry) {
+                            Ok(mut file) => {
+                                if let Err(error) = file.write_all(&prefab_terry_file.as_bytes()).map_err(|error| Error::from(error)) {
+                                    ui::show_dialog(&app_ui.window, false, error.cause());
+                                }
+                            }
+                            Err(error) => ui::show_dialog(&app_ui.window, false, Error::from(error).cause()),
+                        }
+                    }
+                }
+                // Destroy the "New Prefab" window,
+                new_prefab_stuff.window.destroy();
+
+                // Re-enable the main window.
+                app_ui.window.set_sensitive(true);
+
+                // Change the PackFile's type to "Movie".
+                app_ui.menu_bar_change_packfile_type.activate(Some(&"movie".to_variant()));
+
+                // Set the mod as "Not modified".
+                set_modified(false, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
+
+                // Try to save the PackFile.
+                match packfile::save_packfile( &mut *pack_file_decoded.borrow_mut(), None) {
+                    Ok(result) => {
+
+                        // Report success.
+                        ui::show_dialog(&app_ui.window, true, result);
+                    },
+                    Err(error) => ui::show_dialog(&app_ui.window, false, error.cause()),
+                };
+
+                // Clear the `TreeView` before updating it (fixes CTD with borrowed PackFile).
+                app_ui.folder_tree_store.clear();
+
+                // TODO: Make this update, not rebuild.
+                // Rebuild the `TreeView`.
+                ui::update_treeview(
+                    &app_ui.folder_tree_store,
+                    &*pack_file_decoded.borrow(),
+                    &app_ui.folder_tree_selection,
+                    TreeViewOperation::Build,
+                    TreePathType::None,
+                );
+
+                Inhibit(false)
+            }
+        ));
+
+        // When we press the "Cancel" button, we close the window and re-enable the main window.
+        new_prefab_stuff.cancel_button.connect_button_release_event(clone!(
+            new_prefab_stuff,
+            app_ui => move |_,_| {
+
+                // Destroy the "New Prefab" window,
+                new_prefab_stuff.window.destroy();
+
+                // Restore the main window.
+                app_ui.window.set_sensitive(true);
+                Inhibit(false)
+            }
+        ));
+
+        // We catch the destroy event of the window.
+        new_prefab_stuff.window.connect_delete_event(clone!(
+            app_ui => move |window, _| {
+
+                // Destroy the "New Prefab" window,
+                window.destroy();
+
+                // Restore the main window.
+                app_ui.window.set_sensitive(true);
+                Inhibit(false)
+            }
+        ));
+    }
+
+    // If there are not suitable PackedFiles...
+    else {
+        ui::show_dialog(&app_ui.window, false, "There are no catchment PackedFiles in this PackFile.");
+    }
+}
+
 /// This function is used to set the current "Operational Mode". It not only sets the "Operational Mode",
 /// but it also takes care of disabling or enabling all the signals related with the "MyMod" Mode.
 /// If `my_mod_path` is None, we want to set the `Normal` mode. Otherwise set the `MyMod` mode.
@@ -5990,10 +6246,12 @@ fn enable_packfile_actions(app_ui: &AppUI, game_selected: Rc<RefCell<GameSelecte
             "warhammer_2" => {
                 app_ui.menu_bar_generate_dependency_pack_wh2.set_enabled(true);
                 app_ui.menu_bar_patch_siege_ai_wh2.set_enabled(true);
+                app_ui.menu_bar_create_map_prefab_wh2.set_enabled(true);
             },
             "warhammer" => {
                 app_ui.menu_bar_generate_dependency_pack_wh.set_enabled(true);
                 app_ui.menu_bar_patch_siege_ai_wh.set_enabled(true);
+                app_ui.menu_bar_create_map_prefab_wh.set_enabled(true);
             },
             _ => {},
         }
@@ -6004,10 +6262,12 @@ fn enable_packfile_actions(app_ui: &AppUI, game_selected: Rc<RefCell<GameSelecte
         // Disable Warhammer 2 actions...
         app_ui.menu_bar_generate_dependency_pack_wh2.set_enabled(false);
         app_ui.menu_bar_patch_siege_ai_wh2.set_enabled(false);
+        app_ui.menu_bar_create_map_prefab_wh2.set_enabled(false);
 
-        // Disable actions...
+        // Disable Warhammer actions...
         app_ui.menu_bar_generate_dependency_pack_wh.set_enabled(false);
         app_ui.menu_bar_patch_siege_ai_wh.set_enabled(false);
+        app_ui.menu_bar_create_map_prefab_wh.set_enabled(false);
     }
 }
 

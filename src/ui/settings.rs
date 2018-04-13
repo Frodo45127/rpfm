@@ -46,6 +46,14 @@ pub struct MyModNewWindow {
     pub my_mod_new_accept: Button,
 }
 
+/// `NewPrefabWindow`: This struct holds all the relevant stuff for the "New Prefab" window to work.
+#[derive(Clone, Debug)]
+pub struct NewPrefabWindow {
+    pub window: ApplicationWindow,
+    pub entries: Vec<Entry>,
+    pub accept_button: Button,
+    pub cancel_button: Button,
+}
 
 /// Implementation of `SettingsWindow`.
 impl SettingsWindow {
@@ -521,6 +529,134 @@ impl MyModNewWindow {
             my_mod_new_name_entry: mod_name_entry,
             my_mod_new_cancel: cancel_button,
             my_mod_new_accept: accept_button,
+        }
+    }
+}
+
+/// Implementation of `NewPrefabWindow`.
+impl NewPrefabWindow {
+
+    /// This function creates the window and sets the events needed for everything to work.
+    pub fn create_new_prefab_window(
+        application: &Application,
+        parent: &ApplicationWindow,
+        catchment_list: &[(usize, Vec<String>)]
+    ) -> Self {
+
+        // Create the "New Name" window...
+        let window = ApplicationWindow::new(&application);
+        window.set_size_request(500, 0);
+        window.set_transient_for(parent);
+        window.set_position(WindowPosition::CenterOnParent);
+        window.set_title("New Prefab");
+
+        // Disable the menubar in this window.
+        window.set_show_menubar(false);
+
+        // Create the main `Grid`.
+        let grid = Grid::new();
+        grid.set_border_width(6);
+        grid.set_row_spacing(6);
+        grid.set_column_spacing(3);
+
+        // Create the `Frame` for the list of catchments.
+        let prefab_frame = Frame::new(Some("Possible Prefabs"));
+        prefab_frame.set_label_align(0.04, 0.5);
+
+        // Create the entries `Grid`.
+        let entries_grid = Grid::new();
+        entries_grid.set_border_width(6);
+        entries_grid.set_row_spacing(6);
+        entries_grid.set_column_spacing(3);
+        prefab_frame.add(&entries_grid);
+
+        // Create the list of entries.
+        let mut entries = vec![];
+
+        // For each catchment...
+        for (index, catchment) in catchment_list.iter().enumerate() {
+
+            // Create the label and the entry.
+            let label = Label::new(Some(&*format!("Prefab's name for \"{}\":", catchment.1.last().unwrap())));
+            let entry = Entry::new();
+            label.set_xalign(0.0);
+            label.set_yalign(0.5);
+            entry.set_placeholder_text("For example: one_ring_for_me");
+            entry.set_hexpand(true);
+            entry.set_has_frame(false);
+
+            entries_grid.attach(&label, 0, index as i32, 1, 1);
+            entries_grid.attach(&entry, 1, index as i32, 1, 1);
+
+            // And push his entry to the list.
+            entries.push(entry);
+        }
+
+        // Create the buttons.
+        let button_box = ButtonBox::new(Orientation::Horizontal);
+        button_box.set_layout(ButtonBoxStyle::End);
+        button_box.set_spacing(6);
+
+        let accept_button = Button::new_with_label("Accept");
+        let cancel_button = Button::new_with_label("Cancel");
+
+        // ButtonBox packing stuff...
+        button_box.pack_start(&cancel_button, false, false, 0);
+        button_box.pack_start(&accept_button, false, false, 0);
+
+        // Grid packing stuff...
+        grid.attach(&prefab_frame, 0, 0, 1, 1);
+        grid.attach(&button_box, 0, 1, 1, 1);
+
+        window.add(&grid);
+        window.show_all();
+
+        // Disable the accept button by default.
+        accept_button.set_sensitive(false);
+
+        // Events for this to work.
+
+        // Every time we change a character in the entry, check if the name is valid, and disable the "Accept"
+        // button if it's invalid.
+        for entry in &entries {
+            entry.connect_changed(clone!(
+                accept_button => move |_| {
+
+                    // If it's stupid but it works,...
+                    accept_button.set_relief(ReliefStyle::None);
+                    accept_button.set_relief(ReliefStyle::Normal);
+                }
+            ));
+        }
+
+        // If any of the entries has changed, check if we can enable it.
+        accept_button.connect_property_relief_notify(clone!(
+            entries => move |accept_button| {
+                let mut invalid_name = false;
+                for entry in entries.iter() {
+                    if entry.get_text().unwrap().contains(' ') || entry.get_text().unwrap().is_empty() {
+                        invalid_name = true;
+                        break;
+                    }
+                    else {
+                        invalid_name = false;
+                    }
+                }
+
+                if !invalid_name {
+                    accept_button.set_sensitive(true);
+                }
+                else {
+                    accept_button.set_sensitive(false);
+                }
+            }
+        ));
+
+        Self {
+            window,
+            entries,
+            accept_button,
+            cancel_button,
         }
     }
 }
