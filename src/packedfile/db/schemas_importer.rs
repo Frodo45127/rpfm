@@ -44,6 +44,7 @@ pub struct field {
 pub fn import_schema(
     assembly_kit_schemas_path: &PathBuf,
     testing_tables_path: &PathBuf,
+    rpfm_path: &PathBuf,
 ) -> Result<(), Error> {
 
     // We get the new schema.
@@ -99,7 +100,7 @@ pub fn import_schema(
         }
     }
 
-    Schema::save(&schema, "PFH5")?;
+    Schema::save(&schema, rpfm_path, "PFH5")?;
 
     Ok(())
 }

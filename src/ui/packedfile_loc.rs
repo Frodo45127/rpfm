@@ -3,192 +3,268 @@ extern crate gtk;
 
 use gtk::prelude::*;
 use gtk::{
-    Box, TreeView, TreeSelection, ListStore, ScrolledWindow, Popover, Entry, ModelButton,
-    CellRendererText, TreeViewColumn, CellRendererToggle, Separator, Orientation
+    TreeView, ListStore, ScrolledWindow, Popover, Entry, ModelButton,
+    CellRendererText, TreeViewColumn, CellRendererToggle, Separator, Orientation, Grid,
+    TreeViewColumnSizing, TreeViewGridLines, EntryIconPosition
 };
 
-use ::packedfile::loc::LocData;
-use ::packedfile::loc::LocDataEntry;
+use packedfile::loc::LocData;
+use packedfile::loc::LocDataEntry;
+use settings::*;
+use ui::*;
 
-/// Struct PackedFileLocTreeView: contains all the stuff we need to give to the program to show a
-/// TreeView with the data of a Loc file, allowing us to manipulate it.
+/// Struct `PackedFileLocTreeView`: contains all the stuff we need to give to the program to show a
+/// `TreeView` with the data of a Loc PackedFile, allowing us to manipulate it.
 #[derive(Clone)]
 pub struct PackedFileLocTreeView {
-    pub packed_file_tree_view: TreeView,
-    pub packed_file_list_store: ListStore,
-    pub packed_file_tree_view_selection: TreeSelection,
-    pub packed_file_tree_view_cell_key: CellRendererText,
-    pub packed_file_tree_view_cell_text: CellRendererText,
-    pub packed_file_tree_view_cell_tooltip: CellRendererToggle,
-    pub packed_file_popover_menu: Popover,
-    pub packed_file_popover_menu_add_rows_entry: Entry,
+    pub tree_view: TreeView,
+    pub list_store: ListStore,
+    pub cell_key: CellRendererText,
+    pub cell_text: CellRendererText,
+    pub cell_tooltip: CellRendererToggle,
+    pub context_menu: Popover,
+    pub add_rows_entry: Entry,
 }
 
-/// Implementation of "PackedFileLocTreeView".
+/// Implementation of `PackedFileLocTreeView`.
 impl PackedFileLocTreeView{
 
-    /// This function creates a new TreeView with "packed_file_data_display" as father and returns a
-    /// PackedFileLocTreeView with all his data.
-    pub fn create_tree_view(packed_file_data_display: &Box) -> PackedFileLocTreeView {
+    /// This function creates a new `TreeView` with `packed_file_data_display` as father and returns a
+    /// `PackedFileLocTreeView` with all his data.
+    pub fn create_tree_view(packed_file_data_display: &Grid, settings: &Settings) -> PackedFileLocTreeView {
 
-        // First, we create the new ListStore, the new TreeView, and prepare the TreeView to display the data
-        let packed_file_tree_view = TreeView::new();
-        let packed_file_tree_view_selection = packed_file_tree_view.get_selection();
-        let packed_file_list_store = ListStore::new(&[String::static_type(), String::static_type(), String::static_type(), gtk::Type::Bool]);
+        // First, we create the new `TreeView` and his `ListStore`.
+        let tree_view = TreeView::new();
+        let list_store = ListStore::new(&[String::static_type(), String::static_type(), String::static_type(), gtk::Type::Bool]);
 
-        packed_file_tree_view.set_model(Some(&packed_file_list_store));
-        packed_file_tree_view.set_grid_lines(gtk::TreeViewGridLines::Both);
-        packed_file_tree_view.set_rubber_banding(true);
-        packed_file_tree_view.set_margin_bottom(10);
+        // Config the `TreeView`.
+        tree_view.set_model(Some(&list_store));
+        tree_view.set_grid_lines(TreeViewGridLines::Both);
+        tree_view.set_rubber_banding(true);
+        tree_view.set_enable_search(false);
+        tree_view.set_search_column(1);
+        tree_view.set_margin_bottom(10);
 
+        // Create the four type of cells we are going to use.
         let cell_index = CellRendererText::new();
         let cell_key = CellRendererText::new();
         let cell_text = CellRendererText::new();
         let cell_tooltip = CellRendererToggle::new();
 
+        // Config the cells.
         cell_key.set_property_editable(true);
         cell_text.set_property_editable(true);
         cell_tooltip.set_activatable(true);
 
+        // Reduce the size of the checkbox to 160% the size of the font used (yes, 160% is less that his normal size).
+        cell_tooltip.set_property_indicator_size((settings.font.split(' ').filter_map(|x| x.parse::<f32>().ok()).collect::<Vec<f32>>()[0] * 1.6) as i32);
+
+        // Create the four columns we are going to use.
         let column_index = TreeViewColumn::new();
         let column_key = TreeViewColumn::new();
         let column_text = TreeViewColumn::new();
         let column_tooltip = TreeViewColumn::new();
 
+        // Set the column's titles.
         column_index.set_title("Index");
         column_key.set_title("Key");
         column_text.set_title("Text");
         column_tooltip.set_title("Tooltip");
 
+        // Make the headers clickable.
         column_index.set_clickable(true);
         column_key.set_clickable(true);
         column_text.set_clickable(true);
         column_tooltip.set_clickable(true);
 
+        // Allow the user to move the columns. Because why not?
         column_key.set_reorderable(true);
         column_text.set_reorderable(true);
         column_tooltip.set_reorderable(true);
 
+        // Allow the user to resize the "key" and "text" columns.
         column_key.set_resizable(true);
         column_text.set_resizable(true);
 
+        // Set a minimal width for the columns, so they can't be fully hidden.
         column_index.set_max_width(60);
         column_key.set_min_width(50);
         column_text.set_min_width(50);
         column_tooltip.set_min_width(50);
 
-        column_key.set_sizing(gtk::TreeViewColumnSizing::GrowOnly);
-        column_text.set_sizing(gtk::TreeViewColumnSizing::GrowOnly);
-        column_tooltip.set_sizing(gtk::TreeViewColumnSizing::GrowOnly);
+        // Make both "key" and "text" columns be able to grow from his minimum size.
+        column_key.set_sizing(TreeViewColumnSizing::GrowOnly);
+        column_text.set_sizing(TreeViewColumnSizing::GrowOnly);
 
+        // Center the column's titles.
         column_index.set_alignment(0.5);
         column_key.set_alignment(0.5);
         column_text.set_alignment(0.5);
         column_tooltip.set_alignment(0.5);
 
+        // Set the ID's to short the columns.
         column_index.set_sort_column_id(0);
         column_key.set_sort_column_id(1);
         column_text.set_sort_column_id(2);
         column_tooltip.set_sort_column_id(3);
 
+        // Add the cells to the columns.
         column_index.pack_start(&cell_index, true);
         column_key.pack_start(&cell_key, true);
         column_text.pack_start(&cell_text, true);
         column_tooltip.pack_start(&cell_tooltip, true);
 
+        // Set their attributes, so we can manipulate their contents.
         column_index.add_attribute(&cell_index, "text", 0);
         column_key.add_attribute(&cell_key, "text", 1);
         column_text.add_attribute(&cell_text, "text", 2);
         column_tooltip.add_attribute(&cell_tooltip, "active", 3);
 
-        packed_file_tree_view.append_column(&column_index);
-        packed_file_tree_view.append_column(&column_key);
-        packed_file_tree_view.append_column(&column_text);
-        packed_file_tree_view.append_column(&column_tooltip);
+        // Add the four columns to the `TreeView`.
+        tree_view.append_column(&column_index);
+        tree_view.append_column(&column_key);
+        tree_view.append_column(&column_text);
+        tree_view.append_column(&column_tooltip);
 
-        // This column is to make the last column not go to the end of the table.
-        let cell_fill = CellRendererText::new();
-        let column_fill = TreeViewColumn::new();
-        column_fill.set_min_width(0);
-        column_fill.set_sizing(gtk::TreeViewColumnSizing::GrowOnly);
-        column_fill.set_alignment(0.5);
-        column_fill.set_sort_column_id(4);
-        column_fill.pack_start(&cell_fill, true);
-        packed_file_tree_view.append_column(&column_fill);
-
-        packed_file_tree_view.set_enable_search(false);
+        // Make an extra "Dummy" column that will expand to fill the space between the last column and
+        // the right border of the window.
+        let cell_dummy = CellRendererText::new();
+        let column_dummy = TreeViewColumn::new();
+        column_dummy.pack_start(&cell_dummy, true);
+        tree_view.append_column(&column_dummy);
 
         // Here we create the Popover menu. It's created and destroyed with the table because otherwise
-        // it'll start crashing when changing tables and trying to delete stuff. Stupid menu.
-        let packed_file_popover_menu = Popover::new(&packed_file_tree_view);
-        let packed_file_popover_menu_box = Box::new(Orientation::Vertical, 0);
-        packed_file_popover_menu_box.set_border_width(6);
+        // it'll start crashing when changing tables and trying to delete stuff. Stupid menu. Also, it can't
+        // be created from a `MenuModel` like the rest, because `MenuModel`s can't hold an `Entry`.
+        let context_menu = Popover::new(&tree_view);
 
-        let packed_file_popover_menu_box_add_rows_box = Box::new(Orientation::Horizontal, 0);
+        // Create the `Grid` that'll hold all the buttons in the Contextual Menu.
+        let context_menu_grid = Grid::new();
+        context_menu_grid.set_border_width(6);
 
-        let packed_file_popover_menu_add_rows_button = ModelButton::new();
-        packed_file_popover_menu_add_rows_button.set_property_text(Some("Add rows:"));
-        packed_file_popover_menu_add_rows_button.set_action_name("app.packedfile_loc_add_rows");
+        // Create the "Add row/s" button.
+        let add_rows_button = ModelButton::new();
+        add_rows_button.set_property_text(Some("Add row/s:"));
+        add_rows_button.set_action_name("app.packedfile_loc_add_rows");
 
-        let packed_file_popover_menu_add_rows_entry = Entry::new();
-        let packed_file_popover_menu_add_rows_entry_buffer = packed_file_popover_menu_add_rows_entry.get_buffer();
-        packed_file_popover_menu_add_rows_entry.set_alignment(1.0);
-        packed_file_popover_menu_add_rows_entry.set_width_chars(8);
-        packed_file_popover_menu_add_rows_entry.set_icon_from_stock(gtk::EntryIconPosition::Primary, Some("gtk-goto-last"));
-        packed_file_popover_menu_add_rows_entry.set_has_frame(false);
-        packed_file_popover_menu_add_rows_entry_buffer.set_max_length(Some(4));
-        packed_file_popover_menu_add_rows_entry_buffer.set_text("1");
+        // Create the entry to specify the amount of rows you want to add.
+        let add_rows_entry = Entry::new();
+        let add_rows_entry_buffer = add_rows_entry.get_buffer();
+        add_rows_entry.set_alignment(1.0);
+        add_rows_entry.set_width_chars(8);
+        add_rows_entry.set_icon_from_icon_name(EntryIconPosition::Primary, Some("go-last"));
+        add_rows_entry.set_has_frame(false);
+        add_rows_entry_buffer.set_max_length(Some(4));
+        add_rows_entry_buffer.set_text("1");
 
-        let packed_file_popover_menu_delete_rows_button = ModelButton::new();
-        packed_file_popover_menu_delete_rows_button.set_property_text(Some("Delete row/s"));
-        packed_file_popover_menu_delete_rows_button.set_action_name("app.packedfile_loc_delete_rows");
+        // Create the "Delete row/s" button.
+        let delete_rows_button = ModelButton::new();
+        delete_rows_button.set_property_text(Some("Delete row/s"));
+        delete_rows_button.set_action_name("app.packedfile_loc_delete_rows");
 
-        let separator = Separator::new(Orientation::Vertical);
-        let packed_file_popover_menu_import_from_csv_button = ModelButton::new();
-        packed_file_popover_menu_import_from_csv_button.set_property_text(Some("Import from CSV"));
-        packed_file_popover_menu_import_from_csv_button.set_action_name("app.packedfile_loc_import_csv");
+        // Create the separator between "Delete row/s" and the copy/paste buttons.
+        let separator_1 = Separator::new(Orientation::Vertical);
 
-        let packed_file_popover_menu_export_to_csv_button = ModelButton::new();
-        packed_file_popover_menu_export_to_csv_button.set_property_text(Some("Export to CSV"));
-        packed_file_popover_menu_export_to_csv_button.set_action_name("app.packedfile_loc_export_csv");
+        // Create the "Copy cell" button.
+        let copy_cell_button = ModelButton::new();
+        copy_cell_button.set_property_text(Some("Copy cell"));
+        copy_cell_button.set_action_name("app.packedfile_loc_copy_cell");
 
-        packed_file_popover_menu_box_add_rows_box.pack_start(&packed_file_popover_menu_add_rows_button, true, true, 0);
-        packed_file_popover_menu_box_add_rows_box.pack_end(&packed_file_popover_menu_add_rows_entry, true, true, 0);
+        // Create the "Paste cell" button.
+        let paste_cell_button = ModelButton::new();
+        paste_cell_button.set_property_text(Some("Paste cell"));
+        paste_cell_button.set_action_name("app.packedfile_loc_paste_cell");
 
-        packed_file_popover_menu_box.pack_start(&packed_file_popover_menu_box_add_rows_box, true, true, 0);
-        packed_file_popover_menu_box.pack_start(&packed_file_popover_menu_delete_rows_button, true, true, 0);
-        packed_file_popover_menu_box.pack_start(&separator, true, true, 0);
-        packed_file_popover_menu_box.pack_start(&packed_file_popover_menu_import_from_csv_button, true, true, 0);
-        packed_file_popover_menu_box.pack_start(&packed_file_popover_menu_export_to_csv_button, true, true, 0);
+        // Create the "Copy row/s" button.
+        let copy_rows_button = ModelButton::new();
+        copy_rows_button.set_property_text(Some("Copy row/s"));
+        copy_rows_button.set_action_name("app.packedfile_loc_copy_rows");
 
-        packed_file_popover_menu.add(&packed_file_popover_menu_box);
-        packed_file_popover_menu.show_all();
+        // Create the "Paste row/s" button.
+        let paste_rows_button = ModelButton::new();
+        paste_rows_button.set_property_text(Some("Paste row/s"));
+        paste_rows_button.set_action_name("app.packedfile_loc_paste_rows");
 
+        // Create the separator between the "Import/Export" buttons and the rest.
+        let separator_2 = Separator::new(Orientation::Vertical);
+
+        // Create the "Import from CSV" button.
+        let import_csv_button = ModelButton::new();
+        import_csv_button.set_property_text(Some("Import from CSV"));
+        import_csv_button.set_action_name("app.packedfile_loc_import_csv");
+
+        // Create the "Export to CSV" button.
+        let export_csv_button = ModelButton::new();
+        export_csv_button.set_property_text(Some("Export to CSV"));
+        export_csv_button.set_action_name("app.packedfile_loc_export_csv");
+
+        // Attach all the stuff to the Context Menu `Grid`.
+        context_menu_grid.attach(&add_rows_button, 0, 0, 1, 1);
+        context_menu_grid.attach(&add_rows_entry, 1, 0, 1, 1);
+        context_menu_grid.attach(&delete_rows_button, 0, 1, 2, 1);
+        context_menu_grid.attach(&separator_1, 0, 2, 2, 1);
+        context_menu_grid.attach(&copy_cell_button, 0, 3, 2, 1);
+        context_menu_grid.attach(&paste_cell_button, 0, 4, 2, 1);
+        context_menu_grid.attach(&copy_rows_button, 0, 5, 2, 1);
+        context_menu_grid.attach(&paste_rows_button, 0, 6, 2, 1);
+        context_menu_grid.attach(&separator_2, 0, 7, 2, 1);
+        context_menu_grid.attach(&import_csv_button, 0, 8, 2, 1);
+        context_menu_grid.attach(&export_csv_button, 0, 9, 2, 1);
+
+        // Add the `Grid` to the Context Menu and show it.
+        context_menu.add(&context_menu_grid);
+        context_menu.show_all();
+
+        // Make a `ScrolledWindow` to put the `TreeView` into it.
         let packed_file_data_scroll = ScrolledWindow::new(None, None);
-        packed_file_data_scroll.add(&packed_file_tree_view);
-        packed_file_data_display.pack_end(&packed_file_data_scroll, true, true, 0);
+        packed_file_data_scroll.set_hexpand(true);
+        packed_file_data_scroll.set_vexpand(true);
+
+        // Add the `TreeView` to the `ScrolledWindow`, the `ScrolledWindow` to the main `Grid`, and show it.
+        packed_file_data_scroll.add(&tree_view);
+        packed_file_data_display.attach(&packed_file_data_scroll, 0, 0, 1, 1);
         packed_file_data_display.show_all();
 
-        packed_file_popover_menu.hide();
+        // Hide the Context Menu by default.
+        context_menu.hide();
 
+        // Actions that we could move here from the `main.rs`.
+
+        // When we right-click the `TreeView`, show the Contextual Menu.
+        //
+        // NOTE: REMEMBER, WE OPEN THE POPUP HERE, BUT WE NEED TO CLOSED IT WHEN WE HIT HIS BUTTONS.
+        tree_view.connect_button_release_event(clone!(
+            context_menu => move |tree_view, button| {
+
+                // If we clicked the right mouse button...
+                if button.get_button() == 3 {
+
+                    // Point the popover to the place we clicked, and show it.
+                    context_menu.set_pointing_to(&get_rect_for_popover(tree_view, Some(button.get_position())));
+                    context_menu.popup();
+                }
+                Inhibit(false)
+            }
+        ));
+
+        // Return the struct with the Loc `TreeView` and all the stuff we want.
         PackedFileLocTreeView {
-            packed_file_tree_view,
-            packed_file_list_store,
-            packed_file_tree_view_selection,
-            packed_file_tree_view_cell_key: cell_key,
-            packed_file_tree_view_cell_text: cell_text,
-            packed_file_tree_view_cell_tooltip: cell_tooltip,
-            packed_file_popover_menu,
-            packed_file_popover_menu_add_rows_entry,
+            tree_view,
+            list_store,
+            cell_key,
+            cell_text,
+            cell_tooltip,
+            context_menu,
+            add_rows_entry,
         }
     }
 
-    /// This function loads the data from a LocData into a TreeView.
+    /// This function loads the data from a `LocData` into a `TreeView`.
     pub fn load_data_to_tree_view(
         packed_file_data: &LocData,
         packed_file_list_store: &ListStore
     ) {
-        // First, we delete all the data from the ListStore.
+        // First, we delete all the data from the `ListStore`. Just in case there is something there.
         packed_file_list_store.clear();
 
         // Then we add every line to the ListStore.
@@ -197,31 +273,35 @@ impl PackedFileLocTreeView{
         }
     }
 
-    /// This function returns a Vec<LocDataEntry> with all the stuff in the table. We need for it the
-    /// ListStore, and it'll return a LocData with all the stuff from the table.
+    /// This function returns a `LocData` with all the stuff in the table. We need for it the `ListStore` of that table.
     pub fn return_data_from_tree_view(
-        packed_file_list_store: &ListStore,
+        list_store: &ListStore,
     ) -> LocData {
 
-        let mut packed_file_data_from_tree_view = LocData::new();
+        // Create an empty `LocData`.
+        let mut loc_data = LocData::new();
 
-        // Only in case we have any line in the ListStore we try to get it. Otherwise we return an
-        // empty LocData.
-        if let Some(current_line) = packed_file_list_store.get_iter_first() {
-            let mut done = false;
-            while !done {
-                let key = packed_file_list_store.get_value(&current_line, 1).get().unwrap();
-                let text = packed_file_list_store.get_value(&current_line, 2).get().unwrap();
-                let tooltip = packed_file_list_store.get_value(&current_line, 3).get().unwrap();
+        // If we got at least one row...
+        if let Some(current_line) = list_store.get_iter_first() {
 
-                packed_file_data_from_tree_view.packed_file_data_entries.push(LocDataEntry::new(key, text, tooltip));
+            // Loop 'til the end of the storm of the sword and axe.
+            loop {
 
-                if !packed_file_list_store.iter_next(&current_line) {
-                    done = true;
-                }
+                // Make a new entry with the data from the `ListStore`, and push it to our new `LocData`.
+                loc_data.packed_file_data_entries.push(
+                    LocDataEntry::new(
+                        list_store.get_value(&current_line, 1).get().unwrap(),
+                        list_store.get_value(&current_line, 2).get().unwrap(),
+                        list_store.get_value(&current_line, 3).get().unwrap(),
+                    )
+                );
+
+                // If there are no more rows, stop, for the wolf has come.
+                if !list_store.iter_next(&current_line) { break; }
             }
         }
-        packed_file_data_from_tree_view
+
+        // Return the new `LocData`.
+        loc_data
     }
 }
-
