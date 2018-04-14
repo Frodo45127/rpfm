@@ -183,6 +183,7 @@ pub fn show_about_window(
     about_dialog.add_credit_section("Icon by", &["Maruka"]);
     about_dialog.add_credit_section("RigidModel research by", &["Mr.Jox", "Der Spaten", "Maruka", "Frodo45127"]);
     about_dialog.add_credit_section("Windows's theme", &["\"Materia for GTK3\" by nana-4"]);
+    about_dialog.add_credit_section("Text Editor theme", &["\"Monokai Extended\" by Leo Iannacone"]);
     about_dialog.add_credit_section("Special thanks to", &["- PFM team (for providing the community\n   with awesome modding tools).", "- CA (for being a mod-friendly company)."]);
 
     // Center the `AboutDialog` in the middle of the screen.
