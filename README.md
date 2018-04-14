@@ -1,5 +1,6 @@
+![imagen](https://user-images.githubusercontent.com/15714929/38763682-f0283344-3fa0-11e8-8835-6248e4ca7672.png)
 # Rusted PackFile Manager
-***Rusted PackFile Manager*** (RPFM) is a... reimplementation in Rust and GTK3 of ***PackFile Manager*** (PFM), one of the best modding tools for Total War Games.
+***Rusted PackFile Manager*** (RPFM) is a... reimplementation in Rust and GTK3 of ***PackFile Manager*** (PFM), one of the best modding tools for Total War Games. Now with a [Patreon][Patreon]! (Hurray for blatant self-promotion!).
 
 # Status of the Project
 The latest released version can (for TW:Warhammer I and II for now):
@@ -65,3 +66,4 @@ cargo build --target=x86_64-unknown-linux-gnu --release
 [Rustup download]: https://www.rustup.rs/ "Here you can download it :)"
 [Gtk-rs requeriments]: http://gtk-rs.org/docs-src/requirements.html "Installation Tutorial for GTK3 in Windows"
 [MyMod behavior]: http://www.twcenter.net/forums/showthread.php?536546-The-PFM-2-1-s-MyMod-Feature
+[Patreon]: https://www.patreon.com/RPFM
