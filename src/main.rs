@@ -46,7 +46,7 @@ use gio::{
 use gdk::Atom;
 use gtk::prelude::*;
 use gtk::{
-    Builder, ApplicationWindow, FileFilter, Grid, TreePath, Clipboard,
+    Builder, ApplicationWindow, FileFilter, Grid, TreePath, Clipboard, LinkButton,
     TreeView, TreeSelection, TreeStore, ScrolledWindow, Application, CellRendererMode, TreeIter,
     CellRendererText, TreeViewColumn, Popover, Button, ListStore, ResponseType,
     ShortcutsWindow, ToVariant, Statusbar, FileChooserNative, FileChooserAction, ToValue
@@ -176,6 +176,7 @@ struct AppUI {
     menu_bar_patch_siege_ai_wh: SimpleAction,
     menu_bar_create_map_prefab_wh: SimpleAction,
     menu_bar_check_updates: SimpleAction,
+    menu_bar_open_patreon: SimpleAction,
     menu_bar_about: SimpleAction,
     menu_bar_change_packfile_type: SimpleAction,
     menu_bar_my_mod_new: SimpleAction,
@@ -287,6 +288,7 @@ fn build_ui(application: &Application) {
         menu_bar_patch_siege_ai_wh: SimpleAction::new("patch-siege-ai-wh", None),
         menu_bar_create_map_prefab_wh: SimpleAction::new("create-map-prefab-wh", None),
         menu_bar_check_updates: SimpleAction::new("check-updates", None),
+        menu_bar_open_patreon: SimpleAction::new("open-patreon", None),
         menu_bar_about: SimpleAction::new("about", None),
         menu_bar_change_packfile_type: SimpleAction::new_stateful("change-packfile-type", glib::VariantTy::new("s").ok(), &"mod".to_variant()),
         menu_bar_my_mod_new: SimpleAction::new("my-mod-new", None),
@@ -326,6 +328,7 @@ fn build_ui(application: &Application) {
     application.add_action(&app_ui.menu_bar_generate_dependency_pack_wh);
     application.add_action(&app_ui.menu_bar_patch_siege_ai_wh);
     application.add_action(&app_ui.menu_bar_create_map_prefab_wh);
+    application.add_action(&app_ui.menu_bar_open_patreon);
     application.add_action(&app_ui.menu_bar_about);
     application.add_action(&app_ui.menu_bar_check_updates);
     application.add_action(&app_ui.menu_bar_change_packfile_type);
@@ -1435,6 +1438,14 @@ fn build_ui(application: &Application) {
             check_updates(VERSION, Some(&app_ui.window), None);
         }
     ));
+
+    // When we hit the "Support me on Patreon" button.
+    app_ui.menu_bar_open_patreon.connect_activate(move |_,_| {
+
+        // I doubt GTK allows to put a LinkButton in the Menubar so... time to be creative.
+        let link_button = LinkButton::new("https://www.patreon.com/RPFM");
+        link_button.emit("activate-link", &[]).unwrap();
+    });
 
     // When we hit the "About" button.
     app_ui.menu_bar_about.connect_activate(clone!(

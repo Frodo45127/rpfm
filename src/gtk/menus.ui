@@ -180,7 +180,11 @@
                     <attribute name="action">app.check-updates</attribute>
                 </item>
                 <item>
-                    <attribute name="label" translatable="yes">_About</attribute>
+                    <attribute name="label" translatable="yes">Support me on _Patreon</attribute>
+                    <attribute name="action">app.open-patreon</attribute>
+                </item>
+                <item>
+                    <attribute name="label" translatable="yes">_About RPFM</attribute>
                     <attribute name="action">app.about</attribute>
                     <attribute name="accel">&lt;Primary&gt;h</attribute>
                 </item>
