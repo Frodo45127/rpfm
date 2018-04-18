@@ -219,32 +219,35 @@ impl DBHeader {
         let mut packed_file_header_decoded = DBHeader::new();
         let mut index: usize = 0;
 
-        // We assume it always has a GUID_MARKER, so we get the GUID. If it doesn't have it, return error.
+        // If the first four bytes are neither the GUID_MARKER, nor the VERSION_MARKER, it's not a DB Table.
+        if &packed_file_header[index..(index + 4)] != GUID_MARKER && &packed_file_header[index..(index + 4)] != VERSION_MARKER {
+            return Err(format_err!("This DB PackedFile doesn't have a GUID Marker, nor a VERSION Marker, so it's not a table, or the table is corrupt. If you're sure this is a table, please report it as a bug."))
+        }
+
+        // We assume it always has a GUID_MARKER, so we get the GUID. If it doesn't have it, it comes from PFM,
+        // so we ignore it, as it's not really needed for the table to work, and it'll be fixed in the first save.
         if &packed_file_header[index..(index + 4)] == GUID_MARKER {
             index += 4;
             let decoded_guid = coding_helpers::decode_packedfile_string_u16(&packed_file_header[index..], index)?;
             packed_file_header_decoded.packed_file_header_packed_file_guid = decoded_guid.0;
             index = decoded_guid.1;
-
-            // If it has a VERSION_MARKER, we get the version of the table.
-            if &packed_file_header[index..(index + 4)] == VERSION_MARKER {
-                packed_file_header_decoded.packed_file_header_packed_file_version = coding_helpers::decode_integer_u32(&packed_file_header[(index + 4)..(index + 8)])?;
-                packed_file_header_decoded.packed_file_header_packed_file_version_marker = true;
-                index += 8;
-            }
-
-            // We save a mysterious byte I don't know what it does.
-            packed_file_header_decoded.packed_file_header_packed_file_mysterious_byte = packed_file_header[index];
-            index += 1;
-
-            packed_file_header_decoded.packed_file_header_packed_file_entry_count = coding_helpers::decode_integer_u32(&packed_file_header[(index)..(index + 4)])?;
-            index += 4;
-
-            Ok((packed_file_header_decoded, index))
         }
-        else {
-            Err(format_err!("This DB PackedFile doesn't have a GUID Marker. If you're sure this is a table, please report it as a bug."))
+
+        // If it has a VERSION_MARKER, we get the version of the table.
+        if &packed_file_header[index..(index + 4)] == VERSION_MARKER {
+            packed_file_header_decoded.packed_file_header_packed_file_version = coding_helpers::decode_integer_u32(&packed_file_header[(index + 4)..(index + 8)])?;
+            packed_file_header_decoded.packed_file_header_packed_file_version_marker = true;
+            index += 8;
         }
+
+        // We save a mysterious byte I don't know what it does.
+        packed_file_header_decoded.packed_file_header_packed_file_mysterious_byte = packed_file_header[index];
+        index += 1;
+
+        packed_file_header_decoded.packed_file_header_packed_file_entry_count = coding_helpers::decode_integer_u32(&packed_file_header[(index)..(index + 4)])?;
+        index += 4;
+
+        Ok((packed_file_header_decoded, index))
     }
 
     /// This function takes an entire DBHeader and a packed_file_entry_count, and encode it to Vec<u8>,
