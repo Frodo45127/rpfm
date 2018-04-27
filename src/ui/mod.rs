@@ -1,11 +1,13 @@
 // In this file are all the helper functions used by the UI (mainly GTK here)
 extern crate num;
+extern crate gio;
 extern crate gdk_pixbuf;
 
 use self::gdk_pixbuf::Pixbuf;
+use gio::prelude::*;
 use gtk::prelude::*;
 use gtk::{
-    MessageDialog, TreeStore, TreeSelection, TreeView, Rectangle, Label,
+    MessageDialog, TreeStore, TreeSelection, TreeView, Rectangle, Label, FileChooserNative, FileFilter,
     Grid, Statusbar, MessageType, ButtonsType, DialogFlags, ApplicationWindow, ResponseType,
     AboutDialog, License, WindowPosition, TreeIter, Application, Paned, Orientation, CellRendererMode,
     TreeViewColumn, CellRendererText, ScrolledWindow
@@ -272,6 +274,81 @@ pub fn show_dialog<T: Display>(parent_window: &ApplicationWindow, is_success: bo
 pub fn show_message_in_statusbar<T: Display>(status_bar: &Statusbar, message: T) {
     let message = &message.to_string();
     status_bar.push(status_bar.get_context_id(message), message);
+}
+
+/// This function adds a Filter to the provided FileChooser, using the `pattern` &str.
+pub fn file_chooser_filter_packfile(file_chooser: &FileChooserNative, pattern: &str) {
+    let filter = FileFilter::new();
+    filter.add_pattern(pattern);
+    file_chooser.add_filter(&filter);
+}
+
+/// This function sets the currently open PackFile as "modified" or unmodified, both in the PackFile
+/// and in the title bar, depending on the value of the "is_modified" boolean.
+pub fn set_modified(
+    is_modified: bool,
+    window: &ApplicationWindow,
+    pack_file_decoded: &mut PackFile,
+) {
+    if is_modified {
+        pack_file_decoded.pack_file_extra_data.is_modified = true;
+        window.set_title(&format!("Rusted PackFile Manager -> {}(modified)", pack_file_decoded.pack_file_extra_data.file_name));
+    }
+    else {
+        pack_file_decoded.pack_file_extra_data.is_modified = false;
+        window.set_title(&format!("Rusted PackFile Manager -> {}", pack_file_decoded.pack_file_extra_data.file_name));
+    }
+}
+
+/// This function cleans the accelerators and actions created by the PackedFile Views, so they can be
+/// reused in another View.
+pub fn remove_temporal_accelerators(application: &Application) {
+
+    // Remove stuff of Loc View.
+    application.set_accels_for_action("packedfile_loc_add_rows", &[]);
+    application.set_accels_for_action("packedfile_loc_delete_rows", &[]);
+    application.set_accels_for_action("packedfile_loc_copy_cell", &[]);
+    application.set_accels_for_action("packedfile_loc_paste_cell", &[]);
+    application.set_accels_for_action("packedfile_loc_copy_rows", &[]);
+    application.set_accels_for_action("packedfile_loc_paste_rows", &[]);
+    application.set_accels_for_action("packedfile_loc_import_csv", &[]);
+    application.set_accels_for_action("packedfile_loc_export_csv", &[]);
+    application.remove_action("packedfile_loc_add_rows");
+    application.remove_action("packedfile_loc_delete_rows");
+    application.remove_action("packedfile_loc_copy_cell");
+    application.remove_action("packedfile_loc_paste_cell");
+    application.remove_action("packedfile_loc_copy_rows");
+    application.remove_action("packedfile_loc_paste_rows");
+    application.remove_action("packedfile_loc_import_csv");
+    application.remove_action("packedfile_loc_export_csv");
+
+    // Remove stuff of DB View.
+    application.set_accels_for_action("packedfile_db_add_rows", &[]);
+    application.set_accels_for_action("packedfile_db_delete_rows", &[]);
+    application.set_accels_for_action("packedfile_db_copy_cell", &[]);
+    application.set_accels_for_action("packedfile_db_paste_cell", &[]);
+    application.set_accels_for_action("packedfile_db_clone_rows", &[]);
+    application.set_accels_for_action("packedfile_db_copy_rows", &[]);
+    application.set_accels_for_action("packedfile_db_paste_rows", &[]);
+    application.set_accels_for_action("packedfile_db_import_csv", &[]);
+    application.set_accels_for_action("packedfile_db_export_csv", &[]);
+    application.remove_action("packedfile_db_add_rows");
+    application.remove_action("packedfile_db_delete_rows");
+    application.remove_action("packedfile_db_copy_cell");
+    application.remove_action("packedfile_db_paste_cell");
+    application.remove_action("packedfile_db_clone_rows");
+    application.remove_action("packedfile_db_copy_rows");
+    application.remove_action("packedfile_db_paste_rows");
+    application.remove_action("packedfile_db_import_csv");
+    application.remove_action("packedfile_db_export_csv");
+
+    // Remove stuff of DB decoder View.
+    application.set_accels_for_action("move_row_up", &[]);
+    application.set_accels_for_action("move_row_down", &[]);
+    application.set_accels_for_action("delete_row", &[]);
+    application.remove_action("move_row_up");
+    application.remove_action("move_row_down");
+    application.remove_action("delete_row");
 }
 
 /// This function shows a message asking for confirmation. For use in operations that implies unsaved

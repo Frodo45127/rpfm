@@ -25,7 +25,7 @@ use self::csv::{
 };
 use common::coding_helpers;
 use super::SerializableToCSV;
-use self::schemas::FieldType;
+use self::schemas::*;
 
 pub mod schemas;
 pub mod schemas_importer;
@@ -65,7 +65,7 @@ pub struct DBHeader {
 /// It stores the PackedFile's data in a Vec<u8> and his structure in an OrderMap, if exists.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DBData {
-    pub table_definition: schemas::TableDefinition,
+    pub table_definition: TableDefinition,
     pub packed_file_data: Vec<Vec<DecodedData>>,
 }
 
@@ -123,7 +123,7 @@ impl DB {
     /// It returns a Vec<u8> with the entire DB encoded in it.
     pub fn save(packed_file_decoded: &DB) -> Result<Vec<u8>, Error> {
 
-        let mut packed_file_data_encoded = DBData::save(&packed_file_decoded.packed_file_data)?;
+        let mut packed_file_data_encoded = DBData::save(&packed_file_decoded.packed_file_data);
         let mut packed_file_header_encoded = DBHeader::save(&packed_file_decoded.packed_file_header, packed_file_data_encoded.1);
 
         let mut packed_file_encoded: Vec<u8> = vec![];
@@ -228,9 +228,7 @@ impl DBHeader {
         // so we ignore it, as it's not really needed for the table to work, and it'll be fixed in the first save.
         if &packed_file_header[index..(index + 4)] == GUID_MARKER {
             index += 4;
-            let decoded_guid = coding_helpers::decode_packedfile_string_u16(&packed_file_header[index..], index)?;
-            packed_file_header_decoded.packed_file_header_packed_file_guid = decoded_guid.0;
-            index = decoded_guid.1;
+            packed_file_header_decoded.packed_file_header_packed_file_guid = coding_helpers::decode_packedfile_string_u16(&packed_file_header[index..], &mut index)?;
         }
 
         // If it has a VERSION_MARKER, we get the version of the table.
@@ -244,9 +242,8 @@ impl DBHeader {
         packed_file_header_decoded.packed_file_header_packed_file_mysterious_byte = packed_file_header[index];
         index += 1;
 
-        packed_file_header_decoded.packed_file_header_packed_file_entry_count = coding_helpers::decode_integer_u32(&packed_file_header[(index)..(index + 4)])?;
-        index += 4;
-
+        packed_file_header_decoded.packed_file_header_packed_file_entry_count = coding_helpers::decode_packedfile_integer_u32(&packed_file_header[(index)..(index + 4)], &mut index)?;
+        
         Ok((packed_file_header_decoded, index))
     }
 
@@ -295,220 +292,310 @@ impl DBData {
     /// This function creates a decoded DBData from a encoded PackedFile.
     pub fn read(
         packed_file_data: &[u8],
-        table_definition: &schemas::TableDefinition,
-        packed_file_header_packed_file_entry_count: u32
+        table_definition: &TableDefinition,
+        entry_count: u32
     ) -> Result<DBData, Error> {
 
-        let packed_file_data_decoded: Vec<Vec<DecodedData>>;
-        let table_definition = table_definition.clone();
+        // Create the vector to store all the stuff inside this table.
+        let mut table: Vec<Vec<DecodedData>> = vec![];
 
-        // First, we get the amount of columns we have.
-        let column_amount = table_definition.fields.len();
-
-        let mut packed_file_data_decoded_rows: Vec<Vec<DecodedData>> = vec![];
-
-        // Then we go field by field putting data into a Vec<DecodedData>, and every row
-        // (Vec<DecodedData) into a Vec<Vec<DecodedData>>.
+        // Create the almighty index.
         let mut index = 0;
-        for row in 0..packed_file_header_packed_file_entry_count {
-            let mut entry: Vec<DecodedData> = vec![];
-            for column in 0..(column_amount + 1) {
 
-                // First column it's always the index.
-                if column == 0 {
-                    let entry_index = DecodedData::Index(format!("{:0count$}", (row + 1), count = (packed_file_header_packed_file_entry_count.to_string().len() + 1)));
-                    entry.push(entry_index);
-                }
+        // Get the list of fields for our table.
+        let fields_list = &table_definition.fields;
 
-                // The rest of the columns, we decode them based on his type and store them in a DecodedData
-                // enum, as enums are the only thing I found that can store them
-                else {
-                    let field_type = &table_definition.fields[column as usize - 1].field_type;
-                    match *field_type {
-                        schemas::FieldType::Boolean => {
-                            if index < packed_file_data.len() {
-                                match coding_helpers::decode_packedfile_bool(packed_file_data[index], index) {
-                                    Ok(data) => {
-                                        index = data.1;
-                                        entry.push(DecodedData::Boolean(data.0));
-                                    }
-                                    Err(error) => return Err(error)
-                                };
-                            }
-                            else {
-                                return Err(format_err!("Error: trying to decode a bool without a byte."))
-                            }
-                        }
-                        schemas::FieldType::Float => {
-                            // Check if the index does even exist, to avoid crashes.
-                            if (index + 4) <= packed_file_data.len() {
-                                match coding_helpers::decode_packedfile_float_f32(&packed_file_data[index..(index + 4)], index) {
-                                    Ok(data) => {
-                                        index = data.1;
-                                        entry.push(DecodedData::Float( data.0));
-                                    }
-                                    Err(error) => return Err(error)
-                                };
-                            }
-                            else {
-                                return Err(format_err!("Error: trying to decode a Float without enough bytes."))
-                            }
-                        }
-                        schemas::FieldType::Integer => {
-                            // Check if the index does even exist, to avoid crashes.
-                            if (index + 4) <= packed_file_data.len() {
-                                match coding_helpers::decode_packedfile_integer_i32(&packed_file_data[index..(index + 4)], index) {
-                                    Ok(data) => {
-                                        index = data.1;
-                                        entry.push(DecodedData::Integer(data.0));
-                                    }
-                                    Err(error) => return Err(error)
-                                };
-                            }
-                            else {
-                                return Err(format_err!("Error: trying to decode a signed Integer without enough bytes."))
-                            }
-                        }
-                        schemas::FieldType::LongInteger => {
-                            // Check if the index does even exist, to avoid crashes.
-                            if (index + 8) <= packed_file_data.len() {
-                                match coding_helpers::decode_packedfile_integer_i64(&packed_file_data[index..(index + 8)], index) {
-                                    Ok(data) => {
-                                        index = data.1;
-                                        entry.push(DecodedData::LongInteger(data.0));
-                                    }
-                                    Err(error) => return Err(error)
-                                };
-                            }
-                            else {
-                                return Err(format_err!("Error: trying to decode a signed Long Integer without enough bytes."))
-                            }
-                        }
-                        schemas::FieldType::StringU8 => {
-                            if index < packed_file_data.len() {
-                                match coding_helpers::decode_packedfile_string_u8(&packed_file_data[index..], index) {
-                                    Ok(data) => {
-                                        index = data.1;
-                                        entry.push(DecodedData::StringU8(data.0));
-                                    }
-                                    Err(error) => return Err(error)
-                                };
-                            }
-                            else {
-                                return Err(format_err!("Error: trying to decode a StringU8 without enought bytes."))
-                            }
-                        }
-                        schemas::FieldType::StringU16 => {
-                            if index < packed_file_data.len() {
-                                match coding_helpers::decode_packedfile_string_u16(&packed_file_data[index..], index) {
-                                    Ok(data) => {
-                                        index = data.1;
-                                        entry.push(DecodedData::StringU16(data.0));
-                                    }
-                                    Err(error) => return Err(error)
-                                };
-                            }
-                            else {
-                                return Err(format_err!("Error: trying to decode a StringU16 without enought bytes."))
-                            }
-                        }
-                        schemas::FieldType::OptionalStringU8 => {
-                            if index <= packed_file_data.len() {
-                                match coding_helpers::decode_packedfile_optional_string_u8(&packed_file_data[index..], index) {
-                                    Ok(data) => {
-                                        index = data.1;
-                                        entry.push(DecodedData::OptionalStringU8(data.0));
-                                    }
-                                    Err(error) => return Err(error)
-                                };
-                            }
-                            else {
-                                return Err(format_err!("Error: trying to decode an OptionalStringU8 without enought bytes."))
-                            }
-                        }
-                        schemas::FieldType::OptionalStringU16 => {
-                            if index <= packed_file_data.len() {
-                                match coding_helpers::decode_packedfile_optional_string_u16(&packed_file_data[index..], index) {
-                                    Ok(data) => {
-                                        index = data.1;
-                                        entry.push(DecodedData::OptionalStringU16(data.0));
-                                    }
-                                    Err(error) => return Err(error)
-                                };
-                            }
-                            else {
-                                return Err(format_err!("Error: trying to decode an OptionalStringU16 without enought bytes."))
-                            }
-                        }
-                    }
-                }
+        // For each row in our list...
+        for row_number in 0..entry_count {
+
+            // If we decoded it...
+            match DBData::read_row(packed_file_data, &fields_list, entry_count, row_number + 1, &mut index, false) {
+
+                // If it succeed, add the row to the table, otherwise, return error.
+                Ok(decoded_row) => table.push(decoded_row),
+                Err(error) => return Err(error),
             }
-            packed_file_data_decoded_rows.push(entry.clone());
         }
 
-        // We return the structure of the DB PackedFile and his decoded data.
-        packed_file_data_decoded = packed_file_data_decoded_rows;
-
+        // If there has been no errors, return the DBData.
         Ok(DBData {
-            table_definition,
-            packed_file_data: packed_file_data_decoded,
+            table_definition: table_definition.clone(),
+            packed_file_data: table,
         })
     }
 
     /// This function takes an entire DBData and encode it to Vec<u8>, so it can be written in the disk.
     /// It returns a tuple with the encoded DBData in a Vec<u8> and the new entry count to update the
     /// header.
-    pub fn save(packed_file_data_decoded: &DBData) -> Result<(Vec<u8>, u32), Error> {
+    pub fn save(packed_file_data_decoded: &DBData) -> (Vec<u8>, u32) {
 
-        let mut packed_file_data_encoded: Vec<u8> = vec![];
-        let mut packed_file_entry_count = 0;
+        // Create the vector to store the encoded table's data.
+        let mut table = vec![];
 
-        for row in &packed_file_data_decoded.packed_file_data {
-            for field in row {
-                match *field {
-                    DecodedData::Index(_) => {
+        // For each row on the list...
+        for decoded_row in &packed_file_data_decoded.packed_file_data {
 
-                        // We skip the index column, as we only have it for easy manipulation, it has
-                        // nothing to do with the PackedFile.
-                        continue;
-                    },
-                    DecodedData::Boolean(data) => {
-                        let encoded_data = coding_helpers::encode_bool(data);
-                        packed_file_data_encoded.push(encoded_data);
-                    },
-                    DecodedData::Float(data) => {
-                        let mut encoded_data = coding_helpers::encode_float_f32(data);
-                        packed_file_data_encoded.append(&mut encoded_data);
-                    },
-                    DecodedData::Integer(data) => {
-                        let mut encoded_data = coding_helpers::encode_integer_i32(data);
-                        packed_file_data_encoded.append(&mut encoded_data);
-                    },
-                    DecodedData::LongInteger(data) => {
-                        let mut encoded_data = coding_helpers::encode_integer_i64(data);
-                        packed_file_data_encoded.append(&mut encoded_data);
-                    },
-                    DecodedData::StringU8(ref data) => {
-                        let mut encoded_data = coding_helpers::encode_packedfile_string_u8(data);
-                        packed_file_data_encoded.append(&mut encoded_data);
-                    },
-                    DecodedData::StringU16(ref data) => {
-                        let mut encoded_data = coding_helpers::encode_packedfile_string_u16(data);
-                        packed_file_data_encoded.append(&mut encoded_data);
-                    },
-                    DecodedData::OptionalStringU8(ref data) => {
-                        let mut encoded_data = coding_helpers::encode_packedfile_optional_string_u8(data);
-                        packed_file_data_encoded.append(&mut encoded_data);
-                    },
-                    DecodedData::OptionalStringU16(ref data) => {
-                        let mut encoded_data = coding_helpers::encode_packedfile_optional_string_u16(data);
-                        packed_file_data_encoded.append(&mut encoded_data);
-                    },
+            // Encode it and add it to the list.
+            table.append(&mut DBData::save_row(decoded_row));
+        }
+
+        // Return the encoded table and the amount of entries it has now.
+        (table, packed_file_data_decoded.packed_file_data.len() as u32)
+    }
+
+    /// This function returns a `Vec<DecodedData>` or an error, depending if the entire row could be decoded or not.
+    fn read_row(
+        packed_file_data: &[u8],
+        field_list: &[Field],
+        entry_count: u32,
+        row_number: u32,
+        mut index: &mut usize,
+        is_list: bool,
+    ) -> Result<Vec<DecodedData>, Error> {
+
+        // First, we get the amount of columns we have.
+        let column_amount = field_list.len();
+
+        // Create the Vector to store the decoded row.
+        let mut decoded_row: Vec<DecodedData> = vec![];
+
+        // If we are not using this to get a list's fields, add the index column to the row.
+        if !is_list {
+            decoded_row.push(DecodedData::Index(format!("{:0count$}", (row_number), count = (entry_count.to_string().len() + 1))));
+        }
+
+        // For each column...
+        for column in 0..column_amount {
+
+            // Get his field_type...
+            let field_type = &field_list[column].field_type;
+
+            // Decode it, depending of his type...
+            match *field_type {
+
+                // If it's a boolean field...
+                FieldType::Boolean => {
+
+                    // If the index exists...
+                    if packed_file_data.get(*index).is_some() {
+
+                        // Try to decode the field.
+                        match coding_helpers::decode_packedfile_bool(packed_file_data[*index], &mut index) {
+
+                            // If it succeed, add the row to the list.
+                            Ok(data) => decoded_row.push(DecodedData::Boolean(data)),
+
+                            // Otherwise, return error.
+                            Err(error) => return Err(error)
+                        };
+                    }
+
+                    // Otherwise, return error.
+                    else { return Err(format_err!("Error: trying to decode a bool without a byte.")) }
+                }
+
+                // If it's a float field...
+                FieldType::Float => {
+
+                    // Check if the index does even exist, to avoid crashes. +3 because the ranges are exclusive.
+                    if packed_file_data.get(*index + 3).is_some() {
+
+                        // Try to decode the field.
+                        match coding_helpers::decode_packedfile_float_f32(&packed_file_data[*index..(*index + 4)], &mut index) {
+
+                            // If it succeed, add the row to the list.
+                            Ok(data) => decoded_row.push(DecodedData::Float(data)),
+
+                            // Otherwise, return error.
+                            Err(error) => return Err(error)
+                        };
+
+                    }
+
+                    // Otherwise, return error.
+                    else { return Err(format_err!("Error: trying to decode a Float without enough bytes.")) }
+                }
+
+                // If it's an integer field...
+                FieldType::Integer => {
+
+                    // Check if the index does even exist, to avoid crashes. +3 because the ranges are exclusive.
+                    if packed_file_data.get(*index + 3).is_some() {
+
+                        // Try to decode the field.
+                        match coding_helpers::decode_packedfile_integer_i32(&packed_file_data[*index..(*index + 4)], &mut index) {
+
+                            // If it succeed, add the row to the list.
+                            Ok(data) => decoded_row.push(DecodedData::Integer(data)),
+
+                            // Otherwise, return error.
+                            Err(error) => return Err(error)
+                        };
+                    }
+
+                    // Otherwise, return error.
+                    else { return Err(format_err!("Error: trying to decode a signed Integer without enough bytes.")) }
+                }
+
+                // If it's a long integer (i64)...
+                FieldType::LongInteger => {
+
+                    // Check if the index does even exist, to avoid crashes. +7 because the ranges are exclusive.
+                    if packed_file_data.get(*index + 7).is_some() {
+
+                        // Try to decode the field.
+                        match coding_helpers::decode_packedfile_integer_i64(&packed_file_data[*index..(*index + 8)], &mut index) {
+
+                            // If it succeed, add the row to the list.
+                            Ok(data) => decoded_row.push(DecodedData::LongInteger(data)),
+
+                            // Otherwise, return error.
+                            Err(error) => return Err(error)
+                        };
+                    }
+
+                    // Otherwise, return error.
+                    else { return Err(format_err!("Error: trying to decode a signed Long Integer without enough bytes.")) }
+                }
+
+                // If it's a common StringU8...
+                FieldType::StringU8 => {
+
+                    // Check if the index does even exist, to avoid crashes. +1 because strings start with an u16 with his size.
+                    if packed_file_data.get(*index + 1).is_some() {
+
+                        // Try to decode the field.
+                        match coding_helpers::decode_packedfile_string_u8(&packed_file_data[*index..], &mut index) {
+
+                            // If it succeed, add the row to the list.
+                            Ok(data) => decoded_row.push(DecodedData::StringU8(data)),
+
+                            // Otherwise, return error.
+                            Err(error) => return Err(error)
+                        };
+                    }
+
+                    // Otherwise, return error.
+                    else { return Err(format_err!("Error: trying to decode a StringU8 without enought bytes.")) }
+                }
+
+                // If it's a StringU16...
+                FieldType::StringU16 => {
+
+                    // Check if the index does even exist, to avoid crashes. +1 because strings start with an u16 with his size.
+                    if packed_file_data.get(*index + 1).is_some() {
+
+                        // Try to decode the field.
+                        match coding_helpers::decode_packedfile_string_u16(&packed_file_data[*index..], &mut index) {
+
+                            // If it succeed, add the row to the list.
+                            Ok(data) => decoded_row.push(DecodedData::StringU16(data)),
+
+                            // Otherwise, return error.
+                            Err(error) => return Err(error)
+                        };
+                    }
+
+                    // Otherwise, return error.
+                    else { return Err(format_err!("Error: trying to decode a StringU16 without enought bytes.")) }
+                }
+
+                // If it's an optional StringU8...
+                FieldType::OptionalStringU8 => {
+
+                    // Check if the index does even exist, to avoid crashes.
+                    if packed_file_data.get(*index).is_some() {
+
+                        // Try to decode the field.
+                        match coding_helpers::decode_packedfile_optional_string_u8(&packed_file_data[*index..], &mut index) {
+
+                            // If it succeed, add the row to the list.
+                            Ok(data) => decoded_row.push(DecodedData::OptionalStringU8(data)),
+
+                            // Otherwise, return error.
+                            Err(error) => return Err(error)
+                        };
+                    }
+                    else { return Err(format_err!("Error: trying to decode an OptionalStringU8 without enought bytes.")) }
+                }
+
+                // If it's an optional StringU16...
+                FieldType::OptionalStringU16 => {
+
+                    // Check if the index does even exist, to avoid crashes.
+                    if packed_file_data.get(*index).is_some() {
+
+                        // Try to decode the field.
+                        match coding_helpers::decode_packedfile_optional_string_u16(&packed_file_data[*index..], &mut index) {
+
+                            // If it succeed, add the row to the list.
+                            Ok(data) => decoded_row.push(DecodedData::OptionalStringU16(data)),
+
+                            // Otherwise, return error.
+                            Err(error) => return Err(error)
+                        };
+                    }
+                    else { return Err(format_err!("Error: trying to decode an OptionalStringU16 without enought bytes.")) }
                 }
             }
-            packed_file_entry_count += 1;
         }
-        Ok((packed_file_data_encoded, packed_file_entry_count))
+        Ok(decoded_row)
+    }
+
+    /// This function returns a `Vec<u8>` with the encoded data of a row, or an error, depending if the data could be encoded or not.
+    fn save_row(decoded_row: &[DecodedData]) -> Vec<u8> {
+
+        // Create the vector to store the encoded row's data.
+        let mut encoded_row: Vec<u8> = vec![];
+
+        // For each field in the row...
+        for field in decoded_row {
+
+            // Depending on what kind of field it is we encode it and add it to the row.
+            match *field {
+                DecodedData::Index(_) => {
+
+                    // We skip the index column, as we only have it for easy manipulation, it has
+                    // nothing to do with the PackedFile.
+                    continue;
+                },
+                DecodedData::Boolean(data) => {
+                    let encoded_data = coding_helpers::encode_bool(data);
+                    encoded_row.push(encoded_data);
+                },
+                DecodedData::Float(data) => {
+                    let mut encoded_data = coding_helpers::encode_float_f32(data);
+                    encoded_row.append(&mut encoded_data);
+                },
+                DecodedData::Integer(data) => {
+                    let mut encoded_data = coding_helpers::encode_integer_i32(data);
+                    encoded_row.append(&mut encoded_data);
+                },
+                DecodedData::LongInteger(data) => {
+                    let mut encoded_data = coding_helpers::encode_integer_i64(data);
+                    encoded_row.append(&mut encoded_data);
+                },
+                DecodedData::StringU8(ref data) => {
+                    let mut encoded_data = coding_helpers::encode_packedfile_string_u8(data);
+                    encoded_row.append(&mut encoded_data);
+                },
+                DecodedData::StringU16(ref data) => {
+                    let mut encoded_data = coding_helpers::encode_packedfile_string_u16(data);
+                    encoded_row.append(&mut encoded_data);
+                },
+                DecodedData::OptionalStringU8(ref data) => {
+                    let mut encoded_data = coding_helpers::encode_packedfile_optional_string_u8(data);
+                    encoded_row.append(&mut encoded_data);
+                },
+                DecodedData::OptionalStringU16(ref data) => {
+                    let mut encoded_data = coding_helpers::encode_packedfile_optional_string_u16(data);
+                    encoded_row.append(&mut encoded_data);
+                },
+            }
+        }
+
+        // Return the encoded row.
+        encoded_row
     }
 }
 

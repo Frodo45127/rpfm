@@ -244,59 +244,77 @@ pub fn encode_bool(bool_decoded: bool) -> u8 {
 /// This function allow us to decode an UTF-16 encoded integer, returning with it the byte where
 /// the next thing to decode is.
 #[allow(dead_code)]
-pub fn decode_packedfile_integer_u16(packed_file_data: &[u8], index: usize) -> Result<(u16, usize), Error> {
-    decode_integer_u16(packed_file_data).map(|result| (result, index + 2))
+pub fn decode_packedfile_integer_u16(packed_file_data: &[u8], index: &mut usize) -> Result<u16, Error> {
+    let result = decode_integer_u16(packed_file_data);
+    if result.is_ok() { *index += 2; }
+    result
 }
 
 /// This function allow us to decode an UTF-32 encoded integer, returning with it the byte where
 /// the next thing to decode is.
 #[allow(dead_code)]
-pub fn decode_packedfile_integer_u32(packed_file_data: &[u8], index: usize) -> Result<(u32, usize), Error> {
-    decode_integer_u32(packed_file_data).map(|result| (result, index + 4))
+pub fn decode_packedfile_integer_u32(packed_file_data: &[u8], index: &mut usize) -> Result<u32, Error> {
+    let result = decode_integer_u32(packed_file_data);
+    if result.is_ok() { *index += 4; }
+    result
 }
 
 /// This function allow us to decode an encoded Long Integer (u64), returning with it the byte where
 /// the next thing to decode is.
 #[allow(dead_code)]
-pub fn decode_packedfile_integer_u64(packed_file_data: &[u8], index: usize) -> Result<(u64, usize), Error> {
-    decode_integer_u64(packed_file_data).map(|result| (result, index + 8))
+pub fn decode_packedfile_integer_u64(packed_file_data: &[u8], index: &mut usize) -> Result<u64, Error> {
+    let result = decode_integer_u64(packed_file_data);
+    if result.is_ok() { *index += 8; }
+    result
 }
 
 /// This function allow us to decode an UTF-32 encoded signed integer, returning with it the byte where
 /// the next thing to decode is.
 #[allow(dead_code)]
-pub fn decode_packedfile_integer_i32(packed_file_data: &[u8], index: usize) -> Result<(i32, usize), Error> {
-    decode_integer_i32(packed_file_data).map(|result| (result, index + 4))
+pub fn decode_packedfile_integer_i32(packed_file_data: &[u8], index: &mut usize) -> Result<i32, Error> {
+    let result = decode_integer_i32(packed_file_data);
+    if result.is_ok() { *index += 4; }
+    result
 }
 
 /// This function allow us to decode an encoded signed Long Integer (i64), returning with it the byte where
 /// the next thing to decode is.
 #[allow(dead_code)]
-pub fn decode_packedfile_integer_i64(packed_file_data: &[u8], index: usize) -> Result<(i64, usize), Error> {
-    decode_integer_i64(packed_file_data).map(|result| (result, index + 8))
+pub fn decode_packedfile_integer_i64(packed_file_data: &[u8], index: &mut usize) -> Result<i64, Error> {
+    let result = decode_integer_i64(packed_file_data);
+    if result.is_ok() { *index += 8; }
+    result
 }
 
 /// This function allow us to decode an UTF-32 encoded float, returning with it the byte where
 /// the next thing to decode is.
 #[allow(dead_code)]
-pub fn decode_packedfile_float_f32(packed_file_data: &[u8], index: usize) -> Result<(f32, usize), Error> {
-    decode_float_f32(packed_file_data).map(|result| (result, index + 4))
+pub fn decode_packedfile_float_f32(packed_file_data: &[u8], index: &mut usize) -> Result<f32, Error> {
+    let result = decode_float_f32(packed_file_data);
+    if result.is_ok() { *index += 4; }
+    result
 }
 
 /// This function allow us to decode an UTF-8 encoded String, returning with it the byte where
 /// the next thing to decode is.
 #[allow(dead_code)]
-pub fn decode_packedfile_string_u8(packed_file_data: &[u8], index: usize) -> Result<(String, usize), Error> {
-    if packed_file_data.len() >= 2 {
+pub fn decode_packedfile_string_u8(packed_file_data: &[u8], mut index: &mut usize) -> Result<String, Error> {
+    if packed_file_data.get(1).is_some() {
 
         // We have already checked this cannot fail (we have 2 or more bytes), so the unwrap() here is allowed.
-        let string_lenght = decode_packedfile_integer_u16(&packed_file_data[..2], index).unwrap();
-        let size = string_lenght.0 as usize;
-        if packed_file_data.len() >= (size + 2) {
-            decode_string_u8(&packed_file_data[2..(2 + size)]).map(|string| (string, string_lenght.1 + size))
+        let string_lenght = decode_packedfile_integer_u16(&packed_file_data[..2], &mut index).unwrap() as usize;
+
+        // If the last byte of the string exists, we decode it.
+        if packed_file_data.get(string_lenght + 1).is_some() {
+            let result = decode_string_u8(&packed_file_data[2..(2 + string_lenght)]);
+            if result.is_err() { *index -= 2; } else { *index += string_lenght; }
+            result
         }
         else {
-            Err(format_err!("Error trying to decode an u8 String:\n\nSize specified ({}) is bigger than the amount of bytes we have ({}).", size, packed_file_data.len()))
+
+            // Reduce the index, to ignore the success of the decoding of the size.
+            *index -= 2;
+            Err(format_err!("Error trying to decode an u8 String:\n\nSize specified ({}) is bigger than the amount of bytes we have ({}).", string_lenght, packed_file_data.len()))
         }
     }
     else {
@@ -309,14 +327,19 @@ pub fn decode_packedfile_string_u8(packed_file_data: &[u8], index: usize) -> Res
 ///
 /// NOTE: These strings's first byte it's a boolean that indicates if the string has something.
 #[allow(dead_code)]
-pub fn decode_packedfile_optional_string_u8(packed_file_data: &[u8], index: usize) -> Result<(String, usize), Error> {
-    if packed_file_data.len() >= 1 {
-        match decode_packedfile_bool(packed_file_data[0], index) {
+pub fn decode_packedfile_optional_string_u8(packed_file_data: &[u8], mut index: &mut usize) -> Result<String, Error> {
+    if packed_file_data.get(0).is_some() {
+        match decode_packedfile_bool(packed_file_data[0], &mut index) {
             Ok(result) => {
-                match result.0 {
-                    true => decode_packedfile_string_u8(&packed_file_data[1..], result.1),
-                    false => Ok((String::new(), result.1))
-                }
+                if result {
+                    let result = decode_packedfile_string_u8(&packed_file_data[1..], &mut index);
+
+                    // Reduce the index in 1, because despite the first byte being a boolean, there has been an error
+                    // later in the decoding process, and we want to go back to our original index in that case.
+                    if result.is_err() { *index -= 1 };
+                    result
+                } else { Ok(String::new()) }
+
             }
             Err(_) => Err(format_err!("Error trying to decode an u8 Optional String:\n\nThe first byte is not a boolean."))
         }
@@ -329,20 +352,27 @@ pub fn decode_packedfile_optional_string_u8(packed_file_data: &[u8], index: usiz
 /// This function allow us to decode an UTF-16 encoded String, returning with it the byte where
 /// the next thing to decode is.
 #[allow(dead_code)]
-pub fn decode_packedfile_string_u16(packed_file_data: &[u8], index: usize) -> Result<(String, usize), Error> {
-    if packed_file_data.len() >= 2 {
+pub fn decode_packedfile_string_u16(packed_file_data: &[u8], mut index: &mut usize) -> Result<String, Error> {
+    if packed_file_data.get(1).is_some() {
 
         // We have already checked this cannot fail (we have 2 or more bytes), so the unwrap() here is allowed.
-        let string_lenght = decode_packedfile_integer_u16(&packed_file_data[..2], index).unwrap();
+        let string_lenght = decode_packedfile_integer_u16(&packed_file_data[..2], &mut index).unwrap() as usize;
 
-        // We wrap this to avoid overflow, as the limit of this is 65,535. Also, this has to be
-        // half the actual lenght of the data, because it counts pairs of bytes (u16), not single bytes.
-        let size = string_lenght.0.wrapping_mul(2) as usize;
-        if packed_file_data.len() >= (size + 2) {
-            decode_string_u16(&packed_file_data[2..(2 + size)]).map(|string| (string, string_lenght.1 + size))
+        // We wrap this to avoid overflow, as the limit of this is 65,535. We do this because u16 Strings
+        // counts pairs of bytes (u16), not single bytes.
+        let string_lenght_double = string_lenght.wrapping_mul(2) as usize;
+
+        // If the last byte of the string exists, we decode it.
+        if packed_file_data.get(string_lenght_double + 1).is_some() {
+            let result = decode_string_u16(&packed_file_data[2..(2 + string_lenght_double)]);
+            if result.is_err() { *index -= 2; } else { *index += string_lenght_double; }
+            result
         }
         else {
-            Err(format_err!("Error trying to decode an u16 String:\n\nSize specified ({}) is bigger than the amount of pairs of bytes we have ({}).", size, packed_file_data.len() / 2))
+
+            // Reduce the index, to ignore the success of the decoding of the size.
+            *index -= 2;
+            Err(format_err!("Error trying to decode an u16 String:\n\nSize specified ({}) is bigger than the amount of pairs of bytes we have ({}).", string_lenght_double, packed_file_data.len() / 2))
         }
     }
     else {
@@ -355,14 +385,18 @@ pub fn decode_packedfile_string_u16(packed_file_data: &[u8], index: usize) -> Re
 ///
 /// NOTE: These strings's first byte it's a boolean that indicates if the string has something.
 #[allow(dead_code)]
-pub fn decode_packedfile_optional_string_u16(packed_file_data: &[u8], index: usize) -> Result<(String, usize), Error> {
-    if packed_file_data.len() >= 1 {
-        match decode_packedfile_bool(packed_file_data[0], index) {
+pub fn decode_packedfile_optional_string_u16(packed_file_data: &[u8], mut index: &mut usize) -> Result<String, Error> {
+    if packed_file_data.get(0).is_some() {
+        match decode_packedfile_bool(packed_file_data[0], &mut index) {
             Ok(result) => {
-                match result.0 {
-                    true => decode_packedfile_string_u16(&packed_file_data[1..], result.1),
-                    false => Ok((String::new(), result.1))
-                }
+                if result {
+                    let result = decode_packedfile_string_u16(&packed_file_data[1..], &mut index);
+
+                    // Reduce the index in 1, because despite the first byte being a boolean, there has been an error
+                    // later in the decoding process, and we want to go back to our original index in that case.
+                    if result.is_err() { *index -= 1 };
+                    result
+                } else { Ok(String::new()) }
             }
             Err(_) => Err(format_err!("Error trying to decode an u16 Optional String:\n\nThe first byte is not a boolean."))
         }
@@ -375,8 +409,10 @@ pub fn decode_packedfile_optional_string_u16(packed_file_data: &[u8], index: usi
 /// This function allow us to decode a boolean, returning with it the byte where
 /// the next thing to decode is.
 #[allow(dead_code)]
-pub fn decode_packedfile_bool(packed_file_data: u8, index: usize) -> Result<(bool, usize), Error> {
-    decode_bool(packed_file_data).map(|result| (result, index + 1))
+pub fn decode_packedfile_bool(packed_file_data: u8, index: &mut usize) -> Result<bool, Error> {
+    let result = decode_bool(packed_file_data);
+    if result.is_ok() { *index += 1; }
+    result
 }
 
 /*

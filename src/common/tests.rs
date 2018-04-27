@@ -231,10 +231,18 @@ fn test_encode_bool() {
 fn test_decode_packedfile_integer_u16() {
 
     // Check the decoding works for a proper value.
-    assert_eq!(decode_packedfile_integer_u16(&[10, 0], 0).unwrap(), (10, 2));
+    {
+        let mut index = 0;
+        assert_eq!(decode_packedfile_integer_u16(&[10, 0], &mut index).unwrap(), 10);
+        assert_eq!(index, 2);
+    }
 
     // Check the decoder returns an error for a slice whose lenght is other than 2.
-    assert_eq!(decode_packedfile_integer_u16(&[10], 0).is_err(), true);
+    {
+        let mut index = 0;
+        assert_eq!(decode_packedfile_integer_u16(&[10], &mut index).is_err(), true);
+        assert_eq!(index, 0);
+    }
 }
 
 /// Test to make sure the u32 integer specific decoder (`decode_packedfile_integer_u32()`) works
@@ -243,10 +251,19 @@ fn test_decode_packedfile_integer_u16() {
 fn test_decode_packedfile_integer_u32() {
 
     // Check the decoding works for a proper value.
-    assert_eq!(decode_packedfile_integer_u32(&[10, 0, 0, 0], 0).unwrap(), (10, 4));
+    {
+        let mut index = 0;
+        assert_eq!(decode_packedfile_integer_u32(&[10, 0, 0, 0], &mut index).unwrap(), 10);
+        assert_eq!(index, 4);
+    }
+
 
     // Check the decoder returns an error for a slice whose lenght is other than 4.
-    assert_eq!(decode_packedfile_integer_u32(&[10, 0], 0).is_err(), true);
+    {
+        let mut index = 0;
+        assert_eq!(decode_packedfile_integer_u32(&[10, 0], &mut index).is_err(), true);
+        assert_eq!(index, 0);
+    }
 }
 
 /// Test to make sure the u64 integer specific decoder (`decode_packedfile_integer_u64()`) works
@@ -255,10 +272,19 @@ fn test_decode_packedfile_integer_u32() {
 fn test_decode_packedfile_integer_u64() {
 
     // Check the decoding works for a proper value.
-    assert_eq!(decode_packedfile_integer_u64(&[10, 0, 0, 0, 0, 0, 0, 0], 0).unwrap(), (10, 8));
+    {
+        let mut index = 0;
+        assert_eq!(decode_packedfile_integer_u64(&[10, 0, 0, 0, 0, 0, 0, 0], &mut index).unwrap(), 10);
+        assert_eq!(index, 8);
+    }
+
 
     // Check the decoder returns an error for a slice whose lenght is other than 8.
-    assert_eq!(decode_packedfile_integer_u64(&[10, 0], 0).is_err(), true);
+    {
+        let mut index = 0;
+        assert_eq!(decode_packedfile_integer_u64(&[10, 0], &mut index).is_err(), true);
+        assert_eq!(index, 0);
+    }
 }
 
 /// Test to make sure the i32 integer specific decoder (`decode_packedfile_integer_i32()`) works
@@ -267,10 +293,18 @@ fn test_decode_packedfile_integer_u64() {
 fn test_decode_packedfile_integer_i32() {
 
     // Check the decoding works for a proper value.
-    assert_eq!(decode_packedfile_integer_i32(&[254, 254, 255, 255], 0).unwrap(), (-258, 4));
+    {
+        let mut index = 0;
+        assert_eq!(decode_packedfile_integer_i32(&[254, 254, 255, 255], &mut index).unwrap(), -258);
+        assert_eq!(index, 4);
+    }
 
     // Check the decoder returns an error for a slice whose lenght is other than 4.
-    assert_eq!(decode_packedfile_integer_i32(&[10, 0], 0).is_err(), true);
+    {
+        let mut index = 0;
+        assert_eq!(decode_packedfile_integer_i32(&[10, 0], &mut index).is_err(), true);
+        assert_eq!(index, 0);
+    }
 }
 
 /// Test to make sure the i64 integer specific decoder (`decode_packedfile_integer_i64()`) works
@@ -279,10 +313,19 @@ fn test_decode_packedfile_integer_i32() {
 fn test_decode_packedfile_integer_i64() {
 
     // Check the decoding works for a proper value.
-    assert_eq!(decode_packedfile_integer_i64(&[254, 254, 255, 255, 255, 255, 255, 255], 0).unwrap(), (-258, 8));
+    {
+        let mut index = 0;
+        assert_eq!(decode_packedfile_integer_i64(&[254, 254, 255, 255, 255, 255, 255, 255], &mut index).unwrap(), -258);
+        assert_eq!(index, 8);
+    }
+
 
     // Check the decoder returns an error for a slice whose lenght is other than 8.
-    assert_eq!(decode_packedfile_integer_i64(&[10, 0], 0).is_err(), true);
+    {
+        let mut index = 0;
+        assert_eq!(decode_packedfile_integer_i64(&[10, 0], &mut index).is_err(), true);
+        assert_eq!(index, 0);
+    }
 }
 
 /// Test to make sure the f32 float specific decoder (`decode_packedfile_float_f32()`) works
@@ -291,10 +334,18 @@ fn test_decode_packedfile_integer_i64() {
 fn test_decode_packedfile_float_f32() {
 
     // Check the decoding works for a proper value.
-    assert_eq!(decode_packedfile_float_f32(&[51, 51, 35, 193], 0).unwrap(), (-10.2, 4));
+    {
+        let mut index = 0;
+        assert_eq!(decode_packedfile_float_f32(&[51, 51, 35, 193], &mut index).unwrap(), -10.2);
+        assert_eq!(index, 4);
+    }
 
     // Check the decoder returns an error for a slice whose lenght is other than 4.
-    assert_eq!(decode_packedfile_float_f32(&[10, 0], 0).is_err(), true);
+    {
+        let mut index = 0;
+        assert_eq!(decode_packedfile_float_f32(&[10, 0], &mut index).is_err(), true);
+        assert_eq!(index, 0);
+    }
 }
 
 /// Test to make sure the u8 string specific decoder (`decode_packedfile_string_u8()`) works
@@ -303,16 +354,32 @@ fn test_decode_packedfile_float_f32() {
 fn test_decode_packedfile_string_u8() {
 
     // Check the decoding works for a proper encoded string.
-    assert_eq!(decode_packedfile_string_u8(&[10, 0, 87, 97, 104, 97, 104, 97, 104, 97, 104, 97], 0).unwrap(), ("Wahahahaha".to_owned(), 12));
+    {
+        let mut index = 0;
+        assert_eq!(decode_packedfile_string_u8(&[10, 0, 87, 97, 104, 97, 104, 97, 104, 97, 104, 97], &mut index).unwrap(), "Wahahahaha".to_owned());
+        assert_eq!(index, 12);
+    }
 
     // Check the decoder returns an error for a slice with less than two bytes.
-    assert_eq!(decode_packedfile_string_u8(&[5], 0).is_err(), true);
+    {
+        let mut index = 0;
+        assert_eq!(decode_packedfile_string_u8(&[5], &mut index).is_err(), true);
+        assert_eq!(index, 0);
+    }
 
     // Check the decoder returns an error for a slice shorter than it's specified lenght.
-    assert_eq!(decode_packedfile_string_u8(&[4, 0, 2], 0).is_err(), true);
+    {
+        let mut index = 0;
+        assert_eq!(decode_packedfile_string_u8(&[4, 0, 2], &mut index).is_err(), true);
+        assert_eq!(index, 0);
+    }
 
     // Check the decoder returns an error for a slice with non-UTF8 characters (255).
-    assert_eq!(decode_packedfile_string_u8(&[11, 0, 87, 97, 104, 97, 255, 104, 97, 104, 97, 104, 97], 0).is_err(), true);
+    {
+        let mut index = 0;
+        assert_eq!(decode_packedfile_string_u8(&[11, 0, 87, 97, 104, 97, 255, 104, 97, 104, 97, 104, 97], &mut index).is_err(), true);
+        assert_eq!(index, 0);
+    }
 }
 
 /// Test to make sure the u8 optional string specific decoder (`decode_packedfile_optional_string_u8()`)
@@ -321,19 +388,39 @@ fn test_decode_packedfile_string_u8() {
 fn test_decode_packedfile_optional_string_u8() {
 
     // Check the decoding works for a non-existant string.
-    assert_eq!(decode_packedfile_optional_string_u8(&[0], 0).unwrap(), ("".to_owned(), 1));
+    {
+        let mut index = 0;
+        assert_eq!(decode_packedfile_optional_string_u8(&[0], &mut index).unwrap(), "".to_owned());
+        assert_eq!(index, 1);
+    }
 
     // Check the decoding works for a proper encoded string.
-    assert_eq!(decode_packedfile_optional_string_u8(&[1, 10, 0, 87, 97, 104, 97, 104, 97, 104, 97, 104, 97], 0).unwrap(), ("Wahahahaha".to_owned(), 13));
+    {
+        let mut index = 0;
+        assert_eq!(decode_packedfile_optional_string_u8(&[1, 10, 0, 87, 97, 104, 97, 104, 97, 104, 97, 104, 97], &mut index).unwrap(), "Wahahahaha".to_owned());
+        assert_eq!(index, 13);
+    }
 
-    // Check the decoder returns an error for a slice with less than three bytes.
-    assert_eq!(decode_packedfile_optional_string_u8(&[1, 5], 0).is_err(), true);
+    // Check the decoder returns an error for a slice with less than two bytes.
+    {
+        let mut index = 0;
+        assert_eq!(decode_packedfile_optional_string_u8(&[1, 5], &mut index).is_err(), true);
+        assert_eq!(index, 0);
+    }
 
     // Check the decoder returns an error for a slice shorter than it's specified lenght.
-    assert_eq!(decode_packedfile_optional_string_u8(&[1, 4, 0, 2], 0).is_err(), true);
+    {
+        let mut index = 0;
+        assert_eq!(decode_packedfile_optional_string_u8(&[1, 4, 0, 2], &mut index).is_err(), true);
+        assert_eq!(index, 0);
+    }
 
     // Check the decoder returns an error for a slice with non-UTF8 characters (255).
-    assert_eq!(decode_packedfile_optional_string_u8(&[1, 11, 0, 87, 97, 104, 97, 255, 104, 97, 104, 97, 104, 97], 0).is_err(), true);
+    {
+        let mut index = 0;
+        assert_eq!(decode_packedfile_optional_string_u8(&[1, 11, 0, 87, 97, 104, 97, 255, 104, 97, 104, 97, 104, 97], &mut index).is_err(), true);
+        assert_eq!(index, 0);
+    }
 }
 
 /// Test to make sure the u16 string specific decoder (`decode_packedfile_string_u16()`) works
@@ -342,16 +429,32 @@ fn test_decode_packedfile_optional_string_u8() {
 fn test_decode_packedfile_string_u16() {
 
     // Check the decoding works for a proper encoded string.
-    assert_eq!(decode_packedfile_string_u16(&[4, 0, 87, 0, 97, 0, 104, 0, 97, 0], 0).unwrap(), ("Waha".to_owned(), 10));
+    {
+        let mut index = 0;
+        assert_eq!(decode_packedfile_string_u16(&[4, 0, 87, 0, 97, 0, 104, 0, 97, 0], &mut index).unwrap(), "Waha".to_owned());
+        assert_eq!(index, 10);
+    }
 
     // Check the decoder returns an error for a slice with less than two bytes.
-    assert_eq!(decode_packedfile_string_u16(&[5], 0).is_err(), true);
+    {
+        let mut index = 0;
+        assert_eq!(decode_packedfile_string_u16(&[5], &mut index).is_err(), true);
+        assert_eq!(index, 0);
+    }
 
     // Check the decoder returns an error for a slice shorter than it's specified lenght.
-    assert_eq!(decode_packedfile_string_u16(&[4, 0, 2], 0).is_err(), true);
+    {
+        let mut index = 0;
+        assert_eq!(decode_packedfile_string_u16(&[4, 0, 2], &mut index).is_err(), true);
+        assert_eq!(index, 0);
+    }
 
     // Check the decoder returns an error for a slice with non-UTF16 characters (1, 216, DC01).
-    assert_eq!(decode_packedfile_string_u16(&[4, 0, 87, 0, 97, 0, 1, 216, 97, 0], 0).is_err(), true);
+    {
+        let mut index = 0;
+        assert_eq!(decode_packedfile_string_u16(&[4, 0, 87, 0, 97, 0, 1, 216, 97, 0], &mut index).is_err(), true);
+        assert_eq!(index, 0);
+    }
 }
 
 /// Test to make sure the u16 optional string specific decoder (`decode_packedfile_optional_string_u16()`)
@@ -360,19 +463,39 @@ fn test_decode_packedfile_string_u16() {
 fn test_decode_packedfile_optional_string_u16() {
 
     // Check the decoding works for a non-existant string.
-    assert_eq!(decode_packedfile_optional_string_u16(&[0], 0).unwrap(), ("".to_owned(), 1));
+    {
+        let mut index = 0;
+        assert_eq!(decode_packedfile_optional_string_u16(&[0], &mut index).unwrap(), "".to_owned());
+        assert_eq!(index, 1);
+    }
 
     // Check the decoding works for a proper encoded string.
-    assert_eq!(decode_packedfile_optional_string_u16(&[1, 4, 0, 87, 0, 97, 0, 104, 0, 97, 0], 0).unwrap(), ("Waha".to_owned(), 11));
+    {
+        let mut index = 0;
+        assert_eq!(decode_packedfile_optional_string_u16(&[1, 4, 0, 87, 0, 97, 0, 104, 0, 97, 0], &mut index).unwrap(), "Waha".to_owned());
+        assert_eq!(index, 11);
+    }
 
-    // Check the decoder returns an error for a slice with less than three bytes.
-    assert_eq!(decode_packedfile_optional_string_u16(&[1, 5], 0).is_err(), true);
+    // Check the decoder returns an error for a slice with less than two bytes.
+    {
+        let mut index = 0;
+        assert_eq!(decode_packedfile_optional_string_u16(&[1, 5], &mut index).is_err(), true);
+        assert_eq!(index, 0);
+    }
 
     // Check the decoder returns an error for a slice shorter than it's specified lenght.
-    assert_eq!(decode_packedfile_optional_string_u16(&[1, 4, 0, 2], 0).is_err(), true);
+    {
+        let mut index = 0;
+        assert_eq!(decode_packedfile_optional_string_u16(&[1, 4, 0, 2], &mut index).is_err(), true);
+        assert_eq!(index, 0);
+    }
 
     // Check the decoder returns an error for a slice with non-UTF16 characters (1, 216, DC01).
-    assert_eq!(decode_packedfile_optional_string_u16(&[1, 4, 0, 87, 0, 97, 0, 1, 216, 97, 0], 0).is_err(), true);
+    {
+        let mut index = 0;
+        assert_eq!(decode_packedfile_optional_string_u16(&[1, 4, 0, 87, 0, 97, 0, 1, 216, 97, 0], &mut index).is_err(), true);
+        assert_eq!(index, 0);
+    }
 }
 
 /// Test to make sure the boolean specific decoder (`decode_packedfile_bool()`) works and fails properly.
@@ -380,11 +503,20 @@ fn test_decode_packedfile_optional_string_u16() {
 fn test_decode_packedfile_bool() {
 
     // Check that a normal boolean value is decoded properly.
-    assert_eq!(decode_packedfile_bool(0, 0).unwrap(), (false, 1));
-    assert_eq!(decode_packedfile_bool(1, 0).unwrap(), (true, 1));
+    {
+        let mut index = 0;
+        assert_eq!(decode_packedfile_bool(0, &mut index).unwrap(), false);
+        assert_eq!(index, 1);
+        assert_eq!(decode_packedfile_bool(1, &mut index).unwrap(), true);
+        assert_eq!(index, 2);
+    }
 
     // Check that trying to decode a non-boolean value returns an error.
-    assert_eq!(decode_packedfile_bool(2, 0).is_err(), true);
+    {
+        let mut index = 0;
+        assert_eq!(decode_packedfile_bool(2, &mut index).is_err(), true);
+        assert_eq!(index, 0);
+    }
 }
 
 /*

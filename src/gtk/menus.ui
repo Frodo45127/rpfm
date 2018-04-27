@@ -224,4 +224,20 @@
             </item>
         </section>
     </menu>
+    <menu id="context_menu_db_decoder">
+        <section>
+            <item>
+                <attribute name="label" translatable="yes">Move row _up</attribute>
+                <attribute name="action">app.move-row-up</attribute>
+            </item>
+            <item>
+                <attribute name="label" translatable="yes">Move row _down</attribute>
+                <attribute name="action">app.move-row-down</attribute>
+            </item>
+            <item>
+                <attribute name="label" translatable="yes">_Delete row</attribute>
+                <attribute name="action">app.delete-row</attribute>
+            </item>
+        </section>
+    </menu>
 </interface>
