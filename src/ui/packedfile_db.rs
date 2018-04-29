@@ -2674,6 +2674,9 @@ impl PackedFileDBDecoder {
         app_ui.packed_file_data_display.attach(&decoder_grid_scroll, 0, 1, 1, 1);
         app_ui.packed_file_data_display.show_all();
 
+        // Disable the "Change game selected" function, so we cannot change the current schema with the decoder open.
+        app_ui.menu_bar_change_game_selected.set_enabled(false);
+
         // Create the view.
         let mut decoder_view = PackedFileDBDecoder {
             data_initial_index: db_header.1,
@@ -3249,6 +3252,18 @@ impl PackedFileDBDecoder {
                     }
                 ));
             }
+        }
+
+        // Destruction event.
+        {
+            // When the decoder is destroyed...
+            decoder_view.decoder_grid_scroll.connect_destroy(clone!(
+                app_ui => move |_| {
+
+                    // Restore the "Change game selected" function.
+                    app_ui.menu_bar_change_game_selected.set_enabled(true);
+                }
+            ));
         }
 
         // Return the view.
