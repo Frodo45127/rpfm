@@ -311,16 +311,16 @@ pub fn remove_temporal_accelerators(application: &Application) {
     application.set_accels_for_action("packedfile_loc_paste_cell", &[]);
     application.set_accels_for_action("packedfile_loc_copy_rows", &[]);
     application.set_accels_for_action("packedfile_loc_paste_rows", &[]);
-    application.set_accels_for_action("packedfile_loc_import_csv", &[]);
-    application.set_accels_for_action("packedfile_loc_export_csv", &[]);
+    application.set_accels_for_action("packedfile_loc_import_tsv", &[]);
+    application.set_accels_for_action("packedfile_loc_export_tsv", &[]);
     application.remove_action("packedfile_loc_add_rows");
     application.remove_action("packedfile_loc_delete_rows");
     application.remove_action("packedfile_loc_copy_cell");
     application.remove_action("packedfile_loc_paste_cell");
     application.remove_action("packedfile_loc_copy_rows");
     application.remove_action("packedfile_loc_paste_rows");
-    application.remove_action("packedfile_loc_import_csv");
-    application.remove_action("packedfile_loc_export_csv");
+    application.remove_action("packedfile_loc_import_tsv");
+    application.remove_action("packedfile_loc_export_tsv");
 
     // Remove stuff of DB View.
     application.set_accels_for_action("packedfile_db_add_rows", &[]);
@@ -330,8 +330,8 @@ pub fn remove_temporal_accelerators(application: &Application) {
     application.set_accels_for_action("packedfile_db_clone_rows", &[]);
     application.set_accels_for_action("packedfile_db_copy_rows", &[]);
     application.set_accels_for_action("packedfile_db_paste_rows", &[]);
-    application.set_accels_for_action("packedfile_db_import_csv", &[]);
-    application.set_accels_for_action("packedfile_db_export_csv", &[]);
+    application.set_accels_for_action("packedfile_db_import_tsv", &[]);
+    application.set_accels_for_action("packedfile_db_export_tsv", &[]);
     application.remove_action("packedfile_db_add_rows");
     application.remove_action("packedfile_db_delete_rows");
     application.remove_action("packedfile_db_copy_cell");
@@ -339,8 +339,8 @@ pub fn remove_temporal_accelerators(application: &Application) {
     application.remove_action("packedfile_db_clone_rows");
     application.remove_action("packedfile_db_copy_rows");
     application.remove_action("packedfile_db_paste_rows");
-    application.remove_action("packedfile_db_import_csv");
-    application.remove_action("packedfile_db_export_csv");
+    application.remove_action("packedfile_db_import_tsv");
+    application.remove_action("packedfile_db_export_tsv");
 
     // Remove stuff of DB decoder View.
     application.set_accels_for_action("move_row_up", &[]);

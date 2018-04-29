@@ -12,7 +12,7 @@ use self::csv::{
     ReaderBuilder, WriterBuilder, QuoteStyle
 };
 use common::coding_helpers;
-use super::SerializableToCSV;
+use super::SerializableToTSV;
 
 /// Struct Loc: This stores the data of a decoded Localisation PackedFile in memory.
 /// It stores the PackedFile divided in 2 parts:
@@ -248,59 +248,96 @@ impl LocDataEntry {
     }
 }
 
-/// Implementation of `SerializableToCSV` for `LocData`.
-impl SerializableToCSV for LocData {
+/// Implementation of `SerializableToTSV` for `LocData`.
+impl SerializableToTSV for LocData {
 
-    fn import_csv(&mut self, csv_file_path: &PathBuf) -> Result<(), Error> {
+    /// This function imports a TSV file and loads his contents into a Loc PackedFile.
+    fn import_tsv(&mut self, tsv_file_path: &PathBuf, packed_file_type: &str) -> Result<(), Error> {
 
-        // We expect no headers, so we need to tweak our reader first.
-        let mut reader_builder = ReaderBuilder::new();
-        reader_builder.has_headers(false);
+        // We want the reader to have no quotes, tab as delimiter and custom headers, because otherwise
+        // Excel, Libreoffice and all the programs that edit this kind of files break them on save.
+        match ReaderBuilder::new()
+            .delimiter(b'\t')
+            .quoting(false)
+            .has_headers(false)
+            .flexible(false)
+            .from_path(&tsv_file_path) {
 
-        // Get the file and it's entries.
-        match reader_builder.from_path(&csv_file_path) {
+            // If we succesfully read the TSV file into a reader...
             Ok(mut reader) => {
 
                 // We create here the vector to store the date while it's being decoded.
-                let mut new_packed_file_data = vec![];
+                let mut packed_file_data = vec![];
 
-                // Then we add the new entries to the decoded entry list.
-                for reader_entry in reader.deserialize() {
-                    match reader_entry {
-                        Ok(entry) => new_packed_file_data.push(entry),
-                        Err(_) => return Err(format_err!("Error while trying import the csv file:\n{}", &csv_file_path.display()))
+                // We use the headers to make sure this TSV file belongs to a Loc PackedFile.
+                match reader.headers() {
+                    Ok(header) => {
 
+                        // Get the type and number of his original PackedFile.
+                        let tsv_type = header.get(0).unwrap_or("error");
+                        let its_over_9000 = header.get(1).unwrap_or("8999").parse::<u32>().unwrap_or(8999);
+
+                        // If it's not of type "Loc PackedFile" or not over 9000, it's not Goku.
+                        if tsv_type != packed_file_type || its_over_9000 != 9001 {
+                            return Err(format_err!("This TSV file it's not from a Loc PackedFile."));
+                        }
+                    }
+
+                    // If it fails, return error.
+                    Err(_) => return Err(format_err!("This TSV file's doesn't have a header.")),
+                }
+
+                // Then we add the new entries to the decoded entry list, or return error if any of the entries is invalid.
+                for (index, reader_entry) in reader.deserialize().enumerate() {
+
+                    // We skip the first line (header).
+                    if index > 0 {
+                        match reader_entry {
+                            Ok(entry) => packed_file_data.push(entry),
+                            Err(_) => return Err(format_err!("Error while trying import the TSV file:\n{}", &tsv_file_path.display()))
+                        }
                     }
                 }
-                // If we reached this point without errors, we replace the old data with the new one.
-                self.packed_file_data_entries.clear();
-                self.packed_file_data_entries.append( &mut new_packed_file_data);
 
+                // If we reached this point without errors, we replace the old data with the new one.
+                self.packed_file_data_entries = packed_file_data;
+
+                // Return success.
                 Ok(())
             }
-            Err(_) => Err(format_err!("Error while trying to read the csv file \"{}\".", &csv_file_path.display()))
+
+            // If we couldn't read the TSV file, return error.
+            Err(_) => Err(format_err!("Error while trying to read the TSV file:\n{}.", &tsv_file_path.display()))
         }
     }
 
-    fn export_csv(&self, packed_file_path: &PathBuf) -> Result<String, Error> {
+    /// This function creates a TSV file with the contents of a Loc PackedFile.
+    fn export_tsv(&self, packed_file_path: &PathBuf, extra_info: (&str, u32)) -> Result<String, Error> {
 
-        // We want no headers and quotes around the fields, so we need to tweak our writer first.
-        let mut writer_builder = WriterBuilder::new();
-        writer_builder.has_headers(false);
-        writer_builder.quote_style(QuoteStyle::Always);
-        let mut writer = writer_builder.from_writer(vec![]);
+        // We want the writer to have no quotes, tab as delimiter and custom headers, because otherwise
+        // Excel, Libreoffice and all the programs that edit this kind of files break them on save.
+        let mut writer = WriterBuilder::new()
+            .delimiter(b'\t')
+            .quote_style(QuoteStyle::Never)
+            .has_headers(false)
+            .flexible(true)
+            .from_writer(vec![]);
 
-        // For every entry, we serialize every one of it's fields.
+        // We serialize the extra info provided, so we can check it when importing('cause why not?).
+        writer.serialize(extra_info)?;
+
+        // For every entry, we serialize every one of his fields (except the index).
         for entry in &self.packed_file_data_entries {
+
+            // We don't want the index, as that's not really needed outside the program.
             writer.serialize(entry)?;
         }
 
-        // Get it all into an string, and write them to disk.
-        let csv_serialized = String::from_utf8(writer.into_inner().unwrap().to_vec()).unwrap();
+        // Then, we try to write it on disk. If there is an error, report it.
         match File::create(&packed_file_path) {
             Ok(mut file) => {
-                match file.write_all(csv_serialized.as_bytes()) {
-                    Ok(_) => Ok(format!("Loc PackedFile successfully exported:\n{}", packed_file_path.display())),
+                match file.write_all(String::from_utf8(writer.into_inner()?)?.as_bytes()) {
+                    Ok(_) => Ok(format!("DB PackedFile successfully exported:\n{}", packed_file_path.display())),
                     Err(_) => Err(format_err!("Error while writing the following file to disk:\n{}", packed_file_path.display()))
                 }
             }

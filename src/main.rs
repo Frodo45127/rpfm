@@ -56,9 +56,8 @@ use common::coding_helpers;
 use common::*;
 use packfile::*;
 use packfile::packfile::PackFile;
-use packedfile::SerializableToCSV;
+use packedfile::SerializableToTSV;
 use packedfile::loc::Loc;
-use packedfile::loc::LocData;
 use packedfile::db::DB;
 use packedfile::db::DBHeader;
 use packedfile::db::schemas::*;
@@ -2733,8 +2732,8 @@ fn build_ui(application: &Application) {
                                     let context_menu_packedfile_loc_paste_cell = SimpleAction::new("packedfile_loc_paste_cell", None);
                                     let context_menu_packedfile_loc_copy_rows = SimpleAction::new("packedfile_loc_copy_rows", None);
                                     let context_menu_packedfile_loc_paste_rows = SimpleAction::new("packedfile_loc_paste_rows", None);
-                                    let context_menu_packedfile_loc_import_csv = SimpleAction::new("packedfile_loc_import_csv", None);
-                                    let context_menu_packedfile_loc_export_csv = SimpleAction::new("packedfile_loc_export_csv", None);
+                                    let context_menu_packedfile_loc_import_tsv = SimpleAction::new("packedfile_loc_import_tsv", None);
+                                    let context_menu_packedfile_loc_export_tsv = SimpleAction::new("packedfile_loc_export_tsv", None);
 
                                     application.add_action(&context_menu_packedfile_loc_add_rows);
                                     application.add_action(&context_menu_packedfile_loc_delete_rows);
@@ -2742,8 +2741,8 @@ fn build_ui(application: &Application) {
                                     application.add_action(&context_menu_packedfile_loc_paste_cell);
                                     application.add_action(&context_menu_packedfile_loc_copy_rows);
                                     application.add_action(&context_menu_packedfile_loc_paste_rows);
-                                    application.add_action(&context_menu_packedfile_loc_import_csv);
-                                    application.add_action(&context_menu_packedfile_loc_export_csv);
+                                    application.add_action(&context_menu_packedfile_loc_import_tsv);
+                                    application.add_action(&context_menu_packedfile_loc_export_tsv);
 
                                     // Accels for popovers need to be specified here. Don't know why, but otherwise they do not work.
                                     application.set_accels_for_action("app.packedfile_loc_add_rows", &["<Primary><Shift>a"]);
@@ -2752,8 +2751,8 @@ fn build_ui(application: &Application) {
                                     application.set_accels_for_action("app.packedfile_loc_paste_cell", &["<Primary>v"]);
                                     application.set_accels_for_action("app.packedfile_loc_copy_rows", &["<Primary>z"]);
                                     application.set_accels_for_action("app.packedfile_loc_paste_rows", &["<Primary>x"]);
-                                    application.set_accels_for_action("app.packedfile_loc_import_csv", &["<Primary><Shift>i"]);
-                                    application.set_accels_for_action("app.packedfile_loc_export_csv", &["<Primary><Shift>e"]);
+                                    application.set_accels_for_action("app.packedfile_loc_import_tsv", &["<Primary><Shift>i"]);
+                                    application.set_accels_for_action("app.packedfile_loc_export_tsv", &["<Primary><Shift>e"]);
 
                                     // By default, the delete action should be disabled.
                                     context_menu_packedfile_loc_delete_rows.set_enabled(false);
@@ -3289,8 +3288,8 @@ fn build_ui(application: &Application) {
                                         }
                                     ));
 
-                                    // When we hit the "Import to CSV" button.
-                                    context_menu_packedfile_loc_import_csv.connect_activate(clone!(
+                                    // When we hit the "Import to TSV" button.
+                                    context_menu_packedfile_loc_import_tsv.connect_activate(clone!(
                                         app_ui,
                                         pack_file_decoded,
                                         packed_file_data_decoded,
@@ -3305,50 +3304,44 @@ fn build_ui(application: &Application) {
 
                                                 // Create the `FileChooser`.
                                                 let file_chooser = FileChooserNative::new(
-                                                    "Select CSV File to Import...",
+                                                    "Select TSV File to Import...",
                                                     &app_ui.window,
                                                     FileChooserAction::Open,
                                                     "Import",
                                                     "Cancel"
                                                 );
 
-                                                // Enable the CSV filter for the `FileChooser`.
-                                                file_chooser_filter_packfile(&file_chooser, "*.csv");
+                                                // Enable the TSV filter for the `FileChooser`.
+                                                file_chooser_filter_packfile(&file_chooser, "*.tsv");
 
                                                 // If we have selected a file to import...
                                                 if file_chooser.run() == gtk_response_accept {
 
-                                                    // If there is an error while importing the CSV file, we report it.
-                                                    if let Err(error) = LocData::import_csv(
-                                                        &mut packed_file_data_decoded.borrow_mut().packed_file_data,
-                                                        &file_chooser.get_filename().unwrap()
-                                                    ) {
-                                                        show_dialog(&app_ui.window, false, error.cause());
-                                                    }
+                                                    // If there is an error while importing the TSV file, we report it.
+                                                    if let Err(error) = packed_file_data_decoded.borrow_mut().packed_file_data.import_tsv(
+                                                        &file_chooser.get_filename().unwrap(),
+                                                        "Loc PackedFile"
+                                                    ) { return show_dialog(&app_ui.window, false, error.cause()); }
 
-                                                    // Otherwise...
-                                                    else {
+                                                    // Load the new data to the TreeView.
+                                                    PackedFileLocTreeView::load_data_to_tree_view(&packed_file_data_decoded.borrow().packed_file_data, &packed_file_stuff.list_store);
 
-                                                        // Load the new data to the TreeView.
-                                                        PackedFileLocTreeView::load_data_to_tree_view(&packed_file_data_decoded.borrow().packed_file_data, &packed_file_stuff.list_store);
+                                                    // Update the PackFile to reflect the changes.
+                                                    update_packed_file_data_loc(
+                                                        &*packed_file_data_decoded.borrow_mut(),
+                                                        &mut *pack_file_decoded.borrow_mut(),
+                                                        index as usize
+                                                    );
 
-                                                        // Update the PackFile to reflect the changes.
-                                                        update_packed_file_data_loc(
-                                                            &*packed_file_data_decoded.borrow_mut(),
-                                                            &mut *pack_file_decoded.borrow_mut(),
-                                                            index as usize
-                                                        );
-
-                                                        // Set the mod as "Modified".
-                                                        set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
-                                                    }
+                                                    // Set the mod as "Modified".
+                                                    set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
                                                 }
                                             }
                                         }
                                     ));
 
-                                    // When we hit the "Export to CSV" button.
-                                    context_menu_packedfile_loc_export_csv.connect_activate(clone!(
+                                    // When we hit the "Export to TSV" button.
+                                    context_menu_packedfile_loc_export_tsv.connect_activate(clone!(
                                         app_ui,
                                         packed_file_data_decoded,
                                         packed_file_stuff => move |_,_|{
@@ -3362,7 +3355,7 @@ fn build_ui(application: &Application) {
 
                                                 // Create the `FileChooser`.
                                                 let file_chooser = FileChooserNative::new(
-                                                    "Export CSV File...",
+                                                    "Export TSV File...",
                                                     &app_ui.window,
                                                     FileChooserAction::Save,
                                                     "Save",
@@ -3373,13 +3366,16 @@ fn build_ui(application: &Application) {
                                                 file_chooser.set_do_overwrite_confirmation(true);
 
                                                 // Set the name of the Loc PackedFile as the default new name.
-                                                file_chooser.set_current_name(format!("{}.csv", &packedfile_name));
+                                                file_chooser.set_current_name(format!("{}.tsv", &packedfile_name));
 
                                                 // If we hit "Save"...
                                                 if file_chooser.run() == gtk_response_accept {
 
-                                                    // Try to export the CSV.
-                                                    match LocData::export_csv(&packed_file_data_decoded.borrow_mut().packed_file_data, &file_chooser.get_filename().unwrap()) {
+                                                    // Try to export the TSV.
+                                                    match packed_file_data_decoded.borrow_mut().packed_file_data.export_tsv(
+                                                        &file_chooser.get_filename().unwrap(),
+                                                        ("Loc PackedFile", 9001)
+                                                    ) {
                                                         Ok(result) => show_dialog(&app_ui.window, true, result),
                                                         Err(error) => show_dialog(&app_ui.window, false, error.cause())
                                                     }

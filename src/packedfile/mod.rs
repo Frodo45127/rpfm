@@ -6,7 +6,6 @@ use std::path::PathBuf;
 
 use self::failure::Error;
 
-
 pub mod loc;
 pub mod db;
 pub mod rigidmodel;
@@ -17,15 +16,15 @@ pub mod rigidmodel;
 --------------------------------------------------
 */
 
-/// Trait `SerializableToCSV`: This trait needs to be implemented by all the structs that can be
-/// export to and import from a csv file, like `LocData`.
-pub trait SerializableToCSV {
+/// Trait `SerializableToTSV`: This trait needs to be implemented by all the structs that can be
+/// export to and import from a TSV file, like `LocData` and `DBData`.
+pub trait SerializableToTSV {
 
-    /// `import_csv`: Requires `&mut self` and `&PathBuf` with the path of the csv file, returns
-    /// success, or an error.
-    fn import_csv(&mut self, csv_file_path: &PathBuf) -> Result<(), Error>;
+    /// `import_tsv`: Requires `&mut self`, a `&PathBuf` with the path of the TSV file and the name of our PackedFile.
+    /// Returns success or an error.
+    fn import_tsv(&mut self, tsv_file_path: &PathBuf, packed_file_type: &str) -> Result<(), Error>;
 
-    /// `export_csv`: Requires `&self` and the destination path for the csv file, returns a success
-    /// message, or an error.
-    fn export_csv(&self, csv_file_path: &PathBuf) -> Result<String, Error>;
+    /// `export_tsv`: Requires `&self`, the destination path for the TSV file and a name and a number (version)
+    /// to put in the header of the TSV file. Returns a success message, or an error.
+    fn export_tsv(&self, tsv_file_path: &PathBuf, extra_data: (&str, u32)) -> Result<String, Error>;
 }

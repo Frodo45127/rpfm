@@ -25,7 +25,7 @@ use gtk::{
 };
 
 use super::*;
-use packedfile::SerializableToCSV;
+use packedfile::SerializableToTSV;
 use AppUI;
 use packfile::update_packed_file_data_db;
 
@@ -113,6 +113,9 @@ impl PackedFileDBTreeView{
         // if we get them to i32 directly in the `if` statement.
         // NOTE: For some bizarre reason, GTKFileChoosers return `Ok`, while native ones return `Accept`.
         let gtk_response_accept: i32 = ResponseType::Accept.into();
+
+        // Get the table's path, so we can use it despite changing the selected file in the main TreeView.
+        let tree_path = get_tree_path_from_selection(&app_ui.folder_tree_selection, false);
 
         // Get the table definition of this table.
         let table_definition = packed_file_decoded.borrow().packed_file_data.table_definition.clone();
@@ -782,15 +785,15 @@ impl PackedFileDBTreeView{
         // Create the separator between the "Import/Export" buttons and the rest.
         let separator_2 = Separator::new(Orientation::Vertical);
 
-        // Create the "Import from CSV" button.
-        let import_csv_button = ModelButton::new();
-        import_csv_button.set_property_text(Some("Import from CSV"));
-        import_csv_button.set_action_name("app.packedfile_db_import_csv");
+        // Create the "Import from TSV" button.
+        let import_tsv_button = ModelButton::new();
+        import_tsv_button.set_property_text(Some("Import from TSV"));
+        import_tsv_button.set_action_name("app.packedfile_db_import_tsv");
 
-        // Create the "Export to CSV" button.
-        let export_csv_button = ModelButton::new();
-        export_csv_button.set_property_text(Some("Export to CSV"));
-        export_csv_button.set_action_name("app.packedfile_db_export_csv");
+        // Create the "Export to TSV" button.
+        let export_tsv_button = ModelButton::new();
+        export_tsv_button.set_property_text(Some("Export to TSV"));
+        export_tsv_button.set_action_name("app.packedfile_db_export_tsv");
 
         // Right-click menu actions.
         let add_rows = SimpleAction::new("packedfile_db_add_rows", None);
@@ -800,8 +803,8 @@ impl PackedFileDBTreeView{
         let clone_rows = SimpleAction::new("packedfile_db_clone_rows", None);
         let copy_rows = SimpleAction::new("packedfile_db_copy_rows", None);
         let paste_rows = SimpleAction::new("packedfile_db_paste_rows", None);
-        let import_csv = SimpleAction::new("packedfile_db_import_csv", None);
-        let export_csv = SimpleAction::new("packedfile_db_export_csv", None);
+        let import_tsv = SimpleAction::new("packedfile_db_import_tsv", None);
+        let export_tsv = SimpleAction::new("packedfile_db_export_tsv", None);
 
         application.add_action(&add_rows);
         application.add_action(&delete_rows);
@@ -810,8 +813,8 @@ impl PackedFileDBTreeView{
         application.add_action(&clone_rows);
         application.add_action(&copy_rows);
         application.add_action(&paste_rows);
-        application.add_action(&import_csv);
-        application.add_action(&export_csv);
+        application.add_action(&import_tsv);
+        application.add_action(&export_tsv);
 
         // Accels for popovers need to be specified here. Don't know why, but otherwise they do not work.
         application.set_accels_for_action("app.packedfile_db_add_rows", &["<Primary><Shift>a"]);
@@ -821,8 +824,8 @@ impl PackedFileDBTreeView{
         application.set_accels_for_action("app.packedfile_db_clone_rows", &["<Primary><Shift>d"]);
         application.set_accels_for_action("app.packedfile_db_copy_rows", &["<Primary>z"]);
         application.set_accels_for_action("app.packedfile_db_paste_rows", &["<Primary>x"]);
-        application.set_accels_for_action("app.packedfile_db_import_csv", &["<Primary><Shift>i"]);
-        application.set_accels_for_action("app.packedfile_db_export_csv", &["<Primary><Shift>e"]);
+        application.set_accels_for_action("app.packedfile_db_import_tsv", &["<Primary><Shift>i"]);
+        application.set_accels_for_action("app.packedfile_db_export_tsv", &["<Primary><Shift>e"]);
 
         // Attach all the stuff to the Context Menu `Grid`.
         context_menu_grid.attach(&add_rows_button, 0, 0, 1, 1);
@@ -835,8 +838,8 @@ impl PackedFileDBTreeView{
         context_menu_grid.attach(&copy_rows_button, 0, 6, 2, 1);
         context_menu_grid.attach(&paste_rows_button, 0, 7, 2, 1);
         context_menu_grid.attach(&separator_2, 0, 8, 2, 1);
-        context_menu_grid.attach(&import_csv_button, 0, 9, 2, 1);
-        context_menu_grid.attach(&export_csv_button, 0, 10, 2, 1);
+        context_menu_grid.attach(&import_tsv_button, 0, 9, 2, 1);
+        context_menu_grid.attach(&export_tsv_button, 0, 10, 2, 1);
 
         // Add the `Grid` to the Context Menu and show it.
         context_menu.add(&context_menu_grid);
@@ -1572,9 +1575,10 @@ impl PackedFileDBTreeView{
                 }
             ));
 
-            // When we hit the "Import from CSV" button.
-            import_csv.connect_activate(clone!(
+            // When we hit the "Import from TSV" button.
+            import_tsv.connect_activate(clone!(
                 app_ui,
+                tree_path,
                 pack_file,
                 packed_file_decoded,
                 packed_file_decoded_index,
@@ -1589,20 +1593,20 @@ impl PackedFileDBTreeView{
 
                         // Create the `FileChooser`.
                         let file_chooser = FileChooserNative::new(
-                            "Select CSV File to Import...",
+                            "Select TSV File to Import...",
                             &app_ui.window,
                             FileChooserAction::Open,
                             "Import",
                             "Cancel"
                         );
 
-                        // Enable the CSV filter for the `FileChooser`.
-                        file_chooser_filter_packfile(&file_chooser, "*.csv");
+                        // Enable the TSV filter for the `FileChooser`.
+                        file_chooser_filter_packfile(&file_chooser, "*.tsv");
 
                         // If we have selected a file to import...
                         if file_chooser.run() == gtk_response_accept {
 
-                            // Just in case the import fails after importing (for example, due to importing a CSV from another table,
+                            // Just in case the import fails after importing (for example, due to importing a TSV from another table,
                             // or from another version of the table, and it fails while loading to table or saving to PackFile)
                             // we save a copy of the table, so we can restore it if it fails after we modify it.
                             let packed_file_data_copy = packed_file_decoded.borrow_mut().packed_file_data.clone();
@@ -1610,9 +1614,9 @@ impl PackedFileDBTreeView{
 
                             // If there is an error importing, we report it. This only edits the data after checking
                             // that it can be decoded properly, so we don't need to restore the table in this case.
-                            if let Err(error) = DBData::import_csv(
-                                &mut packed_file_decoded.borrow_mut().packed_file_data,
-                                &file_chooser.get_filename().unwrap()
+                            if let Err(error) = packed_file_decoded.borrow_mut().packed_file_data.import_tsv(
+                                &file_chooser.get_filename().unwrap(),
+                                &tree_path[1]
                             ) {
                                 return show_dialog(&app_ui.window, false, error.cause());
                             }
@@ -1624,7 +1628,11 @@ impl PackedFileDBTreeView{
 
                             // If the table loaded properly, try to save the data to the encoded file.
                             if !restore_table.0 {
-                                if let Err(error) = update_packed_file_data_db(&*packed_file_decoded.borrow_mut(), &mut *pack_file.borrow_mut(), packed_file_decoded_index as usize) {
+                                if let Err(error) = update_packed_file_data_db(
+                                    &*packed_file_decoded.borrow_mut(),
+                                    &mut *pack_file.borrow_mut(),
+                                    packed_file_decoded_index as usize
+                                ) {
                                     restore_table = (true, error);
                                 }
                             }
@@ -1650,8 +1658,8 @@ impl PackedFileDBTreeView{
                 }
             ));
 
-            // When we hit the "Export to CSV" button.
-            export_csv.connect_activate(clone!(
+            // When we hit the "Export to TSV" button.
+            export_tsv.connect_activate(clone!(
                 app_ui,
                 packed_file_decoded,
                 table => move |_,_| {
@@ -1664,7 +1672,7 @@ impl PackedFileDBTreeView{
                     if table.tree_view.has_focus() {
 
                         let file_chooser = FileChooserNative::new(
-                            "Export CSV File...",
+                            "Export TSV File...",
                             &app_ui.window,
                             FileChooserAction::Save,
                             "Save",
@@ -1674,15 +1682,17 @@ impl PackedFileDBTreeView{
                         // We want to ask before overwriting files. Just in case. Otherwise, there can be an accident.
                         file_chooser.set_do_overwrite_confirmation(true);
 
-                        // Get it's tree_path and it's default name (table-table_name.csv)
-                        let tree_path = get_tree_path_from_selection(&app_ui.folder_tree_selection, false);
-                        file_chooser.set_current_name(format!("{}-{}.csv", &tree_path[1], &tree_path.last().unwrap()));
+                        // Set the default name for the TSV file (table-table_name.tsv)
+                        file_chooser.set_current_name(format!("{}-{}.tsv", &tree_path[1], &tree_path[2]));
 
                         // If we hit "Save"...
                         if file_chooser.run() == gtk_response_accept {
 
-                            // Try to export the CSV.
-                            match DBData::export_csv(&packed_file_decoded.borrow_mut().packed_file_data, &file_chooser.get_filename().unwrap()) {
+                            // Try to export the TSV.
+                            match packed_file_decoded.borrow().packed_file_data.export_tsv(
+                                &file_chooser.get_filename().unwrap(),
+                                (&tree_path[1], packed_file_decoded.borrow().packed_file_header.packed_file_header_packed_file_version)
+                            ) {
                                 Ok(result) => show_dialog(&app_ui.window, true, result),
                                 Err(error) => show_dialog(&app_ui.window, false, error.cause()),
                             }

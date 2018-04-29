@@ -22,8 +22,8 @@
     - [x] Delete rows.
     - [x] Copy rows.
     - [x] Paste rows.
-    - [x] Import from csv.
-    - [x] Export to csv.
+    - [x] Import from tsv.
+    - [x] Export to tsv.
   - [x] DB:
     - [x] Table View:
       - [x] Edit rows.
@@ -32,8 +32,8 @@
       - [x] Clone rows.
       - [x] Copy rows.
       - [x] Paste rows.
-      - [x] Import from csv.
-      - [x] Export to csv.
+      - [x] Import from tsv.
+      - [x] Export to tsv.
     - [x] Decoder View:
       - [x] Fix the hex view.
       - [x] Decode any type of entry.

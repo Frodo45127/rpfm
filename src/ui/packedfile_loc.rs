@@ -188,15 +188,15 @@ impl PackedFileLocTreeView{
         // Create the separator between the "Import/Export" buttons and the rest.
         let separator_2 = Separator::new(Orientation::Vertical);
 
-        // Create the "Import from CSV" button.
-        let import_csv_button = ModelButton::new();
-        import_csv_button.set_property_text(Some("Import from CSV"));
-        import_csv_button.set_action_name("app.packedfile_loc_import_csv");
+        // Create the "Import from TSV" button.
+        let import_tsv_button = ModelButton::new();
+        import_tsv_button.set_property_text(Some("Import from TSV"));
+        import_tsv_button.set_action_name("app.packedfile_loc_import_tsv");
 
-        // Create the "Export to CSV" button.
-        let export_csv_button = ModelButton::new();
-        export_csv_button.set_property_text(Some("Export to CSV"));
-        export_csv_button.set_action_name("app.packedfile_loc_export_csv");
+        // Create the "Export to TSV" button.
+        let export_tsv_button = ModelButton::new();
+        export_tsv_button.set_property_text(Some("Export to TSV"));
+        export_tsv_button.set_action_name("app.packedfile_loc_export_tsv");
 
         // Attach all the stuff to the Context Menu `Grid`.
         context_menu_grid.attach(&add_rows_button, 0, 0, 1, 1);
@@ -208,8 +208,8 @@ impl PackedFileLocTreeView{
         context_menu_grid.attach(&copy_rows_button, 0, 5, 2, 1);
         context_menu_grid.attach(&paste_rows_button, 0, 6, 2, 1);
         context_menu_grid.attach(&separator_2, 0, 7, 2, 1);
-        context_menu_grid.attach(&import_csv_button, 0, 8, 2, 1);
-        context_menu_grid.attach(&export_csv_button, 0, 9, 2, 1);
+        context_menu_grid.attach(&import_tsv_button, 0, 8, 2, 1);
+        context_menu_grid.attach(&export_tsv_button, 0, 9, 2, 1);
 
         // Add the `Grid` to the Context Menu and show it.
         context_menu.add(&context_menu_grid);
