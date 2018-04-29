@@ -2792,6 +2792,9 @@ impl PackedFileDBDecoder {
                                 // Remove all the fields of the currently loaded definition.
                                 decoder_view.fields_list_store.clear();
 
+                                // Reset the "index_data".
+                                *index_data.borrow_mut() = decoder_view.data_initial_index;
+
                                 // Reload the decoder View with the new definition loaded.
                                 decoder_view.update_decoder_view(
                                     &packed_file_data,
