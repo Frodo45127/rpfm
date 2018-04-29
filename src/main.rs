@@ -1342,6 +1342,8 @@ fn build_ui(application: &Application) {
     // When changing the selected game.
     app_ui.menu_bar_change_game_selected.connect_activate(clone!(
         app_ui,
+        rpfm_path,
+        schema,
         mode,
         settings,
         supported_games,
@@ -1357,6 +1359,9 @@ fn build_ui(application: &Application) {
 
                 // Change the `GameSelected` object.
                 game_selected.borrow_mut().change_game_selected(&new_state, &settings.borrow().paths.game_paths.iter().filter(|x| x.game == new_state).map(|x| x.path.clone()).collect::<Option<PathBuf>>(), &supported_games.borrow());
+
+                // Change the `Schema` for that game.
+                *schema.borrow_mut() = Schema::load(&rpfm_path, &supported_games.borrow().iter().filter(|x| x.folder_name == *game_selected.borrow().game).map(|x| x.schema.to_owned()).collect::<String>()).ok();
 
                 // If we have a PackFile opened....
                 if !pack_file_decoded.borrow().pack_file_extra_data.file_name.is_empty() {
