@@ -174,6 +174,7 @@ pub struct AppUI {
     pub menu_bar_generate_dependency_pack_wh: SimpleAction,
     pub menu_bar_patch_siege_ai_wh: SimpleAction,
     pub menu_bar_create_map_prefab_wh: SimpleAction,
+    pub menu_bar_generate_dependency_pack_att: SimpleAction,
     pub menu_bar_check_updates: SimpleAction,
     pub menu_bar_open_patreon: SimpleAction,
     pub menu_bar_about: SimpleAction,
@@ -289,6 +290,7 @@ fn build_ui(application: &Application) {
         menu_bar_generate_dependency_pack_wh: SimpleAction::new("generate-dependency-pack-wh", None),
         menu_bar_patch_siege_ai_wh: SimpleAction::new("patch-siege-ai-wh", None),
         menu_bar_create_map_prefab_wh: SimpleAction::new("create-map-prefab-wh", None),
+        menu_bar_generate_dependency_pack_att: SimpleAction::new("generate-dependency-pack-att", None),
         menu_bar_check_updates: SimpleAction::new("check-updates", None),
         menu_bar_open_patreon: SimpleAction::new("open-patreon", None),
         menu_bar_about: SimpleAction::new("about", None),
@@ -333,6 +335,7 @@ fn build_ui(application: &Application) {
     application.add_action(&app_ui.menu_bar_generate_dependency_pack_wh);
     application.add_action(&app_ui.menu_bar_patch_siege_ai_wh);
     application.add_action(&app_ui.menu_bar_create_map_prefab_wh);
+    application.add_action(&app_ui.menu_bar_generate_dependency_pack_att);
     application.add_action(&app_ui.menu_bar_open_patreon);
     application.add_action(&app_ui.menu_bar_about);
     application.add_action(&app_ui.menu_bar_check_updates);
@@ -1433,6 +1436,15 @@ fn build_ui(application: &Application) {
         pack_file_decoded,
         game_selected => move |_,_| {
             create_prefab(&application, &app_ui, &game_selected, &pack_file_decoded);
+        }
+    ));
+
+    // When we hit the "Generate Dependency Pack" button (Attila).
+    app_ui.menu_bar_generate_dependency_pack_att.connect_activate(clone!(
+        app_ui,
+        rpfm_path,
+        game_selected => move |_,_| {
+            generate_dependency_pack(&app_ui, &rpfm_path, &game_selected);
         }
     ));
 
@@ -3806,9 +3818,21 @@ fn open_packfile(
                         game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.paths.game_paths.iter().filter(|x| &x.game == "warhammer_2").map(|x| x.path.clone()).collect::<Option<PathBuf>>(), supported_games);
                         app_ui.menu_bar_change_game_selected.change_state(&"warhammer_2".to_variant());
                     },
+
                     "PFH4" | _ => {
-                        game_selected.borrow_mut().change_game_selected("warhammer", &settings.paths.game_paths.iter().filter(|x| &x.game == "warhammer").map(|x| x.path.clone()).collect::<Option<PathBuf>>(), supported_games);
-                        app_ui.menu_bar_change_game_selected.change_state(&"warhammer".to_variant());
+
+                        // If we have Warhammer selected, we keep Warhammer. If we have Attila, we keep Attila.
+                        // In any other case, we select Attila by default.
+                        match &*(app_ui.menu_bar_change_game_selected.get_state().unwrap().get::<String>().unwrap()) {
+                            "warhammer" => {
+                                game_selected.borrow_mut().change_game_selected("warhammer", &settings.paths.game_paths.iter().filter(|x| &x.game == "warhammer").map(|x| x.path.clone()).collect::<Option<PathBuf>>(), supported_games);
+                                app_ui.menu_bar_change_game_selected.change_state(&"warhammer".to_variant());
+                            }
+                            "attila" | _ => {
+                                game_selected.borrow_mut().change_game_selected("attila", &settings.paths.game_paths.iter().filter(|x| &x.game == "attila").map(|x| x.path.clone()).collect::<Option<PathBuf>>(), supported_games);
+                                app_ui.menu_bar_change_game_selected.change_state(&"attila".to_variant());
+                            }
+                        }
                     },
                 }
 
@@ -4348,6 +4372,9 @@ fn enable_packfile_actions(app_ui: &AppUI, game_selected: &Rc<RefCell<GameSelect
                 app_ui.menu_bar_patch_siege_ai_wh.set_enabled(true);
                 app_ui.menu_bar_create_map_prefab_wh.set_enabled(true);
             },
+            "attila" => {
+                app_ui.menu_bar_generate_dependency_pack_att.set_enabled(true);
+            },
             _ => {},
         }
     }
@@ -4363,6 +4390,9 @@ fn enable_packfile_actions(app_ui: &AppUI, game_selected: &Rc<RefCell<GameSelect
         app_ui.menu_bar_generate_dependency_pack_wh.set_enabled(false);
         app_ui.menu_bar_patch_siege_ai_wh.set_enabled(false);
         app_ui.menu_bar_create_map_prefab_wh.set_enabled(false);
+
+        // Disable Attila actions...
+        app_ui.menu_bar_generate_dependency_pack_att.set_enabled(false);
     }
 }
 
