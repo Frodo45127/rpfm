@@ -93,6 +93,20 @@ impl DB {
 
         match DBHeader::read(packed_file_data) {
             Ok(packed_file_header) => {
+
+                // These two tables use the not-yet-implemented type "List" in the following versions:
+                // - models_buildings: 7.
+                // - models_siege: 3.
+                // So we disable everything for any problematic version of these tables.
+                // TODO: Implement the needed type for these tables.
+                if packed_file_db_type == "models_building_tables" && (
+                    packed_file_header.0.packed_file_header_packed_file_version == 7
+                ) { return Err(format_err!("This specific table version use an unimplemented type (List), so is undecodeable, for now.")) }
+
+                else if packed_file_db_type == "models_sieges_tables" && (
+                    packed_file_header.0.packed_file_header_packed_file_version == 3
+                ) { return Err(format_err!("This specific table version use an unimplemented type (List), so is undecodeable, for now.")) }
+
                 match DB::get_schema(packed_file_db_type, packed_file_header.0.packed_file_header_packed_file_version, master_schema) {
                     Some(table_definition) => {
                         match DBData::read(
@@ -244,7 +258,7 @@ impl DBHeader {
         index += 1;
 
         packed_file_header_decoded.packed_file_header_packed_file_entry_count = coding_helpers::decode_packedfile_integer_u32(&packed_file_header[(index)..(index + 4)], &mut index)?;
-        
+
         Ok((packed_file_header_decoded, index))
     }
 
