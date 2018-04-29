@@ -216,26 +216,27 @@ impl DBHeader {
     /// to know where the body starts.
     pub fn read(packed_file_header: &[u8]) -> Result<(DBHeader, usize), Error> {
 
+        // Create the default header and set the index to 0.
         let mut packed_file_header_decoded = DBHeader::new();
         let mut index: usize = 0;
 
-        // If the first four bytes are neither the GUID_MARKER, nor the VERSION_MARKER, it's not a DB Table.
-        if &packed_file_header[index..(index + 4)] != GUID_MARKER && &packed_file_header[index..(index + 4)] != VERSION_MARKER {
-            return Err(format_err!("This DB PackedFile doesn't have a GUID Marker, nor a VERSION Marker, so it's not a table, or the table is corrupt. If you're sure this is a table, please report it as a bug."))
-        }
+        // If the first four bytes are the GUID_MARKER, or the VERSION_MARKER, we try to decode them. Otherwise,
+        // it's a veeery old table (Empire maybe?). We skip the decoding of both of those fields and use the defaults,
+        // as they will be written on save.
+        if &packed_file_header[index..(index + 4)] == GUID_MARKER || &packed_file_header[index..(index + 4)] == VERSION_MARKER {
 
-        // We assume it always has a GUID_MARKER, so we get the GUID. If it doesn't have it, it comes from PFM,
-        // so we ignore it, as it's not really needed for the table to work, and it'll be fixed in the first save.
-        if &packed_file_header[index..(index + 4)] == GUID_MARKER {
-            index += 4;
-            packed_file_header_decoded.packed_file_header_packed_file_guid = coding_helpers::decode_packedfile_string_u16(&packed_file_header[index..], &mut index)?;
-        }
+            // If it has a GUID_MARKER, we get his guid. Otherwise, we ignore it and use the default value.
+            if &packed_file_header[index..(index + 4)] == GUID_MARKER {
+                index += 4;
+                packed_file_header_decoded.packed_file_header_packed_file_guid = coding_helpers::decode_packedfile_string_u16(&packed_file_header[index..], &mut index)?;
+            }
 
-        // If it has a VERSION_MARKER, we get the version of the table.
-        if &packed_file_header[index..(index + 4)] == VERSION_MARKER {
-            packed_file_header_decoded.packed_file_header_packed_file_version = coding_helpers::decode_integer_u32(&packed_file_header[(index + 4)..(index + 8)])?;
-            packed_file_header_decoded.packed_file_header_packed_file_version_marker = true;
-            index += 8;
+            // If it has a VERSION_MARKER, we get the version of the table. Otherwise, use 0 as his version.
+            if &packed_file_header[index..(index + 4)] == VERSION_MARKER {
+                packed_file_header_decoded.packed_file_header_packed_file_version = coding_helpers::decode_integer_u32(&packed_file_header[(index + 4)..(index + 8)])?;
+                packed_file_header_decoded.packed_file_header_packed_file_version_marker = true;
+                index += 8;
+            }
         }
 
         // We save a mysterious byte I don't know what it does.

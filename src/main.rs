@@ -3820,12 +3820,21 @@ fn open_packfile(
 
             // Test to see if every DB Table can be decoded.
             //for i in pack_file_decoded.borrow().pack_file_data.packed_files.iter() {
-            //    if i.packed_file_path.starts_with(&["db".to_owned()]) {
-            //        if let Err(error) = DB::read(&i.packed_file_data, &i.packed_file_path[1], &schema.clone().unwrap()) {
-            //            println!("{:?}, {:?}", i.packed_file_path, error);
-            //        }
-            //    }
-            //}
+                // if i.packed_file_path.starts_with(&["db".to_owned()]) {
+                    // if let Some(ref schema) = *schema {
+                        // if let Err(_) = DB::read(&i.packed_file_data, &i.packed_file_path[1], &schema) {
+                            // match DBHeader::read(&i.packed_file_data) {
+                                // Ok(db_header) => {
+                                    // if db_header.0.packed_file_header_packed_file_entry_count > 0 {
+                                        // println!("{:?}", i.packed_file_path);
+                                    // }
+                                // }
+                                // Err(_) => println!("Error in {:?}", i.packed_file_path),
+                            // }
+                        // }
+                    // }
+                // }
+            // }
 
             // Return success.
             Ok(())
