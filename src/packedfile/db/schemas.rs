@@ -202,11 +202,9 @@ impl TableDefinition {
     /// This function creates a new table definition. We need to call it when we don't have a definition
     /// of the table we are trying to decode with the version we have.
     pub fn new(version: u32) -> TableDefinition {
-        let fields = vec![];
-
         TableDefinition {
             version,
-            fields,
+            fields: vec![Field::new("example_field".to_owned(), FieldType::StringU8, false, None, "delete this field if you see it".to_owned())],
         }
     }
 
