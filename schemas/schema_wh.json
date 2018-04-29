@@ -39032,74 +39032,6 @@
               "field_description": ""
             }
           ]
-        },
-        {
-          "version": 7,
-          "fields": [
-            {
-              "field_name": "display_path",
-              "field_type": "OptionalStringU8",
-              "field_is_key": false,
-              "field_is_reference": null,
-              "field_description": ""
-            },
-            {
-              "field_name": "logic_file_override",
-              "field_type": "OptionalStringU8",
-              "field_is_key": false,
-              "field_is_reference": null,
-              "field_description": "Override the Logic File?"
-            },
-            {
-              "field_name": "collision_file_override",
-              "field_type": "OptionalStringU8",
-              "field_is_key": false,
-              "field_is_reference": null,
-              "field_description": "Override the Collision File?"
-            },
-            {
-              "field_name": "key",
-              "field_type": "StringU8",
-              "field_is_key": true,
-              "field_is_reference": null,
-              "field_description": ""
-            },
-            {
-              "field_name": "logic_file",
-              "field_type": "StringU8",
-              "field_is_key": false,
-              "field_is_reference": null,
-              "field_description": ""
-            },
-            {
-              "field_name": "collision_file",
-              "field_type": "StringU8",
-              "field_is_key": false,
-              "field_is_reference": null,
-              "field_description": ""
-            },
-            {
-              "field_name": "Unknown 292",
-              "field_type": "Integer",
-              "field_is_key": false,
-              "field_is_reference": null,
-              "field_description": ""
-            },
-            {
-              "field_name": "Unknown 293",
-              "field_type": "Integer",
-              "field_is_key": false,
-              "field_is_reference": null,
-              "field_description": ""
-            },
-            {
-              "field_name": "Unknown 297",
-              "field_type": "Integer",
-              "field_is_key": false,
-              "field_is_reference": null,
-              "field_description": ""
-            }
-          ]
         }
       ]
     },
@@ -39177,39 +39109,6 @@
       "versions": [
         {
           "version": 4,
-          "fields": [
-            {
-              "field_name": "display_path",
-              "field_type": "OptionalStringU8",
-              "field_is_key": false,
-              "field_is_reference": null,
-              "field_description": ""
-            },
-            {
-              "field_name": "key",
-              "field_type": "StringU8",
-              "field_is_key": true,
-              "field_is_reference": null,
-              "field_description": ""
-            },
-            {
-              "field_name": "model_file",
-              "field_type": "StringU8",
-              "field_is_key": false,
-              "field_is_reference": null,
-              "field_description": ""
-            },
-            {
-              "field_name": "logic_file",
-              "field_type": "StringU8",
-              "field_is_key": false,
-              "field_is_reference": null,
-              "field_description": ""
-            }
-          ]
-        },
-        {
-          "version": 3,
           "fields": [
             {
               "field_name": "display_path",
