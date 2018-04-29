@@ -3399,15 +3399,14 @@ fn build_ui(application: &Application) {
                                 app_ui,
                                 supported_games,
                                 game_selected,
-                                packed_file_data_encoded => move |decode_mode_button ,_| {
+                                packed_file_data_encoded => move |_,_| {
 
-                                    // We need to disable the button. Otherwise, things will get weird.
-                                    decode_mode_button.set_sensitive(false);
-
-                                    // We destroy the table view if exists, so we don't have to deal with resizing it.
-                                    let display_last_children = app_ui.packed_file_data_display.get_children();
-                                    if display_last_children.first().unwrap() != decode_mode_button {
-                                        display_last_children.first().unwrap().destroy();
+                                    // We destroy the table view if exists, and the button, so we don't have to deal with resizing it.
+                                    let childrens_to_utterly_destroy = app_ui.packed_file_data_display.get_children();
+                                    if !childrens_to_utterly_destroy.is_empty() {
+                                        for i in &childrens_to_utterly_destroy {
+                                            i.destroy();
+                                        }
                                     }
 
                                     // And only in case the db_header has been decoded, we do the rest.
