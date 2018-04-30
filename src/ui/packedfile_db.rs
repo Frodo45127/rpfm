@@ -827,6 +827,24 @@ impl PackedFileDBTreeView{
         application.set_accels_for_action("app.packedfile_db_import_tsv", &["<Primary><Shift>i"]);
         application.set_accels_for_action("app.packedfile_db_export_tsv", &["<Primary><Shift>e"]);
 
+        // Some actions need to start disabled.
+        delete_rows.set_enabled(false);
+        copy_cell.set_enabled(false);
+        clone_rows.set_enabled(false);
+        copy_rows.set_enabled(false);
+        paste_cell.set_enabled(false);
+
+        // Depending of the current contents of the `Clipboard`, set the initial state of the "Paste rows" action.
+        if app_ui.clipboard.wait_for_text().is_some() {
+
+            // If the data in the clipboard is a valid row, we enable "Paste rows".
+            if check_clipboard_row(&app_ui, &table_definition) { paste_rows.set_enabled(true); }
+
+            // Otherwise, we disable the "Paste rows" action.
+            else { paste_rows.set_enabled(false); }
+        }
+        else { paste_rows.set_enabled(false); }
+
         // Attach all the stuff to the Context Menu `Grid`.
         context_menu_grid.attach(&add_rows_button, 0, 0, 1, 1);
         context_menu_grid.attach(&add_rows_entry, 1, 0, 1, 1);
@@ -947,10 +965,28 @@ impl PackedFileDBTreeView{
             //
             // NOTE: REMEMBER, WE OPEN THE POPUP HERE, BUT WE NEED TO CLOSED IT WHEN WE HIT HIS BUTTONS.
             table.tree_view.connect_button_release_event(clone!(
-                table => move |tree_view, button| {
+                table,
+                app_ui,
+                paste_rows,
+                table_definition => move |tree_view, button| {
 
                     // If we clicked the right mouse button...
                     if button.get_button() == 3 {
+
+                        // If we got text in the `Clipboard`...
+                        if app_ui.clipboard.wait_for_text().is_some() {
+
+                            // If the data in the clipboard is a valid row...
+                            if check_clipboard_row(&app_ui, &table_definition) {
+
+                                // We enable "Paste rows".
+                                paste_rows.set_enabled(true);
+                            }
+
+                            // Otherwise, we disable the "Paste rows" action.
+                            else { paste_rows.set_enabled(false); }
+                        }
+                        else { paste_rows.set_enabled(false); }
 
                         table.context_menu.set_pointing_to(&get_rect_for_popover(tree_view, Some(button.get_position())));
                         table.context_menu.popup();
@@ -960,11 +996,13 @@ impl PackedFileDBTreeView{
                 }
             ));
 
-            // We check if we can delete something on selection changes.
+            // We we change the selection, we enable or disable the different actions of the Contextual Menu.
             table.tree_view.connect_cursor_changed(clone!(
+                app_ui,
                 copy_cell,
                 copy_rows,
                 clone_rows,
+                paste_cell,
                 delete_rows => move |tree_view| {
 
                     // If we have something selected...
@@ -984,6 +1022,34 @@ impl PackedFileDBTreeView{
                         clone_rows.set_enabled(false);
                         delete_rows.set_enabled(false);
                     }
+
+                    // If we got text in the `Clipboard`...
+                    if app_ui.clipboard.wait_for_text().is_some() {
+
+                        // Get the selected cell, if any.
+                        let selected_cell = tree_view.get_cursor();
+
+                        // If we have a cell selected and it's not in the index column, enable "Paste Cell".
+                        if selected_cell.0.is_some() {
+                            if let Some(column) = selected_cell.1 {
+                                if column.get_sort_column_id() > 0 {
+                                    paste_cell.set_enabled(true);
+                                }
+
+                                // If the cell is invalid, disable the copy for it.
+                                else if column.get_sort_column_id() < 0 {
+                                    copy_cell.set_enabled(false);
+                                    paste_cell.set_enabled(false);
+                                }
+                                else {
+                                    paste_cell.set_enabled(false);
+                                }
+                            }
+                            else { paste_cell.set_enabled(false); }
+                        }
+                        else { paste_cell.set_enabled(false); }
+                    }
+                    else { paste_cell.set_enabled(false); }
                 }
             ));
 
@@ -1078,7 +1144,7 @@ impl PackedFileDBTreeView{
                                     if let Err(error) = update_packed_file_data_db(
                                         &*packed_file_decoded.borrow_mut(),
                                         &mut *pack_file.borrow_mut(),
-                                        packed_file_decoded_index as usize
+                                        packed_file_decoded_index
                                     ) {
                                         show_dialog(&app_ui.window, false, error.cause());
                                     }
@@ -1123,37 +1189,41 @@ impl PackedFileDBTreeView{
                                 // Get his column ID.
                                 let column = column.get_sort_column_id();
 
-                                // If the cell is the index...
-                                if column == 0 {
+                                // If the column is not a dummy one.
+                                if column >= 0 {
 
-                                    // Get his value and put it into the `Clipboard`.
-                                    app_ui.clipboard.set_text(&table.list_store.get_value(&row, 0).get::<String>().unwrap(),);
-                                }
+                                    // If the cell is the index...
+                                    if column == 0 {
 
-                                // Otherwise...
-                                else {
+                                        // Get his value and put it into the `Clipboard`.
+                                        app_ui.clipboard.set_text(&table.list_store.get_value(&row, 0).get::<String>().unwrap(),);
+                                    }
 
-                                    // Check his `field_type`...
-                                    let data = match table_definition.fields[column as usize - 1].field_type {
+                                    // Otherwise...
+                                    else {
 
-                                        // If it's a boolean, get "true" or "false".
-                                        FieldType::Boolean => {
-                                            match table.list_store.get_value(&row, column).get::<bool>().unwrap() {
-                                                true => "true".to_owned(),
-                                                false => "false".to_owned(),
+                                        // Check his `field_type`...
+                                        let data = match table_definition.fields[column as usize - 1].field_type {
+
+                                            // If it's a boolean, get "true" or "false".
+                                            FieldType::Boolean => {
+                                                match table.list_store.get_value(&row, column).get::<bool>().unwrap() {
+                                                    true => "true".to_owned(),
+                                                    false => "false".to_owned(),
+                                                }
                                             }
-                                        }
 
-                                        // If it's an Integer or a Long Integer, turn it into a `String`. Don't know why, but otherwise integer columns crash the program.
-                                        FieldType::Integer => format!("{}", table.list_store.get_value(&row, column).get::<i32>().unwrap()),
-                                        FieldType::LongInteger => format!("{}", table.list_store.get_value(&row, column).get::<i64>().unwrap()),
+                                            // If it's an Integer or a Long Integer, turn it into a `String`. Don't know why, but otherwise integer columns crash the program.
+                                            FieldType::Integer => format!("{}", table.list_store.get_value(&row, column).get::<i32>().unwrap()),
+                                            FieldType::LongInteger => format!("{}", table.list_store.get_value(&row, column).get::<i64>().unwrap()),
 
-                                        // If it's any other type, just decode it as `String`.
-                                        _ => table.list_store.get_value(&row, column).get::<String>().unwrap(),
-                                    };
+                                            // If it's any other type, just decode it as `String`.
+                                            _ => table.list_store.get_value(&row, column).get::<String>().unwrap(),
+                                        };
 
-                                    // Put the data into the `Clipboard`.
-                                    app_ui.clipboard.set_text(&data);
+                                        // Put the data into the `Clipboard`.
+                                        app_ui.clipboard.set_text(&data);
+                                    }
                                 }
                             }
                         }
@@ -1195,15 +1265,8 @@ impl PackedFileDBTreeView{
                                     // Get his column ID.
                                     let column = column.get_sort_column_id() as u32;
 
-                                    // If the cell is the index...
-                                    if column == 0 {
-
-                                        // Don't do anything.
-                                        return
-                                    }
-
-                                    // Otherwise...
-                                    else {
+                                    // If the cell is in a valid column (neither index nor dummy)...
+                                    if column > 0 {
 
                                         // Check his `field_type`...
                                         match table_definition.fields[column as usize - 1].field_type {
@@ -1255,7 +1318,7 @@ impl PackedFileDBTreeView{
                                                 if let Err(error) = update_packed_file_data_db(
                                                     &*packed_file_decoded.borrow_mut(),
                                                     &mut *pack_file.borrow_mut(),
-                                                    packed_file_decoded_index as usize
+                                                    packed_file_decoded_index
                                                 ) {
                                                     show_dialog(&app_ui.window, false, error.cause());
                                                 }
@@ -1328,7 +1391,7 @@ impl PackedFileDBTreeView{
                                     if let Err(error) = update_packed_file_data_db(
                                         &*packed_file_decoded.borrow_mut(),
                                         &mut *pack_file.borrow_mut(),
-                                        packed_file_decoded_index as usize
+                                        packed_file_decoded_index
                                     ) {
                                         show_dialog(&app_ui.window, false, error.cause());
                                     }
@@ -1370,9 +1433,6 @@ impl PackedFileDBTreeView{
                         // For each row...
                         for row in &tree_iter_list {
 
-                            // Create the `String` to hold the data from the string.
-                            let mut row_text = String::new();
-
                             // For each column...
                             for column in 1..(table_definition.fields.len() + 1) {
 
@@ -1395,19 +1455,19 @@ impl PackedFileDBTreeView{
                                     _ => table.list_store.get_value(row, column as i32).get::<String>().unwrap(),
                                 };
 
-                                // Add the text to the copied row.
-                                row_text.push_str(&format!("\"{}\"", data));
+                                // Add the text to the copied string.
+                                copy_string.push_str(&data);
 
                                 // If it's not the last column...
                                 if column < table_definition.fields.len() {
 
-                                    // Put a comma between fields, so excel understand them.
-                                    row_text.push_str(",");
+                                    // Put a tab between fields, so excel understand them.
+                                    copy_string.push('\t');
                                 }
                             }
 
-                            // Add the copied row to the list.
-                            copy_string.push_str(&format!("{}\n", row_text));
+                            // Add a newline at the end of every row.
+                            copy_string.push('\n');
                         }
 
                         // Pass all the copied rows to the clipboard.
@@ -1432,34 +1492,17 @@ impl PackedFileDBTreeView{
                     // the accels working everywhere.
                     if table.tree_view.has_focus() {
 
-                        // When it gets the data from the `Clipboard`....
-                        if let Some(data) = app_ui.clipboard.wait_for_text() {
+                        // Before anything else, we check if the data in the `Clipboard` includes ONLY valid rows.
+                        if check_clipboard_row(&app_ui, &table_definition) {
 
-                            // Get the definitions for this table.
-                            let fields_type = table_definition.fields.iter().map(|x| x.field_type.clone()).collect::<Vec<FieldType>>();
+                            // When it gets the data from the `Clipboard`....
+                            if let Some(data) = app_ui.clipboard.wait_for_text() {
 
-                            // Store here all the decoded fields.
-                            let mut fields_data = vec![];
+                                // Get the definitions for this table.
+                                let fields_type = table_definition.fields.iter().map(|x| x.field_type.clone()).collect::<Vec<FieldType>>();
 
-                            // Get the type of the data copied. If it's in CSV format...
-                            if data.find("\",\"").is_some() {
-
-                                // For each row in the data we received...
-                                for row in data.lines() {
-
-                                    // Remove the "" at the beginning and at the end.
-                                    let mut row = row.to_owned();
-                                    row.pop();
-                                    row.remove(0);
-
-                                    // Get all the data from his fields.
-                                    fields_data.push(row.split("\",\"").map(|x| x.to_owned()).collect::<Vec<String>>());
-                                }
-                            }
-
-                            // Otherwise, we asume it's a TSV copy from excel.
-                            // TODO: Check this with other possible sources.
-                            else {
+                                // Store here all the decoded fields.
+                                let mut fields_data = vec![];
 
                                 // For each row in the data we received...
                                 for row in data.lines() {
@@ -1467,110 +1510,83 @@ impl PackedFileDBTreeView{
                                     // Get all the data from his fields.
                                     fields_data.push(row.split('\t').map(|x| x.to_owned()).collect::<Vec<String>>());
                                 }
-                            }
 
-                            // Get the selected row, if there is any.
-                            let selected_row = table.tree_view.get_selection().get_selected_rows().0;
+                                // Get the selected row, if there is any.
+                                let selected_row = table.tree_view.get_selection().get_selected_rows().0;
 
-                            // If there is at least one line selected, use it as "base" to paste.
-                            let mut tree_iter = if !selected_row.is_empty() {
-                                table.list_store.get_iter(&selected_row[0]).unwrap()
-                            }
+                                // If there is at least one line selected, use it as "base" to paste.
+                                let mut tree_iter = if !selected_row.is_empty() {
+                                    table.list_store.get_iter(&selected_row[0]).unwrap()
+                                }
 
-                            // Otherwise, append a new `TreeIter` to the `TreeView`, and use it.
-                            else { table.list_store.append() };
+                                // Otherwise, append a new `TreeIter` to the `TreeView`, and use it.
+                                else { table.list_store.append() };
 
-                            // For each row in our fields_data list...
-                            for (row_index, row) in fields_data.iter().enumerate() {
+                                // For each row in our fields_data list...
+                                for (row_index, row) in fields_data.iter().enumerate() {
 
-                                // Fill the "Index" column with "New".
-                                table.list_store.set_value(&tree_iter, 0, &"New".to_value());
+                                    // Fill the "Index" column with "New".
+                                    table.list_store.set_value(&tree_iter, 0, &"New".to_value());
 
-                                // For each field in a row...
-                                for (index, field) in row.iter().enumerate() {
+                                    // For each field in a row...
+                                    for (index, field) in row.iter().enumerate() {
 
-                                    // Check if that field exists in the table.
-                                    let field_type = fields_type.get(index);
+                                        // Check if that field exists in the table.
+                                        let field_type = fields_type.get(index);
 
-                                    // If it exists...
-                                    if let Some(field_type) = field_type {
+                                        // If it exists...
+                                        if let Some(field_type) = field_type {
 
-                                        // Check his `field_type`...
-                                        match *field_type {
+                                            // Check his `field_type`. We can skip all the safety checks here, because if we hit a CTD here,
+                                            // something it's broken in the checking function above and needs to be fixed there.
+                                            match *field_type {
 
-                                            // If it's a boolean, get "true" or "false".
-                                            FieldType::Boolean => {
-                                                let state = if field == "true" { true } else if field == "false" { false } else {
-                                                    return show_dialog(&app_ui.window, false, "Error while trying to paste a cell to a DB PackedFile:\n\nThe value provided is neither \"true\" nor \"false\".")
-                                                };
-                                                table.list_store.set_value(&tree_iter, (index + 1) as u32, &state.to_value());
-                                            }
-                                            FieldType::Integer => {
-                                                if let Ok(field) = field.parse::<i32>() {
-                                                    table.list_store.set_value(&tree_iter, (index + 1) as u32, &field.to_value());
-                                                } else {
-                                                    return show_dialog(&app_ui.window, false, "Error while trying to paste a cell to a DB PackedFile:\n\nThe value provided is not a valid I32.")
-                                                };
-                                            },
-                                            FieldType::LongInteger => {
-                                                if let Ok(field) = field.parse::<i64>() {
-                                                    table.list_store.set_value(&tree_iter, (index + 1) as u32, &field.to_value());
-                                                } else {
-                                                    return show_dialog(&app_ui.window, false, "Error while trying to paste a cell to a DB PackedFile:\n\nThe value provided is not a valid I64.")
-                                                };
-                                            },
-                                            FieldType::Float => {
-                                                if field.parse::<f32>().is_ok() {
-                                                    table.list_store.set_value(&tree_iter, (index + 1) as u32, &field.to_value());
-                                                } else { return show_dialog(&app_ui.window, false, "Error while trying to paste a cell to a DB PackedFile:\n\nThe value provided is not a valid F32.") }
-                                            },
+                                                // If it's a boolean, get "true" or "false".
+                                                FieldType::Boolean => table.list_store.set_value(&tree_iter, (index + 1) as u32, &(if field == "true" { true } else { false }).to_value()),
+                                                FieldType::Integer => table.list_store.set_value(&tree_iter, (index + 1) as u32, &field.parse::<i32>().unwrap().to_value()),
+                                                FieldType::LongInteger => table.list_store.set_value(&tree_iter, (index + 1) as u32, &field.parse::<i64>().unwrap().to_value()),
 
-                                            // All these are Strings, so it can be together,
-                                            FieldType::StringU8 |
-                                            FieldType::StringU16 |
-                                            FieldType::OptionalStringU8 |
-                                            FieldType::OptionalStringU16 => table.list_store.set_value(&tree_iter, (index + 1) as u32, &field.to_value()),
-                                        };
+                                                // Anything else, just put it into his column with the needed type.
+                                                _ => table.list_store.set_value(&tree_iter, (index + 1) as u32, &field.to_value()),
+                                            };
+                                        }
                                     }
 
-                                    // If the field doesn't exists, return.
-                                    else { return }
+                                    // Move to the next row. If it doesn't exist and it's not the last loop....
+                                    if !table.list_store.iter_next(&tree_iter) && row_index < (fields_data.len() - 1) {
+
+                                        // Create it.
+                                        tree_iter = table.list_store.append();
+                                    }
                                 }
 
-                                // Move to the next row. If it doesn't exist and it's not the last loop....
-                                if !table.list_store.iter_next(&tree_iter) && row_index < (fields_data.len() - 1) {
+                                // Try to save the new data from the `TreeView`.
+                                match PackedFileDBTreeView::return_data_from_tree_view(&table_definition, &table.list_store) {
 
-                                    // Create it.
-                                    tree_iter = table.list_store.append();
-                                }
-                            }
+                                    // If we succeed...
+                                    Ok(data) => {
 
-                            // Try to save the new data from the `TreeView`.
-                            match PackedFileDBTreeView::return_data_from_tree_view(&table_definition, &table.list_store) {
+                                        // Replace our current decoded data with the new one.
+                                        packed_file_decoded.borrow_mut().packed_file_data.packed_file_data = data;
 
-                                // If we succeed...
-                                Ok(data) => {
+                                        // Try to save the changes to the PackFile. If there is an error, report it.
+                                        if let Err(error) = update_packed_file_data_db(
+                                            &*packed_file_decoded.borrow_mut(),
+                                            &mut *pack_file.borrow_mut(),
+                                            packed_file_decoded_index
+                                        ) {
+                                            show_dialog(&app_ui.window, false, error.cause());
+                                        }
 
-                                    // Replace our current decoded data with the new one.
-                                    packed_file_decoded.borrow_mut().packed_file_data.packed_file_data = data;
-
-                                    // Try to save the changes to the PackFile. If there is an error, report it.
-                                    if let Err(error) = update_packed_file_data_db(
-                                        &*packed_file_decoded.borrow_mut(),
-                                        &mut *pack_file.borrow_mut(),
-                                        packed_file_decoded_index as usize
-                                    ) {
-                                        show_dialog(&app_ui.window, false, error.cause());
+                                        // Set the mod as "modified", regardless if we succeed at saving the data or not.
+                                        set_modified(true, &app_ui.window, &mut *pack_file.borrow_mut());
                                     }
 
-                                    // Set the mod as "modified", regardless if we succeed at saving the data or not.
-                                    set_modified(true, &app_ui.window, &mut *pack_file.borrow_mut());
+                                    // If there is an error, report it.
+                                    Err(error) => show_dialog(&app_ui.window, false, error.cause()),
                                 }
-
-                                // If there is an error, report it.
-                                Err(error) => show_dialog(&app_ui.window, false, error.cause()),
-                            }
-                        };
+                            };
+                        }
                     }
                 }
             ));
@@ -1631,7 +1647,7 @@ impl PackedFileDBTreeView{
                                 if let Err(error) = update_packed_file_data_db(
                                     &*packed_file_decoded.borrow_mut(),
                                     &mut *pack_file.borrow_mut(),
-                                    packed_file_decoded_index as usize
+                                    packed_file_decoded_index
                                 ) {
                                     restore_table = (true, error);
                                 }
@@ -1737,7 +1753,7 @@ impl PackedFileDBTreeView{
                                     if let Err(error) = update_packed_file_data_db(
                                         &*packed_file_decoded.borrow_mut(),
                                         &mut *pack_file.borrow_mut(),
-                                        packed_file_decoded_index as usize
+                                        packed_file_decoded_index
                                     ) {
                                         show_dialog(&app_ui.window, false, error.cause());
                                     }
@@ -1787,7 +1803,7 @@ impl PackedFileDBTreeView{
                                     if let Err(error) = update_packed_file_data_db(
                                         &*packed_file_decoded.borrow_mut(),
                                         &mut *pack_file.borrow_mut(),
-                                        packed_file_decoded_index as usize
+                                        packed_file_decoded_index
                                     ) {
                                         show_dialog(&app_ui.window, false, error.cause());
                                     }
@@ -1837,7 +1853,7 @@ impl PackedFileDBTreeView{
                                     if let Err(error) = update_packed_file_data_db(
                                         &*packed_file_decoded.borrow_mut(),
                                         &mut *pack_file.borrow_mut(),
-                                        packed_file_decoded_index as usize
+                                        packed_file_decoded_index
                                     ) {
                                         show_dialog(&app_ui.window, false, error.cause());
                                     }
@@ -1893,7 +1909,7 @@ impl PackedFileDBTreeView{
                                             if let Err(error) = update_packed_file_data_db(
                                                 &*packed_file_decoded.borrow_mut(),
                                                 &mut *pack_file.borrow_mut(),
-                                                packed_file_decoded_index as usize
+                                                packed_file_decoded_index
                                             ) {
                                                 show_dialog(&app_ui.window, false, error.cause());
                                             }
@@ -1954,7 +1970,7 @@ impl PackedFileDBTreeView{
                                             if let Err(error) = update_packed_file_data_db(
                                                 &*packed_file_decoded.borrow_mut(),
                                                 &mut *pack_file.borrow_mut(),
-                                                packed_file_decoded_index as usize
+                                                packed_file_decoded_index
                                             ) {
                                                 show_dialog(&app_ui.window, false, error.cause());
                                             }
@@ -2015,7 +2031,7 @@ impl PackedFileDBTreeView{
                                             if let Err(error) = update_packed_file_data_db(
                                                 &*packed_file_decoded.borrow_mut(),
                                                 &mut *pack_file.borrow_mut(),
-                                                packed_file_decoded_index as usize
+                                                packed_file_decoded_index
                                             ) {
                                                 show_dialog(&app_ui.window, false, error.cause());
                                             }
@@ -2074,7 +2090,7 @@ impl PackedFileDBTreeView{
                                 if let Err(error) = update_packed_file_data_db(
                                     &*packed_file_decoded.borrow_mut(),
                                     &mut *pack_file.borrow_mut(),
-                                    packed_file_decoded_index as usize
+                                    packed_file_decoded_index
                                 ) {
                                     show_dialog(&app_ui.window, false, error.cause());
                                 }
@@ -3926,8 +3942,84 @@ fn decode_data_by_fieldtype(
     }
 }
 
+/// This function checks if the data in the clipboard is a valid row of the current table. Returns
+/// `true` if the data in the clipboard forms valid rows, and `false` if any of them is an invalid row.
+fn check_clipboard_row(app_ui: &AppUI, table_definition: &TableDefinition) -> bool {
+
+    // Try to get the data from the `Clipboard`....
+    if let Some(data) = app_ui.clipboard.wait_for_text() {
+
+        // Get the definitions for this table.
+        let fields_type = table_definition.fields.iter().map(|x| x.field_type.clone()).collect::<Vec<FieldType>>();
+
+        // Store here all the decoded fields.
+        let mut fields_data = vec![];
+
+        // For each row in the data we received...
+        for row in data.lines() {
+
+            // Get all the data from his fields.
+            fields_data.push(row.split('\t').map(|x| x.to_owned()).collect::<Vec<String>>());
+        }
+
+        // If we at least have one row...
+        if !fields_data.is_empty() {
+
+            // Var to control when a field is invalid.
+            let mut data_is_invalid = false;
+
+            // For each row we have...
+            for row in &fields_data {
+
+                // If we have the same amount of data for each field...
+                if row.len() == fields_type.len() {
+
+                    // For each field in the row...
+                    for (index, field) in row.iter().enumerate() {
+
+                        // Try to decode the field as his "FieldType". If any of the fields fail, the rows are invalid.
+                        let field_is_valid: bool = match fields_type[index] {
+                            FieldType::Boolean => if field == "true" || field == "false" { true } else { false },
+                            FieldType::Float => field.parse::<f32>().is_ok(),
+                            FieldType::Integer => field.parse::<i32>().is_ok(),
+                            FieldType::LongInteger => field.parse::<i64>().is_ok(),
+
+                            // All these are just Strings.
+                            FieldType::StringU8 |
+                            FieldType::StringU16 |
+                            FieldType::OptionalStringU8 |
+                            FieldType::OptionalStringU16 => field.parse::<String>().is_ok(),
+                        };
+
+                        // If any field is invalid, the entire row is invalid.
+                        if !field_is_valid {
+                            data_is_invalid = true;
+                            break;
+                        }
+                    }
+                }
+
+                // Otherwise, the rows are invalid.
+                else {
+                    data_is_invalid = true;
+                    break;
+                }
+            }
+
+            // If in any point the data was invalid, return false.
+            if data_is_invalid { false } else { true }
+        }
+
+        // Otherwise, the contents of the `Clipboard` are invalid.
+        else { false }
+    }
+
+    // Otherwise, there is no data in the `Clipboard`.
+    else { false }
+}
+
 /// This function creates the TextTags `header` and `index` for the provided TextView.
-pub fn create_text_tags(text_view: &TextView) {
+fn create_text_tags(text_view: &TextView) {
 
     // Get the TagTable of the Buffer of the TextView...
     let text_buffer = text_view.get_buffer().unwrap();
@@ -3950,7 +4042,7 @@ pub fn create_text_tags(text_view: &TextView) {
 }
 
 /// This function "process" the column names of a table, so they look like they should.
-pub fn clean_column_names(field_name: &str) -> String {
+fn clean_column_names(field_name: &str) -> String {
 
     // Create the "New" processed `String`.
     let mut new_name = String::new();
