@@ -59880,21 +59880,21 @@
           "version": 0,
           "fields": [
             {
-              "field_name": "faction",
+              "field_name": "config_key",
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
             },
             {
-              "field_name": "unit_type",
+              "field_name": "group_key",
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
             },
             {
-              "field_name": "unit_subtype",
+              "field_name": "quality_group_key",
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": null,
@@ -59918,22 +59918,15 @@
           "version": 0,
           "fields": [
             {
-              "field_name": "group",
+              "field_name": "key",
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
             },
             {
-              "field_name": "unit",
-              "field_type": "OptionalStringU8",
-              "field_is_key": false,
-              "field_is_reference": null,
-              "field_description": ""
-            },
-            {
-              "field_name": "Unknown 105",
-              "field_type": "OptionalStringU8",
+              "field_name": "army",
+              "field_type": "Boolean",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
@@ -59951,6 +59944,134 @@
             {
               "field_name": "key",
               "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "cdir_unit_balance_template_junctions_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "config_key",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "template_key",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "priority",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "cdir_unit_balances_tables",
+      "versions": [
+        {
+          "version": 2,
+          "fields": [
+            {
+              "field_name": "template_key",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "min_units",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "max_units",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "group_key",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "ideal_pct",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "variance",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "min_required",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "cdir_unit_qualities_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "config_key",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "group_key",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "unit_key",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "quality",
+              "field_type": "Integer",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
