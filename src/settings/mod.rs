@@ -96,7 +96,7 @@ impl GameInfo {
             folder_name: "attila".to_owned(),
             id: "PFH4".to_owned(),
             dependency_pack: "att.pack".to_owned(),
-            schema: "schema_historical.json".to_owned(),
+            schema: "schema_att.json".to_owned(),
         };
 
         supported_games.push(game_info);
