@@ -3181,21 +3181,23 @@ fn open_packfile(
             *schema = Schema::load(rpfm_path, &supported_games.iter().filter(|x| x.folder_name == *game_selected.borrow().game).map(|x| x.schema.to_owned()).collect::<String>()).ok();
 
             // Test to see if every DB Table can be decoded.
-            //for i in pack_file_decoded.borrow().pack_file_data.packed_files.iter() {
-                // if i.packed_file_path.starts_with(&["db".to_owned()]) {
-                    // if let Some(ref schema) = *schema {
-                        // if let Err(_) = DB::read(&i.packed_file_data, &i.packed_file_path[1], &schema) {
-                            // match DBHeader::read(&i.packed_file_data) {
-                                // Ok(db_header) => {
-                                    // if db_header.0.packed_file_header_packed_file_entry_count > 0 {
-                                        // println!("{:?}", i.packed_file_path);
-                                    // }
-                                // }
-                                // Err(_) => println!("Error in {:?}", i.packed_file_path),
-                            // }
-                        // }
-                    // }
-                // }
+            // let mut counter = 0;
+            // for i in pack_file_decoded.borrow().pack_file_data.packed_files.iter() {
+            //     if i.packed_file_path.starts_with(&["db".to_owned()]) {
+            //         if let Some(ref schema) = *schema {
+            //             if let Err(_) = DB::read(&i.packed_file_data, &i.packed_file_path[1], &schema) {
+            //                 match DBHeader::read(&i.packed_file_data) {
+            //                     Ok(db_header) => {
+            //                         if db_header.0.packed_file_header_packed_file_entry_count > 0 {
+            //                             counter += 1;
+            //                             println!("{}, {:?}", counter, i.packed_file_path);
+            //                         }
+            //                     }
+            //                     Err(_) => println!("Error in {:?}", i.packed_file_path),
+            //                 }
+            //             }
+            //         }
+            //     }
             // }
 
             // Return success.
