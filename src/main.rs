@@ -54,8 +54,6 @@ use gtk::{
 
 use common::*;
 use packfile::packfile::PackFile;
-use packedfile::db::DB;
-use packedfile::db::DBHeader;
 use packedfile::db::schemas::*;
 use packedfile::db::schemas_importer::*;
 use settings::*;
@@ -2732,104 +2730,21 @@ fn build_ui(application: &Application) {
 
                         // If the file is a DB PackedFile...
                         "DB" => {
-
-                            let packed_file_data_encoded = &(pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data);
-                            let packed_file_data_decoded = match *schema.borrow() {
-                                Some(ref schema) => DB::read(packed_file_data_encoded, &*tree_path[1], schema),
-                                None => return show_dialog(&app_ui.window, false, "There is no Schema loaded for this game."),
-                            };
-
-                            // We create the button to enable the "Decoding" mode.
-                            let decode_mode_button = Button::new_with_label("Enter decoding mode");
-                            decode_mode_button.set_hexpand(true);
-                            app_ui.packed_file_data_display.attach(&decode_mode_button, 0, 0, 1, 1);
-                            app_ui.packed_file_data_display.show_all();
+                            if let Err(error) = create_db_view(
+                                &application,
+                                &app_ui,
+                                &rpfm_path,
+                                &pack_file_decoded,
+                                &index,
+                                &is_packedfile_opened,
+                                &schema,
+                                &game_selected,
+                                &supported_games,
+                                &settings.borrow()
+                            ) { return show_dialog(&app_ui.window, false, error.cause()) };
 
                             // Tell the program there is an open PackedFile.
                             *is_packedfile_opened.borrow_mut() = true;
-
-                            // When we destroy the "Enable decoding mode" button, we need to tell the program we no longer have
-                            // an open PackedFile. This happens when we select another PackedFile (closing a table) or when we
-                            // hit the button (entering the decoder, where we no longer need write access to the original file).
-                            decode_mode_button.connect_destroy(clone!(
-                                is_packedfile_opened => move |_| {
-                                    *is_packedfile_opened.borrow_mut() = false;
-                                }
-                            ));
-
-                            // From here, we deal we the decoder stuff.
-                            decode_mode_button.connect_button_release_event(clone!(
-                                application,
-                                schema,
-                                tree_path,
-                                rpfm_path,
-                                app_ui,
-                                supported_games,
-                                game_selected,
-                                packed_file_data_encoded => move |_,_| {
-
-                                    // We destroy the table view if exists, and the button, so we don't have to deal with resizing it.
-                                    let childrens_to_utterly_destroy = app_ui.packed_file_data_display.get_children();
-                                    if !childrens_to_utterly_destroy.is_empty() {
-                                        for i in &childrens_to_utterly_destroy {
-                                            i.destroy();
-                                        }
-                                    }
-
-                                    // And only in case the db_header has been decoded, we do the rest.
-                                    match DBHeader::read(&packed_file_data_encoded){
-                                        Ok(db_header) => {
-
-                                            // Then try to create the UI and if it throws an error, report it.
-                                            if let Err(error) = PackedFileDBDecoder::create_decoder_view(
-                                                &application,
-                                                &app_ui,
-                                                &rpfm_path,
-                                                &supported_games,
-                                                &game_selected,
-                                                tree_path[1].to_owned(),
-                                                packed_file_data_encoded.to_vec(),
-                                                db_header,
-                                                &schema,
-                                            ) {
-                                                show_dialog(&app_ui.window, false, error.cause())
-                                            };
-                                        },
-                                        Err(error) => show_dialog(&app_ui.window, false, error.cause()),
-                                    }
-                                    Inhibit(false)
-                                }
-                            ));
-
-                            // If this returns an error, we just leave the button for the decoder.
-                            match packed_file_data_decoded {
-                                Ok(packed_file_data_decoded) => {
-
-                                    // Try to open the dependency PackFile of our game.
-                                    let dependency_database = match packfile::open_packfile(game_selected.borrow().game_dependency_packfile_path.to_path_buf()) {
-                                        Ok(data) => Some(data.pack_file_data.packed_files),
-                                        Err(_) => None,
-                                    };
-
-                                    // Get the decoded PackedFile in a `Rc<RefCell<>>` so we can pass it to the closures.
-                                    let packed_file_data_decoded = Rc::new(RefCell::new(packed_file_data_decoded));
-
-                                    // Try to create the `TreeView`.
-                                    if let Err(error) = PackedFileDBTreeView::create_tree_view(
-                                        &application,
-                                        &app_ui,
-                                        pack_file_decoded.clone(),
-                                        packed_file_data_decoded.clone(),
-                                        &index,
-                                        &dependency_database,
-                                        &schema.borrow().clone().unwrap(),
-                                        &settings.borrow(),
-                                    ) { return show_dialog(&app_ui.window, false, error.cause()) };
-                                }
-
-                                // If we receive an error while decoding, report it.
-                                Err(error) => show_dialog(&app_ui.window, false, error.cause()),
-                            }
                         }
 
                         // If it's a plain text file, we create a source view and try to get highlighting for

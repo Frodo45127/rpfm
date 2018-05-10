@@ -11,6 +11,7 @@ use std::rc::Rc;
 use packedfile::db::*;
 use packedfile::db::schemas::*;
 use packfile::packfile::PackedFile;
+use packfile::open_packfile;
 use settings::*;
 use common::coding_helpers;
 use failure::Error;
@@ -92,6 +93,125 @@ pub struct PackedFileDBDecoder {
     pub context_menu: Popover,
 }
 
+/// This function serves as a way to prepare the DB TreeView and the Decoder View. It's needed because
+/// unlike other decoders, DB decoder can result in two different views being created.
+pub fn create_db_view(
+    application: &Application,
+    app_ui: &AppUI,
+    rpfm_path: &PathBuf,
+    pack_file: &Rc<RefCell<PackFile>>,
+    packed_file_decoded_index: &usize,
+    is_packedfile_opened: &Rc<RefCell<bool>>,
+    schema: &Rc<RefCell<Option<Schema>>>,
+    game_selected: &Rc<RefCell<GameSelected>>,
+    supported_games: &Rc<RefCell<Vec<GameInfo>>>,
+    settings: &Settings,
+) -> Result<(), Error> {
+
+    // Get the data of the PackedFile and his name.
+    let packed_file_encoded = pack_file.borrow().pack_file_data.packed_files[*packed_file_decoded_index].packed_file_data.to_vec();
+    let table_name = pack_file.borrow().pack_file_data.packed_files[*packed_file_decoded_index].packed_file_path[1].to_owned();
+
+    // Try to decode it, and return error in case of missing schema.
+    let packed_file_decoded = match *schema.borrow() {
+        Some(ref schema) => DB::read(&packed_file_encoded, &table_name, schema),
+        None => return Err(format_err!("There is no Schema loaded for this game.")),
+    };
+
+    // We create the button to enable the "Decoding" mode.
+    let decode_mode_button = Button::new_with_label("Enter decoding mode");
+    decode_mode_button.set_hexpand(true);
+    app_ui.packed_file_data_display.attach(&decode_mode_button, 0, 0, 1, 1);
+    app_ui.packed_file_data_display.show_all();
+
+    // Tell the program there is an open PackedFile.
+    *is_packedfile_opened.borrow_mut() = true;
+
+    // When we destroy the "Enable decoding mode" button, we need to tell the program we no longer have
+    // an open PackedFile. This happens when we select another PackedFile (closing a table) or when we
+    // hit the button (entering the decoder, where we no longer need write access to the original file).
+    decode_mode_button.connect_destroy(clone!(
+        is_packedfile_opened => move |_| {
+            *is_packedfile_opened.borrow_mut() = false;
+        }
+    ));
+
+    // From here, we deal we the decoder stuff.
+    decode_mode_button.connect_button_release_event(clone!(
+        application,
+        app_ui,
+        schema,
+        rpfm_path,
+        game_selected,
+        supported_games => move |_,_| {
+
+            // We destroy the table view if exists, and the button, so we don't have to deal with resizing it.
+            let childrens_to_utterly_destroy = app_ui.packed_file_data_display.get_children();
+            if !childrens_to_utterly_destroy.is_empty() {
+                for i in &childrens_to_utterly_destroy {
+                    i.destroy();
+                }
+            }
+
+            // And only in case the db_header has been decoded, we do the rest.
+            match DBHeader::read(&packed_file_encoded){
+                Ok(db_header) => {
+
+                    // Then try to create the UI and if it throws an error, report it.
+                    if let Err(error) = PackedFileDBDecoder::create_decoder_view(
+                        &application,
+                        &app_ui,
+                        &rpfm_path,
+                        &supported_games,
+                        &game_selected,
+                        table_name.to_owned(),
+                        packed_file_encoded.to_vec(),
+                        db_header,
+                        &schema,
+                    ) {
+                        show_dialog(&app_ui.window, false, error.cause())
+                    };
+                },
+                Err(error) => show_dialog(&app_ui.window, false, error.cause()),
+            }
+            Inhibit(false)
+        }
+    ));
+
+    // If this returns an error, we just leave the button for the decoder.
+    match packed_file_decoded {
+        Ok(packed_file_decoded) => {
+
+            // Try to open the dependency PackFile of our game.
+            let dependency_database = match open_packfile(game_selected.borrow().game_dependency_packfile_path.to_path_buf()) {
+                Ok(data) => Some(data.pack_file_data.packed_files),
+                Err(_) => None,
+            };
+
+            // Get the decoded PackedFile in a `Rc<RefCell<>>` so we can pass it to the closures.
+            let packed_file_decoded = Rc::new(RefCell::new(packed_file_decoded));
+
+            // Try to create the `TreeView`.
+            if let Err(error) = PackedFileDBTreeView::create_tree_view(
+                &application,
+                &app_ui,
+                &pack_file,
+                &packed_file_decoded,
+                packed_file_decoded_index,
+                &dependency_database,
+                &schema.borrow().clone().unwrap(),
+                &settings,
+            ) { return Err(error) };
+
+            // Return success.
+            Ok(())
+        }
+
+        // If we receive an error while decoding, report it.
+        Err(error) => Err(error),
+    }
+}
+
 
 /// Implementation of `PackedFileDBTreeView`.
 impl PackedFileDBTreeView{
@@ -101,8 +221,8 @@ impl PackedFileDBTreeView{
     pub fn create_tree_view(
         application: &Application,
         app_ui: &AppUI,
-        pack_file: Rc<RefCell<PackFile>>,
-        packed_file_decoded: Rc<RefCell<DB>>,
+        pack_file: &Rc<RefCell<PackFile>>,
+        packed_file_decoded: &Rc<RefCell<DB>>,
         packed_file_decoded_index: &usize,
         dependency_database: &Option<Vec<PackedFile>>,
         master_schema: &Schema,
@@ -2198,6 +2318,7 @@ impl PackedFileDBTreeView{
     }
 }
 
+/// Implementation of `PackedFileDBDecoder`.
 impl PackedFileDBDecoder {
 
     /// This function creates the "Decoder View" with all the stuff needed to decode a table, and it
