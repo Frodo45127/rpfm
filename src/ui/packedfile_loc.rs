@@ -46,6 +46,7 @@ impl PackedFileLocTreeView{
         pack_file: Rc<RefCell<PackFile>>,
         packed_file_decoded: Rc<RefCell<Loc>>,
         packed_file_decoded_index: &usize,
+        is_packedfile_opened: &Rc<RefCell<bool>>,
         settings: &Settings
     ) {
 
@@ -317,6 +318,13 @@ impl PackedFileLocTreeView{
 
         // Then we populate the TreeView with the entries of the Loc PackedFile.
         PackedFileLocTreeView::load_data_to_tree_view(&packed_file_decoded.borrow().packed_file_data, &decoded_view.list_store);
+
+        // When we destroy the `ScrolledWindow`, we need to tell the program we no longer have an open PackedFile.
+        packed_file_data_scroll.connect_destroy(clone!(
+            is_packedfile_opened => move |_| {
+                *is_packedfile_opened.borrow_mut() = false;
+            }
+        ));
 
         // Contextual Menu actions.
         {

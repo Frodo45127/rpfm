@@ -52,16 +52,13 @@ use gtk::{
     ShortcutsWindow, ToVariant, Statusbar, FileChooserNative, FileChooserAction
 };
 
-use common::coding_helpers;
 use common::*;
-use packfile::*;
 use packfile::packfile::PackFile;
 use packedfile::loc::Loc;
 use packedfile::db::DB;
 use packedfile::db::DBHeader;
 use packedfile::db::schemas::*;
 use packedfile::db::schemas_importer::*;
-use packedfile::rigidmodel::RigidModel;
 use settings::*;
 use ui::*;
 use ui::packedfile_db::*;
@@ -385,6 +382,13 @@ fn build_ui(application: &Application) {
     // We need it to lock this feature when we open a secondary PackFile and want to import some
     // PackedFiles to our opened PackFile.
     let is_folder_tree_view_locked = Rc::new(RefCell::new(false));
+
+    // This variable is used to "Lock" the "Delete PackedFile" action. We need this because this is
+    // the only action that can change the index of a PackedFile while it's open, causing it to try
+    // to save itself in the position of another PackedFile. This can trigger data corruption or an
+    // "index out of bounds" CTD in runtime, so we need this variable to check if we can delete a
+    // PackedFile before even trying it.
+    let is_packedfile_opened = Rc::new(RefCell::new(false));
 
     // Here we define the `Accept` response for GTK, as it seems Restson causes it to fail to compile
     // if we get them to i32 directly in the `if` statement.
@@ -2338,45 +2342,56 @@ fn build_ui(application: &Application) {
     // When we hit the "Delete file/folder" button.
     app_ui.folder_tree_view_delete_packedfile.connect_activate(clone!(
         app_ui,
+        is_packedfile_opened,
         pack_file_decoded => move |_,_|{
 
             // We hide the context menu, then we get the selected file/folder, delete it and update the
             // TreeView. Pretty simple, actually.
             app_ui.folder_tree_view_context_menu.popdown();
 
-            // We only do something in case the focus is in the TreeView. This should stop problems with
-            // the accels working everywhere.
-            if app_ui.folder_tree_view.has_focus() {
+            // If there is a PackedFile opened, we show a message with the explanation of why we can't
+            // delete the selected file/folder.
+            if *is_packedfile_opened.borrow() {
+                show_dialog(&app_ui.window, false, "You can't delete a PackedFile/Folder while there is a PackedFile opened in the right side. Pls close it by clicking in a Folder/PackFile before trying to delete it again.")
+            }
 
-                // Get his `tree_path`.
-                let tree_path = get_tree_path_from_selection(&app_ui.folder_tree_selection, true);
+            // Otherwise, we continue the deletion process.
+            else {
 
-                // Get his type.
-                let selection_type = get_type_of_selected_tree_path(&tree_path, &pack_file_decoded.borrow());
+                // We only do something in case the focus is in the TreeView. This should stop problems with
+                // the accels working everywhere.
+                if app_ui.folder_tree_view.has_focus() {
 
-                // Try to delete whatever is selected.
-                let success = match packfile::delete_from_packfile(&mut *pack_file_decoded.borrow_mut(), &tree_path) {
-                    Ok(_) => true,
-                    Err(error) => {
-                        show_dialog(&app_ui.window, false, error.cause());
-                        false
+                    // Get his `tree_path`.
+                    let tree_path = get_tree_path_from_selection(&app_ui.folder_tree_selection, true);
+
+                    // Get his type.
+                    let selection_type = get_type_of_selected_tree_path(&tree_path, &pack_file_decoded.borrow());
+
+                    // Try to delete whatever is selected.
+                    let success = match packfile::delete_from_packfile(&mut *pack_file_decoded.borrow_mut(), &tree_path) {
+                        Ok(_) => true,
+                        Err(error) => {
+                            show_dialog(&app_ui.window, false, error.cause());
+                            false
+                        }
+                    };
+
+                    // If we succeed...
+                    if success {
+
+                        // Set the mod as "Modified".
+                        set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
+
+                        // Remove whatever is selected (and his childs, if it have any) from the `TreeView`.
+                        update_treeview(
+                            &app_ui.folder_tree_store,
+                            &*pack_file_decoded.borrow(),
+                            &app_ui.folder_tree_selection,
+                            TreeViewOperation::Delete,
+                            &selection_type,
+                        );
                     }
-                };
-
-                // If we succeed...
-                if success {
-
-                    // Set the mod as "Modified".
-                    set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
-
-                    // Remove whatever is selected (and his childs, if it have any) from the `TreeView`.
-                    update_treeview(
-                        &app_ui.folder_tree_store,
-                        &*pack_file_decoded.borrow(),
-                        &app_ui.folder_tree_selection,
-                        TreeViewOperation::Delete,
-                        &selection_type,
-                    );
                 }
             }
         }
@@ -2633,6 +2648,7 @@ fn build_ui(application: &Application) {
         rpfm_path,
         supported_games,
         pack_file_decoded,
+        is_packedfile_opened,
         is_folder_tree_view_locked => move |_,_,_| {
 
         // Before anything else, we need to check if the `TreeView` is unlocked. Otherwise we don't do anything from here.
@@ -2719,8 +2735,12 @@ fn build_ui(application: &Application) {
                                         pack_file_decoded.clone(),
                                         packed_file_data_decoded.clone(),
                                         &index,
+                                        &is_packedfile_opened,
                                         &settings.borrow()
                                     );
+
+                                    // Tell the program there is an open PackedFile.
+                                    *is_packedfile_opened.borrow_mut() = true;
                                 }
                                 Err(error) => show_dialog(&app_ui.window, false, error.cause()),
                             }
@@ -2740,6 +2760,18 @@ fn build_ui(application: &Application) {
                             decode_mode_button.set_hexpand(true);
                             app_ui.packed_file_data_display.attach(&decode_mode_button, 0, 0, 1, 1);
                             app_ui.packed_file_data_display.show_all();
+
+                            // Tell the program there is an open PackedFile.
+                            *is_packedfile_opened.borrow_mut() = true;
+
+                            // When we destroy the "Enable decoding mode" button, we need to tell the program we no longer have
+                            // an open PackedFile. This happens when we select another PackedFile (closing a table) or when we
+                            // hit the button (entering the decoder, where we no longer need write access to the original file).
+                            decode_mode_button.connect_destroy(clone!(
+                                is_packedfile_opened => move |_| {
+                                    *is_packedfile_opened.borrow_mut() = false;
+                                }
+                            ));
 
                             // From here, we deal we the decoder stuff.
                             decode_mode_button.connect_button_release_event(clone!(
@@ -2820,42 +2852,15 @@ fn build_ui(application: &Application) {
                         // his language, if it's an specific language file.
                         "TEXT" => {
 
-                            let source_view_buffer = create_text_view(
-                                &app_ui.packed_file_data_display,
-                                &app_ui.status_bar,
-                                tree_path.last().unwrap(),
-                                &pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data
-                            );
+                            if let Err(error) = create_text_view(
+                                &app_ui,
+                                &pack_file_decoded,
+                                &index,
+                                &is_packedfile_opened,
+                            ) { return show_dialog(&app_ui.window, false, error.cause()) };
 
-                            // If we got the SourceView done, we save his buffer on change.
-                            match source_view_buffer {
-                                Some(source_view_buffer) => {
-                                    source_view_buffer.connect_changed(clone!(
-                                        app_ui,
-                                        pack_file_decoded => move |source_view_buffer| {
-                                            let packed_file_data = coding_helpers::encode_string_u8(&source_view_buffer.get_slice(
-                                                &source_view_buffer.get_start_iter(),
-                                                &source_view_buffer.get_end_iter(),
-                                                true
-                                            ).unwrap());
-
-                                            update_packed_file_data_text(
-                                                &packed_file_data,
-                                                &mut pack_file_decoded.borrow_mut(),
-                                                index as usize
-                                            );
-
-                                            set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
-                                        }
-                                    ));
-                                }
-
-                                // If none has been returned, there has been an error while decoding.
-                                None => {
-                                    let message = "Error while trying to decode a Text PackedFile.";
-                                    show_message_in_statusbar(&app_ui.status_bar, message);
-                                }
-                            }
+                            // Tell the program there is an open PackedFile.
+                            *is_packedfile_opened.borrow_mut() = true;
                         }
 
                         // If it's an image it doesn't require any extra interaction. Just create the View
@@ -2871,117 +2876,16 @@ fn build_ui(application: &Application) {
 
                         // If it's a rigidmodel, we decode it and take care of his update events.
                         "RIGIDMODEL" => {
-                            let packed_file_data_encoded = &*pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data;
-                            let packed_file_data_decoded = RigidModel::read(packed_file_data_encoded);
-                            match packed_file_data_decoded {
-                                Ok(packed_file_data_decoded) => {
-                                    let packed_file_data_view_stuff = match packedfile_rigidmodel::PackedFileRigidModelDataView::create_data_view(&app_ui.packed_file_data_display, &packed_file_data_decoded){
-                                        Ok(result) => result,
-                                        Err(error) => {
-                                            let message = format_err!("Error while trying to decode a RigidModel: {}", error.cause());
-                                            return show_message_in_statusbar(&app_ui.status_bar, message)
-                                        },
-                                    };
-                                    let patch_button = packed_file_data_view_stuff.rigid_model_game_patch_button;
-                                    let game_label = packed_file_data_view_stuff.rigid_model_game_label;
-                                    let texture_paths = packed_file_data_view_stuff.packed_file_texture_paths;
-                                    let texture_paths_index = packed_file_data_view_stuff.packed_file_texture_paths_index;
-                                    let packed_file_data_decoded = Rc::new(RefCell::new(packed_file_data_decoded));
 
-                                    // When we hit the "Patch to Warhammer 1&2" button.
-                                    patch_button.connect_button_release_event(clone!(
-                                        app_ui,
-                                        pack_file_decoded,
-                                        packed_file_data_decoded => move |patch_button, _| {
+                            if let Err(error) = PackedFileRigidModelDataView::create_data_view(
+                                &app_ui,
+                                &pack_file_decoded,
+                                &index,
+                                &is_packedfile_opened,
+                            ) { return show_dialog(&app_ui.window, false, error.cause()) };
 
-                                        // Patch the RigidModel...
-                                        let packed_file_data_patch_result = packfile::patch_rigid_model_attila_to_warhammer(&mut *packed_file_data_decoded.borrow_mut());
-                                        match packed_file_data_patch_result {
-                                            Ok(result) => {
-
-                                                // Disable the button and change his game...
-                                                patch_button.set_sensitive(false);
-                                                game_label.set_text("Warhammer 1&2");
-
-                                                // Save the changes to the PackFile....
-                                                let mut success = false;
-                                                match update_packed_file_data_rigid(
-                                                    &*packed_file_data_decoded.borrow(),
-                                                    &mut *pack_file_decoded.borrow_mut(),
-                                                    index as usize
-                                                ) {
-                                                    Ok(_) => {
-                                                        success = true;
-                                                        show_dialog(&app_ui.window, true, result);
-                                                    },
-                                                    Err(error) => show_dialog(&app_ui.window, false, error.cause()),
-                                                }
-
-                                                // If it works, set it as modified.
-                                                if success {
-                                                    set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
-                                                }
-                                            },
-                                            Err(error) => show_dialog(&app_ui.window, false, error.cause()),
-                                        }
-                                        Inhibit(false)
-                                    }));
-
-                                    // When we change any of the Paths...
-                                    // TODO: It's extremely slow with big models. Need to find a way to fix it.
-                                    for lod in &texture_paths {
-                                        for texture_path in lod {
-                                            texture_path.connect_changed(clone!(
-                                                pack_file_decoded,
-                                                packed_file_data_decoded,
-                                                texture_paths,
-                                                texture_paths_index,
-                                                app_ui => move |_| {
-
-                                                    // Get the data from the View...
-                                                    let new_data = match PackedFileRigidModelDataView::return_data_from_data_view(
-                                                        &texture_paths,
-                                                        &texture_paths_index,
-                                                        &mut (*packed_file_data_decoded.borrow_mut()).packed_file_data.packed_file_data_lods_data.to_vec()
-                                                    ) {
-                                                        Ok(new_data) => new_data,
-                                                        Err(error) => {
-                                                            let message = format_err!("Error while trying to save changes to a RigidModel: {}", error.cause());
-                                                            return show_message_in_statusbar(&app_ui.status_bar, message)
-                                                        }
-                                                    };
-
-                                                    // Save it encoded into the opened RigidModel...
-                                                    packed_file_data_decoded.borrow_mut().packed_file_data.packed_file_data_lods_data = new_data;
-
-                                                    // And then into the PackFile.
-                                                    let success;
-                                                    match update_packed_file_data_rigid(
-                                                        &*packed_file_data_decoded.borrow(),
-                                                        &mut *pack_file_decoded.borrow_mut(),
-                                                        index as usize
-                                                    ) {
-                                                        Ok(_) => { success = true },
-                                                        Err(error) => {
-                                                            let message = format_err!("Error while trying to save changes to a RigidModel: {}", error.cause());
-                                                            return show_message_in_statusbar(&app_ui.status_bar, message)
-                                                        }
-                                                    }
-
-                                                    // If it works, set it as modified.
-                                                    if success {
-                                                        set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
-                                                    }
-                                                }
-                                            ));
-                                        }
-                                    }
-                                }
-                                Err(error) => {
-                                    let message = format_err!("Error while trying to decoded a RigidModel: {}", error.cause());
-                                    return show_message_in_statusbar(&app_ui.status_bar, message)
-                                }
-                            }
+                            // Tell the program there is an open PackedFile.
+                            *is_packedfile_opened.borrow_mut() = true;
                         }
 
                         // If we reach this point, the coding to implement this type of file is not done yet,

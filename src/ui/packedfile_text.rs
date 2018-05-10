@@ -2,31 +2,40 @@
 extern crate std;
 extern crate gtk;
 extern crate sourceview;
+extern crate failure;
 
+use std::cell::RefCell;
+use std::rc::Rc;
+use failure::Error;
 use sourceview::prelude::*;
 use sourceview::{
     Buffer, View, Language, LanguageManager, StyleScheme, StyleSchemeManager, CompletionWords
 };
 use gtk::prelude::*;
-use gtk::{ScrolledWindow, Grid, Statusbar};
+use gtk::ScrolledWindow;
 
+use packfile::packfile::PackFile;
 use common::coding_helpers::*;
-use ui::show_message_in_statusbar;
+use AppUI;
+use packfile::update_packed_file_data_text;
+use ui::*;
 
 
 /// This function is used to create a ScrolledWindow with the SourceView inside. If there is an
 /// error, just say it in the statusbar.
 pub fn create_text_view(
-    packed_file_data_display: &Grid,
-    status_bar: &Statusbar,
-    packed_file_name: &str,
-    packed_file_data: &[u8],
-) -> Option<Buffer> {
+    app_ui: &AppUI,
+    pack_file: &Rc<RefCell<PackFile>>,
+    packed_file_decoded_index: &usize,
+    is_packedfile_opened: &Rc<RefCell<bool>>
+) -> Result<(), Error> {
 
-    // Before doing anything, we try to decode the data. Only if we success, we create
-    // the SourceView and add the data to it.
+    // Get the name of the PackedFile.
+    let packed_file_name = &pack_file.borrow().pack_file_data.packed_files[*packed_file_decoded_index].packed_file_path.last().unwrap().to_owned();
+
+    // We try to decode the data. Only if we success, we create the SourceView and add the data to it.
     // NOTE: This only works for UTF-8 encoded files. Check their encoding before adding them here to be decoded.
-    match decode_string_u8(packed_file_data) {
+    match decode_string_u8(&pack_file.borrow().pack_file_data.packed_files[*packed_file_decoded_index].packed_file_data) {
         Ok(text) => {
 
             // We create the new SourceView (in a ScrolledWindow) and his buffer,
@@ -50,7 +59,9 @@ pub fn create_text_view(
             if let Some(style) = style { source_view_buffer.set_style_scheme(&style); }
 
             // We attach it to the main grid.
-            packed_file_data_display.attach(&source_view_scroll, 0, 0, 1, 1);
+            app_ui.packed_file_data_display.attach(&source_view_scroll, 0, 0, 1, 1);
+
+            // Get
 
             // Then, we get the Language of the file.
             let language_manager = LanguageManager::get_default().unwrap();
@@ -126,20 +137,40 @@ pub fn create_text_view(
 
             // And show everything.
             source_view_scroll.add(&source_view);
-            packed_file_data_display.show_all();
+            app_ui.packed_file_data_display.show_all();
 
-            // Return the view.
-            Some(source_view_buffer)
+            // When we destroy the `ScrolledWindow`, we need to tell the program we no longer have an open PackedFile.
+            source_view_scroll.connect_destroy(clone!(
+                is_packedfile_opened => move |_| {
+                    *is_packedfile_opened.borrow_mut() = false;
+                }
+            ));
+
+            // In case we change anything in the sourceview buffer, we save the PackedFile.
+            source_view_buffer.connect_changed(clone!(
+                app_ui,
+                pack_file,
+                packed_file_decoded_index => move |source_view_buffer| {
+                    let packed_file_data = encode_string_u8(&source_view_buffer.get_slice(
+                        &source_view_buffer.get_start_iter(),
+                        &source_view_buffer.get_end_iter(),
+                        true
+                    ).unwrap());
+
+                    update_packed_file_data_text(
+                        &packed_file_data,
+                        &mut pack_file.borrow_mut(),
+                        packed_file_decoded_index
+                    );
+
+                    set_modified(true, &app_ui.window, &mut *pack_file.borrow_mut());
+                }
+            ));
+
+            // Return success.
+            Ok(())
         }
-        Err(_) => {
-
-            // If there is an error when trying to decode the PackedFile, report it.
-            let message = format!("Error while trying to open the following file: \"{}\".", packed_file_name);
-            show_message_in_statusbar(status_bar, message);
-
-            // Return None.
-            None
-        }
+        Err(error) => Err(error)
     }
 }
 
