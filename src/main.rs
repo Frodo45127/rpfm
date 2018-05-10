@@ -2866,12 +2866,11 @@ fn build_ui(application: &Application) {
                         // If it's an image it doesn't require any extra interaction. Just create the View
                         // and show the Image.
                         "IMAGE" => {
-                            create_image_view(
-                                &app_ui.packed_file_data_display,
-                                &app_ui.status_bar,
-                                tree_path.last().unwrap(),
-                                &pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data
-                            );
+                            if let Err(error) = create_image_view(
+                                &app_ui,
+                                &pack_file_decoded,
+                                &index
+                            ) { return show_dialog(&app_ui.window, false, error.cause()) };
                         }
 
                         // If it's a rigidmodel, we decode it and take care of his update events.
