@@ -54,7 +54,6 @@ use gtk::{
 
 use common::*;
 use packfile::packfile::PackFile;
-use packedfile::loc::Loc;
 use packedfile::db::DB;
 use packedfile::db::DBHeader;
 use packedfile::db::schemas::*;
@@ -2718,32 +2717,17 @@ fn build_ui(application: &Application) {
 
                         // If the file is a Loc PackedFile...
                         "LOC" => {
+                            if let Err(error) = PackedFileLocTreeView::create_tree_view(
+                                &application,
+                                &app_ui,
+                                &pack_file_decoded,
+                                &index,
+                                &is_packedfile_opened,
+                                &settings.borrow()
+                            ) { return show_dialog(&app_ui.window, false, error.cause()) };
 
-                            // We try to decode it as a Loc PackedFile.
-                            match Loc::read(&*pack_file_decoded.borrow().pack_file_data.packed_files[index as usize].packed_file_data) {
-
-                                // If we succeed...
-                                Ok(packed_file_data_decoded) => {
-
-                                    // Store the decoded file in a Rc<RefCell<data>> so we can pass it to closures.
-                                    let packed_file_data_decoded = Rc::new(RefCell::new(packed_file_data_decoded));
-
-                                    // Create the `TreeView` for it.
-                                    PackedFileLocTreeView::create_tree_view(
-                                        &application,
-                                        &app_ui,
-                                        pack_file_decoded.clone(),
-                                        packed_file_data_decoded.clone(),
-                                        &index,
-                                        &is_packedfile_opened,
-                                        &settings.borrow()
-                                    );
-
-                                    // Tell the program there is an open PackedFile.
-                                    *is_packedfile_opened.borrow_mut() = true;
-                                }
-                                Err(error) => show_dialog(&app_ui.window, false, error.cause()),
-                            }
+                            // Tell the program there is an open PackedFile.
+                            *is_packedfile_opened.borrow_mut() = true;
                         }
 
                         // If the file is a DB PackedFile...
@@ -2851,7 +2835,6 @@ fn build_ui(application: &Application) {
                         // If it's a plain text file, we create a source view and try to get highlighting for
                         // his language, if it's an specific language file.
                         "TEXT" => {
-
                             if let Err(error) = create_text_view(
                                 &app_ui,
                                 &pack_file_decoded,
@@ -2875,7 +2858,6 @@ fn build_ui(application: &Application) {
 
                         // If it's a rigidmodel, we decode it and take care of his update events.
                         "RIGIDMODEL" => {
-
                             if let Err(error) = PackedFileRigidModelDataView::create_data_view(
                                 &app_ui,
                                 &pack_file_decoded,
