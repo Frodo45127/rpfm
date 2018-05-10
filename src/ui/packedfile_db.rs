@@ -11,7 +11,6 @@ use std::rc::Rc;
 use packedfile::db::*;
 use packedfile::db::schemas::*;
 use packfile::packfile::PackedFile;
-use packfile::open_packfile;
 use settings::*;
 use common::coding_helpers;
 use failure::Error;
@@ -103,6 +102,7 @@ pub fn create_db_view(
     packed_file_decoded_index: &usize,
     is_packedfile_opened: &Rc<RefCell<bool>>,
     schema: &Rc<RefCell<Option<Schema>>>,
+    dependency_database: &Rc<RefCell<Option<Vec<PackedFile>>>>,
     game_selected: &Rc<RefCell<GameSelected>>,
     supported_games: &Rc<RefCell<Vec<GameInfo>>>,
     settings: &Settings,
@@ -127,12 +127,21 @@ pub fn create_db_view(
     // Tell the program there is an open PackedFile.
     *is_packedfile_opened.borrow_mut() = true;
 
+    // Disable the "Change game selected" function, so we cannot change the current schema with an open table.
+    app_ui.menu_bar_change_game_selected.set_enabled(false);
+
     // When we destroy the "Enable decoding mode" button, we need to tell the program we no longer have
     // an open PackedFile. This happens when we select another PackedFile (closing a table) or when we
     // hit the button (entering the decoder, where we no longer need write access to the original file).
     decode_mode_button.connect_destroy(clone!(
+        app_ui,
         is_packedfile_opened => move |_| {
+
+            // Tell the game you no longer have an open PackedFile.
             *is_packedfile_opened.borrow_mut() = false;
+
+            // Restore the "Change game selected" function.
+            app_ui.menu_bar_change_game_selected.set_enabled(true);
         }
     ));
 
@@ -182,12 +191,6 @@ pub fn create_db_view(
     match packed_file_decoded {
         Ok(packed_file_decoded) => {
 
-            // Try to open the dependency PackFile of our game.
-            let dependency_database = match open_packfile(game_selected.borrow().game_dependency_packfile_path.to_path_buf()) {
-                Ok(data) => Some(data.pack_file_data.packed_files),
-                Err(_) => None,
-            };
-
             // Get the decoded PackedFile in a `Rc<RefCell<>>` so we can pass it to the closures.
             let packed_file_decoded = Rc::new(RefCell::new(packed_file_decoded));
 
@@ -198,7 +201,7 @@ pub fn create_db_view(
                 &pack_file,
                 &packed_file_decoded,
                 packed_file_decoded_index,
-                &dependency_database,
+                &dependency_database.borrow(),
                 &schema.borrow().clone().unwrap(),
                 &settings,
             ) { return Err(error) };

@@ -54,6 +54,7 @@ use gtk::{
 
 use common::*;
 use packfile::packfile::PackFile;
+use packfile::packfile::PackedFile;
 use packedfile::db::schemas::*;
 use packedfile::db::schemas_importer::*;
 use settings::*;
@@ -420,6 +421,12 @@ fn build_ui(application: &Application) {
     // Set the default game as selected game.
     app_ui.menu_bar_change_game_selected.change_state(&(&settings.borrow().default_game).to_variant());
 
+    // Try to open the dependency PackFile of our `game_selected`.
+    let dependency_database = match packfile::open_packfile(game_selected.borrow().game_dependency_packfile_path.to_path_buf()) {
+        Ok(data) => Rc::new(RefCell::new(Some(data.pack_file_data.packed_files))),
+        Err(_) => Rc::new(RefCell::new(None)),
+    };
+
     // Prepare the "MyMod" menu. This... atrocity needs to be in the following places for MyMod to open PackFiles:
     // - At the start of the program (here).
     // - At the end of MyMod creation.
@@ -433,6 +440,7 @@ fn build_ui(application: &Application) {
         &schema,
         &game_selected,
         &supported_games,
+        &dependency_database,
         &pack_file_decoded,
         &pack_file_decoded_extra,
         &rpfm_path
@@ -571,6 +579,7 @@ fn build_ui(application: &Application) {
         settings,
         mode,
         supported_games,
+        dependency_database,
         pack_file_decoded_extra,
         pack_file_decoded => move |_,_| {
 
@@ -611,6 +620,7 @@ fn build_ui(application: &Application) {
                         &mut schema.borrow_mut(),
                         &supported_games.borrow(),
                         &game_selected,
+                        &dependency_database,
                         &(false, None),
                         &pack_file_decoded,
                         &pack_file_decoded_extra
@@ -799,6 +809,7 @@ fn build_ui(application: &Application) {
         rpfm_path,
         mode,
         application,
+        dependency_database,
         pack_file_decoded_extra,
         schema => move |_,_| {
 
@@ -820,6 +831,7 @@ fn build_ui(application: &Application) {
                 rpfm_path,
                 schema,
                 mode,
+                dependency_database,
                 pack_file_decoded_extra,
                 application => move |_,_| {
 
@@ -858,6 +870,7 @@ fn build_ui(application: &Application) {
                                 &schema,
                                 &game_selected,
                                 &supported_games,
+                                &dependency_database,
                                 &pack_file_decoded,
                                 &pack_file_decoded_extra,
                                 &rpfm_path
@@ -973,6 +986,7 @@ fn build_ui(application: &Application) {
         supported_games,
         rpfm_path,
         mode,
+        dependency_database,
         pack_file_decoded_extra,
         pack_file_decoded => move |_,_| {
 
@@ -993,6 +1007,7 @@ fn build_ui(application: &Application) {
                 supported_games,
                 rpfm_path,
                 game_selected,
+                dependency_database,
                 pack_file_decoded_extra,
                 pack_file_decoded => move |_,_| {
 
@@ -1069,6 +1084,7 @@ fn build_ui(application: &Application) {
                             &schema,
                             &game_selected,
                             &supported_games,
+                            &dependency_database,
                             &pack_file_decoded,
                             &pack_file_decoded_extra,
                             &rpfm_path
@@ -1123,6 +1139,7 @@ fn build_ui(application: &Application) {
         rpfm_path,
         mode,
         supported_games,
+        dependency_database,
         pack_file_decoded_extra,
         pack_file_decoded => move |_,_| {
 
@@ -1214,6 +1231,7 @@ fn build_ui(application: &Application) {
                         &schema,
                         &game_selected,
                         &supported_games,
+                        &dependency_database,
                         &pack_file_decoded,
                         &pack_file_decoded_extra,
                         &rpfm_path
@@ -1350,6 +1368,7 @@ fn build_ui(application: &Application) {
         settings,
         supported_games,
         pack_file_decoded,
+        dependency_database,
         game_selected => move |menu_bar_change_game_selected, selected| {
 
             // Get the new state of the action.
@@ -1364,6 +1383,12 @@ fn build_ui(application: &Application) {
 
                 // Change the `Schema` for that game.
                 *schema.borrow_mut() = Schema::load(&rpfm_path, &supported_games.borrow().iter().filter(|x| x.folder_name == *game_selected.borrow().game).map(|x| x.schema.to_owned()).collect::<String>()).ok();
+
+                // Change the `dependency_database` for that game.
+                *dependency_database.borrow_mut() = match packfile::open_packfile(game_selected.borrow().game_dependency_packfile_path.to_path_buf()) {
+                    Ok(data) => Some(data.pack_file_data.packed_files),
+                    Err(_) => None,
+                };
 
                 // If we have a PackFile opened....
                 if !pack_file_decoded.borrow().pack_file_extra_data.file_name.is_empty() {
@@ -2645,6 +2670,7 @@ fn build_ui(application: &Application) {
         rpfm_path,
         supported_games,
         pack_file_decoded,
+        dependency_database,
         is_packedfile_opened,
         is_folder_tree_view_locked => move |_,_,_| {
 
@@ -2738,6 +2764,7 @@ fn build_ui(application: &Application) {
                                 &index,
                                 &is_packedfile_opened,
                                 &schema,
+                                &dependency_database,
                                 &game_selected,
                                 &supported_games,
                                 &settings.borrow()
@@ -2803,10 +2830,11 @@ fn build_ui(application: &Application) {
         app_ui,
         settings,
         schema,
-        game_selected,
         rpfm_path,
         mode,
+        game_selected,
         supported_games,
+        dependency_database,
         pack_file_decoded_extra,
         pack_file_decoded => move |_, _, _, _, selection_data, info, _| {
 
@@ -2828,6 +2856,7 @@ fn build_ui(application: &Application) {
                             &mut schema.borrow_mut(),
                             &supported_games.borrow(),
                             &game_selected,
+                            &dependency_database,
                             &(false, None),
                             &pack_file_decoded,
                             &pack_file_decoded_extra
@@ -2855,6 +2884,7 @@ fn build_ui(application: &Application) {
             &mut schema.borrow_mut(),
             &supported_games.borrow(),
             &game_selected,
+            &dependency_database,
             &(false, None),
             &pack_file_decoded,
             &pack_file_decoded_extra
@@ -2878,6 +2908,7 @@ fn open_packfile(
     schema: &mut Option<Schema>,
     supported_games: &[GameInfo],
     game_selected: &Rc<RefCell<GameSelected>>,
+    dependency_database: &Rc<RefCell<Option<Vec<PackedFile>>>>,
     is_my_mod: &(bool, Option<String>),
     pack_file_decoded: &Rc<RefCell<PackFile>>,
     pack_file_decoded_extra: &Rc<RefCell<PackFile>>,
@@ -2970,6 +3001,12 @@ fn open_packfile(
                     },
                 }
 
+                // Change the `dependency_database` for that game.
+                *dependency_database.borrow_mut() = match packfile::open_packfile(game_selected.borrow().game_dependency_packfile_path.to_path_buf()) {
+                    Ok(data) => Some(data.pack_file_data.packed_files),
+                    Err(_) => None,
+                };
+
                 // Set the current "Operational Mode" to `Normal`.
                 set_my_mod_mode(app_ui, mode, None);
             }
@@ -3022,6 +3059,7 @@ fn build_my_mod_menu(
     schema: &Rc<RefCell<Option<Schema>>>,
     game_selected: &Rc<RefCell<GameSelected>>,
     supported_games: &Rc<RefCell<Vec<GameInfo>>>,
+    dependency_database: &Rc<RefCell<Option<Vec<PackedFile>>>>,
     pack_file_decoded: &Rc<RefCell<PackFile>>,
     pack_file_decoded_extra: &Rc<RefCell<PackFile>>,
     rpfm_path: &PathBuf,
@@ -3090,6 +3128,7 @@ fn build_my_mod_menu(
                                         rpfm_path,
                                         supported_games,
                                         game_selected,
+                                        dependency_database,
                                         pack_file_decoded_extra,
                                         pack_file_decoded => move |_,_| {
 
@@ -3109,6 +3148,7 @@ fn build_my_mod_menu(
                                                     &mut schema.borrow_mut(),
                                                     &supported_games.borrow(),
                                                     &game_selected,
+                                                    &dependency_database,
                                                     &(true, Some(game_folder_name.borrow().to_owned())),
                                                     &pack_file_decoded,
                                                     &pack_file_decoded_extra
