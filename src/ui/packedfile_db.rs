@@ -3,7 +3,6 @@ extern crate gtk;
 extern crate gdk;
 extern crate gio;
 extern crate glib;
-extern crate hex_slice;
 extern crate failure;
 
 use std::cell::RefCell;
@@ -28,8 +27,6 @@ use super::*;
 use packedfile::SerializableToTSV;
 use AppUI;
 use packfile::update_packed_file_data_db;
-
-use self::hex_slice::AsHex;
 
 /// Struct `PackedFileDBTreeView`: contains all the stuff we need to give to the program to show a
 /// `TreeView` with the data of a DB PackedFile, allowing us to manipulate it.
@@ -3452,64 +3449,14 @@ impl PackedFileDBDecoder {
 
         // This gets the hex data into place. In big files, this takes ages, so we cut them if they
         // are longer than 100 lines to speed up loading and fix a weird issue with big tables.
-        let hex_raw_data = format!("{:X}", packed_file_encoded.as_hex());
-
-        // We need to do this 2 times, because the first one skips chars if they are consecutive.
-        let hex_raw_data = hex_raw_data.replace(" 0 ", " 00 ");
-        let hex_raw_data = hex_raw_data.replace(" 1 ", " 01 ");
-        let hex_raw_data = hex_raw_data.replace(" 2 ", " 02 ");
-        let hex_raw_data = hex_raw_data.replace(" 3 ", " 03 ");
-        let hex_raw_data = hex_raw_data.replace(" 4 ", " 04 ");
-        let hex_raw_data = hex_raw_data.replace(" 5 ", " 05 ");
-        let hex_raw_data = hex_raw_data.replace(" 6 ", " 06 ");
-        let hex_raw_data = hex_raw_data.replace(" 7 ", " 07 ");
-        let hex_raw_data = hex_raw_data.replace(" 8 ", " 08 ");
-        let hex_raw_data = hex_raw_data.replace(" 9 ", " 09 ");
-        let hex_raw_data = hex_raw_data.replace(" A ", " 0A ");
-        let hex_raw_data = hex_raw_data.replace(" B ", " 0B ");
-        let hex_raw_data = hex_raw_data.replace(" C ", " 0C ");
-        let hex_raw_data = hex_raw_data.replace(" D ", " 0D ");
-        let hex_raw_data = hex_raw_data.replace(" E ", " 0E ");
-        let hex_raw_data = hex_raw_data.replace(" F ", " 0F ");
-
-        let hex_raw_data = hex_raw_data.replace(" 0 ", " 00 ");
-        let hex_raw_data = hex_raw_data.replace(" 1 ", " 01 ");
-        let hex_raw_data = hex_raw_data.replace(" 2 ", " 02 ");
-        let hex_raw_data = hex_raw_data.replace(" 3 ", " 03 ");
-        let hex_raw_data = hex_raw_data.replace(" 4 ", " 04 ");
-        let hex_raw_data = hex_raw_data.replace(" 5 ", " 05 ");
-        let hex_raw_data = hex_raw_data.replace(" 6 ", " 06 ");
-        let hex_raw_data = hex_raw_data.replace(" 7 ", " 07 ");
-        let hex_raw_data = hex_raw_data.replace(" 8 ", " 08 ");
-        let hex_raw_data = hex_raw_data.replace(" 9 ", " 09 ");
-        let hex_raw_data = hex_raw_data.replace(" A ", " 0A ");
-        let hex_raw_data = hex_raw_data.replace(" B ", " 0B ");
-        let hex_raw_data = hex_raw_data.replace(" C ", " 0C ");
-        let hex_raw_data = hex_raw_data.replace(" D ", " 0D ");
-        let hex_raw_data = hex_raw_data.replace(" E ", " 0E ");
-        let hex_raw_data = hex_raw_data.replace(" F ", " 0F ");
-
-        // This filtering doesn't work with the first and last characters, so we need to pass those ones separated.
-        let hex_raw_data = hex_raw_data.replace("[0 ", "[00 ").replace(" 0]", " 00]");
-        let hex_raw_data = hex_raw_data.replace("[1 ", "[01 ").replace(" 1]", " 01]");
-        let hex_raw_data = hex_raw_data.replace("[2 ", "[02 ").replace(" 2]", " 02]");
-        let hex_raw_data = hex_raw_data.replace("[3 ", "[03 ").replace(" 3]", " 03]");
-        let hex_raw_data = hex_raw_data.replace("[4 ", "[04 ").replace(" 4]", " 04]");
-        let hex_raw_data = hex_raw_data.replace("[5 ", "[05 ").replace(" 5]", " 05]");
-        let hex_raw_data = hex_raw_data.replace("[6 ", "[06 ").replace(" 6]", " 06]");
-        let hex_raw_data = hex_raw_data.replace("[7 ", "[07 ").replace(" 7]", " 07]");
-        let hex_raw_data = hex_raw_data.replace("[8 ", "[08 ").replace(" 8]", " 08]");
-        let hex_raw_data = hex_raw_data.replace("[9 ", "[09 ").replace(" 9]", " 09]");
-        let hex_raw_data = hex_raw_data.replace("[A ", "[0A ").replace(" A]", " 0A]");
-        let hex_raw_data = hex_raw_data.replace("[B ", "[0B ").replace(" B]", " 0B]");
-        let hex_raw_data = hex_raw_data.replace("[C ", "[0C ").replace(" C]", " 0C]");
-        let hex_raw_data = hex_raw_data.replace("[D ", "[0D ").replace(" D]", " 0D]");
-        let hex_raw_data = hex_raw_data.replace("[E ", "[0E ").replace(" E]", " 0E]");
-        let mut hex_raw_data = hex_raw_data.replace("[E ", "[0F ").replace(" F]", " 0F]");
+        let mut hex_raw_data = format!("{:02X?}", packed_file_encoded);
 
         // Remove the first and last chars.
         hex_raw_data.remove(0);
         hex_raw_data.pop();
+
+        // Remove all the kebab, or the commas. Whatever float your boat...
+        hex_raw_data.retain(|c| c != ',');
 
         // `raw_data_hex` TextView.
         {
