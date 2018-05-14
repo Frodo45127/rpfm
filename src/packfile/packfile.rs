@@ -12,28 +12,27 @@ use std::io::BufWriter;
 use std::io::Read;
 use std::io::Write;
 use std::fs::File;
-use self::failure::Error;
+use failure::Error;
 
 use common::coding_helpers::*;
-use common::coding_helpers;
 
-/// Struct PackFile: This stores the data of the entire PackFile in memory ('cause fuck lazy-loading),
+/// `PackFile`: This stores the data of the entire PackFile in memory ('cause fuck lazy-loading),
 /// along with some extra data needed to manipulate the PackFile.
 /// It stores the PackFile divided in 3 structs:
-/// - pack_file_extra_data: extra data that we need to manipulate the PackFile.
-/// - pack_file_header: header of the PackFile, decoded.
-/// - pack_file_data: data of the PackFile, decoded.
+/// - extra_data: extra data that we need to manipulate the PackFile.
+/// - header: header of the PackFile, decoded.
+/// - data: data of the PackFile, decoded.
 #[derive(Clone, Debug)]
 pub struct PackFile {
-    pub pack_file_extra_data: PackFileExtraData,
-    pub pack_file_header: PackFileHeader,
-    pub pack_file_data: PackFileData,
+    pub extra_data: PackFileExtraData,
+    pub header: PackFileHeader,
+    pub data: PackFileData,
 }
 
-/// Struct PackFileExtraData: This struct stores some extra data we need to manipulate the PackFiles:
+/// `PackFileExtraData`: This struct stores some extra data we need to manipulate the PackFiles:
 /// - file_name: name of the PackFile.
 /// - file_path: current full path of the PackFile in the FileSystem.
-/// - correlation_data: Vector with all the paths that are already in the TreeView. Useful for checking.
+/// - is_modified: true if we have changed the PackFile in any way.
 #[derive(Clone, Debug)]
 pub struct PackFileExtraData {
     pub file_name: String,
@@ -41,15 +40,14 @@ pub struct PackFileExtraData {
     pub is_modified: bool,
 }
 
-
-/// Struct PackFileHeader: This struct stores all the info we can get from the header of the PackFile:
-/// - pack_file_id: ID of the PackFile, like a version.
+/// `PackFileHeader`: This struct stores all the info we can get from the header of the PackFile:
+/// - id: ID of the PackFile, like a version.
 /// - pack_file_type: type of the PackFile (mod, movie,...).
 /// - pack_file_count: amount of files in the PackFile index, at the start of the data (dependencies).
 /// - pack_file_index_size: size in bytes of the PackFile Index of the file (the first part of the data, if exists).
 /// - packed_file_count: amount of PackedFiles stored inside the PackFile.
 /// - packed_file_index_size: size in bytes of the PackedFile Index of the file (the first part of the data).
-/// - packed_file_creation_time: turns out this is the epoch date of the creation of the PackFile.
+/// - creation_time: turns out this is the epoch date of the creation of the PackFile.
 ///
 /// NOTE: to understand the "pack_file_type":
 /// - 0 => "Boot",
@@ -57,61 +55,54 @@ pub struct PackFileExtraData {
 /// - 2 => "Patch",
 /// - 3 => "Mod",
 /// - 4 => "Movie",
+/// - Any other type => Special types we don't want to edit, only to read.
 #[derive(Clone, Debug)]
 pub struct PackFileHeader {
-    pub pack_file_id: String,
+    pub id: String,
     pub pack_file_type: u32,
     pub pack_file_count: u32,
     pub pack_file_index_size: u32,
     pub packed_file_count: u32,
     pub packed_file_index_size: u32,
-    pub packed_file_creation_time: NaiveDateTime,
+    pub creation_time: NaiveDateTime,
 }
 
-/// Struct PackFileData: This struct stores all the PackedFiles inside the PackFile in a vector.
+/// `PackFileData`: This struct stores all the PackedFiles inside the PackFile in a vector.
 #[derive(Clone, Debug)]
 pub struct PackFileData {
     pub pack_files: Vec<String>,
     pub packed_files: Vec<PackedFile>,
 }
 
-/// Struct PackedFile: This struct stores the data of a PackedFile:
-/// - packed_file_size: size of the data.
-/// - packed_file_path: path of the PackedFile inside the PackFile.
-/// - packed_file_data: the data of the PackedFile. Temporal, until we implement PackedFileTypes.
+/// `PackedFile`: This struct stores the data of a PackedFile:
+/// - size: size of the data.
+/// - path: path of the PackedFile inside the PackFile.
+/// - data: the data of the PackedFile.
 #[derive(Clone, Debug)]
 pub struct PackedFile {
-    pub packed_file_size: u32,
-    pub packed_file_path: Vec<String>,
-    pub packed_file_data: Vec<u8>,
+    pub size: u32,
+    pub path: Vec<String>,
+    pub data: Vec<u8>,
 }
 
-/// Implementation of "PackFile"
+/// Implementation of "PackFile".
 impl PackFile {
 
     /// This function creates a new empty "PackFile". This is used for creating a "dummy" PackFile.
-    pub fn new() -> PackFile {
-        let pack_file_extra_data = PackFileExtraData::new();
-        let pack_file_header = PackFileHeader::new("PFH5");
-        let pack_file_data = PackFileData::new();
-
-        PackFile {
-            pack_file_extra_data,
-            pack_file_header,
-            pack_file_data,
+    pub fn new() -> Self {
+        Self {
+            extra_data: PackFileExtraData::new(),
+            header: PackFileHeader::new("PFH5"),
+            data: PackFileData::new(),
         }
     }
 
     /// This function creates a new empty "PackFile" with a name.
-    pub fn new_with_name(file_name: String, packfile_id:&str) -> PackFile {
-        let pack_file_extra_data = PackFileExtraData::new_with_name(file_name);
-        let pack_file_header = PackFileHeader::new(packfile_id);
-        let pack_file_data = PackFileData::new();
-
-        PackFile {
-            pack_file_extra_data,
-            pack_file_header,
-            pack_file_data,
+    pub fn new_with_name(file_name: String, packfile_id: &str) -> Self {
+        Self {
+            extra_data: PackFileExtraData::new_with_name(file_name),
+            header: PackFileHeader::new(packfile_id),
+            data: PackFileData::new(),
         }
     }
 
@@ -121,26 +112,26 @@ impl PackFile {
     /// - packed_files: a Vec<PackedFile> we are going to add.
     pub fn add_packedfiles(&mut self, packed_files: &[PackedFile]) {
         for packed_file in packed_files {
-            self.pack_file_header.packed_file_count += 1;
-            self.pack_file_data.packed_files.push(packed_file.clone());
+            self.header.packed_file_count += 1;
+            self.data.packed_files.push(packed_file.clone());
         }
     }
 
-    /// This function remove a PackedFile from a PackFile.
+    /// This function removes a PackedFile from a PackFile.
     /// It requires:
     /// - self: the PackFile we are going to manipulate.
     /// - index: the index of the PackedFile we want to remove from the PackFile.
     pub fn remove_packedfile(&mut self, index: usize) {
-        self.pack_file_header.packed_file_count -= 1;
-        self.pack_file_data.packed_files.remove(index);
+        self.header.packed_file_count -= 1;
+        self.data.packed_files.remove(index);
     }
 
     /// This function remove all PackedFiles from a PackFile.
     /// It requires:
     /// - self: the PackFile we are going to manipulate.
     pub fn remove_all_packedfiles(&mut self) {
-        self.pack_file_header.packed_file_count = 0;
-        self.pack_file_data.packed_files = vec![];
+        self.header.packed_file_count = 0;
+        self.data.packed_files = vec![];
     }
 
     /// This function reads the content of a PackFile and returns an struct PackFile with all the
@@ -149,10 +140,7 @@ impl PackFile {
     /// - pack_file_buffered: a Vec<u8> with the entire PackFile encoded inside it.
     /// - file_name: a String with the name of the PackFile.
     /// - file_path: a PathBuf with the path of the PackFile.
-    pub fn read(pack_file: &mut BufReader<File>, file_name: String, file_path: PathBuf) -> Result<PackFile, Error> {
-
-        // We save the "Extra data" of the packfile
-        let pack_file_extra_data = PackFileExtraData::new_from_file(file_name, file_path);
+    pub fn read(pack_file: &mut BufReader<File>, file_name: String, file_path: PathBuf) -> Result<Self, Error> {
 
         // We try to decode the header of the PackFile.
         match PackFileHeader::read(pack_file) {
@@ -171,9 +159,9 @@ impl PackFile {
 
                         // We return a fully decoded PackFile.
                         Ok(PackFile {
-                            pack_file_extra_data,
-                            pack_file_header: header,
-                            pack_file_data: data,
+                            extra_data: PackFileExtraData::new_from_file(file_name, file_path),
+                            header: header,
+                            data: data,
                         })
                     },
 
@@ -191,90 +179,76 @@ impl PackFile {
     pub fn save(&self, mut file: &mut BufWriter<File>) -> Result<(), Error> {
 
         // First, we encode the indexes, as we need their final size to encode complete the header.
-        let indexes = self.pack_file_data.save_indexes(&self.pack_file_header);
+        let indexes = self.data.save_indexes(&self.header);
 
         // We try to write the header.
-        self.pack_file_header.save(&mut file, indexes.0.len() as u32, indexes.1.len() as u32)?;
+        self.header.save(&mut file, indexes.0.len() as u32, indexes.1.len() as u32)?;
 
         // Then, we try to write the indexes to the file.
         file.write(&indexes.0)?;
         file.write(&indexes.1)?;
 
         // After all that, we try to write all the PackFiles to the file.
-        self.pack_file_data.save_data(&mut file)?;
+        self.data.save_data(&mut file)?;
 
         // If nothing has failed, return success.
         Ok(())
     }
 }
 
-/// Implementation of "PackFileExtraData"
+/// Implementation of "PackFileExtraData".
 impl PackFileExtraData {
 
     /// This function creates an empty PackFileExtraData.
-    pub fn new() -> PackFileExtraData {
-        let file_name = String::new();
-        let file_path = PathBuf::new();
-        let is_modified = false;
-        PackFileExtraData {
-            file_name,
-            file_path,
-            is_modified,
+    pub fn new() -> Self {
+        Self {
+            file_name: String::new(),
+            file_path: PathBuf::new(),
+            is_modified: false,
         }
     }
 
     /// This function creates a PackFileExtraData with just a name.
-    pub fn new_with_name(file_name: String) -> PackFileExtraData {
-        let file_path = PathBuf::new();
-        let is_modified = false;
-        PackFileExtraData {
+    pub fn new_with_name(file_name: String) -> Self {
+        Self {
             file_name,
-            file_path,
-            is_modified,
+            file_path: PathBuf::new(),
+            is_modified: false,
         }
     }
 
     /// This function creates a PackFileExtraData with a name and a path.
-    pub fn new_from_file(file_name: String, file_path: PathBuf) -> PackFileExtraData {
-        let is_modified = false;
-        PackFileExtraData {
+    pub fn new_from_file(file_name: String, file_path: PathBuf) -> Self {
+        Self {
             file_name,
             file_path,
-            is_modified,
+            is_modified: false,
         }
     }
 }
 
-/// Implementation of "PackFileHeader"
+/// Implementation of "PackFileHeader".
 impl PackFileHeader {
 
-    /// This function creates a new PackFileHeader for an empty PackFile of Warhammer 2.
-    pub fn new(packfile_id: &str) -> PackFileHeader {
-        let pack_file_id = packfile_id.to_string();
-        let pack_file_type = 3 as u32;
-        let pack_file_count = 0 as u32;
-        let pack_file_index_size = 0 as u32;
-        let packed_file_count = 0 as u32;
-        let packed_file_index_size = 0 as u32;
-        let packed_file_creation_time = Utc::now().naive_utc();
-
-        PackFileHeader {
-            pack_file_id,
-            pack_file_type,
-            pack_file_count,
-            pack_file_index_size,
-            packed_file_count,
-            packed_file_index_size,
-            packed_file_creation_time,
+    /// This function creates a new PackFileHeader for an empty PackFile, using "Warhammer 2" as default game.
+    pub fn new(packfile_id: &str) -> Self {
+        Self {
+            id: packfile_id.to_owned(),
+            pack_file_type: 3,
+            pack_file_count: 0,
+            pack_file_index_size: 0,
+            packed_file_count: 0,
+            packed_file_index_size: 0,
+            creation_time: Utc::now().naive_utc(),
         }
     }
 
     /// This function reads the Header of a PackFile and decode it into a PackFileHeader. We read all
     /// this data in packs of 4 bytes, and read them in LittleEndian.
-    fn read(header: &mut BufReader<File>) -> Result<PackFileHeader, Error> {
+    fn read(header: &mut BufReader<File>) -> Result<Self, Error> {
 
         // Create a new default header.
-        let mut pack_file_header = PackFileHeader::new("PFH5");
+        let mut pack_file_header = Self::new("PFH5");
 
         // Create a little buffer to read the data from the header.
         let mut buffer = [0; 28];
@@ -288,11 +262,11 @@ impl PackFileHeader {
 
                     // Check his first 4 headers, to see if they are PackFiles we can read.
                     match decode_string_u8(&buffer[..4]) {
-                        Ok(pack_file_id) => {
+                        Ok(id) => {
 
                             // If the header's first 4 bytes are "PFH5" or "PFH4", it's a valid file, so we read it.
-                            if pack_file_id == "PFH5" || pack_file_id == "PFH4" {
-                                pack_file_header.pack_file_id = pack_file_id;
+                            if id == "PFH5" || id == "PFH4" {
+                                pack_file_header.id = id;
                             }
 
                             // If we reach this point, the file is not valid.
@@ -315,12 +289,12 @@ impl PackFileHeader {
         }
 
         // Fill the default header with the current PackFile values.
-        pack_file_header.pack_file_type = coding_helpers::decode_integer_u32(&buffer[4..8])?;
-        pack_file_header.pack_file_count = coding_helpers::decode_integer_u32(&buffer[8..12])?;
-        pack_file_header.pack_file_index_size = coding_helpers::decode_integer_u32(&buffer[12..16])?;
-        pack_file_header.packed_file_count = coding_helpers::decode_integer_u32(&buffer[16..20])?;
-        pack_file_header.packed_file_index_size = coding_helpers::decode_integer_u32(&buffer[20..24])?;
-        pack_file_header.packed_file_creation_time = NaiveDateTime::from_timestamp(i64::from(coding_helpers::decode_integer_u32(&buffer[24..28])?), 0);
+        pack_file_header.pack_file_type = decode_integer_u32(&buffer[4..8])?;
+        pack_file_header.pack_file_count = decode_integer_u32(&buffer[8..12])?;
+        pack_file_header.pack_file_index_size = decode_integer_u32(&buffer[12..16])?;
+        pack_file_header.packed_file_count = decode_integer_u32(&buffer[16..20])?;
+        pack_file_header.packed_file_index_size = decode_integer_u32(&buffer[20..24])?;
+        pack_file_header.creation_time = NaiveDateTime::from_timestamp(i64::from(decode_integer_u32(&buffer[24..28])?), 0);
 
         // Return the header.
         Ok(pack_file_header)
@@ -330,16 +304,16 @@ impl PackFileHeader {
     /// We just put all the data in order in a 28 bytes Vec<u8>, and return that Vec<u8>.
     fn save(&self, file: &mut BufWriter<File>, pack_file_index_size: u32, packed_file_index_size: u32) -> Result<(), Error> {
 
-        file.write(&coding_helpers::encode_string_u8(&self.pack_file_id))?;
-        file.write(&coding_helpers::encode_integer_u32(self.pack_file_type))?;
-        file.write(&coding_helpers::encode_integer_u32(self.pack_file_count))?;
-        file.write(&coding_helpers::encode_integer_u32(pack_file_index_size))?;
-        file.write(&coding_helpers::encode_integer_u32(self.packed_file_count))?;
-        file.write(&coding_helpers::encode_integer_u32(packed_file_index_size))?;
+        file.write(&encode_string_u8(&self.id))?;
+        file.write(&encode_integer_u32(self.pack_file_type))?;
+        file.write(&encode_integer_u32(self.pack_file_count))?;
+        file.write(&encode_integer_u32(pack_file_index_size))?;
+        file.write(&encode_integer_u32(self.packed_file_count))?;
+        file.write(&encode_integer_u32(packed_file_index_size))?;
 
         // For some reason this returns a reversed i64. We need to truncate it and reverse it before
         // writing it to the data.
-        let mut creation_time = coding_helpers::encode_integer_i64(Utc::now().naive_utc().timestamp());
+        let mut creation_time = encode_integer_i64(Utc::now().naive_utc().timestamp());
         creation_time.truncate(4);
         creation_time.reverse();
         file.write(&creation_time)?;
@@ -364,9 +338,9 @@ impl PackFileData {
     /// It requires:
     /// - self: a PackFileData to check for the PackedFile.
     /// - packed_file_paths: the paths of the PackedFiles we want to check.
-    pub fn packedfile_exists(&self, packed_file_path: &[String]) -> bool {
+    pub fn packedfile_exists(&self, path: &[String]) -> bool {
         for packed_file in &self.packed_files {
-            if packed_file.packed_file_path == packed_file_path {
+            if packed_file.path == path {
                 return true;
             }
         }
@@ -377,10 +351,10 @@ impl PackFileData {
     /// It requires:
     /// - self: a PackFileData to check for the folder.
     /// - packed_file_paths: the path of the folder we want to check.
-    pub fn folder_exists(&self, packed_file_path: &[String]) -> bool {
+    pub fn folder_exists(&self, path: &[String]) -> bool {
         for packed_file in &self.packed_files {
-            if packed_file.packed_file_path.starts_with(packed_file_path)
-                && packed_file.packed_file_path.len() > packed_file_path.len() {
+            if packed_file.path.starts_with(path)
+                && packed_file.path.len() > path.len() {
                 return true;
             }
         }
@@ -451,7 +425,7 @@ impl PackFileData {
         let mut packed_file_index_offset: usize = 0;
 
         // PFH5 PackFiles (Warhammer 2) have a 0 separating size and name of the file in the index.
-        let packed_file_index_path_offset: usize = if header.pack_file_id == "PFH5" { 5 } else { 4 };
+        let packed_file_index_path_offset: usize = if header.id == "PFH5" { 5 } else { 4 };
 
         // For each PackedFile in our PackFile...
         for _ in 0..header.packed_file_count {
@@ -460,7 +434,7 @@ impl PackFileData {
             let mut packed_file = PackedFile::new();
 
             // Get his size.
-            packed_file.packed_file_size = decode_integer_u32(&packed_file_index[
+            packed_file.size = decode_integer_u32(&packed_file_index[
                 packed_file_index_offset..packed_file_index_offset + 4
             ])?;
 
@@ -480,7 +454,7 @@ impl PackFileData {
                 if character == 0 {
 
                     // Add the PackFile to the list and break the loop.
-                    packed_file.packed_file_path.push(character_buffer);
+                    packed_file.path.push(character_buffer);
 
                     // We move the index to the begining of the next entry.
                     packed_file_index_offset += 1;
@@ -493,7 +467,7 @@ impl PackFileData {
                 else if character == 92 {
 
                     // We add it to the PackedFile's path.
-                    packed_file.packed_file_path.push(character_buffer);
+                    packed_file.path.push(character_buffer);
 
                     // Reset the character buffer.
                     character_buffer = String::new();
@@ -519,10 +493,10 @@ impl PackFileData {
         for packed_file in &mut pack_file_data.packed_files {
 
             // Prepare his buffer.
-            packed_file.packed_file_data = vec![0; packed_file.packed_file_size as usize];
+            packed_file.data = vec![0; packed_file.size as usize];
 
             // Read his "size" of bytes into his data.
-            data.read_exact(&mut packed_file.packed_file_data)?;
+            data.read_exact(&mut packed_file.data)?;
         }
 
         // If we reach this point, we managed to get the entire PackFile decoded, so we return it.
@@ -548,19 +522,19 @@ impl PackFileData {
         for packed_file in &self.packed_files {
 
             // Encode his size.
-            packed_file_index.extend_from_slice(&encode_integer_u32(packed_file.packed_file_size));
+            packed_file_index.extend_from_slice(&encode_integer_u32(packed_file.size));
 
             // If it's a PFH5 (Warhammer 2), put a 0 between size and path.
-            if header.pack_file_id == "PFH5" { packed_file_index.push(0) };
+            if header.id == "PFH5" { packed_file_index.push(0) };
 
             // For each field in the path...
-            for position in 0..packed_file.packed_file_path.len() {
+            for position in 0..packed_file.path.len() {
 
                 // Encode it.
-                packed_file_index.extend_from_slice(packed_file.packed_file_path[position].as_bytes());
+                packed_file_index.extend_from_slice(packed_file.path[position].as_bytes());
 
                 // If it's not the last field...
-                if (position + 1) < packed_file.packed_file_path.len() {
+                if (position + 1) < packed_file.path.len() {
 
                     // Push a 92 (5C or \).
                     packed_file_index.push(92);
@@ -580,7 +554,7 @@ impl PackFileData {
 
         // For each PackedFile, just try to write his data to the disk.
         for packed_file in &self.packed_files {
-            file.write(&packed_file.packed_file_data)?;
+            file.write(&packed_file.data)?;
         }
 
         // If nothing failed, return success.
@@ -592,21 +566,20 @@ impl PackFileData {
 impl PackedFile {
 
     /// This function creates an empty PackedFile.
-    pub fn new() -> PackedFile {
-        PackedFile {
-            packed_file_size: 0,
-            packed_file_path: vec![],
-            packed_file_data: vec![],
+    pub fn new() -> Self {
+        Self {
+            size: 0,
+            path: vec![],
+            data: vec![],
         }
     }
 
     /// This function receive all the info of a PackedFile and creates a PackedFile with it.
-    pub fn read(packed_file_size: u32, packed_file_path: Vec<String>, packed_file_data: Vec<u8>) -> PackedFile {
-
-        PackedFile {
-            packed_file_size,
-            packed_file_path,
-            packed_file_data,
+    pub fn read(size: u32, path: Vec<String>, data: Vec<u8>) -> Self {
+        Self {
+            size,
+            path,
+            data,
         }
     }
 
@@ -618,7 +591,7 @@ impl PackedFile {
         let mut packed_file_index_entry: Vec<u8> = vec![];
 
         // We get the file_size.
-        let file_size_in_bytes = coding_helpers::encode_integer_u32(packed_file_decoded.packed_file_size);
+        let file_size_in_bytes = encode_integer_u32(packed_file_decoded.size);
         packed_file_index_entry.extend_from_slice(&file_size_in_bytes);
 
         // If it's a PFH5 (Warhammer 2), put a 0 between size and path.
@@ -626,9 +599,9 @@ impl PackedFile {
 
         // Then we get the path, turn it into a single String and push it with the rest of the index.
         let mut path = String::new();
-        for i in 0..packed_file_decoded.packed_file_path.len() {
-            path.push_str(&packed_file_decoded.packed_file_path[i]);
-            if (i + 1) < packed_file_decoded.packed_file_path.len() {
+        for i in 0..packed_file_decoded.path.len() {
+            path.push_str(&packed_file_decoded.path[i]);
+            if (i + 1) < packed_file_decoded.path.len() {
                 path.push_str("\\");
             }
         }
@@ -636,7 +609,7 @@ impl PackedFile {
         packed_file_index_entry.extend_from_slice(path_in_bytes);
 
         // Then, we encode the data
-        let packed_file_data_entry: Vec<u8> = packed_file_decoded.packed_file_data.to_vec();
+        let packed_file_data_entry: Vec<u8> = packed_file_decoded.data.to_vec();
 
         // Finally, we put both together and return them.
         (packed_file_index_entry, packed_file_data_entry)

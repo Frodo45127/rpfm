@@ -106,8 +106,8 @@ pub fn create_db_view(
 ) -> Result<(), Error> {
 
     // Get the data of the PackedFile and his name.
-    let packed_file_encoded = pack_file.borrow().pack_file_data.packed_files[*packed_file_decoded_index].packed_file_data.to_vec();
-    let table_name = pack_file.borrow().pack_file_data.packed_files[*packed_file_decoded_index].packed_file_path[1].to_owned();
+    let packed_file_encoded = pack_file.borrow().data.packed_files[*packed_file_decoded_index].data.to_vec();
+    let table_name = pack_file.borrow().data.packed_files[*packed_file_decoded_index].path[1].to_owned();
 
     // Try to decode it, and return error in case of missing schema.
     let packed_file_decoded = match *schema.borrow() {
@@ -448,10 +448,10 @@ impl PackedFileDBTreeView{
                                 for table in dependency_database {
 
                                     // If it's our original table...
-                                    if table.packed_file_path[1] == format!("{}_tables", origin.0) {
+                                    if table.path[1] == format!("{}_tables", origin.0) {
 
                                         // If we could decode it...
-                                        if let Ok(db) = DB::read(&table.packed_file_data, &*table.packed_file_path[1], master_schema) {
+                                        if let Ok(db) = DB::read(&table.data, &*table.path[1], master_schema) {
 
                                             // For each column in our original table...
                                             for (index, original_field) in db.packed_file_data.table_definition.fields.iter().enumerate() {
@@ -478,13 +478,13 @@ impl PackedFileDBTreeView{
                                 }
 
                                 // For each table in our mod...
-                                for table in &pack_file.borrow().pack_file_data.packed_files {
+                                for table in &pack_file.borrow().data.packed_files {
 
                                     // If it's our original table...
-                                    if table.packed_file_path[1] == format!("{}_tables", origin.0) {
+                                    if table.path[1] == format!("{}_tables", origin.0) {
 
                                         // If we could decode it...
-                                        if let Ok(db) = DB::read(&table.packed_file_data, &*table.packed_file_path[1], master_schema) {
+                                        if let Ok(db) = DB::read(&table.data, &*table.path[1], master_schema) {
 
                                             // For each column in our original table...
                                             for (index, original_field) in db.packed_file_data.table_definition.fields.iter().enumerate() {
@@ -631,10 +631,10 @@ impl PackedFileDBTreeView{
                                 for table in dependency_database {
 
                                     // If it's our original table...
-                                    if table.packed_file_path[1] == format!("{}_tables", origin.0) {
+                                    if table.path[1] == format!("{}_tables", origin.0) {
 
                                         // If we could decode it...
-                                        if let Ok(db) = DB::read(&table.packed_file_data, &*table.packed_file_path[1], master_schema) {
+                                        if let Ok(db) = DB::read(&table.data, &*table.path[1], master_schema) {
 
                                             // For each column in our original table...
                                             for (index, original_field) in db.packed_file_data.table_definition.fields.iter().enumerate() {
@@ -661,13 +661,13 @@ impl PackedFileDBTreeView{
                                 }
 
                                 // For each table in our mod...
-                                for table in &pack_file.borrow().pack_file_data.packed_files {
+                                for table in &pack_file.borrow().data.packed_files {
 
                                     // If it's our original table...
-                                    if table.packed_file_path[1] == format!("{}_tables", origin.0) {
+                                    if table.path[1] == format!("{}_tables", origin.0) {
 
                                         // If we could decode it...
-                                        if let Ok(db) = DB::read(&table.packed_file_data, &*table.packed_file_path[1], master_schema) {
+                                        if let Ok(db) = DB::read(&table.data, &*table.path[1], master_schema) {
 
                                             // For each column in our original table...
                                             for (index, original_field) in db.packed_file_data.table_definition.fields.iter().enumerate() {
