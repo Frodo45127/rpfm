@@ -12,6 +12,7 @@ use std::io::{
 
 use std::path::PathBuf;
 use std::io::BufReader;
+use std::io::BufWriter;
 
 use self::failure::Error;
 
@@ -65,38 +66,39 @@ pub fn open_packfile(pack_file_path: PathBuf) -> Result<packfile::PackFile, Erro
 pub fn save_packfile(
     pack_file: &mut packfile::PackFile,
     new_path: Option<PathBuf>
-) -> Result<String, Error> {
+) -> Result<(), Error> {
 
     // If we haven't received a new_path, we assume the path is the original path of the file.
     // If that one is empty too (should never happen), we panic and cry.
     let pack_file_path = match new_path {
+
+        // If we have received a new path...
         Some(new_path) => {
-            pack_file.pack_file_extra_data.file_name = new_path.file_name().unwrap().to_str().unwrap().to_string();
+
+            // Update the data of the PackFile's path.
+            pack_file.pack_file_extra_data.file_name = new_path.file_name().unwrap().to_string_lossy().as_ref().to_owned();
             pack_file.pack_file_extra_data.file_path = new_path;
-            pack_file.pack_file_extra_data.file_path.clone()
+            &pack_file.pack_file_extra_data.file_path
         },
+
+        // If we haven't received a new path...
         None => {
+
+            // If the current path exists, use it.
             if pack_file.pack_file_extra_data.file_path.exists() {
-                pack_file.pack_file_extra_data.file_path.clone()
+                &pack_file.pack_file_extra_data.file_path
             }
-            else {
-                return Err( format_err!("Saving a PackFile with an empty path is almost as bad as dividing by 0. Almost."))
-            }
+
+            // Otherwise, return error.
+            else { return Err( format_err!("Saving a PackFile with an empty path is almost as bad as dividing by 0. Almost.")) }
         }
     };
 
-    // Once we have the destination path saved, we proceed to save the PackedFile to that path and
-    // return Ok or one of the 2 possible errors.
-    match File::create(&pack_file_path) {
-        Ok(mut file) => {
-            let pack_file_encoded: Vec<u8> = packfile::PackFile::save(pack_file);
-            match file.write_all(&pack_file_encoded) {
-                Ok(_) => Ok(format!("File saved successfully:\n{}", pack_file_path.display())),
-                Err(error) => Err(From::from(error))
-            }
-        }
-        Err(error) => Err(From::from(error))
-    }
+    // We try to create the File.
+    let mut file = BufWriter::new(File::create(&pack_file_path)?);
+
+    // And we try to save it.
+    packfile::PackFile::save(&pack_file, &mut file)
 }
 
 

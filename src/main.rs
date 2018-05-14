@@ -641,8 +641,8 @@ fn build_ui(application: &Application) {
 
                 // We try to save the PackFile at the provided path...
                 let success = match packfile::save_packfile(&mut *pack_file_decoded.borrow_mut(), None) {
-                    Ok(result) => {
-                        show_dialog(&app_ui.window, true, result);
+                    Ok(_) => {
+                        show_dialog(&app_ui.window, true, "PackFile succesfully saved.");
                         true
                     },
                     Err(error) => {
@@ -716,8 +716,8 @@ fn build_ui(application: &Application) {
 
                 // We try to save the PackFile at the provided path...
                 let success = match packfile::save_packfile(&mut *pack_file_decoded.borrow_mut(), Some(file_path.to_path_buf())) {
-                    Ok(result) => {
-                        show_dialog(&app_ui.window, true, result);
+                    Ok(_) => {
+                        show_dialog(&app_ui.window, true, "PackFile succesfully saved.");
                         true
                     },
                     Err(error) => {
@@ -3190,9 +3190,9 @@ fn patch_siege_ai(
     if sucessful_patching.0 {
         let mut success = false;
         match packfile::save_packfile( &mut *pack_file_decoded.borrow_mut(), None) {
-            Ok(result) => {
+            Ok(_) => {
                 success = true;
-                show_dialog(&app_ui.window, true, format!("{}\n\n{}", sucessful_patching.1, result));
+                show_dialog(&app_ui.window, true, format!("{}\n\n{}", sucessful_patching.1, "PackFile succesfully saved."));
             },
             Err(error) => show_dialog(&app_ui.window, false, error.cause())
         }
@@ -3419,10 +3419,10 @@ fn create_prefab(
 
                 // Try to save the PackFile.
                 match packfile::save_packfile( &mut *pack_file_decoded.borrow_mut(), None) {
-                    Ok(result) => {
+                    Ok(_) => {
 
                         // Report success.
-                        show_dialog(&app_ui.window, true, result);
+                        show_dialog(&app_ui.window, true, "PackFile succesfully saved.");
                     },
                     Err(error) => show_dialog(&app_ui.window, false, error.cause()),
                 };

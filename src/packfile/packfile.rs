@@ -8,7 +8,9 @@ use self::chrono::{
 };
 use std::path::PathBuf;
 use std::io::BufReader;
+use std::io::BufWriter;
 use std::io::Read;
+use std::io::Write;
 use std::fs::File;
 use self::failure::Error;
 
@@ -185,29 +187,24 @@ impl PackFile {
         }
     }
 
-    /// This function takes a decoded &PackFile and encode it, ready for being wrote in the disk.
-    pub fn save(pack_file_decoded: &PackFile) -> Vec<u8> {
-        let mut pack_file_data_encoded = PackFileData::save(
-            &pack_file_decoded.pack_file_data,
-            &pack_file_decoded.pack_file_header.pack_file_id
-        );
+    /// This function takes a decoded &mut PackFile, and tries to encode it and write it on disk.
+    pub fn save(&self, mut file: &mut BufWriter<File>) -> Result<(), Error> {
 
-        // Both index sizes are only needed to open and save the PackFile, so we only recalculate them
-        // on save.
-        let new_pack_file_index_size = pack_file_data_encoded[0].len() as u32;
-        let new_packed_file_index_size = pack_file_data_encoded[1].len() as u32;
-        let mut pack_file_header_encoded = PackFileHeader::save(
-            &pack_file_decoded.pack_file_header,
-            new_pack_file_index_size,
-            new_packed_file_index_size
-        );
+        // First, we encode the indexes, as we need their final size to encode complete the header.
+        let indexes = self.pack_file_data.save_indexes(&self.pack_file_header);
 
-        let mut pack_file_encoded = vec![];
-        pack_file_encoded.append(&mut pack_file_header_encoded);
-        pack_file_encoded.append(&mut pack_file_data_encoded[0]);
-        pack_file_encoded.append(&mut pack_file_data_encoded[1]);
-        pack_file_encoded.append(&mut pack_file_data_encoded[2]);
-        pack_file_encoded
+        // We try to write the header.
+        self.pack_file_header.save(&mut file, indexes.0.len() as u32, indexes.1.len() as u32)?;
+
+        // Then, we try to write the indexes to the file.
+        file.write(&indexes.0)?;
+        file.write(&indexes.1)?;
+
+        // After all that, we try to write all the PackFiles to the file.
+        self.pack_file_data.save_data(&mut file)?;
+
+        // If nothing has failed, return success.
+        Ok(())
     }
 }
 
@@ -274,7 +271,7 @@ impl PackFileHeader {
 
     /// This function reads the Header of a PackFile and decode it into a PackFileHeader. We read all
     /// this data in packs of 4 bytes, and read them in LittleEndian.
-    pub fn read(header: &mut BufReader<File>) -> Result<PackFileHeader, Error> {
+    fn read(header: &mut BufReader<File>) -> Result<PackFileHeader, Error> {
 
         // Create a new default header.
         let mut pack_file_header = PackFileHeader::new("PFH5");
@@ -331,30 +328,24 @@ impl PackFileHeader {
 
     /// This function takes a decoded Header and encode it, so it can be saved in a PackFile file.
     /// We just put all the data in order in a 28 bytes Vec<u8>, and return that Vec<u8>.
-    pub fn save(header_decoded: &PackFileHeader, pack_file_index_size: u32, packed_file_index_size: u32) -> Vec<u8> {
-        let mut header_encoded = vec![];
+    fn save(&self, file: &mut BufWriter<File>, pack_file_index_size: u32, packed_file_index_size: u32) -> Result<(), Error> {
 
-        let mut pack_file_id = coding_helpers::encode_string_u8(&header_decoded.pack_file_id);
-        let mut pack_file_type = coding_helpers::encode_integer_u32(header_decoded.pack_file_type);
-        let mut pack_file_count = coding_helpers::encode_integer_u32(header_decoded.pack_file_count);
-        let mut pack_file_index_size = coding_helpers::encode_integer_u32(pack_file_index_size);
-        let mut packed_file_count = coding_helpers::encode_integer_u32(header_decoded.packed_file_count);
-        let mut packed_file_index_size = coding_helpers::encode_integer_u32(packed_file_index_size);
-        let mut packed_file_creation_time = coding_helpers::encode_integer_i64(Utc::now().naive_utc().timestamp());
+        file.write(&coding_helpers::encode_string_u8(&self.pack_file_id))?;
+        file.write(&coding_helpers::encode_integer_u32(self.pack_file_type))?;
+        file.write(&coding_helpers::encode_integer_u32(self.pack_file_count))?;
+        file.write(&coding_helpers::encode_integer_u32(pack_file_index_size))?;
+        file.write(&coding_helpers::encode_integer_u32(self.packed_file_count))?;
+        file.write(&coding_helpers::encode_integer_u32(packed_file_index_size))?;
 
         // For some reason this returns a reversed i64. We need to truncate it and reverse it before
         // writing it to the data.
-        packed_file_creation_time.truncate(4);
-        packed_file_creation_time.reverse();
+        let mut creation_time = coding_helpers::encode_integer_i64(Utc::now().naive_utc().timestamp());
+        creation_time.truncate(4);
+        creation_time.reverse();
+        file.write(&creation_time)?;
 
-        header_encoded.append(&mut pack_file_id);
-        header_encoded.append(&mut pack_file_type);
-        header_encoded.append(&mut pack_file_count);
-        header_encoded.append(&mut pack_file_index_size);
-        header_encoded.append(&mut packed_file_count);
-        header_encoded.append(&mut packed_file_index_size);
-        header_encoded.append(&mut packed_file_creation_time);
-        header_encoded
+        // Return success.
+        Ok(())
     }
 }
 
@@ -405,7 +396,7 @@ impl PackFileData {
     /// - pack_index_size: the size of the index of PackFiles. This should come from the header.
     /// - packed_file_count: the amount of PackedFiles inside the PackFile. This should come from the header.
     /// - packed_index_size: the size of the index of PackedFiles. This should come from the header.
-    pub fn read(
+    fn read(
         data: &mut BufReader<File>,
         header: &PackFileHeader,
     ) -> Result<Self, Error> {
@@ -538,31 +529,62 @@ impl PackFileData {
         Ok(pack_file_data)
     }
 
-    /// This function takes a decoded Data and encode it, so it can be saved in a PackFile file.
-    ///
-    /// NOTE: We return the stuff in 3 vectors to be able to use it to update the header before saving.
-    pub fn save(data_decoded: &PackFileData, pack_file_id: &str) -> Vec<Vec<u8>> {
+    /// This function encode both indexes from  a PackFile and returns them.
+    fn save_indexes(&self, header: &PackFileHeader) -> (Vec<u8>, Vec<u8>) {
+
+        // Create the vectors that'll hold the encoded indexes.
         let mut pack_file_index = vec![];
         let mut packed_file_index = vec![];
-        let mut packed_file_data = vec![];
 
-        for i in &data_decoded.pack_files {
-            pack_file_index.extend_from_slice(i.as_bytes());
+        // For each PackFile in our PackFile index...
+        for pack_file in &self.pack_files {
+
+            // Encode it and push a 0 at the end.
+            pack_file_index.extend_from_slice(pack_file.as_bytes());
             pack_file_index.push(0);
         }
 
-        for i in &data_decoded.packed_files {
-            let mut packed_file_encoded = PackedFile::save(i, pack_file_id);
-            packed_file_index.append(&mut packed_file_encoded.0);
-            packed_file_data.append(&mut packed_file_encoded.1);
+        // For each PackedFile in our PackedFile index...
+        for packed_file in &self.packed_files {
+
+            // Encode his size.
+            packed_file_index.extend_from_slice(&encode_integer_u32(packed_file.packed_file_size));
+
+            // If it's a PFH5 (Warhammer 2), put a 0 between size and path.
+            if header.pack_file_id == "PFH5" { packed_file_index.push(0) };
+
+            // For each field in the path...
+            for position in 0..packed_file.packed_file_path.len() {
+
+                // Encode it.
+                packed_file_index.extend_from_slice(packed_file.packed_file_path[position].as_bytes());
+
+                // If it's not the last field...
+                if (position + 1) < packed_file.packed_file_path.len() {
+
+                    // Push a 92 (5C or \).
+                    packed_file_index.push(92);
+                }
+            }
+
+            // Push a 0 at the end of the Path.
             packed_file_index.push(0);
         }
 
-        let mut pack_file_data_encoded: Vec<Vec<u8>> = vec![];
-        pack_file_data_encoded.push(pack_file_index);
-        pack_file_data_encoded.push(packed_file_index);
-        pack_file_data_encoded.push(packed_file_data);
-        pack_file_data_encoded
+        // We return the encoded indexes.
+        (pack_file_index, packed_file_index)
+    }
+
+    /// This function writes all the PackedFile's data at the end of the provided file.
+    fn save_data(&self, file: &mut BufWriter<File>) -> Result<(), Error> {
+
+        // For each PackedFile, just try to write his data to the disk.
+        for packed_file in &self.packed_files {
+            file.write(&packed_file.packed_file_data)?;
+        }
+
+        // If nothing failed, return success.
+        Ok(())
     }
 }
 
