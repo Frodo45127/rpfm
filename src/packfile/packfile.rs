@@ -582,36 +582,4 @@ impl PackedFile {
             data,
         }
     }
-
-    /// This function takes a decoded PackedFile and encode it, so it can be Saved inside a PackFile file.
-    pub fn save(packed_file_decoded: &PackedFile, pack_file_id: &str) -> (Vec<u8>, Vec<u8>) {
-
-        // We need to return both, the index and the data of the PackedFile, so we get them separated.
-        // First, we encode the index.
-        let mut packed_file_index_entry: Vec<u8> = vec![];
-
-        // We get the file_size.
-        let file_size_in_bytes = encode_integer_u32(packed_file_decoded.size);
-        packed_file_index_entry.extend_from_slice(&file_size_in_bytes);
-
-        // If it's a PFH5 (Warhammer 2), put a 0 between size and path.
-        if pack_file_id == "PFH5" { packed_file_index_entry.push(0) };
-
-        // Then we get the path, turn it into a single String and push it with the rest of the index.
-        let mut path = String::new();
-        for i in 0..packed_file_decoded.path.len() {
-            path.push_str(&packed_file_decoded.path[i]);
-            if (i + 1) < packed_file_decoded.path.len() {
-                path.push_str("\\");
-            }
-        }
-        let path_in_bytes = path.as_bytes();
-        packed_file_index_entry.extend_from_slice(path_in_bytes);
-
-        // Then, we encode the data
-        let packed_file_data_entry: Vec<u8> = packed_file_decoded.data.to_vec();
-
-        // Finally, we put both together and return them.
-        (packed_file_index_entry, packed_file_data_entry)
-    }
 }

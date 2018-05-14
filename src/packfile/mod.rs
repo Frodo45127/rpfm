@@ -11,10 +11,11 @@ use std::io::{
 };
 
 use std::path::PathBuf;
+use std::path::Path;
 use std::io::BufReader;
 use std::io::BufWriter;
 
-use self::failure::Error;
+use failure::Error;
 
 use common::*;
 use packedfile::loc::Loc;
@@ -354,7 +355,7 @@ pub fn delete_from_packfile(
 /// This function is used to extract a PackedFile or a folder from the PackFile.
 /// It requires:
 /// - pack_file: the PackFile from where we want to extract the PackedFile.
-/// - tree_path: the tree_path of the PackedFile we want to extract.
+/// - tree_path: the COMPLETE tree_path of the PackedFile we want to extract.
 /// - extracted_path: the destination path of the file we want to extract.
 pub fn extract_from_packfile(
     pack_file: &packfile::PackFile,
@@ -362,137 +363,112 @@ pub fn extract_from_packfile(
     extracted_path: &PathBuf
 ) -> Result<String, Error> {
 
-    // We need these three here to keep track of the files extracted and the errors.
-    let mut files_extracted = 0;
-    let mut files_errors = 0;
-    let mut error_list: Vec<Error> = vec![];
-
+    // Get what it's what we want to extract.
     match get_type_of_selected_tree_path(tree_path, pack_file) {
+
+        // If it's a file...
         TreePathType::File(packed_file_data) => {
-            let index = packed_file_data.1;
-            match File::create(&extracted_path) {
-                Ok(mut extracted_file) => {
-                    let packed_file_encoded: (Vec<u8>, Vec<u8>) = packfile::PackedFile::save(&pack_file.data.packed_files[index], &pack_file.header.id);
-                    match extracted_file.write_all(&packed_file_encoded.1) {
-                        Ok(_) => Ok(format!("File extracted successfully:\n{}", extracted_path.display())),
-                        Err(_) => Err(format_err!("Error while writing the following file to disk:\n{}", extracted_path.display()))
-                    }
-                }
-                Err(_) => Err(format_err!("Error while trying to write the following file to disk:\n{}", extracted_path.display()))
+
+            // We try to create the File.
+            let mut file = BufWriter::new(File::create(&extracted_path)?);
+
+            // And try to write it.
+            match file.write_all(&pack_file.data.packed_files[packed_file_data.1].data){
+                Ok(_) => Ok(format!("File extracted successfully:\n{}", extracted_path.display())),
+                Err(_) => Err(format_err!("Error while writing the following file to disk:\n{}", extracted_path.display()))
             }
         },
 
+        // If it's a folder...
         TreePathType::Folder(tree_path) => {
-            let mut files_to_extract: Vec<packfile::PackedFile> = vec![];
+
+            // These variables are here to keep track of what we have extracted and what files failed.
+            let mut files_extracted = 0;
+            let mut error_files = vec![];
+
+            // For each PackedFile we have...
             for packed_file in &pack_file.data.packed_files {
+
+                // If it's one we need to extract...
                 if packed_file.path.starts_with(&tree_path) {
-                    files_to_extract.push(packed_file.clone());
-                }
-            }
 
-            let base_path = extracted_path.clone();
-            let mut current_path = base_path.clone();
+                    // We remove everything from his path up to the folder we want to extract (not included).
+                    let mut additional_path = packed_file.path.to_vec();
+                    additional_path.drain(..(tree_path.len() - 1));
 
-            for file_to_extract in &mut files_to_extract {
-                file_to_extract.path.drain(..(tree_path.len() - 1));
+                    // Remove the name of the file from the path and keep it.
+                    let file_name = additional_path.pop().unwrap();
 
-                for (index, k) in file_to_extract.path.iter().enumerate() {
-                    current_path.push(&k);
+                    // Get the destination path of our file, without the file at the end.
+                    let mut current_path = extracted_path.clone().join(additional_path.iter().collect::<PathBuf>());
 
-                    // If the current String is the last one of the tree_path, it's a file, so we
-                    // write it into the disk.
-                    if (index + 1) == file_to_extract.path.len() {
-                        match File::create(&current_path) {
-                            Ok(mut extracted_file) => {
-                                let packed_file_encoded: (Vec<u8>, Vec<u8>) = packfile::PackedFile::save(file_to_extract, &pack_file.header.id);
-                                match extracted_file.write_all(&packed_file_encoded.1) {
-                                    Ok(_) => files_extracted += 1,
-                                    Err(error) => {
-                                        let error = From::from(error);
-                                        error_list.push(error);
-                                        files_errors += 1;
-                                    }
-                                }
-                            }
-                            Err(error) => {
-                                let error = From::from(error);
-                                error_list.push(error);
-                                files_errors += 1;
-                            },
-                        }
-                    }
+                    // Create that directory.
+                    DirBuilder::new().recursive(true).create(&current_path)?;
 
-                    // If it's a folder, we create it and set is as the new parent. If it already exists,
-                    // it'll throw an error we'll ignore, like good politicians.
-                    else {
-                        match DirBuilder::new().create(&current_path) {
-                            Ok(_) | Err(_) => continue,
-                        }
+                    // Get the full path of the file.
+                    current_path.push(&file_name);
+
+                    // Try to create the file.
+                    let mut file = BufWriter::new(File::create(&current_path)?);
+
+                    // And try to write it. If any of the files throws an error, add it to the list and continue.
+                    match file.write_all(&packed_file.data){
+                        Ok(_) => files_extracted += 1,
+                        Err(_) => error_files.push(format!("{:?}", current_path)),
                     }
                 }
-                current_path = base_path.clone();
             }
-            if files_errors > 0 {
-                Err(format_err!("{} errors extracting files:\n {:#?}", files_errors, error_list))
-            }
-            else {
-                Ok(format!("{} files extracted. No errors detected.", files_extracted))
-            }
+
+            // If there is any error in the list, report it.
+            if !error_files.is_empty() { return Err(format_err!("There has been a problem extracting the following files: {:#?}", error_files)) }
+
+            // If we reach this, return success.
+            Ok(format!("{} files extracted. No errors detected.", files_extracted))
         },
 
+        // If it's the PackFile...
         TreePathType::PackFile => {
 
-            // For PackFiles it's like folders, but we just take all the PackedFiles.
-            let mut files_to_extract = pack_file.data.packed_files.to_vec();
-            let base_path = extracted_path.clone();
-            let mut current_path = base_path.clone();
+            // These variables are here to keep track of what we have extracted and what files failed.
+            let mut files_extracted = 0;
+            let mut error_files = vec![];
 
-            for file_to_extract in &mut files_to_extract {
-                file_to_extract.path.drain(..(tree_path.len() - 1));
+            // For each PackedFile we have...
+            for packed_file in &pack_file.data.packed_files {
 
-                for (index, k) in file_to_extract.path.iter().enumerate() {
-                    current_path.push(&k);
+                // We remove everything from his path up to the folder we want to extract (not included).
+                let mut additional_path = packed_file.path.to_vec();
 
-                    // If the current String is the last one of the tree_path, it's a file, so we
-                    // write it into the disk.
-                    if (index + 1) == file_to_extract.path.len() {
-                        match File::create(&current_path) {
-                            Ok(mut extracted_file) => {
-                                let packed_file_encoded: (Vec<u8>, Vec<u8>) = packfile::PackedFile::save(file_to_extract, &pack_file.header.id);
-                                match extracted_file.write_all(&packed_file_encoded.1) {
-                                    Ok(_) => files_extracted += 1,
-                                    Err(error) => {
-                                        let error = From::from(error);
-                                        error_list.push(error);
-                                        files_errors += 1;
-                                    }
-                                }
-                            }
-                            Err(error) => {
-                                let error = From::from(error);
-                                error_list.push(error);
-                                files_errors += 1;
-                            },
-                        }
-                    }
+                // Remove the name of the file from the path and keep it.
+                let file_name = additional_path.pop().unwrap();
 
-                    // If it's a folder, we create it and set is as the new parent. If it already exists,
-                    // it'll throw an error we'll ignore, like good politicians.
-                    else {
-                        match DirBuilder::new().create(&current_path) {
-                            Ok(_) | Err(_) => continue,
-                        }
-                    }
+                // Get the destination path of our file, with the name of the PackFile, without the file at the end.
+                let mut current_path = extracted_path.clone().join(additional_path.iter().collect::<PathBuf>());
+
+                // Create that directory.
+                DirBuilder::new().recursive(true).create(&current_path)?;
+
+                // Get the full path of the file.
+                current_path.push(&file_name);
+
+                // Try to create the file.
+                let mut file = BufWriter::new(File::create(&current_path)?);
+
+                // And try to write it. If any of the files throws an error, add it to the list and continue.
+                match file.write_all(&packed_file.data){
+                    Ok(_) => files_extracted += 1,
+                    Err(_) => error_files.push(format!("{:?}", current_path)),
                 }
-                current_path = base_path.clone();
             }
-            if files_errors > 0 {
-                Err(format_err!("{} errors extracting files:\n {:#?}", files_errors, error_list))
-            }
-            else {
-                Ok(format!("{} files extracted. No errors detected.", files_extracted))
-            }
+
+            // If there is any error in the list, report it.
+            if !error_files.is_empty() { return Err(format_err!("There has been a problem extracting the following files: {:#?}", error_files)) }
+
+            // If we reach this, return success.
+            Ok(format!("{} files extracted. No errors detected.", files_extracted))
         }
+
+        // If it doesn't exist, there has been a bug somewhere else. Otherwise, this situation will never happen.
         TreePathType::None => Err(format_err!("How the hell did you managed to try to delete a non-existant file?")),
     }
 }
