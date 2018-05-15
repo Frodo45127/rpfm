@@ -119,7 +119,7 @@ pub fn add_file_to_packfile(
 
         // We get the data and his size...
         let mut file_data = vec![];
-        let mut file = File::open(&file_path)?;
+        let mut file = BufReader::new(File::open(&file_path)?);
         file.read_to_end(&mut file_data)?;
         let file_size = file_data.len() as u32;
 
@@ -128,9 +128,7 @@ pub fn add_file_to_packfile(
         pack_file.add_packedfiles(&packed_files);
         Ok(format!("File added."))
     }
-    else {
-        Err(format_err!("The PackedFile \"{}\" already exist. Ignored.", tree_path.last().unwrap()))
-    }
+    else { Err(format_err!("The PackedFile \"{}\" already exist. Ignored.", tree_path.last().unwrap())) }
 }
 
 
