@@ -216,7 +216,7 @@ pub fn add_packedfile_to_packfile(
                         for packed_file in &pack_file_source.data.packed_files {
                             if packed_file.path.starts_with(&tree_path_source) {
                                 let mut packed_file = packed_file.clone();
-                                packed_file.path.drain(..(tree_path_source.len() - 1)).collect::<Vec<String>>();
+                                packed_file.path.drain(..(tree_path_source.len() - 1));
                                 new_packed_files.push(packed_file);
                             }
                         }
@@ -273,7 +273,7 @@ pub fn add_packedfile_to_packfile(
                         for packed_file in &pack_file_source.data.packed_files {
                             if packed_file.path.starts_with(&tree_path_source) {
                                 let mut packed_file = packed_file.clone();
-                                packed_file.path.drain(..(tree_path_source.len() - 1)).collect::<Vec<String>>();
+                                packed_file.path.drain(..(tree_path_source.len() - 1));
                                 packed_file.path.splice(0..0, tree_path_destination.iter().cloned());
                                 new_packed_files.push(packed_file);
                             }
