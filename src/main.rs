@@ -46,7 +46,7 @@ use gio::{
 use gdk::Atom;
 use gtk::prelude::*;
 use gtk::{
-    Builder, ApplicationWindow, Grid, TreePath, Clipboard, LinkButton,
+    Builder, ApplicationWindow, Grid, TreePath, Clipboard, LinkButton, StyleContext,
     TreeView, TreeSelection, TreeStore, ScrolledWindow, Application, CellRendererMode,
     CellRendererText, TreeViewColumn, Popover, Button, ResponseType,
     ShortcutsWindow, ToVariant, Statusbar, FileChooserNative, FileChooserAction
@@ -2091,6 +2091,9 @@ fn build_ui(application: &Application) {
                             let copy_button = Button::new_with_label("<=");
                             exit_button.set_vexpand(false);
                             copy_button.set_hexpand(false);
+
+                            // Paint the fucking button pink, because people keeps complaining they don't see it.
+                            StyleContext::add_class(&copy_button.get_style_context().unwrap(), "suggested-action");
 
                             // We attach them to the main grid.
                             app_ui.packed_file_data_display.attach(&exit_button, 0, 0, 2, 1);
