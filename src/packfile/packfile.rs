@@ -1,5 +1,4 @@
 // In this file are all the Structs and Impls required to decode and encode the PackFiles.
-// For now we only support common TW: Warhammer 2 PackFiles (not loc files, those are different).
 extern crate chrono;
 extern crate failure;
 
@@ -67,7 +66,9 @@ pub struct PackFileHeader {
     pub creation_time: NaiveDateTime,
 }
 
-/// `PackFileData`: This struct stores all the PackedFiles inside the PackFile in a vector.
+/// `PackFileData`: This struct stores all the data from the PackFile outside the header:
+/// - pack_files: a list of PackFiles our PackFile is meant to overwrite (I guess).
+/// - packed_files: a list of the PackedFiles contained inside our PackFile.
 #[derive(Clone, Debug)]
 pub struct PackFileData {
     pub pack_files: Vec<String>,
@@ -109,7 +110,7 @@ impl PackFile {
     /// This function adds one or more PackedFiles to an existing PackFile.
     /// It requires:
     /// - self: the PackFile we are going to manipulate.
-    /// - packed_files: a Vec<PackedFile> we are going to add.
+    /// - packed_files: a &[PackedFile] we are going to add.
     pub fn add_packedfiles(&mut self, packed_files: &[PackedFile]) {
         for packed_file in packed_files {
             self.header.packed_file_count += 1;
@@ -137,7 +138,7 @@ impl PackFile {
     /// This function reads the content of a PackFile and returns an struct PackFile with all the
     /// contents of the PackFile decoded.
     /// It requires:
-    /// - pack_file_buffered: a Vec<u8> with the entire PackFile encoded inside it.
+    /// - pack_file: a BufReader of the PackFile on disk.
     /// - file_name: a String with the name of the PackFile.
     /// - file_path: a PathBuf with the path of the PackFile.
     pub fn read(pack_file: &mut BufReader<File>, file_name: String, file_path: PathBuf) -> Result<Self, Error> {
@@ -230,7 +231,7 @@ impl PackFileExtraData {
 /// Implementation of "PackFileHeader".
 impl PackFileHeader {
 
-    /// This function creates a new PackFileHeader for an empty PackFile, using "Warhammer 2" as default game.
+    /// This function creates a new PackFileHeader for an empty PackFile, requiring only an ID.
     pub fn new(packfile_id: &str) -> Self {
         Self {
             id: packfile_id.to_owned(),
@@ -243,8 +244,7 @@ impl PackFileHeader {
         }
     }
 
-    /// This function reads the Header of a PackFile and decode it into a PackFileHeader. We read all
-    /// this data in packs of 4 bytes, and read them in LittleEndian.
+    /// This function reads the Header of a PackFile and decode it into a PackFileHeader.
     fn read(header: &mut BufReader<File>) -> Result<Self, Error> {
 
         // Create a new default header.
@@ -301,7 +301,7 @@ impl PackFileHeader {
     }
 
     /// This function takes a decoded Header and encode it, so it can be saved in a PackFile file.
-    /// We just put all the data in order in a 28 bytes Vec<u8>, and return that Vec<u8>.
+    /// We need the final size of both indexes for this.
     fn save(&self, file: &mut BufWriter<File>, pack_file_index_size: u32, packed_file_index_size: u32) -> Result<(), Error> {
 
         file.write(&encode_string_u8(&self.id))?;
@@ -323,10 +323,10 @@ impl PackFileHeader {
     }
 }
 
-/// Implementation of "PackFileData"
+/// Implementation of "PackFileData".
 impl PackFileData {
 
-    /// This function creates a new empty "PackFileData"
+    /// This function creates a new empty "PackFileData".
     pub fn new() -> Self {
         Self {
             pack_files: vec![],
@@ -337,7 +337,7 @@ impl PackFileData {
     /// This function checks if a PackedFile exists in a PackFile.
     /// It requires:
     /// - self: a PackFileData to check for the PackedFile.
-    /// - packed_file_paths: the paths of the PackedFiles we want to check.
+    /// - path: the path of the PackedFile we want to check.
     pub fn packedfile_exists(&self, path: &[String]) -> bool {
         for packed_file in &self.packed_files {
             if packed_file.path == path {
@@ -350,26 +350,20 @@ impl PackFileData {
     /// This function checks if a folder with PackedFiles exists in a PackFile.
     /// It requires:
     /// - self: a PackFileData to check for the folder.
-    /// - packed_file_paths: the path of the folder we want to check.
+    /// - path: the path of the folder we want to check.
     pub fn folder_exists(&self, path: &[String]) -> bool {
         for packed_file in &self.packed_files {
-            if packed_file.path.starts_with(path)
-                && packed_file.path.len() > path.len() {
+            if packed_file.path.starts_with(path) && packed_file.path.len() > path.len() {
                 return true;
             }
         }
         false
     }
 
-    /// This function reads the Data part of a PackFile, get all the files on the PackFile and put
-    /// them in a Vec<PackedFile>.
+    /// This function reads the Data part of a PackFile, and creates a PackedFileData with it.
     /// It requires:
     /// - data: the raw data or the PackFile.
-    /// - pack_file_id: ID of the PackFile, so we can decode multiple PackFile Types.
-    /// - pack_file_count: the amount of PackFiles inside the PackFile Index. This should come from the header.
-    /// - pack_index_size: the size of the index of PackFiles. This should come from the header.
-    /// - packed_file_count: the amount of PackedFiles inside the PackFile. This should come from the header.
-    /// - packed_index_size: the size of the index of PackedFiles. This should come from the header.
+    /// - header: the header of the PackFile.
     fn read(
         data: &mut BufReader<File>,
         header: &PackFileHeader,
@@ -503,7 +497,7 @@ impl PackFileData {
         Ok(pack_file_data)
     }
 
-    /// This function encode both indexes from  a PackFile and returns them.
+    /// This function encode both indexes from a PackFile and returns them.
     fn save_indexes(&self, header: &PackFileHeader) -> (Vec<u8>, Vec<u8>) {
 
         // Create the vectors that'll hold the encoded indexes.
@@ -562,7 +556,7 @@ impl PackFileData {
     }
 }
 
-/// Implementation of "PackedFile"
+/// Implementation of "PackedFile".
 impl PackedFile {
 
     /// This function creates an empty PackedFile.
