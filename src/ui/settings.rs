@@ -3,6 +3,8 @@ extern crate gtk;
 extern crate pango;
 extern crate url;
 
+use std::cell::RefCell;
+use std::rc::Rc;
 use std::path::{
     Path, PathBuf
 };
@@ -16,9 +18,14 @@ use gtk::{
 use pango::{
     AttrList, Attribute
 };
+
+use packfile::packfile::PackFile;
 use settings::Settings;
 use settings::GameInfo;
 use settings::GameSelected;
+use AppUI;
+use super::*;
+use packfile;
 
 /// `SettingsWindow`: This struct holds all the relevant stuff for the Settings Window.
 #[derive(Clone, Debug)]
@@ -538,15 +545,17 @@ impl NewPrefabWindow {
 
     /// This function creates the window and sets the events needed for everything to work.
     pub fn create_new_prefab_window(
+        app_ui: &AppUI,
         application: &Application,
-        parent: &ApplicationWindow,
-        catchment_list: &[(usize, Vec<String>)]
-    ) -> Self {
+        game_selected: &Rc<RefCell<GameSelected>>,
+        pack_file_decoded: &Rc<RefCell<PackFile>>,
+        catchment_indexes: &[usize]
+    ) {
 
         // Create the "New Name" window...
         let window = ApplicationWindow::new(application);
         window.set_size_request(500, 0);
-        window.set_transient_for(parent);
+        window.set_transient_for(&app_ui.window);
         window.set_position(WindowPosition::CenterOnParent);
         window.set_title("New Prefab");
 
@@ -574,16 +583,17 @@ impl NewPrefabWindow {
         let mut entries = vec![];
 
         // For each catchment...
-        for (index, catchment) in catchment_list.iter().enumerate() {
+        for (index, catchment_index) in catchment_indexes.iter().enumerate() {
 
             // Create the label and the entry.
-            let label = Label::new(Some(&*format!("Prefab's name for \"{}\":", catchment.1.last().unwrap())));
+            let label = Label::new(Some(&*format!("Prefab's name for \"{}\\{}\":", pack_file_decoded.borrow().data.packed_files[*catchment_index].path[4], pack_file_decoded.borrow().data.packed_files[*catchment_index].path[5])));
             let entry = Entry::new();
             label.set_xalign(0.0);
             label.set_yalign(0.5);
             entry.set_placeholder_text("For example: one_ring_for_me");
             entry.set_hexpand(true);
             entry.set_has_frame(false);
+            entry.set_size_request(200, 0);
 
             entries_grid.attach(&label, 0, index as i32, 1, 1);
             entries_grid.attach(&entry, 1, index as i32, 1, 1);
@@ -614,50 +624,147 @@ impl NewPrefabWindow {
         // Disable the accept button by default.
         accept_button.set_sensitive(false);
 
+        // Get all the stuff inside one struct, so it's easier to pass it to the closures.
+        let new_prefab_stuff = Self {
+            window,
+            entries,
+            accept_button,
+            cancel_button,
+        };
+
         // Events for this to work.
 
         // Every time we change a character in the entry, check if the name is valid, and disable the "Accept"
         // button if it's invalid.
-        for entry in &entries {
+        for entry in &new_prefab_stuff.entries {
             entry.connect_changed(clone!(
-                accept_button => move |_| {
+                game_selected,
+                new_prefab_stuff => move |entry| {
 
                     // If it's stupid but it works,...
-                    accept_button.set_relief(ReliefStyle::None);
-                    accept_button.set_relief(ReliefStyle::Normal);
+                    new_prefab_stuff.accept_button.set_relief(ReliefStyle::None);
+                    new_prefab_stuff.accept_button.set_relief(ReliefStyle::Normal);
+
+                    // If our Game Selected have a path in settings...
+                    if let Some(ref game_path) = game_selected.borrow().game_path {
+
+                        // Get the "final" path for that prefab.
+                        let prefab_name = entry.get_text().unwrap();
+                        let prefab_path = game_path.to_path_buf().join(PathBuf::from(format!("assembly_kit/raw_data/art/prefabs/battle/custom_prefabs/{}.terry", prefab_name)));
+
+                        // Create an attribute list for the entry.
+                        let attribute_list = AttrList::new();
+                        let invalid_color = Attribute::new_background((214 * 256) - 1, (75 * 256) - 1, (139 * 256) - 1).unwrap();
+
+                        // If it already exist, allow it but mark it, so prefabs don't get overwritten by error.
+                        if prefab_path.is_file() { attribute_list.insert(invalid_color); }
+
+                        // Paint it like one of your french girls.
+                        entry.set_attributes(&attribute_list);
+                    }
                 }
             ));
         }
 
         // If any of the entries has changed, check if we can enable it.
-        accept_button.connect_property_relief_notify(clone!(
-            entries => move |accept_button| {
+        new_prefab_stuff.accept_button.connect_property_relief_notify(clone!(
+            new_prefab_stuff => move |accept_button| {
+
+                // Create the var to check if the name is valid, and the vector to store the names.
                 let mut invalid_name = false;
-                for entry in &entries {
-                    if entry.get_text().unwrap().contains(' ') || entry.get_text().unwrap().is_empty() {
+                let mut name_list = vec![];
+
+                // For each entry...
+                for entry in &new_prefab_stuff.entries {
+
+                    // Get his text.
+                    let name = entry.get_text().unwrap();
+
+                    // If it has spaces, it's empty or it's repeated, it's automatically invalid.
+                    if name.contains(' ') || name.is_empty() || name_list.contains(&name) {
                         invalid_name = true;
                         break;
                     }
-                    else {
-                        invalid_name = false;
-                    }
+
+                    // Otherwise, we add it to the list.
+                    else { name_list.push(name); }
                 }
 
-                if !invalid_name {
-                    accept_button.set_sensitive(true);
-                }
-                else {
-                    accept_button.set_sensitive(false);
-                }
+                // We enable or disable the button, depending if the name is valid.
+                if invalid_name { accept_button.set_sensitive(false); }
+                else { accept_button.set_sensitive(true); }
             }
         ));
 
-        Self {
-            window,
-            entries,
-            accept_button,
-            cancel_button,
-        }
+        // When we press the "Cancel" button, we close the window and re-enable the main window.
+        new_prefab_stuff.cancel_button.connect_button_release_event(clone!(
+            new_prefab_stuff,
+            app_ui => move |_,_| {
+
+                // Destroy the "New Prefab" window,
+                new_prefab_stuff.window.destroy();
+
+                // Restore the main window.
+                app_ui.window.set_sensitive(true);
+                Inhibit(false)
+            }
+        ));
+
+        // We catch the destroy event of the window.
+        new_prefab_stuff.window.connect_delete_event(clone!(
+            new_prefab_stuff,
+            app_ui => move |_, _| {
+
+                // Destroy the "New Prefab" window,
+                new_prefab_stuff.window.destroy();
+
+                // Restore the main window.
+                app_ui.window.set_sensitive(true);
+                Inhibit(false)
+            }
+        ));
+
+        // For some reason, the clone! macro is unable to clone this, so we clone it here.
+        let catchment_indexes = catchment_indexes.to_vec();
+
+        // If we hit the "Accept" button....
+        new_prefab_stuff.accept_button.connect_button_release_event(clone!(
+            app_ui,
+            pack_file_decoded,
+            game_selected,
+            new_prefab_stuff => move |_,_| {
+
+                // Get the base path of the game, to put the prefabs in his Assembly Kit directory.
+                match game_selected.borrow().game_path {
+                    Some(ref game_path) => {
+
+                        // Get the list of all the names in the entries.
+                        let name_list = new_prefab_stuff.entries.iter().filter_map(|entry| entry.get_text()).collect::<Vec<String>>();
+
+                        // Try to create the prefabs with the provided names.
+                        match packfile::create_prefab_from_catchment(
+                            &name_list,
+                            &game_path,
+                            &catchment_indexes,
+                            &pack_file_decoded,
+                        ) {
+                            Ok(result) => show_dialog(&app_ui.window, true, result),
+                            Err(error) => show_dialog(&app_ui.window, false, error),
+                        };
+                    }
+
+                    // If there is no game_path, stop and report error.
+                    None => show_dialog(&app_ui.window, false, "The selected Game Selected doesn't have a path specified in the Settings."),
+                }
+
+                // Destroy the "New Prefab" window,
+                new_prefab_stuff.window.destroy();
+
+                // Re-enable the main window.
+                app_ui.window.set_sensitive(true);
+                Inhibit(false)
+            }
+        ));
     }
 }
 

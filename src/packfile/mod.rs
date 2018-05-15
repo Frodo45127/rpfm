@@ -4,12 +4,14 @@
 extern crate failure;
 
 use std::fs::{
-    File, DirBuilder
+    File, DirBuilder, copy,
 };
 use std::io::{
     Read, Write
 };
 
+use std::cell::RefCell;
+use std::rc::Rc;
 use std::path::PathBuf;
 use std::io::BufReader;
 use std::io::BufWriter;
@@ -790,4 +792,119 @@ pub fn patch_rigid_model_attila_to_warhammer (
         7 => Err(format_err!("This is not an Attila's RigidModel, but a Warhammer one.")),
         _ => Err(format_err!("I don't even know from what game is this RigidModel.")),
     }
+}
+
+/// This function is used to turn a bunch of catchment files into Prefabs. It requires:
+/// - name_list: the list of names for the new prefabs.
+/// - game_path: the base path of our game, to know where to put the xml files for the prefabs.
+/// - catchment_indexes: a list with the indexes of all the files we want to turn into prefabs.
+/// - pack_file: the PackFile we want to create the prefabs from.
+pub fn create_prefab_from_catchment(
+    name_list: &[String],
+    game_path: &PathBuf,
+    catchment_indexes: &[usize],
+    pack_file: &Rc<RefCell<packfile::PackFile>>,
+) -> Result<String, Error> {
+
+    // Create a new PackFile to store all the new prefabs, and make it "Movie" type.
+    let mut prefab_pack_file = new_packfile(format!("_prefab_{}", &pack_file.borrow().extra_data.file_name), &pack_file.borrow().header.id);
+    prefab_pack_file.header.pack_file_type = 4;
+
+    // Pair together the catchment indexes with the name list.
+    let prefab_list = catchment_indexes.iter().zip(name_list.iter());
+
+    // For each prefab we want to create...
+    for (index, prefab) in prefab_list.enumerate() {
+
+        // Add the PackedFile to the new PackFile.
+        prefab_pack_file.add_packedfiles(&[pack_file.borrow().data.packed_files[*prefab.0].clone()]);
+
+        // Change his path to point to the prefab folder.
+        prefab_pack_file.data.packed_files[index].path = vec!["prefabs".to_owned(), format!("{}.bmd", prefab.1)];
+
+        // Get the path of the Terry's raw files for the map of our prefab.
+        let mut terry_map_path = game_path.to_path_buf().join(PathBuf::from("assembly_kit/raw_data/terrain/tiles/battle/_assembly_kit"));
+        terry_map_path.push(&pack_file.borrow().data.packed_files[*prefab.0].path[4]);
+
+        // If the map folder doesn't exist, return error.
+        if !terry_map_path.is_dir() { return Err(format_err!("The following map's original folder couldn't be found:\n{:?}", terry_map_path)) }
+
+        // Get the ".terry" file of the map.
+        let terry_file = get_files_from_subdir(&terry_map_path).unwrap().iter().filter(|x| x.file_name().unwrap().to_string_lossy().as_ref().to_owned().ends_with(".terry")).cloned().collect::<Vec<PathBuf>>();
+
+        // If the terry file wasn't found, return error.
+        if terry_file.is_empty() { return Err(format_err!("The following map's .terry file couldn't be found:\n{:?}", terry_map_path)) }
+
+        // Read it to a String so we can examine it properly.
+        let mut file = BufReader::new(File::open(&terry_file[0])?);
+        let mut terry_file_string = String::new();
+        file.read_to_string(&mut terry_file_string)?;
+
+        // Get the ID of the current catchment (catchment_XX) from the ".terry" file of his map.
+        let catchment_name = &pack_file.borrow().data.packed_files[*prefab.0].path[5][..12];
+
+        let line = match terry_file_string.find(&format!("bmd_export_type=\"{}\"/>", catchment_name)) {
+            Some(line) => line,
+            None => return Err(format_err!("The layer of \"{}\" couldn't be found in the following map's .terry file:\n{:?}", catchment_name, terry_map_path)),
+        };
+        terry_file_string.truncate(line);
+
+        let id_index = match terry_file_string.rfind(" id=\"") {
+            Some(id_index) => id_index,
+            None => return Err(format_err!("The id of the layer of \"{}\" couldn't be found in the following map's .terry file:\n{:?}", catchment_name, terry_map_path))
+        };
+        let id_layer = &terry_file_string[(id_index + 5)..(id_index + 20)];
+
+        // Get the corresponding layer file.
+        let mut layer_file = terry_file[0].to_path_buf();
+        let layer_file_name = layer_file.file_stem().unwrap().to_string_lossy().as_ref().to_owned();
+        layer_file.pop();
+        layer_file.push(format!("{}.{}.layer", layer_file_name, id_layer));
+
+        // Get the path where the raw files of the prefabs should be stored.
+        let mut prefabs_terry_path = game_path.to_path_buf().join(PathBuf::from("assembly_kit/raw_data/art/prefabs/battle/custom_prefabs"));
+
+        // We check that path exists, and create it if it doesn't.
+        if !prefabs_terry_path.is_dir() {
+            DirBuilder::new().recursive(true).create(&prefabs_terry_path)?;
+        }
+
+        // Get the full path for the prefab's layer and terry files.
+        let mut prefabs_terry_path_layer = prefabs_terry_path.to_path_buf();
+        let mut prefabs_terry_path_terry = prefabs_terry_path.to_path_buf();
+        prefabs_terry_path_layer.push(format!("{}.{}.layer", prefab.1, id_layer));
+        prefabs_terry_path_terry.push(format!("{}.terry", prefab.1));
+
+        // Try to copy the layer file to his destination.
+        copy(layer_file, prefabs_terry_path_layer).map_err(Error::from)?;
+
+        // Try to write the prefab's terry file into his destination.
+        let mut file = BufWriter::new(File::create(&prefabs_terry_path_terry)?);
+        let prefab_terry_file = format!("<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+            <project version=\"20\" id=\"15afc3311fc3488\">
+              <pc type=\"QTU::ProjectPrefab\">
+                <data database=\"battle\"/>
+              </pc>
+              <pc type=\"QTU::Scene\">
+                <data version=\"25\">
+                  <entity id=\"{}\" name=\"Default\">
+                    <ECFileLayer export=\"true\" bmd_export_type=\"\"/>
+                  </entity>
+                </data>
+              </pc>
+              <pc type=\"QTU::Terrain\"/>
+            </project>"
+            , id_layer
+        );
+        file.write_all(prefab_terry_file.as_bytes()).map_err(Error::from)?;
+    }
+
+    // Get the PackFile name here, so we have no problems with references.
+    let prefab_pack_file_name = &prefab_pack_file.extra_data.file_name.to_owned();
+
+    // At the end, save the new PackFile.
+    save_packfile(&mut prefab_pack_file, Some(game_path.to_path_buf().join(PathBuf::from(format!("data/{}", prefab_pack_file_name)))))?;
+
+    // If nothing failed, return success.
+    Ok("Prefabs successfully created.".to_owned())
 }

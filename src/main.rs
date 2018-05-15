@@ -32,11 +32,6 @@ use std::fs::{
     DirBuilder, copy, remove_file, remove_dir_all
 };
 use std::env::args;
-use std::fs::File;
-use std::io::{
-    Read, Write
-};
-
 use failure::Error;
 use url::Url;
 use gio::prelude::*;
@@ -3263,7 +3258,7 @@ fn create_prefab(
     pack_file_decoded: &Rc<RefCell<PackFile>>,
 ) {
     // Create the list of PackedFiles to "move".
-    let mut prefab_catchments: Vec<(usize, Vec<String>)>= vec![];
+    let mut prefab_catchments: Vec<usize> = vec![];
 
     // For each PackedFile...
     for (index, packed_file) in pack_file_decoded.borrow().data.packed_files.iter().enumerate() {
@@ -3278,7 +3273,7 @@ fn create_prefab(
             if packed_file_name.starts_with("catchment") && packed_file_name.ends_with(".bin") {
 
                 // Add it to the list.
-                prefab_catchments.push((index, packed_file.path.to_vec()));
+                prefab_catchments.push(index);
             }
         }
     }
@@ -3289,196 +3284,18 @@ fn create_prefab(
         // Disable the main window, so the user can't do anything until all the prefabs are processed.
         app_ui.window.set_sensitive(false);
 
-        // Create the "New Name" window...
-        let new_prefab_stuff = NewPrefabWindow::create_new_prefab_window(application, &app_ui.window, &prefab_catchments);
-
-        // If we hit the "Accept" button....
-        new_prefab_stuff.accept_button.connect_button_release_event(clone!(
-            app_ui,
-            pack_file_decoded,
+        // We create a "New Prefabs" window.
+        NewPrefabWindow::create_new_prefab_window(
+            &app_ui,
+            application,
             game_selected,
-            new_prefab_stuff => move |_,_| {
-
-                // Pair together the prefab_catchments with the entries list.
-                let prefab_list = prefab_catchments.iter().zip(new_prefab_stuff.entries.iter());
-
-                // For each prefab...
-                for prefab in prefab_list.clone() {
-
-                    // Get the new name for the prefab.
-                    let prefab_name = prefab.1.get_text().unwrap();
-
-                    // Change his path, so it's now shown in the correct folder.
-                    pack_file_decoded.borrow_mut().data.packed_files[(prefab.0).0].path = vec!["prefabs".to_owned(), format!("{}.bmd", prefab_name)];
-
-                    // If we have the Game's path configured...
-                    if let Some(ref game_path) = game_selected.borrow().game_path {
-
-                        // Get the old path.
-                        let old_path = &(prefab.0).1;
-
-                        // Get the ID of the map.
-                        let mut path = old_path.to_vec();
-                        path.pop();
-                        let id = path.last().unwrap();
-
-                        // Get the path of the map.
-                        let mut terry_map = game_path.to_path_buf();
-                        terry_map.push("assembly_kit");
-                        terry_map.push("raw_data");
-                        terry_map.push("terrain");
-                        terry_map.push("tiles");
-                        terry_map.push("battle");
-                        terry_map.push("_assembly_kit");
-                        terry_map.push(id);
-
-                        // Get the ".terry" file of the map.
-                        let files = get_files_from_subdir(&terry_map).unwrap();
-                        let terry_file = files.iter().filter(|x| x.file_name().unwrap().to_string_lossy().as_ref().to_owned().ends_with(".terry")).cloned().collect::<Vec<PathBuf>>();
-                        let mut file = File::open(&terry_file[0]).unwrap();
-                        let mut terry_file_string = String::new();
-                        file.read_to_string(&mut terry_file_string).unwrap();
-
-                        // Get the ID of the current catchment in the map.
-                        let catchment_number = &old_path.last().unwrap()[..12];
-                        let line = terry_file_string.find(&format!("bmd_export_type=\"{}\"/>", catchment_number)).unwrap();
-                        terry_file_string.truncate(line);
-                        let id_index = terry_file_string.rfind(" id=\"").unwrap();
-                        let id_layer = &terry_file_string[(id_index + 5)..(id_index + 20)];
-
-                        // Get the corresponding layer file.
-                        let mut layer_file = terry_file[0].to_path_buf();
-                        let layer_file_name = layer_file.file_stem().unwrap().to_string_lossy().as_ref().to_owned();
-                        layer_file.pop();
-                        layer_file.push(format!("{}.{}.layer", layer_file_name, id_layer));
-
-                        // Get the destination path.
-                        let mut destination_folder = game_path.to_path_buf();
-                        destination_folder.push("assembly_kit");
-                        destination_folder.push("raw_data");
-                        destination_folder.push("art");
-                        destination_folder.push("prefabs");
-                        destination_folder.push("battle");
-                        destination_folder.push("custom_prefabs");
-
-                        // We check that path exists, and create it if it doesn't.
-                        if !destination_folder.is_dir() {
-                            match DirBuilder::new().create(&destination_folder) {
-                                Ok(_) | Err(_) => { /* This returns ok if it created the folder and err if it already exist. */ }
-                            };
-                        }
-
-                        // Get the full path for the prefab's layer and terry files.
-                        let mut destination_layer = destination_folder.to_path_buf();
-                        let mut destination_terry = destination_folder.to_path_buf();
-
-                        destination_layer.push(format!("{}.{}.layer", prefab_name, id_layer));
-                        destination_terry.push(format!("{}.terry", prefab_name));
-
-                        // Try to copy the layer file to his destination.
-                        if let Err(error) = copy(layer_file, destination_layer).map_err(Error::from) {
-                            show_dialog(&app_ui.window, false, error.cause());
-                        }
-
-                        // Try to write the prefab's terry file into his destination.
-                        let prefab_terry_file = format!("<?xml version=\"1.0\" encoding=\"UTF-8\"?>
-                            <project version=\"20\" id=\"15afc3311fc3488\">
-                              <pc type=\"QTU::ProjectPrefab\">
-                                <data database=\"battle\"/>
-                              </pc>
-                              <pc type=\"QTU::Scene\">
-                                <data version=\"25\">
-                                  <entity id=\"{}\" name=\"Default\">
-                                    <ECFileLayer export=\"true\" bmd_export_type=\"\"/>
-                                  </entity>
-                                </data>
-                              </pc>
-                              <pc type=\"QTU::Terrain\"/>
-                            </project>"
-                            , id_layer
-                        );
-
-                        match File::create(&destination_terry) {
-                            Ok(mut file) => {
-                                if let Err(error) = file.write_all(prefab_terry_file.as_bytes()).map_err(Error::from) {
-                                    show_dialog(&app_ui.window, false, error.cause());
-                                }
-                            }
-                            Err(error) => show_dialog(&app_ui.window, false, Error::from(error).cause()),
-                        }
-                    }
-                }
-                // Destroy the "New Prefab" window,
-                new_prefab_stuff.window.destroy();
-
-                // Re-enable the main window.
-                app_ui.window.set_sensitive(true);
-
-                // Change the PackFile's type to "Movie".
-                app_ui.menu_bar_change_packfile_type.activate(Some(&"movie".to_variant()));
-
-                // Set the mod as "Not modified".
-                set_modified(false, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
-
-                // Try to save the PackFile.
-                match packfile::save_packfile( &mut *pack_file_decoded.borrow_mut(), None) {
-                    Ok(_) => {
-
-                        // Report success.
-                        show_dialog(&app_ui.window, true, "PackFile succesfully saved.");
-                    },
-                    Err(error) => show_dialog(&app_ui.window, false, error.cause()),
-                };
-
-                // Clear the `TreeView` before updating it (fixes CTD with borrowed PackFile).
-                app_ui.folder_tree_store.clear();
-
-                // TODO: Make this update, not rebuild.
-                // Rebuild the `TreeView`.
-                update_treeview(
-                    &app_ui.folder_tree_store,
-                    &*pack_file_decoded.borrow(),
-                    &app_ui.folder_tree_selection,
-                    TreeViewOperation::Build,
-                    &TreePathType::None,
-                );
-
-                Inhibit(false)
-            }
-        ));
-
-        // When we press the "Cancel" button, we close the window and re-enable the main window.
-        new_prefab_stuff.cancel_button.connect_button_release_event(clone!(
-            new_prefab_stuff,
-            app_ui => move |_,_| {
-
-                // Destroy the "New Prefab" window,
-                new_prefab_stuff.window.destroy();
-
-                // Restore the main window.
-                app_ui.window.set_sensitive(true);
-                Inhibit(false)
-            }
-        ));
-
-        // We catch the destroy event of the window.
-        new_prefab_stuff.window.connect_delete_event(clone!(
-            app_ui => move |window, _| {
-
-                // Destroy the "New Prefab" window,
-                window.destroy();
-
-                // Restore the main window.
-                app_ui.window.set_sensitive(true);
-                Inhibit(false)
-            }
-        ));
+            pack_file_decoded,
+            &prefab_catchments
+        );
     }
 
     // If there are not suitable PackedFiles...
-    else {
-        show_dialog(&app_ui.window, false, "There are no catchment PackedFiles in this PackFile.");
-    }
+    else { show_dialog(&app_ui.window, false, "There are no catchment PackedFiles in this PackFile."); }
 }
 
 /// This function is used to set the current "Operational Mode". It not only sets the "Operational Mode",
