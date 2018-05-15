@@ -324,26 +324,35 @@ pub fn delete_from_packfile(
     pack_file: &mut packfile::PackFile,
     tree_path: &[String]
 ) -> Result<(), Error> {
+
+    // Get what it's what we want to delete.
     match get_type_of_selected_tree_path(tree_path, pack_file) {
+
+        // If it's a file, easy job.
         TreePathType::File(packed_file_data) => pack_file.remove_packedfile(packed_file_data.1),
+
+        // If it's a folder... it's a bit tricky.
         TreePathType::Folder(tree_path) => {
-            let mut index = 0;
-            for _ in 0..pack_file.data.packed_files.len() {
-                let mut file_deleted = false;
-                if index as usize <= pack_file.data.packed_files.len(){
-                    if pack_file.data.packed_files[index as usize].path.starts_with(&tree_path) {
-                        pack_file.remove_packedfile(index);
-                        file_deleted = true;
-                    }
-                }
-                else {
-                    break;
-                }
-                if !file_deleted {
-                    index += 1;
+
+            // We create a vector to store the indexes of the files we are going to delete.
+            let mut indexes = vec![];
+
+            // For each PackedFile in our PackFile...
+            for (index, packed_file) in pack_file.data.packed_files.iter().enumerate() {
+
+                // If the PackedFile it's in our folder...
+                if packed_file.path.starts_with(&tree_path) {
+
+                    // Add his index to the indexes list.
+                    indexes.push(index);
                 }
             }
+
+            // For each PackedFile we want to remove (in reverse), we remove it individually.
+            indexes.iter().rev().for_each(|index| pack_file.remove_packedfile(*index));
         },
+
+        // If it's a PackFile, easy job. For non-existant files, return an error.
         TreePathType::PackFile => pack_file.remove_all_packedfiles(),
         TreePathType::None => return Err(format_err!("How the hell did you managed to try to delete a non-existent file?")),
     }
