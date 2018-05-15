@@ -423,7 +423,7 @@ fn build_ui(application: &Application) {
 
     // Try to open the dependency PackFile of our `game_selected`.
     let dependency_database = match packfile::open_packfile(game_selected.borrow().game_dependency_packfile_path.to_path_buf()) {
-        Ok(data) => Rc::new(RefCell::new(Some(data.pack_file_data.packed_files))),
+        Ok(pack_file) => Rc::new(RefCell::new(Some(pack_file.data.packed_files))),
         Err(_) => Rc::new(RefCell::new(None)),
     };
 
@@ -465,7 +465,7 @@ fn build_ui(application: &Application) {
         app_ui => move |_,_| {
 
             // If the current PackFile has been changed in any way, we pop up the "Are you sure?" message.
-            if are_you_sure(&app_ui.window, pack_file_decoded.borrow().pack_file_extra_data.is_modified, false) {
+            if are_you_sure(&app_ui.window, pack_file_decoded.borrow().extra_data.is_modified, false) {
 
                 // If we got confirmation...
                 application.quit()
@@ -519,10 +519,10 @@ fn build_ui(application: &Application) {
         pack_file_decoded => move |_,_| {
 
             // If the current PackFile has been changed in any way, we pop up the "Are you sure?" message.
-            if are_you_sure(&app_ui.window, pack_file_decoded.borrow().pack_file_extra_data.is_modified, false) {
+            if are_you_sure(&app_ui.window, pack_file_decoded.borrow().extra_data.is_modified, false) {
 
                 // If there is no secondary PackFile opened using the "Data View" at the right side...
-                if pack_file_decoded_extra.borrow().pack_file_extra_data.file_name.is_empty() {
+                if pack_file_decoded_extra.borrow().extra_data.file_name.is_empty() {
 
                     // We need to destroy any children that the packed_file_data_display we use may have, cleaning it.
                     let children_to_utterly_destroy = app_ui.packed_file_data_display.get_children();
@@ -584,7 +584,7 @@ fn build_ui(application: &Application) {
         pack_file_decoded => move |_,_| {
 
             // If the current PackFile has been changed in any way, we pop up the "Are you sure?" message.
-            if are_you_sure(&app_ui.window, pack_file_decoded.borrow().pack_file_extra_data.is_modified, false) {
+            if are_you_sure(&app_ui.window, pack_file_decoded.borrow().extra_data.is_modified, false) {
 
                 // If we got confirmation...
                 let file_chooser_open_packfile = FileChooserNative::new(
@@ -637,12 +637,12 @@ fn build_ui(application: &Application) {
         app_ui => move |_,_| {
 
             // If our PackFile already exists in the filesystem, we save it to that file directly.
-            if pack_file_decoded.borrow().pack_file_extra_data.file_path.is_file() {
+            if pack_file_decoded.borrow().extra_data.file_path.is_file() {
 
                 // We try to save the PackFile at the provided path...
                 let success = match packfile::save_packfile(&mut *pack_file_decoded.borrow_mut(), None) {
-                    Ok(result) => {
-                        show_dialog(&app_ui.window, true, result);
+                    Ok(_) => {
+                        show_dialog(&app_ui.window, true, "PackFile succesfully saved.");
                         true
                     },
                     Err(error) => {
@@ -689,11 +689,11 @@ fn build_ui(application: &Application) {
             file_chooser_filter_packfile(&file_chooser_save_packfile, "*.pack");
 
             // We put the current name of the file as "Suggested" name.
-            file_chooser_save_packfile.set_current_name(&pack_file_decoded.borrow().pack_file_extra_data.file_name);
+            file_chooser_save_packfile.set_current_name(&pack_file_decoded.borrow().extra_data.file_name);
 
             // If we are saving an existing PackFile with another name, we start in his current path.
-            if pack_file_decoded.borrow().pack_file_extra_data.file_path.is_file() {
-                file_chooser_save_packfile.set_filename(&pack_file_decoded.borrow().pack_file_extra_data.file_path);
+            if pack_file_decoded.borrow().extra_data.file_path.is_file() {
+                file_chooser_save_packfile.set_filename(&pack_file_decoded.borrow().extra_data.file_path);
             }
 
             // In case we have a default path for the game selected and that path is valid, we use it as base path for saving our PackFile.
@@ -716,8 +716,8 @@ fn build_ui(application: &Application) {
 
                 // We try to save the PackFile at the provided path...
                 let success = match packfile::save_packfile(&mut *pack_file_decoded.borrow_mut(), Some(file_path.to_path_buf())) {
-                    Ok(result) => {
-                        show_dialog(&app_ui.window, true, result);
+                    Ok(_) => {
+                        show_dialog(&app_ui.window, true, "PackFile succesfully saved.");
                         true
                     },
                     Err(error) => {
@@ -759,36 +759,36 @@ fn build_ui(application: &Application) {
                 let new_state: Option<String> = state.get();
                 match &*new_state.unwrap() {
                     "boot" => {
-                        if pack_file_decoded.borrow().pack_file_header.pack_file_type != 0 {
-                            pack_file_decoded.borrow_mut().pack_file_header.pack_file_type = 0;
+                        if pack_file_decoded.borrow().header.pack_file_type != 0 {
+                            pack_file_decoded.borrow_mut().header.pack_file_type = 0;
                             menu_bar_change_packfile_type.change_state(&"boot".to_variant());
                             set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
                         }
                     }
                     "release" => {
-                        if pack_file_decoded.borrow().pack_file_header.pack_file_type != 1 {
-                            pack_file_decoded.borrow_mut().pack_file_header.pack_file_type = 1;
+                        if pack_file_decoded.borrow().header.pack_file_type != 1 {
+                            pack_file_decoded.borrow_mut().header.pack_file_type = 1;
                             menu_bar_change_packfile_type.change_state(&"release".to_variant());
                             set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
                         }
                     }
                     "patch" => {
-                        if pack_file_decoded.borrow().pack_file_header.pack_file_type != 2 {
-                            pack_file_decoded.borrow_mut().pack_file_header.pack_file_type = 2;
+                        if pack_file_decoded.borrow().header.pack_file_type != 2 {
+                            pack_file_decoded.borrow_mut().header.pack_file_type = 2;
                             menu_bar_change_packfile_type.change_state(&"patch".to_variant());
                             set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
                         }
                     }
                     "mod" => {
-                        if pack_file_decoded.borrow().pack_file_header.pack_file_type != 3 {
-                            pack_file_decoded.borrow_mut().pack_file_header.pack_file_type = 3;
+                        if pack_file_decoded.borrow().header.pack_file_type != 3 {
+                            pack_file_decoded.borrow_mut().header.pack_file_type = 3;
                             menu_bar_change_packfile_type.change_state(&"mod".to_variant());
                             set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
                         }
                     }
                     "movie" => {
-                        if pack_file_decoded.borrow().pack_file_header.pack_file_type != 4 {
-                            pack_file_decoded.borrow_mut().pack_file_header.pack_file_type = 4;
+                        if pack_file_decoded.borrow().header.pack_file_type != 4 {
+                            pack_file_decoded.borrow_mut().header.pack_file_type = 4;
                             menu_bar_change_packfile_type.change_state(&"movie".to_variant());
                             set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
                         }
@@ -964,7 +964,7 @@ fn build_ui(application: &Application) {
         app_ui => move |_,_| {
 
             // If the current PackFile has been changed in any way, we pop up the "Are you sure?" message.
-            if are_you_sure(&app_ui.window, pack_file_decoded.borrow().pack_file_extra_data.is_modified, false) {
+            if are_you_sure(&app_ui.window, pack_file_decoded.borrow().extra_data.is_modified, false) {
                 application.quit();
             }
         }
@@ -1386,12 +1386,12 @@ fn build_ui(application: &Application) {
 
                 // Change the `dependency_database` for that game.
                 *dependency_database.borrow_mut() = match packfile::open_packfile(game_selected.borrow().game_dependency_packfile_path.to_path_buf()) {
-                    Ok(data) => Some(data.pack_file_data.packed_files),
+                    Ok(data) => Some(data.data.packed_files),
                     Err(_) => None,
                 };
 
                 // If we have a PackFile opened....
-                if !pack_file_decoded.borrow().pack_file_extra_data.file_name.is_empty() {
+                if !pack_file_decoded.borrow().extra_data.file_name.is_empty() {
 
                     // Re-enable the "PackFile Management" actions, so the "Special Stuff" menu gets updated properly.
                     enable_packfile_actions(&app_ui, &game_selected, false);
@@ -2207,10 +2207,10 @@ fn build_ui(application: &Application) {
 
                                         // Get all the PackedFiles to copy.
                                         let path_list: Vec<Vec<String>> = pack_file_decoded_extra.borrow()
-                                            .pack_file_data.packed_files
+                                            .data.packed_files
                                             .iter()
-                                            .filter(|x| x.packed_file_path.starts_with(&source_prefix))
-                                            .map(|x| x.packed_file_path.to_vec())
+                                            .filter(|x| x.path.starts_with(&source_prefix))
+                                            .map(|x| x.path.to_vec())
                                             .collect();
 
                                         // Update the TreeView to show the newly added PackedFiles.
@@ -2839,7 +2839,7 @@ fn build_ui(application: &Application) {
         pack_file_decoded => move |_, _, _, _, selection_data, info, _| {
 
             // If the current PackFile has been changed in any way, we pop up the "Are you sure?" message.
-            if are_you_sure(&app_ui.window, pack_file_decoded.borrow().pack_file_extra_data.is_modified, false) {
+            if are_you_sure(&app_ui.window, pack_file_decoded.borrow().extra_data.is_modified, false) {
 
                 // If we got confirmation...
                 match info {
@@ -2917,7 +2917,7 @@ fn open_packfile(
         Ok(pack_file_opened) => {
 
             // If there is no secondary PackFile opened using the "Data View" at the right side...
-            if pack_file_decoded_extra.borrow().pack_file_extra_data.file_name.is_empty() {
+            if pack_file_decoded_extra.borrow().extra_data.file_name.is_empty() {
 
                 // We need to destroy any children that the packed_file_data_display we use may have, cleaning it.
                 let children_to_utterly_destroy = app_ui.packed_file_data_display.get_children();
@@ -2950,7 +2950,7 @@ fn open_packfile(
             );
 
             // We choose the right option, depending on our PackFile.
-            match pack_file_decoded.borrow().pack_file_header.pack_file_type {
+            match pack_file_decoded.borrow().header.pack_file_type {
                 0 => app_ui.menu_bar_change_packfile_type.change_state(&"boot".to_variant()),
                 1 => app_ui.menu_bar_change_packfile_type.change_state(&"release".to_variant()),
                 2 => app_ui.menu_bar_change_packfile_type.change_state(&"patch".to_variant()),
@@ -2978,7 +2978,7 @@ fn open_packfile(
             else {
 
                 // Set `GameSelected` depending on the ID of the PackFile.
-                match &*pack_file_decoded.borrow().pack_file_header.pack_file_id {
+                match &*pack_file_decoded.borrow().header.id {
                     "PFH5" => {
                         game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.paths.game_paths.iter().filter(|x| &x.game == "warhammer_2").map(|x| x.path.clone()).collect::<Option<PathBuf>>(), supported_games);
                         app_ui.menu_bar_change_game_selected.change_state(&"warhammer_2".to_variant());
@@ -3003,7 +3003,7 @@ fn open_packfile(
 
                 // Change the `dependency_database` for that game.
                 *dependency_database.borrow_mut() = match packfile::open_packfile(game_selected.borrow().game_dependency_packfile_path.to_path_buf()) {
-                    Ok(data) => Some(data.pack_file_data.packed_files),
+                    Ok(data) => Some(data.data.packed_files),
                     Err(_) => None,
                 };
 
@@ -3133,7 +3133,7 @@ fn build_my_mod_menu(
                                         pack_file_decoded => move |_,_| {
 
                                             // If the current PackFile has been changed in any way, we pop up the "Are you sure?" message.
-                                            if are_you_sure(&app_ui.window, pack_file_decoded.borrow().pack_file_extra_data.is_modified, false) {
+                                            if are_you_sure(&app_ui.window, pack_file_decoded.borrow().extra_data.is_modified, false) {
 
                                                 // If we got confirmation...
                                                 let pack_file_path = game_folder_file.to_path_buf();
@@ -3190,9 +3190,9 @@ fn patch_siege_ai(
     if sucessful_patching.0 {
         let mut success = false;
         match packfile::save_packfile( &mut *pack_file_decoded.borrow_mut(), None) {
-            Ok(result) => {
+            Ok(_) => {
                 success = true;
-                show_dialog(&app_ui.window, true, format!("{}\n\n{}", sucessful_patching.1, result));
+                show_dialog(&app_ui.window, true, format!("{}\n\n{}", sucessful_patching.1, "PackFile succesfully saved."));
             },
             Err(error) => show_dialog(&app_ui.window, false, error.cause())
         }
@@ -3230,8 +3230,8 @@ fn generate_dependency_pack(
             data_pack_path.push("data.pack");
             match packfile::open_packfile(data_pack_path) {
                 Ok(ref mut data_packfile) => {
-                    data_packfile.pack_file_data.packed_files.retain(|packed_file| packed_file.packed_file_path.starts_with(&["db".to_owned()]));
-                    data_packfile.pack_file_header.packed_file_count = data_packfile.pack_file_data.packed_files.len() as u32;
+                    data_packfile.data.packed_files.retain(|packed_file| packed_file.path.starts_with(&["db".to_owned()]));
+                    data_packfile.header.packed_file_count = data_packfile.data.packed_files.len() as u32;
 
                     // Just in case the folder doesn't exists, we try to create it.
                     let mut dep_packs_path = rpfm_path.clone();
@@ -3263,19 +3263,19 @@ fn create_prefab(
     let mut prefab_catchments: Vec<(usize, Vec<String>)>= vec![];
 
     // For each PackedFile...
-    for (index, packed_file) in pack_file_decoded.borrow().pack_file_data.packed_files.iter().enumerate() {
+    for (index, packed_file) in pack_file_decoded.borrow().data.packed_files.iter().enumerate() {
 
         // If it's in the exported map's folder...
-        if packed_file.packed_file_path.starts_with(&["terrain".to_string(), "tiles".to_string(), "battle".to_string(), "_assembly_kit".to_string()]) {
+        if packed_file.path.starts_with(&["terrain".to_owned(), "tiles".to_owned(), "battle".to_owned(), "_assembly_kit".to_owned()]) {
 
             // Get his name.
-            let packed_file_name = packed_file.packed_file_path.last().unwrap();
+            let packed_file_name = packed_file.path.last().unwrap();
 
             // If it's one of the exported layers...
             if packed_file_name.starts_with("catchment") && packed_file_name.ends_with(".bin") {
 
                 // Add it to the list.
-                prefab_catchments.push((index, packed_file.packed_file_path.to_vec()));
+                prefab_catchments.push((index, packed_file.path.to_vec()));
             }
         }
     }
@@ -3306,7 +3306,7 @@ fn create_prefab(
                     let prefab_name = prefab.1.get_text().unwrap();
 
                     // Change his path, so it's now shown in the correct folder.
-                    pack_file_decoded.borrow_mut().pack_file_data.packed_files[(prefab.0).0].packed_file_path = vec!["prefabs".to_owned(), format!("{}.bmd", prefab_name)];
+                    pack_file_decoded.borrow_mut().data.packed_files[(prefab.0).0].path = vec!["prefabs".to_owned(), format!("{}.bmd", prefab_name)];
 
                     // If we have the Game's path configured...
                     if let Some(ref game_path) = game_selected.borrow().game_path {
@@ -3419,10 +3419,10 @@ fn create_prefab(
 
                 // Try to save the PackFile.
                 match packfile::save_packfile( &mut *pack_file_decoded.borrow_mut(), None) {
-                    Ok(result) => {
+                    Ok(_) => {
 
                         // Report success.
-                        show_dialog(&app_ui.window, true, result);
+                        show_dialog(&app_ui.window, true, "PackFile succesfully saved.");
                     },
                     Err(error) => show_dialog(&app_ui.window, false, error.cause()),
                 };

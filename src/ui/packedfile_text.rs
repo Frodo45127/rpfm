@@ -31,11 +31,11 @@ pub fn create_text_view(
 ) -> Result<(), Error> {
 
     // Get the name of the PackedFile.
-    let packed_file_name = &pack_file.borrow().pack_file_data.packed_files[*packed_file_decoded_index].packed_file_path.last().unwrap().to_owned();
+    let packed_file_name = &pack_file.borrow().data.packed_files[*packed_file_decoded_index].path.last().unwrap().to_owned();
 
     // We try to decode the data. Only if we success, we create the SourceView and add the data to it.
     // NOTE: This only works for UTF-8 encoded files. Check their encoding before adding them here to be decoded.
-    match decode_string_u8(&pack_file.borrow().pack_file_data.packed_files[*packed_file_decoded_index].packed_file_data) {
+    match decode_string_u8(&pack_file.borrow().data.packed_files[*packed_file_decoded_index].data) {
         Ok(text) => {
 
             // We create the new SourceView (in a ScrolledWindow) and his buffer,

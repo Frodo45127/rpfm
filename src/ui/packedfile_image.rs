@@ -22,8 +22,8 @@ pub fn create_image_view(
 ) -> Result<(), Error> {
 
     // Get the data of the image we want to open, and his name.
-    let image_data = &pack_file.borrow().pack_file_data.packed_files[*packed_file_decoded_index].packed_file_data;
-    let image_name = &pack_file.borrow().pack_file_data.packed_files[*packed_file_decoded_index].packed_file_path.last().unwrap().to_owned();
+    let image_data = &pack_file.borrow().data.packed_files[*packed_file_decoded_index].data;
+    let image_name = &pack_file.borrow().data.packed_files[*packed_file_decoded_index].path.last().unwrap().to_owned();
 
     // Create a temporal file for the image in the TEMP directory of the filesystem.
     let mut temporal_file_path = env::temp_dir();

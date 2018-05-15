@@ -58,7 +58,7 @@ impl PackedFileLocTreeView{
         let tree_path = get_tree_path_from_selection(&app_ui.folder_tree_selection, false);
 
         // We try to decode it as a Loc PackedFile.
-        match Loc::read(&*pack_file.borrow().pack_file_data.packed_files[*packed_file_decoded_index].packed_file_data) {
+        match Loc::read(&*pack_file.borrow().data.packed_files[*packed_file_decoded_index].data) {
 
             // If we succeed...
             Ok(packed_file_decoded) => {

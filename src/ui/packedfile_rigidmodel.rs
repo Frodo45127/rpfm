@@ -38,7 +38,7 @@ impl PackedFileRigidModelDataView {
     ) -> Result<(), Error> {
 
         // We try to decode the RigidModel. If it fails, return error. Otherwise build the UI and load to it the data.
-        match RigidModel::read(&pack_file.borrow().pack_file_data.packed_files[*packed_file_decoded_index].packed_file_data) {
+        match RigidModel::read(&pack_file.borrow().data.packed_files[*packed_file_decoded_index].data) {
             Ok(packed_file_decoded) => {
 
                 // Internal `ScrolledWindow`, so if there are too many lods, we can scroll through them.

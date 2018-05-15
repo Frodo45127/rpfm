@@ -291,12 +291,12 @@ pub fn set_modified(
     pack_file_decoded: &mut PackFile,
 ) {
     if is_modified {
-        pack_file_decoded.pack_file_extra_data.is_modified = true;
-        window.set_title(&format!("Rusted PackFile Manager -> {}(modified)", pack_file_decoded.pack_file_extra_data.file_name));
+        pack_file_decoded.extra_data.is_modified = true;
+        window.set_title(&format!("Rusted PackFile Manager -> {}(modified)", pack_file_decoded.extra_data.file_name));
     }
     else {
-        pack_file_decoded.pack_file_extra_data.is_modified = false;
-        window.set_title(&format!("Rusted PackFile Manager -> {}", pack_file_decoded.pack_file_extra_data.file_name));
+        pack_file_decoded.extra_data.is_modified = false;
+        window.set_title(&format!("Rusted PackFile Manager -> {}", pack_file_decoded.extra_data.file_name));
     }
 }
 
@@ -596,12 +596,12 @@ pub fn update_treeview(
 
             // Second, we set as the big_parent, the base for the folders of the TreeView, a fake folder
             // with the name of the PackFile. All big things start with a lie.
-            let big_parent = folder_tree_store.insert_with_values(None, None, &[0], &[&format!("{}", pack_file_decoded.pack_file_extra_data.file_name)]);
+            let big_parent = folder_tree_store.insert_with_values(None, None, &[0], &[&format!("{}", pack_file_decoded.extra_data.file_name)]);
 
             // Third, we get all the paths of the PackedFiles inside the Packfile in a Vector.
             let mut sorted_path_list = vec![];
-            for i in &pack_file_decoded.pack_file_data.packed_files {
-                sorted_path_list.push(&i.packed_file_path);
+            for i in &pack_file_decoded.data.packed_files {
+                sorted_path_list.push(&i.path);
             }
 
             // Fourth, we sort that vector using this horrific monster I don't want to touch again, using
@@ -883,7 +883,7 @@ pub fn update_treeview(
                     folder_tree_store.clear();
 
                     // Then we add the PackFile to it. This effectively deletes all the PackedFiles in the PackFile.
-                    folder_tree_store.insert_with_values(None, None, &[0], &[&format!("{}", pack_file_decoded.pack_file_extra_data.file_name)]);
+                    folder_tree_store.insert_with_values(None, None, &[0], &[&format!("{}", pack_file_decoded.extra_data.file_name)]);
                 },
 
                 // If we don't have anything selected, we do nothing.
