@@ -453,6 +453,11 @@ fn build_ui(application: &Application) {
         check_updates(VERSION, None, Some(&app_ui.status_bar));
     }
 
+    // Same with schema updates.
+    if settings.borrow().check_schema_updates_on_start {
+        check_schema_updates(VERSION, &rpfm_path, &supported_games.borrow(), &game_selected, &schema, None, Some(&app_ui.status_bar));
+    }
+
     // We bring up the main window.
     app_ui.window.show_all();
 

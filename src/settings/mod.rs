@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::fs::File;
 use std::io::Write;
 
-use self::failure::Error;
+use failure::Error;
 
 /// `GameInfo`: This struct holds all the info needed for a game to be "supported" by RPFM features.
 /// It's stores the following data:
@@ -31,6 +31,7 @@ pub struct Settings {
     pub prefer_dark_theme: bool,
     pub font: String,
     pub check_updates_on_start: bool,
+    pub check_schema_updates_on_start: bool,
 }
 
 /// This struct should hold any path we need to store in the settings.
@@ -128,6 +129,7 @@ impl Settings {
             prefer_dark_theme: false,
             font: "Segoe UI 9".to_owned(),
             check_updates_on_start: true,
+            check_schema_updates_on_start: true,
         }
     }
 
