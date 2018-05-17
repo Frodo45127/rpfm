@@ -1,0 +1,12 @@
+{
+    "versions": [
+        {
+            "game": "warhammer",
+            "version": 1
+        },
+        {
+            "game": "attila",
+            "version": 1
+        }
+    ]
+}
