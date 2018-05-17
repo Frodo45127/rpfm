@@ -646,32 +646,39 @@ fn build_ui(application: &Application) {
         pack_file_decoded,
         app_ui => move |_,_| {
 
-            // If our PackFile already exists in the filesystem, we save it to that file directly.
-            if pack_file_decoded.borrow().extra_data.file_path.is_file() {
+            // If our PackFile is editable...
+            if pack_file_decoded.borrow().is_editable() {
 
-                // We try to save the PackFile at the provided path...
-                let success = match packfile::save_packfile(&mut *pack_file_decoded.borrow_mut(), None) {
-                    Ok(_) => {
-                        show_dialog(&app_ui.window, true, "PackFile succesfully saved.");
-                        true
-                    },
-                    Err(error) => {
-                        show_dialog(&app_ui.window, false, error.cause());
-                        false
+                // If our PackFile already exists in the filesystem, we save it to that file directly.
+                if pack_file_decoded.borrow().extra_data.file_path.is_file() {
+
+                    // We try to save the PackFile at the provided path...
+                    let success = match packfile::save_packfile(&mut *pack_file_decoded.borrow_mut(), None) {
+                        Ok(_) => {
+                            show_dialog(&app_ui.window, true, "PackFile succesfully saved.");
+                            true
+                        },
+                        Err(error) => {
+                            show_dialog(&app_ui.window, false, error.cause());
+                            false
+                        }
+                    };
+
+                    // If we succeed...
+                    if success {
+
+                        // Set the mod as "Not modified".
+                        set_modified(false, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
                     }
-                };
-
-                // If we succeed...
-                if success {
-
-                    // Set the mod as "Not modified".
-                    set_modified(false, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
                 }
+
+                // If our PackFile doesn't exist in the filesystem (it's new, or the base PackFile has been deleted),
+                // we trigger the "Save as" dialog.
+                else { app_ui.menu_bar_save_packfile_as.activate(None); }
             }
 
-            // If our PackFile doesn't exist in the filesystem (it's new, or the base PackFile has been deleted),
-            // we trigger the "Save as" dialog.
-            else { app_ui.menu_bar_save_packfile_as.activate(None); }
+            // Otherwise, return a Message specifying the error.
+            else { show_dialog(&app_ui.window, false, "This type of PackFile is supported in Read-Only mode. If you really want to save it, go to \"PackFile/Change PackFile Type\" and change his type with one of those (you'll usually want \"Mod\")."); }
         }
     ));
 
@@ -683,81 +690,88 @@ fn build_ui(application: &Application) {
         app_ui,
         mode => move |_,_| {
 
-            // Create the FileChooserNative.
-            let file_chooser_save_packfile = FileChooserNative::new(
-                "Save PackFile as...",
-                &app_ui.window,
-                FileChooserAction::Save,
-                "Save",
-                "Cancel"
-            );
+            // If our PackFile is editable...
+            if pack_file_decoded.borrow().is_editable() {
 
-            // We want to ask before overwriting files. Just in case. Otherwise, there can be an accident.
-            file_chooser_save_packfile.set_do_overwrite_confirmation(true);
+                // Create the FileChooserNative.
+                let file_chooser_save_packfile = FileChooserNative::new(
+                    "Save PackFile as...",
+                    &app_ui.window,
+                    FileChooserAction::Save,
+                    "Save",
+                    "Cancel"
+                );
 
-            // We are only interested in seeing ".pack" files.
-            file_chooser_filter_packfile(&file_chooser_save_packfile, "*.pack");
+                // We want to ask before overwriting files. Just in case. Otherwise, there can be an accident.
+                file_chooser_save_packfile.set_do_overwrite_confirmation(true);
 
-            // We put the current name of the file as "Suggested" name.
-            file_chooser_save_packfile.set_current_name(&pack_file_decoded.borrow().extra_data.file_name);
+                // We are only interested in seeing ".pack" files.
+                file_chooser_filter_packfile(&file_chooser_save_packfile, "*.pack");
 
-            // If we are saving an existing PackFile with another name, we start in his current path.
-            if pack_file_decoded.borrow().extra_data.file_path.is_file() {
-                file_chooser_save_packfile.set_filename(&pack_file_decoded.borrow().extra_data.file_path);
-            }
+                // We put the current name of the file as "Suggested" name.
+                file_chooser_save_packfile.set_current_name(&pack_file_decoded.borrow().extra_data.file_name);
 
-            // In case we have a default path for the game selected and that path is valid, we use it as base path for saving our PackFile.
-            else if let Some(ref path) = game_selected.borrow().game_data_path {
-
-                // We check it actually exists before setting it.
-                if path.is_dir() {
-                    file_chooser_save_packfile.set_current_folder(path);
+                // If we are saving an existing PackFile with another name, we start in his current path.
+                if pack_file_decoded.borrow().extra_data.file_path.is_file() {
+                    file_chooser_save_packfile.set_filename(&pack_file_decoded.borrow().extra_data.file_path);
                 }
-            }
 
-            // If we hit "Accept" (and "Accept" again if we are overwriting a PackFile)...
-            if file_chooser_save_packfile.run() == gtk_response_accept {
+                // In case we have a default path for the game selected and that path is valid, we use it as base path for saving our PackFile.
+                else if let Some(ref path) = game_selected.borrow().game_data_path {
 
-                // Get the new PackFile's path.
-                let mut file_path = file_chooser_save_packfile.get_filename().unwrap();
-
-                // If the new PackFile's name doesn't end in ".pack", we add it at the end.
-                if !file_path.ends_with(".pack") { file_path.set_extension("pack"); }
-
-                // We try to save the PackFile at the provided path...
-                let success = match packfile::save_packfile(&mut *pack_file_decoded.borrow_mut(), Some(file_path.to_path_buf())) {
-                    Ok(_) => {
-                        show_dialog(&app_ui.window, true, "PackFile succesfully saved.");
-                        true
-                    },
-                    Err(error) => {
-                        show_dialog(&app_ui.window, false, error.cause());
-                        false
+                    // We check it actually exists before setting it.
+                    if path.is_dir() {
+                        file_chooser_save_packfile.set_current_folder(path);
                     }
-                };
+                }
 
-                // If we succeed...
-                if success {
+                // If we hit "Accept" (and "Accept" again if we are overwriting a PackFile)...
+                if file_chooser_save_packfile.run() == gtk_response_accept {
 
-                    // Set the mod as "Not modified".
-                    set_modified(false, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
+                    // Get the new PackFile's path.
+                    let mut file_path = file_chooser_save_packfile.get_filename().unwrap();
 
-                    // Select the first `TreeIter`, so the rename works.
-                    app_ui.folder_tree_selection.select_iter(&app_ui.folder_tree_store.get_iter_first().unwrap());
+                    // If the new PackFile's name doesn't end in ".pack", we add it at the end.
+                    if !file_path.ends_with(".pack") { file_path.set_extension("pack"); }
 
-                    // Update the TreeView to reflect the possible PackFile name change.
-                    update_treeview(
-                        &app_ui.folder_tree_store,
-                        &*pack_file_decoded.borrow(),
-                        &app_ui.folder_tree_selection,
-                        TreeViewOperation::Rename(file_path.file_name().unwrap().to_string_lossy().as_ref().to_owned()),
-                        &TreePathType::None,
-                    );
+                    // We try to save the PackFile at the provided path...
+                    let success = match packfile::save_packfile(&mut *pack_file_decoded.borrow_mut(), Some(file_path.to_path_buf())) {
+                        Ok(_) => {
+                            show_dialog(&app_ui.window, true, "PackFile succesfully saved.");
+                            true
+                        },
+                        Err(error) => {
+                            show_dialog(&app_ui.window, false, error.cause());
+                            false
+                        }
+                    };
 
-                    // Set the current "Operational Mode" to Normal, just in case "MyMod" is the current one.
-                    set_my_mod_mode(&app_ui, &mode, None);
+                    // If we succeed...
+                    if success {
+
+                        // Set the mod as "Not modified".
+                        set_modified(false, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
+
+                        // Select the first `TreeIter`, so the rename works.
+                        app_ui.folder_tree_selection.select_iter(&app_ui.folder_tree_store.get_iter_first().unwrap());
+
+                        // Update the TreeView to reflect the possible PackFile name change.
+                        update_treeview(
+                            &app_ui.folder_tree_store,
+                            &*pack_file_decoded.borrow(),
+                            &app_ui.folder_tree_selection,
+                            TreeViewOperation::Rename(file_path.file_name().unwrap().to_string_lossy().as_ref().to_owned()),
+                            &TreePathType::None,
+                        );
+
+                        // Set the current "Operational Mode" to Normal, just in case "MyMod" is the current one.
+                        set_my_mod_mode(&app_ui, &mode, None);
+                    }
                 }
             }
+
+            // Otherwise, return a Message specifying the error.
+            else { show_dialog(&app_ui.window, false, "This type of PackFile is supported in Read-Only mode. If you really want to save it, go to \"PackFile/Change PackFile Type\" and change his type with one of those (you'll usually want \"Mod\")."); }
         }
     ));
 
@@ -803,7 +817,13 @@ fn build_ui(application: &Application) {
                             set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
                         }
                     }
-                    _ => show_dialog(&app_ui.window, false, "PackFile Type not valid."),
+                    _ => {
+                        if pack_file_decoded.borrow().header.pack_file_type != 9999 {
+                            pack_file_decoded.borrow_mut().header.pack_file_type = 9999;
+                            menu_bar_change_packfile_type.change_state(&"other".to_variant());
+                            set_modified(true, &app_ui.window, &mut *pack_file_decoded.borrow_mut());
+                        }
+                    }
                 }
             }
         }
@@ -2980,7 +3000,7 @@ fn open_packfile(
                 2 => app_ui.menu_bar_change_packfile_type.change_state(&"patch".to_variant()),
                 3 => app_ui.menu_bar_change_packfile_type.change_state(&"mod".to_variant()),
                 4 => app_ui.menu_bar_change_packfile_type.change_state(&"movie".to_variant()),
-                _ => show_dialog(&app_ui.window, false, "PackFile Type not valid."),
+                _ => app_ui.menu_bar_change_packfile_type.change_state(&"other".to_variant()),
             }
 
             // Disable the "PackFile Management" actions.

@@ -118,6 +118,13 @@ impl PackFile {
         }
     }
 
+    /// This function returns if the PackFile is editable or not, depending on the type of the PackFile.
+    /// Basically, if the PackFile is not one of the 5 know types, this'll return false. Use it to disable
+    /// saving functions for PackFiles we can read but not save. Like the "boot.pack" from Attila.
+    pub fn is_editable(&self) -> bool {
+        if self.header.pack_file_type <= 4 { true } else { false }
+    }
+
     /// This function removes a PackedFile from a PackFile.
     /// It requires:
     /// - self: the PackFile we are going to manipulate.

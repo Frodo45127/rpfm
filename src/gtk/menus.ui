@@ -54,6 +54,11 @@
                                 <attribute name="action">app.change-packfile-type</attribute>
                                 <attribute name="target">movie</attribute>
                             </item>
+                            <item>
+                                <attribute name="label" translatable="yes">_Other</attribute>
+                                <attribute name="action">app.change-packfile-type</attribute>
+                                <attribute name="target">other</attribute>
+                            </item>
                         </section>
                     </submenu>
                 </section>
