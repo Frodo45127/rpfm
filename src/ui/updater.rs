@@ -42,7 +42,7 @@ pub fn check_updates(current_version: &str, use_dialog: Option<&ApplicationWindo
 
     // Create new client with API base URL
     let mut client = RestClient::new("https://api.github.com").unwrap();
-    client.set_header_raw("User-Agent", "Mozilla/5.0 (X11; Linux x86_64; rv:59.0) Gecko/20100101 Firefox/59.0");
+    client.set_header_raw("User-Agent", &format!("RPFM/{}", current_version));
 
     // Get `https://api.github.com/repos/frodo45127/rpfm/releases/latest` and deserialize the result automatically
     let apiresponse = match client.get(()) {
