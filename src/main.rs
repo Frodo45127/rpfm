@@ -46,7 +46,7 @@ use gtk::prelude::*;
 use gtk::{
     Builder, ApplicationWindow, Grid, TreePath, Clipboard, LinkButton, StyleContext,
     TreeView, TreeSelection, TreeStore, ScrolledWindow, Application, CellRendererMode,
-    CellRendererText, TreeViewColumn, Popover, Button, ResponseType,
+    CellRendererText, TreeViewColumn, Popover, Button, ResponseType, Label,
     ShortcutsWindow, ToVariant, Statusbar, FileChooserNative, FileChooserAction
 };
 
@@ -457,6 +457,10 @@ fn build_ui(application: &Application) {
     if settings.borrow().check_schema_updates_on_start {
         check_schema_updates(VERSION, &rpfm_path, &supported_games.borrow(), &game_selected, &schema, None, Some(&app_ui.status_bar));
     }
+
+    // Concatenate and push again the last two messages of the Statusbar, to be able to show both message at the same time.
+    // FIXME: This is a dirty trick, so it should be fixed in the future.
+    concatenate_check_update_messages(&app_ui.status_bar);
 
     // We bring up the main window.
     app_ui.window.show_all();
@@ -3412,6 +3416,26 @@ fn enable_packfile_actions(app_ui: &AppUI, game_selected: &Rc<RefCell<GameSelect
         // Disable Attila actions...
         app_ui.menu_bar_generate_dependency_pack_att.set_enabled(false);
     }
+}
+
+/// This function concatenates the last two messages of the status_bar and shows them like one.
+fn concatenate_check_update_messages(status_bar: &Statusbar) {
+
+    // Get the ID of all messages passed to the status_bar with the helper function.
+    let context_id = status_bar.get_context_id("Yekaterina");
+
+    // Get the current text, if any.
+    let current_text = status_bar.get_message_area().unwrap().get_children()[0].clone().downcast::<Label>().unwrap().get_text().unwrap();
+
+    // Remove it from the status_bar.
+    status_bar.pop(context_id);
+
+    // Get the new current text, if any.
+    let old_text = status_bar.get_message_area().unwrap().get_children()[0].clone().downcast::<Label>().unwrap().get_text().unwrap();
+
+    // Concatenate both texts and push them.
+    let new_text = format!("{} {}", old_text, current_text);
+    status_bar.push(context_id, &new_text);
 }
 
 /// Main function.
