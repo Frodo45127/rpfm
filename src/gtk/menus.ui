@@ -190,6 +190,10 @@
                     <attribute name="action">app.check-updates</attribute>
                 </item>
                 <item>
+                    <attribute name="label" translatable="yes">Check Schema _Updates</attribute>
+                    <attribute name="action">app.check-schema-updates</attribute>
+                </item>
+                <item>
                     <attribute name="label" translatable="yes">Support me on _Patreon</attribute>
                     <attribute name="action">app.open-patreon</attribute>
                 </item>

@@ -18,7 +18,6 @@ use super::schemas_importer;
 /// - tables_definition: the actual definitions.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Schema {
-    pub version: u32,
     pub tables_definitions: Vec<TableDefinitions>,
 }
 
@@ -73,11 +72,9 @@ impl Schema {
     /// This function creates a new schema. It should only be needed to create the first table definition
     /// of a game, as the rest will continue using the same schema.
     pub fn new() -> Schema {
-        let version = 1u32;
         let tables_definitions = vec![];
 
         Schema {
-            version,
             tables_definitions,
         }
     }

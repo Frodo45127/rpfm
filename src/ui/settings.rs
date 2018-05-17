@@ -37,6 +37,7 @@ pub struct SettingsWindow {
     pub settings_path_buttons: Vec<Button>,
     pub settings_game_list_combo: ComboBoxText,
     pub settings_extra_check_updates_on_start: CheckButton,
+    pub settings_extra_check_schema_updates_on_start: CheckButton,
     pub settings_theme_prefer_dark_theme: CheckButton,
     pub settings_theme_font_button: FontButton,
     pub settings_cancel: Button,
@@ -178,6 +179,13 @@ impl SettingsWindow {
         check_updates_on_start_label.set_yalign(0.5);
         check_updates_on_start_checkbox.set_hexpand(true);
 
+        let check_schema_updates_on_start_label = Label::new(Some("Check Schema Updates on Start:"));
+        let check_schema_updates_on_start_checkbox = CheckButton::new();
+        check_schema_updates_on_start_label.set_size_request(170, 0);
+        check_schema_updates_on_start_label.set_xalign(0.0);
+        check_schema_updates_on_start_label.set_yalign(0.5);
+        check_schema_updates_on_start_checkbox.set_hexpand(true);
+
         let button_box = ButtonBox::new(Orientation::Horizontal);
         button_box.set_layout(ButtonBoxStyle::End);
         button_box.set_spacing(10);
@@ -206,6 +214,8 @@ impl SettingsWindow {
         extra_settings_grid.attach(&game_list_combo, 1, 0, 1, 1);
         extra_settings_grid.attach(&check_updates_on_start_label, 0, 1, 1, 1);
         extra_settings_grid.attach(&check_updates_on_start_checkbox, 1, 1, 1, 1);
+        extra_settings_grid.attach(&check_schema_updates_on_start_label, 0, 2, 1, 1);
+        extra_settings_grid.attach(&check_schema_updates_on_start_checkbox, 1, 2, 1, 1);
 
         extra_settings_frame.add(&extra_settings_grid);
 
@@ -331,6 +341,7 @@ impl SettingsWindow {
             settings_path_buttons: game_buttons,
             settings_game_list_combo: game_list_combo,
             settings_extra_check_updates_on_start: check_updates_on_start_checkbox,
+            settings_extra_check_schema_updates_on_start: check_schema_updates_on_start_checkbox,
             settings_theme_prefer_dark_theme: prefer_dark_theme_checkbox,
             settings_theme_font_button: font_settings_button,
             settings_cancel: cancel_button,
@@ -358,8 +369,9 @@ impl SettingsWindow {
         // Load the "Default Game".
         self.settings_game_list_combo.set_active_id(Some(&*settings.default_game));
 
-        // Load the "Check Updates on Start" setting.
+        // Load the "Check Updates on Start" settings.
         self.settings_extra_check_updates_on_start.set_active(settings.check_updates_on_start);
+        self.settings_extra_check_schema_updates_on_start.set_active(settings.check_schema_updates_on_start);
 
         // Load the current Theme prefs.
         self.settings_theme_prefer_dark_theme.set_active(settings.prefer_dark_theme);
@@ -389,8 +401,9 @@ impl SettingsWindow {
         // We get his game's folder, depending on the selected game.
         settings.default_game = self.settings_game_list_combo.get_active_id().unwrap();
 
-        // Get the "Check Updates on Start" setting.
+        // Get the "Check Updates on Start" settings.
         settings.check_updates_on_start = self.settings_extra_check_updates_on_start.get_active();
+        settings.check_schema_updates_on_start = self.settings_extra_check_schema_updates_on_start.get_active();
 
         // Get the Theme and Font settings.
         settings.prefer_dark_theme = self.settings_theme_prefer_dark_theme.get_active();

@@ -1,6 +1,9 @@
 // This is the main file of RPFM. Here is the main loop that builds the UI and controls
 // his events.
 
+// Disable warnings about unknown lints, so we don't have the linter warnings when compiling.
+#![allow(unknown_lints)]
+
 // Disable these two clippy linters. They throw a lot of false positives, and it's a pain in the ass
 // to separate their warnings from the rest. Also, disable "match_bool" because the methods it suggest
 // are harder to read than a match. And "redundant_closure", because the suggerences it gives doesn't work.
@@ -43,7 +46,7 @@ use gtk::prelude::*;
 use gtk::{
     Builder, ApplicationWindow, Grid, TreePath, Clipboard, LinkButton, StyleContext,
     TreeView, TreeSelection, TreeStore, ScrolledWindow, Application, CellRendererMode,
-    CellRendererText, TreeViewColumn, Popover, Button, ResponseType,
+    CellRendererText, TreeViewColumn, Popover, Button, ResponseType, Label,
     ShortcutsWindow, ToVariant, Statusbar, FileChooserNative, FileChooserAction
 };
 
@@ -164,6 +167,7 @@ pub struct AppUI {
     pub menu_bar_create_map_prefab_wh: SimpleAction,
     pub menu_bar_generate_dependency_pack_att: SimpleAction,
     pub menu_bar_check_updates: SimpleAction,
+    pub menu_bar_check_schema_updates: SimpleAction,
     pub menu_bar_open_patreon: SimpleAction,
     pub menu_bar_about: SimpleAction,
     pub menu_bar_change_packfile_type: SimpleAction,
@@ -280,6 +284,7 @@ fn build_ui(application: &Application) {
         menu_bar_create_map_prefab_wh: SimpleAction::new("create-map-prefab-wh", None),
         menu_bar_generate_dependency_pack_att: SimpleAction::new("generate-dependency-pack-att", None),
         menu_bar_check_updates: SimpleAction::new("check-updates", None),
+        menu_bar_check_schema_updates: SimpleAction::new("check-schema-updates", None),
         menu_bar_open_patreon: SimpleAction::new("open-patreon", None),
         menu_bar_about: SimpleAction::new("about", None),
         menu_bar_change_packfile_type: SimpleAction::new_stateful("change-packfile-type", glib::VariantTy::new("s").ok(), &"mod".to_variant()),
@@ -327,6 +332,7 @@ fn build_ui(application: &Application) {
     application.add_action(&app_ui.menu_bar_open_patreon);
     application.add_action(&app_ui.menu_bar_about);
     application.add_action(&app_ui.menu_bar_check_updates);
+    application.add_action(&app_ui.menu_bar_check_schema_updates);
     application.add_action(&app_ui.menu_bar_change_packfile_type);
     application.add_action(&app_ui.menu_bar_my_mod_new);
     application.add_action(&app_ui.menu_bar_my_mod_delete);
@@ -446,6 +452,15 @@ fn build_ui(application: &Application) {
     if settings.borrow().check_updates_on_start {
         check_updates(VERSION, None, Some(&app_ui.status_bar));
     }
+
+    // Same with schema updates.
+    if settings.borrow().check_schema_updates_on_start {
+        check_schema_updates(VERSION, &rpfm_path, &supported_games.borrow(), &game_selected, &schema, None, Some(&app_ui.status_bar));
+    }
+
+    // Concatenate and push again the last two messages of the Statusbar, to be able to show both message at the same time.
+    // FIXME: This is a dirty trick, so it should be fixed in the future.
+    concatenate_check_update_messages(&app_ui.status_bar);
 
     // We bring up the main window.
     app_ui.window.show_all();
@@ -1477,6 +1492,17 @@ fn build_ui(application: &Application) {
     app_ui.menu_bar_check_updates.connect_activate(clone!(
         app_ui => move |_,_| {
             check_updates(VERSION, Some(&app_ui.window), None);
+        }
+    ));
+
+    // When we hit the "Check Schema Updates" button.
+    app_ui.menu_bar_check_schema_updates.connect_activate(clone!(
+        supported_games,
+        game_selected,
+        rpfm_path,
+        schema,
+        app_ui => move |_,_| {
+            check_schema_updates(VERSION, &rpfm_path, &supported_games.borrow(), &game_selected, &schema, Some(&app_ui.window), None);
         }
     ));
 
@@ -3390,6 +3416,26 @@ fn enable_packfile_actions(app_ui: &AppUI, game_selected: &Rc<RefCell<GameSelect
         // Disable Attila actions...
         app_ui.menu_bar_generate_dependency_pack_att.set_enabled(false);
     }
+}
+
+/// This function concatenates the last two messages of the status_bar and shows them like one.
+fn concatenate_check_update_messages(status_bar: &Statusbar) {
+
+    // Get the ID of all messages passed to the status_bar with the helper function.
+    let context_id = status_bar.get_context_id("Yekaterina");
+
+    // Get the current text, if any.
+    let current_text = status_bar.get_message_area().unwrap().get_children()[0].clone().downcast::<Label>().unwrap().get_text().unwrap();
+
+    // Remove it from the status_bar.
+    status_bar.pop(context_id);
+
+    // Get the new current text, if any.
+    let old_text = status_bar.get_message_area().unwrap().get_children()[0].clone().downcast::<Label>().unwrap().get_text().unwrap();
+
+    // Concatenate both texts and push them.
+    let new_text = format!("{} {}", old_text, current_text);
+    status_bar.push(context_id, &new_text);
 }
 
 /// Main function.

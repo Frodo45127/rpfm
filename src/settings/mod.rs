@@ -5,8 +5,9 @@ extern crate failure;
 use std::path::PathBuf;
 use std::fs::File;
 use std::io::Write;
+use std::io::BufReader;
 
-use self::failure::Error;
+use failure::Error;
 
 /// `GameInfo`: This struct holds all the info needed for a game to be "supported" by RPFM features.
 /// It's stores the following data:
@@ -31,6 +32,7 @@ pub struct Settings {
     pub prefer_dark_theme: bool,
     pub font: String,
     pub check_updates_on_start: bool,
+    pub check_schema_updates_on_start: bool,
 }
 
 /// This struct should hold any path we need to store in the settings.
@@ -128,15 +130,14 @@ impl Settings {
             prefer_dark_theme: false,
             font: "Segoe UI 9".to_owned(),
             check_updates_on_start: true,
+            check_schema_updates_on_start: true,
         }
     }
 
     /// This function takes a settings.json file and reads it into a "Settings" object.
     pub fn load(path: &PathBuf, supported_games: &[GameInfo]) -> Result<Self, Error> {
-        let mut settings_path = path.clone();
-        settings_path.push("settings.json");
-
-        let settings_file = File::open(settings_path)?;
+        let settings_path = path.to_path_buf().join(PathBuf::from("settings.json"));
+        let settings_file = BufReader::new(File::open(settings_path)?);
         let mut settings: Self = serde_json::from_reader(settings_file)?;
 
         // We need to make sure here that we have entries in `game_paths` for every supported game.

@@ -272,8 +272,7 @@ pub fn show_dialog<T: Display>(parent_window: &ApplicationWindow, is_success: bo
 /// - status_bar: a reference to the `Statusbar` where to show the message.
 /// - text: something that implements the trait "Display", so we want to put in the Statusbar.
 pub fn show_message_in_statusbar<T: Display>(status_bar: &Statusbar, message: T) {
-    let message = &message.to_string();
-    status_bar.push(status_bar.get_context_id(message), message);
+    status_bar.push(status_bar.get_context_id("Yekaterina"), &message.to_string());
 }
 
 /// This function adds a Filter to the provided FileChooser, using the `pattern` &str.

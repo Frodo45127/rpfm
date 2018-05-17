@@ -1,5 +1,4 @@
 {
-  "version": 1,
   "tables_definitions": [
     {
       "name": "_kv_battle_ai_ability_usage_variables_tables",

@@ -1,13 +1,23 @@
 // Here it goes all the stuff related to the UI part of the "Update Checker" and the future "Autoupdater".
+extern crate serde_json;
 extern crate gtk;
 extern crate restson;
 
 use self::restson::RestClient;
 use gtk::prelude::*;
-use gtk::{ ApplicationWindow, MessageDialog, Statusbar, DialogFlags, MessageType, ButtonsType };
+use gtk::{ApplicationWindow, MessageDialog, Statusbar, DialogFlags, MessageType, ButtonsType};
+
+use std::cell::RefCell;
+use std::rc::Rc;
+use std::path::PathBuf;
+use std::fs::File;
+use std::io::BufReader;
 
 use ui;
-use updater::LastestRelease;
+use settings::GameSelected;
+use settings::GameInfo;
+use packedfile::db::schemas::Schema;
+use updater::*;
 
 /// This enum controls the posible responses from the server.
 enum APIResponse {
@@ -18,13 +28,21 @@ enum APIResponse {
     Error,
 }
 
+/// This enum controls the posible responses from the server. The (Versions, Versions) is local, current.
+enum APIResponseSchema {
+    SuccessNewUpdate(Versions, Versions),
+    SuccessNoUpdate,
+    Error,
+}
+
+
 /// This function checks if there is any newer version of RPFM released. If the `use_dialog` is false,
 /// we show the results of the check in the `Statusbar`.
 pub fn check_updates(current_version: &str, use_dialog: Option<&ApplicationWindow>, status_bar: Option<&Statusbar>) {
 
     // Create new client with API base URL
     let mut client = RestClient::new("https://api.github.com").unwrap();
-    client.set_header_raw("User-Agent", "Mozilla/5.0 (X11; Linux x86_64; rv:59.0) Gecko/20100101 Firefox/59.0");
+    client.set_header_raw("User-Agent", &format!("RPFM/{}", current_version));
 
     // Get `https://api.github.com/repos/frodo45127/rpfm/releases/latest` and deserialize the result automatically
     let apiresponse = match client.get(()) {
@@ -154,6 +172,151 @@ pub fn check_updates(current_version: &str, use_dialog: Option<&ApplicationWindo
             APIResponse::SuccessNoUpdate => String::from("No new updates available."),
             APIResponse::SuccessUnknownVersion |
             APIResponse::Error => String::from("Error while checking new updates :("),
+        };
+        ui::show_message_in_statusbar(status_bar, &message);
+    }
+
+    // If we reach this place, no valid methods to show the result of the "Update Check" has been provided.
+    // So... we do nothing.
+    else {}
+}
+
+/// This function checks if there is any newer version of RPFM's schemas released. If the `use_dialog`
+/// is false, we show the results of the check in the `Statusbar`.
+pub fn check_schema_updates(
+    current_version: &str,
+    rpfm_path: &PathBuf,
+    supported_games: &[GameInfo],
+    game_selected: &Rc<RefCell<GameSelected>>,
+    loaded_schema: &Rc<RefCell<Option<Schema>>>,
+    use_dialog: Option<&ApplicationWindow>,
+    status_bar: Option<&Statusbar>
+) {
+
+    // Create new client with API base URL
+    let mut client = RestClient::new("https://raw.githubusercontent.com").unwrap();
+    client.set_header_raw("User-Agent", &format!("RPFM/{}", current_version));
+
+    // Get `https://raw.githubusercontent.com/Frodo45127/rpfm/develop/schemas/versions.json` and deserialize the result automatically.
+    let apiresponse = match client.get(()) {
+
+        // If we received a response from the server...
+        Ok(current_versions) => {
+
+            // We get `current_versions` into our `current_versions`. Redundant, but the compiler doesn't know his type otherwise.
+            let current_versions: Versions = current_versions;
+
+            // Get the local versions.
+            let local_versions: Versions = serde_json::from_reader(BufReader::new(File::open(PathBuf::from("schemas/versions.json")).unwrap())).unwrap();
+
+            // If both versions are equal, we have no updates.
+            if current_versions == local_versions { APIResponseSchema::SuccessNoUpdate }
+
+            // In any other sisuation, there is an update (or I broke something).
+            else { APIResponseSchema::SuccessNewUpdate(local_versions, current_versions) }
+        }
+
+        // If there has been no response from the server, or it has responded with an error...
+        Err(_) => APIResponseSchema::Error,
+    };
+
+    // If we want to use a `MessageDialog`...
+    if let Some(parent_window) = use_dialog {
+
+        // Get the message we want to show, depending on the result of the "Update Check" from before.
+        let message: (String, String) = match &apiresponse {
+            APIResponseSchema::SuccessNewUpdate(local_versions, current_versions) => {
+
+                // Set the title and the message.
+                let title = "New schema update available".to_owned();
+                let mut message = String::new();
+
+                // For each schema supported...
+                for (index, schema) in current_versions.schemas.iter().enumerate() {
+
+                    // Add the name of the game, aligned to the left, with 20 characters.
+                    message.push_str(&format!("{:width$}", schema.schema_file, width = 20));
+
+                    // If the game exist in the local version, show both versions.
+                    if let Some(local_schema) = local_versions.schemas.get(index) {
+                        message.push_str(&format!(": {} => {}\n", local_schema.version, schema.version))
+                    }
+
+                    // Otherwise, it's a new game. Use 0 as his initial version.
+                    else { message.push_str(&format!(": 0 => {}\n", schema.version))}
+                }
+
+                // Ask if you want to update.
+                message.push_str("\nDo you want to update the schemas?\n\nPlease note that the net code is far from optimal, and the program will hang while updating.");
+
+                // Return the title and the message.
+                (title, message)
+            }
+            APIResponseSchema::SuccessNoUpdate => ("No new schema updates available".to_owned(), "More luck next time :)".to_owned()),
+            APIResponseSchema::Error => ("Error while checking new schema updates :(".to_owned(), "If you see this message, there has been a problem with your connection to the Github.com server.\n\nPlease, make sure you can access to <a href=\"https:\\\\api.github.com\">https:\\\\api.github.com</a> and try again.".to_owned()),
+        };
+
+        // Depending on what we got, we use one button type or another.
+        let buttons = match apiresponse {
+            APIResponseSchema::SuccessNewUpdate(_, _) => ButtonsType::YesNo,
+            _ => ButtonsType::Close
+        };
+
+        // Create the `MessageDialog` to hold the messages.
+        let check_updates_dialog = MessageDialog::new(
+            Some(parent_window),
+            DialogFlags::from_bits(1).unwrap(),
+            MessageType::Info,
+            buttons,
+            &message.0
+        );
+
+        // Show the "Changes" of the release in the `MessageDialog`.
+        check_updates_dialog.set_title("Checking for schema updates...");
+        check_updates_dialog.set_property_secondary_use_markup(true);
+        check_updates_dialog.set_property_secondary_text(Some(&message.1));
+
+        // Match the response we have from running the dialog. "Yes" is -8. Anything else is close the dialog.
+        match check_updates_dialog.run() {
+            -8 => {
+
+                // Useless if, but easiest way I know to get local and current version at this point.
+                if let APIResponseSchema::SuccessNewUpdate(local_versions, current_versions) = apiresponse {
+
+                    // Try to update the schemas.
+                    let result = update_schemas(local_versions, current_versions, rpfm_path);
+
+                    // After that, destroy the dialog.
+                    check_updates_dialog.destroy();
+
+                    // And now, we show a message of success or error, depending on what was the result of the update.
+                    match result {
+                        Ok(_) => {
+
+                            // Reload the currently in-use schema, just in case it got updated.
+                            *loaded_schema.borrow_mut() = Schema::load(rpfm_path, &supported_games.iter().filter(|x| x.folder_name == *game_selected.borrow().game).map(|x| x.schema.to_owned()).collect::<String>()).ok();
+
+                            // Report success.
+                            ui::show_dialog(parent_window, true, "Schemas successfully updated.");
+                        }
+                        Err(_) => ui::show_dialog(parent_window, false, "Error while trying to update the schemas."),
+                    }
+                }
+            }
+
+            // In any other case, destroy it.
+            _ => check_updates_dialog.destroy(),
+        }
+    }
+
+    // If we want to use the `Statusbar`...
+    else if let Some(status_bar) = status_bar {
+
+        // Get the message we want to show, depending on the result of the "Update Check" from before.
+        let message: String = match apiresponse {
+            APIResponseSchema::SuccessNewUpdate(_,_) => String::from("New schema update found. Go to \"About/Check Schema Updates\" to download it."),
+            APIResponseSchema::SuccessNoUpdate => String::from("No new schema updates available."),
+            APIResponseSchema::Error => String::from("Error while checking new schema updates :("),
         };
         ui::show_message_in_statusbar(status_bar, &message);
     }
