@@ -1,11 +1,11 @@
 {
-    "versions": [
+    "schemas": [
         {
-            "game": "warhammer",
+            "schema_file": "schema_wh.json",
             "version": 1
         },
         {
-            "game": "attila",
+            "schema_file": "schema_att.json",
             "version": 1
         }
     ]
