@@ -2124,10 +2124,14 @@ fn build_ui(application: &Application) {
                 if file_chooser_add_from_packfile.run() == gtk_response_accept {
 
                     // Try to open the selected PackFile.
-                    match packfile::open_packfile(file_chooser_add_from_packfile.get_filename().unwrap()) {
+                    match packfile::open_packfile_with_bufreader(file_chooser_add_from_packfile.get_filename().unwrap()) {
 
                         // If the extra PackFile is valid...
-                        Ok(pack_file_opened) => {
+                        Ok(result) => {
+
+                            // Separate the result.
+                            let pack_file_opened = result.0;
+                            let mut buffer = Rc::new(RefCell::new(result.1));
 
                             // We create the "Exit" and "Copy" buttons.
                             let exit_button = Button::new_with_label("Exit \"Add file/folder from PackFile\" mode");
@@ -2204,6 +2208,7 @@ fn build_ui(application: &Application) {
                             // When we click in the "Copy" button (<=).
                             copy_button.connect_button_release_event(clone!(
                                 app_ui,
+                                buffer,
                                 pack_file_decoded,
                                 pack_file_decoded_extra,
                                 folder_tree_view_extra => move |_,_| {
@@ -2212,11 +2217,12 @@ fn build_ui(application: &Application) {
                                     let tree_path_source = get_tree_path_from_selection(&folder_tree_view_extra.get_selection(), true);
                                     let tree_path_destination = get_tree_path_from_selection(&app_ui.folder_tree_selection, true);
 
-                                    // Get the source & destination types.
+                                    // Get the destination type.
                                     let selection_type = get_type_of_selected_tree_path(&tree_path_destination, &pack_file_decoded.borrow());
 
                                     // Try to add the PackedFile to the main PackFile.
                                     let success = match packfile::add_packedfile_to_packfile(
+                                        &mut buffer.borrow_mut(),
                                         &*pack_file_decoded_extra.borrow(),
                                         &mut *pack_file_decoded.borrow_mut(),
                                         &tree_path_source,

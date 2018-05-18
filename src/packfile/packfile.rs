@@ -6,10 +6,8 @@ use self::chrono::{
     NaiveDateTime, Utc
 };
 use std::path::PathBuf;
-use std::io::BufReader;
-use std::io::BufWriter;
-use std::io::Read;
-use std::io::Write;
+use std::io::prelude::*;
+use std::io::{ BufReader, BufWriter, Read, Write, SeekFrom };
 use std::fs::File;
 use failure::Error;
 
@@ -22,11 +20,14 @@ use settings::*;
 /// - extra_data: extra data that we need to manipulate the PackFile.
 /// - header: header of the PackFile, decoded.
 /// - data: data of the PackFile, decoded.
+/// - packed_file_indexes: in case of Read-Only situations, like adding PackedFiles from another PackFile,
+///   we can use this vector to store the indexes of the data, instead of the data per-se.
 #[derive(Clone, Debug)]
 pub struct PackFile {
     pub extra_data: PackFileExtraData,
     pub header: PackFileHeader,
     pub data: PackFileData,
+    pub packed_file_indexes: Vec<u64>,
 }
 
 /// `PackFileExtraData`: This struct stores some extra data we need to manipulate the PackFiles:
@@ -96,6 +97,7 @@ impl PackFile {
             extra_data: PackFileExtraData::new(),
             header: PackFileHeader::new("PFH5"),
             data: PackFileData::new(),
+            packed_file_indexes: vec![],
         }
     }
 
@@ -105,18 +107,17 @@ impl PackFile {
             extra_data: PackFileExtraData::new_with_name(file_name),
             header: PackFileHeader::new(packfile_id),
             data: PackFileData::new(),
+            packed_file_indexes: vec![],
         }
     }
 
     /// This function adds one or more PackedFiles to an existing PackFile.
     /// It requires:
     /// - self: the PackFile we are going to manipulate.
-    /// - packed_files: a &[PackedFile] we are going to add.
-    pub fn add_packedfiles(&mut self, packed_files: &[PackedFile]) {
-        for packed_file in packed_files {
-            self.header.packed_file_count += 1;
-            self.data.packed_files.push(packed_file.clone());
-        }
+    /// - packed_files: a Vec<PackedFile> we are going to add.
+    pub fn add_packedfiles(&mut self, mut packed_files: Vec<PackedFile>) {
+        self.header.packed_file_count += packed_files.len() as u32;
+        self.data.packed_files.append(&mut packed_files);
     }
 
     /// This function returns if the PackFile is editable or not, depending on the type of the PackFile.
@@ -155,7 +156,13 @@ impl PackFile {
     /// - pack_file: a BufReader of the PackFile on disk.
     /// - file_name: a String with the name of the PackFile.
     /// - file_path: a PathBuf with the path of the PackFile.
-    pub fn read(pack_file: &mut BufReader<File>, file_name: String, file_path: PathBuf) -> Result<Self, Error> {
+    /// - is_read_only: if yes, don't load to memory his data. Instead, just get his indexes.
+    pub fn read(
+        pack_file: &mut BufReader<File>,
+        file_name: String,
+        file_path: PathBuf,
+        is_read_only: bool
+    ) -> Result<Self, Error> {
 
         // We try to decode the header of the PackFile.
         match PackFileHeader::read(pack_file) {
@@ -164,20 +171,58 @@ impl PackFile {
             Ok(header) => {
 
                 // We try to decode his data.
-                match PackFileData::read(
+                match PackFileData::read_indexes(
                     pack_file,
                     &header
                 ) {
 
                     // If it works...
-                    Ok(data) => {
+                    Ok(mut data) => {
 
-                        // We return a fully decoded PackFile.
-                        Ok(PackFile {
-                            extra_data: PackFileExtraData::new_from_file(file_name, file_path),
-                            header: header,
-                            data: data,
-                        })
+                        // If it's Read-Only...
+                        if is_read_only {
+
+                            // Create the indexes vector.
+                            let mut packed_file_indexes = vec![];
+
+                            // Get the initial index from the position of the BufReader.
+                            let mut index = pack_file.seek(SeekFrom::Current(0))?;
+
+                            // For each PackFile, get his initial position and move the index.
+                            for packed_file in &data.packed_files {
+                                packed_file_indexes.push(index);
+                                index += packed_file.size as u64;
+                            }
+
+                            // Return the PackFilePartial.
+                            Ok(Self {
+                                extra_data: PackFileExtraData::new_from_file(file_name, file_path),
+                                header,
+                                data,
+                                packed_file_indexes,
+                            })
+                        }
+
+                        // Otherwise, we load the entire PackFile.
+                        else {
+
+                            // We try to load his data to memory.
+                            match data.read_data(pack_file) {
+                                Ok(_) => {
+
+                                    // We return a fully decoded PackFile.
+                                    Ok(Self {
+                                        extra_data: PackFileExtraData::new_from_file(file_name, file_path),
+                                        header,
+                                        data,
+                                        packed_file_indexes: vec![],
+                                    })
+                                }
+
+                                // Otherwise, we return error.
+                                Err(error) => Err(error),
+                            }
+                        }
                     },
 
                     // Otherwise, we return error.
@@ -378,7 +423,7 @@ impl PackFileData {
     /// It requires:
     /// - data: the raw data or the PackFile.
     /// - header: the header of the PackFile.
-    fn read(
+    fn read_indexes(
         data: &mut BufReader<File>,
         header: &PackFileHeader,
     ) -> Result<Self, Error> {
@@ -497,8 +542,21 @@ impl PackFileData {
             pack_file_data.packed_files.push(packed_file);
         }
 
+        // If we reach this point, we managed to get the entire PackFile decoded, so we return it.
+        Ok(pack_file_data)
+    }
+
+    /// This function reads the Data part of a PackFile, and creates a PackedFileData with it.
+    /// It requires:
+    /// - data: the raw data or the PackFile.
+    /// - header: the header of the PackFile.
+    fn read_data(
+        &mut self,
+        data: &mut BufReader<File>,
+    ) -> Result<(), Error> {
+
         // Now, we get the raw data from the PackedFiles, and get it into the corresponding PackedFile.
-        for packed_file in &mut pack_file_data.packed_files {
+        for packed_file in &mut self.packed_files {
 
             // Prepare his buffer.
             packed_file.data = vec![0; packed_file.size as usize];
@@ -508,7 +566,7 @@ impl PackFileData {
         }
 
         // If we reach this point, we managed to get the entire PackFile decoded, so we return it.
-        Ok(pack_file_data)
+        Ok(())
     }
 
     /// This function encode both indexes from a PackFile and returns them.
