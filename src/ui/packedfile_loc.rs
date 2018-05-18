@@ -325,7 +325,7 @@ impl PackedFileLocTreeView{
                 let packed_file_decoded = Rc::new(RefCell::new(packed_file_decoded));
 
                 // Then we populate the TreeView with the entries of the Loc PackedFile.
-                PackedFileLocTreeView::load_data_to_tree_view(&packed_file_decoded.borrow().packed_file_data, &decoded_view.list_store);
+                PackedFileLocTreeView::load_data_to_tree_view(&packed_file_decoded.borrow().data, &decoded_view.list_store);
 
                 // When we destroy the `ScrolledWindow`, we need to tell the program we no longer have an open PackedFile.
                 packed_file_data_scroll.connect_destroy(clone!(
@@ -484,7 +484,7 @@ impl PackedFileLocTreeView{
                                     }
 
                                     // Replace the old encoded data with the new one.
-                                    packed_file_decoded.borrow_mut().packed_file_data = PackedFileLocTreeView::return_data_from_tree_view(&decoded_view.list_store);
+                                    packed_file_decoded.borrow_mut().data = PackedFileLocTreeView::return_data_from_tree_view(&decoded_view.list_store);
 
                                     // Update the PackFile to reflect the changes.
                                     update_packed_file_data_loc(
@@ -599,7 +599,7 @@ impl PackedFileLocTreeView{
                                                     decoded_view.list_store.set_value(&decoded_view.list_store.get_iter(&tree_path).unwrap(), 3, &state.to_value());
 
                                                     // Replace the old encoded data with the new one.
-                                                    packed_file_decoded.borrow_mut().packed_file_data = PackedFileLocTreeView::return_data_from_tree_view(&decoded_view.list_store);
+                                                    packed_file_decoded.borrow_mut().data = PackedFileLocTreeView::return_data_from_tree_view(&decoded_view.list_store);
 
                                                     // Update the PackFile to reflect the changes.
                                                     update_packed_file_data_loc(
@@ -620,7 +620,7 @@ impl PackedFileLocTreeView{
                                                 decoded_view.list_store.set_value(&decoded_view.list_store.get_iter(&tree_path).unwrap(), column.get_sort_column_id() as u32, &data.to_value());
 
                                                 // Replace the old encoded data with the new one.
-                                                packed_file_decoded.borrow_mut().packed_file_data = PackedFileLocTreeView::return_data_from_tree_view(&decoded_view.list_store);
+                                                packed_file_decoded.borrow_mut().data = PackedFileLocTreeView::return_data_from_tree_view(&decoded_view.list_store);
 
                                                 // Update the PackFile to reflect the changes.
                                                 update_packed_file_data_loc(
@@ -751,7 +751,7 @@ impl PackedFileLocTreeView{
                                         }
 
                                         // Replace the old encoded data with the new one.
-                                        packed_file_decoded.borrow_mut().packed_file_data = PackedFileLocTreeView::return_data_from_tree_view(&decoded_view.list_store);
+                                        packed_file_decoded.borrow_mut().data = PackedFileLocTreeView::return_data_from_tree_view(&decoded_view.list_store);
 
                                         // Update the PackFile to reflect the changes.
                                         update_packed_file_data_loc(
@@ -799,13 +799,13 @@ impl PackedFileLocTreeView{
                                 if file_chooser.run() == gtk_response_accept {
 
                                     // If there is an error while importing the TSV file, we report it.
-                                    if let Err(error) = packed_file_decoded.borrow_mut().packed_file_data.import_tsv(
+                                    if let Err(error) = packed_file_decoded.borrow_mut().data.import_tsv(
                                         &file_chooser.get_filename().unwrap(),
                                         "Loc PackedFile"
                                     ) { return show_dialog(&app_ui.window, false, error.cause()); }
 
                                     // Load the new data to the TreeView.
-                                    PackedFileLocTreeView::load_data_to_tree_view(&packed_file_decoded.borrow().packed_file_data, &decoded_view.list_store);
+                                    PackedFileLocTreeView::load_data_to_tree_view(&packed_file_decoded.borrow().data, &decoded_view.list_store);
 
                                     // Update the PackFile to reflect the changes.
                                     update_packed_file_data_loc(
@@ -853,7 +853,7 @@ impl PackedFileLocTreeView{
                                 if file_chooser.run() == gtk_response_accept {
 
                                     // Try to export the TSV.
-                                    match packed_file_decoded.borrow_mut().packed_file_data.export_tsv(
+                                    match packed_file_decoded.borrow_mut().data.export_tsv(
                                         &file_chooser.get_filename().unwrap(),
                                         ("Loc PackedFile", 9001)
                                     ) {
@@ -914,7 +914,7 @@ impl PackedFileLocTreeView{
                                     decoded_view.list_store.set_value(&tree_iter, 1, &new_text.to_value());
 
                                     // Replace the old encoded data with the new one.
-                                    packed_file_decoded.borrow_mut().packed_file_data = PackedFileLocTreeView::return_data_from_tree_view(&decoded_view.list_store);
+                                    packed_file_decoded.borrow_mut().data = PackedFileLocTreeView::return_data_from_tree_view(&decoded_view.list_store);
 
                                     // Update the PackFile to reflect the changes.
                                     update_packed_file_data_loc(
@@ -959,7 +959,7 @@ impl PackedFileLocTreeView{
                                 decoded_view.list_store.set_value(&tree_iter, 2, &new_text.to_value());
 
                                 // Replace the old encoded data with the new one.
-                                packed_file_decoded.borrow_mut().packed_file_data = PackedFileLocTreeView::return_data_from_tree_view(&decoded_view.list_store);
+                                packed_file_decoded.borrow_mut().data = PackedFileLocTreeView::return_data_from_tree_view(&decoded_view.list_store);
 
                                 // Update the PackFile to reflect the changes.
                                 update_packed_file_data_loc(
@@ -996,7 +996,7 @@ impl PackedFileLocTreeView{
                             cell.set_active(state);
 
                             // Replace the old encoded data with the new one.
-                            packed_file_decoded.borrow_mut().packed_file_data = PackedFileLocTreeView::return_data_from_tree_view(&decoded_view.list_store);
+                            packed_file_decoded.borrow_mut().data = PackedFileLocTreeView::return_data_from_tree_view(&decoded_view.list_store);
 
                             // Update the PackFile to reflect the changes.
                             update_packed_file_data_loc(
@@ -1029,8 +1029,8 @@ impl PackedFileLocTreeView{
         packed_file_list_store.clear();
 
         // Then we add every line to the ListStore.
-        for (j, i) in packed_file_data.packed_file_data_entries.iter().enumerate() {
-            packed_file_list_store.insert_with_values(None, &[0, 1, 2, 3], &[&format!("{:0count$}", j + 1, count = (packed_file_data.packed_file_data_entries.len().to_string().len() + 1)), &i.key, &i.text, &i.tooltip]);
+        for (j, i) in packed_file_data.entries.iter().enumerate() {
+            packed_file_list_store.insert_with_values(None, &[0, 1, 2, 3], &[&format!("{:0count$}", j + 1, count = (packed_file_data.entries.len().to_string().len() + 1)), &i.key, &i.text, &i.tooltip]);
         }
     }
 
@@ -1049,8 +1049,8 @@ impl PackedFileLocTreeView{
             loop {
 
                 // Make a new entry with the data from the `ListStore`, and push it to our new `LocData`.
-                loc_data.packed_file_data_entries.push(
-                    LocDataEntry::new(
+                loc_data.entries.push(
+                    LocEntry::new(
                         list_store.get_value(&current_line, 1).get().unwrap(),
                         list_store.get_value(&current_line, 2).get().unwrap(),
                         list_store.get_value(&current_line, 3).get().unwrap(),
