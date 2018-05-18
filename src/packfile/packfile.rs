@@ -14,6 +14,7 @@ use std::fs::File;
 use failure::Error;
 
 use common::coding_helpers::*;
+use settings::*;
 
 /// `PackFile`: This stores the data of the entire PackFile in memory ('cause fuck lazy-loading),
 /// along with some extra data needed to manipulate the PackFile.
@@ -121,8 +122,14 @@ impl PackFile {
     /// This function returns if the PackFile is editable or not, depending on the type of the PackFile.
     /// Basically, if the PackFile is not one of the 5 know types, this'll return false. Use it to disable
     /// saving functions for PackFiles we can read but not save. Like the "boot.pack" from Attila.
-    pub fn is_editable(&self) -> bool {
-        if self.header.pack_file_type <= 4 { true } else { false }
+    /// Also, if the "Allow edition of CA PackFiles" setting is disabled, return false for everything
+    /// except types "Mod" and "Movie".
+    pub fn is_editable(&self, settings: &Settings) -> bool {
+
+        // These types are always editable.
+        if self.header.pack_file_type == 3 || self.header.pack_file_type == 4 { true }
+        else if self.header.pack_file_type <= 2 && settings.allow_edition_of_ca_packfiles { true }
+        else { false }
     }
 
     /// This function removes a PackedFile from a PackFile.

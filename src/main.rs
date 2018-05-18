@@ -644,10 +644,11 @@ fn build_ui(application: &Application) {
     // When we hit the "Save PackFile" button
     app_ui.menu_bar_save_packfile.connect_activate(clone!(
         pack_file_decoded,
+        settings,
         app_ui => move |_,_| {
 
             // If our PackFile is editable...
-            if pack_file_decoded.borrow().is_editable() {
+            if pack_file_decoded.borrow().is_editable(&settings.borrow()) {
 
                 // If our PackFile already exists in the filesystem, we save it to that file directly.
                 if pack_file_decoded.borrow().extra_data.file_path.is_file() {
@@ -678,7 +679,7 @@ fn build_ui(application: &Application) {
             }
 
             // Otherwise, return a Message specifying the error.
-            else { show_dialog(&app_ui.window, false, "This type of PackFile is supported in Read-Only mode. If you really want to save it, go to \"PackFile/Change PackFile Type\" and change his type with one of those (you'll usually want \"Mod\")."); }
+            else { show_dialog(&app_ui.window, false, "This type of PackFile is supported in Read-Only mode.\n\nThis can happen due to:\n - The PackFile's type is 'Boot', 'Release' or 'Patch' and you have 'Allow edition of CA PackFiles' disabled in the settings.\n - The PackFile's type is 'Other'.\n\n If you really want to save it, go to 'PackFile/Change PackFile Type' and change his type to 'Mod' or 'Movie'."); }
         }
     ));
 
@@ -687,11 +688,12 @@ fn build_ui(application: &Application) {
     app_ui.menu_bar_save_packfile_as.connect_activate(clone!(
         pack_file_decoded,
         game_selected,
+        settings,
         app_ui,
         mode => move |_,_| {
 
             // If our PackFile is editable...
-            if pack_file_decoded.borrow().is_editable() {
+            if pack_file_decoded.borrow().is_editable(&settings.borrow()) {
 
                 // Create the FileChooserNative.
                 let file_chooser_save_packfile = FileChooserNative::new(
@@ -771,7 +773,7 @@ fn build_ui(application: &Application) {
             }
 
             // Otherwise, return a Message specifying the error.
-            else { show_dialog(&app_ui.window, false, "This type of PackFile is supported in Read-Only mode. If you really want to save it, go to \"PackFile/Change PackFile Type\" and change his type with one of those (you'll usually want \"Mod\")."); }
+            else { show_dialog(&app_ui.window, false, "This type of PackFile is supported in Read-Only mode.\n\nThis can happen due to:\n - The PackFile's type is 'Boot', 'Release' or 'Patch' and you have 'Allow edition of CA PackFiles' disabled in the settings.\n - The PackFile's type is 'Other'.\n\n If you really want to save it, go to 'PackFile/Change PackFile Type' and change his type to 'Mod' or 'Movie'."); }
         }
     ));
 

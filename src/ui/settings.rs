@@ -36,6 +36,7 @@ pub struct SettingsWindow {
     pub settings_path_entries: Vec<Entry>,
     pub settings_path_buttons: Vec<Button>,
     pub settings_game_list_combo: ComboBoxText,
+    pub settings_extra_allow_edition_of_ca_packfiles: CheckButton,
     pub settings_extra_check_updates_on_start: CheckButton,
     pub settings_extra_check_schema_updates_on_start: CheckButton,
     pub settings_theme_prefer_dark_theme: CheckButton,
@@ -172,6 +173,13 @@ impl SettingsWindow {
         game_list_combo.set_active(0);
         game_list_combo.set_hexpand(true);
 
+        let allow_edition_of_ca_packfiles_label = Label::new(Some("Allow edition of CA PackFiles:"));
+        let allow_edition_of_ca_packfiles_checkbox = CheckButton::new();
+        allow_edition_of_ca_packfiles_label.set_size_request(170, 0);
+        allow_edition_of_ca_packfiles_label.set_xalign(0.0);
+        allow_edition_of_ca_packfiles_label.set_yalign(0.5);
+        allow_edition_of_ca_packfiles_checkbox.set_hexpand(true);
+
         let check_updates_on_start_label = Label::new(Some("Check Updates on Start:"));
         let check_updates_on_start_checkbox = CheckButton::new();
         check_updates_on_start_label.set_size_request(170, 0);
@@ -212,10 +220,12 @@ impl SettingsWindow {
         // Extra Settings packing stuff
         extra_settings_grid.attach(&default_game_label, 0, 0, 1, 1);
         extra_settings_grid.attach(&game_list_combo, 1, 0, 1, 1);
-        extra_settings_grid.attach(&check_updates_on_start_label, 0, 1, 1, 1);
-        extra_settings_grid.attach(&check_updates_on_start_checkbox, 1, 1, 1, 1);
-        extra_settings_grid.attach(&check_schema_updates_on_start_label, 0, 2, 1, 1);
-        extra_settings_grid.attach(&check_schema_updates_on_start_checkbox, 1, 2, 1, 1);
+        extra_settings_grid.attach(&allow_edition_of_ca_packfiles_label, 0, 1, 1, 1);
+        extra_settings_grid.attach(&allow_edition_of_ca_packfiles_checkbox, 1, 1, 1, 1);
+        extra_settings_grid.attach(&check_updates_on_start_label, 0, 2, 1, 1);
+        extra_settings_grid.attach(&check_updates_on_start_checkbox, 1, 2, 1, 1);
+        extra_settings_grid.attach(&check_schema_updates_on_start_label, 0, 3, 1, 1);
+        extra_settings_grid.attach(&check_schema_updates_on_start_checkbox, 1, 3, 1, 1);
 
         extra_settings_frame.add(&extra_settings_grid);
 
@@ -340,6 +350,7 @@ impl SettingsWindow {
             settings_path_entries: game_entries,
             settings_path_buttons: game_buttons,
             settings_game_list_combo: game_list_combo,
+            settings_extra_allow_edition_of_ca_packfiles: allow_edition_of_ca_packfiles_checkbox,
             settings_extra_check_updates_on_start: check_updates_on_start_checkbox,
             settings_extra_check_schema_updates_on_start: check_schema_updates_on_start_checkbox,
             settings_theme_prefer_dark_theme: prefer_dark_theme_checkbox,
@@ -368,6 +379,9 @@ impl SettingsWindow {
 
         // Load the "Default Game".
         self.settings_game_list_combo.set_active_id(Some(&*settings.default_game));
+
+        // Load the "Allow Edition of CA PackFiles" setting.
+        self.settings_extra_allow_edition_of_ca_packfiles.set_active(settings.allow_edition_of_ca_packfiles);
 
         // Load the "Check Updates on Start" settings.
         self.settings_extra_check_updates_on_start.set_active(settings.check_updates_on_start);
@@ -400,6 +414,9 @@ impl SettingsWindow {
 
         // We get his game's folder, depending on the selected game.
         settings.default_game = self.settings_game_list_combo.get_active_id().unwrap();
+
+        // Get the "Allow Edition of CA PackFiles" setting.
+        settings.allow_edition_of_ca_packfiles = self.settings_extra_allow_edition_of_ca_packfiles.get_active();
 
         // Get the "Check Updates on Start" settings.
         settings.check_updates_on_start = self.settings_extra_check_updates_on_start.get_active();
