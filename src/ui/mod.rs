@@ -1064,7 +1064,7 @@ fn sort_tree_view(
             }
 
             // If the top one is a File and the bottom one a Folder, it's an special situation. Just swap them.
-            else if selection_type == &TreePathType::File((vec![String::new()], 1)) && next_type == TreePathType::Folder(vec![String::new()]) {
+            else if selection_type == &TreePathType::Folder(vec![String::new()]) && second_type == TreePathType::File((vec![String::new()], 1)) {
                 folder_tree_store.swap(tree_iter, &tree_iter_second);
             }
 
