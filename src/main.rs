@@ -1648,6 +1648,9 @@ fn build_ui(application: &Application) {
                 "Cancel"
             );
 
+            // Allow to select multiple files at the same time.
+            file_chooser_add_file_to_packfile.set_select_multiple(true);
+
             // Check the current "Operational Mode".
             match *mode.borrow() {
 
@@ -1829,6 +1832,9 @@ fn build_ui(application: &Application) {
                     "Accept",
                     "Cancel"
                 );
+
+                // Allow to select multiple folders at the same time.
+                file_chooser_add_folder_to_packfile.set_select_multiple(true);
 
                 // Check the current "Operational Mode".
                 match *mode.borrow() {
