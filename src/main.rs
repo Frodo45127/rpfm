@@ -2772,6 +2772,7 @@ fn build_ui(application: &Application) {
                         else if packedfile_name.ends_with(".txt") ||
                                 packedfile_name.ends_with(".xml") ||
                                 packedfile_name.ends_with(".csv") ||
+                                packedfile_name.ends_with(".tsv") ||
                                 packedfile_name.ends_with(".battle_speech_camera") ||
                                 packedfile_name.ends_with(".bob") ||
                                 packedfile_name.ends_with(".xml.shader") ||

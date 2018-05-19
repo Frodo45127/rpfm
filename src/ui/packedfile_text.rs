@@ -111,7 +111,8 @@ pub fn create_text_view(
                 // Return the Language.
                 language_manager.get_language("lua")
             }
-            else if packed_file_name.ends_with(".csv") {
+            else if packed_file_name.ends_with(".csv") ||
+                packed_file_name.ends_with(".tsv") {
                 language_manager.get_language("csv")
             }
             else if packed_file_name.ends_with(".inl") {
