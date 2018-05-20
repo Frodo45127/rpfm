@@ -45,7 +45,7 @@ pub fn tsv_mass_import(
 ) -> Result<(Vec<Vec<String>>, Vec<Vec<String>>), Error> {
 
     // Create a list of PackedFiles succesfully imported, and another for the ones that didn't work.
-    let mut packed_files = vec![];
+    let mut packed_files: Vec<PackedFile> = vec![];
     let mut packed_files_to_remove = vec![];
     let mut error_files = vec![];
 
@@ -79,7 +79,14 @@ pub fn tsv_mass_import(
                             let data = loc.save();
 
                             // Create his new path.
-                            let path = vec!["text".to_owned(), "db".to_owned(), format!("{}_{}.loc", name.to_owned(), index)];
+                            let mut path = vec!["text".to_owned(), "db".to_owned(), format!("{}.loc", name)];
+
+                            // If that path already exists in th list of PackedFiles to add, change it using the index.
+                            for packed_file in &packed_files {
+                                if packed_file.path == path {
+                                    path[2] = format!("{}_{}.loc", name, index);
+                                }
+                            }
 
                             // If that path already exist in the PackFile, add it to the "remove" list.
                             if pack_file.data.packedfile_exists(&path) { packed_files_to_remove.push(path.to_vec()) }
@@ -120,9 +127,16 @@ pub fn tsv_mass_import(
                             let data  = db.save();
 
                             // Change his path.
-                            let path = vec!["db".to_owned(), table_type.to_owned(), name.to_owned()];
+                            let mut path = vec!["db".to_owned(), table_type.to_owned(), name.to_owned()];
 
-                            // If that path already exist in the PackFile, add it to the "remove" list.
+                            // If that path already exists in th list of PackedFiles to add, change it using the index.
+                            for packed_file in &packed_files {
+                                if packed_file.path == path {
+                                    path[2] = format!("{}_{}", name, index);
+                                }
+                            }
+
+                            // If that path already exists in the PackFile, add it to the "remove" list.
                             if pack_file.data.packedfile_exists(&path) { packed_files_to_remove.push(path.to_vec()) }
 
                             // Create and add the new PackedFile to the PackFile.
