@@ -15,7 +15,6 @@ use gtk::{
     TreeViewColumnSizing, TreeViewGridLines, EntryIconPosition, Application
 };
 
-use packedfile::loc::*;
 use packfile::update_packed_file_data_loc;
 use settings::*;
 use ui::*;

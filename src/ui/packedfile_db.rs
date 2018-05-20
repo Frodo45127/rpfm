@@ -7,7 +7,6 @@ extern crate failure;
 
 use std::cell::RefCell;
 use std::rc::Rc;
-use packedfile::db::*;
 use packedfile::db::schemas::*;
 use packfile::packfile::PackedFile;
 use settings::*;
@@ -49,6 +48,7 @@ pub struct PackedFileDBTreeView {
 #[derive(Clone, Debug)]
 pub struct PackedFileDBDecoder {
     pub data_initial_index: usize,
+    pub decoded_header: DBHeader,
     pub raw_data_line_index: TextView,
     pub raw_data: TextView,
     pub raw_data_decoded: TextView,
@@ -159,27 +159,20 @@ pub fn create_db_view(
                 }
             }
 
-            // And only in case the db_header has been decoded, we do the rest.
-            match DBHeader::read(&packed_file_encoded){
-                Ok(db_header) => {
+            // Then try to create the UI and if it throws an error, report it.
+            if let Err(error) = PackedFileDBDecoder::create_decoder_view(
+                &application,
+                &app_ui,
+                &rpfm_path,
+                &supported_games,
+                &game_selected,
+                table_name.to_owned(),
+                packed_file_encoded.to_vec(),
+                &schema,
+            ) {
+                show_dialog(&app_ui.window, false, error.cause())
+            };
 
-                    // Then try to create the UI and if it throws an error, report it.
-                    if let Err(error) = PackedFileDBDecoder::create_decoder_view(
-                        &application,
-                        &app_ui,
-                        &rpfm_path,
-                        &supported_games,
-                        &game_selected,
-                        table_name.to_owned(),
-                        packed_file_encoded.to_vec(),
-                        db_header,
-                        &schema,
-                    ) {
-                        show_dialog(&app_ui.window, false, error.cause())
-                    };
-                },
-                Err(error) => show_dialog(&app_ui.window, false, error.cause()),
-            }
             Inhibit(false)
         }
     ));
@@ -238,7 +231,7 @@ impl PackedFileDBTreeView{
         let tree_path = get_tree_path_from_selection(&app_ui.folder_tree_selection, false);
 
         // Get the table definition of this table.
-        let table_definition = packed_file_decoded.borrow().packed_file_data.table_definition.clone();
+        let table_definition = packed_file_decoded.borrow().data.table_definition.clone();
 
         // We create a `Vec<Type>` to hold the types of of the columns of the `TreeView`.
         let mut list_store_types: Vec<Type> = vec![];
@@ -454,13 +447,13 @@ impl PackedFileDBTreeView{
                                         if let Ok(db) = DB::read(&table.data, &*table.path[1], master_schema) {
 
                                             // For each column in our original table...
-                                            for (index, original_field) in db.packed_file_data.table_definition.fields.iter().enumerate() {
+                                            for (index, original_field) in db.data.table_definition.fields.iter().enumerate() {
 
                                                 // If it's our column...
                                                 if original_field.field_name == origin.1 {
 
                                                     // For each row...
-                                                    for row in &db.packed_file_data.packed_file_data {
+                                                    for row in &db.data.entries {
 
                                                         // Check what's in our column in that row...
                                                         match row[index + 1] {
@@ -487,13 +480,13 @@ impl PackedFileDBTreeView{
                                         if let Ok(db) = DB::read(&table.data, &*table.path[1], master_schema) {
 
                                             // For each column in our original table...
-                                            for (index, original_field) in db.packed_file_data.table_definition.fields.iter().enumerate() {
+                                            for (index, original_field) in db.data.table_definition.fields.iter().enumerate() {
 
                                                 // If it's our column...
                                                 if original_field.field_name == origin.1 {
 
                                                     // For each row...
-                                                    for row in &db.packed_file_data.packed_file_data {
+                                                    for row in &db.data.entries {
 
                                                         // Check what's in our column in that row...
                                                         match row[index + 1] {
@@ -637,13 +630,13 @@ impl PackedFileDBTreeView{
                                         if let Ok(db) = DB::read(&table.data, &*table.path[1], master_schema) {
 
                                             // For each column in our original table...
-                                            for (index, original_field) in db.packed_file_data.table_definition.fields.iter().enumerate() {
+                                            for (index, original_field) in db.data.table_definition.fields.iter().enumerate() {
 
                                                 // If it's our column...
                                                 if original_field.field_name == origin.1 {
 
                                                     // For each row...
-                                                    for row in &db.packed_file_data.packed_file_data {
+                                                    for row in &db.data.entries {
 
                                                         // Check what's in our column in that row...
                                                         match row[index + 1] {
@@ -670,13 +663,13 @@ impl PackedFileDBTreeView{
                                         if let Ok(db) = DB::read(&table.data, &*table.path[1], master_schema) {
 
                                             // For each column in our original table...
-                                            for (index, original_field) in db.packed_file_data.table_definition.fields.iter().enumerate() {
+                                            for (index, original_field) in db.data.table_definition.fields.iter().enumerate() {
 
                                                 // If it's our column...
                                                 if original_field.field_name == origin.1 {
 
                                                     // For each row...
-                                                    for row in &db.packed_file_data.packed_file_data {
+                                                    for row in &db.data.entries {
 
                                                         // Check what's in our column in that row...
                                                         match row[index + 1] {
@@ -1013,7 +1006,7 @@ impl PackedFileDBTreeView{
 
         // Try to load the data from the table to the `TreeView`.
         if let Err(error) = PackedFileDBTreeView::load_data_to_tree_view (
-            &packed_file_decoded.borrow().packed_file_data,
+            &packed_file_decoded.borrow().data,
             &table.list_store
         ) {
             return Err(error);
@@ -1258,7 +1251,7 @@ impl PackedFileDBTreeView{
                                 Ok(data) => {
 
                                     // Replace our current decoded data with the new one.
-                                    packed_file_decoded.borrow_mut().packed_file_data.packed_file_data = data;
+                                    packed_file_decoded.borrow_mut().data.entries = data;
 
                                     // Try to save the changes to the PackFile. If there is an error, report it.
                                     if let Err(error) = update_packed_file_data_db(
@@ -1432,7 +1425,7 @@ impl PackedFileDBTreeView{
                                             Ok(data) => {
 
                                                 // Replace our current decoded data with the new one.
-                                                packed_file_decoded.borrow_mut().packed_file_data.packed_file_data = data;
+                                                packed_file_decoded.borrow_mut().data.entries = data;
 
                                                 // Try to save the changes to the PackFile. If there is an error, report it.
                                                 if let Err(error) = update_packed_file_data_db(
@@ -1505,7 +1498,7 @@ impl PackedFileDBTreeView{
                                 Ok(data) => {
 
                                     // Replace our current decoded data with the new one.
-                                    packed_file_decoded.borrow_mut().packed_file_data.packed_file_data = data;
+                                    packed_file_decoded.borrow_mut().data.entries = data;
 
                                     // Try to save the changes to the PackFile. If there is an error, report it.
                                     if let Err(error) = update_packed_file_data_db(
@@ -1687,7 +1680,7 @@ impl PackedFileDBTreeView{
                                     Ok(data) => {
 
                                         // Replace our current decoded data with the new one.
-                                        packed_file_decoded.borrow_mut().packed_file_data.packed_file_data = data;
+                                        packed_file_decoded.borrow_mut().data.entries = data;
 
                                         // Try to save the changes to the PackFile. If there is an error, report it.
                                         if let Err(error) = update_packed_file_data_db(
@@ -1745,12 +1738,12 @@ impl PackedFileDBTreeView{
                             // Just in case the import fails after importing (for example, due to importing a TSV from another table,
                             // or from another version of the table, and it fails while loading to table or saving to PackFile)
                             // we save a copy of the table, so we can restore it if it fails after we modify it.
-                            let packed_file_data_copy = packed_file_decoded.borrow_mut().packed_file_data.clone();
+                            let packed_file_data_copy = packed_file_decoded.borrow_mut().data.clone();
                             let mut restore_table = (false, format_err!(""));
 
                             // If there is an error importing, we report it. This only edits the data after checking
                             // that it can be decoded properly, so we don't need to restore the table in this case.
-                            if let Err(error) = packed_file_decoded.borrow_mut().packed_file_data.import_tsv(
+                            if let Err(error) = packed_file_decoded.borrow_mut().data.import_tsv(
                                 &file_chooser.get_filename().unwrap(),
                                 &tree_path[1]
                             ) {
@@ -1758,7 +1751,7 @@ impl PackedFileDBTreeView{
                             }
 
                             // If there is an error loading the data (wrong table imported?), report it and restore it from the old copy.
-                            if let Err(error) = PackedFileDBTreeView::load_data_to_tree_view(&packed_file_decoded.borrow().packed_file_data, &table.list_store) {
+                            if let Err(error) = PackedFileDBTreeView::load_data_to_tree_view(&packed_file_decoded.borrow().data, &table.list_store) {
                                 restore_table = (true, error);
                             }
 
@@ -1777,7 +1770,7 @@ impl PackedFileDBTreeView{
                             if restore_table.0 {
 
                                 // Restore the old copy.
-                                packed_file_decoded.borrow_mut().packed_file_data = packed_file_data_copy;
+                                packed_file_decoded.borrow_mut().data = packed_file_data_copy;
 
                                 // Report the error.
                                 show_dialog(&app_ui.window, false, restore_table.1.cause());
@@ -1825,9 +1818,9 @@ impl PackedFileDBTreeView{
                         if file_chooser.run() == gtk_response_accept {
 
                             // Try to export the TSV.
-                            match packed_file_decoded.borrow().packed_file_data.export_tsv(
+                            match packed_file_decoded.borrow().data.export_tsv(
                                 &file_chooser.get_filename().unwrap(),
-                                (&tree_path[1], packed_file_decoded.borrow().packed_file_header.packed_file_header_packed_file_version)
+                                (&tree_path[1], packed_file_decoded.borrow().header.version)
                             ) {
                                 Ok(result) => show_dialog(&app_ui.window, true, result),
                                 Err(error) => show_dialog(&app_ui.window, false, error.cause()),
@@ -1867,7 +1860,7 @@ impl PackedFileDBTreeView{
                                 Ok(data) => {
 
                                     // Replace our current decoded data with the new one.
-                                    packed_file_decoded.borrow_mut().packed_file_data.packed_file_data = data;
+                                    packed_file_decoded.borrow_mut().data.entries = data;
 
                                     // Try to save the changes to the PackFile. If there is an error, report it.
                                     if let Err(error) = update_packed_file_data_db(
@@ -1917,7 +1910,7 @@ impl PackedFileDBTreeView{
                                 Ok(data) => {
 
                                     // Replace our current decoded data with the new one.
-                                    packed_file_decoded.borrow_mut().packed_file_data.packed_file_data = data;
+                                    packed_file_decoded.borrow_mut().data.entries = data;
 
                                     // Try to save the changes to the PackFile. If there is an error, report it.
                                     if let Err(error) = update_packed_file_data_db(
@@ -1967,7 +1960,7 @@ impl PackedFileDBTreeView{
                                 Ok(data) => {
 
                                     // Replace our current decoded data with the new one.
-                                    packed_file_decoded.borrow_mut().packed_file_data.packed_file_data = data;
+                                    packed_file_decoded.borrow_mut().data.entries = data;
 
                                     // Try to save the changes to the PackFile. If there is an error, report it.
                                     if let Err(error) = update_packed_file_data_db(
@@ -2023,7 +2016,7 @@ impl PackedFileDBTreeView{
                                         Ok(data) => {
 
                                             // Replace our current decoded data with the new one.
-                                            packed_file_decoded.borrow_mut().packed_file_data.packed_file_data = data;
+                                            packed_file_decoded.borrow_mut().data.entries = data;
 
                                             // Try to save the changes to the PackFile. If there is an error, report it.
                                             if let Err(error) = update_packed_file_data_db(
@@ -2084,7 +2077,7 @@ impl PackedFileDBTreeView{
                                         Ok(data) => {
 
                                             // Replace our current decoded data with the new one.
-                                            packed_file_decoded.borrow_mut().packed_file_data.packed_file_data = data;
+                                            packed_file_decoded.borrow_mut().data.entries = data;
 
                                             // Try to save the changes to the PackFile. If there is an error, report it.
                                             if let Err(error) = update_packed_file_data_db(
@@ -2145,7 +2138,7 @@ impl PackedFileDBTreeView{
                                         Ok(data) => {
 
                                             // Replace our current decoded data with the new one.
-                                            packed_file_decoded.borrow_mut().packed_file_data.packed_file_data = data;
+                                            packed_file_decoded.borrow_mut().data.entries = data;
 
                                             // Try to save the changes to the PackFile. If there is an error, report it.
                                             if let Err(error) = update_packed_file_data_db(
@@ -2204,7 +2197,7 @@ impl PackedFileDBTreeView{
                             Ok(data) => {
 
                                 // Replace our current decoded data with the new one.
-                                packed_file_decoded.borrow_mut().packed_file_data.packed_file_data = data;
+                                packed_file_decoded.borrow_mut().data.entries = data;
 
                                 // Try to save the changes to the PackFile. If there is an error, report it.
                                 if let Err(error) = update_packed_file_data_db(
@@ -2242,7 +2235,7 @@ impl PackedFileDBTreeView{
         packed_file_list_store.clear();
 
         // For each row in our decoded data...
-        for row in &packed_file_data.packed_file_data {
+        for row in &packed_file_data.entries {
 
             // We create a new row to add the data.
             let current_row = packed_file_list_store.append();
@@ -2331,9 +2324,14 @@ impl PackedFileDBDecoder {
         game_selected: &Rc<RefCell<GameSelected>>,
         table_name: String,
         packed_file_data: Vec<u8>,
-        db_header: (DBHeader, usize),
         schema: &Rc<RefCell<Option<Schema>>>,
     ) -> Result<(), Error> {
+
+        // Create the index for the decoding.
+        let mut data_initial_index = 0;
+
+        // Decode the header to ensure this is a valid table to decode.
+        let decoded_header = DBHeader::read(&packed_file_data, &mut data_initial_index)?;
 
         // With this we create the "Decoder View", under the "Enable decoding mode" button.
         let decoder_grid_scroll = ScrolledWindow::new(None, None);
@@ -2826,7 +2824,8 @@ impl PackedFileDBDecoder {
 
         // Create the view.
         let mut decoder_view = PackedFileDBDecoder {
-            data_initial_index: db_header.1,
+            data_initial_index,
+            decoded_header,
             raw_data_line_index: raw_data_index,
             raw_data: raw_data_hex,
             raw_data_decoded,
@@ -2877,9 +2876,9 @@ impl PackedFileDBDecoder {
 
         // We get the Schema for his game, if exists. If we reached this point, the Schema
         // should exists. Otherwise, the button for this window will not exist.
-        let table_definition = match DB::get_schema(&table_name, db_header.0.packed_file_header_packed_file_version, &schema.borrow().clone().unwrap()) {
+        let table_definition = match DB::get_schema(&table_name, decoder_view.decoded_header.version, &schema.borrow().clone().unwrap()) {
             Some(table_definition) => Rc::new(RefCell::new(table_definition)),
-            None => Rc::new(RefCell::new(TableDefinition::new(db_header.0.packed_file_header_packed_file_version)))
+            None => Rc::new(RefCell::new(TableDefinition::new(decoder_view.decoded_header.version)))
         };
 
         // Update the "Decoder" View dynamic data (entries, treeview,...) and get the
@@ -3429,9 +3428,6 @@ impl PackedFileDBDecoder {
         let packed_file_encoded = if packed_file_encoded.len() > 16 * 60 { &packed_file_encoded[..16 * 60] }
         else { packed_file_encoded };
 
-        // Get the header of the Table, if it's a table.
-        let db_header = DBHeader::read(packed_file_encoded)?;
-
         // This creates the "index" column at the left of the hex data. The logic behind this, because
         // even I have problems to understand it: lines are 4 packs of 4 bytes => 16 bytes. Amount of
         // lines is "bytes we have / 16 + 1" (+ 1 because we want to show incomplete lines too).
@@ -3516,8 +3512,8 @@ impl PackedFileDBDecoder {
 
         // Set the data of the table.
         self.table_type_label.set_text(table_name);
-        self.table_version_label.set_text(&format!("{}", db_header.0.packed_file_header_packed_file_version));
-        self.table_entry_count_label.set_text(&format!("{}", db_header.0.packed_file_header_packed_file_entry_count));
+        self.table_version_label.set_text(&format!("{}", self.decoded_header.version));
+        self.table_entry_count_label.set_text(&format!("{}", self.decoded_header.entry_count));
 
         Ok(())
     }

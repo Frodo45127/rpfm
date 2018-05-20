@@ -233,6 +233,23 @@
                 <attribute name="label" translatable="yes">_Rename</attribute>
                 <attribute name="action">app.rename-packedfile</attribute>
             </item>
+            <submenu>
+                <attribute name="label" translatable="yes">_Create...</attribute>
+                <section>
+                    <item>
+                        <attribute name="label" translatable="yes">Create _Loc File</attribute>
+                        <attribute name="action">app.create-loc</attribute>
+                    </item>
+                    <item>
+                        <attribute name="label" translatable="yes">Create _DB Table</attribute>
+                        <attribute name="action">app.create-db</attribute>
+                    </item>
+                    <item>
+                        <attribute name="label" translatable="yes">Create _Text File</attribute>
+                        <attribute name="action">app.create-text</attribute>
+                    </item>
+                </section>
+            </submenu>
             <item>
                 <attribute name="label" translatable="yes">_Delete</attribute>
                 <attribute name="action">app.delete-packedfile</attribute>

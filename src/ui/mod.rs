@@ -3,21 +3,29 @@ extern crate num;
 extern crate gio;
 extern crate gdk_pixbuf;
 
+use std::rc::Rc;
+use std::cell::RefCell;
 use self::gdk_pixbuf::Pixbuf;
 use gio::prelude::*;
 use gtk::prelude::*;
 use gtk::{
     MessageDialog, TreeStore, TreeSelection, TreeView, Rectangle, Label, FileChooserNative, FileFilter,
-    Grid, Statusbar, MessageType, ButtonsType, DialogFlags, ApplicationWindow, ResponseType,
+    Grid, Statusbar, MessageType, ButtonsType, DialogFlags, ApplicationWindow, ResponseType, ComboBoxText,
     AboutDialog, License, WindowPosition, TreeIter, Application, Paned, Orientation, CellRendererMode,
-    TreeViewColumn, CellRendererText, ScrolledWindow
+    TreeViewColumn, CellRendererText, ScrolledWindow, ButtonBox, Button, Entry, ButtonBoxStyle
 };
 use std::cmp::Ordering;
 use std::path::{Path, PathBuf};
 use std::fmt::Display;
 
 use common::*;
+use common::coding_helpers::*;
+use packedfile::db::*;
+use packedfile::loc::*;
+use packedfile::db::schemas::Schema;
 use packfile::packfile::PackFile;
+use packfile::packfile::PackedFile;
+use AppUI;
 
 pub mod packedfile_db;
 pub mod packedfile_loc;
@@ -47,6 +55,14 @@ pub struct MainWindow {
     // Column and cells for the `TreeView`.
     pub folder_tree_view_cell: CellRendererText,
     pub folder_tree_view_column: TreeViewColumn,
+}
+
+/// This enum specifies the PackedFile types we can create.
+#[derive(Clone, Debug)]
+pub enum PackedFileType {
+    Loc,
+    DB,
+    Text,
 }
 
 //----------------------------------------------------------------------------//
@@ -198,6 +214,274 @@ pub fn show_about_window(
     about_dialog.run();
     about_dialog.destroy();
 }
+
+/// This function creates an `ApplicationWindow`, asking for a name for a PakcedFile. Also, sets the
+/// events to control his buttons.
+pub fn show_create_packed_file_window(
+    application: &Application,
+    app_ui: &AppUI,
+    rpfm_path: &PathBuf,
+    pack_file: &Rc<RefCell<PackFile>>,
+    packed_file_type: PackedFileType,
+    dependency_database: &Rc<RefCell<Option<Vec<PackedFile>>>>,
+    schema: &Rc<RefCell<Option<Schema>>>,
+) {
+
+    // Create the new ApplicationWindow.
+    let window = ApplicationWindow::new(application);
+    window.set_transient_for(&app_ui.window);
+    window.set_position(WindowPosition::CenterOnParent);
+    window.set_icon_from_file(&Path::new(&format!("{}/img/rpfm.png", rpfm_path.to_string_lossy()))).unwrap();
+
+    // Depending on the type of PackedFile we want to create, set the title.
+    match packed_file_type {
+        PackedFileType::Loc => window.set_title("Create Loc File"),
+        PackedFileType::DB => window.set_title("Create DB Table"),
+        PackedFileType::Text => window.set_title("Create Text File"),
+    }
+
+    // Disable the menubar in this window.
+    window.set_show_menubar(false);
+
+    // Create the grid to pack all the stuff.
+    let grid = Grid::new();
+    grid.set_border_width(6);
+    grid.set_row_spacing(3);
+    grid.set_column_spacing(3);
+
+    // Create the text entry for the name of the file.
+    let entry = Entry::new();
+    entry.set_size_request(300, 0);
+    entry.set_has_frame(false);
+    entry.set_hexpand(true);
+    if let PackedFileType::DB = packed_file_type {
+        entry.set_placeholder_text("Write the name of your table here.");
+    }
+    else { entry.set_placeholder_text("Write the full path of the PackFile here."); }
+
+    // Get the selected path and put it in the entry.
+    let path = get_tree_path_from_selection(&app_ui.folder_tree_selection, false);
+    let mut path_string = path.iter().map(|x| format!("{}/", x)).collect::<String>();
+
+    // Depending on the type of PackedFile we want to create, set the default name. In case of tables,
+    // we don't allow to put a path, as it depends on the selected table.
+    match packed_file_type {
+        PackedFileType::Loc => path_string.push_str("new_file.loc"),
+        PackedFileType::DB => path_string = "new_file".to_owned(),
+        PackedFileType::Text => path_string.push_str("new_file.lua"),
+    }
+
+    entry.set_text(&path_string);
+
+    // Create and populate the Table Selector.
+    let table_label = Label::new(Some("Default Game Selected:"));
+    let table_combo = ComboBoxText::new();
+    table_label.set_size_request(120, 0);
+    table_label.set_xalign(0.0);
+    table_label.set_yalign(0.5);
+
+    // Only if there is a dependency_database we populate this.
+    if let Some(ref dependency_database) = *dependency_database.borrow() {
+        for table in dependency_database.iter() {
+            table_combo.append(Some(&*table.path[1]), &*table.path[1]);
+        }
+    }
+
+    table_combo.set_active(0);
+    table_combo.set_hexpand(true);
+
+    // Create the bottom ButtonBox
+    let button_box = ButtonBox::new(Orientation::Horizontal);
+    let cancel_button = Button::new_with_label("Cancel");
+    let accept_button = Button::new_with_label("Accept");
+
+    button_box.pack_start(&cancel_button, false, false, 0);
+    button_box.pack_start(&accept_button, false, false, 0);
+    button_box.set_layout(ButtonBoxStyle::Spread);
+    button_box.set_spacing(10);
+
+    // Pack all the stuff in the grid.
+    grid.attach(&entry, 0, 0, 2, 1);
+    grid.attach(&button_box, 0, 2, 2, 1);
+
+    // If we are creating a DB Table, we pack the table selector too.
+    grid.attach(&table_label, 0, 1, 1, 1);
+    grid.attach(&table_combo, 1, 1, 1, 1);
+
+    // Add the grid to the window and show it.
+    window.add(&grid);
+    window.show_all();
+
+    // Disable the main window so you can't use it with this window open.
+    app_ui.window.set_sensitive(false);
+
+    // When we change the name in the entry.
+    entry.connect_changed(clone!(
+        accept_button,
+        pack_file => move |entry| {
+
+            // Get the written path.
+            let path = entry.get_text().unwrap().split('/').map(|x| x.to_owned()).collect::<Vec<String>>();
+
+            // We check if the file already exists.
+            if pack_file.borrow().data.packedfile_exists(&path) {
+
+                // If it exists, disable the "Accept" button.
+                accept_button.set_sensitive(false);
+            }
+
+            // Otherwise, enable it.
+            else { accept_button.set_sensitive(true); }
+        }
+    ));
+
+    // When we press the "Accept" button.
+    accept_button.connect_button_release_event(clone!(
+        dependency_database,
+        packed_file_type,
+        pack_file,
+        schema,
+        window,
+        entry,
+        app_ui => move |_,_| {
+
+            // Get the path of the new file.
+            let mut path = entry.get_text().unwrap().split('/').map(|x| x.to_owned()).collect::<Vec<String>>();
+
+            // If it's a Loc File, check his termination and fix it, if neccesary.
+            if let PackedFileType::Loc = packed_file_type {
+                if let Some(name) = path.last_mut() {
+                    if !name.ends_with(".loc") {
+                        name.push_str(".loc");
+                    }
+                }
+            }
+
+            // If it's a Text File, check his termination, and default to ".lua" if neccesary.
+            if let PackedFileType::Text = packed_file_type {
+                if let Some(name) = path.last_mut() {
+                    if !name.ends_with(".lua") ||
+                        !name.ends_with(".xml") ||
+                        !name.ends_with(".xml.shader") ||
+                        !name.ends_with(".xml.material") ||
+                        !name.ends_with(".variantmeshdefinition") ||
+                        !name.ends_with(".environment") ||
+                        !name.ends_with(".lighting") ||
+                        !name.ends_with(".wsmodel") ||
+                        !name.ends_with(".csv") ||
+                        !name.ends_with(".tsv") ||
+                        !name.ends_with(".inl") ||
+                        !name.ends_with(".battle_speech_camera") ||
+                        !name.ends_with(".bob") ||
+                        !name.ends_with(".txt") {
+                        name.push_str(".lua");
+                    }
+                }
+            }
+
+            // If it's a DB Table, replace his "path" with the full path inside the DB folder.
+            if let PackedFileType::DB = packed_file_type {
+                path = vec!["db".to_owned(), table_combo.get_active_id().unwrap(), entry.get_text().unwrap()];
+            }
+
+            // Get the data of the new file, depending on the type of file we want.
+            let data = match packed_file_type {
+                PackedFileType::Loc => Loc::new().save(),
+                PackedFileType::DB => {
+
+                    let db_type = table_combo.get_active_id().unwrap();
+                    // If there is a dependency_database, use it to get the version of the table currently in use by the game. Otherwise, return error.
+                    let version = match *dependency_database.borrow() {
+                        Some(ref dependency_database) => {
+                            let mut version = 0;
+                            for table in dependency_database.iter() {
+
+                                // If it's a table...
+                                if table.path[0] == "db" {
+                                    if table.path[1] == db_type {
+                                        version = DBHeader::read(&table.data, &mut 0).unwrap().version
+                                    }
+                                }
+                            }
+                            version
+                        }
+                        None => {
+                            show_dialog(&app_ui.window, false, "To be able to create a DB Table we need first a Dependency Database created for that game. Create one and try again.");
+                            return Inhibit(false)
+                        },
+                    };
+
+                    let table_definition = DB::get_schema(&db_type, version, &schema.borrow().clone().unwrap());
+
+                    // If there is a table definition, create the new table. Otherwise, return error.
+                    match table_definition {
+                        Some(table_definition) => DB::new(&db_type, version, table_definition).save(),
+                        None => {
+                            show_dialog(&app_ui.window, false, "We don't have a table definition for this table, so we can neither decode it nor create it.");
+                            return Inhibit(false)
+                        },
+                    }
+                },
+                PackedFileType::Text => encode_string_u8(""),
+            };
+
+            // Create and add the new PackedFile to the PackFile.
+            let packed_file = PackedFile::read(data.len() as u32, path.to_vec(), data);
+            pack_file.borrow_mut().add_packedfiles(vec![packed_file; 1]);
+
+            // Set the mod as "Modified".
+            set_modified(true, &app_ui.window, &mut pack_file.borrow_mut());
+
+            // Update the TreeView to show the newly added PackedFile.
+            update_treeview(
+                &app_ui.folder_tree_store,
+                &pack_file.borrow(),
+                &app_ui.folder_tree_selection,
+                TreeViewOperation::Add(path.to_vec()),
+                &TreePathType::None,
+            );
+
+            // Destroy the "Settings Window".
+            window.destroy();
+
+            // Re-enable the main window.
+            app_ui.window.set_sensitive(true);
+
+            Inhibit(false)
+        }
+    ));
+
+    // When we press the "Cancel" button, we close the window.
+    cancel_button.connect_button_release_event(clone!(
+        window,
+        app_ui => move |_,_| {
+
+            // Destroy the "Settings Window".
+            window.destroy();
+
+            // Re-enable the main window.
+            app_ui.window.set_sensitive(true);
+
+            Inhibit(false)
+        }
+    ));
+
+    // When we close the window.
+    window.connect_delete_event(clone!(
+        app_ui => move |window,_| {
+
+            // Destroy the "Settings Window".
+            window.destroy();
+
+            // Re-enable the main window.
+            app_ui.window.set_sensitive(true);
+
+            Inhibit(false)
+        }
+    ));
+}
+
+
 
 //----------------------------------------------------------------------------//
 //              Utility functions (helpers and stuff like that)

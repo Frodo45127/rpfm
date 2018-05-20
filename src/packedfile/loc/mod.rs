@@ -59,6 +59,14 @@ pub struct LocEntry {
 /// Implementation of "Loc".
 impl Loc {
 
+    /// This function creates a new empty Loc PackedFile.
+    pub fn new() -> Self {
+        Self{
+            header: LocHeader::new(),
+            data: LocData::new(),
+        }
+    }
+
     /// This function creates a new decoded Loc from the data of a PackedFile. Note that this assume
     /// the file is a loc. It'll crash otherwise.
     pub fn read(packed_file_data: &[u8]) -> Result<Self, Error> {

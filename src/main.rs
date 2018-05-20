@@ -184,6 +184,9 @@ pub struct AppUI {
     pub folder_tree_view_rename_packedfile: SimpleAction,
     pub folder_tree_view_delete_packedfile: SimpleAction,
     pub folder_tree_view_extract_packedfile: SimpleAction,
+    pub folder_tree_view_create_loc: SimpleAction,
+    pub folder_tree_view_create_db: SimpleAction,
+    pub folder_tree_view_create_text: SimpleAction,
 
     // Model for the Context Menu of the DB Decoder (only the model, the menu is created and destroyed with the decoder).
     pub db_decoder_context_menu_model: MenuModel,
@@ -301,6 +304,9 @@ fn build_ui(application: &Application) {
         folder_tree_view_rename_packedfile: SimpleAction::new("rename-packedfile", None),
         folder_tree_view_delete_packedfile: SimpleAction::new("delete-packedfile", None),
         folder_tree_view_extract_packedfile: SimpleAction::new("extract-packedfile", None),
+        folder_tree_view_create_loc: SimpleAction::new("create-loc", None),
+        folder_tree_view_create_db: SimpleAction::new("create-db", None),
+        folder_tree_view_create_text: SimpleAction::new("create-text", None),
 
         // Model for the Context Menu of the DB Decoder (only the model, the menu is created and destroyed with the decoder).
         db_decoder_context_menu_model: builder.get_object("context_menu_db_decoder").unwrap(),
@@ -347,6 +353,9 @@ fn build_ui(application: &Application) {
     application.add_action(&app_ui.folder_tree_view_rename_packedfile);
     application.add_action(&app_ui.folder_tree_view_delete_packedfile);
     application.add_action(&app_ui.folder_tree_view_extract_packedfile);
+    application.add_action(&app_ui.folder_tree_view_create_loc);
+    application.add_action(&app_ui.folder_tree_view_create_db);
+    application.add_action(&app_ui.folder_tree_view_create_text);
 
     // Some Accels need to be specified here. Don't know why, but otherwise they do not work.
     application.set_accels_for_action("app.add-file", &["<Primary>a"]);
@@ -497,6 +506,9 @@ fn build_ui(application: &Application) {
     app_ui.folder_tree_view_rename_packedfile.set_enabled(false);
     app_ui.folder_tree_view_delete_packedfile.set_enabled(false);
     app_ui.folder_tree_view_extract_packedfile.set_enabled(false);
+    app_ui.folder_tree_view_create_loc.set_enabled(false);
+    app_ui.folder_tree_view_create_db.set_enabled(false);
+    app_ui.folder_tree_view_create_text.set_enabled(false);
 
     // If there is a "MyMod" path set in the settings...
     if let Some(ref path) = settings.borrow().paths.my_mods_base_path {
@@ -1570,7 +1582,9 @@ fn build_ui(application: &Application) {
 
     // We check every action possible for the selected file when changing the cursor.
     app_ui.folder_tree_view.connect_cursor_changed(clone!(
+        dependency_database,
         pack_file_decoded,
+        schema,
         app_ui => move |_| {
 
             // Get the path of the selected thing.
@@ -1590,6 +1604,9 @@ fn build_ui(application: &Application) {
                     app_ui.folder_tree_view_rename_packedfile.set_enabled(true);
                     app_ui.folder_tree_view_delete_packedfile.set_enabled(true);
                     app_ui.folder_tree_view_extract_packedfile.set_enabled(true);
+                    app_ui.folder_tree_view_create_loc.set_enabled(false);
+                    app_ui.folder_tree_view_create_db.set_enabled(false);
+                    app_ui.folder_tree_view_create_text.set_enabled(false);
                 },
 
                 // If it's a folder...
@@ -1600,6 +1617,9 @@ fn build_ui(application: &Application) {
                     app_ui.folder_tree_view_rename_packedfile.set_enabled(true);
                     app_ui.folder_tree_view_delete_packedfile.set_enabled(true);
                     app_ui.folder_tree_view_extract_packedfile.set_enabled(true);
+                    app_ui.folder_tree_view_create_loc.set_enabled(true);
+                    app_ui.folder_tree_view_create_db.set_enabled(true);
+                    app_ui.folder_tree_view_create_text.set_enabled(true);
                 },
 
                 // If it's the PackFile...
@@ -1610,6 +1630,9 @@ fn build_ui(application: &Application) {
                     app_ui.folder_tree_view_rename_packedfile.set_enabled(false);
                     app_ui.folder_tree_view_delete_packedfile.set_enabled(true);
                     app_ui.folder_tree_view_extract_packedfile.set_enabled(true);
+                    app_ui.folder_tree_view_create_loc.set_enabled(true);
+                    app_ui.folder_tree_view_create_db.set_enabled(true);
+                    app_ui.folder_tree_view_create_text.set_enabled(true);
                 },
 
                 // If there is nothing selected...
@@ -1620,7 +1643,15 @@ fn build_ui(application: &Application) {
                     app_ui.folder_tree_view_rename_packedfile.set_enabled(false);
                     app_ui.folder_tree_view_delete_packedfile.set_enabled(false);
                     app_ui.folder_tree_view_extract_packedfile.set_enabled(false);
+                    app_ui.folder_tree_view_create_loc.set_enabled(false);
+                    app_ui.folder_tree_view_create_db.set_enabled(false);
+                    app_ui.folder_tree_view_create_text.set_enabled(false);
                 },
+            }
+
+            // If there is no dependency_database or schema for our GameSelected, ALWAYS disable creating new DB Tables.
+            if dependency_database.borrow().is_none() || schema.borrow().is_none() {
+                app_ui.folder_tree_view_create_db.set_enabled(false);
             }
         }
     ));
@@ -2419,6 +2450,75 @@ fn build_ui(application: &Application) {
         );
     }
 
+    // When we hit the "Create Loc File" button.
+    app_ui.folder_tree_view_create_loc.connect_activate(clone!(
+        dependency_database,
+        pack_file_decoded,
+        application,
+        rpfm_path,
+        schema,
+        app_ui => move |_,_| {
+
+            // We hide the context menu, then we get the selected file/folder, delete it and update the
+            // TreeView. Pretty simple, actually.
+            app_ui.folder_tree_view_context_menu.popdown();
+
+            // We only do something in case the focus is in the TreeView. This should stop problems with
+            // the accels working everywhere.
+            if app_ui.folder_tree_view.has_focus() {
+
+                // Build the "Create Loc File" window.
+                show_create_packed_file_window(&application, &app_ui, &rpfm_path, &pack_file_decoded, PackedFileType::Loc, &dependency_database, &schema);
+            }
+        }
+    ));
+
+    // When we hit the "Create DB Table" button.
+    app_ui.folder_tree_view_create_db.connect_activate(clone!(
+        dependency_database,
+        pack_file_decoded,
+        application,
+        rpfm_path,
+        schema,
+        app_ui => move |_,_| {
+
+            // We hide the context menu, then we get the selected file/folder, delete it and update the
+            // TreeView. Pretty simple, actually.
+            app_ui.folder_tree_view_context_menu.popdown();
+
+            // We only do something in case the focus is in the TreeView. This should stop problems with
+            // the accels working everywhere.
+            if app_ui.folder_tree_view.has_focus() {
+
+                // Build the "Create DB Table" window.
+                show_create_packed_file_window(&application, &app_ui, &rpfm_path, &pack_file_decoded, PackedFileType::DB, &dependency_database, &schema);
+            }
+        }
+    ));
+
+    // When we hit the "Create Text File" button.
+    app_ui.folder_tree_view_create_text.connect_activate(clone!(
+        dependency_database,
+        pack_file_decoded,
+        application,
+        rpfm_path,
+        schema,
+        app_ui => move |_,_| {
+
+            // We hide the context menu, then we get the selected file/folder, delete it and update the
+            // TreeView. Pretty simple, actually.
+            app_ui.folder_tree_view_context_menu.popdown();
+
+            // We only do something in case the focus is in the TreeView. This should stop problems with
+            // the accels working everywhere.
+            if app_ui.folder_tree_view.has_focus() {
+
+                // Build the "Create Text File" window.
+                show_create_packed_file_window(&application, &app_ui, &rpfm_path, &pack_file_decoded, PackedFileType::Text, &dependency_database, &schema);
+            }
+        }
+    ));
+
     // When we hit the "Delete file/folder" button.
     app_ui.folder_tree_view_delete_packedfile.connect_activate(clone!(
         app_ui,
@@ -2769,21 +2869,21 @@ fn build_ui(application: &Application) {
                         else if packedfile_name.ends_with(".rigid_model_v2") { "RIGIDMODEL" }
 
                         // If it ends in any of these, it's a plain text PackedFile.
-                        else if packedfile_name.ends_with(".txt") ||
+                        else if packedfile_name.ends_with(".lua") ||
                                 packedfile_name.ends_with(".xml") ||
-                                packedfile_name.ends_with(".csv") ||
-                                packedfile_name.ends_with(".tsv") ||
-                                packedfile_name.ends_with(".battle_speech_camera") ||
-                                packedfile_name.ends_with(".bob") ||
                                 packedfile_name.ends_with(".xml.shader") ||
-                                //packedfile_name.ends_with(".benchmark") || // This one needs special decoding/encoding.
-                                packedfile_name.ends_with(".variantmeshdefinition") ||
                                 packedfile_name.ends_with(".xml.material") ||
+                                packedfile_name.ends_with(".variantmeshdefinition") ||
                                 packedfile_name.ends_with(".environment") ||
-                                packedfile_name.ends_with(".inl") ||
                                 packedfile_name.ends_with(".lighting") ||
                                 packedfile_name.ends_with(".wsmodel") ||
-                                packedfile_name.ends_with(".lua") { "TEXT" }
+                                packedfile_name.ends_with(".csv") ||
+                                packedfile_name.ends_with(".tsv") ||
+                                packedfile_name.ends_with(".inl") ||
+                                packedfile_name.ends_with(".battle_speech_camera") ||
+                                packedfile_name.ends_with(".bob") ||
+                                //packedfile_name.ends_with(".benchmark") || // This one needs special decoding/encoding.
+                                packedfile_name.ends_with(".txt") { "TEXT" }
 
                         // If it ends in any of these, it's an image.
                         else if packedfile_name.ends_with(".jpg") ||

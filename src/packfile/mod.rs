@@ -665,10 +665,7 @@ pub fn update_packed_file_data_db(
     pack_file: &mut packfile::PackFile,
     index: usize,
 ) -> Result<(), Error> {
-    let mut packed_file_data_encoded = match DB::save(packed_file_data_decoded) {
-        Ok(data) => data.to_vec(),
-        Err(error) => return Err(error)
-    };
+    let mut packed_file_data_encoded = DB::save(packed_file_data_decoded);
     let packed_file_data_encoded_size = packed_file_data_encoded.len() as u32;
 
     // Replace the old raw data of the PackedFile with the new one, and update his size.

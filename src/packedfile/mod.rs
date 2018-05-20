@@ -2,9 +2,8 @@
 extern crate csv;
 extern crate failure;
 
+use failure::Error;
 use std::path::PathBuf;
-
-use self::failure::Error;
 
 pub mod loc;
 pub mod db;
