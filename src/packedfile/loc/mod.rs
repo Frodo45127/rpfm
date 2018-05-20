@@ -222,7 +222,7 @@ impl SerializableToTSV for LocData {
             .delimiter(b'\t')
             .quoting(false)
             .has_headers(false)
-            .flexible(false)
+            .flexible(true)
             .from_path(&tsv_file_path) {
 
             // If we succesfully read the TSV file into a reader...
