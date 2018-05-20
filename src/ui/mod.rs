@@ -2,7 +2,9 @@
 extern crate num;
 extern crate gio;
 extern crate gdk_pixbuf;
+extern crate url;
 
+use url::Url;
 use std::rc::Rc;
 use std::cell::RefCell;
 use self::gdk_pixbuf::Pixbuf;
@@ -12,7 +14,8 @@ use gtk::{
     MessageDialog, TreeStore, TreeSelection, TreeView, Rectangle, Label, FileChooserNative, FileFilter,
     Grid, Statusbar, MessageType, ButtonsType, DialogFlags, ApplicationWindow, ResponseType, ComboBoxText,
     AboutDialog, License, WindowPosition, TreeIter, Application, Paned, Orientation, CellRendererMode,
-    TreeViewColumn, CellRendererText, ScrolledWindow, ButtonBox, Button, Entry, ButtonBoxStyle
+    TreeViewColumn, CellRendererText, ScrolledWindow, ButtonBox, Button, Entry, ButtonBoxStyle,
+    FileChooserAction, ReliefStyle
 };
 use std::cmp::Ordering;
 use std::path::{Path, PathBuf};
@@ -20,6 +23,7 @@ use std::fmt::Display;
 
 use common::*;
 use common::coding_helpers::*;
+use packedfile::*;
 use packedfile::db::*;
 use packedfile::loc::*;
 use packedfile::db::schemas::Schema;
@@ -481,7 +485,205 @@ pub fn show_create_packed_file_window(
     ));
 }
 
+/// This function creates an `ApplicationWindow`, asking for a name for the mass-imported TSV files.
+/// Also, will create the events to control his buttons.
+#[allow(dead_code)]
+pub fn show_tsv_mass_import_window(
+    application: &Application,
+    app_ui: &AppUI,
+    rpfm_path: &PathBuf,
+    pack_file: &Rc<RefCell<PackFile>>,
+    schema: &Rc<RefCell<Option<Schema>>>,
+) {
 
+    // Create the new ApplicationWindow.
+    let window = ApplicationWindow::new(application);
+    window.set_transient_for(&app_ui.window);
+    window.set_position(WindowPosition::CenterOnParent);
+    window.set_icon_from_file(&Path::new(&format!("{}/img/rpfm.png", rpfm_path.to_string_lossy()))).unwrap();
+    window.set_title("Mass-Import TSV Files");
+
+    // Disable the menubar in this window.
+    window.set_show_menubar(false);
+
+    // Create the grid to pack all the stuff.
+    let grid = Grid::new();
+    grid.set_border_width(6);
+    grid.set_row_spacing(3);
+    grid.set_column_spacing(3);
+
+    // Create the text entry for the name of the file.
+    let entry = Entry::new();
+    entry.set_size_request(300, 0);
+    entry.set_has_frame(false);
+    entry.set_hexpand(true);
+    entry.set_placeholder_text("Write the name used for your new tables here.");
+    entry.set_text("new_table");
+
+    // Create the "..." button for selecting TSV Files.
+    let tsv_selector_button = Button::new_with_label("...");
+
+    // Create the bottom ButtonBox
+    let button_box = ButtonBox::new(Orientation::Horizontal);
+    let cancel_button = Button::new_with_label("Cancel");
+    let accept_button = Button::new_with_label("Accept");
+
+    button_box.pack_start(&cancel_button, false, false, 0);
+    button_box.pack_start(&accept_button, false, false, 0);
+    button_box.set_layout(ButtonBoxStyle::Spread);
+    button_box.set_spacing(10);
+
+    // Pack all the stuff in the grid.
+    grid.attach(&entry, 0, 0, 1, 1);
+    grid.attach(&tsv_selector_button, 1, 0, 1, 1);
+    grid.attach(&button_box, 0, 1, 2, 1);
+
+    // Add the grid to the window and show it.
+    window.add(&grid);
+    window.show_all();
+
+    // Disable the main window so you can't use it with this window open.
+    app_ui.window.set_sensitive(false);
+
+    // Disable the "Accept" button by default too.
+    accept_button.set_sensitive(false);
+
+    // Create the vector that'll hold the paths of the TSV files.
+    let tsv_paths = Rc::new(RefCell::new(vec![]));
+
+    // When we change the name in the entry.
+    entry.connect_changed(clone!(
+        accept_button => move |_| {
+
+            // If it's stupid but it works,...
+            accept_button.set_relief(ReliefStyle::None);
+            accept_button.set_relief(ReliefStyle::Normal);
+        }
+    ));
+
+    // When we press the "..." button.
+    tsv_selector_button.connect_button_release_event(clone!(
+        accept_button,
+        tsv_paths,
+        window => move |_,_| {
+
+            // Create a FileChooser to select the TSV files.
+            let file_chooser_select_tsv_files = FileChooserNative::new(
+                "Select TSV Files...",
+                &window,
+                FileChooserAction::Open,
+                "Accept",
+                "Cancel"
+            );
+
+            // Allow to select multiple files at the same time.
+            file_chooser_select_tsv_files.set_select_multiple(true);
+
+            // Then run the created FileChooser, get all the selected URIS, turn them into paths and add them to the list.
+            if file_chooser_select_tsv_files.run() == Into::<i32>::into(ResponseType::Accept) {
+                for path in &file_chooser_select_tsv_files.get_uris() {
+                    tsv_paths.borrow_mut().push(Url::parse(&path).unwrap().to_file_path().unwrap());
+                }
+
+                // If it's stupid but it works,...
+                accept_button.set_relief(ReliefStyle::None);
+                accept_button.set_relief(ReliefStyle::Normal);
+            }
+
+            Inhibit(false)
+        }
+    ));
+
+    accept_button.connect_property_relief_notify(clone!(
+        tsv_paths,
+        entry => move |accept_button| {
+
+            // If there is nothing in the entry, or the TSV list is empty, disable the "Accept" button.
+            if entry.get_text().unwrap().is_empty() || tsv_paths.borrow().is_empty() {
+                accept_button.set_sensitive(false);
+            }
+
+            // Otherwise, enable it.
+            else { accept_button.set_sensitive(true); }
+
+        }
+    ));
+
+    // When we press the "Accept" button.
+    accept_button.connect_button_release_event(clone!(
+        pack_file,
+        tsv_paths,
+        schema,
+        window,
+        entry,
+        app_ui => move |_,_| {
+
+            // Try to mass-import all the provided TSV files.
+            let tree_paths = match tsv_mass_import(&tsv_paths.borrow(), &entry.get_text().unwrap(), &schema.borrow(), &mut pack_file.borrow_mut()) {
+                Ok(tree_path) => tree_path,
+                Err(error) => {
+                    show_dialog(&app_ui.window, false, error.cause());
+                    return Inhibit(false)
+                }
+            };
+
+            // Set the mod as "Modified".
+            set_modified(true, &app_ui.window, &mut pack_file.borrow_mut());
+
+            // Add and update each path to the TreeView.
+            for path in tree_paths.1 {
+
+                // If it's one of the paths we removed and read it, skip it.
+                if !tree_paths.0.contains(&path) {
+                    update_treeview(
+                        &app_ui.folder_tree_store,
+                        &pack_file.borrow(),
+                        &app_ui.folder_tree_selection,
+                        TreeViewOperation::Add(path.to_vec()),
+                        &TreePathType::None,
+                    );
+                }
+            }
+
+            // Destroy the "Settings Window".
+            window.destroy();
+
+            // Re-enable the main window.
+            app_ui.window.set_sensitive(true);
+
+            Inhibit(false)
+        }
+    ));
+
+    // When we press the "Cancel" button, we close the window.
+    cancel_button.connect_button_release_event(clone!(
+        window,
+        app_ui => move |_,_| {
+
+            // Destroy the "Settings Window".
+            window.destroy();
+
+            // Re-enable the main window.
+            app_ui.window.set_sensitive(true);
+
+            Inhibit(false)
+        }
+    ));
+
+    // When we close the window.
+    window.connect_delete_event(clone!(
+        app_ui => move |window,_| {
+
+            // Destroy the "Settings Window".
+            window.destroy();
+
+            // Re-enable the main window.
+            app_ui.window.set_sensitive(true);
+
+            Inhibit(false)
+        }
+    ));
+}
 
 //----------------------------------------------------------------------------//
 //              Utility functions (helpers and stuff like that)

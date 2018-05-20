@@ -248,6 +248,10 @@
                         <attribute name="label" translatable="yes">Create _Text File</attribute>
                         <attribute name="action">app.create-text</attribute>
                     </item>
+                    <item>
+                        <attribute name="label" translatable="yes">_Mass-Import TSV Files</attribute>
+                        <attribute name="action">app.mass-import-tsv</attribute>
+                    </item>
                 </section>
             </submenu>
             <item>

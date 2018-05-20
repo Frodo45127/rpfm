@@ -187,6 +187,7 @@ pub struct AppUI {
     pub folder_tree_view_create_loc: SimpleAction,
     pub folder_tree_view_create_db: SimpleAction,
     pub folder_tree_view_create_text: SimpleAction,
+    pub folder_tree_view_mass_import_tsv_files: SimpleAction,
 
     // Model for the Context Menu of the DB Decoder (only the model, the menu is created and destroyed with the decoder).
     pub db_decoder_context_menu_model: MenuModel,
@@ -307,6 +308,7 @@ fn build_ui(application: &Application) {
         folder_tree_view_create_loc: SimpleAction::new("create-loc", None),
         folder_tree_view_create_db: SimpleAction::new("create-db", None),
         folder_tree_view_create_text: SimpleAction::new("create-text", None),
+        folder_tree_view_mass_import_tsv_files: SimpleAction::new("mass-import-tsv", None),
 
         // Model for the Context Menu of the DB Decoder (only the model, the menu is created and destroyed with the decoder).
         db_decoder_context_menu_model: builder.get_object("context_menu_db_decoder").unwrap(),
@@ -356,6 +358,7 @@ fn build_ui(application: &Application) {
     application.add_action(&app_ui.folder_tree_view_create_loc);
     application.add_action(&app_ui.folder_tree_view_create_db);
     application.add_action(&app_ui.folder_tree_view_create_text);
+    application.add_action(&app_ui.folder_tree_view_mass_import_tsv_files);
 
     // Some Accels need to be specified here. Don't know why, but otherwise they do not work.
     application.set_accels_for_action("app.add-file", &["<Primary>a"]);
@@ -509,6 +512,7 @@ fn build_ui(application: &Application) {
     app_ui.folder_tree_view_create_loc.set_enabled(false);
     app_ui.folder_tree_view_create_db.set_enabled(false);
     app_ui.folder_tree_view_create_text.set_enabled(false);
+    app_ui.folder_tree_view_mass_import_tsv_files.set_enabled(false);
 
     // If there is a "MyMod" path set in the settings...
     if let Some(ref path) = settings.borrow().paths.my_mods_base_path {
@@ -1607,6 +1611,7 @@ fn build_ui(application: &Application) {
                     app_ui.folder_tree_view_create_loc.set_enabled(false);
                     app_ui.folder_tree_view_create_db.set_enabled(false);
                     app_ui.folder_tree_view_create_text.set_enabled(false);
+                    app_ui.folder_tree_view_mass_import_tsv_files.set_enabled(false);
                 },
 
                 // If it's a folder...
@@ -1620,6 +1625,7 @@ fn build_ui(application: &Application) {
                     app_ui.folder_tree_view_create_loc.set_enabled(true);
                     app_ui.folder_tree_view_create_db.set_enabled(true);
                     app_ui.folder_tree_view_create_text.set_enabled(true);
+                    app_ui.folder_tree_view_mass_import_tsv_files.set_enabled(true);
                 },
 
                 // If it's the PackFile...
@@ -1633,6 +1639,7 @@ fn build_ui(application: &Application) {
                     app_ui.folder_tree_view_create_loc.set_enabled(true);
                     app_ui.folder_tree_view_create_db.set_enabled(true);
                     app_ui.folder_tree_view_create_text.set_enabled(true);
+                    app_ui.folder_tree_view_mass_import_tsv_files.set_enabled(true);
                 },
 
                 // If there is nothing selected...
@@ -1646,12 +1653,14 @@ fn build_ui(application: &Application) {
                     app_ui.folder_tree_view_create_loc.set_enabled(false);
                     app_ui.folder_tree_view_create_db.set_enabled(false);
                     app_ui.folder_tree_view_create_text.set_enabled(false);
+                    app_ui.folder_tree_view_mass_import_tsv_files.set_enabled(false);
                 },
             }
 
             // If there is no dependency_database or schema for our GameSelected, ALWAYS disable creating new DB Tables.
             if dependency_database.borrow().is_none() || schema.borrow().is_none() {
                 app_ui.folder_tree_view_create_db.set_enabled(false);
+                app_ui.folder_tree_view_mass_import_tsv_files.set_enabled(false);
             }
         }
     ));
@@ -2515,6 +2524,28 @@ fn build_ui(application: &Application) {
 
                 // Build the "Create Text File" window.
                 show_create_packed_file_window(&application, &app_ui, &rpfm_path, &pack_file_decoded, PackedFileType::Text, &dependency_database, &schema);
+            }
+        }
+    ));
+
+    // When we hit the "Mass-Import TSV Files" button.
+    app_ui.folder_tree_view_mass_import_tsv_files.connect_activate(clone!(
+        pack_file_decoded,
+        application,
+        rpfm_path,
+        schema,
+        app_ui => move |_,_| {
+
+            // We hide the context menu, then we get the selected file/folder, delete it and update the
+            // TreeView. Pretty simple, actually.
+            app_ui.folder_tree_view_context_menu.popdown();
+
+            // We only do something in case the focus is in the TreeView. This should stop problems with
+            // the accels working everywhere.
+            if app_ui.folder_tree_view.has_focus() {
+
+                // Build the "Mass-Import TSV Files" window.
+                show_tsv_mass_import_window(&application, &app_ui, &rpfm_path, &pack_file_decoded, &schema);
             }
         }
     ));
