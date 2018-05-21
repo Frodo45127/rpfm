@@ -440,29 +440,33 @@ impl PackedFileDBTreeView{
                                 // For each table in the database...
                                 for table in dependency_database {
 
-                                    // If it's our original table...
-                                    if table.path[1] == format!("{}_tables", origin.0) {
+                                    // If it's actually a table.
+                                    if table.path.len() >= 3 {
 
-                                        // If we could decode it...
-                                        if let Ok(db) = DB::read(&table.data, &*table.path[1], master_schema) {
+                                        // If it's our original table...
+                                        if table.path[0] == "db" && table.path[1] == format!("{}_tables", origin.0) {
 
-                                            // For each column in our original table...
-                                            for (index, original_field) in db.data.table_definition.fields.iter().enumerate() {
+                                            // If we could decode it...
+                                            if let Ok(db) = DB::read(&table.data, &*table.path[1], master_schema) {
 
-                                                // If it's our column...
-                                                if original_field.field_name == origin.1 {
+                                                // For each column in our original table...
+                                                for (index, original_field) in db.data.table_definition.fields.iter().enumerate() {
 
-                                                    // For each row...
-                                                    for row in &db.data.entries {
+                                                    // If it's our column...
+                                                    if original_field.field_name == origin.1 {
 
-                                                        // Check what's in our column in that row...
-                                                        match row[index + 1] {
+                                                        // For each row...
+                                                        for row in &db.data.entries {
 
-                                                            // And if it's a `String`, get his value.
-                                                            DecodedData::StringU8(ref data) | DecodedData::StringU16(ref data) => origin_combo_data.push(data.to_owned()),
-                                                            _ => {},
-                                                        };
+                                                            // Check what's in our column in that row...
+                                                            match row[index + 1] {
 
+                                                                // And if it's a `String`, get his value.
+                                                                DecodedData::StringU8(ref data) | DecodedData::StringU16(ref data) => origin_combo_data.push(data.to_owned()),
+                                                                _ => {},
+                                                            };
+
+                                                        }
                                                     }
                                                 }
                                             }
@@ -473,36 +477,40 @@ impl PackedFileDBTreeView{
                                 // For each table in our mod...
                                 for table in &pack_file.borrow().data.packed_files {
 
-                                    // If it's our original table...
-                                    if table.path[1] == format!("{}_tables", origin.0) {
+                                    // If it's actually a table.
+                                    if table.path.len() >= 3 {
 
-                                        // If we could decode it...
-                                        if let Ok(db) = DB::read(&table.data, &*table.path[1], master_schema) {
+                                        // If it's our original table...
+                                        if table.path[0] == "db" && table.path[1] == format!("{}_tables", origin.0) {
 
-                                            // For each column in our original table...
-                                            for (index, original_field) in db.data.table_definition.fields.iter().enumerate() {
+                                            // If we could decode it...
+                                            if let Ok(db) = DB::read(&table.data, &*table.path[1], master_schema) {
 
-                                                // If it's our column...
-                                                if original_field.field_name == origin.1 {
+                                                // For each column in our original table...
+                                                for (index, original_field) in db.data.table_definition.fields.iter().enumerate() {
 
-                                                    // For each row...
-                                                    for row in &db.data.entries {
+                                                    // If it's our column...
+                                                    if original_field.field_name == origin.1 {
 
-                                                        // Check what's in our column in that row...
-                                                        match row[index + 1] {
+                                                        // For each row...
+                                                        for row in &db.data.entries {
 
-                                                            // And if it's a `String`...
-                                                            DecodedData::StringU8(ref data) | DecodedData::StringU16(ref data) => {
+                                                            // Check what's in our column in that row...
+                                                            match row[index + 1] {
 
-                                                                // If we don't have that field yet...
-                                                                if !origin_combo_data.contains(data) {
+                                                                // And if it's a `String`...
+                                                                DecodedData::StringU8(ref data) | DecodedData::StringU16(ref data) => {
 
-                                                                    // Add it to the list.
-                                                                    origin_combo_data.push(data.to_owned());
+                                                                    // If we don't have that field yet...
+                                                                    if !origin_combo_data.contains(data) {
+
+                                                                        // Add it to the list.
+                                                                        origin_combo_data.push(data.to_owned());
+                                                                    }
                                                                 }
-                                                            }
-                                                            _ => {},
-                                                        };
+                                                                _ => {},
+                                                            };
+                                                        }
                                                     }
                                                 }
                                             }
@@ -623,29 +631,33 @@ impl PackedFileDBTreeView{
                                 // For each table in the database...
                                 for table in dependency_database {
 
-                                    // If it's our original table...
-                                    if table.path[1] == format!("{}_tables", origin.0) {
+                                    // If it's actually a table.
+                                    if table.path.len() >= 3 {
 
-                                        // If we could decode it...
-                                        if let Ok(db) = DB::read(&table.data, &*table.path[1], master_schema) {
+                                        // If it's our original table...
+                                        if table.path[0] == "db" && table.path[1] == format!("{}_tables", origin.0) {
 
-                                            // For each column in our original table...
-                                            for (index, original_field) in db.data.table_definition.fields.iter().enumerate() {
+                                            // If we could decode it...
+                                            if let Ok(db) = DB::read(&table.data, &*table.path[1], master_schema) {
 
-                                                // If it's our column...
-                                                if original_field.field_name == origin.1 {
+                                                // For each column in our original table...
+                                                for (index, original_field) in db.data.table_definition.fields.iter().enumerate() {
 
-                                                    // For each row...
-                                                    for row in &db.data.entries {
+                                                    // If it's our column...
+                                                    if original_field.field_name == origin.1 {
 
-                                                        // Check what's in our column in that row...
-                                                        match row[index + 1] {
+                                                        // For each row...
+                                                        for row in &db.data.entries {
 
-                                                            // And if it's a `String`, get his value.
-                                                            DecodedData::OptionalStringU8(ref data) | DecodedData::OptionalStringU16(ref data) => origin_combo_data.push(data.to_owned()),
-                                                            _ => {},
-                                                        };
+                                                            // Check what's in our column in that row...
+                                                            match row[index + 1] {
 
+                                                                // And if it's a `String`, get his value.
+                                                                DecodedData::OptionalStringU8(ref data) | DecodedData::OptionalStringU16(ref data) => origin_combo_data.push(data.to_owned()),
+                                                                _ => {},
+                                                            };
+
+                                                        }
                                                     }
                                                 }
                                             }
@@ -656,36 +668,40 @@ impl PackedFileDBTreeView{
                                 // For each table in our mod...
                                 for table in &pack_file.borrow().data.packed_files {
 
-                                    // If it's our original table...
-                                    if table.path[1] == format!("{}_tables", origin.0) {
+                                    // If it's actually a table.
+                                    if table.path.len() >= 3 {
 
-                                        // If we could decode it...
-                                        if let Ok(db) = DB::read(&table.data, &*table.path[1], master_schema) {
+                                        // If it's our original table...
+                                        if table.path[0] == "db" && table.path[1] == format!("{}_tables", origin.0) {
 
-                                            // For each column in our original table...
-                                            for (index, original_field) in db.data.table_definition.fields.iter().enumerate() {
+                                            // If we could decode it...
+                                            if let Ok(db) = DB::read(&table.data, &*table.path[1], master_schema) {
 
-                                                // If it's our column...
-                                                if original_field.field_name == origin.1 {
+                                                // For each column in our original table...
+                                                for (index, original_field) in db.data.table_definition.fields.iter().enumerate() {
 
-                                                    // For each row...
-                                                    for row in &db.data.entries {
+                                                    // If it's our column...
+                                                    if original_field.field_name == origin.1 {
 
-                                                        // Check what's in our column in that row...
-                                                        match row[index + 1] {
+                                                        // For each row...
+                                                        for row in &db.data.entries {
 
-                                                            // And if it's a `String`...
-                                                            DecodedData::OptionalStringU8(ref data) | DecodedData::OptionalStringU16(ref data) => {
+                                                            // Check what's in our column in that row...
+                                                            match row[index + 1] {
 
-                                                                // If we don't have that field yet...
-                                                                if !origin_combo_data.contains(data) {
+                                                                // And if it's a `String`...
+                                                                DecodedData::OptionalStringU8(ref data) | DecodedData::OptionalStringU16(ref data) => {
 
-                                                                    // Add it to the list.
-                                                                    origin_combo_data.push(data.to_owned());
+                                                                    // If we don't have that field yet...
+                                                                    if !origin_combo_data.contains(data) {
+
+                                                                        // Add it to the list.
+                                                                        origin_combo_data.push(data.to_owned());
+                                                                    }
                                                                 }
-                                                            }
-                                                            _ => {},
-                                                        };
+                                                                _ => {},
+                                                            };
+                                                        }
                                                     }
                                                 }
                                             }
