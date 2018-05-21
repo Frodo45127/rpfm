@@ -317,7 +317,10 @@ pub fn show_create_packed_file_window(
     window.show_all();
 
     // Get the written path.
-    let path = entry.get_text().unwrap().split('/').map(|x| x.to_owned()).collect::<Vec<String>>();
+    let path = match packed_file_type {
+        PackedFileType::DB => vec!["db".to_owned(), table_combo.get_active_id().unwrap(), entry.get_text().unwrap()],
+        _ => entry.get_text().unwrap().split('/').map(|x| x.to_owned()).collect::<Vec<String>>(),
+    };
 
     // We check if the file already exists. If it exists, disable the "Accept" button.
     if pack_file.borrow().data.packedfile_exists(&path) { accept_button.set_sensitive(false); }
@@ -328,26 +331,44 @@ pub fn show_create_packed_file_window(
     // Disable the main window so you can't use it with this window open.
     app_ui.window.set_sensitive(false);
 
+    // When we change the selected table.
+    table_combo.connect_changed(clone!(
+        accept_button,
+        pack_file,
+        entry => move |table_combo| {
+
+            // Get the written path.
+            let path = vec!["db".to_owned(), table_combo.get_active_id().unwrap(), entry.get_text().unwrap()];
+
+            // We check if the file already exists. If it exists, disable the "Accept" button.
+            if pack_file.borrow().data.packedfile_exists(&path) { accept_button.set_sensitive(false); }
+
+            // Otherwise, enable it.
+            else { accept_button.set_sensitive(true); }
+        }
+    ));
+
     // When we change the name in the entry.
     entry.connect_changed(clone!(
         packed_file_type,
         accept_button,
+        table_combo,
         pack_file => move |entry| {
 
-            // Get the written path.
-            let path = entry.get_text().unwrap().split('/').map(|x| x.to_owned()).collect::<Vec<String>>();
+            // Depending on what type of file we have, we need to make one check or another.
+            match packed_file_type {
 
-            // If the path contains empty fields, is invalid, no matter what else it has.
-            if path.contains(&String::new()) { accept_button.set_sensitive(false); }
+                // If it's a Loc PackedFile...
+                PackedFileType::Loc => {
 
-            // Otherwise...
-            else {
+                    // Get the written path.
+                    let path = entry.get_text().unwrap().split('/').map(|x| x.to_owned()).collect::<Vec<String>>();
 
-                // Depending on what type of file we have, we need to make one check or another.
-                match packed_file_type {
+                    // If the path contains empty fields, is invalid, no matter what else it has.
+                    if path.contains(&String::new()) { accept_button.set_sensitive(false); }
 
-                    // If it's a Loc PackedFile...
-                    PackedFileType::Loc => {
+                    // Otherwise...
+                    else {
 
                         // If the name it's empty (path ends in '/', or len 1 and 0 is empty), disable the button.
                         if path.last().unwrap().is_empty() { accept_button.set_sensitive(false); }
@@ -391,23 +412,36 @@ pub fn show_create_packed_file_window(
                             // If there is an error, disable the button.
                             else { accept_button.set_sensitive(false); }
                         }
-                    },
+                    }
+                },
 
-                    // If it's a DB PackedFile...
-                    PackedFileType::DB => {
+                // If it's a DB PackedFile...
+                PackedFileType::DB => {
 
-                        // If the name it's empty, disable the button.
-                        if path.last().unwrap().is_empty() { accept_button.set_sensitive(false); }
+                    // Replace his path with one inside the table's directory.
+                    let path = vec!["db".to_owned(), table_combo.get_active_id().unwrap(), entry.get_text().unwrap()];
 
-                        // If the path exists, disable the button.
-                        else if pack_file.borrow().data.packedfile_exists(&path) { accept_button.set_sensitive(false); }
+                    // If the name it's empty, disable the button.
+                    if path.last().unwrap().is_empty() { accept_button.set_sensitive(false); }
 
-                        // Otherwise, enable it.
-                        else { accept_button.set_sensitive(true); }
-                    },
+                    // If the path exists, disable the button.
+                    else if pack_file.borrow().data.packedfile_exists(&path) { accept_button.set_sensitive(false); }
 
-                    // If it's a Text PackedFile...
-                    PackedFileType::Text => {
+                    // Otherwise, enable it.
+                    else { accept_button.set_sensitive(true); }
+                },
+
+                // If it's a Text PackedFile...
+                PackedFileType::Text => {
+
+                    // Get the written path.
+                    let path = entry.get_text().unwrap().split('/').map(|x| x.to_owned()).collect::<Vec<String>>();
+
+                    // If the path contains empty fields, is invalid, no matter what else it has.
+                    if path.contains(&String::new()) { accept_button.set_sensitive(false); }
+
+                    // Otherwise...
+                    else {
 
                         // If the name it's empty (path ends in '/', or len 1 and 0 is empty), disable the button.
                         if path.last().unwrap().is_empty() { accept_button.set_sensitive(false); }
@@ -464,8 +498,8 @@ pub fn show_create_packed_file_window(
                             // If there is an error, disable the button.
                             else { accept_button.set_sensitive(false); }
                         }
-                    },
-                }
+                    }
+                },
             }
         }
     ));
@@ -474,6 +508,7 @@ pub fn show_create_packed_file_window(
     accept_button.connect_button_release_event(clone!(
         dependency_database,
         packed_file_type,
+        table_combo,
         pack_file,
         schema,
         window,
