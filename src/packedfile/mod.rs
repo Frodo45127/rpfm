@@ -6,6 +6,8 @@ use failure::Error;
 use std::io::{ BufReader, Read };
 use std::fs::File;
 use std::path::PathBuf;
+
+use common::coding_helpers::*;
 use packfile::packfile::PackFile;
 use packfile::packfile::PackedFile;
 use packedfile::loc::*;
@@ -15,6 +17,14 @@ use packedfile::db::schemas::*;
 pub mod loc;
 pub mod db;
 pub mod rigidmodel;
+
+/// This enum specifies the PackedFile types we can create.
+#[derive(Clone, Debug)]
+pub enum PackedFileType {
+    Loc,
+    DB,
+    Text,
+}
 
 /*
 --------------------------------------------------
@@ -33,6 +43,120 @@ pub trait SerializableToTSV {
     /// `export_tsv`: Requires `&self`, the destination path for the TSV file and a name and a number (version)
     /// to put in the header of the TSV file. Returns a success message, or an error.
     fn export_tsv(&self, tsv_file_path: &PathBuf, extra_data: (&str, u32)) -> Result<String, Error>;
+}
+
+/// This function is used to create a PackedFile outtanowhere. It returns his new path.
+pub fn create_packed_file(
+    name: &str,
+    db_type: &str,
+    schema: &Option<Schema>,
+    pack_file: &mut PackFile,
+    dependency_database: &Option<Vec<PackedFile>>,
+    packed_file_type: &PackedFileType,
+) -> Result<Vec<String>, Error> {
+
+    // Get the path of the new file.
+    let mut path = name.split('/').map(|x| x.to_owned()).collect::<Vec<String>>();
+
+    // Depending on their type, we do different things to prepare the PackedFile and get his data.
+    let data = match packed_file_type {
+
+        // If it's a Loc PackedFile...
+        PackedFileType::Loc => {
+
+            // Ensure his termination is ".loc", and fix it if it's not.
+            if let Some(name) = path.last_mut() {
+                if !name.ends_with(".loc") {
+                    name.push_str(".loc");
+                }
+            }
+
+            // Create it and generate his data.
+            Loc::new().save()
+        }
+
+        // If it's a DB table...
+        PackedFileType::DB => {
+
+            // Replace his path with one inside the table's directory.
+            path = vec!["db".to_owned(), db_type.to_owned(), name.to_owned()];
+
+            // If there is a dependency_database, use it to get the version of the table currently in use by the game. Otherwise, return error.
+            let version = match dependency_database {
+                Some(ref dependency_database) => {
+
+                    // Initialize version to 9999. If it fails, this'll cause the schema to not be found and properly return error.
+                    let mut version = 9999;
+
+                    // For each table in our dependency_database...
+                    for table in dependency_database.iter() {
+
+                        // If it's a table...
+                        if table.path[0] == "db" {
+
+                            // And the one we're searching for...
+                            if table.path[1] == db_type {
+
+                                // Get his version...
+                                version = DBHeader::read(&table.data, &mut 0).unwrap().version
+                            }
+                        }
+                    }
+
+                    // Return the version. If None has been found, return 0.
+                    version
+                }
+
+                // If there is None, return error.
+                None => return Err(format_err!("To be able to create a DB Table we need first a Dependency Database created for that game. Create one and try again."))
+            };
+
+            // Try to get his table definition.
+            let table_definition = match schema {
+                Some(schema) => DB::get_schema(&db_type, version, &schema),
+                None => return Err(format_err!("There is no schema loaded for this game."))
+            };
+
+            // If there is a table definition, create the new table. Otherwise, return error.
+            match table_definition {
+                Some(table_definition) => DB::new(&db_type, version, table_definition).save(),
+                None => return Err(format_err!("We don't have a table definition for this table/version of the table, so we can neither decode it nor create it."))
+            }
+        }
+
+        // If it's a Text PackedFile...
+        PackedFileType::Text => {
+
+            // Ensure his termination is correct, and fix it if it's not.
+            if let Some(name) = path.last_mut() {
+                if !name.ends_with(".lua") &&
+                    !name.ends_with(".xml") &&
+                    !name.ends_with(".xml.shader") &&
+                    !name.ends_with(".xml.material") &&
+                    !name.ends_with(".variantmeshdefinition") &&
+                    !name.ends_with(".environment") &&
+                    !name.ends_with(".lighting") &&
+                    !name.ends_with(".wsmodel") &&
+                    !name.ends_with(".csv") &&
+                    !name.ends_with(".tsv") &&
+                    !name.ends_with(".inl") &&
+                    !name.ends_with(".battle_speech_camera") &&
+                    !name.ends_with(".bob") &&
+                    !name.ends_with(".txt") {
+                    name.push_str(".lua");
+                }
+            }
+
+            // Get his data.
+            encode_string_u8("")
+        }
+    };
+
+    // Create and add the new PackedFile to the PackFile.
+    pack_file.add_packedfiles(vec![PackedFile::read(data.len() as u32, path.to_vec(), data); 1]);
+
+    // Return the path to update the UI.
+    Ok(path)
 }
 
 /// This function is used to Mass-Import TSV files into a PackFile. Note that this will OVERWRITE any

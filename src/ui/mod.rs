@@ -22,7 +22,6 @@ use std::path::{Path, PathBuf};
 use std::fmt::Display;
 
 use common::*;
-use common::coding_helpers::*;
 use packedfile::*;
 use packedfile::db::*;
 use packedfile::loc::*;
@@ -59,14 +58,6 @@ pub struct MainWindow {
     // Column and cells for the `TreeView`.
     pub folder_tree_view_cell: CellRendererText,
     pub folder_tree_view_column: TreeViewColumn,
-}
-
-/// This enum specifies the PackedFile types we can create.
-#[derive(Clone, Debug)]
-pub enum PackedFileType {
-    Loc,
-    DB,
-    Text,
 }
 
 //----------------------------------------------------------------------------//
@@ -284,12 +275,19 @@ pub fn show_create_packed_file_window(
     table_label.set_xalign(0.0);
     table_label.set_yalign(0.5);
 
-    // Only if there is a dependency_database we populate this.
-    if let Some(ref dependency_database) = *dependency_database.borrow() {
-        for table in dependency_database.iter() {
-            table_combo.append(Some(&*table.path[1]), &*table.path[1]);
+    // If it's a table, we try to populate the combo.
+    if let PackedFileType::DB = packed_file_type {
+
+        // Only if there is a dependency_database we populate this.
+        if let Some(ref dependency_database) = *dependency_database.borrow() {
+            for table in dependency_database.iter() {
+                table_combo.append(Some(&*table.path[1]), &*table.path[1]);
+            }
         }
     }
+
+    // Otherwise, add none, so it doesn't crash when calling it for another PackedFile Type.
+    else { table_combo.append(Some("none"), "none"); }
 
     table_combo.set_active(0);
     table_combo.set_hexpand(true);
@@ -309,33 +307,166 @@ pub fn show_create_packed_file_window(
     grid.attach(&button_box, 0, 2, 2, 1);
 
     // If we are creating a DB Table, we pack the table selector too.
-    grid.attach(&table_label, 0, 1, 1, 1);
-    grid.attach(&table_combo, 1, 1, 1, 1);
+    if let PackedFileType::DB = packed_file_type {
+        grid.attach(&table_label, 0, 1, 1, 1);
+        grid.attach(&table_combo, 1, 1, 1, 1);
+    }
 
     // Add the grid to the window and show it.
     window.add(&grid);
     window.show_all();
+
+    // Get the written path.
+    let path = entry.get_text().unwrap().split('/').map(|x| x.to_owned()).collect::<Vec<String>>();
+
+    // We check if the file already exists. If it exists, disable the "Accept" button.
+    if pack_file.borrow().data.packedfile_exists(&path) { accept_button.set_sensitive(false); }
+
+    // Otherwise, enable it.
+    else { accept_button.set_sensitive(true); }
 
     // Disable the main window so you can't use it with this window open.
     app_ui.window.set_sensitive(false);
 
     // When we change the name in the entry.
     entry.connect_changed(clone!(
+        packed_file_type,
         accept_button,
         pack_file => move |entry| {
 
             // Get the written path.
             let path = entry.get_text().unwrap().split('/').map(|x| x.to_owned()).collect::<Vec<String>>();
 
-            // We check if the file already exists.
-            if pack_file.borrow().data.packedfile_exists(&path) {
+            // If the path contains empty fields, is invalid, no matter what else it has.
+            if path.contains(&String::new()) { accept_button.set_sensitive(false); }
 
-                // If it exists, disable the "Accept" button.
-                accept_button.set_sensitive(false);
+            // Otherwise...
+            else {
+
+                // Depending on what type of file we have, we need to make one check or another.
+                match packed_file_type {
+
+                    // If it's a Loc PackedFile...
+                    PackedFileType::Loc => {
+
+                        // If the name it's empty (path ends in '/', or len 1 and 0 is empty), disable the button.
+                        if path.last().unwrap().is_empty() { accept_button.set_sensitive(false); }
+
+                        // Otherwise...
+                        else {
+
+                            // Get his name.
+                            if let Some(name) = path.last() {
+
+                                // If ends in ".loc" the name is valid, so we check if exists.
+                                if name.ends_with(".loc") {
+
+                                    // If the path exists, disable the button.
+                                    if pack_file.borrow().data.packedfile_exists(&path) { accept_button.set_sensitive(false); }
+
+                                    // Otherwise, enable it.
+                                    else { accept_button.set_sensitive(true); }
+                                }
+
+                                // If the name doesn't end in ".loc", we fix it and check if the fixed name exists.
+                                else {
+
+                                    // Get a mutable copy of the path.
+                                    let mut fixed_path = path.to_vec();
+
+                                    // Get his current name.
+                                    let name = fixed_path.pop().unwrap();
+
+                                    // Change it.
+                                    fixed_path.push(format!("{}.loc", name));
+
+                                    // If the path exists, disable the button.
+                                    if pack_file.borrow().data.packedfile_exists(&fixed_path) { accept_button.set_sensitive(false); }
+
+                                    // Otherwise, enable it.
+                                    else { accept_button.set_sensitive(true); }
+                                }
+                            }
+
+                            // If there is an error, disable the button.
+                            else { accept_button.set_sensitive(false); }
+                        }
+                    },
+
+                    // If it's a DB PackedFile...
+                    PackedFileType::DB => {
+
+                        // If the name it's empty, disable the button.
+                        if path.last().unwrap().is_empty() { accept_button.set_sensitive(false); }
+
+                        // If the path exists, disable the button.
+                        else if pack_file.borrow().data.packedfile_exists(&path) { accept_button.set_sensitive(false); }
+
+                        // Otherwise, enable it.
+                        else { accept_button.set_sensitive(true); }
+                    },
+
+                    // If it's a Text PackedFile...
+                    PackedFileType::Text => {
+
+                        // If the name it's empty (path ends in '/', or len 1 and 0 is empty), disable the button.
+                        if path.last().unwrap().is_empty() { accept_button.set_sensitive(false); }
+
+                        // Otherwise...
+                        else {
+
+                            // Get his name.
+                            if let Some(name) = path.last() {
+
+                                // If ends in something valid, the name is valid, so we check if exists.
+                                if name.ends_with(".lua") ||
+                                    name.ends_with(".xml") ||
+                                    name.ends_with(".xml.shader") ||
+                                    name.ends_with(".xml.material") ||
+                                    name.ends_with(".variantmeshdefinition") ||
+                                    name.ends_with(".environment") ||
+                                    name.ends_with(".lighting") ||
+                                    name.ends_with(".wsmodel") ||
+                                    name.ends_with(".csv") ||
+                                    name.ends_with(".tsv") ||
+                                    name.ends_with(".inl") ||
+                                    name.ends_with(".battle_speech_camera") ||
+                                    name.ends_with(".bob") ||
+                                    name.ends_with(".txt") {
+
+                                    // If the path exists, disable the button.
+                                    if pack_file.borrow().data.packedfile_exists(&path) { accept_button.set_sensitive(false); }
+
+                                    // Otherwise, enable it.
+                                    else { accept_button.set_sensitive(true); }
+                                }
+
+                                // If the name doesn't end in something valid, we fix it and check if the fixed name exists.
+                                else {
+
+                                    // Get a mutable copy of the path.
+                                    let mut fixed_path = path.to_vec();
+
+                                    // Get his current name.
+                                    let name = fixed_path.pop().unwrap();
+
+                                    // Change it.
+                                    fixed_path.push(format!("{}.lua", name));
+
+                                    // If the path exists, disable the button.
+                                    if pack_file.borrow().data.packedfile_exists(&fixed_path) { accept_button.set_sensitive(false); }
+
+                                    // Otherwise, enable it.
+                                    else { accept_button.set_sensitive(true); }
+                                }
+                            }
+
+                            // If there is an error, disable the button.
+                            else { accept_button.set_sensitive(false); }
+                        }
+                    },
+                }
             }
-
-            // Otherwise, enable it.
-            else { accept_button.set_sensitive(true); }
         }
     ));
 
@@ -349,89 +480,21 @@ pub fn show_create_packed_file_window(
         entry,
         app_ui => move |_,_| {
 
-            // Get the path of the new file.
-            let mut path = entry.get_text().unwrap().split('/').map(|x| x.to_owned()).collect::<Vec<String>>();
-
-            // If it's a Loc File, check his termination and fix it, if neccesary.
-            if let PackedFileType::Loc = packed_file_type {
-                if let Some(name) = path.last_mut() {
-                    if !name.ends_with(".loc") {
-                        name.push_str(".loc");
-                    }
+            // Try to create the PackedFile.
+            let path = match create_packed_file(
+                &entry.get_text().unwrap(),
+                &table_combo.get_active_id().unwrap(),
+                &schema.borrow(),
+                &mut pack_file.borrow_mut(),
+                &dependency_database.borrow(),
+                &packed_file_type,
+            ) {
+                Ok(path) => path,
+                Err(error) => {
+                    show_dialog(&app_ui.window, false, error.cause());
+                    return Inhibit(false)
                 }
-            }
-
-            // If it's a Text File, check his termination, and default to ".lua" if neccesary.
-            if let PackedFileType::Text = packed_file_type {
-                if let Some(name) = path.last_mut() {
-                    if !name.ends_with(".lua") ||
-                        !name.ends_with(".xml") ||
-                        !name.ends_with(".xml.shader") ||
-                        !name.ends_with(".xml.material") ||
-                        !name.ends_with(".variantmeshdefinition") ||
-                        !name.ends_with(".environment") ||
-                        !name.ends_with(".lighting") ||
-                        !name.ends_with(".wsmodel") ||
-                        !name.ends_with(".csv") ||
-                        !name.ends_with(".tsv") ||
-                        !name.ends_with(".inl") ||
-                        !name.ends_with(".battle_speech_camera") ||
-                        !name.ends_with(".bob") ||
-                        !name.ends_with(".txt") {
-                        name.push_str(".lua");
-                    }
-                }
-            }
-
-            // If it's a DB Table, replace his "path" with the full path inside the DB folder.
-            if let PackedFileType::DB = packed_file_type {
-                path = vec!["db".to_owned(), table_combo.get_active_id().unwrap(), entry.get_text().unwrap()];
-            }
-
-            // Get the data of the new file, depending on the type of file we want.
-            let data = match packed_file_type {
-                PackedFileType::Loc => Loc::new().save(),
-                PackedFileType::DB => {
-
-                    let db_type = table_combo.get_active_id().unwrap();
-                    // If there is a dependency_database, use it to get the version of the table currently in use by the game. Otherwise, return error.
-                    let version = match *dependency_database.borrow() {
-                        Some(ref dependency_database) => {
-                            let mut version = 0;
-                            for table in dependency_database.iter() {
-
-                                // If it's a table...
-                                if table.path[0] == "db" {
-                                    if table.path[1] == db_type {
-                                        version = DBHeader::read(&table.data, &mut 0).unwrap().version
-                                    }
-                                }
-                            }
-                            version
-                        }
-                        None => {
-                            show_dialog(&app_ui.window, false, "To be able to create a DB Table we need first a Dependency Database created for that game. Create one and try again.");
-                            return Inhibit(false)
-                        },
-                    };
-
-                    let table_definition = DB::get_schema(&db_type, version, &schema.borrow().clone().unwrap());
-
-                    // If there is a table definition, create the new table. Otherwise, return error.
-                    match table_definition {
-                        Some(table_definition) => DB::new(&db_type, version, table_definition).save(),
-                        None => {
-                            show_dialog(&app_ui.window, false, "We don't have a table definition for this table, so we can neither decode it nor create it.");
-                            return Inhibit(false)
-                        },
-                    }
-                },
-                PackedFileType::Text => encode_string_u8(""),
             };
-
-            // Create and add the new PackedFile to the PackFile.
-            let packed_file = PackedFile::read(data.len() as u32, path.to_vec(), data);
-            pack_file.borrow_mut().add_packedfiles(vec![packed_file; 1]);
 
             // Set the mod as "Modified".
             set_modified(true, &app_ui.window, &mut pack_file.borrow_mut());

@@ -53,6 +53,7 @@ use gtk::{
 use common::*;
 use packfile::packfile::PackFile;
 use packfile::packfile::PackedFile;
+use packedfile::*;
 use packedfile::db::schemas::*;
 use packedfile::db::schemas_importer::*;
 use settings::*;
