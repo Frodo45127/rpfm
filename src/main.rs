@@ -644,7 +644,7 @@ fn build_ui(application: &Application) {
                         &app_ui,
                         &settings.borrow(),
                         &mode,
-                        &mut schema.borrow_mut(),
+                        &schema,
                         &supported_games.borrow(),
                         &game_selected,
                         &dependency_database,
@@ -3044,7 +3044,7 @@ fn build_ui(application: &Application) {
                             &app_ui,
                             &settings.borrow(),
                             &mode,
-                            &mut schema.borrow_mut(),
+                            &schema,
                             &supported_games.borrow(),
                             &game_selected,
                             &dependency_database,
@@ -3072,7 +3072,7 @@ fn build_ui(application: &Application) {
             &app_ui,
             &settings.borrow(),
             &mode,
-            &mut schema.borrow_mut(),
+            &schema,
             &supported_games.borrow(),
             &game_selected,
             &dependency_database,
@@ -3096,7 +3096,7 @@ fn open_packfile(
     app_ui: &AppUI,
     settings: &Settings,
     mode: &Rc<RefCell<Mode>>,
-    schema: &mut Option<Schema>,
+    schema: &Rc<RefCell<Option<Schema>>>,
     supported_games: &[GameInfo],
     game_selected: &Rc<RefCell<GameSelected>>,
     dependency_database: &Rc<RefCell<Option<Vec<PackedFile>>>>,
@@ -3206,7 +3206,7 @@ fn open_packfile(
             enable_packfile_actions(app_ui, game_selected, true);
 
             // Try to load the Schema for this PackFile's game.
-            *schema = Schema::load(rpfm_path, &supported_games.iter().filter(|x| x.folder_name == *game_selected.borrow().game).map(|x| x.schema.to_owned()).collect::<String>()).ok();
+            *schema.borrow_mut() = Schema::load(rpfm_path, &supported_games.iter().filter(|x| x.folder_name == *game_selected.borrow().game).map(|x| x.schema.to_owned()).collect::<String>()).ok();
 
             // Test to see if every DB Table can be decoded.
             // let mut counter = 0;
@@ -3336,7 +3336,7 @@ fn build_my_mod_menu(
                                                     &app_ui,
                                                     &settings,
                                                     &mode,
-                                                    &mut schema.borrow_mut(),
+                                                    &schema,
                                                     &supported_games.borrow(),
                                                     &game_selected,
                                                     &dependency_database,
