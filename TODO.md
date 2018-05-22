@@ -2,9 +2,9 @@
 ### PackFile Management:
   - [x] Add File/Folder.
   - [x] Add File/Folder from PackFile.
-  - [ ] Create new folder.
-  - [ ] Create new table.
-  - [ ] Create new Loc.
+  - [x] Create new folder.
+  - [x] Create new table.
+  - [x] Create new Loc.
   - [x] Delete.
   - [x] Rename.
   - [x] Extract.
@@ -47,7 +47,7 @@
 
 ### QoL Improvements:
   - [ ] All: Improve the general behavior of the program.
-  - [ ] Pref: Block edition in Boot/Release/Patch packs.
+  - [x] Pref: Block edition in Boot/Release/Patch packs.
   - [ ] Pref: Allow to disable Cross-Table dependencies to improve performance.
   - [ ] PackFile Management: Improve interaction in case of duplicate files while adding them to the PackFile.
   - [ ] PackFile Management: Open PackFile directly from data folder.
@@ -68,10 +68,11 @@
   - [x] MyMod Feature.
   - [x] Update checker.
   - [ ] Auto-updater.
+  - [x] Schema auto-updater.
   - [ ] Full support (PackFiles, DB Tables and Loc files) for:
     - [x] Warhammer 2.
     - [x] Warhammer.
-    - [ ] Attila.
+    - [x] Attila.
     - [ ] Rome 2.
     - [ ] Thrones of Britannia (if 1.0 is not done when it gets released).
 
@@ -84,7 +85,7 @@
   - [x] Migrate filechooser dialogs to use native dialogs.
   - [ ] Pref: Remember custom column widths (not so sure if I'll manage to make this one... or if it'll be done, but to the list it goes).
   - [ ] Code Tests, to ensure I don't break something with a code change.... again.
-  - [ ] Something to not load entire PackFiles to Ram (optional, as this causes problems seen in PFM),
+  - [x] Something to not load entire PackFiles to Ram (optional, as this causes problems seen in PFM),
   - [x] Rework how the entire TreeView works (including better controls to fold/expand the folders).
   - [x] Allow to open a PackFile directly by associating it with RPFM.
   - [ ] Reverse conversion for models, so modders can use Attila's Variant Editor with Warhammer models.
