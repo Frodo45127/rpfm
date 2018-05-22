@@ -71,8 +71,6 @@ pub fn create_text_view(
             // We attach it to the main grid.
             app_ui.packed_file_data_display.attach(&source_view_scroll, 0, 0, 1, 1);
 
-            // Get
-
             // Then, we get the Language of the file.
             let language_manager = LanguageManager::get_default().unwrap();
             let packedfile_language: Option<Language> = if packed_file_name.ends_with(".xml") ||
