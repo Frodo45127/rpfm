@@ -478,7 +478,19 @@ impl PackFileData {
         let mut packed_file_index_offset: usize = 0;
 
         // PFH5 PackFiles (Warhammer 2) have a 0 separating size and name of the file in the index.
-        let packed_file_index_path_offset: usize = if header.id == "PFH5" { 5 } else { 4 };
+        let packed_file_index_path_offset: usize =
+
+            // If it's a common PFH5 PackFile (Warhammer 2).
+            if header.id == "PFH5" && header.pack_file_type <= 4 { 5 }
+
+            // If it's a common PFH4 PackFile (Warhammer & most of Attila).
+            else if header.id == "PFH4" && header.pack_file_type <= 4 { 4 }
+
+            // If it's Attila's BootX.
+            else if header.id == "PFH4" && header.pack_file_type > 4 { 8 }
+
+            // As default, we use 4 (Attila).
+            else { 4 };
 
         // For each PackedFile in our PackFile...
         for _ in 0..header.packed_file_count {
