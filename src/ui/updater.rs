@@ -197,7 +197,7 @@ pub fn check_schema_updates(
     let mut client = RestClient::new("https://raw.githubusercontent.com").unwrap();
     client.set_header_raw("User-Agent", &format!("RPFM/{}", current_version));
 
-    // Get `https://raw.githubusercontent.com/Frodo45127/rpfm/develop/schemas/versions.json` and deserialize the result automatically.
+    // Get `https://raw.githubusercontent.com/Frodo45127/rpfm/master/schemas/versions.json` and deserialize the result automatically.
     let apiresponse = match client.get(()) {
 
         // If we received a response from the server...

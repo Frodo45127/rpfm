@@ -45,7 +45,7 @@ impl RestPath<()> for LastestRelease {
 // Path of the REST endpoint: e.g. http://<baseurl>/anything
 impl RestPath<()> for Versions {
     fn get_path(_: ()) -> Result<String, restson::Error> {
-        Ok(String::from("Frodo45127/rpfm/develop/schemas/versions.json"))
+        Ok(String::from("Frodo45127/rpfm/master/schemas/versions.json"))
     }
 }
 
@@ -79,7 +79,7 @@ pub fn update_schemas(
                     .connector(hyper_tls::HttpsConnector::new(4, &handle)?)
                     .build(&handle);
 
-                let uri = format!("https://raw.githubusercontent.com/Frodo45127/rpfm/develop/schemas/{}", schema.schema_file).parse()?;
+                let uri = format!("https://raw.githubusercontent.com/Frodo45127/rpfm/master/schemas/{}", schema.schema_file).parse()?;
                 let work = client.get(uri).and_then(|res| {
 
                     // Write all to our schema file.
@@ -105,7 +105,7 @@ pub fn update_schemas(
                 .connector(hyper_tls::HttpsConnector::new(4, &handle)?)
                 .build(&handle);
 
-            let uri = format!("https://raw.githubusercontent.com/Frodo45127/rpfm/develop/schemas/{}", schema.schema_file).parse()?;
+            let uri = format!("https://raw.githubusercontent.com/Frodo45127/rpfm/master/schemas/{}", schema.schema_file).parse()?;
             let work = client.get(uri).and_then(|res| {
 
                 // Write all to our schema file.
