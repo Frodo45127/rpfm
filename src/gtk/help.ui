@@ -183,6 +183,22 @@
                                 <property name="title" translatable="yes">Paste row</property>
                             </object>
                         </child>
+                        
+                        <child>
+                            <object class="GtkShortcutsShortcut">
+                                <property name="visible">1</property>
+                                <property name="accelerator">&lt;Ctrl&gt;k</property>
+                                <property name="title" translatable="yes">Copy column</property>
+                            </object>
+                        </child>
+
+                        <child>
+                            <object class="GtkShortcutsShortcut">
+                                <property name="visible">1</property>
+                                <property name="accelerator">&lt;Ctrl&gt;l</property>
+                                <property name="title" translatable="yes">Paste column</property>
+                            </object>
+                        </child>
 
                         <child>
                             <object class="GtkShortcutsShortcut">
