@@ -979,18 +979,8 @@ impl PackedFileDBTreeView{
         copy_rows.set_enabled(false);
         copy_columns.set_enabled(false);
         paste_cell.set_enabled(false);
+        paste_rows.set_enabled(true);
         paste_columns.set_enabled(true);
-
-        // Depending of the current contents of the `Clipboard`, set the initial state of the "Paste rows" action.
-        if app_ui.clipboard.wait_for_text().is_some() {
-
-            // If the data in the clipboard is a valid row, we enable "Paste rows".
-            if check_clipboard_row(&app_ui, &table_definition) { paste_rows.set_enabled(true); }
-
-            // Otherwise, we disable the "Paste rows" action.
-            else { paste_rows.set_enabled(false); }
-        }
-        else { paste_rows.set_enabled(false); }
 
         // Attach all the stuff to the Context Menu `Grid`.
         context_menu_grid.attach(&add_rows_button, 0, 0, 1, 1);
@@ -1155,6 +1145,18 @@ impl PackedFileDBTreeView{
                     }
 
                     Inhibit(false)
+                }
+            ));
+
+            // When we close the Contextual Menu.
+            table.context_menu.connect_closed(clone!(
+                paste_rows,
+                paste_columns => move |_| {
+
+                    // Enable both signals, as there are checks when they are emited to stop them if
+                    // it's not possible to paste anything.
+                    paste_rows.set_enabled(true);
+                    paste_columns.set_enabled(true);
                 }
             ));
 
