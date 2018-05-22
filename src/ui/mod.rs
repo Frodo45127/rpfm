@@ -1,21 +1,34 @@
 // In this file are all the helper functions used by the UI (mainly GTK here)
 extern crate num;
+extern crate gio;
 extern crate gdk_pixbuf;
+extern crate url;
 
+use url::Url;
+use std::rc::Rc;
+use std::cell::RefCell;
 use self::gdk_pixbuf::Pixbuf;
+use gio::prelude::*;
 use gtk::prelude::*;
 use gtk::{
-    MessageDialog, TreeStore, TreeSelection, TreeView, Rectangle, Label,
-    Grid, Statusbar, MessageType, ButtonsType, DialogFlags, ApplicationWindow, ResponseType,
+    MessageDialog, TreeStore, TreeSelection, TreeView, Rectangle, Label, FileChooserNative, FileFilter,
+    Grid, Statusbar, MessageType, ButtonsType, DialogFlags, ApplicationWindow, ResponseType, ComboBoxText,
     AboutDialog, License, WindowPosition, TreeIter, Application, Paned, Orientation, CellRendererMode,
-    TreeViewColumn, CellRendererText, ScrolledWindow
+    TreeViewColumn, CellRendererText, ScrolledWindow, ButtonBox, Button, Entry, ButtonBoxStyle,
+    FileChooserAction, ReliefStyle
 };
 use std::cmp::Ordering;
 use std::path::{Path, PathBuf};
 use std::fmt::Display;
 
 use common::*;
+use packedfile::*;
+use packedfile::db::*;
+use packedfile::loc::*;
+use packedfile::db::schemas::Schema;
 use packfile::packfile::PackFile;
+use packfile::packfile::PackedFile;
+use AppUI;
 
 pub mod packedfile_db;
 pub mod packedfile_loc;
@@ -182,6 +195,7 @@ pub fn show_about_window(
     about_dialog.add_credit_section("Created and Programmed by", &["Frodo45127"]);
     about_dialog.add_credit_section("Icon by", &["Maruka"]);
     about_dialog.add_credit_section("RigidModel research by", &["Mr.Jox", "Der Spaten", "Maruka", "Frodo45127"]);
+    about_dialog.add_credit_section("LUA functions by", &["Aexrael Dex"]);
     about_dialog.add_credit_section("Windows's theme", &["\"Materia for GTK3\" by nana-4"]);
     about_dialog.add_credit_section("Text Editor theme", &["\"Monokai Extended\" by Leo Iannacone"]);
     about_dialog.add_credit_section("Special thanks to", &["- PFM team (for providing the community\n   with awesome modding tools).", "- CA (for being a mod-friendly company)."]);
@@ -195,6 +209,579 @@ pub fn show_about_window(
     // Run the `AboutDialog`.
     about_dialog.run();
     about_dialog.destroy();
+}
+
+/// This function creates an `ApplicationWindow`, asking for a name for a PakcedFile. Also, sets the
+/// events to control his buttons.
+pub fn show_create_packed_file_window(
+    application: &Application,
+    app_ui: &AppUI,
+    rpfm_path: &PathBuf,
+    pack_file: &Rc<RefCell<PackFile>>,
+    packed_file_type: PackedFileType,
+    dependency_database: &Rc<RefCell<Option<Vec<PackedFile>>>>,
+    schema: &Rc<RefCell<Option<Schema>>>,
+) {
+
+    // Create the new ApplicationWindow.
+    let window = ApplicationWindow::new(application);
+    window.set_transient_for(&app_ui.window);
+    window.set_position(WindowPosition::CenterOnParent);
+    window.set_icon_from_file(&Path::new(&format!("{}/img/rpfm.png", rpfm_path.to_string_lossy()))).unwrap();
+
+    // Depending on the type of PackedFile we want to create, set the title.
+    match packed_file_type {
+        PackedFileType::Loc => window.set_title("Create Loc File"),
+        PackedFileType::DB => window.set_title("Create DB Table"),
+        PackedFileType::Text => window.set_title("Create Text File"),
+    }
+
+    // Disable the menubar in this window.
+    window.set_show_menubar(false);
+
+    // Create the grid to pack all the stuff.
+    let grid = Grid::new();
+    grid.set_border_width(6);
+    grid.set_row_spacing(3);
+    grid.set_column_spacing(3);
+
+    // Create the text entry for the name of the file.
+    let entry = Entry::new();
+    entry.set_size_request(300, 0);
+    entry.set_has_frame(false);
+    entry.set_hexpand(true);
+    if let PackedFileType::DB = packed_file_type {
+        entry.set_placeholder_text("Write the name of your table here.");
+    }
+    else { entry.set_placeholder_text("Write the full path of the PackFile here."); }
+
+    // Get the selected path and put it in the entry.
+    let path = get_tree_path_from_selection(&app_ui.folder_tree_selection, false);
+    let mut path_string = path.iter().map(|x| format!("{}/", x)).collect::<String>();
+
+    // Depending on the type of PackedFile we want to create, set the default name. In case of tables,
+    // we don't allow to put a path, as it depends on the selected table.
+    match packed_file_type {
+        PackedFileType::Loc => path_string.push_str("new_file.loc"),
+        PackedFileType::DB => path_string = "new_file".to_owned(),
+        PackedFileType::Text => path_string.push_str("new_file.lua"),
+    }
+
+    entry.set_text(&path_string);
+
+    // Create and populate the Table Selector.
+    let table_label = Label::new(Some("Default Game Selected:"));
+    let table_combo = ComboBoxText::new();
+    table_label.set_size_request(120, 0);
+    table_label.set_xalign(0.0);
+    table_label.set_yalign(0.5);
+
+    // If it's a table, we try to populate the combo.
+    if let PackedFileType::DB = packed_file_type {
+
+        // Only if there is a dependency_database we populate this.
+        if let Some(ref dependency_database) = *dependency_database.borrow() {
+            for table in dependency_database.iter() {
+                table_combo.append(Some(&*table.path[1]), &*table.path[1]);
+            }
+        }
+    }
+
+    // Otherwise, add none, so it doesn't crash when calling it for another PackedFile Type.
+    else { table_combo.append(Some("none"), "none"); }
+
+    table_combo.set_active(0);
+    table_combo.set_hexpand(true);
+
+    // Create the bottom ButtonBox
+    let button_box = ButtonBox::new(Orientation::Horizontal);
+    let cancel_button = Button::new_with_label("Cancel");
+    let accept_button = Button::new_with_label("Accept");
+
+    button_box.pack_start(&cancel_button, false, false, 0);
+    button_box.pack_start(&accept_button, false, false, 0);
+    button_box.set_layout(ButtonBoxStyle::Spread);
+    button_box.set_spacing(10);
+
+    // Pack all the stuff in the grid.
+    grid.attach(&entry, 0, 0, 2, 1);
+    grid.attach(&button_box, 0, 2, 2, 1);
+
+    // If we are creating a DB Table, we pack the table selector too.
+    if let PackedFileType::DB = packed_file_type {
+        grid.attach(&table_label, 0, 1, 1, 1);
+        grid.attach(&table_combo, 1, 1, 1, 1);
+    }
+
+    // Add the grid to the window and show it.
+    window.add(&grid);
+    window.show_all();
+
+    // Get the written path.
+    let path = match packed_file_type {
+        PackedFileType::DB => vec!["db".to_owned(), table_combo.get_active_id().unwrap(), entry.get_text().unwrap()],
+        _ => entry.get_text().unwrap().split('/').map(|x| x.to_owned()).collect::<Vec<String>>(),
+    };
+
+    // We check if the file already exists. If it exists, disable the "Accept" button.
+    if pack_file.borrow().data.packedfile_exists(&path) { accept_button.set_sensitive(false); }
+
+    // Otherwise, enable it.
+    else { accept_button.set_sensitive(true); }
+
+    // Disable the main window so you can't use it with this window open.
+    app_ui.window.set_sensitive(false);
+
+    // When we change the selected table.
+    table_combo.connect_changed(clone!(
+        accept_button,
+        pack_file,
+        entry => move |table_combo| {
+
+            // Get the written path.
+            let path = vec!["db".to_owned(), table_combo.get_active_id().unwrap(), entry.get_text().unwrap()];
+
+            // We check if the file already exists. If it exists, disable the "Accept" button.
+            if pack_file.borrow().data.packedfile_exists(&path) { accept_button.set_sensitive(false); }
+
+            // Otherwise, enable it.
+            else { accept_button.set_sensitive(true); }
+        }
+    ));
+
+    // When we change the name in the entry.
+    entry.connect_changed(clone!(
+        packed_file_type,
+        accept_button,
+        table_combo,
+        pack_file => move |entry| {
+
+            // Depending on what type of file we have, we need to make one check or another.
+            match packed_file_type {
+
+                // If it's a Loc PackedFile...
+                PackedFileType::Loc => {
+
+                    // Get the written path.
+                    let path = entry.get_text().unwrap().split('/').map(|x| x.to_owned()).collect::<Vec<String>>();
+
+                    // If the path contains empty fields, is invalid, no matter what else it has.
+                    if path.contains(&String::new()) { accept_button.set_sensitive(false); }
+
+                    // Otherwise...
+                    else {
+
+                        // If the name it's empty (path ends in '/', or len 1 and 0 is empty), disable the button.
+                        if path.last().unwrap().is_empty() { accept_button.set_sensitive(false); }
+
+                        // Otherwise...
+                        else {
+
+                            // Get his name.
+                            if let Some(name) = path.last() {
+
+                                // If ends in ".loc" the name is valid, so we check if exists.
+                                if name.ends_with(".loc") {
+
+                                    // If the path exists, disable the button.
+                                    if pack_file.borrow().data.packedfile_exists(&path) { accept_button.set_sensitive(false); }
+
+                                    // Otherwise, enable it.
+                                    else { accept_button.set_sensitive(true); }
+                                }
+
+                                // If the name doesn't end in ".loc", we fix it and check if the fixed name exists.
+                                else {
+
+                                    // Get a mutable copy of the path.
+                                    let mut fixed_path = path.to_vec();
+
+                                    // Get his current name.
+                                    let name = fixed_path.pop().unwrap();
+
+                                    // Change it.
+                                    fixed_path.push(format!("{}.loc", name));
+
+                                    // If the path exists, disable the button.
+                                    if pack_file.borrow().data.packedfile_exists(&fixed_path) { accept_button.set_sensitive(false); }
+
+                                    // Otherwise, enable it.
+                                    else { accept_button.set_sensitive(true); }
+                                }
+                            }
+
+                            // If there is an error, disable the button.
+                            else { accept_button.set_sensitive(false); }
+                        }
+                    }
+                },
+
+                // If it's a DB PackedFile...
+                PackedFileType::DB => {
+
+                    // Replace his path with one inside the table's directory.
+                    let path = vec!["db".to_owned(), table_combo.get_active_id().unwrap(), entry.get_text().unwrap()];
+
+                    // If the name it's empty, disable the button.
+                    if path.last().unwrap().is_empty() { accept_button.set_sensitive(false); }
+
+                    // If the path exists, disable the button.
+                    else if pack_file.borrow().data.packedfile_exists(&path) { accept_button.set_sensitive(false); }
+
+                    // Otherwise, enable it.
+                    else { accept_button.set_sensitive(true); }
+                },
+
+                // If it's a Text PackedFile...
+                PackedFileType::Text => {
+
+                    // Get the written path.
+                    let path = entry.get_text().unwrap().split('/').map(|x| x.to_owned()).collect::<Vec<String>>();
+
+                    // If the path contains empty fields, is invalid, no matter what else it has.
+                    if path.contains(&String::new()) { accept_button.set_sensitive(false); }
+
+                    // Otherwise...
+                    else {
+
+                        // If the name it's empty (path ends in '/', or len 1 and 0 is empty), disable the button.
+                        if path.last().unwrap().is_empty() { accept_button.set_sensitive(false); }
+
+                        // Otherwise...
+                        else {
+
+                            // Get his name.
+                            if let Some(name) = path.last() {
+
+                                // If ends in something valid, the name is valid, so we check if exists.
+                                if name.ends_with(".lua") ||
+                                    name.ends_with(".xml") ||
+                                    name.ends_with(".xml.shader") ||
+                                    name.ends_with(".xml.material") ||
+                                    name.ends_with(".variantmeshdefinition") ||
+                                    name.ends_with(".environment") ||
+                                    name.ends_with(".lighting") ||
+                                    name.ends_with(".wsmodel") ||
+                                    name.ends_with(".csv") ||
+                                    name.ends_with(".tsv") ||
+                                    name.ends_with(".inl") ||
+                                    name.ends_with(".battle_speech_camera") ||
+                                    name.ends_with(".bob") ||
+                                    name.ends_with(".txt") {
+
+                                    // If the path exists, disable the button.
+                                    if pack_file.borrow().data.packedfile_exists(&path) { accept_button.set_sensitive(false); }
+
+                                    // Otherwise, enable it.
+                                    else { accept_button.set_sensitive(true); }
+                                }
+
+                                // If the name doesn't end in something valid, we fix it and check if the fixed name exists.
+                                else {
+
+                                    // Get a mutable copy of the path.
+                                    let mut fixed_path = path.to_vec();
+
+                                    // Get his current name.
+                                    let name = fixed_path.pop().unwrap();
+
+                                    // Change it.
+                                    fixed_path.push(format!("{}.lua", name));
+
+                                    // If the path exists, disable the button.
+                                    if pack_file.borrow().data.packedfile_exists(&fixed_path) { accept_button.set_sensitive(false); }
+
+                                    // Otherwise, enable it.
+                                    else { accept_button.set_sensitive(true); }
+                                }
+                            }
+
+                            // If there is an error, disable the button.
+                            else { accept_button.set_sensitive(false); }
+                        }
+                    }
+                },
+            }
+        }
+    ));
+
+    // When we press the "Accept" button.
+    accept_button.connect_button_release_event(clone!(
+        dependency_database,
+        packed_file_type,
+        table_combo,
+        pack_file,
+        schema,
+        window,
+        entry,
+        app_ui => move |_,_| {
+
+            // Try to create the PackedFile.
+            let path = match create_packed_file(
+                &entry.get_text().unwrap(),
+                &table_combo.get_active_id().unwrap(),
+                &schema.borrow(),
+                &mut pack_file.borrow_mut(),
+                &dependency_database.borrow(),
+                &packed_file_type,
+            ) {
+                Ok(path) => path,
+                Err(error) => {
+                    show_dialog(&app_ui.window, false, error.cause());
+                    return Inhibit(false)
+                }
+            };
+
+            // Set the mod as "Modified".
+            set_modified(true, &app_ui.window, &mut pack_file.borrow_mut());
+
+            // Update the TreeView to show the newly added PackedFile.
+            update_treeview(
+                &app_ui.folder_tree_store,
+                &pack_file.borrow(),
+                &app_ui.folder_tree_selection,
+                TreeViewOperation::Add(path.to_vec()),
+                &TreePathType::None,
+            );
+
+            // Destroy the "Settings Window".
+            window.destroy();
+
+            // Re-enable the main window.
+            app_ui.window.set_sensitive(true);
+
+            Inhibit(false)
+        }
+    ));
+
+    // When we press the "Cancel" button, we close the window.
+    cancel_button.connect_button_release_event(clone!(
+        window,
+        app_ui => move |_,_| {
+
+            // Destroy the "Settings Window".
+            window.destroy();
+
+            // Re-enable the main window.
+            app_ui.window.set_sensitive(true);
+
+            Inhibit(false)
+        }
+    ));
+
+    // When we close the window.
+    window.connect_delete_event(clone!(
+        app_ui => move |window,_| {
+
+            // Destroy the "Settings Window".
+            window.destroy();
+
+            // Re-enable the main window.
+            app_ui.window.set_sensitive(true);
+
+            Inhibit(false)
+        }
+    ));
+}
+
+/// This function creates an `ApplicationWindow`, asking for a name for the mass-imported TSV files.
+/// Also, will create the events to control his buttons.
+#[allow(dead_code)]
+pub fn show_tsv_mass_import_window(
+    application: &Application,
+    app_ui: &AppUI,
+    rpfm_path: &PathBuf,
+    pack_file: &Rc<RefCell<PackFile>>,
+    schema: &Rc<RefCell<Option<Schema>>>,
+) {
+
+    // Create the new ApplicationWindow.
+    let window = ApplicationWindow::new(application);
+    window.set_transient_for(&app_ui.window);
+    window.set_position(WindowPosition::CenterOnParent);
+    window.set_icon_from_file(&Path::new(&format!("{}/img/rpfm.png", rpfm_path.to_string_lossy()))).unwrap();
+    window.set_title("Mass-Import TSV Files");
+
+    // Disable the menubar in this window.
+    window.set_show_menubar(false);
+
+    // Create the grid to pack all the stuff.
+    let grid = Grid::new();
+    grid.set_border_width(6);
+    grid.set_row_spacing(3);
+    grid.set_column_spacing(3);
+
+    // Create the text entry for the name of the file.
+    let entry = Entry::new();
+    entry.set_size_request(300, 0);
+    entry.set_has_frame(false);
+    entry.set_hexpand(true);
+    entry.set_placeholder_text("Write the name used for your new tables here.");
+    entry.set_text("new_table");
+
+    // Create the "..." button for selecting TSV Files.
+    let tsv_selector_button = Button::new_with_label("...");
+
+    // Create the bottom ButtonBox
+    let button_box = ButtonBox::new(Orientation::Horizontal);
+    let cancel_button = Button::new_with_label("Cancel");
+    let accept_button = Button::new_with_label("Accept");
+
+    button_box.pack_start(&cancel_button, false, false, 0);
+    button_box.pack_start(&accept_button, false, false, 0);
+    button_box.set_layout(ButtonBoxStyle::Spread);
+    button_box.set_spacing(10);
+
+    // Pack all the stuff in the grid.
+    grid.attach(&entry, 0, 0, 1, 1);
+    grid.attach(&tsv_selector_button, 1, 0, 1, 1);
+    grid.attach(&button_box, 0, 1, 2, 1);
+
+    // Add the grid to the window and show it.
+    window.add(&grid);
+    window.show_all();
+
+    // Disable the main window so you can't use it with this window open.
+    app_ui.window.set_sensitive(false);
+
+    // Disable the "Accept" button by default too.
+    accept_button.set_sensitive(false);
+
+    // Create the vector that'll hold the paths of the TSV files.
+    let tsv_paths = Rc::new(RefCell::new(vec![]));
+
+    // When we change the name in the entry.
+    entry.connect_changed(clone!(
+        accept_button => move |_| {
+
+            // If it's stupid but it works,...
+            accept_button.set_relief(ReliefStyle::None);
+            accept_button.set_relief(ReliefStyle::Normal);
+        }
+    ));
+
+    // When we press the "..." button.
+    tsv_selector_button.connect_button_release_event(clone!(
+        accept_button,
+        tsv_paths,
+        window => move |_,_| {
+
+            // Create a FileChooser to select the TSV files.
+            let file_chooser_select_tsv_files = FileChooserNative::new(
+                "Select TSV Files...",
+                &window,
+                FileChooserAction::Open,
+                "Accept",
+                "Cancel"
+            );
+
+            // Allow to select multiple files at the same time.
+            file_chooser_select_tsv_files.set_select_multiple(true);
+
+            // Then run the created FileChooser, get all the selected URIS, turn them into paths and add them to the list.
+            if file_chooser_select_tsv_files.run() == Into::<i32>::into(ResponseType::Accept) {
+                for path in &file_chooser_select_tsv_files.get_uris() {
+                    tsv_paths.borrow_mut().push(Url::parse(&path).unwrap().to_file_path().unwrap());
+                }
+
+                // If it's stupid but it works,...
+                accept_button.set_relief(ReliefStyle::None);
+                accept_button.set_relief(ReliefStyle::Normal);
+            }
+
+            Inhibit(false)
+        }
+    ));
+
+    accept_button.connect_property_relief_notify(clone!(
+        tsv_paths,
+        entry => move |accept_button| {
+
+            // If there is nothing in the entry, or the TSV list is empty, disable the "Accept" button.
+            if entry.get_text().unwrap().is_empty() || tsv_paths.borrow().is_empty() {
+                accept_button.set_sensitive(false);
+            }
+
+            // Otherwise, enable it.
+            else { accept_button.set_sensitive(true); }
+
+        }
+    ));
+
+    // When we press the "Accept" button.
+    accept_button.connect_button_release_event(clone!(
+        pack_file,
+        tsv_paths,
+        schema,
+        window,
+        entry,
+        app_ui => move |_,_| {
+
+            // Try to mass-import all the provided TSV files.
+            let tree_paths = match tsv_mass_import(&tsv_paths.borrow(), &entry.get_text().unwrap(), &schema.borrow(), &mut pack_file.borrow_mut()) {
+                Ok(tree_path) => tree_path,
+                Err(error) => {
+                    show_dialog(&app_ui.window, false, error.cause());
+                    return Inhibit(false)
+                }
+            };
+
+            // Set the mod as "Modified".
+            set_modified(true, &app_ui.window, &mut pack_file.borrow_mut());
+
+            // Add and update each path to the TreeView.
+            for path in tree_paths.1 {
+
+                // If it's one of the paths we removed and read it, skip it.
+                if !tree_paths.0.contains(&path) {
+                    update_treeview(
+                        &app_ui.folder_tree_store,
+                        &pack_file.borrow(),
+                        &app_ui.folder_tree_selection,
+                        TreeViewOperation::Add(path.to_vec()),
+                        &TreePathType::None,
+                    );
+                }
+            }
+
+            // Destroy the "Settings Window".
+            window.destroy();
+
+            // Re-enable the main window.
+            app_ui.window.set_sensitive(true);
+
+            Inhibit(false)
+        }
+    ));
+
+    // When we press the "Cancel" button, we close the window.
+    cancel_button.connect_button_release_event(clone!(
+        window,
+        app_ui => move |_,_| {
+
+            // Destroy the "Settings Window".
+            window.destroy();
+
+            // Re-enable the main window.
+            app_ui.window.set_sensitive(true);
+
+            Inhibit(false)
+        }
+    ));
+
+    // When we close the window.
+    window.connect_delete_event(clone!(
+        app_ui => move |window,_| {
+
+            // Destroy the "Settings Window".
+            window.destroy();
+
+            // Re-enable the main window.
+            app_ui.window.set_sensitive(true);
+
+            Inhibit(false)
+        }
+    ));
 }
 
 //----------------------------------------------------------------------------//
@@ -270,8 +857,90 @@ pub fn show_dialog<T: Display>(parent_window: &ApplicationWindow, is_success: bo
 /// - status_bar: a reference to the `Statusbar` where to show the message.
 /// - text: something that implements the trait "Display", so we want to put in the Statusbar.
 pub fn show_message_in_statusbar<T: Display>(status_bar: &Statusbar, message: T) {
-    let message = &message.to_string();
-    status_bar.push(status_bar.get_context_id(message), message);
+    status_bar.push(status_bar.get_context_id("Yekaterina"), &message.to_string());
+}
+
+/// This function adds a Filter to the provided FileChooser, using the `pattern` &str.
+pub fn file_chooser_filter_packfile(file_chooser: &FileChooserNative, pattern: &str) {
+    let filter = FileFilter::new();
+    filter.add_pattern(pattern);
+    file_chooser.add_filter(&filter);
+}
+
+/// This function sets the currently open PackFile as "modified" or unmodified, both in the PackFile
+/// and in the title bar, depending on the value of the "is_modified" boolean.
+pub fn set_modified(
+    is_modified: bool,
+    window: &ApplicationWindow,
+    pack_file_decoded: &mut PackFile,
+) {
+    if is_modified {
+        pack_file_decoded.extra_data.is_modified = true;
+        window.set_title(&format!("Rusted PackFile Manager -> {}(modified)", pack_file_decoded.extra_data.file_name));
+    }
+    else {
+        pack_file_decoded.extra_data.is_modified = false;
+        window.set_title(&format!("Rusted PackFile Manager -> {}", pack_file_decoded.extra_data.file_name));
+    }
+}
+
+/// This function cleans the accelerators and actions created by the PackedFile Views, so they can be
+/// reused in another View.
+pub fn remove_temporal_accelerators(application: &Application) {
+
+    // Remove stuff of Loc View.
+    application.set_accels_for_action("packedfile_loc_add_rows", &[]);
+    application.set_accels_for_action("packedfile_loc_delete_rows", &[]);
+    application.set_accels_for_action("packedfile_loc_copy_cell", &[]);
+    application.set_accels_for_action("packedfile_loc_paste_cell", &[]);
+    application.set_accels_for_action("packedfile_loc_copy_rows", &[]);
+    application.set_accels_for_action("packedfile_loc_paste_rows", &[]);
+    application.set_accels_for_action("packedfile_loc_copy_columns", &[]);
+    application.set_accels_for_action("packedfile_loc_paste_columns", &[]);
+    application.set_accels_for_action("packedfile_loc_import_tsv", &[]);
+    application.set_accels_for_action("packedfile_loc_export_tsv", &[]);
+    application.remove_action("packedfile_loc_add_rows");
+    application.remove_action("packedfile_loc_delete_rows");
+    application.remove_action("packedfile_loc_copy_cell");
+    application.remove_action("packedfile_loc_paste_cell");
+    application.remove_action("packedfile_loc_copy_rows");
+    application.remove_action("packedfile_loc_paste_rows");
+    application.remove_action("packedfile_loc_copy_columns");
+    application.remove_action("packedfile_loc_paste_columns");
+    application.remove_action("packedfile_loc_import_tsv");
+    application.remove_action("packedfile_loc_export_tsv");
+
+    // Remove stuff of DB View.
+    application.set_accels_for_action("packedfile_db_add_rows", &[]);
+    application.set_accels_for_action("packedfile_db_delete_rows", &[]);
+    application.set_accels_for_action("packedfile_db_copy_cell", &[]);
+    application.set_accels_for_action("packedfile_db_paste_cell", &[]);
+    application.set_accels_for_action("packedfile_db_clone_rows", &[]);
+    application.set_accels_for_action("packedfile_db_copy_rows", &[]);
+    application.set_accels_for_action("packedfile_db_paste_rows", &[]);
+    application.set_accels_for_action("packedfile_db_copy_columns", &[]);
+    application.set_accels_for_action("packedfile_db_paste_columns", &[]);
+    application.set_accels_for_action("packedfile_db_import_tsv", &[]);
+    application.set_accels_for_action("packedfile_db_export_tsv", &[]);
+    application.remove_action("packedfile_db_add_rows");
+    application.remove_action("packedfile_db_delete_rows");
+    application.remove_action("packedfile_db_copy_cell");
+    application.remove_action("packedfile_db_paste_cell");
+    application.remove_action("packedfile_db_clone_rows");
+    application.remove_action("packedfile_db_copy_rows");
+    application.remove_action("packedfile_db_paste_rows");
+    application.remove_action("packedfile_db_copy_columns");
+    application.remove_action("packedfile_db_paste_columns");
+    application.remove_action("packedfile_db_import_tsv");
+    application.remove_action("packedfile_db_export_tsv");
+
+    // Remove stuff of DB decoder View.
+    application.set_accels_for_action("move_row_up", &[]);
+    application.set_accels_for_action("move_row_down", &[]);
+    application.set_accels_for_action("delete_row", &[]);
+    application.remove_action("move_row_up");
+    application.remove_action("move_row_down");
+    application.remove_action("delete_row");
 }
 
 /// This function shows a message asking for confirmation. For use in operations that implies unsaved
@@ -519,12 +1188,12 @@ pub fn update_treeview(
 
             // Second, we set as the big_parent, the base for the folders of the TreeView, a fake folder
             // with the name of the PackFile. All big things start with a lie.
-            let big_parent = folder_tree_store.insert_with_values(None, None, &[0], &[&format!("{}", pack_file_decoded.pack_file_extra_data.file_name)]);
+            let big_parent = folder_tree_store.insert_with_values(None, None, &[0], &[&format!("{}", pack_file_decoded.extra_data.file_name)]);
 
             // Third, we get all the paths of the PackedFiles inside the Packfile in a Vector.
             let mut sorted_path_list = vec![];
-            for i in &pack_file_decoded.pack_file_data.packed_files {
-                sorted_path_list.push(&i.packed_file_path);
+            for i in &pack_file_decoded.data.packed_files {
+                sorted_path_list.push(&i.path);
             }
 
             // Fourth, we sort that vector using this horrific monster I don't want to touch again, using
@@ -806,7 +1475,7 @@ pub fn update_treeview(
                     folder_tree_store.clear();
 
                     // Then we add the PackFile to it. This effectively deletes all the PackedFiles in the PackFile.
-                    folder_tree_store.insert_with_values(None, None, &[0], &[&format!("{}", pack_file_decoded.pack_file_extra_data.file_name)]);
+                    folder_tree_store.insert_with_values(None, None, &[0], &[&format!("{}", pack_file_decoded.extra_data.file_name)]);
                 },
 
                 // If we don't have anything selected, we do nothing.
@@ -988,7 +1657,7 @@ fn sort_tree_view(
             }
 
             // If the top one is a File and the bottom one a Folder, it's an special situation. Just swap them.
-            else if selection_type == &TreePathType::File((vec![String::new()], 1)) && next_type == TreePathType::Folder(vec![String::new()]) {
+            else if selection_type == &TreePathType::Folder(vec![String::new()]) && second_type == TreePathType::File((vec![String::new()], 1)) {
                 folder_tree_store.swap(tree_iter, &tree_iter_second);
             }
 

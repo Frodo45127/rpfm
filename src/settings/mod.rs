@@ -5,8 +5,9 @@ extern crate failure;
 use std::path::PathBuf;
 use std::fs::File;
 use std::io::Write;
+use std::io::BufReader;
 
-use self::failure::Error;
+use failure::Error;
 
 /// `GameInfo`: This struct holds all the info needed for a game to be "supported" by RPFM features.
 /// It's stores the following data:
@@ -30,7 +31,9 @@ pub struct Settings {
     pub default_game: String,
     pub prefer_dark_theme: bool,
     pub font: String,
+    pub allow_edition_of_ca_packfiles: bool,
     pub check_updates_on_start: bool,
+    pub check_schema_updates_on_start: bool,
 }
 
 /// This struct should hold any path we need to store in the settings.
@@ -89,14 +92,18 @@ impl GameInfo {
         };
 
         supported_games.push(game_info);
-        /*
+
         // Attila
         let game_info = GameInfo {
             display_name: "Attila".to_owned(),
             folder_name: "attila".to_owned(),
+            id: "PFH4".to_owned(),
+            dependency_pack: "att.pack".to_owned(),
+            schema: "schema_att.json".to_owned(),
         };
 
         supported_games.push(game_info);
+        /*
 
         // Rome 2
         let game_info = GameInfo {
@@ -123,16 +130,16 @@ impl Settings {
             default_game: "warhammer_2".to_owned(),
             prefer_dark_theme: false,
             font: "Segoe UI 9".to_owned(),
+            allow_edition_of_ca_packfiles: false,
             check_updates_on_start: true,
+            check_schema_updates_on_start: true,
         }
     }
 
     /// This function takes a settings.json file and reads it into a "Settings" object.
     pub fn load(path: &PathBuf, supported_games: &[GameInfo]) -> Result<Self, Error> {
-        let mut settings_path = path.clone();
-        settings_path.push("settings.json");
-
-        let settings_file = File::open(settings_path)?;
+        let settings_path = path.to_path_buf().join(PathBuf::from("settings.json"));
+        let settings_file = BufReader::new(File::open(settings_path)?);
         let mut settings: Self = serde_json::from_reader(settings_file)?;
 
         // We need to make sure here that we have entries in `game_paths` for every supported game.

@@ -1,27 +1,31 @@
 // In this file are all the helper functions used by the UI when decoding DB PackedFiles.
 extern crate gtk;
 extern crate gdk;
+extern crate gio;
 extern crate glib;
-extern crate hex_slice;
 extern crate failure;
 
 use std::cell::RefCell;
 use std::rc::Rc;
-use packedfile::db::*;
 use packedfile::db::schemas::*;
 use packfile::packfile::PackedFile;
 use settings::*;
 use common::coding_helpers;
 use failure::Error;
+use gio::prelude::*;
+use gio::SimpleAction;
 use gtk::prelude::*;
 use gtk::{
-    TreeView, ListStore, ScrolledWindow, Button, Orientation, TextView, Label, Entry,
+    TreeView, ListStore, ScrolledWindow, Button, Orientation, TextView, Label, Entry, FileChooserNative,
     CellRendererText, TreeViewColumn, CellRendererToggle, Type, Frame, CellRendererCombo, CssProvider,
-    TextTag, Popover, ModelButton, Paned, Switch, Separator, Grid, ButtonBox, ButtonBoxStyle,
-    StyleContext, TreeViewGridLines, TreeViewColumnSizing, EntryIconPosition
+    TextTag, Popover, ModelButton, Paned, Switch, Separator, Grid, ButtonBox, ButtonBoxStyle, FileChooserAction,
+    StyleContext, TreeViewGridLines, TreeViewColumnSizing, EntryIconPosition, TreeIter
 };
 
-use self::hex_slice::AsHex;
+use super::*;
+use packedfile::SerializableToTSV;
+use AppUI;
+use packfile::update_packed_file_data_db;
 
 /// Struct `PackedFileDBTreeView`: contains all the stuff we need to give to the program to show a
 /// `TreeView` with the data of a DB PackedFile, allowing us to manipulate it.
@@ -43,8 +47,9 @@ pub struct PackedFileDBTreeView {
 /// Struct PackedFileDBDecoder: contains all the stuff we need to return to be able to decode DB PackedFiles.
 #[derive(Clone, Debug)]
 pub struct PackedFileDBDecoder {
-    pub data_initial_index: i32,
-    pub raw_data_line_index: Label,
+    pub data_initial_index: usize,
+    pub decoded_header: DBHeader,
+    pub raw_data_line_index: TextView,
     pub raw_data: TextView,
     pub raw_data_decoded: TextView,
     pub table_type_label: Label,
@@ -80,9 +85,126 @@ pub struct PackedFileDBDecoder {
     pub fields_tree_view_cell_combo_list_store: ListStore,
     pub fields_tree_view_cell_string: Vec<CellRendererText>,
     pub delete_all_fields_button: Button,
-    pub move_up_button: ModelButton,
-    pub move_down_button: ModelButton,
+    pub decoder_grid_scroll: ScrolledWindow,
+    pub context_menu: Popover,
 }
+
+/// This function serves as a way to prepare the DB TreeView and the Decoder View. It's needed because
+/// unlike other decoders, DB decoder can result in two different views being created.
+pub fn create_db_view(
+    application: &Application,
+    app_ui: &AppUI,
+    rpfm_path: &PathBuf,
+    pack_file: &Rc<RefCell<PackFile>>,
+    packed_file_decoded_index: &usize,
+    is_packedfile_opened: &Rc<RefCell<bool>>,
+    schema: &Rc<RefCell<Option<Schema>>>,
+    dependency_database: &Rc<RefCell<Option<Vec<PackedFile>>>>,
+    game_selected: &Rc<RefCell<GameSelected>>,
+    supported_games: &Rc<RefCell<Vec<GameInfo>>>,
+    settings: &Settings,
+) -> Result<(), Error> {
+
+    // Get the data of the PackedFile and his name.
+    let packed_file_encoded = pack_file.borrow().data.packed_files[*packed_file_decoded_index].data.to_vec();
+    let table_name = pack_file.borrow().data.packed_files[*packed_file_decoded_index].path[1].to_owned();
+
+    // Try to decode it, and return error in case of missing schema.
+    let packed_file_decoded = match *schema.borrow() {
+        Some(ref schema) => DB::read(&packed_file_encoded, &table_name, schema),
+        None => return Err(format_err!("There is no Schema loaded for this game.")),
+    };
+
+    // We create the button to enable the "Decoding" mode.
+    let decode_mode_button = Button::new_with_label("Enter decoding mode");
+    decode_mode_button.set_hexpand(true);
+    app_ui.packed_file_data_display.attach(&decode_mode_button, 0, 0, 1, 1);
+    app_ui.packed_file_data_display.show_all();
+
+    // Tell the program there is an open PackedFile.
+    *is_packedfile_opened.borrow_mut() = true;
+
+    // Disable the "Change game selected" function, so we cannot change the current schema with an open table.
+    app_ui.menu_bar_change_game_selected.set_enabled(false);
+
+    // When we destroy the "Enable decoding mode" button, we need to tell the program we no longer have
+    // an open PackedFile. This happens when we select another PackedFile (closing a table) or when we
+    // hit the button (entering the decoder, where we no longer need write access to the original file).
+    decode_mode_button.connect_destroy(clone!(
+        app_ui,
+        is_packedfile_opened => move |_| {
+
+            // Tell the game you no longer have an open PackedFile.
+            *is_packedfile_opened.borrow_mut() = false;
+
+            // Restore the "Change game selected" function.
+            app_ui.menu_bar_change_game_selected.set_enabled(true);
+        }
+    ));
+
+    // From here, we deal we the decoder stuff.
+    decode_mode_button.connect_button_release_event(clone!(
+        application,
+        app_ui,
+        schema,
+        rpfm_path,
+        game_selected,
+        supported_games => move |_,_| {
+
+            // We destroy the table view if exists, and the button, so we don't have to deal with resizing it.
+            let childrens_to_utterly_destroy = app_ui.packed_file_data_display.get_children();
+            if !childrens_to_utterly_destroy.is_empty() {
+                for i in &childrens_to_utterly_destroy {
+                    i.destroy();
+                }
+            }
+
+            // Then try to create the UI and if it throws an error, report it.
+            if let Err(error) = PackedFileDBDecoder::create_decoder_view(
+                &application,
+                &app_ui,
+                &rpfm_path,
+                &supported_games,
+                &game_selected,
+                table_name.to_owned(),
+                packed_file_encoded.to_vec(),
+                &schema,
+            ) {
+                show_dialog(&app_ui.window, false, error.cause())
+            };
+
+            Inhibit(false)
+        }
+    ));
+
+    // If this returns an error, we just leave the button for the decoder.
+    match packed_file_decoded {
+        Ok(packed_file_decoded) => {
+
+            // Get the decoded PackedFile in a `Rc<RefCell<>>` so we can pass it to the closures.
+            let packed_file_decoded = Rc::new(RefCell::new(packed_file_decoded));
+
+            // Try to create the `TreeView`.
+            if let Err(error) = PackedFileDBTreeView::create_tree_view(
+                &application,
+                &app_ui,
+                &pack_file,
+                &packed_file_decoded,
+                packed_file_decoded_index,
+                &dependency_database.borrow(),
+                &schema.borrow().clone().unwrap(),
+                &settings,
+            ) { return Err(error) };
+
+            // Return success.
+            Ok(())
+        }
+
+        // If we receive an error while decoding, report it.
+        Err(error) => Err(error),
+    }
+}
+
 
 /// Implementation of `PackedFileDBTreeView`.
 impl PackedFileDBTreeView{
@@ -90,16 +212,26 @@ impl PackedFileDBTreeView{
     /// This function creates a new `TreeView` with `packed_file_data_display` as father and returns a
     /// `PackedFileDBTreeView` with all his data.
     pub fn create_tree_view(
-        packed_file_data_display: &Grid,
-        packed_file_decoded: &DB,
+        application: &Application,
+        app_ui: &AppUI,
+        pack_file: &Rc<RefCell<PackFile>>,
+        packed_file_decoded: &Rc<RefCell<DB>>,
+        packed_file_decoded_index: &usize,
         dependency_database: &Option<Vec<PackedFile>>,
-        local_dependency_database: &[PackedFile],
         master_schema: &Schema,
         settings: &Settings,
-    ) -> Result<PackedFileDBTreeView, Error> {
+    ) -> Result<(), Error> {
 
-        // Get a reference to the table definition, so the code it's not long chaos.
-        let table_definition = &packed_file_decoded.packed_file_data.table_definition;
+        // Here we define the `Accept` response for GTK, as it seems Restson causes it to fail to compile
+        // if we get them to i32 directly in the `if` statement.
+        // NOTE: For some bizarre reason, GTKFileChoosers return `Ok`, while native ones return `Accept`.
+        let gtk_response_accept: i32 = ResponseType::Accept.into();
+
+        // Get the table's path, so we can use it despite changing the selected file in the main TreeView.
+        let tree_path = get_tree_path_from_selection(&app_ui.folder_tree_selection, false);
+
+        // Get the table definition of this table.
+        let table_definition = packed_file_decoded.borrow().data.table_definition.clone();
 
         // We create a `Vec<Type>` to hold the types of of the columns of the `TreeView`.
         let mut list_store_types: Vec<Type> = vec![];
@@ -136,6 +268,9 @@ impl PackedFileDBTreeView{
         tree_view.set_search_column(0);
         tree_view.set_margin_bottom(10);
 
+        // We enable "Multiple" selection mode, so we can do multi-row operations.
+        tree_view.get_selection().set_mode(gtk::SelectionMode::Multiple);
+
         // We create the "Index" cell and column.
         let cell_index = CellRendererText::new();
         let column_index = TreeViewColumn::new();
@@ -159,7 +294,7 @@ impl PackedFileDBTreeView{
         let mut list_cell_long_integer = vec![];
         let mut list_cell_string = vec![];
         let mut list_cell_optional_string = vec![];
-        let mut list_cell_reference: Vec<CellRendererCombo> = vec![];
+        let mut list_cell_reference = vec![];
 
         // We create a vector to store the key columns.
         let mut key_columns = vec![];
@@ -305,29 +440,33 @@ impl PackedFileDBTreeView{
                                 // For each table in the database...
                                 for table in dependency_database {
 
-                                    // If it's our original table...
-                                    if table.packed_file_path[1] == format!("{}_tables", origin.0) {
+                                    // If it's actually a table.
+                                    if table.path.len() >= 3 {
 
-                                        // If we could decode it...
-                                        if let Ok(db) = DB::read(&table.packed_file_data, &*table.packed_file_path[1], master_schema) {
+                                        // If it's our original table...
+                                        if table.path[0] == "db" && table.path[1] == format!("{}_tables", origin.0) {
 
-                                            // For each column in our original table...
-                                            for (index, original_field) in db.packed_file_data.table_definition.fields.iter().enumerate() {
+                                            // If we could decode it...
+                                            if let Ok(db) = DB::read(&table.data, &*table.path[1], master_schema) {
 
-                                                // If it's our column...
-                                                if original_field.field_name == origin.1 {
+                                                // For each column in our original table...
+                                                for (index, original_field) in db.data.table_definition.fields.iter().enumerate() {
 
-                                                    // For each row...
-                                                    for row in &db.packed_file_data.packed_file_data {
+                                                    // If it's our column...
+                                                    if original_field.field_name == origin.1 {
 
-                                                        // Check what's in our column in that row...
-                                                        match row[index + 1] {
+                                                        // For each row...
+                                                        for row in &db.data.entries {
 
-                                                            // And if it's a `String`, get his value.
-                                                            DecodedData::StringU8(ref data) | DecodedData::StringU16(ref data) => origin_combo_data.push(data.to_owned()),
-                                                            _ => {},
-                                                        };
+                                                            // Check what's in our column in that row...
+                                                            match row[index + 1] {
 
+                                                                // And if it's a `String`, get his value.
+                                                                DecodedData::StringU8(ref data) | DecodedData::StringU16(ref data) => origin_combo_data.push(data.to_owned()),
+                                                                _ => {},
+                                                            };
+
+                                                        }
                                                     }
                                                 }
                                             }
@@ -336,38 +475,42 @@ impl PackedFileDBTreeView{
                                 }
 
                                 // For each table in our mod...
-                                for table in local_dependency_database {
+                                for table in &pack_file.borrow().data.packed_files {
 
-                                    // If it's our original table...
-                                    if table.packed_file_path[1] == format!("{}_tables", origin.0) {
+                                    // If it's actually a table.
+                                    if table.path.len() >= 3 {
 
-                                        // If we could decode it...
-                                        if let Ok(db) = DB::read(&table.packed_file_data, &*table.packed_file_path[1], master_schema) {
+                                        // If it's our original table...
+                                        if table.path[0] == "db" && table.path[1] == format!("{}_tables", origin.0) {
 
-                                            // For each column in our original table...
-                                            for (index, original_field) in db.packed_file_data.table_definition.fields.iter().enumerate() {
+                                            // If we could decode it...
+                                            if let Ok(db) = DB::read(&table.data, &*table.path[1], master_schema) {
 
-                                                // If it's our column...
-                                                if original_field.field_name == origin.1 {
+                                                // For each column in our original table...
+                                                for (index, original_field) in db.data.table_definition.fields.iter().enumerate() {
 
-                                                    // For each row...
-                                                    for row in &db.packed_file_data.packed_file_data {
+                                                    // If it's our column...
+                                                    if original_field.field_name == origin.1 {
 
-                                                        // Check what's in our column in that row...
-                                                        match row[index + 1] {
+                                                        // For each row...
+                                                        for row in &db.data.entries {
 
-                                                            // And if it's a `String`...
-                                                            DecodedData::StringU8(ref data) | DecodedData::StringU16(ref data) => {
+                                                            // Check what's in our column in that row...
+                                                            match row[index + 1] {
 
-                                                                // If we don't have that field yet...
-                                                                if !origin_combo_data.contains(data) {
+                                                                // And if it's a `String`...
+                                                                DecodedData::StringU8(ref data) | DecodedData::StringU16(ref data) => {
 
-                                                                    // Add it to the list.
-                                                                    origin_combo_data.push(data.to_owned());
+                                                                    // If we don't have that field yet...
+                                                                    if !origin_combo_data.contains(data) {
+
+                                                                        // Add it to the list.
+                                                                        origin_combo_data.push(data.to_owned());
+                                                                    }
                                                                 }
-                                                            }
-                                                            _ => {},
-                                                        };
+                                                                _ => {},
+                                                            };
+                                                        }
                                                     }
                                                 }
                                             }
@@ -488,29 +631,33 @@ impl PackedFileDBTreeView{
                                 // For each table in the database...
                                 for table in dependency_database {
 
-                                    // If it's our original table...
-                                    if table.packed_file_path[1] == format!("{}_tables", origin.0) {
+                                    // If it's actually a table.
+                                    if table.path.len() >= 3 {
 
-                                        // If we could decode it...
-                                        if let Ok(db) = DB::read(&table.packed_file_data, &*table.packed_file_path[1], master_schema) {
+                                        // If it's our original table...
+                                        if table.path[0] == "db" && table.path[1] == format!("{}_tables", origin.0) {
 
-                                            // For each column in our original table...
-                                            for (index, original_field) in db.packed_file_data.table_definition.fields.iter().enumerate() {
+                                            // If we could decode it...
+                                            if let Ok(db) = DB::read(&table.data, &*table.path[1], master_schema) {
 
-                                                // If it's our column...
-                                                if original_field.field_name == origin.1 {
+                                                // For each column in our original table...
+                                                for (index, original_field) in db.data.table_definition.fields.iter().enumerate() {
 
-                                                    // For each row...
-                                                    for row in &db.packed_file_data.packed_file_data {
+                                                    // If it's our column...
+                                                    if original_field.field_name == origin.1 {
 
-                                                        // Check what's in our column in that row...
-                                                        match row[index + 1] {
+                                                        // For each row...
+                                                        for row in &db.data.entries {
 
-                                                            // And if it's a `String`, get his value.
-                                                            DecodedData::OptionalStringU8(ref data) | DecodedData::OptionalStringU16(ref data) => origin_combo_data.push(data.to_owned()),
-                                                            _ => {},
-                                                        };
+                                                            // Check what's in our column in that row...
+                                                            match row[index + 1] {
 
+                                                                // And if it's a `String`, get his value.
+                                                                DecodedData::OptionalStringU8(ref data) | DecodedData::OptionalStringU16(ref data) => origin_combo_data.push(data.to_owned()),
+                                                                _ => {},
+                                                            };
+
+                                                        }
                                                     }
                                                 }
                                             }
@@ -519,38 +666,42 @@ impl PackedFileDBTreeView{
                                 }
 
                                 // For each table in our mod...
-                                for table in local_dependency_database {
+                                for table in &pack_file.borrow().data.packed_files {
 
-                                    // If it's our original table...
-                                    if table.packed_file_path[1] == format!("{}_tables", origin.0) {
+                                    // If it's actually a table.
+                                    if table.path.len() >= 3 {
 
-                                        // If we could decode it...
-                                        if let Ok(db) = DB::read(&table.packed_file_data, &*table.packed_file_path[1], master_schema) {
+                                        // If it's our original table...
+                                        if table.path[0] == "db" && table.path[1] == format!("{}_tables", origin.0) {
 
-                                            // For each column in our original table...
-                                            for (index, original_field) in db.packed_file_data.table_definition.fields.iter().enumerate() {
+                                            // If we could decode it...
+                                            if let Ok(db) = DB::read(&table.data, &*table.path[1], master_schema) {
 
-                                                // If it's our column...
-                                                if original_field.field_name == origin.1 {
+                                                // For each column in our original table...
+                                                for (index, original_field) in db.data.table_definition.fields.iter().enumerate() {
 
-                                                    // For each row...
-                                                    for row in &db.packed_file_data.packed_file_data {
+                                                    // If it's our column...
+                                                    if original_field.field_name == origin.1 {
 
-                                                        // Check what's in our column in that row...
-                                                        match row[index + 1] {
+                                                        // For each row...
+                                                        for row in &db.data.entries {
 
-                                                            // And if it's a `String`...
-                                                            DecodedData::OptionalStringU8(ref data) | DecodedData::OptionalStringU16(ref data) => {
+                                                            // Check what's in our column in that row...
+                                                            match row[index + 1] {
 
-                                                                // If we don't have that field yet...
-                                                                if !origin_combo_data.contains(data) {
+                                                                // And if it's a `String`...
+                                                                DecodedData::OptionalStringU8(ref data) | DecodedData::OptionalStringU16(ref data) => {
 
-                                                                    // Add it to the list.
-                                                                    origin_combo_data.push(data.to_owned());
+                                                                    // If we don't have that field yet...
+                                                                    if !origin_combo_data.contains(data) {
+
+                                                                        // Add it to the list.
+                                                                        origin_combo_data.push(data.to_owned());
+                                                                    }
                                                                 }
-                                                            }
-                                                            _ => {},
-                                                        };
+                                                                _ => {},
+                                                            };
+                                                        }
                                                     }
                                                 }
                                             }
@@ -709,6 +860,9 @@ impl PackedFileDBTreeView{
         let context_menu_grid = Grid::new();
         context_menu_grid.set_border_width(6);
 
+        // Clean the accelerators stuff.
+        remove_temporal_accelerators(&application);
+
         // Create the "Add row/s" button.
         let add_rows_button = ModelButton::new();
         add_rows_button.set_property_text(Some("Add rows:"));
@@ -757,18 +911,76 @@ impl PackedFileDBTreeView{
         paste_rows_button.set_property_text(Some("Paste row/s"));
         paste_rows_button.set_action_name("app.packedfile_db_paste_rows");
 
+        // Create the "Copy column/s" button.
+        let copy_columns_button = ModelButton::new();
+        copy_columns_button.set_property_text(Some("Copy column/s"));
+        copy_columns_button.set_action_name("app.packedfile_db_copy_columns");
+
+        // Create the "Paste column/s" button.
+        let paste_columns_button = ModelButton::new();
+        paste_columns_button.set_property_text(Some("Paste column/s"));
+        paste_columns_button.set_action_name("app.packedfile_db_paste_columns");
+
         // Create the separator between the "Import/Export" buttons and the rest.
         let separator_2 = Separator::new(Orientation::Vertical);
 
-        // Create the "Import from CSV" button.
-        let import_csv_button = ModelButton::new();
-        import_csv_button.set_property_text(Some("Import from CSV"));
-        import_csv_button.set_action_name("app.packedfile_db_import_csv");
+        // Create the "Import from TSV" button.
+        let import_tsv_button = ModelButton::new();
+        import_tsv_button.set_property_text(Some("Import from TSV"));
+        import_tsv_button.set_action_name("app.packedfile_db_import_tsv");
 
-        // Create the "Export to CSV" button.
-        let export_csv_button = ModelButton::new();
-        export_csv_button.set_property_text(Some("Export to CSV"));
-        export_csv_button.set_action_name("app.packedfile_db_export_csv");
+        // Create the "Export to TSV" button.
+        let export_tsv_button = ModelButton::new();
+        export_tsv_button.set_property_text(Some("Export to TSV"));
+        export_tsv_button.set_action_name("app.packedfile_db_export_tsv");
+
+        // Right-click menu actions.
+        let add_rows = SimpleAction::new("packedfile_db_add_rows", None);
+        let delete_rows = SimpleAction::new("packedfile_db_delete_rows", None);
+        let copy_cell = SimpleAction::new("packedfile_db_copy_cell", None);
+        let paste_cell = SimpleAction::new("packedfile_db_paste_cell", None);
+        let clone_rows = SimpleAction::new("packedfile_db_clone_rows", None);
+        let copy_rows = SimpleAction::new("packedfile_db_copy_rows", None);
+        let paste_rows = SimpleAction::new("packedfile_db_paste_rows", None);
+        let copy_columns = SimpleAction::new("packedfile_db_copy_columns", None);
+        let paste_columns = SimpleAction::new("packedfile_db_paste_columns", None);
+        let import_tsv = SimpleAction::new("packedfile_db_import_tsv", None);
+        let export_tsv = SimpleAction::new("packedfile_db_export_tsv", None);
+
+        application.add_action(&add_rows);
+        application.add_action(&delete_rows);
+        application.add_action(&copy_cell);
+        application.add_action(&paste_cell);
+        application.add_action(&clone_rows);
+        application.add_action(&copy_rows);
+        application.add_action(&paste_rows);
+        application.add_action(&copy_columns);
+        application.add_action(&paste_columns);
+        application.add_action(&import_tsv);
+        application.add_action(&export_tsv);
+
+        // Accels for popovers need to be specified here. Don't know why, but otherwise they do not work.
+        application.set_accels_for_action("app.packedfile_db_add_rows", &["<Primary><Shift>a"]);
+        application.set_accels_for_action("app.packedfile_db_delete_rows", &["<Shift>Delete"]);
+        application.set_accels_for_action("app.packedfile_db_copy_cell", &["<Primary>c"]);
+        application.set_accels_for_action("app.packedfile_db_paste_cell", &["<Primary>v"]);
+        application.set_accels_for_action("app.packedfile_db_clone_rows", &["<Primary><Shift>d"]);
+        application.set_accels_for_action("app.packedfile_db_copy_rows", &["<Primary>z"]);
+        application.set_accels_for_action("app.packedfile_db_paste_rows", &["<Primary>x"]);
+        application.set_accels_for_action("app.packedfile_db_copy_columns", &["<Primary>k"]);
+        application.set_accels_for_action("app.packedfile_db_paste_columns", &["<Primary>l"]);
+        application.set_accels_for_action("app.packedfile_db_import_tsv", &["<Primary><Shift>i"]);
+        application.set_accels_for_action("app.packedfile_db_export_tsv", &["<Primary><Shift>e"]);
+
+        // Some actions need to start disabled.
+        delete_rows.set_enabled(false);
+        copy_cell.set_enabled(false);
+        clone_rows.set_enabled(false);
+        copy_rows.set_enabled(false);
+        copy_columns.set_enabled(false);
+        paste_cell.set_enabled(false);
+        paste_rows.set_enabled(true);
+        paste_columns.set_enabled(true);
 
         // Attach all the stuff to the Context Menu `Grid`.
         context_menu_grid.attach(&add_rows_button, 0, 0, 1, 1);
@@ -780,9 +992,11 @@ impl PackedFileDBTreeView{
         context_menu_grid.attach(&clone_rows_button, 0, 5, 2, 1);
         context_menu_grid.attach(&copy_rows_button, 0, 6, 2, 1);
         context_menu_grid.attach(&paste_rows_button, 0, 7, 2, 1);
-        context_menu_grid.attach(&separator_2, 0, 8, 2, 1);
-        context_menu_grid.attach(&import_csv_button, 0, 9, 2, 1);
-        context_menu_grid.attach(&export_csv_button, 0, 10, 2, 1);
+        context_menu_grid.attach(&copy_columns_button, 0, 8, 2, 1);
+        context_menu_grid.attach(&paste_columns_button, 0, 9, 2, 1);
+        context_menu_grid.attach(&separator_2, 0, 10, 2, 1);
+        context_menu_grid.attach(&import_tsv_button, 0, 11, 2, 1);
+        context_menu_grid.attach(&export_tsv_button, 0, 12, 2, 1);
 
         // Add the `Grid` to the Context Menu and show it.
         context_menu.add(&context_menu_grid);
@@ -795,13 +1009,14 @@ impl PackedFileDBTreeView{
 
         // Add the `TreeView` to the `ScrolledWindow`, the `ScrolledWindow` to the main `Grid`, and show it.
         packed_file_data_scroll.add(&tree_view);
-        packed_file_data_display.attach(&packed_file_data_scroll, 0, 1, 1, 1);
-        packed_file_data_display.show_all();
+        app_ui.packed_file_data_display.attach(&packed_file_data_scroll, 0, 1, 1, 1);
+        app_ui.packed_file_data_display.show_all();
 
         // Hide the Context Menu by default.
         context_menu.hide();
 
-        Ok(PackedFileDBTreeView {
+        // Create the PackedFileDBTreeView.
+        let table = PackedFileDBTreeView {
             tree_view,
             list_store,
             list_cell_bool,
@@ -813,7 +1028,1442 @@ impl PackedFileDBTreeView{
             list_cell_reference,
             context_menu,
             add_rows_entry,
-        })
+        };
+
+        // Try to load the data from the table to the `TreeView`.
+        if let Err(error) = PackedFileDBTreeView::load_data_to_tree_view (
+            &packed_file_decoded.borrow().data,
+            &table.list_store
+        ) {
+            return Err(error);
+        }
+
+        // Events for the DB Table.
+
+        // When a tooltip gets triggered...
+        table.tree_view.connect_query_tooltip(clone!(
+            table_definition => move |tree_view, x, y,_, tooltip| {
+
+                // Get the coordinates of the cell under the cursor.
+                let cell_coords: (i32, i32) = tree_view.convert_widget_to_tree_coords(x, y);
+
+                // If we got a column...
+                if let Some(position) = tree_view.get_path_at_pos(cell_coords.0, cell_coords.1) {
+                    if let Some(column) = position.1 {
+
+                        // Get his ID.
+                        let column = column.get_sort_column_id();
+
+                        // We don't want to check the tooltip for the Index column, nor for the fake end column.
+                        if column >= 1 && (column as usize) <= table_definition.fields.len() {
+
+                            // If it's a reference, we put to what cell is referencing in the tooltip.
+                            let tooltip_text: String =
+
+                                if let Some(ref reference) = table_definition.fields[column as usize - 1].field_is_reference {
+                                    if !table_definition.fields[column as usize - 1].field_description.is_empty() {
+                                        format!("{}\n\nThis column is a reference to \"{}/{}\".",
+                                            table_definition.fields[column as usize - 1].field_description,
+                                            reference.0,
+                                            reference.1
+                                        )
+                                    }
+                                    else {
+                                        format!("This column is a reference to \"{}/{}\".",
+                                            reference.0,
+                                            reference.1
+                                        )
+                                    }
+
+                                }
+
+                                // Otherwise, use the text from the description of that field.
+                                else { table_definition.fields[column as usize - 1].field_description.to_owned() };
+
+                            // If we got text to display, use it.
+                            if !tooltip_text.is_empty() {
+                                tooltip.set_text(&*tooltip_text);
+
+                                // Return true to show the tooltip.
+                                return true
+                            }
+                        }
+                    }
+                }
+
+                // In any other case, return false.
+                false
+            }
+        ));
+
+        // Context menu actions stuff.
+        {
+
+            // When we right-click the TreeView, we check if we need to enable or disable his buttons first.
+            // Then we calculate the position where the popup must aim, and show it.
+            //
+            // NOTE: REMEMBER, WE OPEN THE POPUP HERE, BUT WE NEED TO CLOSED IT WHEN WE HIT HIS BUTTONS.
+            table.tree_view.connect_button_release_event(clone!(
+                table,
+                app_ui,
+                paste_rows,
+                paste_columns,
+                table_definition => move |tree_view, button| {
+
+                    // If we clicked the right mouse button...
+                    if button.get_button() == 3 {
+
+                        // If we got text in the `Clipboard`...
+                        if app_ui.clipboard.wait_for_text().is_some() {
+
+                            // If the data in the clipboard is a valid row, we enable "Paste rows".
+                            if check_clipboard_row(&app_ui, &table_definition) { paste_rows.set_enabled(true); }
+
+                            // Otherwise, we disable the "Paste rows" action.
+                            else { paste_rows.set_enabled(false); }
+
+                            // If we have a column selected...
+                            if let Some(column) = table.tree_view.get_cursor().1 {
+
+                                // If the data in the clipboard is a valid column, we enable "Paste columns".
+                                if check_clipboard_column(&app_ui, &table_definition, &column) { paste_columns.set_enabled(true); }
+
+                                // Otherwise, we disable the "Paste columns" action.
+                                else { paste_columns.set_enabled(false); }
+                            }
+
+                            // Otherwise, we disable the "Paste columns" action.
+                            else { paste_columns.set_enabled(false); }
+                        }
+                        else {
+                            paste_rows.set_enabled(false);
+                            paste_columns.set_enabled(false);
+                        }
+
+                        table.context_menu.set_pointing_to(&get_rect_for_popover(tree_view, Some(button.get_position())));
+                        table.context_menu.popup();
+                    }
+
+                    Inhibit(false)
+                }
+            ));
+
+            // When we close the Contextual Menu.
+            table.context_menu.connect_closed(clone!(
+                paste_rows,
+                paste_columns => move |_| {
+
+                    // Enable both signals, as there are checks when they are emited to stop them if
+                    // it's not possible to paste anything.
+                    paste_rows.set_enabled(true);
+                    paste_columns.set_enabled(true);
+                }
+            ));
+
+            // We we change the selection, we enable or disable the different actions of the Contextual Menu.
+            table.tree_view.connect_cursor_changed(clone!(
+                app_ui,
+                copy_cell,
+                copy_rows,
+                copy_columns,
+                clone_rows,
+                paste_cell,
+                delete_rows => move |tree_view| {
+
+                    // If we have something selected...
+                    if tree_view.get_selection().count_selected_rows() > 0 {
+
+                        // Allow to delete, clone and copy.
+                        copy_cell.set_enabled(true);
+                        copy_rows.set_enabled(true);
+                        copy_columns.set_enabled(true);
+                        clone_rows.set_enabled(true);
+                        delete_rows.set_enabled(true);
+                    }
+
+                    // Otherwise, disable them.
+                    else {
+                        copy_cell.set_enabled(false);
+                        copy_rows.set_enabled(false);
+                        copy_columns.set_enabled(false);
+                        clone_rows.set_enabled(false);
+                        delete_rows.set_enabled(false);
+                    }
+
+                    // If we got text in the `Clipboard`...
+                    if app_ui.clipboard.wait_for_text().is_some() {
+
+                        // Get the selected cell, if any.
+                        let selected_cell = tree_view.get_cursor();
+
+                        // If we have a cell selected and it's not in the index column, enable "Paste Cell".
+                        if selected_cell.0.is_some() {
+                            if let Some(column) = selected_cell.1 {
+                                if column.get_sort_column_id() > 0 {
+                                    paste_cell.set_enabled(true);
+                                }
+
+                                // If the cell is invalid, disable the copy for it.
+                                else if column.get_sort_column_id() < 0 {
+                                    copy_cell.set_enabled(false);
+                                    copy_columns.set_enabled(false);
+                                    paste_cell.set_enabled(false);
+                                }
+                                else {
+                                    paste_cell.set_enabled(false);
+                                }
+                            }
+                            else { paste_cell.set_enabled(false); }
+                        }
+                        else { paste_cell.set_enabled(false); }
+                    }
+                    else { paste_cell.set_enabled(false); }
+                }
+            ));
+
+            // When we hit the "Add row" button.
+            add_rows.connect_activate(clone!(
+                table_definition,
+                app_ui,
+                table => move |_,_| {
+
+                    // Hide the context menu.
+                    table.context_menu.popdown();
+
+                    // We only do something in case the focus is in the TreeView. This should stop problems with
+                    // the accels working everywhere.
+                    if table.tree_view.has_focus() {
+
+                        // First, we check if the input is a valid number, as I'm already seeing people
+                        // trying to add "two" rows.
+                        match table.add_rows_entry.get_buffer().get_text().parse::<u32>() {
+
+                            // If the number is valid...
+                            Ok(number_rows) => {
+
+                                // For each row...
+                                for _ in 0..number_rows {
+
+                                    // Add an empty row at the end of the `TreeView`, filling his index.
+                                    let new_row = table.list_store.append();
+                                    table.list_store.set_value(&new_row, 0, &"New".to_value());
+
+                                    // For each column we have...
+                                    for column in 1..(table_definition.fields.len() + 1) {
+
+                                        match table_definition.fields[column - 1].field_type {
+                                            FieldType::Boolean => table.list_store.set_value(&new_row, column as u32, &false.to_value()),
+                                            FieldType::Float => table.list_store.set_value(&new_row, column as u32, &0.0f32.to_string().to_value()),
+                                            FieldType::Integer | FieldType::LongInteger => table.list_store.set_value(&new_row, column as u32, &0.to_value()),
+                                            FieldType::StringU8 | FieldType::StringU16 | FieldType::OptionalStringU8 | FieldType::OptionalStringU16 => {
+                                                table.list_store.set_value(&new_row, column as u32, &String::new().to_value());
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // If it's not a valid number, report it.
+                            Err(_) => show_dialog(&app_ui.window, false, "You can only add an \"ENTIRE NUMBER\" of rows. Like 4, or 6. Maybe 5, who knows?"),
+                        }
+                    }
+                }
+            ));
+
+            // When we hit the "Delete row" button.
+            delete_rows.connect_activate(clone!(
+                table_definition,
+                app_ui,
+                pack_file,
+                packed_file_decoded,
+                packed_file_decoded_index,
+                table => move |_,_| {
+
+                    // Hide the context menu.
+                    table.context_menu.popdown();
+
+                    // We only do something in case the focus is in the TreeView. This should stop problems with
+                    // the accels working everywhere.
+                    if table.tree_view.has_focus() {
+
+                        // Get the selected row's `TreePath`.
+                        let selected_rows = table.tree_view.get_selection().get_selected_rows().0;
+
+                        // If we have any row selected...
+                        if !selected_rows.is_empty() {
+
+                            // For each row (in reverse)...
+                            for row in (0..selected_rows.len()).rev() {
+
+                                // Remove it.
+                                table.list_store.remove(&table.list_store.get_iter(&selected_rows[row]).unwrap());
+                            }
+
+                            // Try to save the new data from the `TreeView`.
+                            match PackedFileDBTreeView::return_data_from_tree_view(&table_definition, &table.list_store) {
+
+                                // If we succeed...
+                                Ok(data) => {
+
+                                    // Replace our current decoded data with the new one.
+                                    packed_file_decoded.borrow_mut().data.entries = data;
+
+                                    // Try to save the changes to the PackFile. If there is an error, report it.
+                                    if let Err(error) = update_packed_file_data_db(
+                                        &*packed_file_decoded.borrow_mut(),
+                                        &mut *pack_file.borrow_mut(),
+                                        packed_file_decoded_index
+                                    ) {
+                                        show_dialog(&app_ui.window, false, error.cause());
+                                    }
+
+                                    // Set the mod as "modified", regardless if we succeed at saving the data or not.
+                                    set_modified(true, &app_ui.window, &mut *pack_file.borrow_mut());
+                                }
+
+                                // If there is an error, report it.
+                                Err(error) => show_dialog(&app_ui.window, false, error.cause()),
+                            }
+                        }
+                    }
+                }
+            ));
+
+            // When we hit the "Copy cell" button.
+            copy_cell.connect_activate(clone!(
+                app_ui,
+                table_definition,
+                table => move |_,_| {
+
+                    // Hide the context menu.
+                    table.context_menu.popdown();
+
+                    // We only do something in case the focus is in the TreeView. This should stop problems with
+                    // the accels working everywhere.
+                    if table.tree_view.has_focus() {
+
+                        // Get the the focused cell.
+                        let focused_cell = table.tree_view.get_cursor();
+
+                        // If there is a focused `TreePath`...
+                        if let Some(tree_path) = focused_cell.0 {
+
+                            // And a focused `TreeViewColumn`...
+                            if let Some(column) = focused_cell.1 {
+
+                                // Get his `TreeIter`.
+                                let row = table.list_store.get_iter(&tree_path).unwrap();
+
+                                // Get his column ID.
+                                let column = column.get_sort_column_id();
+
+                                // If the column is not a dummy one.
+                                if column >= 0 {
+
+                                    // If the cell is the index...
+                                    if column == 0 {
+
+                                        // Get his value and put it into the `Clipboard`.
+                                        app_ui.clipboard.set_text(&table.list_store.get_value(&row, 0).get::<String>().unwrap(),);
+                                    }
+
+                                    // Otherwise...
+                                    else {
+
+                                        // Check his `field_type`...
+                                        let data = match table_definition.fields[column as usize - 1].field_type {
+
+                                            // If it's a boolean, get "true" or "false".
+                                            FieldType::Boolean => {
+                                                match table.list_store.get_value(&row, column).get::<bool>().unwrap() {
+                                                    true => "true".to_owned(),
+                                                    false => "false".to_owned(),
+                                                }
+                                            }
+
+                                            // If it's an Integer or a Long Integer, turn it into a `String`. Don't know why, but otherwise integer columns crash the program.
+                                            FieldType::Integer => format!("{}", table.list_store.get_value(&row, column).get::<i32>().unwrap()),
+                                            FieldType::LongInteger => format!("{}", table.list_store.get_value(&row, column).get::<i64>().unwrap()),
+
+                                            // If it's any other type, just decode it as `String`.
+                                            _ => table.list_store.get_value(&row, column).get::<String>().unwrap(),
+                                        };
+
+                                        // Put the data into the `Clipboard`.
+                                        app_ui.clipboard.set_text(&data);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            ));
+
+            // When we hit the "Paste cell" button.
+            paste_cell.connect_activate(clone!(
+                app_ui,
+                table_definition,
+                pack_file,
+                packed_file_decoded,
+                packed_file_decoded_index,
+                table => move |_,_| {
+
+                    // Hide the context menu.
+                    table.context_menu.popdown();
+
+                    // We only do something in case the focus is in the TreeView. This should stop problems with
+                    // the accels working everywhere.
+                    if table.tree_view.has_focus() {
+
+                        // Get the the focused cell.
+                        let focused_cell = table.tree_view.get_cursor();
+
+                        // If there is a focused `TreePath`...
+                        if let Some(tree_path) = focused_cell.0 {
+
+                            // And a focused `TreeViewColumn`...
+                            if let Some(column) = focused_cell.1 {
+
+                                // If we got text from the `Clipboard`...
+                                if let Some(data) = app_ui.clipboard.wait_for_text() {
+
+                                    // Get his `TreeIter`.
+                                    let row = table.list_store.get_iter(&tree_path).unwrap();
+
+                                    // Get his column ID.
+                                    let column = column.get_sort_column_id() as u32;
+
+                                    // If the cell is in a valid column (neither index nor dummy)...
+                                    if column > 0 {
+
+                                        // Check his `field_type`...
+                                        match table_definition.fields[column as usize - 1].field_type {
+
+                                            // If it's a boolean, get "true" or "false".
+                                            FieldType::Boolean => {
+                                                let state = if data == "true" { true } else if data == "false" { false } else {
+                                                    return show_dialog(&app_ui.window, false, "Error while trying to paste a cell to a DB PackedFile:\n\nThe value provided is neither \"true\" nor \"false\".")
+                                                };
+                                                table.list_store.set_value(&row, column, &state.to_value());
+                                            }
+                                            FieldType::Integer => {
+                                                if let Ok(data) = data.parse::<i32>() {
+                                                    table.list_store.set_value(&row, column, &data.to_value());
+                                                } else {
+                                                    return show_dialog(&app_ui.window, false, "Error while trying to paste a cell to a DB PackedFile:\n\nThe value provided is not a valid I32.")
+                                                };
+                                            },
+                                            FieldType::LongInteger => {
+                                                if let Ok(data) = data.parse::<i64>() {
+                                                    table.list_store.set_value(&row, column, &data.to_value());
+                                                } else {
+                                                    return show_dialog(&app_ui.window, false, "Error while trying to paste a cell to a DB PackedFile:\n\nThe value provided is not a valid I64.")
+                                                };
+                                            },
+                                            FieldType::Float => {
+                                                if data.parse::<f32>().is_ok() {
+                                                    table.list_store.set_value(&row, column, &data.to_value());
+                                                } else { return show_dialog(&app_ui.window, false, "Error while trying to paste a cell to a DB PackedFile:\n\nThe value provided is not a valid F32.") }
+                                            },
+
+                                            // All these are Strings, so it can be together,
+                                            FieldType::StringU8 |
+                                            FieldType::StringU16 |
+                                            FieldType::OptionalStringU8 |
+                                            FieldType::OptionalStringU16 => table.list_store.set_value(&row, column, &data.to_value()),
+                                        };
+
+                                        // Try to save the new data from the `TreeView`.
+                                        match PackedFileDBTreeView::return_data_from_tree_view(&table_definition, &table.list_store) {
+
+                                            // If we succeed...
+                                            Ok(data) => {
+
+                                                // Replace our current decoded data with the new one.
+                                                packed_file_decoded.borrow_mut().data.entries = data;
+
+                                                // Try to save the changes to the PackFile. If there is an error, report it.
+                                                if let Err(error) = update_packed_file_data_db(
+                                                    &*packed_file_decoded.borrow_mut(),
+                                                    &mut *pack_file.borrow_mut(),
+                                                    packed_file_decoded_index
+                                                ) {
+                                                    show_dialog(&app_ui.window, false, error.cause());
+                                                }
+
+                                                // Set the mod as "modified", regardless if we succeed at saving the data or not.
+                                                set_modified(true, &app_ui.window, &mut *pack_file.borrow_mut());
+                                            }
+
+                                            // If there is an error, report it.
+                                            Err(error) => show_dialog(&app_ui.window, false, error.cause()),
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            ));
+
+            // When we hit the "Clone row" button.
+            clone_rows.connect_activate(clone!(
+                table_definition,
+                app_ui,
+                pack_file,
+                packed_file_decoded,
+                packed_file_decoded_index,
+                table => move |_,_| {
+
+                    // Hide the context menu.
+                    table.context_menu.popdown();
+
+                    // We only do something in case the focus is in the TreeView. This should stop problems with
+                    // the accels working everywhere.
+                    if table.tree_view.has_focus() {
+
+                        // Get the selected row's `TreePath`.
+                        let selected_rows = table.tree_view.get_selection().get_selected_rows().0;
+
+                        // If we have any row selected...
+                        if !selected_rows.is_empty() {
+
+                            // For each selected row...
+                            for tree_path in &selected_rows {
+
+                                // We get the old `TreeIter` and create a new one.
+                                let old_row = table.list_store.get_iter(tree_path).unwrap();
+                                let new_row = table.list_store.append();
+
+                                // For each column...
+                                for column in 0..(table_definition.fields.len() + 1) {
+
+                                    // First column it's always the index. Any other column, just copy the values from one `TreeIter` to the other.
+                                    match column {
+                                        0 => table.list_store.set_value(&new_row, column as u32, &gtk::ToValue::to_value(&format!("New"))),
+                                        _ => table.list_store.set_value(&new_row, column as u32, &table.list_store.get_value(&old_row, column as i32)),
+                                    }
+                                }
+                            }
+
+                            // Try to save the new data from the `TreeView`.
+                            match PackedFileDBTreeView::return_data_from_tree_view(&table_definition, &table.list_store) {
+
+                                // If we succeed...
+                                Ok(data) => {
+
+                                    // Replace our current decoded data with the new one.
+                                    packed_file_decoded.borrow_mut().data.entries = data;
+
+                                    // Try to save the changes to the PackFile. If there is an error, report it.
+                                    if let Err(error) = update_packed_file_data_db(
+                                        &*packed_file_decoded.borrow_mut(),
+                                        &mut *pack_file.borrow_mut(),
+                                        packed_file_decoded_index
+                                    ) {
+                                        show_dialog(&app_ui.window, false, error.cause());
+                                    }
+
+                                    // Set the mod as "modified", regardless if we succeed at saving the data or not.
+                                    set_modified(true, &app_ui.window, &mut *pack_file.borrow_mut());
+                                }
+
+                                // If there is an error, report it.
+                                Err(error) => show_dialog(&app_ui.window, false, error.cause()),
+                            }
+                        }
+                    }
+                }
+            ));
+
+            // When we hit the "Copy row" button.
+            copy_rows.connect_activate(clone!(
+                table_definition,
+                app_ui,
+                table => move |_,_| {
+
+                    // Hide the context menu.
+                    table.context_menu.popdown();
+
+                    // We only do something in case the focus is in the TreeView. This should stop problems with
+                    // the accels working everywhere.
+                    if table.tree_view.has_focus() {
+
+                        // Get the selected rows.
+                        let selected_rows = table.tree_view.get_selection().get_selected_rows().0;
+
+                        // Get the list of `TreeIter`s we want to copy.
+                        let tree_iter_list = selected_rows.iter().map(|row| table.list_store.get_iter(row).unwrap()).collect::<Vec<TreeIter>>();
+
+                        // Create the `String` that will copy the row that will bring that shit of TLJ down.
+                        let mut copy_string = String::new();
+
+                        // For each row...
+                        for row in &tree_iter_list {
+
+                            // For each column...
+                            for column in 1..(table_definition.fields.len() + 1) {
+
+                                // Check his `field_type`...
+                                let data = match table_definition.fields[column as usize - 1].field_type {
+
+                                    // If it's a boolean, get "true" or "false".
+                                    FieldType::Boolean => {
+                                        match table.list_store.get_value(row, column as i32).get::<bool>().unwrap() {
+                                            true => "true".to_owned(),
+                                            false => "false".to_owned(),
+                                        }
+                                    }
+
+                                    // If it's an Integer or a Long Integer, turn it into a `String`. Don't know why, but otherwise integer columns crash the program.
+                                    FieldType::Integer => format!("{}", table.list_store.get_value(row, column as i32).get::<i32>().unwrap()),
+                                    FieldType::LongInteger => format!("{}", table.list_store.get_value(row, column as i32).get::<i64>().unwrap()),
+
+                                    // If it's any other type, just decode it as `String`.
+                                    _ => table.list_store.get_value(row, column as i32).get::<String>().unwrap(),
+                                };
+
+                                // Add the text to the copied string.
+                                copy_string.push_str(&data);
+
+                                // If it's not the last column...
+                                if column < table_definition.fields.len() {
+
+                                    // Put a tab between fields, so excel understand them.
+                                    copy_string.push('\t');
+                                }
+                            }
+
+                            // Add a newline at the end of every row.
+                            copy_string.push('\n');
+                        }
+
+                        // Pass all the copied rows to the clipboard.
+                        app_ui.clipboard.set_text(&copy_string);
+                    }
+                }
+            ));
+
+            // When we hit the "Paste row" button.
+            paste_rows.connect_activate(clone!(
+                table_definition,
+                app_ui,
+                pack_file,
+                packed_file_decoded,
+                packed_file_decoded_index,
+                table => move |_,_| {
+
+                    // Hide the context menu.
+                    table.context_menu.popdown();
+
+                    // We only do something in case the focus is in the TreeView. This should stop problems with
+                    // the accels working everywhere.
+                    if table.tree_view.has_focus() {
+
+                        // Before anything else, we check if the data in the `Clipboard` includes ONLY valid rows.
+                        if check_clipboard_row(&app_ui, &table_definition) {
+
+                            // When it gets the data from the `Clipboard`....
+                            if let Some(data) = app_ui.clipboard.wait_for_text() {
+
+                                // Get the definitions for this table.
+                                let fields_type = table_definition.fields.iter().map(|x| x.field_type.clone()).collect::<Vec<FieldType>>();
+
+                                // Store here all the decoded fields.
+                                let mut fields_data = vec![];
+
+                                // For each row in the data we received...
+                                for row in data.lines() {
+
+                                    // Get all the data from his fields.
+                                    fields_data.push(row.split('\t').map(|x| x.to_owned()).collect::<Vec<String>>());
+                                }
+
+                                // Get the selected row, if there is any.
+                                let selected_row = table.tree_view.get_selection().get_selected_rows().0;
+
+                                // If there is at least one line selected, use it as "base" to paste.
+                                let mut tree_iter = if !selected_row.is_empty() {
+                                    table.list_store.get_iter(&selected_row[0]).unwrap()
+                                }
+
+                                // Otherwise, append a new `TreeIter` to the `TreeView`, and use it.
+                                else { table.list_store.append() };
+
+                                // For each row in our fields_data list...
+                                for (row_index, row) in fields_data.iter().enumerate() {
+
+                                    // Fill the "Index" column with "New".
+                                    table.list_store.set_value(&tree_iter, 0, &"New".to_value());
+
+                                    // For each field in a row...
+                                    for (index, field) in row.iter().enumerate() {
+
+                                        // Check if that field exists in the table.
+                                        let field_type = fields_type.get(index);
+
+                                        // If it exists...
+                                        if let Some(field_type) = field_type {
+
+                                            // Check his `field_type`. We can skip all the safety checks here, because if we hit a CTD here,
+                                            // something it's broken in the checking function above and needs to be fixed there.
+                                            match *field_type {
+
+                                                // If it's a boolean, get "true" or "false".
+                                                FieldType::Boolean => table.list_store.set_value(&tree_iter, (index + 1) as u32, &(if field == "true" { true } else { false }).to_value()),
+                                                FieldType::Integer => table.list_store.set_value(&tree_iter, (index + 1) as u32, &field.parse::<i32>().unwrap().to_value()),
+                                                FieldType::LongInteger => table.list_store.set_value(&tree_iter, (index + 1) as u32, &field.parse::<i64>().unwrap().to_value()),
+
+                                                // Anything else, just put it into his column with the needed type.
+                                                _ => table.list_store.set_value(&tree_iter, (index + 1) as u32, &field.to_value()),
+                                            };
+                                        }
+                                    }
+
+                                    // Move to the next row. If it doesn't exist and it's not the last loop....
+                                    if !table.list_store.iter_next(&tree_iter) && row_index < (fields_data.len() - 1) {
+
+                                        // Create it.
+                                        tree_iter = table.list_store.append();
+                                    }
+                                }
+
+                                // Try to save the new data from the `TreeView`.
+                                match PackedFileDBTreeView::return_data_from_tree_view(&table_definition, &table.list_store) {
+
+                                    // If we succeed...
+                                    Ok(data) => {
+
+                                        // Replace our current decoded data with the new one.
+                                        packed_file_decoded.borrow_mut().data.entries = data;
+
+                                        // Try to save the changes to the PackFile. If there is an error, report it.
+                                        if let Err(error) = update_packed_file_data_db(
+                                            &*packed_file_decoded.borrow_mut(),
+                                            &mut *pack_file.borrow_mut(),
+                                            packed_file_decoded_index
+                                        ) {
+                                            show_dialog(&app_ui.window, false, error.cause());
+                                        }
+
+                                        // Set the mod as "modified", regardless if we succeed at saving the data or not.
+                                        set_modified(true, &app_ui.window, &mut *pack_file.borrow_mut());
+                                    }
+
+                                    // If there is an error, report it.
+                                    Err(error) => show_dialog(&app_ui.window, false, error.cause()),
+                                }
+                            };
+                        }
+                    }
+                }
+            ));
+
+            // When we hit the "Copy column" button.
+            copy_columns.connect_activate(clone!(
+                table_definition,
+                app_ui,
+                table => move |_,_| {
+
+                    // Hide the context menu.
+                    table.context_menu.popdown();
+
+                    // We only do something in case the focus is in the TreeView. This should stop problems with
+                    // the accels working everywhere.
+                    if table.tree_view.has_focus() {
+
+                        // If there is a column selected...
+                        if let Some(column) = table.tree_view.get_cursor().1 {
+
+                            // Get the selected rows.
+                            let selected_rows = table.tree_view.get_selection().get_selected_rows().0;
+
+                            // Get the number of the column.
+                            let mut column_number = column.get_sort_column_id() - 1;
+
+                            // Ignore columns with < 0, as those are index or invalid columns.
+                            if column_number >= 0 {
+
+                                // Get the type of the column.
+                                let column_type = table_definition.fields[column_number as usize].field_type.clone();
+
+                                // Get again the real column number for the table.
+                                column_number += 1;
+
+                                // Get the list of `TreeIter`s we want to copy.
+                                let tree_iter_list = selected_rows.iter().map(|row| table.list_store.get_iter(row).unwrap()).collect::<Vec<TreeIter>>();
+
+                                // Create the `String` that will copy the row that will bring that shit of TLJ down.
+                                let mut copy_string = String::new();
+
+                                // For each row...
+                                for (index, row) in tree_iter_list.iter().enumerate() {
+
+                                    // Check his `field_type`...
+                                    let data = match column_type {
+
+                                        // If it's a boolean, get "true" or "false".
+                                        FieldType::Boolean => {
+                                            match table.list_store.get_value(row, column_number).get::<bool>().unwrap() {
+                                                true => "true".to_owned(),
+                                                false => "false".to_owned(),
+                                            }
+                                        }
+
+                                        // If it's an Integer or a Long Integer, turn it into a `String`. Don't know why, but otherwise integer columns crash the program.
+                                        FieldType::Integer => format!("{}", table.list_store.get_value(row, column_number).get::<i32>().unwrap()),
+                                        FieldType::LongInteger => format!("{}", table.list_store.get_value(row, column_number).get::<i64>().unwrap()),
+
+                                        // If it's any other type, just decode it as `String`.
+                                        _ => table.list_store.get_value(row, column_number).get::<String>().unwrap(),
+                                    };
+
+                                    // Add the text to the copied string.
+                                    copy_string.push_str(&data);
+
+                                    // If it's not the last row...
+                                    if index < tree_iter_list.len() - 1 {
+
+                                        // Put an endline between fields, so excel understand them.
+                                        copy_string.push('\n');
+                                    }
+                                }
+
+                                // Pass the copied column to the clipboard.
+                                app_ui.clipboard.set_text(&copy_string);
+                            }
+                        }
+                    }
+                }
+            ));
+
+            // When we hit the "Paste column" button.
+            paste_columns.connect_activate(clone!(
+                table_definition,
+                app_ui,
+                pack_file,
+                packed_file_decoded,
+                packed_file_decoded_index,
+                table => move |_,_| {
+
+                    // Hide the context menu.
+                    table.context_menu.popdown();
+
+                    // We only do something in case the focus is in the TreeView. This should stop problems with
+                    // the accels working everywhere.
+                    if table.tree_view.has_focus() {
+
+                        // Get the selected cell.
+                        let cursor = table.tree_view.get_cursor();
+
+                        // If there is a `TreePath` selected...
+                        if let Some(tree_path) = cursor.0 {
+
+                            // And a column selected...
+                            if let Some(column) = cursor.1 {
+
+                                // Before anything else, we check if the data in the `Clipboard` includes ONLY valid a valid column.
+                                if check_clipboard_column(&app_ui, &table_definition, &column) {
+
+                                    // When it gets the data from the `Clipboard`....
+                                    if let Some(data) = app_ui.clipboard.wait_for_text() {
+
+                                        // Get the number of the column.
+                                        let mut column_number = column.get_sort_column_id() - 1;
+
+                                        // Ignore columns with < 0, as those are index or invalid columns.
+                                        if column_number >= 0 {
+
+                                            // Get the type of the column.
+                                            let column_type = table_definition.fields[column_number as usize].field_type.clone();
+
+                                            // Get again the real column number for the table.
+                                            column_number += 1;
+
+                                            // Get the data to paste, separated by lines.
+                                            let fields_data = data.lines().collect::<Vec<&str>>();
+
+                                            // Get the selected rows.
+                                            let selected_rows = table.tree_view.get_selection().get_selected_rows().0;
+
+                                            // Get the selected row.
+                                            let tree_iter = if !selected_rows.is_empty() {
+                                                table.list_store.get_iter(&selected_rows[0]).unwrap()
+                                            }
+                                            else { table.list_store.get_iter(&tree_path).unwrap() };
+
+                                            // For each line to paste...
+                                            for field in &fields_data {
+
+                                                // Paste the cell.
+                                                match column_type {
+
+                                                    // If it's a boolean, get "true" or "false".
+                                                    FieldType::Boolean => table.list_store.set_value(&tree_iter, column_number as u32, &(if *field == "true" { true } else { false }).to_value()),
+                                                    FieldType::Integer => table.list_store.set_value(&tree_iter, column_number as u32, &field.parse::<i32>().unwrap().to_value()),
+                                                    FieldType::LongInteger => table.list_store.set_value(&tree_iter, column_number as u32, &field.parse::<i64>().unwrap().to_value()),
+
+                                                    // Anything else, just put it into his column with the needed type.
+                                                    _ => table.list_store.set_value(&tree_iter, column_number as u32, &field.to_value()),
+                                                };
+
+                                                // If there are no more rows, stop.
+                                                if !table.list_store.iter_next(&tree_iter) { break; }
+                                            }
+
+                                            // Try to save the new data from the `TreeView`.
+                                            match PackedFileDBTreeView::return_data_from_tree_view(&table_definition, &table.list_store) {
+
+                                                // If we succeed...
+                                                Ok(data) => {
+
+                                                    // Replace our current decoded data with the new one.
+                                                    packed_file_decoded.borrow_mut().data.entries = data;
+
+                                                    // Try to save the changes to the PackFile. If there is an error, report it.
+                                                    if let Err(error) = update_packed_file_data_db(
+                                                        &*packed_file_decoded.borrow_mut(),
+                                                        &mut *pack_file.borrow_mut(),
+                                                        packed_file_decoded_index
+                                                    ) {
+                                                        show_dialog(&app_ui.window, false, error.cause());
+                                                    }
+
+                                                    // Set the mod as "modified", regardless if we succeed at saving the data or not.
+                                                    set_modified(true, &app_ui.window, &mut *pack_file.borrow_mut());
+                                                }
+
+                                                // If there is an error, report it.
+                                                Err(error) => show_dialog(&app_ui.window, false, error.cause()),
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            ));
+
+            // When we hit the "Import from TSV" button.
+            import_tsv.connect_activate(clone!(
+                app_ui,
+                tree_path,
+                pack_file,
+                packed_file_decoded,
+                packed_file_decoded_index,
+                table => move |_,_| {
+
+                    // We hide the context menu first.
+                    table.context_menu.popdown();
+
+                    // We only do something in case the focus is in the TreeView. This should stop problems with
+                    // the accels working everywhere.
+                    if table.tree_view.has_focus() {
+
+                        // Create the `FileChooser`.
+                        let file_chooser = FileChooserNative::new(
+                            "Select TSV File to Import...",
+                            &app_ui.window,
+                            FileChooserAction::Open,
+                            "Import",
+                            "Cancel"
+                        );
+
+                        // Enable the TSV filter for the `FileChooser`.
+                        file_chooser_filter_packfile(&file_chooser, "*.tsv");
+
+                        // If we have selected a file to import...
+                        if file_chooser.run() == gtk_response_accept {
+
+                            // Just in case the import fails after importing (for example, due to importing a TSV from another table,
+                            // or from another version of the table, and it fails while loading to table or saving to PackFile)
+                            // we save a copy of the table, so we can restore it if it fails after we modify it.
+                            let packed_file_data_copy = packed_file_decoded.borrow_mut().data.clone();
+                            let mut restore_table = (false, format_err!(""));
+
+                            // If there is an error importing, we report it. This only edits the data after checking
+                            // that it can be decoded properly, so we don't need to restore the table in this case.
+                            if let Err(error) = packed_file_decoded.borrow_mut().data.import_tsv(
+                                &file_chooser.get_filename().unwrap(),
+                                &tree_path[1]
+                            ) {
+                                return show_dialog(&app_ui.window, false, error.cause());
+                            }
+
+                            // If there is an error loading the data (wrong table imported?), report it and restore it from the old copy.
+                            if let Err(error) = PackedFileDBTreeView::load_data_to_tree_view(&packed_file_decoded.borrow().data, &table.list_store) {
+                                restore_table = (true, error);
+                            }
+
+                            // If the table loaded properly, try to save the data to the encoded file.
+                            if !restore_table.0 {
+                                if let Err(error) = update_packed_file_data_db(
+                                    &*packed_file_decoded.borrow_mut(),
+                                    &mut *pack_file.borrow_mut(),
+                                    packed_file_decoded_index
+                                ) {
+                                    restore_table = (true, error);
+                                }
+                            }
+
+                            // If the import broke somewhere along the way.
+                            if restore_table.0 {
+
+                                // Restore the old copy.
+                                packed_file_decoded.borrow_mut().data = packed_file_data_copy;
+
+                                // Report the error.
+                                show_dialog(&app_ui.window, false, restore_table.1.cause());
+                            }
+
+                            // If there hasn't been any error.
+                            else {
+
+                                // Here we mark the PackFile as "Modified".
+                                set_modified(true, &app_ui.window, &mut *pack_file.borrow_mut());
+                            }
+                        }
+                    }
+                }
+            ));
+
+            // When we hit the "Export to TSV" button.
+            export_tsv.connect_activate(clone!(
+                app_ui,
+                packed_file_decoded,
+                table => move |_,_| {
+
+                    // We hide the context menu first.
+                    table.context_menu.popdown();
+
+                    // We only do something in case the focus is in the TreeView. This should stop problems with
+                    // the accels working everywhere.
+                    if table.tree_view.has_focus() {
+
+                        let file_chooser = FileChooserNative::new(
+                            "Export TSV File...",
+                            &app_ui.window,
+                            FileChooserAction::Save,
+                            "Save",
+                            "Cancel"
+                        );
+
+                        // We want to ask before overwriting files. Just in case. Otherwise, there can be an accident.
+                        file_chooser.set_do_overwrite_confirmation(true);
+
+                        // Set the default name for the TSV file (table-table_name.tsv)
+                        file_chooser.set_current_name(format!("{}-{}.tsv", &tree_path[1], &tree_path[2]));
+
+                        // If we hit "Save"...
+                        if file_chooser.run() == gtk_response_accept {
+
+                            // Try to export the TSV.
+                            match packed_file_decoded.borrow().data.export_tsv(
+                                &file_chooser.get_filename().unwrap(),
+                                (&tree_path[1], packed_file_decoded.borrow().header.version)
+                            ) {
+                                Ok(result) => show_dialog(&app_ui.window, true, result),
+                                Err(error) => show_dialog(&app_ui.window, false, error.cause()),
+                            }
+                        }
+                    }
+                }
+            ));
+        }
+
+        // Things that happen when you edit a cell. All of them in loops, because oops!... or because they are in vectors.
+        {
+
+            // This loop takes care of reference cells.
+            for edited_cell in &table.list_cell_reference {
+                edited_cell.connect_edited(clone!(
+                    table_definition,
+                    app_ui,
+                    pack_file,
+                    packed_file_decoded,
+                    packed_file_decoded_index,
+                    table => move |_ ,tree_path , new_text| {
+
+                        // If we got a cell...
+                        if let Some(tree_iter) = table.list_store.get_iter(&tree_path) {
+
+                            // Get his column.
+                            let edited_cell_column = table.tree_view.get_cursor().1.unwrap().get_sort_column_id() as u32;
+
+                            // Change his value in the `TreeView`.
+                            table.list_store.set_value(&tree_iter, edited_cell_column, &new_text.to_value());
+
+                            // Try to save the new data from the `TreeView`.
+                            match PackedFileDBTreeView::return_data_from_tree_view(&table_definition, &table.list_store) {
+
+                                // If we succeed...
+                                Ok(data) => {
+
+                                    // Replace our current decoded data with the new one.
+                                    packed_file_decoded.borrow_mut().data.entries = data;
+
+                                    // Try to save the changes to the PackFile. If there is an error, report it.
+                                    if let Err(error) = update_packed_file_data_db(
+                                        &*packed_file_decoded.borrow_mut(),
+                                        &mut *pack_file.borrow_mut(),
+                                        packed_file_decoded_index
+                                    ) {
+                                        show_dialog(&app_ui.window, false, error.cause());
+                                    }
+
+                                    // Set the mod as "modified", regardless if we succeed at saving the data or not.
+                                    set_modified(true, &app_ui.window, &mut *pack_file.borrow_mut());
+
+                                }
+
+                                // If there is an error, report it.
+                                Err(error) => show_dialog(&app_ui.window, false, error.cause()),
+                            }
+                        }
+                    }
+                ));
+            }
+
+            // This loop takes care of the interaction with string cells.
+            for edited_cell in &table.list_cell_string {
+                edited_cell.connect_edited(clone!(
+                    table_definition,
+                    app_ui,
+                    pack_file,
+                    packed_file_decoded,
+                    packed_file_decoded_index,
+                    table => move |_ ,tree_path , new_text| {
+
+                        // If we got a cell...
+                        if let Some(tree_iter) = table.list_store.get_iter(&tree_path) {
+
+                            // Get his column.
+                            let edited_cell_column = table.tree_view.get_cursor().1.unwrap().get_sort_column_id() as u32;
+
+                            // Change his value in the `TreeView`.
+                            table.list_store.set_value(&tree_iter, edited_cell_column, &new_text.to_value());
+
+                            // Try to save the new data from the `TreeView`.
+                            match PackedFileDBTreeView::return_data_from_tree_view(&table_definition, &table.list_store) {
+
+                                // If we succeed...
+                                Ok(data) => {
+
+                                    // Replace our current decoded data with the new one.
+                                    packed_file_decoded.borrow_mut().data.entries = data;
+
+                                    // Try to save the changes to the PackFile. If there is an error, report it.
+                                    if let Err(error) = update_packed_file_data_db(
+                                        &*packed_file_decoded.borrow_mut(),
+                                        &mut *pack_file.borrow_mut(),
+                                        packed_file_decoded_index
+                                    ) {
+                                        show_dialog(&app_ui.window, false, error.cause());
+                                    }
+
+                                    // Set the mod as "modified", regardless if we succeed at saving the data or not.
+                                    set_modified(true, &app_ui.window, &mut *pack_file.borrow_mut());
+
+                                }
+
+                                // If there is an error, report it.
+                                Err(error) => show_dialog(&app_ui.window, false, error.cause()),
+                            }
+                        }
+                    }
+                ));
+            }
+
+            // This loop takes care of the interaction with optional_string cells.
+            for edited_cell in &table.list_cell_optional_string {
+                edited_cell.connect_edited(clone!(
+                    table_definition,
+                    app_ui,
+                    pack_file,
+                    packed_file_decoded,
+                    packed_file_decoded_index,
+                    table => move |_ ,tree_path , new_text|{
+
+                        // If we got a cell...
+                        if let Some(tree_iter) = table.list_store.get_iter(&tree_path) {
+
+                            // Get his column.
+                            let edited_cell_column = table.tree_view.get_cursor().1.unwrap().get_sort_column_id() as u32;
+
+                            // Change his value in the `TreeView`.
+                            table.list_store.set_value(&tree_iter, edited_cell_column, &new_text.to_value());
+
+                            // Try to save the new data from the `TreeView`.
+                            match PackedFileDBTreeView::return_data_from_tree_view(&table_definition, &table.list_store) {
+
+                                // If we succeed...
+                                Ok(data) => {
+
+                                    // Replace our current decoded data with the new one.
+                                    packed_file_decoded.borrow_mut().data.entries = data;
+
+                                    // Try to save the changes to the PackFile. If there is an error, report it.
+                                    if let Err(error) = update_packed_file_data_db(
+                                        &*packed_file_decoded.borrow_mut(),
+                                        &mut *pack_file.borrow_mut(),
+                                        packed_file_decoded_index
+                                    ) {
+                                        show_dialog(&app_ui.window, false, error.cause());
+                                    }
+
+                                    // Set the mod as "modified", regardless if we succeed at saving the data or not.
+                                    set_modified(true, &app_ui.window, &mut *pack_file.borrow_mut());
+
+                                }
+
+                                // If there is an error, report it.
+                                Err(error) => show_dialog(&app_ui.window, false, error.cause()),
+                            }
+                        }
+                    }
+                ));
+            }
+
+            // This loop takes care of the interaction with I32 cells.
+            for edited_cell in &table.list_cell_integer {
+                edited_cell.connect_edited(clone!(
+                    table_definition,
+                    app_ui,
+                    pack_file,
+                    packed_file_decoded,
+                    packed_file_decoded_index,
+                    table => move |_ ,tree_path , new_text|{
+
+                        // Check if what we got is a valid i32 number.
+                        match new_text.parse::<i32>() {
+
+                            // If it's a valid i32 number...
+                            Ok(new_number) => {
+
+                                // If we got a cell...
+                                if let Some(tree_iter) = table.list_store.get_iter(&tree_path) {
+
+                                    // Get his column.
+                                    let edited_cell_column = table.tree_view.get_cursor().1.unwrap().get_sort_column_id() as u32;
+
+                                    // Change his value in the `TreeView`.
+                                    table.list_store.set_value(&tree_iter, edited_cell_column, &new_number.to_value());
+
+                                    // Try to save the new data from the `TreeView`.
+                                    match PackedFileDBTreeView::return_data_from_tree_view(&table_definition, &table.list_store) {
+
+                                        // If we succeed...
+                                        Ok(data) => {
+
+                                            // Replace our current decoded data with the new one.
+                                            packed_file_decoded.borrow_mut().data.entries = data;
+
+                                            // Try to save the changes to the PackFile. If there is an error, report it.
+                                            if let Err(error) = update_packed_file_data_db(
+                                                &*packed_file_decoded.borrow_mut(),
+                                                &mut *pack_file.borrow_mut(),
+                                                packed_file_decoded_index
+                                            ) {
+                                                show_dialog(&app_ui.window, false, error.cause());
+                                            }
+
+                                            // Set the mod as "modified", regardless if we succeed at saving the data or not.
+                                            set_modified(true, &app_ui.window, &mut *pack_file.borrow_mut());
+
+                                        }
+
+                                        // If there is an error, report it.
+                                        Err(error) => show_dialog(&app_ui.window, false, error.cause()),
+                                    }
+                                }
+                            }
+
+                            // If it isn't a valid i32 number, report it.
+                            Err(error) => show_dialog(&app_ui.window, false, Error::from(error).cause()),
+                        }
+                    }
+                ));
+            }
+
+            // This loop takes care of the interaction with I64 cells.
+            for edited_cell in &table.list_cell_long_integer {
+                edited_cell.connect_edited(clone!(
+                    table_definition,
+                    app_ui,
+                    pack_file,
+                    packed_file_decoded,
+                    packed_file_decoded_index,
+                    table => move |_ ,tree_path , new_text|{
+
+                        // Check if what we got is a valid i64 number.
+                        match new_text.parse::<i64>() {
+
+                            // If it's a valid i64 number...
+                            Ok(new_number) => {
+
+                                // If we got a cell...
+                                if let Some(tree_iter) = table.list_store.get_iter(&tree_path) {
+
+                                    // Get his column.
+                                    let edited_cell_column = table.tree_view.get_cursor().1.unwrap().get_sort_column_id() as u32;
+
+                                    // Change his value in the `TreeView`.
+                                    table.list_store.set_value(&tree_iter, edited_cell_column, &new_number.to_value());
+
+                                    // Try to save the new data from the `TreeView`.
+                                    match PackedFileDBTreeView::return_data_from_tree_view(&table_definition, &table.list_store) {
+
+                                        // If we succeed...
+                                        Ok(data) => {
+
+                                            // Replace our current decoded data with the new one.
+                                            packed_file_decoded.borrow_mut().data.entries = data;
+
+                                            // Try to save the changes to the PackFile. If there is an error, report it.
+                                            if let Err(error) = update_packed_file_data_db(
+                                                &*packed_file_decoded.borrow_mut(),
+                                                &mut *pack_file.borrow_mut(),
+                                                packed_file_decoded_index
+                                            ) {
+                                                show_dialog(&app_ui.window, false, error.cause());
+                                            }
+
+                                            // Set the mod as "modified", regardless if we succeed at saving the data or not.
+                                            set_modified(true, &app_ui.window, &mut *pack_file.borrow_mut());
+
+                                        }
+
+                                        // If there is an error, report it.
+                                        Err(error) => show_dialog(&app_ui.window, false, error.cause()),
+                                    }
+                                }
+                            }
+
+                            // If it isn't a valid i32 number, report it.
+                            Err(error) => show_dialog(&app_ui.window, false, Error::from(error).cause()),
+                        }
+                    }
+                ));
+            }
+
+            // This loop takes care of the interaction with F32 cells.
+            for edited_cell in &table.list_cell_float {
+                edited_cell.connect_edited(clone!(
+                    table_definition,
+                    app_ui,
+                    pack_file,
+                    packed_file_decoded,
+                    packed_file_decoded_index,
+                    table => move |_ ,tree_path , new_text|{
+
+                        // Check if what we got is a valid f32 number.
+                        match new_text.parse::<f32>() {
+
+                            // If it's a valid f32 number...
+                            Ok(new_number) => {
+
+                                // If we got a cell...
+                                if let Some(tree_iter) = table.list_store.get_iter(&tree_path) {
+
+                                    // Get his column.
+                                    let edited_cell_column = table.tree_view.get_cursor().1.unwrap().get_sort_column_id() as u32;
+
+                                    // Change his value in the `TreeView`.
+                                    table.list_store.set_value(&tree_iter, edited_cell_column, &format!("{}", new_number).to_value());
+
+                                    // Try to save the new data from the `TreeView`.
+                                    match PackedFileDBTreeView::return_data_from_tree_view(&table_definition, &table.list_store) {
+
+                                        // If we succeed...
+                                        Ok(data) => {
+
+                                            // Replace our current decoded data with the new one.
+                                            packed_file_decoded.borrow_mut().data.entries = data;
+
+                                            // Try to save the changes to the PackFile. If there is an error, report it.
+                                            if let Err(error) = update_packed_file_data_db(
+                                                &*packed_file_decoded.borrow_mut(),
+                                                &mut *pack_file.borrow_mut(),
+                                                packed_file_decoded_index
+                                            ) {
+                                                show_dialog(&app_ui.window, false, error.cause());
+                                            }
+
+                                            // Set the mod as "modified", regardless if we succeed at saving the data or not.
+                                            set_modified(true, &app_ui.window, &mut *pack_file.borrow_mut());
+
+                                        }
+
+                                        // If there is an error, report it.
+                                        Err(error) => show_dialog(&app_ui.window, false, error.cause()),
+                                    }
+                                }
+                            }
+
+                            // If it isn't a valid i32 number, report it.
+                            Err(error) => show_dialog(&app_ui.window, false, Error::from(error).cause()),
+                        }
+                    }
+                ));
+            }
+
+            // This loop takes care of the interaction with bool cells.
+            for edited_cell in &table.list_cell_bool {
+                edited_cell.connect_toggled(clone!(
+                    table_definition,
+                    app_ui,
+                    pack_file,
+                    packed_file_decoded,
+                    packed_file_decoded_index,
+                    table => move |cell, tree_path| {
+
+                        // Get his `TreeIter` and his column.
+                        let tree_iter = table.list_store.get_iter(&tree_path).unwrap();
+                        let edited_cell_column = table.tree_view.get_cursor().1.unwrap().get_sort_column_id() as u32;
+
+                        // Get his new state.
+                        let state = !cell.get_active();
+
+                        // Change it in the `ListStore`.
+                        table.list_store.set_value(&tree_iter, edited_cell_column, &state.to_value());
+
+                        // Change his state.
+                        cell.set_active(state);
+
+                        // Try to save the new data from the `TreeView`.
+                        match PackedFileDBTreeView::return_data_from_tree_view(&table_definition, &table.list_store) {
+
+                            // If we succeed...
+                            Ok(data) => {
+
+                                // Replace our current decoded data with the new one.
+                                packed_file_decoded.borrow_mut().data.entries = data;
+
+                                // Try to save the changes to the PackFile. If there is an error, report it.
+                                if let Err(error) = update_packed_file_data_db(
+                                    &*packed_file_decoded.borrow_mut(),
+                                    &mut *pack_file.borrow_mut(),
+                                    packed_file_decoded_index
+                                ) {
+                                    show_dialog(&app_ui.window, false, error.cause());
+                                }
+
+                                // Set the mod as "modified", regardless if we succeed at saving the data or not.
+                                set_modified(true, &app_ui.window, &mut *pack_file.borrow_mut());
+
+                            }
+
+                            // If there is an error, report it.
+                            Err(error) => show_dialog(&app_ui.window, false, error.cause()),
+                        }
+                    }
+                ));
+            }
+
+        }
+
+        Ok(())
     }
 
     /// This function decodes the data of a `DBData` and loads it into a `TreeView`.
@@ -826,7 +2476,7 @@ impl PackedFileDBTreeView{
         packed_file_list_store.clear();
 
         // For each row in our decoded data...
-        for row in &packed_file_data.packed_file_data {
+        for row in &packed_file_data.entries {
 
             // We create a new row to add the data.
             let current_row = packed_file_list_store.append();
@@ -902,11 +2552,27 @@ impl PackedFileDBTreeView{
     }
 }
 
+/// Implementation of `PackedFileDBDecoder`.
 impl PackedFileDBDecoder {
 
     /// This function creates the "Decoder View" with all the stuff needed to decode a table, and it
     /// returns it.
-    pub fn create_decoder_view(packed_file_data_display: &Grid) -> PackedFileDBDecoder {
+    pub fn create_decoder_view(
+        application: &Application,
+        app_ui: &AppUI,
+        rpfm_path: &PathBuf,
+        supported_games: &Rc<RefCell<Vec<GameInfo>>>,
+        game_selected: &Rc<RefCell<GameSelected>>,
+        table_name: String,
+        packed_file_data: Vec<u8>,
+        schema: &Rc<RefCell<Option<Schema>>>,
+    ) -> Result<(), Error> {
+
+        // Create the index for the decoding.
+        let mut data_initial_index = 0;
+
+        // Decode the header to ensure this is a valid table to decode.
+        let decoded_header = DBHeader::read(&packed_file_data, &mut data_initial_index)?;
 
         // With this we create the "Decoder View", under the "Enable decoding mode" button.
         let decoder_grid_scroll = ScrolledWindow::new(None, None);
@@ -917,7 +2583,7 @@ impl PackedFileDBDecoder {
 
         // In the left side, there should be a Grid with the hex data.
         let raw_data_grid = Grid::new();
-        let raw_data_index = Label::new(None);
+        let raw_data_index = TextView::new();
         let raw_data_hex = TextView::new();
         let raw_data_decoded = TextView::new();
 
@@ -927,10 +2593,9 @@ impl PackedFileDBDecoder {
         raw_data_grid.set_column_spacing(3);
 
         raw_data_index.set_vexpand(true);
-        raw_data_index.set_xalign(1.0);
-        raw_data_index.set_yalign(0.0);
 
-        // These two shouldn't be editables.
+        // These three shouldn't be editables.
+        raw_data_index.set_editable(false);
         raw_data_hex.set_editable(false);
         raw_data_decoded.set_editable(false);
 
@@ -938,7 +2603,7 @@ impl PackedFileDBDecoder {
         let raw_data_index_style = raw_data_index.get_style_context().unwrap();
         let raw_data_hex_style = raw_data_hex.get_style_context().unwrap();
         let raw_data_decoded_style = raw_data_decoded.get_style_context().unwrap();
-        let raw_data_monospace_css = b".monospace-font { font-family: \"Courier New\", Courier, monospace } .monospace-font-bold { font-family: \"Courier New\", Courier, monospace; font-weight: bold; }";
+        let raw_data_monospace_css = b".monospace-font { font-family: \"Courier New\", Courier, monospace }";
 
         let css_provider = CssProvider::new();
 
@@ -948,7 +2613,7 @@ impl PackedFileDBDecoder {
         raw_data_hex_style.add_provider(&css_provider, 99);
         raw_data_decoded_style.add_provider(&css_provider, 99);
 
-        StyleContext::add_class(&raw_data_index_style, "monospace-font-bold");
+        StyleContext::add_class(&raw_data_index_style, "monospace-font");
         StyleContext::add_class(&raw_data_hex_style, "monospace-font");
         StyleContext::add_class(&raw_data_decoded_style, "monospace-font");
 
@@ -959,28 +2624,12 @@ impl PackedFileDBDecoder {
         // In the right side, there should be a Vertical Paned, with a grid on the top, and another
         // on the bottom.
         let decoded_data_paned = Paned::new(Orientation::Vertical);
-        let decoded_data_paned_top_grid = Grid::new();
         let decoded_data_paned_bottom_grid = Grid::new();
 
         decoded_data_paned.set_position(500);
-        decoded_data_paned_top_grid.set_border_width(6);
-        decoded_data_paned_top_grid.set_row_spacing(6);
-        decoded_data_paned_top_grid.set_column_spacing(3);
         decoded_data_paned_bottom_grid.set_border_width(6);
         decoded_data_paned_bottom_grid.set_row_spacing(6);
         decoded_data_paned_bottom_grid.set_column_spacing(3);
-
-        // In the top grid, there should be a column with two buttons, and another with a ScrolledWindow,
-        // with a TreeView inside.
-
-        // Here we create the buttons to move the decoded rows up&down.
-        let row_up = ModelButton::new();
-        let row_down = ModelButton::new();
-
-        row_up.set_property_text(Some("Up"));
-        row_up.set_action_name("app.move_row_up");
-        row_down.set_property_text(Some("Down"));
-        row_down.set_action_name("app.move_row_down");
 
         // And here, the ScrolledWindow and the TreeView.
         let fields_tree_view_scroll = ScrolledWindow::new(None, None);
@@ -1105,6 +2754,31 @@ impl PackedFileDBDecoder {
         fields_tree_view.append_column(&column_decoded);
         fields_tree_view.append_column(&column_description);
 
+        // Here we create the context menu for the `fields_tree_view`.
+        let context_menu = Popover::new_from_model(Some(&fields_tree_view), &app_ui.db_decoder_context_menu_model);
+
+        // Clean the accelerators stuff.
+        remove_temporal_accelerators(&application);
+
+        // Move and delete row actions.
+        let move_row_up = SimpleAction::new("move-row-up", None);
+        let move_row_down = SimpleAction::new("move-row-down", None);
+        let delete_row = SimpleAction::new("delete-row", None);
+
+        application.add_action(&move_row_up);
+        application.add_action(&move_row_down);
+        application.add_action(&delete_row);
+
+        // Accels for popovers need to be specified here. Don't know why, but otherwise they do not work.
+        application.set_accels_for_action("app.move-row-up", &["<Shift>Up"]);
+        application.set_accels_for_action("app.move-row-down", &["<Shift>Down"]);
+        application.set_accels_for_action("app.delete-row", &["<Shift>Delete"]);
+
+        // By default, these three should be disabled.
+        move_row_up.set_enabled(false);
+        move_row_down.set_enabled(false);
+        delete_row.set_enabled(false);
+
         // From here, we config the bottom grid of the paned.
         let decoded_types_grid = Grid::new();
 
@@ -1213,6 +2887,13 @@ impl PackedFileDBDecoder {
         packed_file_field_info_grid.set_row_spacing(6);
         packed_file_field_info_grid.set_column_spacing(3);
 
+        // This is a dirty trick, but it werks. We create all the labels here so they end up in the struct,
+        // but only attach to the Grid the ones we want.
+        let table_type_decoded_label = Label::new(None);
+        let table_version_decoded_label = Label::new(None);
+        let table_entry_count_decoded_label = Label::new(None);
+
+        // Load all the info of the table.
         let table_info_type_label = Label::new("Table type:");
         let table_info_version_label = Label::new("Table version:");
         let table_info_entry_count_label = Label::new("Table entry count:");
@@ -1223,10 +2904,6 @@ impl PackedFileDBDecoder {
         table_info_version_label.set_yalign(0.5);
         table_info_entry_count_label.set_xalign(0.0);
         table_info_entry_count_label.set_yalign(0.5);
-
-        let table_type_decoded_label = Label::new(None);
-        let table_version_decoded_label = Label::new(None);
-        let table_entry_count_decoded_label = Label::new(None);
 
         table_type_decoded_label.set_xalign(0.0);
         table_type_decoded_label.set_yalign(0.5);
@@ -1257,13 +2934,23 @@ impl PackedFileDBDecoder {
         is_key_field_label.set_xalign(0.0);
         is_key_field_label.set_yalign(0.5);
 
-        // Here we create a little TreeView with all the versions of this table we have, in case we
-        // want to decode it based on another version's definition, to save time.
+        // Same trick as before.
         let all_table_versions_tree_view = TreeView::new();
         let all_table_versions_list_store = ListStore::new(&[u32::static_type()]);
+        let load_definition = Button::new_with_label("Load");
+        let remove_definition = Button::new_with_label("Remove");
+
+        // Disable these buttons by default.
+        load_definition.set_sensitive(false);
+        remove_definition.set_sensitive(false);
+
+        // Here we create a little TreeView with all the versions of this table we have, in case we
+        // want to decode it based on another version's definition, to save time.
         all_table_versions_tree_view.set_model(Some(&all_table_versions_list_store));
 
         let all_table_versions_tree_view_scroll = ScrolledWindow::new(None, None);
+        all_table_versions_tree_view_scroll.set_hexpand(true);
+        all_table_versions_tree_view_scroll.set_size_request(0, 110);
         all_table_versions_tree_view_scroll.add(&all_table_versions_tree_view);
 
         let column_versions = TreeViewColumn::new();
@@ -1282,11 +2969,11 @@ impl PackedFileDBDecoder {
         button_box_definition.set_layout(ButtonBoxStyle::End);
         button_box_definition.set_spacing(6);
 
-        let load_definition = Button::new_with_label("Load");
-        let remove_definition = Button::new_with_label("Remove");
-
         button_box_definition.pack_start(&load_definition, false, false, 0);
         button_box_definition.pack_start(&remove_definition, false, false, 0);
+
+        general_info_grid.attach(&all_table_versions_tree_view_scroll, 0, 3, 2, 1);
+        general_info_grid.attach(&button_box_definition, 0, 4, 2, 1);
 
         // These are the bottom buttons.
         let bottom_box = ButtonBox::new(Orientation::Horizontal);
@@ -1310,17 +2997,12 @@ impl PackedFileDBDecoder {
         decoder_grid.attach(&raw_data_grid, 0, 0, 1, 1);
 
         // Packing into the rigth paned....
-        decoded_data_paned.pack1(&decoded_data_paned_top_grid, false, false);
+        decoded_data_paned.pack1(&fields_tree_view_scroll, false, false);
         decoded_data_paned.pack2(&decoded_data_paned_bottom_grid, false, false);
 
         decoder_grid.attach(&decoded_data_paned, 1, 0, 1, 1);
 
-        // Packing into the top side of the right paned...
-        decoded_data_paned_top_grid.attach(&row_up, 0, 0 ,1 ,1);
-        decoded_data_paned_top_grid.attach(&row_down, 0, 1 ,1 ,1);
-
         fields_tree_view_scroll.add(&fields_tree_view);
-        decoded_data_paned_top_grid.attach(&fields_tree_view_scroll, 1, 0 ,1 ,2);
 
         // Packing into the bottom side of the right paned...
 
@@ -1368,9 +3050,6 @@ impl PackedFileDBDecoder {
         general_info_grid.attach(&is_key_field_label, 0, 2, 1, 1);
         general_info_grid.attach(&is_key_field_switch, 1, 2, 1, 1);
 
-        general_info_grid.attach(&all_table_versions_tree_view_scroll, 0, 3, 2, 1);
-        general_info_grid.attach(&button_box_definition, 0, 4, 2, 1);
-
         decoded_data_paned_bottom_grid.attach(&general_info_grid, 1, 0, 1, 10);
 
         // Bottom of the bottom grid...
@@ -1378,11 +3057,16 @@ impl PackedFileDBDecoder {
 
         // Packing into the decoder grid...
         decoder_grid_scroll.add(&decoder_grid);
-        packed_file_data_display.attach(&decoder_grid_scroll, 0, 1, 1, 1);
-        packed_file_data_display.show_all();
+        app_ui.packed_file_data_display.attach(&decoder_grid_scroll, 0, 1, 1, 1);
+        app_ui.packed_file_data_display.show_all();
 
-        PackedFileDBDecoder {
-            data_initial_index: 0i32,
+        // Disable the "Change game selected" function, so we cannot change the current schema with the decoder open.
+        app_ui.menu_bar_change_game_selected.set_enabled(false);
+
+        // Create the view.
+        let mut decoder_view = PackedFileDBDecoder {
+            data_initial_index,
+            decoded_header,
             raw_data_line_index: raw_data_index,
             raw_data: raw_data_hex,
             raw_data_decoded,
@@ -1419,26 +3103,571 @@ impl PackedFileDBDecoder {
             fields_tree_view_cell_combo_list_store,
             fields_tree_view_cell_string,
             delete_all_fields_button,
-            move_up_button: row_up,
-            move_down_button: row_down,
+            decoder_grid_scroll,
+            context_menu,
+        };
+
+        // We try to load the static data from the encoded PackedFile into the "Decoder" view.
+        if let Err(error) = decoder_view.load_data_to_decoder_view(&table_name, &packed_file_data) {
+            return Err(error)
+        };
+
+        // Get the index we are going to use to keep track of where the hell are we in the table.
+        let index_data = Rc::new(RefCell::new(decoder_view.data_initial_index));
+
+        // We get the Schema for his game, if exists. If we reached this point, the Schema
+        // should exists. Otherwise, the button for this window will not exist.
+        let table_definition = match DB::get_schema(&table_name, decoder_view.decoded_header.version, &schema.borrow().clone().unwrap()) {
+            Some(table_definition) => Rc::new(RefCell::new(table_definition)),
+            None => Rc::new(RefCell::new(TableDefinition::new(decoder_view.decoded_header.version)))
+        };
+
+        // Update the "Decoder" View dynamic data (entries, treeview,...) and get the
+        // current "index_data" (position in the vector we are decoding).
+        decoder_view.update_decoder_view(
+            &packed_file_data,
+            (true, &table_definition.borrow().fields),
+            &mut index_data.borrow_mut()
+        );
+
+        // Update the versions list. Only if we have an schema, we can reach this point, so we just unwrap the schema.
+        decoder_view.update_versions_list(&schema.borrow().clone().unwrap(), &table_name);
+
+        // Events and stuff related to this view...
+
+        // Version list stuff.
+        {
+
+            // We check if we can allow actions on selection changes.
+            decoder_view.all_table_versions_tree_view.connect_cursor_changed(clone!(
+                decoder_view => move |tree_view| {
+
+                    // If nothing is selected, enable all the actions.
+                    if tree_view.get_selection().count_selected_rows() > 0 {
+                        decoder_view.all_table_versions_remove_definition.set_sensitive(true);
+                        decoder_view.all_table_versions_load_definition.set_sensitive(true);
+                    }
+
+                    // Otherwise, disable them.
+                    else {
+                        decoder_view.all_table_versions_remove_definition.set_sensitive(false);
+                        decoder_view.all_table_versions_load_definition.set_sensitive(false);
+                    }
+                }
+            ));
+
+            // This allow us to replace the definition we have loaded with one from another version of the table.
+            decoder_view.all_table_versions_load_definition.connect_button_release_event(clone!(
+                schema,
+                app_ui,
+                index_data,
+                table_name,
+                packed_file_data,
+                decoder_view => move |_ ,_| {
+
+                    // Only if we have a version selected, do something.
+                    if let Some(version_selected) = decoder_view.all_table_versions_tree_view.get_selection().get_selected() {
+
+                        // Get the version selected.
+                        let version_to_load: u32 = decoder_view.all_table_versions_list_store.get_value(&version_selected.1, 0).get().unwrap();
+
+                        // Check if the Schema actually exists. This should never show up if the schema exists,
+                        // but the compiler doesn't know it, so we have to check it.
+                        match *schema.borrow_mut() {
+                            Some(ref mut schema) => {
+
+                                // Get the new definition.
+                                let table_definition = DB::get_schema(&table_name, version_to_load, schema);
+
+                                // Remove all the fields of the currently loaded definition.
+                                decoder_view.fields_list_store.clear();
+
+                                // Reset the "index_data".
+                                *index_data.borrow_mut() = decoder_view.data_initial_index;
+
+                                // Reload the decoder View with the new definition loaded.
+                                decoder_view.update_decoder_view(
+                                    &packed_file_data,
+                                    (true, &table_definition.unwrap().fields),
+                                    &mut index_data.borrow_mut()
+                                );
+                            }
+                            None => show_dialog(&app_ui.window, false, "Cannot load a version of a table from a non-existant Schema.")
+                        }
+                    }
+
+                    Inhibit(false)
+                }
+            ));
+
+            // This allow us to remove an entire definition of a table for an specific version.
+            // Basically, hitting this button deletes the selected definition.
+            decoder_view.all_table_versions_remove_definition.connect_button_release_event(clone!(
+                schema,
+                app_ui,
+                table_name,
+                decoder_view => move |_ ,_| {
+
+                    // Only if we have a version selected, do something.
+                    if let Some(version_selected) = decoder_view.all_table_versions_tree_view.get_selection().get_selected() {
+
+                        // Get the version selected.
+                        let version_to_delete: u32 = decoder_view.all_table_versions_list_store.get_value(&version_selected.1, 0).get().unwrap();
+
+                        // Check if the Schema actually exists. This should never show up if the schema exists,
+                        // but the compiler doesn't know it, so we have to check it.
+                        match *schema.borrow_mut() {
+                            Some(ref mut schema) => {
+
+                                // Try to remove that version form the schema.
+                                match DB::remove_table_version(&table_name, version_to_delete, schema) {
+
+                                    // If it worked, update the list.
+                                    Ok(_) => decoder_view.update_versions_list(schema, &table_name),
+                                    Err(error) => show_dialog(&app_ui.window, false, error.cause()),
+                                }
+                            }
+                            None => show_dialog(&app_ui.window, false, "Cannot delete a version from a non-existant Schema.")
+                        }
+                    }
+
+                    Inhibit(false)
+                }
+            ));
         }
+
+        // Bottom box buttons.
+        {
+
+            // When we press the "Delete all fields" button.
+            decoder_view.delete_all_fields_button.connect_button_release_event(clone!(
+                packed_file_data,
+                index_data,
+                decoder_view => move |delete_all_fields_button,_| {
+
+                    // Clear the `TreeView`.
+                    decoder_view.fields_list_store.clear();
+
+                    // Reset the "index_data".
+                    *index_data.borrow_mut() = decoder_view.data_initial_index;
+
+                    // Disable this button.
+                    delete_all_fields_button.set_sensitive(false);
+
+                    // Re-update the "Decoder" View.
+                    decoder_view.update_decoder_view(
+                        &packed_file_data,
+                        (false, &[]),
+                        &mut index_data.borrow_mut()
+                    );
+
+                    Inhibit(false)
+                }
+            ));
+
+            // When we press the "Finish it!" button.
+            decoder_view.save_decoded_schema.connect_button_release_event(clone!(
+                app_ui,
+                schema,
+                table_definition,
+                table_name,
+                rpfm_path,
+                supported_games,
+                game_selected,
+                decoder_view => move |_ ,_| {
+
+                    // Check if the Schema actually exists. This should never show up if the schema exists,
+                    // but the compiler doesn't know it, so we have to check it.
+                    match *schema.borrow_mut() {
+                        Some(ref mut schema) => {
+
+                            // We get the index of our table's definitions. In case we find it, we just return it. If it's not
+                            // the case, then we create a new table's definitions and return his index. To know if we didn't found
+                            // an index, we just return -1 as index.
+                            let mut table_definitions_index = match schema.get_table_definitions(&table_name) {
+                                Some(table_definitions_index) => table_definitions_index as i32,
+                                None => -1i32,
+                            };
+
+                            // If we didn't found a table definition for our table...
+                            if table_definitions_index == -1 {
+
+                                // We create one.
+                                schema.add_table_definitions(TableDefinitions::new(&decoder_view.table_type_label.get_text().unwrap()));
+
+                                // And get his index.
+                                table_definitions_index = schema.get_table_definitions(&table_name).unwrap() as i32;
+                            }
+
+                            // We replace his fields with the ones from the `TreeView`.
+                            table_definition.borrow_mut().fields = decoder_view.return_data_from_data_view();
+
+                            // We add our `TableDefinition` to the main `Schema`.
+                            schema.tables_definitions[table_definitions_index as usize].add_table_definition(table_definition.borrow().clone());
+
+                            // And try to save the main `Schema`.
+                            match Schema::save(schema, &rpfm_path, &supported_games.borrow().iter().filter(|x| x.folder_name == *game_selected.borrow().game).map(|x| x.schema.to_owned()).collect::<String>()) {
+                                Ok(_) => show_dialog(&app_ui.window, true, "Schema successfully saved."),
+                                Err(error) => show_dialog(&app_ui.window, false, error.cause()),
+                            }
+
+                            // After all that, we need to update the version list, as this may have created a new version.
+                            decoder_view.update_versions_list(schema, &table_name);
+                        }
+                        None => show_dialog(&app_ui.window, false, "Cannot save this table's definitions:\nSchemas for this game are not supported, yet.")
+                    }
+
+                    Inhibit(false)
+                }
+            ));
+        }
+
+        // Fields TreeView actions.
+        {
+
+            // We check if we can allow actions on selection changes.
+            decoder_view.fields_tree_view.connect_cursor_changed(clone!(
+                move_row_up,
+                move_row_down,
+                delete_row => move |tree_view| {
+
+                    // If something is selected, enable all the actions.
+                    if tree_view.get_selection().count_selected_rows() > 0 {
+                        move_row_up.set_enabled(true);
+                        move_row_down.set_enabled(true);
+                        delete_row.set_enabled(true);
+                    }
+
+                    // Otherwise, disable them.
+                    else {
+                        move_row_up.set_enabled(false);
+                        move_row_down.set_enabled(false);
+                        delete_row.set_enabled(false);
+                    }
+                }
+            ));
+
+            // When we right-click the TreeView, we check if we need to enable or disable his buttons first.
+            // Then we calculate the position where the popup must aim, and show it.
+            //
+            // NOTE: REMEMBER, WE OPEN THE POPUP HERE, BUT WE NEED TO CLOSED IT WHEN WE HIT HIS BUTTONS.
+            decoder_view.fields_tree_view.connect_button_release_event(clone!(
+                decoder_view => move |tree_view, button| {
+
+                    // If we clicked the right mouse button...
+                    if button.get_button() == 3 {
+
+                        decoder_view.context_menu.set_pointing_to(&get_rect_for_popover(tree_view, Some(button.get_position())));
+                        decoder_view.context_menu.popup();
+                    }
+
+                    Inhibit(false)
+                }
+            ));
+
+            // When we press the "Move up" button.
+            move_row_up.connect_activate(clone!(
+                index_data,
+                packed_file_data,
+                decoder_view => move |_,_| {
+
+                    // Hide the contextual menu.
+                    decoder_view.context_menu.popdown();
+
+                    // We only do something in case the focus is in the TreeView or in it's button. This should stop problems with
+                    // the accels working everywhere.
+                    if decoder_view.fields_tree_view.has_focus() {
+
+                        // Get the current iter.
+                        let current_iter = decoder_view.fields_tree_view.get_selection().get_selected().unwrap().1;
+                        let new_iter = current_iter.clone();
+
+                        // If there is a previous iter, swap them.
+                        if decoder_view.fields_list_store.iter_previous(&new_iter) {
+                            decoder_view.fields_list_store.move_before(&current_iter, &new_iter);
+
+                            // Update the "First row decoded" column, and get the new "index_data" to continue decoding.
+                            decoder_view.update_first_row_decoded(&packed_file_data, false, &mut index_data.borrow_mut());
+                        }
+                    }
+                }
+            ));
+
+            // When we press the "Move down" button.
+            move_row_down.connect_activate(clone!(
+                index_data,
+                packed_file_data,
+                decoder_view => move |_,_| {
+
+                    // Hide the contextual menu.
+                    decoder_view.context_menu.popdown();
+
+                    // We only do something in case the focus is in the TreeView or in it's button. This should stop problems with
+                    // the accels working everywhere.
+                    if decoder_view.fields_tree_view.has_focus() {
+
+                        // Get the current iter.
+                        let current_iter = decoder_view.fields_tree_view.get_selection().get_selected().unwrap().1;
+                        let new_iter = current_iter.clone();
+
+                        // If there is a next iter, swap them.
+                        if decoder_view.fields_list_store.iter_next(&new_iter) {
+                            decoder_view.fields_list_store.move_after(&current_iter, &new_iter);
+
+                            // Update the "First row decoded" column, and get the new "index_data" to continue decoding.
+                            decoder_view.update_first_row_decoded(&packed_file_data, false, &mut index_data.borrow_mut());
+                        }
+                    }
+                }
+            ));
+
+            // This allow us to remove a field from the list, using the decoder_delete_row action.
+            delete_row.connect_activate(clone!(
+                index_data,
+                packed_file_data,
+                decoder_view => move |_,_| {
+
+                    // Hide the contextual menu.
+                    decoder_view.context_menu.popdown();
+
+                    // We only do something in case the focus is in the TreeView or in any of the moving buttons. This should stop problems with
+                    // the accels working everywhere.
+                    if decoder_view.fields_tree_view.has_focus() {
+
+                        // If there is something selected, delete it.
+                        if let Some(selection) = decoder_view.fields_tree_view.get_selection().get_selected() {
+                            decoder_view.fields_list_store.remove(&selection.1);
+                        }
+
+                        // Update the "First row decoded" column, and get the new "index_data" to continue decoding.
+                        decoder_view.update_first_row_decoded(&packed_file_data, false, &mut index_data.borrow_mut());
+                    }
+                }
+            ));
+        }
+
+        // Logic for all the "Use this" buttons. Basically, they just check if it's possible to use their decoder
+        // for the bytes we have, and advance the index and add their type to the fields view.
+        {
+
+            // When we hit the "Use this" button for boolean fields.
+            decoder_view.use_bool_button.connect_button_release_event(clone!(
+                index_data,
+                packed_file_data,
+                decoder_view => move |_ ,_|{
+
+                    // Add the field to the table, update it, and get the new "index_data".
+                    decoder_view.use_this(
+                        &mut index_data.borrow_mut(),
+                        &packed_file_data,
+                        FieldType::Boolean,
+                    );
+
+                    Inhibit(false)
+                }
+            ));
+
+            // When we hit the "Use this" button for float fields.
+            decoder_view.use_float_button.connect_button_release_event(clone!(
+                index_data,
+                packed_file_data,
+                decoder_view => move |_ ,_|{
+
+                    // Add the field to the table, update it, and get the new "index_data".
+                    decoder_view.use_this(
+                        &mut index_data.borrow_mut(),
+                        &packed_file_data,
+                        FieldType::Float,
+                    );
+
+                    Inhibit(false)
+                }
+            ));
+
+            // When we hit the "Use this" button for integer fields.
+            decoder_view.use_integer_button.connect_button_release_event(clone!(
+                index_data,
+                packed_file_data,
+                decoder_view => move |_ ,_|{
+
+                    // Add the field to the table, update it, and get the new "index_data".
+                    decoder_view.use_this(
+                        &mut index_data.borrow_mut(),
+                        &packed_file_data,
+                        FieldType::Integer,
+                    );
+
+                    Inhibit(false)
+                }
+            ));
+
+            // When we hit the "Use this" button for long integer fields.
+            decoder_view.use_long_integer_button.connect_button_release_event(clone!(
+                index_data,
+                packed_file_data,
+                decoder_view => move |_ ,_|{
+
+                    // Add the field to the table, update it, and get the new "index_data".
+                    decoder_view.use_this(
+                        &mut index_data.borrow_mut(),
+                        &packed_file_data,
+                        FieldType::LongInteger,
+                    );
+
+                    Inhibit(false)
+                }
+            ));
+
+            // When we hit the "Use this" button for string U8 fields.
+            decoder_view.use_string_u8_button.connect_button_release_event(clone!(
+                index_data,
+                packed_file_data,
+                decoder_view => move |_ ,_|{
+
+                    // Add the field to the table, update it, and get the new "index_data".
+                    decoder_view.use_this(
+                        &mut index_data.borrow_mut(),
+                        &packed_file_data,
+                        FieldType::StringU8,
+                    );
+
+                    Inhibit(false)
+                }
+            ));
+
+            // When we hit the "Use this" button for string u16 fields.
+            decoder_view.use_string_u16_button.connect_button_release_event(clone!(
+                index_data,
+                packed_file_data,
+                decoder_view => move |_ ,_|{
+
+                    // Add the field to the table, update it, and get the new "index_data".
+                    decoder_view.use_this(
+                        &mut index_data.borrow_mut(),
+                        &packed_file_data,
+                        FieldType::StringU16,
+                    );
+
+                    Inhibit(false)
+                }
+            ));
+
+            // When we hit the "Use this" button for optional string u8 fields.
+            decoder_view.use_optional_string_u8_button.connect_button_release_event(clone!(
+                index_data,
+                packed_file_data,
+                decoder_view => move |_ ,_|{
+
+                    // Add the field to the table, update it, and get the new "index_data".
+                    decoder_view.use_this(
+                        &mut index_data.borrow_mut(),
+                        &packed_file_data,
+                        FieldType::OptionalStringU8,
+                    );
+
+                    Inhibit(false)
+                }
+            ));
+
+            // When we hit the "Use this" button for optional string u16 fields.
+            decoder_view.use_optional_string_u16_button.connect_button_release_event(clone!(
+                index_data,
+                packed_file_data,
+                decoder_view => move |_ ,_|{
+
+                    // Add the field to the table, update it, and get the new "index_data".
+                    decoder_view.use_this(
+                        &mut index_data.borrow_mut(),
+                        &packed_file_data,
+                        FieldType::OptionalStringU16,
+                    );
+
+                    Inhibit(false)
+                }
+            ));
+        }
+
+        // Interaction with the fields TreeView.
+        {
+
+            // This allow us to change a field's data type in the TreeView.
+            decoder_view.fields_tree_view_cell_combo.connect_edited(clone!(
+                index_data,
+                packed_file_data,
+                decoder_view => move |_, tree_path, new_value| {
+
+                    // Get his iter and change it. Not to hard.
+                    let tree_iter = &decoder_view.fields_list_store.get_iter(&tree_path).unwrap();
+                    decoder_view.fields_list_store.set_value(tree_iter, 2, &new_value.to_value());
+
+                    // Update the "First row decoded" column, and get the new "index_data" to continue decoding.
+                    decoder_view.update_first_row_decoded(&packed_file_data, false, &mut index_data.borrow_mut());
+                }
+            ));
+
+            // This allow us to set as "key" a field in the TreeView.
+            decoder_view.fields_tree_view_cell_bool.connect_toggled(clone!(
+                decoder_view => move |cell, tree_path| {
+
+                    // Get his `TreeIter`.
+                    let tree_iter = decoder_view.fields_list_store.get_iter(&tree_path).unwrap();
+
+                    // Get his new state.
+                    let state = !cell.get_active();
+
+                    // Change it in the `ListStore`.
+                    decoder_view.fields_list_store.set_value(&tree_iter, 3, &state.to_value());
+
+                    // Change his state.
+                    cell.set_active(state);
+                }
+            ));
+
+            // This loop takes care of the interaction with string cells.
+            for edited_cell in &decoder_view.fields_tree_view_cell_string {
+                edited_cell.connect_edited(clone!(
+                    decoder_view => move |_ ,tree_path , new_text| {
+
+                        // Get his iter.
+                        let tree_iter = decoder_view.fields_list_store.get_iter(&tree_path).unwrap();
+
+                        // Get his column.
+                        let edited_cell_column = decoder_view.fields_tree_view.get_cursor().1.unwrap().get_sort_column_id() as u32;
+
+                        // Set his new value.
+                        decoder_view.fields_list_store.set_value(&tree_iter, edited_cell_column, &new_text.to_value());
+                    }
+                ));
+            }
+        }
+
+        // Destruction event.
+        {
+            // When the decoder is destroyed...
+            decoder_view.decoder_grid_scroll.connect_destroy(clone!(
+                app_ui => move |_| {
+
+                    // Restore the "Change game selected" function.
+                    app_ui.menu_bar_change_game_selected.set_enabled(true);
+                }
+            ));
+        }
+
+        // Return the view.
+        Ok(())
     }
 
     /// This function loads the data from the selected table into the "Decoder View".
     pub fn load_data_to_decoder_view(
-        packed_file_decoder_view: &mut PackedFileDBDecoder,
-        packed_file_table_type: &str,
+        &mut self,
+        table_name: &str,
         packed_file_encoded: &[u8],
-        data_initial_index: usize
     ) -> Result<(), Error> {
 
         // We don't need the entire PackedFile, just his begining. Otherwise, this function takes
         // ages to finish.
         let packed_file_encoded = if packed_file_encoded.len() > 16 * 60 { &packed_file_encoded[..16 * 60] }
         else { packed_file_encoded };
-
-        // Get the header of the Table, if it's a table.
-        let db_header = DBHeader::read(packed_file_encoded)?;
 
         // This creates the "index" column at the left of the hex data. The logic behind this, because
         // even I have problems to understand it: lines are 4 packs of 4 bytes => 16 bytes. Amount of
@@ -1453,67 +3682,18 @@ impl PackedFileDBDecoder {
         for hex_line in 0..hex_lines_amount {
             hex_lines_text.push_str(&format!("{:>0count$X}\n", hex_line * 16, count = zeroes_amount));
         }
-        packed_file_decoder_view.raw_data_line_index.set_text(&hex_lines_text);
+        self.raw_data_line_index.get_buffer().unwrap().set_text(&hex_lines_text);
 
         // This gets the hex data into place. In big files, this takes ages, so we cut them if they
         // are longer than 100 lines to speed up loading and fix a weird issue with big tables.
-        let mut hex_raw_data = format!("{:X}", packed_file_encoded.as_hex());
+        let mut hex_raw_data = format!("{:02X?}", packed_file_encoded);
 
+        // Remove the first and last chars.
         hex_raw_data.remove(0);
-
-        // We need to do this 2 times, because the first one skips chars if they are consecutive.
-        let hex_raw_data = hex_raw_data.replace(" 0 ", " 00 ");
-        let hex_raw_data = hex_raw_data.replace(" 1 ", " 01 ");
-        let hex_raw_data = hex_raw_data.replace(" 2 ", " 02 ");
-        let hex_raw_data = hex_raw_data.replace(" 3 ", " 03 ");
-        let hex_raw_data = hex_raw_data.replace(" 4 ", " 04 ");
-        let hex_raw_data = hex_raw_data.replace(" 5 ", " 05 ");
-        let hex_raw_data = hex_raw_data.replace(" 6 ", " 06 ");
-        let hex_raw_data = hex_raw_data.replace(" 7 ", " 07 ");
-        let hex_raw_data = hex_raw_data.replace(" 8 ", " 08 ");
-        let hex_raw_data = hex_raw_data.replace(" 9 ", " 09 ");
-        let hex_raw_data = hex_raw_data.replace(" A ", " 0A ");
-        let hex_raw_data = hex_raw_data.replace(" B ", " 0B ");
-        let hex_raw_data = hex_raw_data.replace(" C ", " 0C ");
-        let hex_raw_data = hex_raw_data.replace(" D ", " 0D ");
-        let hex_raw_data = hex_raw_data.replace(" E ", " 0E ");
-        let hex_raw_data = hex_raw_data.replace(" F ", " 0F ");
-
-        let hex_raw_data = hex_raw_data.replace(" 0 ", " 00 ");
-        let hex_raw_data = hex_raw_data.replace(" 1 ", " 01 ");
-        let hex_raw_data = hex_raw_data.replace(" 2 ", " 02 ");
-        let hex_raw_data = hex_raw_data.replace(" 3 ", " 03 ");
-        let hex_raw_data = hex_raw_data.replace(" 4 ", " 04 ");
-        let hex_raw_data = hex_raw_data.replace(" 5 ", " 05 ");
-        let hex_raw_data = hex_raw_data.replace(" 6 ", " 06 ");
-        let hex_raw_data = hex_raw_data.replace(" 7 ", " 07 ");
-        let hex_raw_data = hex_raw_data.replace(" 8 ", " 08 ");
-        let hex_raw_data = hex_raw_data.replace(" 9 ", " 09 ");
-        let hex_raw_data = hex_raw_data.replace(" A ", " 0A ");
-        let hex_raw_data = hex_raw_data.replace(" B ", " 0B ");
-        let hex_raw_data = hex_raw_data.replace(" C ", " 0C ");
-        let hex_raw_data = hex_raw_data.replace(" D ", " 0D ");
-        let hex_raw_data = hex_raw_data.replace(" E ", " 0E ");
-        let hex_raw_data = hex_raw_data.replace(" F ", " 0F ");
-
-        // This filtering doesn't work with the last char, so we need to pass that one separated.
-        let hex_raw_data = hex_raw_data.replace(" 0]", " 00]");
-        let hex_raw_data = hex_raw_data.replace(" 1]", " 01]");
-        let hex_raw_data = hex_raw_data.replace(" 2]", " 02]");
-        let hex_raw_data = hex_raw_data.replace(" 3]", " 03]");
-        let hex_raw_data = hex_raw_data.replace(" 4]", " 04]");
-        let hex_raw_data = hex_raw_data.replace(" 5]", " 05]");
-        let hex_raw_data = hex_raw_data.replace(" 6]", " 06]");
-        let hex_raw_data = hex_raw_data.replace(" 7]", " 07]");
-        let hex_raw_data = hex_raw_data.replace(" 8]", " 08]");
-        let hex_raw_data = hex_raw_data.replace(" 9]", " 09]");
-        let hex_raw_data = hex_raw_data.replace(" A]", " 0A]");
-        let hex_raw_data = hex_raw_data.replace(" B]", " 0B]");
-        let hex_raw_data = hex_raw_data.replace(" C]", " 0C]");
-        let hex_raw_data = hex_raw_data.replace(" D]", " 0D]");
-        let hex_raw_data = hex_raw_data.replace(" E]", " 0E]");
-        let mut hex_raw_data = hex_raw_data.replace(" F]", " 0F]");
         hex_raw_data.pop();
+
+        // Remove all the kebab, or the commas. Whatever float your boat...
+        hex_raw_data.retain(|c| c != ',');
 
         // `raw_data_hex` TextView.
         {
@@ -1527,13 +3707,13 @@ impl PackedFileDBDecoder {
                 hex_raw_data_string.push(i);
             }
 
-            let raw_data_hex_buffer = packed_file_decoder_view.raw_data.get_buffer().unwrap();
+            let raw_data_hex_buffer = self.raw_data.get_buffer().unwrap();
             raw_data_hex_buffer.set_text(&hex_raw_data_string);
 
             // In theory, this should give us the equivalent byte to our index_data.
             // In practice, I'm bad at maths.
-            let header_line = (data_initial_index * 3 / 48) as i32;
-            let header_char = (data_initial_index * 3 % 48) as i32;
+            let header_line = (self.data_initial_index * 3 / 48) as i32;
+            let header_char = (self.data_initial_index * 3 % 48) as i32;
             raw_data_hex_buffer.apply_tag_by_name(
                 "header",
                 &raw_data_hex_buffer.get_start_iter(),
@@ -1559,10 +3739,10 @@ impl PackedFileDBDecoder {
                 }
             }
 
-            let header_line = (data_initial_index / 16) as i32;
-            let header_char = (data_initial_index % 16) as i32;
+            let header_line = (self.data_initial_index / 16) as i32;
+            let header_char = (self.data_initial_index % 16) as i32;
 
-            let raw_data_decoded_buffer = packed_file_decoder_view.raw_data_decoded.get_buffer().unwrap();
+            let raw_data_decoded_buffer = self.raw_data_decoded.get_buffer().unwrap();
             raw_data_decoded_buffer.set_text(&hex_raw_data_decoded);
             raw_data_decoded_buffer.apply_tag_by_name(
                 "header",
@@ -1571,31 +3751,23 @@ impl PackedFileDBDecoder {
             );
         }
 
-        packed_file_decoder_view.table_type_label.set_text(packed_file_table_type);
-        packed_file_decoder_view.table_version_label.set_text(&format!("{}", db_header.0.packed_file_header_packed_file_version));
-        packed_file_decoder_view.table_entry_count_label.set_text(&format!("{}", db_header.0.packed_file_header_packed_file_entry_count));
+        // Set the data of the table.
+        self.table_type_label.set_text(table_name);
+        self.table_version_label.set_text(&format!("{}", self.decoded_header.version));
+        self.table_entry_count_label.set_text(&format!("{}", self.decoded_header.entry_count));
 
-        // Save the initial index, for future uses.
-        packed_file_decoder_view.data_initial_index = data_initial_index as i32;
         Ok(())
     }
 
-    /// This function updates the data shown in the "Decoder" box when we execute it. It requires:
-    /// - packed_file_decoder: &PackedFileDBDecoder, the decoder object.
-    /// - packed_file_decoded: Vec<u8>, PackedFile's Data to decode.
-    /// - table_definition: Option<&TableDefinition>, a ref to the table definitions. None will
-    ///   skip the load of data to the table.
-    /// - index_data: usize, the index where to start decoding.
-    /// - load_from_existing_definition: bool, if true, then we load the data from a definition.
-    ///   If false, we update the entire table. If false, we just update the text entries.
+    /// This function updates the data shown in the "Decoder" box when we execute it. `index_data`
+    /// is the position from where to start decoding.
     pub fn update_decoder_view(
-        packed_file_decoder: &PackedFileDBDecoder,
+        &self,
         packed_file_decoded: &[u8],
-        table_definition: Option<&TableDefinition>,
-        index_data: usize,
-    ) -> usize {
+        field_list: (bool, &[Field]),
+        mut index_data: &mut usize
+    ) {
 
-        // We need to get the length of the vector first, to avoid crashes due to non-existant indexes
         let decoded_bool;
         let decoded_float;
         let decoded_integer;
@@ -1605,152 +3777,115 @@ impl PackedFileDBDecoder {
         let decoded_optional_string_u8;
         let decoded_optional_string_u16;
 
-        let mut index_data = index_data;
-
         // If we are loading data to the table for the first time, we'll load to the table all the data
         // directly from the existing definition and update the initial index for decoding.
-        if let Some(table_definition) = table_definition {
-            for (index, field) in table_definition.fields.iter().enumerate() {
-                index_data = PackedFileDBDecoder::add_field_to_data_view(
-                    packed_file_decoder,
+        if field_list.0 {
+            for (index, field) in field_list.1.iter().enumerate() {
+                self.add_field_to_data_view(
                     packed_file_decoded,
-                    table_definition,
                     &field.field_name,
                     field.field_type.to_owned(),
                     field.field_is_key,
                     &field.field_is_reference,
                     &field.field_description,
-                    index_data,
+                    &mut index_data,
                     Some(index)
                 );
             }
         }
 
         // Check if the index does even exist, to avoid crashes.
-        if index_data < packed_file_decoded.len() {
-            decoded_bool = match coding_helpers::decode_packedfile_bool(
-                packed_file_decoded[index_data],
-                index_data
-            ) {
-                Ok(data) => {
-                    if data.0 {
-                        "True"
-                    }
-                    else {
-                        "False"
-                    }
-                },
+        if packed_file_decoded.get(*index_data).is_some() {
+            decoded_bool = match coding_helpers::decode_packedfile_bool(packed_file_decoded[*index_data], &mut index_data.clone()) {
+                Ok(data) => if data { "True" } else { "False" },
                 Err(_) => "Error"
+            };
+
+            decoded_optional_string_u8 = match coding_helpers::decode_packedfile_optional_string_u8(&packed_file_decoded[*index_data..], &mut index_data.clone()) {
+                Ok(data) => data,
+                Err(_) => "Error".to_owned()
+            };
+
+            decoded_optional_string_u16 = match coding_helpers::decode_packedfile_optional_string_u16(&packed_file_decoded[*index_data..], &mut index_data.clone()) {
+                Ok(data) => data,
+                Err(_) => "Error".to_owned()
             };
         }
         else {
             decoded_bool = "Error";
-        }
+            decoded_optional_string_u8 = "Error".to_owned();
+            decoded_optional_string_u16 = "Error".to_owned();
+        };
 
         // Check if the index does even exist, to avoid crashes.
-        if (index_data + 4) <= packed_file_decoded.len() {
-            decoded_float = match coding_helpers::decode_packedfile_float_f32(
-                &packed_file_decoded[index_data..(index_data + 4)],
-                index_data
-            ) {
-                Ok(data) => data.0.to_string(),
-                Err(_) => "Error".to_string()
+        if packed_file_decoded.get(*index_data + 3).is_some() {
+            decoded_float = match coding_helpers::decode_packedfile_float_f32(&packed_file_decoded[*index_data..(*index_data + 4)], &mut index_data.clone()) {
+                Ok(data) => data.to_string(),
+                Err(_) => "Error".to_owned(),
             };
 
-            decoded_integer = match coding_helpers::decode_packedfile_integer_i32(
-                &packed_file_decoded[index_data..(index_data + 4)],
-                index_data
-            ) {
-                Ok(data) => data.0.to_string(),
-                Err(_) => "Error".to_string()
+            decoded_integer = match coding_helpers::decode_packedfile_integer_i32(&packed_file_decoded[*index_data..(*index_data + 4)], &mut index_data.clone()) {
+                Ok(data) => data.to_string(),
+                Err(_) => "Error".to_owned()
             };
         }
         else {
-            decoded_float = "Error".to_string();
-            decoded_integer = "Error".to_string();
+            decoded_float = "Error".to_owned();
+            decoded_integer = "Error".to_owned();
         }
 
         // Check if the index does even exist, to avoid crashes.
-        if (index_data + 8) <= packed_file_decoded.len() {
-            decoded_long_integer = match coding_helpers::decode_packedfile_integer_i64(
-                &packed_file_decoded[index_data..(index_data + 8)],
-                index_data
-            ) {
-                Ok(data) => data.0.to_string(),
-                Err(_) => "Error".to_string()
-            };
+        decoded_long_integer = if packed_file_decoded.get(*index_data + 7).is_some() {
+            match coding_helpers::decode_packedfile_integer_i64(&packed_file_decoded[*index_data..(*index_data + 8)], &mut index_data.clone()) {
+                Ok(data) => data.to_string(),
+                Err(_) => "Error".to_owned()
+            }
         }
-        else {
-            decoded_long_integer = "Error".to_string();
-        }
+        else { "Error".to_owned() };
 
         // Check that the index exist, to avoid crashes.
-        if index_data < packed_file_decoded.len() {
-            decoded_string_u8 = match coding_helpers::decode_packedfile_string_u8(
-                &packed_file_decoded[index_data..],
-                index_data
-            ) {
-                Ok(data) => data.0,
-                Err(_) => "Error".to_string()
+        if packed_file_decoded.get(*index_data + 1).is_some() {
+            decoded_string_u8 = match coding_helpers::decode_packedfile_string_u8(&packed_file_decoded[*index_data..], &mut index_data.clone()) {
+                Ok(data) => data,
+                Err(_) => "Error".to_owned()
             };
 
-            decoded_string_u16 = match coding_helpers::decode_packedfile_string_u16(
-                &packed_file_decoded[index_data..],
-                index_data
-            ) {
-                Ok(data) => data.0,
-                Err(_) => "Error".to_string()
-            };
-
-            decoded_optional_string_u8 = match coding_helpers::decode_packedfile_optional_string_u8(
-                &packed_file_decoded[index_data..],
-                index_data
-            ) {
-                Ok(data) => data.0,
-                Err(_) => "Error".to_string()
-            };
-
-            decoded_optional_string_u16 = match coding_helpers::decode_packedfile_optional_string_u16(
-                &packed_file_decoded[index_data..],
-                index_data
-            ) {
-                Ok(data) => data.0,
-                Err(_) => "Error".to_string()
+            decoded_string_u16 = match coding_helpers::decode_packedfile_string_u16(&packed_file_decoded[*index_data..], &mut index_data.clone()) {
+                Ok(data) => data,
+                Err(_) => "Error".to_owned()
             };
         }
         else {
-            decoded_string_u8 = "Error".to_string();
-            decoded_string_u16 = "Error".to_string();
-            decoded_optional_string_u8 = "Error".to_string();
-            decoded_optional_string_u16 = "Error".to_string();
+            decoded_string_u8 = "Error".to_owned();
+            decoded_string_u16 = "Error".to_owned();
         }
 
         // We update all the decoded entries here.
-        packed_file_decoder.bool_entry.get_buffer().set_text(decoded_bool);
-        packed_file_decoder.float_entry.get_buffer().set_text(&*decoded_float);
-        packed_file_decoder.integer_entry.get_buffer().set_text(&*decoded_integer);
-        packed_file_decoder.long_integer_entry.get_buffer().set_text(&*decoded_long_integer);
-        packed_file_decoder.string_u8_entry.get_buffer().set_text(&format!("{:?}", decoded_string_u8));
-        packed_file_decoder.string_u16_entry.get_buffer().set_text(&format!("{:?}", decoded_string_u16));
-        packed_file_decoder.optional_string_u8_entry.get_buffer().set_text(&format!("{:?}", decoded_optional_string_u8));
-        packed_file_decoder.optional_string_u16_entry.get_buffer().set_text(&format!("{:?}", decoded_optional_string_u16));
+        self.bool_entry.get_buffer().set_text(decoded_bool);
+        self.float_entry.get_buffer().set_text(&*decoded_float);
+        self.integer_entry.get_buffer().set_text(&*decoded_integer);
+        self.long_integer_entry.get_buffer().set_text(&*decoded_long_integer);
+        self.string_u8_entry.get_buffer().set_text(&format!("{:?}", decoded_string_u8));
+        self.string_u16_entry.get_buffer().set_text(&format!("{:?}", decoded_string_u16));
+        self.optional_string_u8_entry.get_buffer().set_text(&format!("{:?}", decoded_optional_string_u8));
+        self.optional_string_u16_entry.get_buffer().set_text(&format!("{:?}", decoded_optional_string_u16));
 
         // We reset these two every time we add a field.
-        packed_file_decoder.field_name_entry.get_buffer().set_text(&format!("Unknown {}", index_data));
-        packed_file_decoder.is_key_field_switch.set_state(false);
+        self.field_name_entry.get_buffer().set_text(&format!("Unknown {}", *index_data));
+        self.is_key_field_switch.set_state(false);
 
         // Then we set the TextTags to paint the hex_data.
-        let raw_data_hex_text_buffer = packed_file_decoder.raw_data.get_buffer().unwrap();
+        let raw_data_hex_text_buffer = self.raw_data.get_buffer().unwrap();
 
         // Clear the current index tag.
         raw_data_hex_text_buffer.remove_tag_by_name("index", &raw_data_hex_text_buffer.get_start_iter(), &raw_data_hex_text_buffer.get_end_iter());
         raw_data_hex_text_buffer.remove_tag_by_name("entry", &raw_data_hex_text_buffer.get_start_iter(), &raw_data_hex_text_buffer.get_end_iter());
 
         // Set a new index tag.
-        let index_line_start = (index_data * 3 / 48) as i32;
-        let index_line_end = (((index_data * 3) + 2) / 48) as i32;
-        let index_char_start = ((index_data * 3) % 48) as i32;
-        let index_char_end = (((index_data * 3) + 2) % 48) as i32;
+        let index_line_start = (*index_data * 3 / 48) as i32;
+        let index_line_end = (((*index_data * 3) + 2) / 48) as i32;
+        let index_char_start = ((*index_data * 3) % 48) as i32;
+        let index_char_end = (((*index_data * 3) + 2) % 48) as i32;
         raw_data_hex_text_buffer.apply_tag_by_name(
             "index",
             &raw_data_hex_text_buffer.get_iter_at_line_offset(index_line_start, index_char_start),
@@ -1758,10 +3893,10 @@ impl PackedFileDBDecoder {
         );
 
         // Then, we paint the currently decoded entry. Just to look cool.
-        let header_line = ((packed_file_decoder.data_initial_index * 3) / 48) as i32;
-        let header_char = ((packed_file_decoder.data_initial_index * 3) % 48) as i32;
-        let index_line_end = ((index_data * 3) / 48) as i32;
-        let index_char_end = ((index_data * 3) % 48) as i32;
+        let header_line = ((self.data_initial_index * 3) / 48) as i32;
+        let header_char = ((self.data_initial_index * 3) % 48) as i32;
+        let index_line_end = ((*index_data * 3) / 48) as i32;
+        let index_char_end = ((*index_data * 3) % 48) as i32;
         raw_data_hex_text_buffer.apply_tag_by_name(
             "entry",
             &raw_data_hex_text_buffer.get_iter_at_line_offset(header_line, header_char),
@@ -1769,17 +3904,17 @@ impl PackedFileDBDecoder {
         );
 
         // And then, we do the same for `raw_decoded_data`.
-        let raw_data_decoded_text_buffer = packed_file_decoder.raw_data_decoded.get_buffer().unwrap();
+        let raw_data_decoded_text_buffer = self.raw_data_decoded.get_buffer().unwrap();
 
         // Clear the current index and entry tags.
         raw_data_decoded_text_buffer.remove_tag_by_name("index", &raw_data_decoded_text_buffer.get_start_iter(), &raw_data_decoded_text_buffer.get_end_iter());
         raw_data_decoded_text_buffer.remove_tag_by_name("entry", &raw_data_decoded_text_buffer.get_start_iter(), &raw_data_decoded_text_buffer.get_end_iter());
 
         // Set a new index tag.
-        let index_line_start = (index_data / 16) as i32;
-        let index_line_end = ((index_data + 1) / 16) as i32;
-        let index_char_start = (index_data % 16) as i32;
-        let index_char_end = ((index_data + 1) % 16) as i32;
+        let index_line_start = (*index_data / 16) as i32;
+        let index_line_end = ((*index_data + 1) / 16) as i32;
+        let index_char_start = (*index_data % 16) as i32;
+        let index_char_end = ((*index_data + 1) % 16) as i32;
         raw_data_decoded_text_buffer.apply_tag_by_name(
             "index",
             &raw_data_decoded_text_buffer.get_iter_at_line_offset(index_line_start, index_char_start),
@@ -1787,74 +3922,77 @@ impl PackedFileDBDecoder {
         );
 
         // Then, we paint the currently decoded entry. Just to look cool.
-        let header_line = (packed_file_decoder.data_initial_index / 16) as i32;
-        let header_char = (packed_file_decoder.data_initial_index % 16) as i32;
-        let index_line_end = (index_data / 16) as i32;
-        let index_char_end = (index_data % 16) as i32;
+        let header_line = (self.data_initial_index / 16) as i32;
+        let header_char = (self.data_initial_index % 16) as i32;
+        let index_line_end = (*index_data / 16) as i32;
+        let index_char_end = (*index_data % 16) as i32;
         raw_data_decoded_text_buffer.apply_tag_by_name(
             "entry",
             &raw_data_decoded_text_buffer.get_iter_at_line_offset(header_line, header_char),
             &raw_data_decoded_text_buffer.get_iter_at_line_offset(index_line_end, index_char_end)
         );
-
-        // Returns the new "index_data" to keep decoding.
-        index_data
     }
 
     /// This function is used to update the list of "Versions" of the currently open table decoded.
     pub fn update_versions_list(
-        packed_file_decoder: &PackedFileDBDecoder,
+        &self,
         schema: &Schema,
         table_name: &str,
     ) {
         // Clear the current list.
-        packed_file_decoder.all_table_versions_list_store.clear();
+        self.all_table_versions_list_store.clear();
 
         // And get all the versions of this table, and list them in their TreeView, if we have any.
         if let Some(table_versions_list) = DB::get_schema_versions_list(table_name, schema) {
             for version in table_versions_list {
-                packed_file_decoder.all_table_versions_list_store.insert_with_values(None, &[0], &[&version.version]);
+                self.all_table_versions_list_store.insert_with_values(None, &[0], &[&version.version]);
             }
         }
     }
 
     /// This function adds fields to the "Decoder" table, so we can do this without depending on the
-    /// updates of the Decoder view. As this has a lot of required data, lets's explain:
-    /// - packed_file_decoder: a PackedFileDBDecoder reference, so we can update the field list.
-    /// - packed_file_decoded: the data to decode.
-    /// - table_definition: needed to get the "index" number properly.
-    /// - field_name: the name of the field.
-    /// - field_type: the type of the field.
-    /// - field_is_key: if the field is key or not.
-    /// - field_is_reference: the reference data of the field, if it's a reference to another field.
-    /// - field_description: the description of the field. If the field is new, this is just String::new().
+    /// updates of the Decoder view. As this has a lot of required data, lets's explain the weirdest ones:
     /// - index_data: the index to start decoding from the vector.
-    ///
-    /// We return the index of the next field in the data.
-    /// NOTE: In case of error, we return the same index, NOT AN ERROR. That way, we deal with the
-    /// possible error here instead on the UI.
+    /// - index_row: the position in the row. None to calculate the last position's number.
     pub fn add_field_to_data_view(
-        packed_file_decoder: &PackedFileDBDecoder,
+        &self,
         packed_file_decoded: &[u8],
-        table_definition: &TableDefinition,
         field_name: &str,
         field_type: FieldType,
         field_is_key: bool,
         field_is_reference: &Option<(String, String)>,
         field_description: &str,
-        index_data: usize,
+        mut index_data: &mut usize,
         index_row: Option<usize>
-    ) -> usize {
+    ) {
 
         let field_index = match index_row {
-            Some(index) => format!("{:0count$}", index + 1, count = (table_definition.fields.len().to_string().len() + 1)),
-            None => "New".to_owned(),
+            Some(index) => format!("{:0count$}", index + 1, count = 3),
+            None => {
+
+                // Get the first iter of the table, then move until you get the last one.
+                match self.fields_list_store.get_iter_first() {
+                    Some(tree_iter) => {
+
+                        loop {
+                            let tree_iter_copy = tree_iter.clone();
+                            if !self.fields_list_store.iter_next(&tree_iter_copy) { break; }
+                            else { self.fields_list_store.iter_next(&tree_iter); }
+                        }
+
+                        // Then, get his number, and add 1 to it.
+                        let index = self.fields_list_store.get_value(&tree_iter, 0).get::<String>().unwrap().parse::<i32>().unwrap();
+                        format!("{:0count$}", index + 1, count = 3)
+                    }
+                    None => format!("001"),
+                }
+            },
         };
 
         let decoded_data = decode_data_by_fieldtype(
             packed_file_decoded,
             &field_type,
-            index_data
+            &mut index_data
         );
 
         let field_type = match field_type {
@@ -1869,7 +4007,7 @@ impl PackedFileDBDecoder {
         };
 
         if let Some(ref reference) = *field_is_reference {
-            packed_file_decoder.fields_list_store.insert_with_values(
+            self.fields_list_store.insert_with_values(
                 None,
                 &[0, 1, 2, 3, 4, 5, 6, 7],
                 &[
@@ -1879,13 +4017,13 @@ impl PackedFileDBDecoder {
                     &field_is_key,
                     &reference.0,
                     &reference.1,
-                    &decoded_data.0,
+                    &decoded_data,
                     &field_description,
                 ]
             );
         }
         else {
-            packed_file_decoder.fields_list_store.insert_with_values(
+            self.fields_list_store.insert_with_values(
                 None,
                 &[0, 1, 2, 3, 4, 5, 6, 7],
                 &[
@@ -1895,14 +4033,11 @@ impl PackedFileDBDecoder {
                     &field_is_key,
                     &String::new(),
                     &String::new(),
-                    &decoded_data.0,
+                    &decoded_data,
                     &field_description,
                 ]
             );
         }
-
-        // We return the updated index.
-        decoded_data.1
     }
 
     /// This function gets the data from the "Decoder" table, and returns it, so we can save it in a
@@ -1910,8 +4045,7 @@ impl PackedFileDBDecoder {
     pub fn return_data_from_data_view(&self) -> Vec<Field> {
         let mut fields = vec![];
 
-        // Only in case we have any line in the ListStore we try to get it. Otherwise we return an
-        // empty LocData.
+        // Only in case we have any line in the ListStore we try to get it. Otherwise we return an empty vector.
         if let Some(current_line) = self.fields_list_store.get_iter_first() {
             let mut done = false;
             while !done {
@@ -1951,38 +4085,74 @@ impl PackedFileDBDecoder {
     /// the schema with one of the "Use this" buttons.
     pub fn use_this(
         &self,
-        table_definition: &Rc<RefCell<TableDefinition>>,
-        mut index_data: usize,
+        mut index_data: &mut usize,
         packed_file_data_encoded: &[u8],
         field_type: FieldType,
-    ) -> usize {
+    ) {
 
         // Try to add the field, and update the index with it.
-        index_data = PackedFileDBDecoder::add_field_to_data_view(
-            self,
+        self.add_field_to_data_view(
             packed_file_data_encoded,
-            &table_definition.borrow(),
             &self.field_name_entry.get_buffer().get_text(),
             field_type,
             self.is_key_field_switch.get_active(),
             &None,
             &String::new(),
-            index_data,
+            &mut index_data,
             None
         );
 
-        // Update all the dinamyc data of the "Decoder" view.
-        PackedFileDBDecoder::update_decoder_view(
-            self,
+        // Update all the dynamic data of the "Decoder" view.
+        self.update_decoder_view(
             packed_file_data_encoded,
-            None,
-            index_data,
+            (false, &[]),
+            &mut index_data,
         );
 
         // Enable the "Delete all fields" button.
         self.delete_all_fields_button.set_sensitive(true);
+    }
 
-        index_data
+    /// This function updates the "First row decoded" column in the Decoder View, the current index and
+    /// the decoded entries. This should be called in row changes (deletion and moving, not adding).
+    fn update_first_row_decoded(&self, packedfile: &[u8], get_start_of_list: bool, mut index: &mut usize) {
+        let iter = self.fields_list_store.get_iter_first();
+
+        // Reset the index.
+        *index = self.data_initial_index;
+        if let Some(current_iter) = iter {
+            loop {
+
+                // Get the type from the column...
+                let field_type = match self.fields_list_store.get_value(&current_iter, 2).get().unwrap() {
+                    "Bool"=> FieldType::Boolean,
+                    "Float" => FieldType::Float,
+                    "Integer" => FieldType::Integer,
+                    "LongInteger" => FieldType::LongInteger,
+                    "StringU8" => FieldType::StringU8,
+                    "StringU16" => FieldType::StringU16,
+                    "OptionalStringU8" => FieldType::OptionalStringU8,
+                    "OptionalStringU16" | _ => FieldType::OptionalStringU16,
+                };
+
+                // Get the decoded data using it's type...
+                let decoded_data = decode_data_by_fieldtype(
+                    packedfile,
+                    &field_type,
+                    &mut index
+                );
+
+                // Set the new values.
+                self.fields_list_store.set_value(&current_iter, 6, &gtk::ToValue::to_value(&decoded_data));
+
+                // If we are trying to get the start of a list, and we are at the iter of the list, stop.
+                if get_start_of_list && self.fields_tree_view.get_selection().iter_is_selected(&current_iter) { break; }
+
+                // Break the loop once you run out of rows.
+                if !self.fields_list_store.iter_next(&current_iter) { break; }
+            }
+        }
+        self.update_decoder_view(packedfile, (false, &[]), &mut index);
     }
 }
 
@@ -1990,109 +4160,239 @@ impl PackedFileDBDecoder {
 /// This function is a helper to try to decode data in different formats, returning "Error" in case
 /// of decoding error. It requires the FieldType we want to decode, the data we want to decode
 /// (vec<u8>, being the first u8 the first byte to decode) and the index of the data in the Vec<u8>.
-pub fn decode_data_by_fieldtype(field_data: &[u8], field_type: &FieldType, index_data: usize) -> (String, usize) {
+fn decode_data_by_fieldtype(
+    field_data: &[u8],
+    field_type: &FieldType,
+    mut index_data: &mut usize
+) -> String {
+
+    // Try to decode the field, depending on what type that field is.
     match *field_type {
+
+        // If the field is a boolean...
         FieldType::Boolean => {
+
             // Check if the index does even exist, to avoid crashes.
-            if field_data.get(index_data).is_some() {
-                match coding_helpers::decode_packedfile_bool(field_data[index_data], index_data) {
+            if field_data.get(*index_data).is_some() {
+                match coding_helpers::decode_packedfile_bool(field_data[*index_data], &mut index_data) {
                     Ok(result) => {
-                        if result.0 {
-                            ("True".to_string(), result.1)
-                        }
-                        else {
-                            ("False".to_string(), result.1)
-                        }
+                        if result { "True".to_string() }
+                        else { "False".to_string() }
                     }
-                    Err(_) => ("Error".to_owned(), index_data),
+                    Err(_) => "Error".to_owned(),
                 }
             }
-            else {
-                ("Error".to_owned(), index_data)
-            }
+            else { "Error".to_owned() }
         },
         FieldType::Float => {
-            if field_data.get(index_data..(index_data + 4)).is_some() {
-                match coding_helpers::decode_packedfile_float_f32(&field_data[index_data..(index_data + 4)], index_data) {
-                    Ok(result) => (result.0.to_string(), result.1),
-                    Err(_) => ("Error".to_owned(), index_data),
+            if field_data.get(*index_data + 3).is_some() {
+                match coding_helpers::decode_packedfile_float_f32(&field_data[*index_data..(*index_data + 4)], &mut index_data) {
+                    Ok(result) => result.to_string(),
+                    Err(_) => "Error".to_owned(),
                 }
             }
-            else {
-                ("Error".to_owned(), index_data)
-            }
+            else { "Error".to_owned() }
         },
         FieldType::Integer => {
-            if field_data.get(index_data..(index_data + 4)).is_some() {
-                match coding_helpers::decode_packedfile_integer_i32(&field_data[index_data..(index_data +4)], index_data) {
-                    Ok(result) => (result.0.to_string(), result.1),
-                    Err(_) => ("Error".to_owned(), index_data),
+            if field_data.get(*index_data + 3).is_some() {
+                match coding_helpers::decode_packedfile_integer_i32(&field_data[*index_data..(*index_data + 4)], &mut index_data) {
+                    Ok(result) => result.to_string(),
+                    Err(_) => "Error".to_owned(),
                 }
             }
-            else {
-                ("Error".to_owned(), index_data)
-            }
+            else { "Error".to_owned() }
         },
         FieldType::LongInteger => {
-            if field_data.get(index_data..(index_data + 8)).is_some() {
-                match coding_helpers::decode_packedfile_integer_i64(&field_data[index_data..(index_data +8)], index_data) {
-                    Ok(result) => (result.0.to_string(), result.1),
-                    Err(_) => ("Error".to_owned(), index_data),
+            if field_data.get(*index_data + 7).is_some() {
+                match coding_helpers::decode_packedfile_integer_i64(&field_data[*index_data..(*index_data + 8)], &mut index_data) {
+                    Ok(result) => result.to_string(),
+                    Err(_) => "Error".to_owned(),
                 }
             }
-            else {
-                ("Error".to_owned(), index_data)
-            }
+            else { "Error".to_owned() }
         },
         FieldType::StringU8 => {
-            if field_data.get(index_data).is_some() {
-                match coding_helpers::decode_packedfile_string_u8(&field_data[index_data..], index_data) {
+            if field_data.get(*index_data + 1).is_some() {
+                match coding_helpers::decode_packedfile_string_u8(&field_data[*index_data..], &mut index_data) {
                     Ok(result) => result,
-                    Err(_) => ("Error".to_owned(), index_data),
+                    Err(_) => "Error".to_owned(),
                 }
             }
-            else {
-                ("Error".to_owned(), index_data)
-            }
+            else { "Error".to_owned() }
         },
         FieldType::StringU16 => {
-            if field_data.get(index_data).is_some() {
-                match coding_helpers::decode_packedfile_string_u16(&field_data[index_data..], index_data) {
+            if field_data.get(*index_data + 1).is_some() {
+                match coding_helpers::decode_packedfile_string_u16(&field_data[*index_data..], &mut index_data) {
                     Ok(result) => result,
-                    Err(_) => ("Error".to_owned(), index_data),
+                    Err(_) => "Error".to_owned(),
                 }
             }
-            else {
-                ("Error".to_owned(), index_data)
-            }
+            else { "Error".to_owned() }
         },
         FieldType::OptionalStringU8 => {
-            if field_data.get(index_data).is_some() {
-                match coding_helpers::decode_packedfile_optional_string_u8(&field_data[index_data..], index_data) {
+            if field_data.get(*index_data).is_some() {
+                match coding_helpers::decode_packedfile_optional_string_u8(&field_data[*index_data..], &mut index_data) {
                     Ok(result) => result,
-                    Err(_) => ("Error".to_owned(), index_data),
+                    Err(_) => "Error".to_owned(),
                 }
             }
-            else {
-                ("Error".to_owned(), index_data)
-            }
+            else { "Error".to_owned() }
         },
         FieldType::OptionalStringU16 => {
-            if field_data.get(index_data).is_some() {
-                match coding_helpers::decode_packedfile_optional_string_u16(&field_data[index_data..], index_data) {
+            if field_data.get(*index_data).is_some() {
+                match coding_helpers::decode_packedfile_optional_string_u16(&field_data[*index_data..], &mut index_data) {
                     Ok(result) => result,
-                    Err(_) => ("Error".to_owned(), index_data),
+                    Err(_) => "Error".to_owned(),
                 }
             }
-            else {
-                ("Error".to_owned(), index_data)
-            }
+            else { "Error".to_owned() }
         },
     }
 }
 
+/// This function checks if the data in the clipboard is a valid row of the current table. Returns
+/// `true` if the data in the clipboard forms valid rows, and `false` if any of them is an invalid row.
+fn check_clipboard_row(app_ui: &AppUI, table_definition: &TableDefinition) -> bool {
+
+    // Try to get the data from the `Clipboard`....
+    if let Some(data) = app_ui.clipboard.wait_for_text() {
+
+        // Get the definitions for this table.
+        let fields_type = table_definition.fields.iter().map(|x| x.field_type.clone()).collect::<Vec<FieldType>>();
+
+        // Store here all the decoded fields.
+        let mut fields_data = vec![];
+
+        // For each row in the data we received...
+        for row in data.lines() {
+
+            // Get all the data from his fields.
+            fields_data.push(row.split('\t').map(|x| x.to_owned()).collect::<Vec<String>>());
+        }
+
+        // If we at least have one row...
+        if !fields_data.is_empty() {
+
+            // Var to control when a field is invalid.
+            let mut data_is_invalid = false;
+
+            // For each row we have...
+            for row in &fields_data {
+
+                // If we have the same amount of data for each field...
+                if row.len() == fields_type.len() {
+
+                    // For each field in the row...
+                    for (index, field) in row.iter().enumerate() {
+
+                        // Try to decode the field as his "FieldType". If any of the fields fail, the rows are invalid.
+                        let field_is_valid: bool = match fields_type[index] {
+                            FieldType::Boolean => if field == "true" || field == "false" { true } else { false },
+                            FieldType::Float => field.parse::<f32>().is_ok(),
+                            FieldType::Integer => field.parse::<i32>().is_ok(),
+                            FieldType::LongInteger => field.parse::<i64>().is_ok(),
+
+                            // All these are just Strings.
+                            FieldType::StringU8 |
+                            FieldType::StringU16 |
+                            FieldType::OptionalStringU8 |
+                            FieldType::OptionalStringU16 => field.parse::<String>().is_ok(),
+                        };
+
+                        // If any field is invalid, the entire row is invalid.
+                        if !field_is_valid {
+                            data_is_invalid = true;
+                            break;
+                        }
+                    }
+                }
+
+                // Otherwise, the rows are invalid.
+                else {
+                    data_is_invalid = true;
+                    break;
+                }
+            }
+
+            // If in any point the data was invalid, return false.
+            if data_is_invalid { false } else { true }
+        }
+
+        // Otherwise, the contents of the `Clipboard` are invalid.
+        else { false }
+    }
+
+    // Otherwise, there is no data in the `Clipboard`.
+    else { false }
+}
+
+/// This function checks if the data in the clipboard is suitable for the column we have selected.
+/// Returns `true` if the data is pasteable, false, otherwise.
+fn check_clipboard_column(app_ui: &AppUI, table_definition: &TableDefinition, column: &TreeViewColumn) -> bool {
+
+    // Try to get the data from the `Clipboard`....
+    if let Some(data) = app_ui.clipboard.wait_for_text() {
+
+        // Get the column's id.
+        let mut column_number = column.get_sort_column_id() - 1;
+
+        // If the column it's valid...
+        if column_number >= 0 {
+
+            // Get the type of the column.
+            let column_type = table_definition.fields[column_number as usize].field_type.clone();
+
+            // Get the data to paste, separated by lines.
+            let fields_data = data.lines().collect::<Vec<&str>>();
+
+            // If we at least have one row...
+            if !fields_data.is_empty() {
+
+                // Var to control when a field is invalid.
+                let mut data_is_invalid = false;
+
+                // For each field we have...
+                for field in &fields_data {
+
+                    // Try to decode the field as his "FieldType". If any of the fields fail, the rows are invalid.
+                    let field_is_valid: bool = match column_type {
+                        FieldType::Boolean => if *field == "true" || *field == "false" { true } else { false },
+                        FieldType::Float => field.parse::<f32>().is_ok(),
+                        FieldType::Integer => field.parse::<i32>().is_ok(),
+                        FieldType::LongInteger => field.parse::<i64>().is_ok(),
+
+                        // All these are just Strings.
+                        FieldType::StringU8 |
+                        FieldType::StringU16 |
+                        FieldType::OptionalStringU8 |
+                        FieldType::OptionalStringU16 => field.parse::<String>().is_ok(),
+                    };
+
+                    // If any field is invalid, the entire row is invalid.
+                    if !field_is_valid {
+                        data_is_invalid = true;
+                        break;
+                    }
+                }
+
+                // If in any point the data was invalid, return false.
+                if data_is_invalid { false } else { true }
+            }
+
+            // Otherwise, the contents of the `Clipboard` are invalid.
+            else { false }
+        }
+
+        // Otherwise, the column is not pasteable.
+        else { false }
+    }
+
+    // Otherwise, there is no data in the `Clipboard`.
+    else { false }
+}
+
 /// This function creates the TextTags `header` and `index` for the provided TextView.
-pub fn create_text_tags(text_view: &TextView) {
+fn create_text_tags(text_view: &TextView) {
 
     // Get the TagTable of the Buffer of the TextView...
     let text_buffer = text_view.get_buffer().unwrap();
@@ -2115,7 +4415,7 @@ pub fn create_text_tags(text_view: &TextView) {
 }
 
 /// This function "process" the column names of a table, so they look like they should.
-pub fn clean_column_names(field_name: &str) -> String {
+fn clean_column_names(field_name: &str) -> String {
 
     // Create the "New" processed `String`.
     let mut new_name = String::new();

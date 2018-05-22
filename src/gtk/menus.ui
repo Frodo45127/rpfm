@@ -54,6 +54,11 @@
                                 <attribute name="action">app.change-packfile-type</attribute>
                                 <attribute name="target">movie</attribute>
                             </item>
+                            <item>
+                                <attribute name="label" translatable="yes">_Other</attribute>
+                                <attribute name="action">app.change-packfile-type</attribute>
+                                <attribute name="target">other</attribute>
+                            </item>
                         </section>
                     </submenu>
                 </section>
@@ -115,12 +120,12 @@
                         <attribute name="action">app.change-game-selected</attribute>
                         <attribute name="target">warhammer</attribute>
                     </item>
-                    <!--
                     <item>
-                        <attribute name="label" translatable="yes">_Atila</attribute>
+                        <attribute name="label" translatable="yes">_Attila</attribute>
                         <attribute name="action">app.change-game-selected</attribute>
                         <attribute name="target">attila</attribute>
                     </item>
+                    <!--
                     <item>
                         <attribute name="label" translatable="yes">_Rome 2</attribute>
                         <attribute name="action">app.change-game-selected</attribute>
@@ -167,6 +172,16 @@
                             </item>
                         </section>
                     </submenu>
+
+                    <submenu>
+                        <attribute name="label" translatable="yes">_Attila</attribute>
+                        <section>
+                            <item>
+                                <attribute name="label" translatable="yes">_Generate Dependency Pack</attribute>
+                                <attribute name="action">app.generate-dependency-pack-att</attribute>
+                            </item>
+                        </section>
+                    </submenu>
                 </section>
             </submenu>
             <submenu>
@@ -178,6 +193,10 @@
                 <item>
                     <attribute name="label" translatable="yes">_Check Updates</attribute>
                     <attribute name="action">app.check-updates</attribute>
+                </item>
+                <item>
+                    <attribute name="label" translatable="yes">Check Schema _Updates</attribute>
+                    <attribute name="action">app.check-schema-updates</attribute>
                 </item>
                 <item>
                     <attribute name="label" translatable="yes">Support me on _Patreon</attribute>
@@ -214,6 +233,27 @@
                 <attribute name="label" translatable="yes">_Rename</attribute>
                 <attribute name="action">app.rename-packedfile</attribute>
             </item>
+            <submenu>
+                <attribute name="label" translatable="yes">_Create...</attribute>
+                <section>
+                    <item>
+                        <attribute name="label" translatable="yes">Create _Loc File</attribute>
+                        <attribute name="action">app.create-loc</attribute>
+                    </item>
+                    <item>
+                        <attribute name="label" translatable="yes">Create _DB Table</attribute>
+                        <attribute name="action">app.create-db</attribute>
+                    </item>
+                    <item>
+                        <attribute name="label" translatable="yes">Create _Text File</attribute>
+                        <attribute name="action">app.create-text</attribute>
+                    </item>
+                    <item>
+                        <attribute name="label" translatable="yes">_Mass-Import TSV Files</attribute>
+                        <attribute name="action">app.mass-import-tsv</attribute>
+                    </item>
+                </section>
+            </submenu>
             <item>
                 <attribute name="label" translatable="yes">_Delete</attribute>
                 <attribute name="action">app.delete-packedfile</attribute>
@@ -221,6 +261,22 @@
             <item>
                 <attribute name="label" translatable="yes">_Extract</attribute>
                 <attribute name="action">app.extract-packedfile</attribute>
+            </item>
+        </section>
+    </menu>
+    <menu id="context_menu_db_decoder">
+        <section>
+            <item>
+                <attribute name="label" translatable="yes">Move row _up</attribute>
+                <attribute name="action">app.move-row-up</attribute>
+            </item>
+            <item>
+                <attribute name="label" translatable="yes">Move row _down</attribute>
+                <attribute name="action">app.move-row-down</attribute>
+            </item>
+            <item>
+                <attribute name="label" translatable="yes">_Delete row</attribute>
+                <attribute name="action">app.delete-row</attribute>
             </item>
         </section>
     </menu>

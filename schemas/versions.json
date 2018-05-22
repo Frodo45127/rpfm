@@ -1,0 +1,12 @@
+{
+  "schemas": [
+    {
+      "schema_file": "schema_wh.json",
+      "version": 1
+    },
+    {
+      "schema_file": "schema_att.json",
+      "version": 1
+    }
+  ]
+}

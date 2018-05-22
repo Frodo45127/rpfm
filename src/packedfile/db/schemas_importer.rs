@@ -83,8 +83,8 @@ pub fn import_schema(
                             file.read_to_end(&mut pack_file_buffered).expect("Error reading file.");
 
                             // Get it's version...
-                            let header = DBHeader::read(&pack_file_buffered).unwrap();
-                            let version = header.0.packed_file_header_packed_file_version;
+                            let header = DBHeader::read(&pack_file_buffered, &mut 0).unwrap();
+                            let version = header.version;
 
                             // And add it to the schema.
                             schema.add_table_definitions(TableDefinitions::new(&table_name));

@@ -18,7 +18,6 @@ use super::schemas_importer;
 /// - tables_definition: the actual definitions.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Schema {
-    pub version: u32,
     pub tables_definitions: Vec<TableDefinitions>,
 }
 
@@ -55,7 +54,7 @@ pub struct Field {
 }
 
 /// Enum FieldType: This enum is used to define the possible types of a field in the schema.
-#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum FieldType {
     Boolean,
     Float,
@@ -73,11 +72,9 @@ impl Schema {
     /// This function creates a new schema. It should only be needed to create the first table definition
     /// of a game, as the rest will continue using the same schema.
     pub fn new() -> Schema {
-        let version = 1u32;
         let tables_definitions = vec![];
 
         Schema {
-            version,
             tables_definitions,
         }
     }
@@ -202,11 +199,9 @@ impl TableDefinition {
     /// This function creates a new table definition. We need to call it when we don't have a definition
     /// of the table we are trying to decode with the version we have.
     pub fn new(version: u32) -> TableDefinition {
-        let fields = vec![];
-
         TableDefinition {
             version,
-            fields,
+            fields: vec![Field::new("example_field".to_owned(), FieldType::StringU8, false, None, "delete this field if you see it".to_owned())],
         }
     }
 

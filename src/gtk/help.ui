@@ -151,7 +151,7 @@
                                 <property name="title" translatable="yes">Delete row</property>
                             </object>
                         </child>
-                        
+
                         <child>
                             <object class="GtkShortcutsShortcut">
                                 <property name="visible">1</property>
@@ -183,12 +183,28 @@
                                 <property name="title" translatable="yes">Paste row</property>
                             </object>
                         </child>
+                        
+                        <child>
+                            <object class="GtkShortcutsShortcut">
+                                <property name="visible">1</property>
+                                <property name="accelerator">&lt;Ctrl&gt;k</property>
+                                <property name="title" translatable="yes">Copy column</property>
+                            </object>
+                        </child>
+
+                        <child>
+                            <object class="GtkShortcutsShortcut">
+                                <property name="visible">1</property>
+                                <property name="accelerator">&lt;Ctrl&gt;l</property>
+                                <property name="title" translatable="yes">Paste column</property>
+                            </object>
+                        </child>
 
                         <child>
                             <object class="GtkShortcutsShortcut">
                                 <property name="visible">1</property>
                                 <property name="accelerator">&lt;Ctrl&gt;&lt;Shift&gt;i</property>
-                                <property name="title" translatable="yes">Import from CSV</property>
+                                <property name="title" translatable="yes">Import from TSV</property>
                             </object>
                         </child>
 
@@ -196,7 +212,7 @@
                             <object class="GtkShortcutsShortcut">
                                 <property name="visible">1</property>
                                 <property name="accelerator">&lt;Ctrl&gt;&lt;Shift&gt;e</property>
-                                <property name="title" translatable="yes">Export to CSV</property>
+                                <property name="title" translatable="yes">Export to TSV</property>
                             </object>
                         </child>
 
@@ -268,8 +284,24 @@
                         <child>
                             <object class="GtkShortcutsShortcut">
                                 <property name="visible">1</property>
+                                <property name="accelerator">&lt;Ctrl&gt;k</property>
+                                <property name="title" translatable="yes">Copy column</property>
+                            </object>
+                        </child>
+
+                        <child>
+                            <object class="GtkShortcutsShortcut">
+                                <property name="visible">1</property>
+                                <property name="accelerator">&lt;Ctrl&gt;l</property>
+                                <property name="title" translatable="yes">Paste column</property>
+                            </object>
+                        </child>
+
+                        <child>
+                            <object class="GtkShortcutsShortcut">
+                                <property name="visible">1</property>
                                 <property name="accelerator">&lt;Ctrl&gt;&lt;Shift&gt;i</property>
-                                <property name="title" translatable="yes">Import from CSV</property>
+                                <property name="title" translatable="yes">Import from TSV</property>
                             </object>
                         </child>
 
@@ -277,7 +309,7 @@
                             <object class="GtkShortcutsShortcut">
                                 <property name="visible">1</property>
                                 <property name="accelerator">&lt;Ctrl&gt;&lt;Shift&gt;e</property>
-                                <property name="title" translatable="yes">Export to CSV</property>
+                                <property name="title" translatable="yes">Export to TSV</property>
                             </object>
                         </child>
                     </object>
