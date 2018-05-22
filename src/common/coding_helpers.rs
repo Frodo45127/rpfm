@@ -10,7 +10,10 @@
 
 extern crate failure;
 extern crate byteorder;
+extern crate encoding;
 
+use self::encoding::{Encoding, DecoderTrap};
+use self::encoding::all::ISO_8859_1;
 use failure::Error;
 
 use self::byteorder::{
@@ -88,6 +91,12 @@ pub fn decode_float_f32(float_encoded: &[u8]) -> Result<f32, Error> {
 #[allow(dead_code)]
 pub fn decode_string_u8(string_encoded: &[u8]) -> Result<String, Error> {
     String::from_utf8(string_encoded.to_vec()).map_err(|_| format_err!("Error trying to decode an UTF-8 String."))
+}
+
+/// This function allow us to decode an UTF-8 encoded String.
+#[allow(dead_code)]
+pub fn decode_string_u8_iso_8859_1(string_encoded: &[u8]) -> Result<String, Error> {
+    ISO_8859_1.decode(string_encoded, DecoderTrap::Replace).map(|x| x.to_string()).map_err(|_| format_err!("Error trying to decode an UTF-8 String."))
 }
 
 /// This function allow us to decode an (0-Padded) UTF-8 encoded String. This type of String has a

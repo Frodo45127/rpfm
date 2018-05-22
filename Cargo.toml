@@ -7,6 +7,7 @@ description = "A modding tool for Total War games."
 
 [dependencies]
 byteorder = "1.2"
+encoding = "0.2.33"
 num = "0.1"
 csv = "1.0.0-beta.5"
 serde = "1.0"

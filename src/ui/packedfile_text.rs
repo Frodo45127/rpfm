@@ -33,9 +33,19 @@ pub fn create_text_view(
     // Get the name of the PackedFile.
     let packed_file_name = &pack_file.borrow().data.packed_files[*packed_file_decoded_index].path.last().unwrap().to_owned();
 
+    // Try to decode the PackedFile as a normal UTF-8 string.
+    let mut decoded_string = decode_string_u8(&pack_file.borrow().data.packed_files[*packed_file_decoded_index].data);
+
+    // If there is an error, try again as ISO_8859_1, as there are some text files using that encoding.
+    if decoded_string.is_err() {
+        if let Ok(string) = decode_string_u8_iso_8859_1(&pack_file.borrow().data.packed_files[*packed_file_decoded_index].data) {
+            decoded_string = Ok(string);
+        }
+    }
+
     // We try to decode the data. Only if we success, we create the SourceView and add the data to it.
-    // NOTE: This only works for UTF-8 encoded files. Check their encoding before adding them here to be decoded.
-    match decode_string_u8(&pack_file.borrow().data.packed_files[*packed_file_decoded_index].data) {
+    // NOTE: This only works for UTF-8 and ISO_8859_1 encoded files. Check their encoding before adding them here to be decoded.
+    match decoded_string {
         Ok(text) => {
 
             // We create the new SourceView (in a ScrolledWindow) and his buffer,
