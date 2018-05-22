@@ -913,6 +913,8 @@ pub fn remove_temporal_accelerators(application: &Application) {
     application.set_accels_for_action("packedfile_db_clone_rows", &[]);
     application.set_accels_for_action("packedfile_db_copy_rows", &[]);
     application.set_accels_for_action("packedfile_db_paste_rows", &[]);
+    application.set_accels_for_action("packedfile_db_copy_columns", &[]);
+    application.set_accels_for_action("packedfile_db_paste_columns", &[]);
     application.set_accels_for_action("packedfile_db_import_tsv", &[]);
     application.set_accels_for_action("packedfile_db_export_tsv", &[]);
     application.remove_action("packedfile_db_add_rows");
@@ -922,6 +924,8 @@ pub fn remove_temporal_accelerators(application: &Application) {
     application.remove_action("packedfile_db_clone_rows");
     application.remove_action("packedfile_db_copy_rows");
     application.remove_action("packedfile_db_paste_rows");
+    application.remove_action("packedfile_db_copy_columns");
+    application.remove_action("packedfile_db_paste_columns");
     application.remove_action("packedfile_db_import_tsv");
     application.remove_action("packedfile_db_export_tsv");
 

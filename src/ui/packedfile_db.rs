@@ -911,6 +911,16 @@ impl PackedFileDBTreeView{
         paste_rows_button.set_property_text(Some("Paste row/s"));
         paste_rows_button.set_action_name("app.packedfile_db_paste_rows");
 
+        // Create the "Copy column/s" button.
+        let copy_columns_button = ModelButton::new();
+        copy_columns_button.set_property_text(Some("Copy column/s"));
+        copy_columns_button.set_action_name("app.packedfile_db_copy_columns");
+
+        // Create the "Paste column/s" button.
+        let paste_columns_button = ModelButton::new();
+        paste_columns_button.set_property_text(Some("Paste column/s"));
+        paste_columns_button.set_action_name("app.packedfile_db_paste_columns");
+
         // Create the separator between the "Import/Export" buttons and the rest.
         let separator_2 = Separator::new(Orientation::Vertical);
 
@@ -932,6 +942,8 @@ impl PackedFileDBTreeView{
         let clone_rows = SimpleAction::new("packedfile_db_clone_rows", None);
         let copy_rows = SimpleAction::new("packedfile_db_copy_rows", None);
         let paste_rows = SimpleAction::new("packedfile_db_paste_rows", None);
+        let copy_columns = SimpleAction::new("packedfile_db_copy_columns", None);
+        let paste_columns = SimpleAction::new("packedfile_db_paste_columns", None);
         let import_tsv = SimpleAction::new("packedfile_db_import_tsv", None);
         let export_tsv = SimpleAction::new("packedfile_db_export_tsv", None);
 
@@ -942,6 +954,8 @@ impl PackedFileDBTreeView{
         application.add_action(&clone_rows);
         application.add_action(&copy_rows);
         application.add_action(&paste_rows);
+        application.add_action(&copy_columns);
+        application.add_action(&paste_columns);
         application.add_action(&import_tsv);
         application.add_action(&export_tsv);
 
@@ -953,6 +967,8 @@ impl PackedFileDBTreeView{
         application.set_accels_for_action("app.packedfile_db_clone_rows", &["<Primary><Shift>d"]);
         application.set_accels_for_action("app.packedfile_db_copy_rows", &["<Primary>z"]);
         application.set_accels_for_action("app.packedfile_db_paste_rows", &["<Primary>x"]);
+        application.set_accels_for_action("app.packedfile_db_copy_columns", &["<Primary>k"]);
+        application.set_accels_for_action("app.packedfile_db_paste_columns", &["<Primary>l"]);
         application.set_accels_for_action("app.packedfile_db_import_tsv", &["<Primary><Shift>i"]);
         application.set_accels_for_action("app.packedfile_db_export_tsv", &["<Primary><Shift>e"]);
 
@@ -961,7 +977,9 @@ impl PackedFileDBTreeView{
         copy_cell.set_enabled(false);
         clone_rows.set_enabled(false);
         copy_rows.set_enabled(false);
+        copy_columns.set_enabled(false);
         paste_cell.set_enabled(false);
+        paste_columns.set_enabled(true);
 
         // Depending of the current contents of the `Clipboard`, set the initial state of the "Paste rows" action.
         if app_ui.clipboard.wait_for_text().is_some() {
@@ -984,9 +1002,11 @@ impl PackedFileDBTreeView{
         context_menu_grid.attach(&clone_rows_button, 0, 5, 2, 1);
         context_menu_grid.attach(&copy_rows_button, 0, 6, 2, 1);
         context_menu_grid.attach(&paste_rows_button, 0, 7, 2, 1);
-        context_menu_grid.attach(&separator_2, 0, 8, 2, 1);
-        context_menu_grid.attach(&import_tsv_button, 0, 9, 2, 1);
-        context_menu_grid.attach(&export_tsv_button, 0, 10, 2, 1);
+        context_menu_grid.attach(&copy_columns_button, 0, 8, 2, 1);
+        context_menu_grid.attach(&paste_columns_button, 0, 9, 2, 1);
+        context_menu_grid.attach(&separator_2, 0, 10, 2, 1);
+        context_menu_grid.attach(&import_tsv_button, 0, 11, 2, 1);
+        context_menu_grid.attach(&export_tsv_button, 0, 12, 2, 1);
 
         // Add the `Grid` to the Context Menu and show it.
         context_menu.add(&context_menu_grid);
@@ -1097,6 +1117,7 @@ impl PackedFileDBTreeView{
                 table,
                 app_ui,
                 paste_rows,
+                paste_columns,
                 table_definition => move |tree_view, button| {
 
                     // If we clicked the right mouse button...
@@ -1105,17 +1126,29 @@ impl PackedFileDBTreeView{
                         // If we got text in the `Clipboard`...
                         if app_ui.clipboard.wait_for_text().is_some() {
 
-                            // If the data in the clipboard is a valid row...
-                            if check_clipboard_row(&app_ui, &table_definition) {
-
-                                // We enable "Paste rows".
-                                paste_rows.set_enabled(true);
-                            }
+                            // If the data in the clipboard is a valid row, we enable "Paste rows".
+                            if check_clipboard_row(&app_ui, &table_definition) { paste_rows.set_enabled(true); }
 
                             // Otherwise, we disable the "Paste rows" action.
                             else { paste_rows.set_enabled(false); }
+
+                            // If we have a column selected...
+                            if let Some(column) = table.tree_view.get_cursor().1 {
+
+                                // If the data in the clipboard is a valid column, we enable "Paste columns".
+                                if check_clipboard_column(&app_ui, &table_definition, &column) { paste_columns.set_enabled(true); }
+
+                                // Otherwise, we disable the "Paste columns" action.
+                                else { paste_columns.set_enabled(false); }
+                            }
+
+                            // Otherwise, we disable the "Paste columns" action.
+                            else { paste_columns.set_enabled(false); }
                         }
-                        else { paste_rows.set_enabled(false); }
+                        else {
+                            paste_rows.set_enabled(false);
+                            paste_columns.set_enabled(false);
+                        }
 
                         table.context_menu.set_pointing_to(&get_rect_for_popover(tree_view, Some(button.get_position())));
                         table.context_menu.popup();
@@ -1130,6 +1163,7 @@ impl PackedFileDBTreeView{
                 app_ui,
                 copy_cell,
                 copy_rows,
+                copy_columns,
                 clone_rows,
                 paste_cell,
                 delete_rows => move |tree_view| {
@@ -1140,6 +1174,7 @@ impl PackedFileDBTreeView{
                         // Allow to delete, clone and copy.
                         copy_cell.set_enabled(true);
                         copy_rows.set_enabled(true);
+                        copy_columns.set_enabled(true);
                         clone_rows.set_enabled(true);
                         delete_rows.set_enabled(true);
                     }
@@ -1148,6 +1183,7 @@ impl PackedFileDBTreeView{
                     else {
                         copy_cell.set_enabled(false);
                         copy_rows.set_enabled(false);
+                        copy_columns.set_enabled(false);
                         clone_rows.set_enabled(false);
                         delete_rows.set_enabled(false);
                     }
@@ -1168,6 +1204,7 @@ impl PackedFileDBTreeView{
                                 // If the cell is invalid, disable the copy for it.
                                 else if column.get_sort_column_id() < 0 {
                                     copy_cell.set_enabled(false);
+                                    copy_columns.set_enabled(false);
                                     paste_cell.set_enabled(false);
                                 }
                                 else {
@@ -1715,6 +1752,192 @@ impl PackedFileDBTreeView{
                                     Err(error) => show_dialog(&app_ui.window, false, error.cause()),
                                 }
                             };
+                        }
+                    }
+                }
+            ));
+
+            // When we hit the "Copy column" button.
+            copy_columns.connect_activate(clone!(
+                table_definition,
+                app_ui,
+                table => move |_,_| {
+
+                    // Hide the context menu.
+                    table.context_menu.popdown();
+
+                    // We only do something in case the focus is in the TreeView. This should stop problems with
+                    // the accels working everywhere.
+                    if table.tree_view.has_focus() {
+
+                        // If there is a column selected...
+                        if let Some(column) = table.tree_view.get_cursor().1 {
+
+                            // Get the selected rows.
+                            let selected_rows = table.tree_view.get_selection().get_selected_rows().0;
+
+                            // Get the number of the column.
+                            let mut column_number = column.get_sort_column_id() - 1;
+
+                            // Ignore columns with < 0, as those are index or invalid columns.
+                            if column_number >= 0 {
+
+                                // Get the type of the column.
+                                let column_type = table_definition.fields[column_number as usize].field_type.clone();
+
+                                // Get again the real column number for the table.
+                                column_number += 1;
+
+                                // Get the list of `TreeIter`s we want to copy.
+                                let tree_iter_list = selected_rows.iter().map(|row| table.list_store.get_iter(row).unwrap()).collect::<Vec<TreeIter>>();
+
+                                // Create the `String` that will copy the row that will bring that shit of TLJ down.
+                                let mut copy_string = String::new();
+
+                                // For each row...
+                                for (index, row) in tree_iter_list.iter().enumerate() {
+
+                                    // Check his `field_type`...
+                                    let data = match column_type {
+
+                                        // If it's a boolean, get "true" or "false".
+                                        FieldType::Boolean => {
+                                            match table.list_store.get_value(row, column_number).get::<bool>().unwrap() {
+                                                true => "true".to_owned(),
+                                                false => "false".to_owned(),
+                                            }
+                                        }
+
+                                        // If it's an Integer or a Long Integer, turn it into a `String`. Don't know why, but otherwise integer columns crash the program.
+                                        FieldType::Integer => format!("{}", table.list_store.get_value(row, column_number).get::<i32>().unwrap()),
+                                        FieldType::LongInteger => format!("{}", table.list_store.get_value(row, column_number).get::<i64>().unwrap()),
+
+                                        // If it's any other type, just decode it as `String`.
+                                        _ => table.list_store.get_value(row, column_number).get::<String>().unwrap(),
+                                    };
+
+                                    // Add the text to the copied string.
+                                    copy_string.push_str(&data);
+
+                                    // If it's not the last row...
+                                    if index < tree_iter_list.len() - 1 {
+
+                                        // Put an endline between fields, so excel understand them.
+                                        copy_string.push('\n');
+                                    }
+                                }
+
+                                // Pass the copied column to the clipboard.
+                                app_ui.clipboard.set_text(&copy_string);
+                            }
+                        }
+                    }
+                }
+            ));
+
+            // When we hit the "Paste column" button.
+            paste_columns.connect_activate(clone!(
+                table_definition,
+                app_ui,
+                pack_file,
+                packed_file_decoded,
+                packed_file_decoded_index,
+                table => move |_,_| {
+
+                    // Hide the context menu.
+                    table.context_menu.popdown();
+
+                    // We only do something in case the focus is in the TreeView. This should stop problems with
+                    // the accels working everywhere.
+                    if table.tree_view.has_focus() {
+
+                        // Get the selected cell.
+                        let cursor = table.tree_view.get_cursor();
+
+                        // If there is a `TreePath` selected...
+                        if let Some(tree_path) = cursor.0 {
+
+                            // And a column selected...
+                            if let Some(column) = cursor.1 {
+
+                                // Before anything else, we check if the data in the `Clipboard` includes ONLY valid a valid column.
+                                if check_clipboard_column(&app_ui, &table_definition, &column) {
+
+                                    // When it gets the data from the `Clipboard`....
+                                    if let Some(data) = app_ui.clipboard.wait_for_text() {
+
+                                        // Get the number of the column.
+                                        let mut column_number = column.get_sort_column_id() - 1;
+
+                                        // Ignore columns with < 0, as those are index or invalid columns.
+                                        if column_number >= 0 {
+
+                                            // Get the type of the column.
+                                            let column_type = table_definition.fields[column_number as usize].field_type.clone();
+
+                                            // Get again the real column number for the table.
+                                            column_number += 1;
+
+                                            // Get the data to paste, separated by lines.
+                                            let fields_data = data.lines().collect::<Vec<&str>>();
+
+                                            // Get the selected rows.
+                                            let selected_rows = table.tree_view.get_selection().get_selected_rows().0;
+
+                                            // Get the selected row.
+                                            let tree_iter = if !selected_rows.is_empty() {
+                                                table.list_store.get_iter(&selected_rows[0]).unwrap()
+                                            }
+                                            else { table.list_store.get_iter(&tree_path).unwrap() };
+
+                                            // For each line to paste...
+                                            for field in &fields_data {
+
+                                                // Paste the cell.
+                                                match column_type {
+
+                                                    // If it's a boolean, get "true" or "false".
+                                                    FieldType::Boolean => table.list_store.set_value(&tree_iter, column_number as u32, &(if *field == "true" { true } else { false }).to_value()),
+                                                    FieldType::Integer => table.list_store.set_value(&tree_iter, column_number as u32, &field.parse::<i32>().unwrap().to_value()),
+                                                    FieldType::LongInteger => table.list_store.set_value(&tree_iter, column_number as u32, &field.parse::<i64>().unwrap().to_value()),
+
+                                                    // Anything else, just put it into his column with the needed type.
+                                                    _ => table.list_store.set_value(&tree_iter, column_number as u32, &field.to_value()),
+                                                };
+
+                                                // If there are no more rows, stop.
+                                                if !table.list_store.iter_next(&tree_iter) { break; }
+                                            }
+
+                                            // Try to save the new data from the `TreeView`.
+                                            match PackedFileDBTreeView::return_data_from_tree_view(&table_definition, &table.list_store) {
+
+                                                // If we succeed...
+                                                Ok(data) => {
+
+                                                    // Replace our current decoded data with the new one.
+                                                    packed_file_decoded.borrow_mut().data.entries = data;
+
+                                                    // Try to save the changes to the PackFile. If there is an error, report it.
+                                                    if let Err(error) = update_packed_file_data_db(
+                                                        &*packed_file_decoded.borrow_mut(),
+                                                        &mut *pack_file.borrow_mut(),
+                                                        packed_file_decoded_index
+                                                    ) {
+                                                        show_dialog(&app_ui.window, false, error.cause());
+                                                    }
+
+                                                    // Set the mod as "modified", regardless if we succeed at saving the data or not.
+                                                    set_modified(true, &app_ui.window, &mut *pack_file.borrow_mut());
+                                                }
+
+                                                // If there is an error, report it.
+                                                Err(error) => show_dialog(&app_ui.window, false, error.cause()),
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -4094,6 +4317,71 @@ fn check_clipboard_row(app_ui: &AppUI, table_definition: &TableDefinition) -> bo
         }
 
         // Otherwise, the contents of the `Clipboard` are invalid.
+        else { false }
+    }
+
+    // Otherwise, there is no data in the `Clipboard`.
+    else { false }
+}
+
+/// This function checks if the data in the clipboard is suitable for the column we have selected.
+/// Returns `true` if the data is pasteable, false, otherwise.
+fn check_clipboard_column(app_ui: &AppUI, table_definition: &TableDefinition, column: &TreeViewColumn) -> bool {
+
+    // Try to get the data from the `Clipboard`....
+    if let Some(data) = app_ui.clipboard.wait_for_text() {
+
+        // Get the column's id.
+        let mut column_number = column.get_sort_column_id() - 1;
+
+        // If the column it's valid...
+        if column_number >= 0 {
+
+            // Get the type of the column.
+            let column_type = table_definition.fields[column_number as usize].field_type.clone();
+
+            // Get the data to paste, separated by lines.
+            let fields_data = data.lines().collect::<Vec<&str>>();
+
+            // If we at least have one row...
+            if !fields_data.is_empty() {
+
+                // Var to control when a field is invalid.
+                let mut data_is_invalid = false;
+
+                // For each field we have...
+                for field in &fields_data {
+
+                    // Try to decode the field as his "FieldType". If any of the fields fail, the rows are invalid.
+                    let field_is_valid: bool = match column_type {
+                        FieldType::Boolean => if *field == "true" || *field == "false" { true } else { false },
+                        FieldType::Float => field.parse::<f32>().is_ok(),
+                        FieldType::Integer => field.parse::<i32>().is_ok(),
+                        FieldType::LongInteger => field.parse::<i64>().is_ok(),
+
+                        // All these are just Strings.
+                        FieldType::StringU8 |
+                        FieldType::StringU16 |
+                        FieldType::OptionalStringU8 |
+                        FieldType::OptionalStringU16 => field.parse::<String>().is_ok(),
+                    };
+
+                    // If any field is invalid, the entire row is invalid.
+                    if !field_is_valid {
+                        data_is_invalid = true;
+                        break;
+                    }
+                }
+
+                // If in any point the data was invalid, return false.
+                if data_is_invalid { false } else { true }
+            }
+
+            // Otherwise, the contents of the `Clipboard` are invalid.
+            else { false }
+        }
+
+        // Otherwise, the column is not pasteable.
         else { false }
     }
 
