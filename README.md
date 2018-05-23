@@ -1,6 +1,6 @@
 ![imagen](https://user-images.githubusercontent.com/15714929/38763682-f0283344-3fa0-11e8-8835-6248e4ca7672.png)
 # Rusted PackFile Manager
-***Rusted PackFile Manager*** (RPFM) is a... reimplementation in Rust and GTK3 of ***PackFile Manager*** (PFM), one of the best modding tools for Total War Games. Now with a [Patreon][Patreon]! (Hurray for blatant self-promotion!).
+***Rusted PackFile Manager*** (RPFM) is a... reimplementation in Rust and GTK3 of ***PackFile Manager*** (PFM), one of the best modding tools for Total War Games.
 
 [![become_a_patron_button](https://user-images.githubusercontent.com/15714929/40394531-2130b9ce-5e24-11e8-91a2-bbf8e6e75d21.png)][Patreon]
 
