@@ -24,7 +24,7 @@ In addition to that, it has some special features:
 To see what's being worked on, check the ***TODO.md*** file (the one in the "Develop" branch is usually the most updated one).
 
 # Requirements (to use)
-To use the ***Windows*** version, there are no requirements. Just extract it somewhere and execute it. After that, you need to go to settings, configure the paths of the games you have installed there, then go to "Special Stuff/YourConfiguredGames,OneAtATime/Generate Dependency Pack". Otherwise, many features will not work.
+To use the ***Windows*** version, there are no requirements. Just extract it somewhere and execute it. After that, you need to go to settings, configure the paths of the games you have installed there, then go to *```Special Stuff/YourConfiguredGames,OneAtATime/Generate Dependency Pack```*. Otherwise, many features will not work.
 
 # Requirements (to build)
 To build this project, you need:
