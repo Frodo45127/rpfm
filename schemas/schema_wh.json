@@ -1207,6 +1207,103 @@
               "field_description": "Small icon used in various places like agent id, minimap, etc"
             }
           ]
+        },
+        {
+          "version": 9,
+          "fields": [
+            {
+              "field_name": "agent",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "agents",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "culture",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cultures",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "associated_unit",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "main_units",
+                "unit"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "key",
+              "field_type": "Integer",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "season",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "level",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "agent_recruited_movie",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "movie_event_strings",
+                "event"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "gender",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "genders",
+                "gender"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "icon",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "small_icon",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "Small icon used in various places like agent id, minimap, etc"
+            },
+            {
+              "field_name": "recruitable_in_ui",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -11074,6 +11171,148 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 11,
+          "fields": [
+            {
+              "field_name": "battle_duration",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "battle_environment",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "A custom environment to load"
+            },
+            {
+              "field_name": "battle_enviroment_audio",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_battle_enviroments",
+                "name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "battle_name",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": "The key of the battle"
+            },
+            {
+              "field_name": "battle_script",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "The lua script to load for this battle"
+            },
+            {
+              "field_name": "battle_type",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "battle_types",
+                "type"
+              ],
+              "field_description": "The battle type"
+            },
+            {
+              "field_name": "frontend_icon_offset_x",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "Offset for icon shown in frontend on map"
+            },
+            {
+              "field_name": "frontend_icon_offset_y",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "Offset for icon shown in frontend on map"
+            },
+            {
+              "field_name": "is_player_attacker",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "If true, players alliance will be attacking"
+            },
+            {
+              "field_name": "bmd_layer_type",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "bmd_export_types",
+                "name"
+              ],
+              "field_description": "The name of a custom bmd layer to load."
+            },
+            {
+              "field_name": "use_large_armies",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "battlefield_folder",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "teleport_cost",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "catchment_area",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "Catchment area name within the tile"
+            },
+            {
+              "field_name": "intro_movie",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "videos",
+                "video_name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "outro_movie_win",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "videos",
+                "video_name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "outro_movie_lose",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "videos",
+                "video_name"
+              ],
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -16513,6 +16752,275 @@
               "field_is_key": false,
               "field_is_reference": [
                 "cai_personalities_character_skill_selection_policies",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 19,
+          "fields": [
+            {
+              "field_name": "agent_distribution_profile_key",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cai_agent_distribution_profiles",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "agent_recruitment_profile_key",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cai_agent_recruitment_profiles",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "budget_policy_key",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cai_personalities_budget_policies",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "military_aggressiveness_policy",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cai_military_aggressiveness_policies",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "military_behaviour_policy",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cai_military_behaviour_policies",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "reliability_policy_key",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cai_personalities_reliability_policies",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "religious_conversion_policy",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cai_personalities_religious_conversion_policies",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "technology_manager_key",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "campaign_ai_technology_managers",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "allowed_for_random_selection",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "diplomatic_component",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cai_personality_diplomatic_components",
+                "id"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "strategic_component",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cai_personality_strategic_components",
+                "id"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "cultural_component",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cai_personality_cultural_components",
+                "id"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "deal_evaluation_component",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cai_personality_deal_evaluation_components",
+                "id"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "deal_generation_component",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cai_personality_deal_generation_components",
+                "id"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "construction_system_policy",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cai_personalities_construction_system_policies",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "task_management_system_task_generation_profile",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cai_personalities_task_management_system_task_generator_profiles",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "negotiation_component",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cai_personality_negotiation_components",
+                "id"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "income_allocation_policy",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cai_personalities_income_allocation_policies",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "occupation_decision_component",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cai_personality_occupation_decision_components",
+                "id"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "religious_component",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cai_personality_religious_components",
+                "id"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "empire_rivalry_component",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cai_personality_empire_rivalry_components",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "religion_change_management_policy",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cai_personalities_religion_change_management_policies",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "trespassing_component",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cai_personality_trespassing_components",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "agent_embed_profile",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cai_agent_embed_profiles",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "character_skill_selection_policy",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cai_personalities_character_skill_selection_policies",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "military_generator_config_override",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cdir_military_generator_configs",
                 "key"
               ],
               "field_description": ""
@@ -27317,6 +27825,45 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "config_key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "cdir_military_generator_configs",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "priority",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "template_key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "cdir_military_generator_templates",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "leader_only",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -37421,6 +37968,406 @@
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": "For voiceover : Is this unit regarded as monstrous?"
+            }
+          ]
+        },
+        {
+          "version": 36,
+          "fields": [
+            {
+              "field_name": "additional_building_requirement",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "building_levels",
+                "level_name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "campaign_cap",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "caste",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "unit_castes",
+                "caste"
+              ],
+              "field_description": "Among other usages, caste allows the overriding of UI stat bar max values"
+            },
+            {
+              "field_name": "create_time",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "is_naval",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "land_unit",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "land_units",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "num_men",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "multiplayer_cap",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "multiplayer_cost",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "naval_unit",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "naval_units",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "num_ships",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "min_men_per_ship",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "max_men_per_ship",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "prestige",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "recruitment_cost",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "recruitment_movie",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "religion_requirement",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "religions",
+                "religion_key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "unit",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "upkeep_cost",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "weight",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "unit_weights",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "resource_requirement",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "resources",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "world_leader_only",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "can_trade",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "special_edition_mask",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "unique_index",
+              "field_type": "LongInteger",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "in_encyclopedia",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "Generally, this is the case. However some units (mainly bastions) are not in the encyclopaedia and the code will look up the redirects table"
+            },
+            {
+              "field_name": "region_unit_resource_requirement",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "region_unit_resources",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "audio_voiceover_culture",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_voiceover_cultures",
+                "name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "ui_unit_group_land",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "ui_unit_groupings",
+                "key"
+              ],
+              "field_description": "This is used for category icon on unit when on land"
+            },
+            {
+              "field_name": "ui_unit_group_naval",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "ui_unit_groupings",
+                "key"
+              ],
+              "field_description": "This is used for category icon on unit when on ship"
+            },
+            {
+              "field_name": "tier",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "Tier, only used in ui to show level of unit"
+            },
+            {
+              "field_name": "is_high_threat",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "High threat units override the entity threshold checks of melee reactions. If they run into or attack a unit, the unit will instantly react, even if less than 25% of their entities are affected."
+            },
+            {
+              "field_name": "porthole_camera",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "unit_porthole_camera_settings",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "mount",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "campaign_mounts",
+                "model"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "use_hitpoints_in_campaign",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "unit_scaling",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "Determines if the number of men / artillery pieces in this unit should be scaled with the gfx unit size setting (true) or not (false)"
+            },
+            {
+              "field_name": "porthole_composite_scene",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "Full path of composite scene to use for porthole in battle (optional, if empty will just render unit from battle. Only required for special circumstances like chariots)"
+            },
+            {
+              "field_name": "melee_cp",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "Base Melee Combat Potential of this unit. Must be >= 0.0 or the game will crash on startup. This value is modified (increased) by other factors such as Rank and equipped Abilities / Items. Reduced by 20% for missile cav."
+            },
+            {
+              "field_name": "missile_cp",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "Base Missile Combat Potential of this unit. Must be >= 0.0 or the game will crash on startup. This value is modified (increased) by other factors such as Rank and equipped Abilities / Items. Reduced by 20% for missile cav."
+            },
+            {
+              "field_name": "can_siege",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "audio_voiceover_culture_override",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_voiceover_cultures",
+                "name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "restrict_xp_gain_in_campaign",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "audio_voiceover_actor_group",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_vo_actor_groups",
+                "name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "food_cost",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "has_spoken_vo",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "is_monstrous",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "For voiceover : Is this unit regarded as monstrous?"
+            },
+            {
+              "field_name": "multiplayer_qb_cap",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "Multiplayer cap for quest battles, requested by Alisdair"
+            },
+            {
+              "field_name": "vo_is_dragon",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "For voiceover : Is this unit regarded as a dragon?"
+            },
+            {
+              "field_name": "vo_is_dinosaur",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "For voiceover : Is this unit regarded as a dinosaur?"
+            },
+            {
+              "field_name": "optional_ui_element",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
             }
           ]
         }
@@ -50995,6 +51942,67 @@
               "field_description": "The randomised  'micro' scale."
             }
           ]
+        },
+        {
+          "version": 6,
+          "fields": [
+            {
+              "field_name": "variant_name",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "tech_folder",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "variant_filename",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "low_poly_filename",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "mount_scale",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "Special mount scale. Cavalry riders will not automatically match this scale."
+            },
+            {
+              "field_name": "scale",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "The 'macro' scale."
+            },
+            {
+              "field_name": "scale_variation",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "The randomised  'micro' scale."
+            },
+            {
+              "field_name": "super_low_poly_filename",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -51860,6 +52868,58 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 5,
+          "fields": [
+            {
+              "field_name": "associated_unit_override",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "main_units",
+                "unit"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "subculture",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cultures_subcultures",
+                "subculture"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "subtype",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "agent_subtypes",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "agent",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "agents",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "icon",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -52203,6 +53263,31 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "member",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "campaign_group_members",
+                "id"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "culture_settlement_ocupation_option",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": [
+                "culture_settlement_ocupation_options",
+                "id"
+              ],
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -52466,6 +53551,103 @@
               "field_type": "Integer",
               "field_is_key": false,
               "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ancillary_salvage_resources_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "category",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "ancillaries",
+                "categories"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "min_uniqueness_score",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "salvage_resources",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "resource_costs",
+                "id"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "campaign_group_crafting_infos_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "campaign_group",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "campaign_groups",
+                "id"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "unique_resource",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "pooled_resources",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "cdir_events_incident_followup_dilemmas_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "incident_key",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "incidents",
+                "key"
+              ],
+              "field_description": "delete this field if you see it"
+            },
+            {
+              "field_name": "followup_dilemma_key",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "dilemmas",
+                "key"
+              ],
               "field_description": ""
             }
           ]
