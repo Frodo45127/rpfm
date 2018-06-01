@@ -135,13 +135,17 @@ pub fn check_updates(current_version: &str, use_dialog: Option<&ApplicationWindo
     if let Some(parent_window) = use_dialog {
 
         // Get the message we want to show, depending on the result of the "Update Check" from before.
-        let message: (String, String) = match apiresponse {
+        let mut message: (String, String) = match apiresponse {
             APIResponse::SuccessNewUpdate(last_release) => (format!("New mayor update found: \"{}\"", last_release.name), format!("Download available here:\n<a href=\"{}\">{}</a>\n\nChanges:\n{}", last_release.html_url, last_release.html_url, last_release.body)),
             APIResponse::SuccessNewUpdateHotfix(last_release) => (format!("New minor update/hotfix found: \"{}\"", last_release.name), format!("Download available here:\n<a href=\"{}\">{}</a>\n\nChanges:\n{}", last_release.html_url, last_release.html_url, last_release.body)),
             APIResponse::SuccessNoUpdate => ("No new updates available".to_owned(), "More luck next time :)".to_owned()),
             APIResponse::SuccessUnknownVersion => ("Error while checking new updates".to_owned(), "There has been a problem when getting the lastest released version number, or the current version number.\n\nThat means I fucked up the last release title. If you see this, please report it here:\n<a href=\"https://github.com/Frodo45127/rpfm/issues\">https://github.com/Frodo45127/rpfm/issues</a>".to_owned()),
             APIResponse::Error => ("Error while checking new updates :(".to_owned(), "If you see this message, there has been a problem with your connection to the Github.com server.\n\nPlease, make sure you can access to <a href=\"https:\\\\api.github.com\">https:\\\\api.github.com</a> and try again.".to_owned()),
         };
+
+        // Turns out & is not a valid character for GTK. So we have to escape it.
+        message.0 = message.0.replace('&', "&amp;");
+        message.1 = message.1.replace('&', "&amp;");
 
         // Create the `MessageDialog` to hold the messages.
         let check_updates_dialog = MessageDialog::new(
@@ -224,7 +228,7 @@ pub fn check_schema_updates(
     if let Some(parent_window) = use_dialog {
 
         // Get the message we want to show, depending on the result of the "Update Check" from before.
-        let message: (String, String) = match &apiresponse {
+        let mut message: (String, String) = match &apiresponse {
             APIResponseSchema::SuccessNewUpdate(local_versions, current_versions) => {
 
                 // Set the title and the message.
@@ -255,6 +259,10 @@ pub fn check_schema_updates(
             APIResponseSchema::SuccessNoUpdate => ("No new schema updates available".to_owned(), "More luck next time :)".to_owned()),
             APIResponseSchema::Error => ("Error while checking new schema updates :(".to_owned(), "If you see this message, there has been a problem with your connection to the Github.com server.\n\nPlease, make sure you can access to <a href=\"https:\\\\api.github.com\">https:\\\\api.github.com</a> and try again.".to_owned()),
         };
+
+        // Turns out & is not a valid character for GTK. So we have to escape it.
+        message.0 = message.0.replace('&', "&amp;");
+        message.1 = message.1.replace('&', "&amp;");
 
         // Depending on what we got, we use one button type or another.
         let buttons = match apiresponse {
