@@ -207,7 +207,7 @@ pub fn check_schema_updates(
             let current_versions: Versions = current_versions;
 
             // Get the local versions.
-            let local_versions: Versions = serde_json::from_reader(BufReader::new(File::open(PathBuf::from("schemas/versions.json")).unwrap())).unwrap();
+            let local_versions: Versions = serde_json::from_reader(BufReader::new(File::open(rpfm_path.to_path_buf().join(PathBuf::from("schemas/versions.json"))).unwrap())).unwrap();
 
             // If both versions are equal, we have no updates.
             if current_versions == local_versions { APIResponseSchema::SuccessNoUpdate }
@@ -313,10 +313,10 @@ pub fn check_schema_updates(
     else if let Some(status_bar) = status_bar {
 
         // Get the message we want to show, depending on the result of the "Update Check" from before.
-        let message: String = match apiresponse {
-            APIResponseSchema::SuccessNewUpdate(_,_) => String::from("New schema update found. Go to \"About/Check Schema Updates\" to download it."),
-            APIResponseSchema::SuccessNoUpdate => String::from("No new schema updates available."),
-            APIResponseSchema::Error => String::from("Error while checking new schema updates :("),
+        let message = match apiresponse {
+            APIResponseSchema::SuccessNewUpdate(_,_) => "New schema update found. Go to \"About/Check Schema Updates\" to download it.",
+            APIResponseSchema::SuccessNoUpdate => "No new schema updates available.",
+            APIResponseSchema::Error => "Error while checking new schema updates :(",
         };
         ui::show_message_in_statusbar(status_bar, &message);
     }

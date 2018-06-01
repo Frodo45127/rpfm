@@ -3210,18 +3210,18 @@ fn open_packfile(
 
             // Test to see if every DB Table can be decoded.
             // let mut counter = 0;
-            // for i in pack_file_decoded.borrow().pack_file_data.packed_files.iter() {
-            //     if i.packed_file_path.starts_with(&["db".to_owned()]) {
-            //         if let Some(ref schema) = *schema {
-            //             if let Err(_) = DB::read(&i.packed_file_data, &i.packed_file_path[1], &schema) {
-            //                 match DBHeader::read(&i.packed_file_data) {
+            // for i in pack_file_decoded.borrow().data.packed_files.iter() {
+            //     if i.path.starts_with(&["db".to_owned()]) {
+            //         if let Some(ref schema) = *schema.borrow() {
+            //             if let Err(_) = packedfile::db::DB::read(&i.data, &i.path[1], &schema) {
+            //                 match packedfile::db::DBHeader::read(&i.data, &mut 0) {
             //                     Ok(db_header) => {
-            //                         if db_header.0.packed_file_header_packed_file_entry_count > 0 {
+            //                         if db_header.entry_count > 0 {
             //                             counter += 1;
-            //                             println!("{}, {:?}", counter, i.packed_file_path);
+            //                             println!("{}, {:?}", counter, i.path);
             //                         }
             //                     }
-            //                     Err(_) => println!("Error in {:?}", i.packed_file_path),
+            //                     Err(_) => println!("Error in {:?}", i.path),
             //                 }
             //             }
             //         }
