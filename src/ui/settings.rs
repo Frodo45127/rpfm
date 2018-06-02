@@ -13,7 +13,7 @@ use gtk::prelude::*;
 use gtk::{
     Entry, Button, Frame, ComboBoxText, ApplicationWindow, WindowPosition, Orientation,
     Label, ButtonBox, ButtonBoxStyle, Application, FileChooserNative, ResponseType, FileChooserAction,
-    ReliefStyle, StyleContext, CheckButton, Grid, FontButton
+    ReliefStyle, StyleContext, CheckButton, Grid, FontButton, SettingsExt
 };
 use pango::{
     AttrList, Attribute
