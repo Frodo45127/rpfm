@@ -1,7 +1,7 @@
 // In this file are all the helper functions used by the UI when showing Image PackedFiles.
 extern crate gtk;
 extern crate failure;
-
+/*
 use failure::Error;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -57,3 +57,4 @@ pub fn create_image_view(
         Err(_) => return Err(format_err!("Error while trying to open the following image: \"{}\".", image_name)),
     }
 }
+*/

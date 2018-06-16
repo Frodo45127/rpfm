@@ -4,7 +4,7 @@ extern crate gdk;
 extern crate gio;
 extern crate glib;
 extern crate failure;
-
+/*
 use std::cell::RefCell;
 use std::rc::Rc;
 use packedfile::db::schemas::*;
@@ -4448,3 +4448,4 @@ fn clean_column_names(field_name: &str) -> String {
 
     new_name
 }
+*/

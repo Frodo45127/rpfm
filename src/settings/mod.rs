@@ -29,9 +29,9 @@ pub struct GameInfo {
 pub struct Settings {
     pub paths: Paths,
     pub default_game: String,
-    pub prefer_dark_theme: bool,
-    pub font: String,
-    pub allow_edition_of_ca_packfiles: bool,
+    //pub prefer_dark_theme: bool,
+    //pub font: String,
+    pub allow_editing_of_ca_packfiles: bool,
     pub check_updates_on_start: bool,
     pub check_schema_updates_on_start: bool,
 }
@@ -52,7 +52,7 @@ pub struct GamePath {
 
 /// This struct holds the data needed for the Game Selected.
 /// NOTE: `game` is in this format: `warhammer_2`.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct GameSelected {
     pub game: String,
     pub game_path: Option<PathBuf>,
@@ -128,9 +128,9 @@ impl Settings {
         Self {
             paths: Paths::new(supported_games),
             default_game: "warhammer_2".to_owned(),
-            prefer_dark_theme: false,
-            font: "Segoe UI 9".to_owned(),
-            allow_edition_of_ca_packfiles: false,
+            //prefer_dark_theme: false,
+            //font: "Segoe UI 9".to_owned(),
+            allow_editing_of_ca_packfiles: false,
             check_updates_on_start: true,
             check_schema_updates_on_start: true,
         }

@@ -3,7 +3,7 @@ extern crate std;
 extern crate gtk;
 extern crate sourceview;
 extern crate failure;
-
+/*
 use std::cell::RefCell;
 use std::rc::Rc;
 use failure::Error;
@@ -466,4 +466,4 @@ fn get_keyword_list() -> String {
     until
     while
 ".to_owned()
-}
+}*/

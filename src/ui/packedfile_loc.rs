@@ -2,7 +2,7 @@
 extern crate gtk;
 extern crate gio;
 extern crate failure;
-
+/*
 use std::cell::RefCell;
 use std::rc::Rc;
 use failure::Error;
@@ -1356,3 +1356,4 @@ fn check_clipboard_column(app_ui: &AppUI, column: &TreeViewColumn) -> bool {
     // Otherwise, there is no data in the `Clipboard`.
     else { false }
 }
+*/

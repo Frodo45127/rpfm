@@ -1,25 +1,57 @@
 // In this file are all the helper functions used by the UI (mainly GTK here)
 extern crate num;
-extern crate gio;
-extern crate gdk_pixbuf;
 extern crate url;
+extern crate qt_widgets;
+extern crate qt_gui;
+extern crate qt_core;
+extern crate cpp_utils;
+
+use qt_widgets::application::Application;
+use qt_widgets::widget::Widget;
+use qt_widgets::grid_layout::GridLayout;
+use qt_widgets::splitter::Splitter;
+use qt_widgets::tree_view::TreeView;
+use qt_widgets::main_window::MainWindow;
+use qt_widgets::message_box::MessageBox;
+use qt_widgets::message_box::Icon;
+use qt_widgets::message_box::StandardButton;
+use qt_widgets::action_group::ActionGroup;
+use qt_widgets::label::Label;
+use qt_core::flags::Flags;
+
+use qt_gui::standard_item_model::StandardItemModel;
+use qt_gui::standard_item::StandardItem;
+use qt_core::item_selection_model::ItemSelectionModel;
+use qt_core::event_loop::EventLoop;
+use qt_core::connection::Signal;
+use qt_core::variant::Variant;
+use qt_core::slots::SlotBool;
+use qt_core::object::Object;
+use cpp_utils::{CppBox, StaticCast, DynamicCast};
 
 use url::Url;
 use std::rc::Rc;
 use std::cell::RefCell;
-use self::gdk_pixbuf::Pixbuf;
-use gio::prelude::*;
-use gtk::prelude::*;
-use gtk::{
-    MessageDialog, TreeStore, TreeSelection, TreeView, Rectangle, Label, FileChooserNative, FileFilter,
-    Grid, Statusbar, MessageType, ButtonsType, DialogFlags, ApplicationWindow, ResponseType, ComboBoxText,
-    AboutDialog, License, WindowPosition, TreeIter, Application, Paned, Orientation, CellRendererMode,
-    TreeViewColumn, CellRendererText, ScrolledWindow, ButtonBox, Button, Entry, ButtonBoxStyle,
-    FileChooserAction, ReliefStyle
-};
 use std::cmp::Ordering;
 use std::path::{Path, PathBuf};
 use std::fmt::Display;
+
+use QString;
+
+
+
+
+
+
+
+
+pub mod settings;
+pub mod updater;
+use AppUI;
+/*
+
+
+
 
 use common::*;
 use packedfile::*;
@@ -28,15 +60,12 @@ use packedfile::loc::*;
 use packedfile::db::schemas::Schema;
 use packfile::packfile::PackFile;
 use packfile::packfile::PackedFile;
-use AppUI;
 
 pub mod packedfile_db;
 pub mod packedfile_loc;
 pub mod packedfile_text;
 pub mod packedfile_image;
 pub mod packedfile_rigidmodel;
-pub mod settings;
-pub mod updater;
 
 /// This struct is what we return to create the main window at the start of the program.
 pub struct MainWindow {
@@ -788,39 +817,7 @@ pub fn show_tsv_mass_import_window(
 //              Utility functions (helpers and stuff like that)
 //----------------------------------------------------------------------------//
 
-/// This enum has the different possible operations we want to do over a `TreeView`. The options are:
-/// - Build: Build the entire `TreeView` from nothing.
-/// - Add: Add a File/Folder to the `TreeView`. Requires the path in the `TreeView`, without the mod's name.
-/// - AddFromPackFile: Add a File/Folder from another `TreeView`. Requires `source_path`, `destination_path`, the extra `TreeStore` and the extra `TreeSelection`.
-/// - Delete: Remove a File/Folder from the `TreeView`.
-/// - Rename: Change the name of a File/Folder from the TreeView. Requires the new name.
-#[derive(Clone, Debug)]
-pub enum TreeViewOperation {
-    Build,
-    Add(Vec<String>),
-    AddFromPackFile(Vec<String>, Vec<String>, Vec<Vec<String>>),
-    Delete,
-    Rename(String),
-}
 
-/// This function shows a Message in the specified Grid.
-pub fn display_help_tips(packed_file_data_display: &Grid) {
-    let tips = "Welcome to Rusted PackFile Manager! Here you have some tips on how to use it:
-        - You can see all the hotkeys in \"About/Shortcuts\".
-        - To search in a DB Table or Loc PackedFile, hit \"Ctrl + F\" and write.
-        - You can open a PackFile by dragging it to the big PackFile Tree View.
-        - To patch an Attila model to work in Warhammer, select it and press \"Patch to Warhammer 1&2\".
-        - You can insta-patch your siege maps (if you're a mapper) with the \"Patch SiegeAI\" feature from the \"Special Stuff\" menu.";
-
-    let label = Label::new(Some(tips));
-    label.set_xalign(0.5);
-    label.set_yalign(0.5);
-    label.set_hexpand(true);
-    label.set_vexpand(true);
-
-    packed_file_data_display.attach(&label, 0, 0, 1, 1);
-    packed_file_data_display.show_all();
-}
 
 /// This function shows a "Success" or "Error" Dialog with some text. For notification of success and
 /// high importance errors.
@@ -860,29 +857,7 @@ pub fn show_message_in_statusbar<T: Display>(status_bar: &Statusbar, message: T)
     status_bar.push(status_bar.get_context_id("Yekaterina"), &message.to_string());
 }
 
-/// This function adds a Filter to the provided FileChooser, using the `pattern` &str.
-pub fn file_chooser_filter_packfile(file_chooser: &FileChooserNative, pattern: &str) {
-    let filter = FileFilter::new();
-    filter.add_pattern(pattern);
-    file_chooser.add_filter(&filter);
-}
 
-/// This function sets the currently open PackFile as "modified" or unmodified, both in the PackFile
-/// and in the title bar, depending on the value of the "is_modified" boolean.
-pub fn set_modified(
-    is_modified: bool,
-    window: &ApplicationWindow,
-    pack_file_decoded: &mut PackFile,
-) {
-    if is_modified {
-        pack_file_decoded.extra_data.is_modified = true;
-        window.set_title(&format!("Rusted PackFile Manager -> {}(modified)", pack_file_decoded.extra_data.file_name));
-    }
-    else {
-        pack_file_decoded.extra_data.is_modified = false;
-        window.set_title(&format!("Rusted PackFile Manager -> {}", pack_file_decoded.extra_data.file_name));
-    }
-}
 
 /// This function cleans the accelerators and actions created by the PackedFile Views, so they can be
 /// reused in another View.
@@ -943,43 +918,6 @@ pub fn remove_temporal_accelerators(application: &Application) {
     application.remove_action("delete_row");
 }
 
-/// This function shows a message asking for confirmation. For use in operations that implies unsaved
-/// data loss.
-pub fn are_you_sure(parent_window: &ApplicationWindow, is_modified: bool, is_delete_my_mod: bool) -> bool {
-
-    // If the mod has been modified, create the dialog. Otherwise, return true.
-    if is_modified {
-        let are_you_sure_dialog = MessageDialog::new(
-            Some(parent_window),
-            DialogFlags::from_bits(1).unwrap(),
-            MessageType::Error,
-            ButtonsType::None,
-            "Are you sure?"
-        );
-
-        are_you_sure_dialog.add_button("Cancel", -6);
-        are_you_sure_dialog.add_button("Accept", -3);
-        are_you_sure_dialog.set_title("Are you sure?");
-
-        let message = if is_delete_my_mod {
-            "You are going to delete this mod from your disk. There is no way to recover it after that."
-        } else {
-            "There are some changes yet to save."
-        };
-        are_you_sure_dialog.set_property_secondary_text(Some(message));
-
-        // If the current PackFile has been changed in any way, we pop up the "Are you sure?" message.
-        let response_ok: i32 = ResponseType::Accept.into();
-
-        if are_you_sure_dialog.run() == response_ok {
-            are_you_sure_dialog.destroy();
-            true
-        } else {
-            are_you_sure_dialog.destroy();
-            false
-        }
-    } else { true }
-}
 
 /// This function get the rect needed to put the popovers in the correct places when we create them,
 /// all of this thanks to the magic of the FileChooserDialog from GTK3.
@@ -1157,6 +1095,152 @@ pub fn get_path_from_tree_iter(
     // Return the tree_path (from parent to children)
     tree_path
 }
+*/
+
+//----------------------------------------------------------------------------//
+//              Utility functions (helpers and stuff like that)
+//----------------------------------------------------------------------------//
+
+/// This enum has the different possible operations we want to do over a `TreeView`. The options are:
+/// - Build: Build the entire `TreeView` from nothing.
+/// - Add: Add a File/Folder to the `TreeView`. Requires the path in the `TreeView`, without the mod's name.
+/// - AddFromPackFile: Add a File/Folder from another `TreeView`. Requires `source_path`, `destination_path`, the extra `TreeStore` and the extra `TreeSelection`.
+/// - Delete: Remove a File/Folder from the `TreeView`.
+/// - Rename: Change the name of a File/Folder from the TreeView. Requires the new name.
+#[derive(Clone, Debug)]
+pub enum TreeViewOperation {
+    Build,
+    //Add(Vec<String>),
+    //AddFromPackFile(Vec<String>, Vec<String>, Vec<Vec<String>>),
+    //Delete,
+    Rename(String),
+}
+
+/// This function shows a "Success" or "Error" Dialog with some text. For notification of success and
+/// high importance errors.
+/// It requires:
+/// - parent_window: a reference to the `Window` that'll act as "parent" of the dialog.
+/// - is_success: true for "Success" Dialog, false for "Error" Dialog.
+/// - text: something that implements the trait "Display", so we want to put in the dialog window.
+pub fn show_dialog<T: Display>(
+    app_ui: &AppUI,
+    is_success: bool,
+    text: T
+) {
+
+    // Depending on the type of the dialog, set everything specific here.
+    let title = if is_success { "Success!" } else { "Error!" };
+    let icon = if is_success { Icon::Information } else { Icon::Critical };
+
+    // Create the dialog.
+    let mut dialog = MessageBox::new((
+        icon,
+        &QString::from_std_str(title),
+        &QString::from_std_str(&text.to_string()),
+        Flags::from_int(1024), // Ok button.
+    ));
+
+    // Run the dialog.
+    dialog.exec();
+}
+
+/// This function sets the currently open PackFile as "modified" or unmodified, both in the PackFile
+/// and in the title bar, depending on the value of the "is_modified" boolean.
+pub fn set_modified(
+    is_modified: bool,
+    app_ui: &AppUI,
+) -> bool {
+
+    // If the PackFile is modified...
+    if is_modified {
+
+        // Change the title of the Main Window.
+        unsafe { app_ui.window.as_mut().unwrap().set_window_title(&QString::from_std_str("Rusted PackFile Manager (modified)")); }
+
+        // And return true.
+        true
+    }
+
+    // If it's not modified...
+    else {
+
+        // Change the title of the Main Window.
+        unsafe { app_ui.window.as_mut().unwrap().set_window_title(&QString::from_std_str("Rusted PackFile Manager")); }
+
+        // And return false.
+        false
+    }
+}
+
+/// This function delete whatever it's in the right side of the screen.
+pub fn purge_them_all(app_ui: &AppUI) {
+    unsafe {
+        for _ in 0..app_ui.packed_file_layout.as_mut().unwrap().count() {
+            let child = app_ui.packed_file_layout.as_mut().unwrap().take_at(0);
+            child.as_mut().unwrap().widget().as_mut().unwrap().close();
+            app_ui.packed_file_layout.as_mut().unwrap().remove_item(child);
+        }
+    }
+}
+
+/// This function shows a Message in the specified Grid.
+pub fn display_help_tips(app_ui: &AppUI) {
+
+    let label = Label::new(&QString::from_std_str("Welcome to Rusted PackFile Manager! Here you have some tips on how to use it:
+        - You can see all the hotkeys in \"About/Shortcuts\".
+        - To search in a DB Table or Loc PackedFile, hit \"Ctrl + F\" and write.
+        - You can open a PackFile by dragging it to the big PackFile Tree View.
+        - To patch an Attila model to work in Warhammer, select it and press \"Patch to Warhammer 1&2\".
+        - You can insta-patch your siege maps (if you're a mapper) with the \"Patch SiegeAI\" feature from the \"Special Stuff\" menu.")).into_raw();
+
+    unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((label as *mut Widget, 0, 0, 1, 1)); }
+}
+
+/// This function shows a message asking for confirmation. For use in operations that implies unsaved
+/// data loss. is_modified = true for when you can lose unsaved changes, is_delete_my_mod = true for
+/// the deletion warning of MyMods.
+pub fn are_you_sure(
+    is_modified: &Rc<RefCell<bool>>,
+    is_delete_my_mod: bool
+) -> bool {
+
+    // If the mod has been modified...
+    if *is_modified.borrow() {
+
+        // Create the dialog.
+        let mut dialog = MessageBox::new((
+            &QString::from_std_str("Rusted PackFile Manager"),
+            &QString::from_std_str("There are some changes yet to be saved.\nAre you sure?"),
+            Icon::Warning,
+            65536, // No
+            16384, // Yes
+            1, // By default, select yes.)
+        ));
+
+        // Run the dialog and get the response. Yes => 3, No => 4.
+        if dialog.exec() == 3 { true } else { false }
+    }
+
+    // If we are going to delete a MyMod...
+    else if is_delete_my_mod {
+
+        // Create the dialog.
+        let mut dialog = MessageBox::new((
+            &QString::from_std_str("Rusted PackFile Manager"),
+            &QString::from_std_str("You are about to delete this MyMod from your disk.\nThere is no way to recover it after that.\nAre you sure?"),
+            Icon::Warning,
+            65536, // No
+            16384, // Yes
+            1, // By default, select yes.)
+        ));
+
+        // Run the dialog and get the response. Yes => 3, No => 4.
+        if dialog.exec() == 3 { true } else { false }
+    }
+
+    // Otherwise, we allow the change directly.
+    else { true }
+}
 
 /// This function updates the provided `TreeView`, depending on the operation we want to do.
 /// It requires:
@@ -1166,11 +1250,9 @@ pub fn get_path_from_tree_iter(
 /// - operation: the `TreeViewOperation` we want to realise.
 /// - type: the type of whatever is selected.
 pub fn update_treeview(
-    folder_tree_store: &TreeStore,
-    pack_file_decoded: &PackFile,
-    folder_tree_selection: &TreeSelection,
+    app_ui: &AppUI,
+    pack_file_data: (&str, Vec<Vec<String>>),
     operation: TreeViewOperation,
-    selection_type: &TreePathType,
 ) {
 
     // We act depending on the operation requested.
@@ -1179,22 +1261,16 @@ pub fn update_treeview(
         // If we want to build a new TreeView...
         TreeViewOperation::Build => {
 
-            // FIXME: This CTDs RPFM due to changing the cursor... which triggers a callback that tries to borrow
-            // the packfile already borrowed here. For now I've forced the clear to trigger before calling this
-            // function when we do a `TreeViewOperation::Build`, but that's a dirty hack and need to be fixed.
-            //
-            // First, we clean the TreeStore
-            //folder_tree_store.clear();
+            // First, we clean the TreeStore and whatever was created in the TreeView.
+            unsafe { app_ui.folder_tree_model.as_mut().unwrap().clear(); }
 
             // Second, we set as the big_parent, the base for the folders of the TreeView, a fake folder
             // with the name of the PackFile. All big things start with a lie.
-            let big_parent = folder_tree_store.insert_with_values(None, None, &[0], &[&format!("{}", pack_file_decoded.extra_data.file_name)]);
+            let mut big_parent = StandardItem::new(&QString::from_std_str(pack_file_data.0));
+            unsafe { app_ui.folder_tree_model.as_mut().unwrap().append_row_unsafe(big_parent.into_raw()); }
 
             // Third, we get all the paths of the PackedFiles inside the Packfile in a Vector.
-            let mut sorted_path_list = vec![];
-            for i in &pack_file_decoded.data.packed_files {
-                sorted_path_list.push(&i.path);
-            }
+            let mut sorted_path_list = pack_file_data.1;
 
             // Fourth, we sort that vector using this horrific monster I don't want to touch again, using
             // the following format:
@@ -1247,17 +1323,21 @@ pub fn update_treeview(
 
             // Once we get the entire path list sorted, we add the paths to the TreeStore one by one,
             // skipping duplicate entries.
-            for i in &sorted_path_list {
+            for path in &sorted_path_list {
 
                 // First, we reset the parent to the big_parent (the PackFile).
-                let mut parent = big_parent.clone();
+                let mut parent;
+                unsafe { parent = app_ui.folder_tree_model.as_ref().unwrap().item(0); }
 
                 // Then, we form the path ("parent -> child" style path) to add to the TreeStore.
-                for j in i.iter() {
+                for name in path.iter() {
 
                     // If it's the last string in the file path, it's a file, so we add it to the TreeStore.
-                    if j == i.last().unwrap() {
-                        parent = folder_tree_store.insert_with_values(Some(&parent), None, &[0], &[&format!("{}", j)]);
+                    if name == path.last().unwrap() {
+
+                        // Add the file to the TreeView.
+                        let mut file = StandardItem::new(&QString::from_std_str(name));
+                        unsafe { parent.as_mut().unwrap().append_row_unsafe(file.into_raw()); }
                     }
 
                     // If it's a folder, we check first if it's already in the TreeStore using the following
@@ -1268,34 +1348,68 @@ pub fn update_treeview(
                     // trying to add, so that one becomes our new parent. If there is no equal folder to
                     // the one we are trying to add, we add it, turn it into the new parent, and repeat.
                     else {
-                        let mut duplicate_found = false;
-                        if folder_tree_store.iter_has_child(&parent) {
-                            let mut no_more_childrens = false;
-                            let current_child = folder_tree_store.iter_children(&parent).unwrap();
-                            while !no_more_childrens {
-                                let current_child_text: String = folder_tree_store.get_value(&current_child, 0).get().unwrap();
-                                if &current_child_text == j && folder_tree_store.iter_has_child(&current_child) {
-                                    parent = current_child;
-                                    duplicate_found = true;
-                                    break;
+
+                        // There are many unsafe things in this code...
+                        unsafe {
+
+                            // Variable to check if the current folder is already in the TreeView.
+                            let mut duplicate_found = false;
+
+                            // If the current parent has at least one child...
+                            if parent.as_ref().unwrap().has_children() {
+
+                                // It's a folder, so we check his children.
+                                for index in 0..parent.as_ref().unwrap().row_count() {
+
+                                    // Get the child.
+                                    let mut child = parent.as_mut().unwrap().child((index, 0));
+
+                                    // Get his text.
+                                    let child_text = child.as_ref().unwrap().text().to_std_string();
+
+                                    // If it's the same folder we are trying to add...
+                                    if child_text == *name {
+
+                                        // This is our parent now.
+                                        parent = parent.as_mut().unwrap().child(index);
+                                        duplicate_found = true;
+                                        break;
+                                    }
                                 }
-                                if !folder_tree_store.iter_next(&current_child) {
-                                    no_more_childrens = true;
+
+                                // If we found a duplicate, skip to the next file/folder.
+                                if duplicate_found { continue; }
+
+                                // Otherwise, add it to the parent, and turn it into the new parent.
+                                else {
+
+                                    // Add the file to the TreeView.
+                                    let mut folder = StandardItem::new(&QString::from_std_str(name));
+                                    parent.as_mut().unwrap().append_row_unsafe(folder.into_raw());
+
+                                    // This is our parent now.
+                                    let index = parent.as_ref().unwrap().row_count() - 1;
+                                    parent = parent.as_mut().unwrap().child(index);
                                 }
                             }
-                            if duplicate_found {
-                                continue;
-                            } else {
-                                parent = folder_tree_store.insert_with_values(Some(&parent), None, &[0], &[&format!("{}", j)]);
+
+                            // If our current parent doesn't have anything, just add it.
+                            else {
+
+                                // Add the file to the TreeView.
+                                let mut folder = StandardItem::new(&QString::from_std_str(name));
+                                parent.as_mut().unwrap().append_row_unsafe(folder.into_raw());
+
+                                // This is our parent now.
+                                let index = parent.as_ref().unwrap().row_count() - 1;
+                                parent = parent.as_mut().unwrap().child(index);
                             }
-                        } else {
-                            parent = folder_tree_store.insert_with_values(Some(&parent), None, &[0], &[&format!("{}", j)]);
                         }
                     }
                 }
             }
         },
-
+/*
         // If we want to add a file/folder to the `TreeView`...
         TreeViewOperation::Add(path) => {
 
@@ -1482,26 +1596,32 @@ pub fn update_treeview(
                 TreePathType::None => {},
             }
         },
-
+        */
         // If we want to rename something...
         TreeViewOperation::Rename(new_name) => {
 
-            // If we got his `TreeIter`....
-            if let Some(selection) = folder_tree_selection.get_selected() {
+            // Get the selection model.
+            let selection_model;
+            unsafe { selection_model = app_ui.folder_tree_view.as_mut().unwrap().selection_model(); }
 
-                // We get our `TreeIter`.
-                let mut tree_iter = selection.1;
+            // Get the selected cell.
+            let selection;
+            unsafe { selection = selection_model.as_mut().unwrap().selected_indexes(); }
+            let selection = selection.at(0);
 
-                // We change the "Name" of the file/folder.
-                folder_tree_store.set_value(&tree_iter, 0, &new_name.to_value());
+            // Put the new name in a variant.
+            let variant = Variant::new0(&QString::from_std_str(&new_name));
 
-                // Sort properly the `TreeStore` to show the renamed file in his proper place.
-                sort_tree_view(folder_tree_store, pack_file_decoded, selection_type, &tree_iter)
-            }
+            // Change the old data with the new one.
+            unsafe { app_ui.folder_tree_model.as_mut().unwrap().set_data((selection, &variant)); }
+
+            // TODO: Fix this function, so when renaming stuff, it also get's sorted.
+            // Sort properly the `TreeStore` to show the renamed file in his proper place.
+            //sort_tree_view(folder_tree_store, pack_file_decoded, selection_type, &tree_iter)
         },
     }
 }
-
+/*
 /// This function is meant to sort newly added items in a `TreeView`. Pls note that the provided
 /// `&TreeIter` MUST BE VALID. Otherwise, this can CTD the entire program.
 fn sort_tree_view(
@@ -1669,3 +1789,4 @@ fn sort_tree_view(
         else { break; }
     }
 }
+*/

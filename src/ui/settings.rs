@@ -1,7 +1,44 @@
 // Here it goes all the stuff related with "Settings" and "My Mod" windows.
-extern crate gtk;
-extern crate pango;
 extern crate url;
+extern crate qt_widgets;
+extern crate qt_gui;
+extern crate qt_core;
+extern crate cpp_utils;
+
+use qt_widgets::layout::Layout;
+use qt_widgets::application::Application;
+use qt_widgets::widget::Widget;
+use qt_widgets::grid_layout::GridLayout;
+use qt_widgets::splitter::Splitter;
+use qt_widgets::tree_view::TreeView;
+use qt_widgets::main_window::MainWindow;
+use qt_widgets::dialog::Dialog;
+use qt_widgets::frame::Frame;
+use qt_widgets::line_edit::LineEdit;
+use qt_widgets::push_button::PushButton;
+use qt_widgets::message_box::MessageBox;
+use qt_widgets::combo_box::ComboBox;
+use qt_widgets::check_box::CheckBox;
+use qt_widgets::message_box::Icon;
+use qt_widgets::message_box;
+use qt_widgets::dialog_button_box;
+use qt_widgets::action_group::ActionGroup;
+use qt_widgets::label::Label;
+use qt_widgets::dialog_button_box::DialogButtonBox;
+use qt_widgets::file_dialog::FileDialog;
+use qt_widgets::file_dialog::FileMode;
+use qt_widgets::file_dialog::Option::ShowDirsOnly;
+
+use qt_gui::standard_item_model::StandardItemModel;
+use qt_gui::standard_item::StandardItem;
+use qt_core::event_loop::EventLoop;
+use qt_core::connection::Signal;
+use qt_core::variant::Variant;
+use qt_core::slots::SlotBool;
+use qt_core::slots::SlotNoArgs;
+use qt_core::object::Object;
+use qt_core::qt::WidgetAttribute;
+use cpp_utils::{CppBox, StaticCast, DynamicCast};
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -9,24 +46,16 @@ use std::path::{
     Path, PathBuf
 };
 use url::Url;
-use gtk::prelude::*;
-use gtk::{
-    Entry, Button, Frame, ComboBoxText, ApplicationWindow, WindowPosition, Orientation,
-    Label, ButtonBox, ButtonBoxStyle, Application, FileChooserNative, ResponseType, FileChooserAction,
-    ReliefStyle, StyleContext, CheckButton, Grid, FontButton, SettingsExt
-};
-use pango::{
-    AttrList, Attribute
-};
 
 use packfile::packfile::PackFile;
 use settings::Settings;
 use settings::GameInfo;
 use settings::GameSelected;
-use AppUI;
+//use AppUI;
 use super::*;
 use packfile;
 
+/*
 /// `SettingsWindow`: This struct holds all the relevant stuff for the Settings Window.
 #[derive(Clone, Debug)]
 pub struct SettingsWindow {
@@ -927,4 +956,574 @@ pub fn load_gtk_settings(window: &ApplicationWindow, settings: &Settings) {
     let gtk_settings = window.get_settings().unwrap();
     gtk_settings.set_property_gtk_application_prefer_dark_theme(settings.prefer_dark_theme);
     gtk_settings.set_property_gtk_font_name(Some(&settings.font));
+}
+*/
+
+/// `SettingsDialog`: This struct holds all the relevant stuff for the Settings Dialog.
+pub struct SettingsDialog {
+    pub path_mymod_line_edit: Rc<RefCell<CppBox<LineEdit>>>,
+    pub path_mymod_button: Rc<RefCell<CppBox<PushButton>>>,
+    pub path_line_edits: Vec<Rc<RefCell<CppBox<LineEdit>>>>,
+    pub path_buttons: Vec<Rc<RefCell<CppBox<PushButton>>>>,
+    pub extra_default_game_combobox: CppBox<ComboBox>,
+    pub extra_allow_editing_of_ca_packfiles: CppBox<CheckBox>,
+    pub extra_check_updates_on_start: CppBox<CheckBox>,
+    pub extra_check_schema_updates_on_start: CppBox<CheckBox>,
+    //pub theme_prefer_dark_theme: CheckButton,
+    //pub theme_font_button: FontButton,
+    pub cancel_button: *mut PushButton,
+    pub accept_button: Rc<RefCell<*mut PushButton>>,
+}
+
+/// `MyModNewWindow`: This struct holds all the relevant stuff for "My Mod"'s New Mod Window.
+#[derive(Clone, Debug)]
+pub struct NewMyModDialog {
+    pub mymod_game_combobox: *mut ComboBox,
+    pub mymod_name_line_edit: *mut LineEdit,
+    pub cancel_button: *mut PushButton,
+    pub accept_button: *mut PushButton,
+}
+
+/// Implementation of `SettingsDialog`.
+impl SettingsDialog {
+
+    /// This function creates the entire settings window. It requires the application object to pass
+    /// the window to. It returns the new Settings, or None if we are cancelling.
+    pub fn create_settings_dialog(
+        app_ui: &AppUI,
+        rpfm_path: &PathBuf,
+        mut settings: Settings,
+        supported_games: &[GameInfo]
+    ) -> Option<Settings> {
+
+        //-------------------------------------------------------------------------------------------//
+        // Creating the Settings Dialog...
+        //-------------------------------------------------------------------------------------------//
+
+        // Create the Preferences Dialog.
+        let mut dialog;
+        unsafe { dialog = Dialog::new_unsafe(app_ui.window as *mut Widget); }
+
+        // Set it Modal, so you can't touch the Main Window with this dialog open.
+        dialog.set_modal(true);
+
+        // Resize the Dialog.
+        dialog.resize((750, 0));
+
+        // Create the main Grid.
+        let main_grid = GridLayout::new().into_raw();
+
+        // Create the Paths Frame.
+        let paths_frame = Frame::new().into_raw();
+        let mut paths_grid = GridLayout::new();
+
+        // Create the MyMod's path stuff...
+        let mymod_label = Label::new(&QString::from_std_str("MyMod's Path:")).into_raw();
+        let mut mymod_line_edit = LineEdit::new(());
+        let mut mymod_button = PushButton::new(&QString::from_std_str("..."));
+
+        unsafe {
+
+            // Configure the MyMod LineEdit.
+            mymod_line_edit.set_placeholder_text(&QString::from_std_str("This is the folder where you want to store all \"MyMod\" related files."));
+
+            // Add them to the grid.
+            paths_grid.add_widget((mymod_label as *mut Widget, 0, 0, 1, 1));
+            paths_grid.add_widget((mymod_line_edit.static_cast_mut() as *mut Widget, 0, 1, 1, 1));
+            paths_grid.add_widget((mymod_button.static_cast_mut() as *mut Widget, 0, 2, 1, 1));
+        }
+
+        // For each game supported...
+        let mut game_paths = vec![];
+        let mut game_buttons = vec![];
+        for (index, game_supported) in supported_games.iter().enumerate() {
+
+            // Create his fields.
+            let game_label = Label::new(&QString::from_std_str(&format!("TW: {} folder", game_supported.display_name))).into_raw();
+            let mut game_line_edit = LineEdit::new(());
+            let mut game_button = PushButton::new(&QString::from_std_str("..."));
+
+            unsafe {
+
+                // Configure the MyMod LineEdit.
+                game_line_edit.set_placeholder_text(&QString::from_std_str(&*format!("This is the folder where you have {} installed.", game_supported.display_name)));
+
+                // And add them to the grid.
+                paths_grid.add_widget((game_label as *mut Widget, (index + 1) as i32, 0, 1, 1));
+                paths_grid.add_widget((game_line_edit.static_cast_mut() as *mut Widget, (index + 1) as i32, 1, 1, 1));
+                paths_grid.add_widget((game_button.static_cast_mut() as *mut Widget, (index + 1) as i32, 2, 1, 1));
+            }
+
+            // Add the LineEdit and Button to the list.
+            game_paths.push(Rc::new(RefCell::new(game_line_edit)));
+            game_buttons.push(Rc::new(RefCell::new(game_button)));
+        }
+
+        unsafe {
+
+            // Add the Grid to the Frame, and the Frame to the Main Grid.
+            paths_frame.as_mut().unwrap().set_layout(paths_grid.static_cast_mut() as *mut Layout);
+            main_grid.as_mut().unwrap().add_widget((paths_frame as *mut Widget, 0, 0, 1, 2));
+
+            // And the Main Grid to the Dialog...
+            dialog.set_layout(main_grid as *mut Layout);
+        }
+
+        // Create the "Extra Settings" frame and Grid.
+        let extra_settings_frame = Frame::new().into_raw();
+        let extra_settings_grid = GridLayout::new().into_raw();
+
+        // Create the "Default Game" Label and ComboBox.
+        let default_game_label = Label::new(&QString::from_std_str("Default Game:")).into_raw();
+        let mut default_game_combobox = ComboBox::new();
+        let mut default_game_model = StandardItemModel::new(());
+        unsafe { default_game_combobox.set_model(default_game_model.static_cast_mut()); }
+
+        // Add the games to the ComboBox.
+        unsafe { for game in supported_games { default_game_combobox.add_item(&QString::from_std_str(&game.display_name)); } }
+
+        // Create the aditional CheckBoxes.
+        let allow_editing_of_ca_packfiles_label = Label::new(&QString::from_std_str("Allow Editing of CA PackFiles:"));
+        let check_updates_on_start_label = Label::new(&QString::from_std_str("Check Updates on Start:"));
+        let check_schema_updates_on_start_label = Label::new(&QString::from_std_str("Check Schema Updates on Start:"));
+
+        let mut allow_editing_of_ca_packfiles_checkbox = CheckBox::new(());
+        let mut check_updates_on_start_checkbox = CheckBox::new(());
+        let mut check_schema_updates_on_start_checkbox = CheckBox::new(());
+
+        // Add the "Default Game" stuff to the Grid.
+        unsafe { extra_settings_grid.as_mut().unwrap().add_widget((default_game_label as *mut Widget, 0, 0, 1, 1)); }
+        unsafe { extra_settings_grid.as_mut().unwrap().add_widget((default_game_combobox.static_cast_mut() as *mut Widget, 0, 1, 1, 1)); }
+
+        unsafe { extra_settings_grid.as_mut().unwrap().add_widget((allow_editing_of_ca_packfiles_label.into_raw() as *mut Widget, 1, 0, 1, 1)); }
+        unsafe { extra_settings_grid.as_mut().unwrap().add_widget((allow_editing_of_ca_packfiles_checkbox.static_cast_mut() as *mut Widget, 1, 1, 1, 1)); }
+
+        unsafe { extra_settings_grid.as_mut().unwrap().add_widget((check_updates_on_start_label.into_raw() as *mut Widget, 2, 0, 1, 1)); }
+        unsafe { extra_settings_grid.as_mut().unwrap().add_widget((check_updates_on_start_checkbox.static_cast_mut() as *mut Widget, 2, 1, 1, 1)); }
+
+        unsafe { extra_settings_grid.as_mut().unwrap().add_widget((check_schema_updates_on_start_label.into_raw() as *mut Widget, 3, 0, 1, 1)); }
+        unsafe { extra_settings_grid.as_mut().unwrap().add_widget((check_schema_updates_on_start_checkbox.static_cast_mut() as *mut Widget, 3, 1, 1, 1)); }
+
+        unsafe {
+
+            // Add the Grid to the Frame, and the Frame to the Main Grid.
+            extra_settings_frame.as_mut().unwrap().set_layout(extra_settings_grid as *mut Layout);
+            main_grid.as_mut().unwrap().add_widget((extra_settings_frame as *mut Widget, 1, 1, 1, 1));
+        }
+
+        // Create the bottom ButtonBox.
+        let mut button_box = DialogButtonBox::new(());
+        unsafe { main_grid.as_mut().unwrap().add_widget((button_box.static_cast_mut() as *mut Widget, 2, 0, 1, 2)); }
+
+        // Create the bottom Buttons.
+        let restore_default_button;
+        let cancel_button;
+        let accept_button;
+
+        // Add them to the Dialog.
+        restore_default_button = button_box.add_button(dialog_button_box::StandardButton::RestoreDefaults);
+        cancel_button = button_box.add_button(dialog_button_box::StandardButton::Cancel);
+        accept_button = button_box.add_button(dialog_button_box::StandardButton::Save);
+
+        //-------------------------------------------------------------------------------------------//
+        // Preparations...
+        //-------------------------------------------------------------------------------------------//
+        let mymod_line_edit = Rc::new(RefCell::new(mymod_line_edit));
+        let mymod_button = Rc::new(RefCell::new(mymod_button));
+        let accept_button = Rc::new(RefCell::new(accept_button));
+
+        //-------------------------------------------------------------------------------------------//
+        // Slots for the Settings Dialog...
+        //-------------------------------------------------------------------------------------------//
+
+        // What happens when we hit the "..." button for MyMods.
+        let slot_select_mymod_path = SlotNoArgs::new(clone!(
+            mymod_line_edit,
+            mymod_button,
+            accept_button => move || {
+                update_entry_path(&mymod_line_edit, &mymod_button, &accept_button);
+            }
+        ));
+
+        let mut slots_select_paths = vec![];
+        let gp = game_paths.to_vec();
+        let gb = game_buttons.to_vec();
+        let paths_and_buttons = gp.iter().cloned().zip(gb.iter().cloned());
+        for path in paths_and_buttons {
+            slots_select_paths.push(SlotNoArgs::new(clone!(
+                path,
+                accept_button => move || {
+                    update_entry_path(&path.0, &path.1, &accept_button);
+                }
+            )));
+        }
+
+        //-------------------------------------------------------------------------------------------//
+        // Actions for the Settings Dialog...
+        //-------------------------------------------------------------------------------------------//
+
+        // What happens when we hit the "..." button for Games.
+        for (index, button) in game_buttons.iter().enumerate() {
+            button.borrow().signals().released().connect(&slots_select_paths[index]);
+        }
+
+        // What happens when we hit the "..." button for MyMods.
+        unsafe { mymod_button.borrow().signals().released().connect(&slot_select_mymod_path); }
+
+        // What happens when we hit the "Cancel" button.
+        unsafe { cancel_button.as_mut().unwrap().signals().released().connect(&dialog.slots().close()); }
+
+        // What happens when we hit the "Accept" button.
+        unsafe { accept_button.borrow().as_mut().unwrap().signals().released().connect(&dialog.slots().accept()); }
+
+        //-------------------------------------------------------------------------------------------//
+        // Put all the important things together...
+        //-------------------------------------------------------------------------------------------//
+
+        let mut settings_dialog = Self {
+            path_mymod_line_edit: mymod_line_edit,
+            path_mymod_button: mymod_button,
+            path_line_edits: game_paths,
+            path_buttons: game_buttons,
+            extra_default_game_combobox: default_game_combobox,
+            extra_allow_editing_of_ca_packfiles: allow_editing_of_ca_packfiles_checkbox,
+            extra_check_updates_on_start: check_updates_on_start_checkbox,
+            extra_check_schema_updates_on_start: check_schema_updates_on_start_checkbox,
+            cancel_button,
+            accept_button,
+        };
+
+        //-------------------------------------------------------------------------------------------//
+        // Loading data to the Settings Dialog...
+        //-------------------------------------------------------------------------------------------//
+
+        // Load the MyMod Path, if exists.
+        settings_dialog.load_to_settings_dialog(&settings, supported_games);
+
+        //-------------------------------------------------------------------------------------------//
+        // Actions that must exectute at the end...
+        //-------------------------------------------------------------------------------------------//
+        let settings_dialog = Rc::new(RefCell::new(settings_dialog));
+
+        // What happens when we hit the "Restore Default" action.
+        let slot_restore_default = SlotNoArgs::new(clone!(
+            settings_dialog => move || {
+
+                let new_settings = Settings::new(supported_games);
+                (*settings_dialog.borrow_mut()).load_to_settings_dialog(&new_settings, supported_games)
+            }
+        ));
+
+        // What happens when we hit the "Restore Default" button.
+        unsafe { restore_default_button.as_mut().unwrap().signals().released().connect(&slot_restore_default); }
+
+
+        // Show the Dialog, save the current settings, and return them.
+        if dialog.exec() == 1 { Some(settings_dialog.borrow().save_from_settings_dialog(supported_games)) }
+
+        // Otherwise, return None.
+        else { None }
+    }
+
+    /// This function loads the data from the Settings struct to the Settings Dialog.
+    pub fn load_to_settings_dialog(
+        &mut self,
+        settings: &Settings,
+        supported_games: &[GameInfo]
+    ) {
+
+        // Load the MyMod Path, if exists.
+        self.path_mymod_line_edit.borrow_mut().set_text(&QString::from_std_str(&settings.paths.my_mods_base_path.clone().unwrap_or_else(||PathBuf::new()).to_string_lossy()));
+
+        // Load the Game Paths, if they exists.
+        for (index, path) in self.path_line_edits.iter_mut().enumerate() {
+            path.borrow_mut().set_text(&QString::from_std_str(&settings.paths.game_paths[index].path.clone().unwrap_or_else(||PathBuf::new()).to_string_lossy()));
+        }
+
+        // Get the Default Game.
+        for (index, game) in supported_games.iter().enumerate() {
+            if game.folder_name == settings.default_game {
+                self.extra_default_game_combobox.set_current_index(index as i32);
+                break;
+            }
+        }
+
+        // Load the Extra Stuff.
+        self.extra_allow_editing_of_ca_packfiles.set_checked(settings.allow_editing_of_ca_packfiles);
+        self.extra_check_updates_on_start.set_checked(settings.check_updates_on_start);
+        self.extra_check_schema_updates_on_start.set_checked(settings.check_schema_updates_on_start);
+    }
+
+    /// This function gets the data from the Settings Dialog and returns a Settings struct with that
+    /// data in it.
+    pub fn save_from_settings_dialog(&self, supported_games: &[GameInfo]) -> Settings {
+
+        // Create a new Settings.
+        let mut settings = Settings::new(supported_games);
+
+        // Only if we have valid directories, we save them. Otherwise we wipe them out.
+        settings.paths.my_mods_base_path = match Path::new(&self.path_mymod_line_edit.borrow().text().to_std_string()).is_dir() {
+            true => Some(PathBuf::from(&self.path_mymod_line_edit.borrow().text().to_std_string())),
+            false => None,
+        };
+
+        // For each entry, we get check if it's a valid directory and save it into `settings`.
+        for (index, game) in self.path_line_edits.iter().enumerate() {
+            settings.paths.game_paths[index].path = match Path::new(&game.borrow().text().to_std_string()).is_dir() {
+                true => Some(PathBuf::from(&game.borrow().text().to_std_string())),
+                false => None,
+            };
+        }
+
+        // We get his game's folder, depending on the selected game.
+        let index = self.extra_default_game_combobox.current_index();
+        settings.default_game = supported_games[index as usize].folder_name.to_owned();
+
+        // Get the Extra Settings.
+        settings.allow_editing_of_ca_packfiles = self.extra_allow_editing_of_ca_packfiles.is_checked();
+        settings.check_updates_on_start = self.extra_check_updates_on_start.is_checked();
+        settings.check_schema_updates_on_start = self.extra_check_schema_updates_on_start.is_checked();
+
+        // Return the new Settings.
+        settings
+    }
+}
+
+/// Implementation of `MyModNewWindow`.
+impl NewMyModDialog {
+
+    /// This function creates the entire "New Mod" dialog. It returns the name of the mod and the
+    /// folder_name of the game.
+    pub fn create_new_mymod_dialog(
+        app_ui: &AppUI,
+        supported_games: &[GameInfo],
+        settings: &Settings,
+    ) -> Option<(String, String)> {
+
+        //-------------------------------------------------------------------------------------------//
+        // Creating the New MyMod Dialog...
+        //-------------------------------------------------------------------------------------------//
+
+        // Create the "New MyMod" Dialog.
+        let mut dialog;
+        unsafe { dialog = Dialog::new_unsafe(app_ui.window as *mut Widget); }
+
+        // Set it Modal, so you can't touch the Main Window with this dialog open.
+        dialog.set_modal(true);
+
+        // Resize the Dialog.
+        dialog.resize((300, 0));
+
+        // Create the main Grid.
+        let main_grid = GridLayout::new().into_raw();
+
+        // Create the Advices Frame.
+        let advices_frame = Frame::new().into_raw();
+        let mut advices_grid = GridLayout::new();
+
+        // Create the "Advices" Label.
+        let advices_label = Label::new(&QString::from_std_str("Things to take into account before creating a new mod:
+	- Select the game you'll make the mod for.
+	- Pick an simple name (it shouldn't end in *.pack).
+	- If you want to use multiple words, use \"_\" instead of \" \".
+	- You can't create a mod for a game that has no path set in the settings.")).into_raw();
+
+        unsafe {
+
+            // Add it to his frame.
+            advices_grid.add_widget((advices_label as *mut Widget, 0, 0, 1, 1));
+
+            // Add the Grid to the Frame, and the Frame to the Main Grid.
+            advices_frame.as_mut().unwrap().set_layout(advices_grid.static_cast_mut() as *mut Layout);
+            main_grid.as_mut().unwrap().add_widget((advices_frame as *mut Widget, 0, 0, 1, 2));
+
+            // And the Main Grid to the Dialog...
+            dialog.set_layout(main_grid as *mut Layout);
+        }
+
+        // Create the "MyMod's Name" Label and LineEdit.
+        let mymod_name_label = Label::new(&QString::from_std_str("Name of the Mod:")).into_raw();
+        let mut mymod_name_line_edit = LineEdit::new(()).into_raw();
+
+        // Configure the "MyMod's Name" LineEdit.
+        unsafe { mymod_name_line_edit.as_mut().unwrap().set_placeholder_text(&QString::from_std_str("For example: one_ring_for_me")); }
+
+        // Create the "MyMod's Game" Label and ComboBox.
+        let mymod_game_label = Label::new(&QString::from_std_str("Game of the Mod:")).into_raw();
+        let mut mymod_game_combobox = ComboBox::new().into_raw();
+        let mut mymod_game_model = StandardItemModel::new(());
+        unsafe { mymod_game_combobox.as_mut().unwrap().set_model(mymod_game_model.static_cast_mut()); }
+
+        // Add the games to the ComboBox.
+        unsafe { for game in supported_games { mymod_game_combobox.as_mut().unwrap().add_item(&QString::from_std_str(&game.display_name)); } }
+
+        // Add all the widgets to the main grid.
+        unsafe { main_grid.as_mut().unwrap().add_widget((mymod_name_label as *mut Widget, 1, 0, 1, 1)); }
+        unsafe { main_grid.as_mut().unwrap().add_widget((mymod_name_line_edit as *mut Widget, 1, 1, 1, 1)); }
+
+        unsafe { main_grid.as_mut().unwrap().add_widget((mymod_game_label as *mut Widget, 2, 0, 1, 1)); }
+        unsafe { main_grid.as_mut().unwrap().add_widget((mymod_game_combobox as *mut Widget, 2, 1, 1, 1)); }
+
+        // Create the bottom ButtonBox.
+        let mut button_box = DialogButtonBox::new(());
+        unsafe { main_grid.as_mut().unwrap().add_widget((button_box.static_cast_mut() as *mut Widget, 3, 0, 1, 2)); }
+
+        // Create the bottom Buttons.
+        let cancel_button;
+        let accept_button;
+
+        // Add them to the Dialog.
+        cancel_button = button_box.add_button(dialog_button_box::StandardButton::Cancel);
+        accept_button = button_box.add_button(dialog_button_box::StandardButton::Save);
+
+        // Disable the "Accept" button by default.
+        unsafe { accept_button.as_mut().unwrap().set_enabled(false); }
+
+        //-------------------------------------------------------------------------------------------//
+        // Put all the important things together...
+        //-------------------------------------------------------------------------------------------//
+
+        let mut new_mymod_dialog = Self {
+            mymod_game_combobox,
+            mymod_name_line_edit,
+            cancel_button,
+            accept_button,
+        };
+
+        //-------------------------------------------------------------------------------------------//
+        // Slots for the Dialog...
+        //-------------------------------------------------------------------------------------------//
+
+        // What happens when we change the name of the mod.
+        let slot_mymod_line_edit_change = SlotNoArgs::new(clone!(
+            new_mymod_dialog => move || {
+                check_my_mod_validity(&new_mymod_dialog, &settings, &supported_games);
+            }
+        ));
+
+        // What happens when we change the game of the mod.
+        let slot_mymod_combobox_change = SlotNoArgs::new(clone!(
+            new_mymod_dialog => move || {
+                check_my_mod_validity(&new_mymod_dialog, &settings, &supported_games);
+            }
+        ));
+
+        //-------------------------------------------------------------------------------------------//
+        // Actions for the Settings Dialog...
+        //-------------------------------------------------------------------------------------------//
+
+        // What happens when we change the name of the mod.
+        unsafe { new_mymod_dialog.mymod_name_line_edit.as_mut().unwrap().signals().text_changed().connect(&slot_mymod_line_edit_change); }
+
+        // What happens when we change the game of the mod.
+        unsafe { new_mymod_dialog.mymod_game_combobox.as_mut().unwrap().signals().current_text_changed().connect(&slot_mymod_combobox_change); }
+
+        // What happens when we hit the "Cancel" button.
+        unsafe { new_mymod_dialog.cancel_button.as_mut().unwrap().signals().released().connect(&dialog.slots().close()); }
+
+        // What happens when we hit the "Accept" button.
+        unsafe { new_mymod_dialog.accept_button.as_mut().unwrap().signals().released().connect(&dialog.slots().accept()); }
+
+
+        // Show the Dialog, save the current settings, and return them.
+        if dialog.exec() == 1 {
+
+            // Get the text from the LineEdit.
+            let mod_name;
+            unsafe { mod_name = QString::to_std_string(&new_mymod_dialog.mymod_name_line_edit.as_mut().unwrap().text()); }
+
+            // Get the Game Selected in the ComboBox.
+            let index;
+            unsafe { index = new_mymod_dialog.mymod_game_combobox.as_mut().unwrap().current_index(); }
+            let mod_game = supported_games[index as usize].folder_name.to_owned();
+
+            // Return it.
+            Some((mod_name, mod_game))
+        }
+
+        // Otherwise, return None.
+        else { None }
+    }
+}
+
+/// This function takes care of updating the provided LineEdits with the selected path.
+fn update_entry_path(
+    line_edit: &Rc<RefCell<CppBox<LineEdit>>>,
+    line_button: &Rc<RefCell<CppBox<PushButton>>>,
+    accept_button: &Rc<RefCell<*mut PushButton>>,
+) {
+
+    // Create a parent, as we don't really care right now for it.
+    let mut parent = Widget::new();
+
+    // Create the FileDialog to get the path.
+    let mut file_dialog;
+    unsafe {
+        file_dialog = FileDialog::new_unsafe((
+            parent.into_raw(),
+            &QString::from_std_str("Select Folder"),
+        ));
+    }
+
+    // Set it to only search Folders.
+    file_dialog.set_file_mode(FileMode::Directory);
+    file_dialog.set_option(ShowDirsOnly);
+
+    // Get the old Path, if exists.
+    let old_path = QString::to_std_string(&line_edit.borrow().text());
+    if !old_path.is_empty() && Path::new(&old_path).is_dir() {
+        file_dialog.set_directory(&line_edit.borrow().text());
+    }
+
+    // Run it and expect a response (1 => Accept, 0 => Cancel).
+    if file_dialog.exec() == 1 {
+
+        // Get the path of the selected file and turn it in a Rust's PathBuf.
+        let mut path: PathBuf = PathBuf::new();
+        let path_qt = file_dialog.selected_files();
+        for index in 0..path_qt.size() { path.push(path_qt.at(index).to_std_string()); }
+
+        // Add the Path to the LineEdit.
+        line_edit.borrow_mut().set_text(&QString::from_std_str(path.to_string_lossy()));
+    }
+}
+
+/// Modification of `paint_entry`. In this one, the button painted red is the `Accept` button.
+fn check_my_mod_validity(
+    mymod_dialog: &NewMyModDialog,
+    settings: &Settings,
+    supported_games: &[GameInfo],
+) {
+
+    // Get the text from the LineEdit.
+    let mod_name;
+    unsafe { mod_name = QString::to_std_string(&mymod_dialog.mymod_name_line_edit.as_mut().unwrap().text()); }
+
+    // Get the Game Selected in the ComboBox.
+    let index;
+    unsafe { index = mymod_dialog.mymod_game_combobox.as_mut().unwrap().current_index(); }
+    let mod_game = supported_games[index as usize].folder_name.to_owned();
+
+    // If there is text and it doesn't have whitespaces...
+    if !mod_name.is_empty() && !mod_name.contains(' ') {
+
+        // If we have "MyMod" path configured (we SHOULD have it to access this window, but just in case...).
+        if let Some(ref mod_path) = settings.paths.my_mods_base_path {
+            let mut mod_path = mod_path.clone();
+            mod_path.push(mod_game);
+            mod_path.push(format!("{}.pack", mod_name));
+
+            // If a mod with that name for that game already exists, disable the "Accept" button.
+            if mod_path.is_file() { unsafe { mymod_dialog.accept_button.as_mut().unwrap().set_enabled(false); }}
+
+            // If the name is available, enable the `Accept` button.
+            else { unsafe { mymod_dialog.accept_button.as_mut().unwrap().set_enabled(true); } }
+        }
+
+        // If there is no "MyMod" path configured, disable the button.
+        else { unsafe { mymod_dialog.accept_button.as_mut().unwrap().set_enabled(false); } }
+    }
+
+    // If name is empty, disable the button.
+    else { unsafe { mymod_dialog.accept_button.as_mut().unwrap().set_enabled(false); } }
 }

@@ -34,7 +34,7 @@ pub struct PackFile {
 /// - file_name: name of the PackFile.
 /// - file_path: current full path of the PackFile in the FileSystem.
 /// - is_modified: true if we have changed the PackFile in any way.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PackFileExtraData {
     pub file_name: String,
     pub file_path: PathBuf,
@@ -129,7 +129,7 @@ impl PackFile {
 
         // These types are always editable.
         if self.header.pack_file_type == 3 || self.header.pack_file_type == 4 { true }
-        else if self.header.pack_file_type <= 2 && settings.allow_edition_of_ca_packfiles { true }
+        else if self.header.pack_file_type <= 2 && settings.allow_editing_of_ca_packfiles { true }
         else { false }
     }
 

@@ -1,6 +1,6 @@
 // In this file are all the helper functions used by the UI when decoding RigidModel PackedFiles.
 extern crate failure;
-
+/*
 use failure::Error;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -415,3 +415,4 @@ impl PackedFileRigidModelDataView {
         Ok(packed_file_data_lods_data.to_vec())
     }
 }
+*/
