@@ -18,7 +18,7 @@ pub mod tests;
 
 /// This enum has the different types of selected items in a TreeView. File has (tree_path without
 /// the mod's name, index in PackFile). Folder has the tree_path without the mod's name.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum TreePathType {
     File((Vec<String>, usize)),
     Folder(Vec<String>),
@@ -44,7 +44,7 @@ impl PartialEq for TreePathType {
 /// that the tree_path NEEDS TO BE COMPLETE (including PackFile's name) for the function to work
 /// properly.
 #[allow(dead_code)]
-pub fn get_type_of_selected_tree_path(
+pub fn get_type_of_selected_path(
     tree_path: &[String],
     pack_file_decoded: &PackFile
 ) -> TreePathType {

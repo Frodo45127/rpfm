@@ -17,6 +17,7 @@ use qt_widgets::message_box::Icon;
 use qt_widgets::message_box::StandardButton;
 use qt_widgets::action_group::ActionGroup;
 use qt_widgets::label::Label;
+use qt_core::item_selection::ItemSelection;
 use qt_core::flags::Flags;
 
 use qt_gui::standard_item_model::StandardItemModel;
@@ -47,13 +48,14 @@ use QString;
 
 pub mod settings;
 pub mod updater;
+
 use AppUI;
+use common::*;
 /*
 
 
 
 
-use common::*;
 use packedfile::*;
 use packedfile::db::*;
 use packedfile::loc::*;
@@ -1112,8 +1114,8 @@ pub enum TreeViewOperation {
     Build,
     //Add(Vec<String>),
     //AddFromPackFile(Vec<String>, Vec<String>, Vec<Vec<String>>),
-    //Delete,
-    Rename(String),
+    Delete(TreePathType),
+    Rename(TreePathType, String),
 }
 
 /// This function shows a "Success" or "Error" Dialog with some text. For notification of success and
@@ -1133,12 +1135,14 @@ pub fn show_dialog<T: Display>(
     let icon = if is_success { Icon::Information } else { Icon::Critical };
 
     // Create the dialog.
-    let mut dialog = MessageBox::new((
+    let mut dialog;
+    unsafe { dialog = MessageBox::new_unsafe((
         icon,
         &QString::from_std_str(title),
         &QString::from_std_str(&text.to_string()),
         Flags::from_int(1024), // Ok button.
-    ));
+        app_ui.window as *mut Widget,
+    )); }
 
     // Run the dialog.
     dialog.exec();
@@ -1242,6 +1246,112 @@ pub fn are_you_sure(
     else { true }
 }
 
+/// This function is used to get the complete Path of a Selected Item in the TreeView.
+/// I'm sure there are other ways to do it, but the TreeView has proven to be a mystery
+/// BEYOND MY COMPREHENSION, so we use this for now.
+/// It requires:
+/// - folder_tree_selection: &TreeSelection of the place of the TreeView we want to know his TreePath.
+/// - include_packfile: bool. True if we want the TreePath to include the PackFile's name.
+pub fn get_path_from_selection(
+    app_ui: &AppUI,
+    include_packfile: bool
+) -> Vec<String>{
+
+    // Create the vector to hold the Path.
+    let mut path: Vec<String> = vec![];
+
+    // Get the selection of the TreeView.
+    let selection_model;
+    let mut selection;
+    unsafe { selection_model = app_ui.folder_tree_view.as_mut().unwrap().selection_model(); }
+    unsafe { selection = selection_model.as_mut().unwrap().selected_indexes(); }
+
+    // Get the selected cell.
+    let mut item = selection.take_at(0);
+    let mut parent;
+
+    // Loop until we reach the root index.
+    loop {
+
+        // Get his data.
+        let name;
+        unsafe { name = QString::to_std_string(&app_ui.folder_tree_model.as_mut().unwrap().data(&item).to_string()); }
+
+        // Add it to the list
+        path.push(name);
+
+        // Get the Parent of the item.
+        parent = item.parent();
+
+        // If the parent is valid, it's the new item.
+        if parent.is_valid() { item = parent; }
+
+        // Otherwise, we stop.
+        else { break; }
+    }
+
+    // If we don't want to include the PackFile in the Path, remove it.
+    if !include_packfile { path.pop(); }
+
+    // Reverse it, as we want it from Parent to Children.
+    path.reverse();
+
+    // Return the Path.
+    path
+}
+
+/// This function is used to get the complete Path of a Selected Item in the TreeView.
+/// I'm sure there are other ways to do it, but the TreeView has proven to be a mystery
+/// BEYOND MY COMPREHENSION, so we use this for now.
+/// It requires:
+/// - folder_tree_selection: &TreeSelection of the place of the TreeView we want to know his TreePath.
+/// - include_packfile: bool. True if we want the TreePath to include the PackFile's name.
+pub fn get_path_from_item_selection(
+    app_ui: &AppUI,
+    item: &ItemSelection,
+    include_packfile: bool
+) -> Vec<String>{
+
+    // Create the vector to hold the Path.
+    let mut path: Vec<String> = vec![];
+
+    // Get the selection of the TreeView.
+    let mut selection = item.indexes();
+
+    // Get the selected cell.
+    let mut item = selection.take_at(0);
+    let mut parent;
+
+    // Loop until we reach the root index.
+    loop {
+
+        // Get his data.
+        let name;
+        unsafe { name = QString::to_std_string(&app_ui.folder_tree_model.as_mut().unwrap().data(&item).to_string()); }
+
+        // Add it to the list
+        path.push(name);
+
+        // Get the Parent of the item.
+        parent = item.parent();
+
+        // If the parent is valid, it's the new item.
+        if parent.is_valid() { item = parent; }
+
+        // Otherwise, we stop.
+        else { break; }
+    }
+
+    // If we don't want to include the PackFile in the Path, remove it.
+    if !include_packfile { path.pop(); }
+
+    // Reverse it, as we want it from Parent to Children.
+    path.reverse();
+
+    // Return the Path.
+    path
+}
+
 /// This function updates the provided `TreeView`, depending on the operation we want to do.
 /// It requires:
 /// - folder_tree_store: `&TreeStore` that the `TreeView` uses.
@@ -1251,7 +1361,7 @@ pub fn are_you_sure(
 /// - type: the type of whatever is selected.
 pub fn update_treeview(
     app_ui: &AppUI,
-    pack_file_data: (&str, Vec<Vec<String>>),
+    pack_file_data: (&str, Vec<Vec<String>>), // (packfile_name, list of packfiles)
     operation: TreeViewOperation,
 ) {
 
@@ -1544,61 +1654,76 @@ pub fn update_treeview(
                 );
             }
         },
-
+        */
         // If we want to delete something from the `TreeView`...
-        TreeViewOperation::Delete => {
+        TreeViewOperation::Delete(path_type) => {
 
             // Then we see what type the selected thing is.
-            match *selection_type {
+            match path_type {
 
                 // If it's a PackedFile or a Folder...
                 TreePathType::File(_) | TreePathType::Folder(_) => {
 
-                    // If we have something selected (just in case)...
-                    if let Some(selection) = folder_tree_selection.get_selected() {
+                    // Get whatever is selected from the TreeView.
+                    let packfile;
+                    let selection_model;
+                    let mut selection;
+                    unsafe { selection_model = app_ui.folder_tree_view.as_mut().unwrap().selection_model(); }
+                    unsafe { selection = selection_model.as_mut().unwrap().selected_indexes(); }
+                    unsafe { packfile = app_ui.folder_tree_model.as_ref().unwrap().item(0); }
+                    let mut item = selection.take_at(0);
+                    let mut parent;
 
-                        // We get his `TreeIter`.
-                        let mut tree_iter = selection.1;
+                    // Begin the endless cycle of war and dead.
+                    loop {
 
-                        // Begin the endless loop of war and dead.
-                        loop {
+                        // Get the parent of the item.
+                        parent = item.parent();
 
-                            // Get his parent. We can unwrap here because we are never to reach this with a iter without parent.
-                            let parent = folder_tree_store.iter_parent(&tree_iter).unwrap();
+                        // Kill the item in a cruel way.
+                        unsafe { app_ui.folder_tree_model.as_mut().unwrap().remove_row((item.row(), &parent));}
 
-                            // Remove it from the `TreeStore`.
-                            folder_tree_store.remove(&tree_iter);
+                        // Check if the parent still has children.
+                        let has_children;
+                        let packfile_has_children;
+                        unsafe { has_children = app_ui.folder_tree_model.as_mut().unwrap().has_children(&parent); }
+                        unsafe { packfile_has_children = packfile.as_ref().unwrap().has_children(); }
 
-                            // If the parent has any more childs or it's in root level (PackFile), stop.
-                            if folder_tree_store.iter_has_child(&parent) || folder_tree_store.iter_depth(&parent) == 0 {
-                                break;
-                            }
+                        // If the parent has more children, or we reached the PackFile, we're done.
+                        if has_children | !packfile_has_children { break; }
 
-                            // If we don't have any reason to stop, replace the `tree_iter` with his parent.
-                            else {
-                                tree_iter = parent;
-                            }
-                        }
+                        // Otherwise, our new item is our parent.
+                        else { item = parent }
                     }
                 }
 
                 // If it's a PackFile...
                 TreePathType::PackFile => {
 
-                    // First, we clear the TreeStore.
-                    folder_tree_store.clear();
+                    // Get the name of the PackFile from the TreeView.
+                    let selection_model;
+                    let mut selection;
+                    unsafe { selection_model = app_ui.folder_tree_view.as_mut().unwrap().selection_model(); }
+                    unsafe { selection = selection_model.as_mut().unwrap().selected_indexes(); }
+                    let item = selection.at(0);
+                    let name;
+                    unsafe { name = app_ui.folder_tree_model.as_mut().unwrap().data(item).to_string(); }
+
+                    // Clear the TreeModel.
+                    unsafe { app_ui.folder_tree_model.as_mut().unwrap().clear(); }
 
                     // Then we add the PackFile to it. This effectively deletes all the PackedFiles in the PackFile.
-                    folder_tree_store.insert_with_values(None, None, &[0], &[&format!("{}", pack_file_decoded.extra_data.file_name)]);
+                    let mut pack_file = StandardItem::new(&name);
+                    unsafe { app_ui.folder_tree_model.as_mut().unwrap().append_row_unsafe(pack_file.into_raw()); }
                 },
 
                 // If we don't have anything selected, we do nothing.
                 TreePathType::None => {},
             }
         },
-        */
+
         // If we want to rename something...
-        TreeViewOperation::Rename(new_name) => {
+        TreeViewOperation::Rename(path_type, new_name) => {
 
             // Get the selection model.
             let selection_model;

@@ -39,7 +39,13 @@ use qt_widgets::main_window::MainWindow;
 use qt_widgets::message_box::MessageBox;
 use qt_widgets::action_group::ActionGroup;
 use qt_widgets::file_dialog::FileDialog;
+use qt_widgets::widget::connection::CustomContextMenuRequested;
+use qt_core::point::Point;
+use qt_widgets::slots::SlotQtCorePointRef;
+use qt_gui::cursor::Cursor;
+use qt_core::slots::SlotItemSelectionRefItemSelectionRef;
 
+use qt_core::qt::ContextMenuPolicy;
 use qt_gui::desktop_services::DesktopServices;
 use qt_gui::standard_item_model::StandardItemModel;
 use qt_gui::icon::Icon;
@@ -3606,6 +3612,20 @@ pub struct AppUI {
     pub patreon_link: *mut Action,
     pub check_updates: *mut Action,
     pub check_schema_updates: *mut Action,
+
+    //-------------------------------------------------------------------------------//
+    // "Contextual" menu for the TreeView.
+    //-------------------------------------------------------------------------------//
+    pub context_menu_add_file: *mut Action,
+    pub context_menu_add_folder: *mut Action,
+    pub context_menu_add_from_packfile: *mut Action,
+    pub context_menu_create_loc: *mut Action,
+    pub context_menu_create_db: *mut Action,
+    pub context_menu_create_text: *mut Action,
+    pub context_menu_mass_import_tsv: *mut Action,
+    pub context_menu_delete: *mut Action,
+    pub context_menu_extract: *mut Action,
+    pub context_menu_rename: *mut Action,
 }
 
 /// This struct will hold all the MyMod-related stuff we have to recreate from time to time.
@@ -3737,6 +3757,11 @@ fn main() {
         unsafe { menu_warhammer = menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("&Warhammer")); }
         unsafe { menu_attila = menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("&Attila")); }
 
+        // Contextual Menu for the TreeView.
+        let mut folder_tree_view_context_menu = Menu::new(());
+        let menu_add = folder_tree_view_context_menu.add_menu(&QString::from_std_str("&Add..."));
+        let menu_create = folder_tree_view_context_menu.add_menu(&QString::from_std_str("&Create..."));
+
         // Da monsta.
         let app_ui;
         unsafe {
@@ -3808,6 +3833,24 @@ fn main() {
                 patreon_link: menu_bar_about.as_mut().unwrap().add_action(&QString::from_std_str("&Support me on Patreon")),
                 check_updates: menu_bar_about.as_mut().unwrap().add_action(&QString::from_std_str("&Check Updates")),
                 check_schema_updates: menu_bar_about.as_mut().unwrap().add_action(&QString::from_std_str("Check Schema &Updates")),
+
+                //-------------------------------------------------------------------------------//
+                // "Contextual" Menu for the TreeView.
+                //-------------------------------------------------------------------------------//
+
+                context_menu_add_file: menu_add.as_mut().unwrap().add_action(&QString::from_std_str("&Add File")),
+                context_menu_add_folder: menu_add.as_mut().unwrap().add_action(&QString::from_std_str("Add &Folder")),
+                context_menu_add_from_packfile: menu_add.as_mut().unwrap().add_action(&QString::from_std_str("Add from &PackFile")),
+
+                context_menu_create_loc:  menu_create.as_mut().unwrap().add_action(&QString::from_std_str("&Create Loc")),
+                context_menu_create_db: menu_create.as_mut().unwrap().add_action(&QString::from_std_str("Create &DB")),
+                context_menu_create_text: menu_create.as_mut().unwrap().add_action(&QString::from_std_str("Create &Text")),
+
+                context_menu_mass_import_tsv: menu_create.as_mut().unwrap().add_action(&QString::from_std_str("Mass-Import TSV")),
+
+                context_menu_delete: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Delete")),
+                context_menu_extract: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Extract")),
+                context_menu_rename: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Rename")),
             };
         }
 
@@ -3838,6 +3881,9 @@ fn main() {
         unsafe { menu_bar_packfile.as_mut().unwrap().insert_menu(app_ui.preferences, menu_change_packfile_type); }
         unsafe { menu_bar_packfile.as_mut().unwrap().insert_separator(app_ui.preferences); }
 
+        // Prepare the TreeView to have a Contextual Menu.
+        unsafe { app_ui.folder_tree_view.as_mut().unwrap().set_context_menu_policy(ContextMenuPolicy::Custom); }
+
         //---------------------------------------------------------------------------------------//
         // Preparing initial state of the Main Window...
         //---------------------------------------------------------------------------------------//
@@ -3845,6 +3891,7 @@ fn main() {
         // Put the stuff we need to move to the slots in Rc<Refcell<>>, so we can clone it without issues.
         let receiver_qt = Rc::new(RefCell::new(receiver_qt));
         let is_modified = Rc::new(RefCell::new(false));
+        let is_packedfile_opened = Rc::new(RefCell::new(false));
         let mymod_menu_needs_rebuild = Rc::new(RefCell::new(false));
         let mode = Rc::new(RefCell::new(Mode::Normal));
 
@@ -3881,6 +3928,20 @@ fn main() {
 
         // Disable the actions available for the PackFile from the `MenuBar`.
         enable_packfile_actions(&app_ui, &game_selected, false);
+
+        // Disable all the Contextual Menu actions by default.
+        unsafe {
+            app_ui.context_menu_add_file.as_mut().unwrap().set_enabled(false);
+            app_ui.context_menu_add_folder.as_mut().unwrap().set_enabled(false);
+            app_ui.context_menu_add_from_packfile.as_mut().unwrap().set_enabled(false);
+            app_ui.context_menu_create_db.as_mut().unwrap().set_enabled(false);
+            app_ui.context_menu_create_loc.as_mut().unwrap().set_enabled(false);
+            app_ui.context_menu_create_text.as_mut().unwrap().set_enabled(false);
+            app_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(false);
+            app_ui.context_menu_delete.as_mut().unwrap().set_enabled(false);
+            app_ui.context_menu_extract.as_mut().unwrap().set_enabled(false);
+            app_ui.context_menu_rename.as_mut().unwrap().set_enabled(false);
+        }
 
         // Set the current "Operational Mode" to `Normal`.
         set_my_mod_mode(&mymod_stuff, &mode, None);
@@ -4300,7 +4361,7 @@ fn main() {
                                             update_treeview(
                                                 &app_ui,
                                                 ("", vec![]),
-                                                TreeViewOperation::Rename(path.file_name().unwrap().to_string_lossy().as_ref().to_owned()),
+                                                TreeViewOperation::Rename(TreePathType::PackFile, path.file_name().unwrap().to_string_lossy().as_ref().to_owned()),
                                             );
 
                                             // Set the current "Operational Mode" to Normal, as this is a "New" mod.
@@ -4664,6 +4725,426 @@ fn main() {
         unsafe { app_ui.check_schema_updates.as_ref().unwrap().signals().triggered().connect(&slot_check_schema_updates); }
 
         //-----------------------------------------------------//
+        // TreeView "Contextual" Menu...
+        //-----------------------------------------------------//
+
+        // Slot to enable/disable contextual actions depending on the selected item.
+        let slot_contextual_menu_enabler = SlotItemSelectionRefItemSelectionRef::new(clone!(
+            sender_qt,
+            sender_qt_data,
+            receiver_qt => move |selection,_| {
+
+                // Get the path of the selected item.
+                let path = get_path_from_item_selection(&app_ui, &selection, true);
+
+                // Send the Path to the Background Thread, and get the type of the item.
+                sender_qt.send("get_type_of_path").unwrap();
+                sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
+                let response = receiver_qt.borrow().recv().unwrap().unwrap();
+                let item_type: TreePathType = serde_json::from_slice(&response).unwrap();
+
+                // Depending on the type of the selected item, we enable or disable different actions.
+                match item_type {
+
+                    // If it's a file...
+                    TreePathType::File(_) => {
+                        unsafe {
+                            app_ui.context_menu_add_file.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_add_folder.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_add_from_packfile.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_create_db.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_create_loc.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_create_text.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_delete.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_extract.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_rename.as_mut().unwrap().set_enabled(true);
+                        }
+                    },
+
+                    // If it's a folder...
+                    TreePathType::Folder(_) => {
+                        unsafe {
+                            app_ui.context_menu_add_file.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_add_folder.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_add_from_packfile.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_create_db.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_create_loc.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_create_text.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_delete.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_extract.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_rename.as_mut().unwrap().set_enabled(true);
+                        }
+                    },
+
+                    // If it's the PackFile...
+                    TreePathType::PackFile => {
+                        unsafe {
+                            app_ui.context_menu_add_file.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_add_folder.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_add_from_packfile.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_create_db.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_create_loc.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_create_text.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_delete.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_extract.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_rename.as_mut().unwrap().set_enabled(false);
+                        }
+                    },
+
+                    // If there is nothing selected...
+                    TreePathType::None => {
+                        unsafe {
+                            app_ui.context_menu_add_file.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_add_folder.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_add_from_packfile.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_create_db.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_create_loc.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_create_text.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_delete.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_extract.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_rename.as_mut().unwrap().set_enabled(false);
+                        }
+                    },
+                }
+
+                // Ask the other thread if there is a Dependency Database loaded.
+                sender_qt.send("is_there_a_dependency_database").unwrap();
+                let response = receiver_qt.borrow().recv().unwrap().unwrap();
+                let is_there_a_dependency_database: bool = serde_json::from_slice(&response).unwrap();
+
+                // Ask the other thread if there is a Schema loaded.
+                sender_qt.send("is_there_a_schema").unwrap();
+                let response = receiver_qt.borrow().recv().unwrap().unwrap();
+                let is_there_a_schema: bool = serde_json::from_slice(&response).unwrap();
+
+                // If there is no dependency_database or schema for our GameSelected, ALWAYS disable creating new DB Tables.
+                if !is_there_a_dependency_database || !is_there_a_schema {
+                    unsafe { app_ui.context_menu_create_db.as_mut().unwrap().set_enabled(false); }
+                    unsafe { app_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(false); }
+                }
+            }
+        ));
+
+        // Slot to show the Contextual Menu for the TreeView.
+        let slot_folder_tree_view_context_menu = SlotQtCorePointRef::new(move |_| {
+            folder_tree_view_context_menu.exec2(&Cursor::pos());
+        });
+
+        // Trigger the "Enable/Disable" slot every time we change the selection in the TreeView.
+        unsafe { app_ui.folder_tree_view.as_mut().unwrap().selection_model().as_ref().unwrap().signals().selection_changed().connect(&slot_contextual_menu_enabler); }
+
+        // Action to show the Contextual Menu for the Treeview.
+        unsafe { (app_ui.folder_tree_view as *mut Widget).as_ref().unwrap().signals().custom_context_menu_requested().connect(&slot_folder_tree_view_context_menu); }
+
+        // What happens when we trigger the "Delete" action in the Contextual Menu.
+        let slot_contextual_menu_delete = SlotBool::new(clone!(
+            sender_qt,
+            sender_qt_data,
+            receiver_qt,
+            is_packedfile_opened,
+            is_modified,
+            rpfm_path => move |_| {
+
+                // If there is a PackedFile opened, we show a message with the explanation of why
+                // we can't delete the selected file/folder.
+                if *is_packedfile_opened.borrow() {
+                    show_dialog(&app_ui, false, "You can't delete a PackedFile/Folder while there is a PackedFile opened in the right side. Pls, close it by clicking in a Folder/PackFile before trying to delete it again.")
+                }
+
+                // Otherwise, we continue the deletion process.
+                else {
+
+                    // We only do something in case the focus is in the TreeView. This should stop
+                    // problems with the accels working everywhere.
+                    let has_focus;
+                    unsafe { has_focus = app_ui.folder_tree_view.as_mut().unwrap().has_focus() };
+                    if has_focus {
+
+                        // Prepare the event loop, so we don't hang the UI while the background thread is working.
+                        let mut event_loop = EventLoop::new();
+
+                        // Get his Path, including the name of the PackFile.
+                        let path = get_path_from_selection(&app_ui, true);
+
+                        // Tell the Background Thread to delete the selected stuff.
+                        sender_qt.send("delete_packedfile").unwrap();
+                        sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
+
+                        // Disable the Main Window (so we can't do other stuff).
+                        unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+
+                        // Until we receive a response from the worker thread...
+                        loop {
+
+                            // When we finally receive the data...
+                            if let Ok(data) = receiver_qt.borrow().try_recv() {
+
+                                // Check what the result of the deletion process was.
+                                match data {
+
+                                    // In case of success...
+                                    Ok(response) => {
+
+                                        // Set the mod as "Modified".
+                                        *is_modified.borrow_mut() = set_modified(true, &app_ui);
+
+                                        // Get the type of the selection.
+                                        let path_type: TreePathType = serde_json::from_slice(&response).unwrap();
+
+                                        // Update the TreeView.
+                                        update_treeview(
+                                            &app_ui,
+                                            ("", vec![]),
+                                            TreeViewOperation::Delete(path_type),
+                                        );
+                                    }
+
+                                    // In case of error, show the dialog with the error.
+                                    Err(error) => show_dialog(&app_ui, false, format!("Error while deleting the PackedFile:\n\n{}", error.cause())),
+                                }
+
+                                // Stop the loop.
+                                break;
+                            }
+
+                            // Keep the UI responsive.
+                            event_loop.process_events(());
+
+                            // Wait a bit to not saturate a CPU core.
+                            thread::sleep(Duration::from_millis(50));
+                        }
+
+                        // Re-enable the Main Window.
+                        unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
+                    }
+                }
+            }
+        ));
+
+        // What happens when we trigger the "Extract" action in the Contextual Menu.
+        let slot_contextual_menu_extract = SlotBool::new(clone!(
+            sender_qt,
+            sender_qt_data,
+            receiver_qt,
+            mode,
+            rpfm_path => move |_| {
+
+                // We only do something in case the focus is in the TreeView. This should stop
+                // problems with the accels working everywhere.
+                let has_focus;
+                unsafe { has_focus = app_ui.folder_tree_view.as_mut().unwrap().has_focus() };
+                if has_focus {
+
+                    // Prepare the event loop, so we don't hang the UI while the background thread is working.
+                    let mut event_loop = EventLoop::new();
+
+                    // Get his Path, including the name of the PackFile.
+                    let path = get_path_from_selection(&app_ui, true);
+
+                    // Send the Path to the Background Thread, and get the type of the item.
+                    sender_qt.send("get_type_of_path").unwrap();
+                    sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
+                    let response = receiver_qt.borrow().recv().unwrap().unwrap();
+                    let item_type: TreePathType = serde_json::from_slice(&response).unwrap();
+
+                    // Depending on the current Operational Mode...
+                    match *mode.borrow() {
+
+                        // If we have a "MyMod" selected...
+                        Mode::MyMod {ref game_folder_name, ref mod_name} => {
+
+                            // Get the settings.
+                            sender_qt.send("get_settings").unwrap();
+                            let settings = receiver_qt.borrow().recv().unwrap().unwrap();
+                            let settings: Settings = serde_json::from_slice(&settings).unwrap();
+
+                            // In theory, if we reach this line this should always exist. In theory I should be rich.
+                            if let Some(ref my_mods_base_path) = settings.paths.my_mods_base_path {
+
+                                // We get the assets folder of our mod (without .pack extension).
+                                let mut assets_folder = my_mods_base_path.to_path_buf();
+                                assets_folder.push(&game_folder_name);
+                                assets_folder.push(Path::new(&mod_name).file_stem().unwrap().to_string_lossy().as_ref().to_owned());
+
+                                // We check that path exists, and create it if it doesn't.
+                                if !assets_folder.is_dir() {
+                                    if let Err(_) = DirBuilder::new().recursive(true).create(&assets_folder) {
+                                        return show_dialog(&app_ui, false, "Error while extracting files:\n The MyMod's asset folder does not exists and it cannot be created.");
+                                    }
+                                }
+
+                                // Get the path of the selected item without the PackFile's name.
+                                let mut path_without_packfile = path.to_vec();
+                                path_without_packfile.reverse();
+                                path_without_packfile.pop();
+                                path_without_packfile.reverse();
+
+                                // If it's a file or a folder...
+                                if item_type == TreePathType::File((vec![String::new()], 1)) || item_type == TreePathType::Folder(vec![String::new()]) {
+
+                                    // For each folder in his path...
+                                    for (index, folder) in path_without_packfile.iter().enumerate() {
+
+                                        // Complete the extracted path.
+                                        assets_folder.push(folder);
+
+                                        // The last thing in the path is the new file, so we don't have to create a folder for it.
+                                        if index < (path_without_packfile.len() - 1) {
+                                            if let Err(_) = DirBuilder::new().recursive(true).create(&assets_folder) {
+                                                return show_dialog(&app_ui, false, "Error while extracting files:\n The extracted folder couldn't be created.");
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Tell the Background Thread to delete the selected stuff.
+                                sender_qt.send("extract_packedfile").unwrap();
+                                sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
+                                sender_qt_data.send(serde_json::to_vec(&assets_folder).map_err(From::from)).unwrap();
+
+                                // Disable the Main Window (so we can't do other stuff).
+                                unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+
+                                // Until we receive a response from the worker thread...
+                                loop {
+
+                                    // When we finally receive the data...
+                                    if let Ok(data) = receiver_qt.borrow().try_recv() {
+
+                                        // Check what the result of the deletion process was.
+                                        match data {
+
+                                            // In case of success...
+                                            Ok(response) => {
+
+                                                // Get the result, and show it.
+                                                let result: String = serde_json::from_slice(&response).unwrap();
+                                                show_dialog(&app_ui, true, result);
+                                            },
+
+                                            // In case of error, show the dialog with the error.
+                                            Err(error) => show_dialog(&app_ui, false, error.cause()),
+                                        }
+
+                                        // Stop the loop.
+                                        break;
+                                    }
+
+                                    // Keep the UI responsive.
+                                    event_loop.process_events(());
+
+                                    // Wait a bit to not saturate a CPU core.
+                                    thread::sleep(Duration::from_millis(50));
+                                }
+
+                                // Re-enable the Main Window.
+                                unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
+                            }
+
+                            // If there is no "MyMod" path configured, report it.
+                            else { return show_dialog(&app_ui, false, "Error while extracting files:\n MyMod Path not configured."); }
+                        }
+
+                        // If we are in "Normal" Mode....
+                        Mode::Normal => {
+
+                            // Create a File Chooser to get the destination path.
+                            let mut file_dialog;
+                            unsafe { file_dialog = FileDialog::new_unsafe((
+                                app_ui.window as *mut Widget,
+                                &QString::from_std_str("Extract File/Folder"),
+                            )); }
+
+                            // Set it to save mode.
+                            file_dialog.set_accept_mode(qt_widgets::file_dialog::AcceptMode::Save);
+
+                            // Ask for confirmation in case of overwrite.
+                            file_dialog.set_confirm_overwrite(true);
+
+                            // Depending of the item type, change the dialog.
+                            match item_type {
+
+                                // If we have selected a file/folder, use his name as default names.
+                                TreePathType::File((path,_)) | TreePathType::Folder(path) => file_dialog.select_file(&QString::from_std_str(&path.last().unwrap())),
+
+                                // For the rest, use the name of the PackFile.
+                                _ => {
+
+                                    // Get the name of the PackFile and use it as default name.
+                                    let model_index;
+                                    let name;
+                                    unsafe { model_index = app_ui.folder_tree_model.as_ref().unwrap().index((0, 0)); }
+                                    name = model_index.data(()).to_string();
+                                    file_dialog.select_file(&name);
+                                }
+                            }
+
+                            // Run it and expect a response (1 => Accept, 0 => Cancel).
+                            if file_dialog.exec() == 1 {
+
+                                // Get the Path we choose to save the file/folder.
+                                let mut extraction_path: PathBuf = PathBuf::new();
+                                let path_qt = file_dialog.selected_files();
+                                for index in 0..path_qt.size() { extraction_path.push(path_qt.at(index).to_std_string()); }
+
+                                // Tell the Background Thread to delete the selected stuff.
+                                sender_qt.send("extract_packedfile").unwrap();
+                                sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
+                                sender_qt_data.send(serde_json::to_vec(&extraction_path).map_err(From::from)).unwrap();
+
+                                // Disable the Main Window (so we can't do other stuff).
+                                unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+
+                                // Until we receive a response from the worker thread...
+                                loop {
+
+                                    // When we finally receive the data...
+                                    if let Ok(data) = receiver_qt.borrow().try_recv() {
+
+                                        // Check what the result of the deletion process was.
+                                        match data {
+
+                                            // In case of success...
+                                            Ok(response) => {
+
+                                                // Get the result, and show it.
+                                                let result: String = serde_json::from_slice(&response).unwrap();
+                                                show_dialog(&app_ui, true, result);
+                                            },
+
+                                            // In case of error, show the dialog with the error.
+                                            Err(error) => show_dialog(&app_ui, false, error.cause()),
+                                        }
+
+                                        // Stop the loop.
+                                        break;
+                                    }
+
+                                    // Keep the UI responsive.
+                                    event_loop.process_events(());
+
+                                    // Wait a bit to not saturate a CPU core.
+                                    thread::sleep(Duration::from_millis(50));
+                                }
+
+                                // Re-enable the Main Window.
+                                unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
+                            }
+                        }
+                    }
+                }
+            }
+        ));
+
+        // Contextual Menu Actions.
+        unsafe { app_ui.context_menu_delete.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_delete); }
+        unsafe { app_ui.context_menu_extract.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_extract); }
+
+        //-----------------------------------------------------//
         // Show the Main Window and start everything...
         //-----------------------------------------------------//
 
@@ -4985,6 +5466,24 @@ fn background_loop(
                         };
                     }
 
+                    // When we want to check if we have a Dependency Database PackFile loaded...
+                    "is_there_a_dependency_database" => {
+
+                        match dependency_database {
+                            Some(_) => sender.send(serde_json::to_vec(&true).map_err(From::from)).unwrap(),
+                            None => sender.send(serde_json::to_vec(&false).map_err(From::from)).unwrap(),
+                        }
+                    }
+
+                    // When we want to check if we have a Schema loaded...
+                    "is_there_a_schema" => {
+
+                        match schema {
+                            Some(_) => sender.send(serde_json::to_vec(&true).map_err(From::from)).unwrap(),
+                            None => sender.send(serde_json::to_vec(&false).map_err(From::from)).unwrap(),
+                        }
+                    }
+
                     // When we want to create a new Dependency Database PackFile...
                     "create_dependency_database" => {
 
@@ -5096,6 +5595,63 @@ fn background_loop(
                             // If there is an error while updating, report it.
                             Err(error) => sender.send(Err(error)).unwrap(),
                         }
+                    }
+
+                    // When we want to delete the PackedFiles in a Path...
+                    "delete_packedfile" => {
+
+                        // Get the Path of the PackedFiles we want to remove.
+                        let data = receiver_data.recv().unwrap().unwrap();
+                        let path: Vec<String> = serde_json::from_slice(&data).unwrap();
+
+                        // Get the type of the Path we want to delete.
+                        let path_type = get_type_of_selected_path(&path, &pack_file_decoded);
+
+                        // Try to delete the PackedFiles from the PackFile, changing his return in case of success.
+                        match packfile::delete_from_packfile(&mut pack_file_decoded, &path) {
+
+                            // In case of success...
+                            Ok(_) => sender.send(serde_json::to_vec(&path_type).map_err(From::from)).unwrap(),
+
+                            // In case of error, send the error back.
+                            Err(error) => sender.send(Err(error)).unwrap()
+                        };
+                    }
+
+                    // When we want to extract the PackedFiles in a Path...
+                    "extract_packedfile" => {
+
+                        // Get the Path of the PackedFiles we want to extract.
+                        let data = receiver_data.recv().unwrap().unwrap();
+                        let path: Vec<String> = serde_json::from_slice(&data).unwrap();
+
+                        // Get the Path where we want to extract the files.
+                        let data = receiver_data.recv().unwrap().unwrap();
+                        let extraction_path: PathBuf = serde_json::from_slice(&data).unwrap();
+
+                        // Try to extract the PackFile.
+                        match packfile::extract_from_packfile(
+                            &pack_file_decoded,
+                            &path,
+                            &extraction_path
+                        ) {
+                            Ok(result) => sender.send(serde_json::to_vec(&result).map_err(From::from)).unwrap(),
+                            Err(error) => sender.send(Err(error)).unwrap(),
+                        }
+                    }
+
+                    // When you want to get the type of an item...
+                    "get_type_of_path" => {
+
+                        // Get the path to check.
+                        let path = receiver_data.recv().unwrap().unwrap();
+                        let path: Vec<String> = serde_json::from_slice(&path).unwrap();
+
+                        // Get the type of the selected item.
+                        let selection_type = get_type_of_selected_path(&path, &pack_file_decoded);
+
+                        // Send the type back.
+                        sender.send(serde_json::to_vec(&selection_type).map_err(From::from)).unwrap();
                     }
 
                     _ => println!("Error while receiving message, \"{}\" is not a valid message.", data),
@@ -5449,7 +6005,7 @@ fn build_my_mod_menu(
     // Add a separator in the middle of the menu.
     unsafe { menu_bar_mymod.as_mut().unwrap().insert_separator(mymod_stuff.install_mymod); }
 
-    // And we create the empty slots, to be replaced later with the real ones from the Main function.
+    // And we create the slots.
     let mut mymod_slots = MyModSlots {
         new_mymod: SlotBool::new(clone!(
             sender_qt,
@@ -5600,7 +6156,7 @@ fn build_my_mod_menu(
                                         update_treeview(
                                             &app_ui,
                                             ("", vec![]),
-                                            TreeViewOperation::Rename(full_mod_name),
+                                            TreeViewOperation::Rename(TreePathType::PackFile, full_mod_name),
                                         );
                                     }
 

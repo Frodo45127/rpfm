@@ -173,8 +173,8 @@ pub fn add_packedfile_to_packfile(
 ) -> Result<String, Error> {
 
     // First we need to make some checks to ensure we can add the PackedFile/s to the selected destination.
-    let tree_path_source_type = get_type_of_selected_tree_path(tree_path_source, pack_file_source);
-    let tree_path_destination_type = get_type_of_selected_tree_path(tree_path_destination, pack_file_destination);
+    let tree_path_source_type = get_type_of_selected_path(tree_path_source, pack_file_source);
+    let tree_path_destination_type = get_type_of_selected_path(tree_path_destination, pack_file_destination);
 
     let is_source_tree_path_valid = match tree_path_source_type {
         TreePathType::None => false,
@@ -410,7 +410,7 @@ pub fn delete_from_packfile(
 ) -> Result<(), Error> {
 
     // Get what it's what we want to delete.
-    match get_type_of_selected_tree_path(tree_path, pack_file) {
+    match get_type_of_selected_path(tree_path, pack_file) {
 
         // If it's a file, easy job.
         TreePathType::File(packed_file_data) => pack_file.remove_packedfile(packed_file_data.1),
@@ -456,7 +456,7 @@ pub fn extract_from_packfile(
 ) -> Result<String, Error> {
 
     // Get what it's what we want to extract.
-    match get_type_of_selected_tree_path(tree_path, pack_file) {
+    match get_type_of_selected_path(tree_path, pack_file) {
 
         // If it's a file...
         TreePathType::File(packed_file_data) => {
@@ -484,9 +484,9 @@ pub fn extract_from_packfile(
                 // If it's one we need to extract...
                 if packed_file.path.starts_with(&tree_path) {
 
-                    // We remove everything from his path up to the folder we want to extract (not included).
+                    // We remove everything from his path up to the folder we want to extract (included).
                     let mut additional_path = packed_file.path.to_vec();
-                    additional_path.drain(..(tree_path.len() - 1));
+                    additional_path.drain(..(tree_path.len()));
 
                     // Remove the name of the file from the path and keep it.
                     let file_name = additional_path.pop().unwrap();
@@ -590,7 +590,7 @@ pub fn rename_packed_file(
 
     // If we reach this point, we can rename the file/folder.
     else {
-        match get_type_of_selected_tree_path(tree_path, pack_file) {
+        match get_type_of_selected_path(tree_path, pack_file) {
             TreePathType::File(packed_file_data) => {
                 // Now we create the new tree_path, while conserving the old one for checks
                 let tree_path = packed_file_data.0;
