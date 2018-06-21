@@ -1,11 +1,14 @@
 // In this file are all the helper functions used by the UI (mainly GTK here)
 extern crate num;
 extern crate url;
+extern crate failure;
 extern crate qt_widgets;
 extern crate qt_gui;
 extern crate qt_core;
 extern crate cpp_utils;
+extern crate serde_json;
 
+use failure::Error;
 use qt_widgets::application::Application;
 use qt_widgets::widget::Widget;
 use qt_widgets::grid_layout::GridLayout;
@@ -23,13 +26,16 @@ use qt_core::flags::Flags;
 use qt_gui::standard_item_model::StandardItemModel;
 use qt_gui::standard_item::StandardItem;
 use qt_core::item_selection_model::ItemSelectionModel;
+use qt_core::model_index::ModelIndex;
 use qt_core::event_loop::EventLoop;
 use qt_core::connection::Signal;
 use qt_core::variant::Variant;
 use qt_core::slots::SlotBool;
 use qt_core::object::Object;
 use cpp_utils::{CppBox, StaticCast, DynamicCast};
+use qt_core::qt::SortOrder;
 
+use std::sync::mpsc::{channel, Sender, Receiver};
 use url::Url;
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -1112,7 +1118,7 @@ pub fn get_path_from_tree_iter(
 #[derive(Clone, Debug)]
 pub enum TreeViewOperation {
     Build,
-    //Add(Vec<String>),
+    Add(Vec<Vec<String>>),
     //AddFromPackFile(Vec<String>, Vec<String>, Vec<Vec<String>>),
     Delete(TreePathType),
     Rename(TreePathType, String),
@@ -1352,6 +1358,115 @@ pub fn get_path_from_item_selection(
     path
 }
 
+/// This function is used to get the complete Path of a Selected Item in the TreeView.
+/// I'm sure there are other ways to do it, but the TreeView has proven to be a mystery
+/// BEYOND MY COMPREHENSION, so we use this for now.
+/// It requires:
+/// - folder_tree_selection: &TreeSelection of the place of the TreeView we want to know his TreePath.
+/// - include_packfile: bool. True if we want the TreePath to include the PackFile's name.
+pub fn get_path_from_item(
+    app_ui: &AppUI,
+    item_raw: *mut StandardItem,
+    include_packfile: bool
+) -> Vec<String>{
+
+    // Create the vector to hold the Path.
+    let mut path: Vec<String> = vec![];
+
+    // Get the item of the TreeView.
+    let mut item;
+    let mut parent;
+    unsafe { item = item_raw.as_mut().unwrap().index(); }
+
+    // Loop until we reach the root index.
+    loop {
+
+        // Get his data.
+        let name;
+        unsafe { name = QString::to_std_string(&app_ui.folder_tree_model.as_mut().unwrap().data(&item).to_string()); }
+
+        // Add it to the list
+        path.push(name);
+
+        // Get the Parent of the item.
+        parent = item.parent();
+
+        // If the parent is valid, it's the new item.
+        if parent.is_valid() { item = parent; }
+
+        // Otherwise, we stop.
+        else { break; }
+    }
+
+    // If we don't want to include the PackFile in the Path, remove it.
+    if !include_packfile { path.pop(); }
+
+    // Reverse it, as we want it from Parent to Children.
+    path.reverse();
+
+    // Return the Path.
+    path
+}
+
+/// This function is used to get the complete TreePath (path in a GTKTreeView) of an external file
+/// or folder in a Vec<String> format. Needed to get the path for the TreeView and for encoding
+/// the file in a PackFile.
+/// It requires:
+/// - file_path: &PathBuf of the external file.
+/// - folder_tree_selection: &TreeSelection of the place of the TreeView where we want to add the file.
+/// - is_file: bool. True if the &PathBuf is from a file, false if it's a folder.
+pub fn get_path_from_pathbuf(
+    app_ui: &AppUI,
+    file_path: &PathBuf,
+    is_file: bool
+) -> Vec<Vec<String>> {
+
+    // Create the vector to hold the Path.
+    let mut paths: Vec<Vec<String>> = vec![];
+
+    // If it's a single file, we get his name and push it to the tree_path vector.
+    if is_file { paths.push(vec![file_path.file_name().unwrap().to_string_lossy().as_ref().to_owned()]); }
+
+    // Otherwise, it's a folder, so we have to filter it first.
+    else {
+
+        // Get the "Prefix" of the folder (path without the folder's name).
+        let mut useless_prefix = file_path.to_path_buf();
+        useless_prefix.pop();
+
+        // Get the paths of all the files inside that folder, recursively.
+        let file_list = get_files_from_subdir(&file_path).unwrap();
+
+        // Then, for each file...
+        for file_path in &file_list {
+
+            // Remove his prefix, leaving only the path from the folder onwards.
+            let filtered_path = file_path.strip_prefix(&useless_prefix).unwrap();
+
+            // Turn it from &Path to a Vec<String>, reverse it, and push it to the list.
+            let mut filtered_path = filtered_path.iter().map(|x| x.to_string_lossy().as_ref().to_owned()).collect::<Vec<String>>();
+            filtered_path.reverse();
+            paths.push(filtered_path);
+        }
+    }
+
+    // For each path we have...
+    for path in &mut paths {
+
+        // Get his base path without the PackFile.
+        let mut base_path = get_path_from_selection(&app_ui, false);
+
+        // Combine it with his path to form his full form.
+        base_path.reverse();
+        path.append(&mut base_path);
+        path.reverse();
+    }
+
+    // Return the paths (from parent to children)
+    paths
+}
+
+
 /// This function updates the provided `TreeView`, depending on the operation we want to do.
 /// It requires:
 /// - folder_tree_store: `&TreeStore` that the `TreeView` uses.
@@ -1360,8 +1475,10 @@ pub fn get_path_from_item_selection(
 /// - operation: the `TreeViewOperation` we want to realise.
 /// - type: the type of whatever is selected.
 pub fn update_treeview(
+    sender_qt: &Sender<&str>,
+    sender_qt_data: &Sender<Result<Vec<u8>, Error>>,
+    receiver_qt: Rc<RefCell<Receiver<Result<Vec<u8>, Error>>>>,
     app_ui: &AppUI,
-    pack_file_data: (&str, Vec<Vec<String>>), // (packfile_name, list of packfiles)
     operation: TreeViewOperation,
 ) {
 
@@ -1371,6 +1488,11 @@ pub fn update_treeview(
         // If we want to build a new TreeView...
         TreeViewOperation::Build => {
 
+            // Get the data of the PackFile (PackFile's name + List of files).
+            sender_qt.send("get_packfile_data_for_treeview").unwrap();
+            let response = receiver_qt.borrow().recv().unwrap().unwrap();
+            let pack_file_data: (&str, Vec<Vec<String>>) = serde_json::from_slice(&response).unwrap();
+
             // First, we clean the TreeStore and whatever was created in the TreeView.
             unsafe { app_ui.folder_tree_model.as_mut().unwrap().clear(); }
 
@@ -1378,6 +1500,9 @@ pub fn update_treeview(
             // with the name of the PackFile. All big things start with a lie.
             let mut big_parent = StandardItem::new(&QString::from_std_str(pack_file_data.0));
             unsafe { app_ui.folder_tree_model.as_mut().unwrap().append_row_unsafe(big_parent.into_raw()); }
+
+            // Also, set it as not editable by the user. Otherwise will cause problems when renaming.
+            unsafe { app_ui.folder_tree_model.as_ref().unwrap().item(0).as_mut().unwrap().set_editable(false); }
 
             // Third, we get all the paths of the PackedFiles inside the Packfile in a Vector.
             let mut sorted_path_list = pack_file_data.1;
@@ -1519,112 +1644,123 @@ pub fn update_treeview(
                 }
             }
         },
-/*
+
         // If we want to add a file/folder to the `TreeView`...
-        TreeViewOperation::Add(path) => {
+        TreeViewOperation::Add(paths) => {
 
-            // If we got the `TreeIter` for the PackFile...
-            if let Some(mut tree_iter) = folder_tree_store.get_iter_first() {
+            // For each path in our list of paths to add...
+            for path in &paths {
 
-                // Index, to know what field of `path` use in each iteration.
-                let mut index = 0;
+                println!("{:?}", path);
 
-                // Initiate an endless loop of space and time...
-                loop {
+                // First, we get the item of our PackFile in the TreeView.
+                let mut parent;
+                unsafe { parent = app_ui.folder_tree_model.as_ref().unwrap().item(0); }
 
-                    // If we are using the last thing in the path, it's a file. Otherwise, is a folder.
-                    let new_type = if path.len() - 1 == index { TreePathType::File((vec![String::new()],1)) } else { TreePathType::Folder(vec![String::new()]) };
+                // For each field in our path...
+                for (index, field) in path.iter().enumerate() {
 
-                    // If the current `TreeIter` has a child...
-                    if folder_tree_store.iter_has_child(&tree_iter) {
+                    // If it's the last one of the path, it's a file.
+                    if index >= (path.len() - 1) {
 
-                        // Move our test `TreeIter` to his first child.
-                        let mut tree_iter_test = folder_tree_store.iter_children(&tree_iter).unwrap();
+                        // Add the file to the TreeView.
+                        let item = StandardItem::new(&QString::from_std_str(field)).into_raw();
+                        unsafe { parent.as_mut().unwrap().append_row_unsafe(item); }
 
-                        // Variable to know when to finish the next loop.
-                        let mut childs_looped = true;
-
-                        // Loop through all the childs to see if what we want to add already exists.
-                        while childs_looped {
-
-                            // Get the current iter's text.
-                            let current_iter_text: String = folder_tree_store.get_value(&tree_iter_test, 0).get().unwrap();
-
-                            // If it's the same that we want to add...
-                            if current_iter_text == path[index] {
-
-                                // Get both types.
-                                let current_path = get_path_from_tree_iter(&tree_iter_test, folder_tree_store, true);
-                                let current_type = get_type_of_selected_tree_path(&current_path, pack_file_decoded);
-
-                                // And both are files...
-                                if current_type == TreePathType::File((vec![String::new()],1)) && new_type == TreePathType::File((vec![String::new()],1)) {
-
-                                    // We run away...
-                                    break;
-                                }
-
-                                // If both are folder...
-                                else if current_type == TreePathType::Folder(vec![String::new()]) && new_type == TreePathType::Folder(vec![String::new()]) {
-
-                                    // Move to that folder.
-                                    tree_iter = tree_iter_test.clone();
-
-                                    // Increase the Index.
-                                    index += 1;
-
-                                    // And run away...
-                                    break;
-                                }
-                            }
-
-                            // If there is no more childs...
-                            if !folder_tree_store.iter_next(&tree_iter_test) {
-
-                                // Stop the loop.
-                                childs_looped = false;
-
-                                // Create a new empty child and move to it.
-                                tree_iter = folder_tree_store.append(&tree_iter);
-
-                                // Set his value.
-                                folder_tree_store.set_value(&tree_iter, 0, &path[index].to_value());
-
-                                // Sort properly the `TreeStore` to show the renamed file in his proper place.
-                                sort_tree_view(folder_tree_store, pack_file_decoded, &new_type, &tree_iter);
-
-                                // Increase the index.
-                                index += 1;
-                            }
-                        }
-
-                        // If our current type is a File, we reached the end of the path.
-                        if new_type == TreePathType::File((vec![String::new()],1)) { break; }
-
+                        // Sort the TreeView.
+                        sort_item_in_tree_view(
+                            sender_qt,
+                            sender_qt_data,
+                            receiver_qt.clone(),
+                            &app_ui,
+                            item,
+                            TreePathType::File((vec![String::new()],0))
+                        );
                     }
 
-                    // If it doesn't have a child...
+                    // Otherwise, it's a folder.
                     else {
 
-                        // Create a new empty child and move to it.
-                        tree_iter = folder_tree_store.append(&tree_iter);
+                        unsafe {
 
-                        // Set his value.
-                        folder_tree_store.set_value(&tree_iter, 0, &path[index].to_value());
+                            // If the current parent has at least one child...
+                            if parent.as_ref().unwrap().has_children() {
 
-                        // Sort properly the `TreeStore` to show the renamed file in his proper place.
-                        sort_tree_view(folder_tree_store, pack_file_decoded, &new_type, &tree_iter);
+                                // Variable to check if the current folder is already in the TreeView.
+                                let mut duplicate_found = false;
 
-                        // Increase the index.
-                        index += 1;
+                                // It's a folder, so we check his children.
+                                for index in 0..parent.as_ref().unwrap().row_count() {
 
-                        // If our current type is a File, we reached the end of the path.
-                        if new_type == TreePathType::File((vec![String::new()],1)) { break; }
+                                    // Get the child.
+                                    let mut child = parent.as_mut().unwrap().child((index, 0));
+
+                                    // Get his text.
+                                    let child_text = child.as_ref().unwrap().text().to_std_string();
+
+                                    // If it's the same folder we are trying to add...
+                                    if child_text == *field {
+
+                                        // This is our parent now.
+                                        parent = parent.as_mut().unwrap().child(index);
+                                        duplicate_found = true;
+                                        break;
+                                    }
+                                }
+
+                                // If we found a duplicate, skip to the next file/folder.
+                                if duplicate_found { continue; }
+
+                                // Otherwise, add it to the parent, and turn it into the new parent.
+                                else {
+
+                                    // Add the file to the TreeView.
+                                    let mut folder = StandardItem::new(&QString::from_std_str(field)).into_raw();
+                                    parent.as_mut().unwrap().append_row_unsafe(folder);
+
+                                    // This is our parent now.
+                                    let index = parent.as_ref().unwrap().row_count() - 1;
+                                    parent = parent.as_mut().unwrap().child(index);
+
+                                    // Sort the TreeView.
+                                    sort_item_in_tree_view(
+                                        sender_qt,
+                                        sender_qt_data,
+                                        receiver_qt.clone(),
+                                        &app_ui,
+                                        folder,
+                                        TreePathType::Folder(vec![String::new()])
+                                    );
+                                }
+                            }
+
+                            // If our current parent doesn't have anything, just add it.
+                            else {
+
+                                // Add the file to the TreeView.
+                                let mut folder = StandardItem::new(&QString::from_std_str(field)).into_raw();
+                                parent.as_mut().unwrap().append_row_unsafe(folder);
+
+                                // This is our parent now.
+                                let index = parent.as_ref().unwrap().row_count() - 1;
+                                parent = parent.as_mut().unwrap().child(index);
+
+                                // Sort the TreeView.
+                                sort_item_in_tree_view(
+                                    sender_qt,
+                                    sender_qt_data,
+                                    receiver_qt.clone(),
+                                    &app_ui,
+                                    folder,
+                                    TreePathType::Folder(vec![String::new()])
+                                );
+                            }
+                        }
                     }
                 }
             }
         },
-
+        /*
         // If we want to add a file/folder from another `TreeView`...
         TreeViewOperation::AddFromPackFile(mut source_prefix, destination_prefix, new_files_list) => {
 
@@ -1740,71 +1876,132 @@ pub fn update_treeview(
             // Change the old data with the new one.
             unsafe { app_ui.folder_tree_model.as_mut().unwrap().set_data((selection, &variant)); }
 
-            // TODO: Fix this function, so when renaming stuff, it also get's sorted.
-            // Sort properly the `TreeStore` to show the renamed file in his proper place.
-            //sort_tree_view(folder_tree_store, pack_file_decoded, selection_type, &tree_iter)
+            // If what we are renaming is not the PackFile, sort the item in the TreeView.
+            if path_type != TreePathType::PackFile {
+
+                // Get the item.
+                let item;
+                unsafe { item = app_ui.folder_tree_model.as_mut().unwrap().item((selection.row(), selection.column())); }
+
+                // Sort it.
+                sort_item_in_tree_view(
+                    sender_qt,
+                    sender_qt_data,
+                    receiver_qt.clone(),
+                    &app_ui,
+                    item,
+                    path_type
+                );
+            }
         },
     }
 }
-/*
-/// This function is meant to sort newly added items in a `TreeView`. Pls note that the provided
-/// `&TreeIter` MUST BE VALID. Otherwise, this can CTD the entire program.
-fn sort_tree_view(
-    folder_tree_store: &TreeStore,
-    pack_file_decoded: &PackFile,
-    selection_type: &TreePathType,
-    tree_iter: &TreeIter
+
+/// This function sorts items in a TreeView following this order:
+/// - AFolder.
+/// - aFolder.
+/// - ZFolder.
+/// - zFolder.
+/// - AFile.
+/// - aFile.
+/// - ZFile.
+/// - zFile.
+/// The reason for this function is because the native Qt function doesn't order folders before files.
+#[allow(dead_code)]
+fn sort_item_in_tree_view(
+    sender_qt: &Sender<&str>,
+    sender_qt_data: &Sender<Result<Vec<u8>, Error>>,
+    receiver_qt: Rc<RefCell<Receiver<Result<Vec<u8>, Error>>>>,
+    app_ui: &AppUI,
+    mut item: *mut StandardItem,
+    item_type: TreePathType,
 ) {
 
-    // Get the previous and next `TreeIter`s.
-    let tree_iter_previous = tree_iter.clone();
-    let tree_iter_next = tree_iter.clone();
+    // Get the ModelIndex of our Item and his row, as that's what we are going to be changing.
+    let mut item_index;
+    unsafe { item_index = item.as_mut().unwrap().index(); }
 
-    let iter_previous_exists = folder_tree_store.iter_previous(&tree_iter_previous);
-    let iter_next_exists = folder_tree_store.iter_next(&tree_iter_next);
+    // Get the parent of the item.
+    let parent;
+    let parent_index;
+    unsafe { parent = item.as_mut().unwrap().parent(); }
+    unsafe { parent_index = parent.as_mut().unwrap().index(); }
 
-    // If the previous iter is valid, get their path and their type.
-    let previous_type = if iter_previous_exists {
+    // Get the previous and next item ModelIndex on the list.
+    let item_index_prev;
+    let item_index_next;
+    unsafe { item_index_prev = app_ui.folder_tree_model.as_mut().unwrap().index((item_index.row() - 1, item_index.column(), &parent_index)); }
+    unsafe { item_index_next = app_ui.folder_tree_model.as_mut().unwrap().index((item_index.row() + 1, item_index.column(), &parent_index)); }
 
-        let path_previous = get_path_from_tree_iter(&tree_iter_previous, folder_tree_store, true);
-        get_type_of_selected_tree_path(&path_previous, pack_file_decoded)
+    // Get the type of the previous item on the list.
+    let item_type_prev: TreePathType = if item_index_prev.is_valid() {
+
+        // Get the previous item.
+        let item_sibling;
+        unsafe { item_sibling = app_ui.folder_tree_model.as_mut().unwrap().item_from_index(&item_index_prev); }
+
+        // Get the path of the previous item.
+        let path = get_path_from_item(&app_ui, item_sibling, true);
+
+        // Send the Path to the Background Thread, and get the type of the item.
+        sender_qt.send("get_type_of_path").unwrap();
+        sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
+        let response = receiver_qt.borrow().recv().unwrap().unwrap();
+        serde_json::from_slice(&response).unwrap()
     }
 
     // Otherwise, return the type as `None`.
     else { TreePathType::None };
 
-    // If the next iter is valid, get their path and their type.
-    let next_type = if iter_next_exists {
+    // Get the type of the previous and next items on the list.
+    let item_type_next: TreePathType = if item_index_next.is_valid() {
 
-        let path_next = get_path_from_tree_iter(&tree_iter_next, folder_tree_store, true);
-        get_type_of_selected_tree_path(&path_next, pack_file_decoded)
+        // Get the next item.
+        let item_sibling;
+        unsafe { item_sibling = app_ui.folder_tree_model.as_mut().unwrap().item_from_index(&item_index_next); }
+
+        // Get the path of the previous item.
+        let path = get_path_from_item(&app_ui, item_sibling, true);
+
+        // Send the Path to the Background Thread, and get the type of the item.
+        sender_qt.send("get_type_of_path").unwrap();
+        sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
+        let response = receiver_qt.borrow().recv().unwrap().unwrap();
+        serde_json::from_slice(&response).unwrap()
     }
 
     // Otherwise, return the type as `None`.
     else { TreePathType::None };
 
     // We get the boolean to determinate the direction to move (true -> up, false -> down).
-    // If the previous and the next `TreeIter`s are `None`, we don't need to move.
-    let direction = if previous_type == TreePathType::None && next_type == TreePathType::None { return }
+    // If the previous and the next Items are `None`, we don't need to move.
+    let direction = if item_type_prev == TreePathType::None && item_type_next == TreePathType::None { return }
 
     // If the top one is `None`, but the bottom one isn't, we go down.
-    else if previous_type == TreePathType::None && next_type != TreePathType::None { false }
+    else if item_type_prev == TreePathType::None && item_type_next != TreePathType::None { false }
 
     // If the bottom one is `None`, but the top one isn't, we go up.
-    else if previous_type != TreePathType::None && next_type == TreePathType::None { true }
+    else if item_type_prev != TreePathType::None && item_type_next == TreePathType::None { true }
 
     // If the top one is a folder, and the bottom one is a file, get the type of our iter.
-    else if previous_type == TreePathType::Folder(vec![String::new()]) && next_type == TreePathType::File((vec![String::new()], 1)) {
-        if selection_type == &TreePathType::Folder(vec![String::new()]) { true } else { false }
+    else if item_type_prev == TreePathType::Folder(vec![String::new()]) && item_type_next == TreePathType::File((vec![String::new()], 1)) {
+        if item_type == TreePathType::Folder(vec![String::new()]) { true } else { false }
     }
 
     // If the two around it are the same type, compare them and decide.
     else {
 
         // Get the previous, current and next texts.
-        let previous_name: String = folder_tree_store.get_value(&tree_iter_previous, 0).get().unwrap();
-        let current_name: String = folder_tree_store.get_value(tree_iter, 0).get().unwrap();
-        let next_name: String = folder_tree_store.get_value(&tree_iter_next, 0).get().unwrap();
+        let previous_name: String;
+        let current_name: String;
+        let next_name: String;
+        unsafe { previous_name = QString::to_std_string(&parent.as_mut().unwrap().child(item_index.row() - 1).as_mut().unwrap().text()); }
+        unsafe { current_name = QString::to_std_string(&parent.as_mut().unwrap().child(item_index.row()).as_mut().unwrap().text()); }
+        unsafe { next_name = QString::to_std_string(&parent.as_mut().unwrap().child(item_index.row() + 1).as_mut().unwrap().text()); }
+
+        println!("ss{:?}", previous_name);
+        println!("dd{:?}", current_name);
+        println!("ee{:?}", next_name);
 
         // If, after sorting, the previous hasn't changed position, it shouldn't go up.
         let name_list = vec![previous_name.to_owned(), current_name.to_owned()];
@@ -1833,85 +2030,98 @@ fn sort_tree_view(
     // We "sort" it among his peers.
     loop {
 
-        // Get the `TreeIter` we want to compare with, depending on our direction.
-        let tree_iter_second = tree_iter.clone();
-        let iter_second_is_valid = if direction { folder_tree_store.iter_previous(&tree_iter_second) } else { folder_tree_store.iter_next(&tree_iter_second) };
+        // Get the previous and next item ModelIndex on the list.
+        let item_index_prev = item_index.sibling(item_index.row() - 1, 0);
+        let item_index_next = item_index.sibling(item_index.row() + 1, 0);
 
-        // If `tree_iter_second` is valid...
-        if iter_second_is_valid {
+        // Depending on the direction we have to move, get the second item's index.
+        let item_sibling_index = if direction { item_index_prev } else { item_index_next };
 
-            // Get their path.
-            let path_second = get_path_from_tree_iter(&tree_iter_second, folder_tree_store, true);
+        // If the sibling is valid...
+        if item_sibling_index.is_valid() {
 
-            // Get the type of both `TreeIter`.
-            let second_type = get_type_of_selected_tree_path(&path_second, pack_file_decoded);
+            // Get the Item sibling to our current Item.
+            let item_sibling;
+            unsafe { item_sibling = parent.as_mut().unwrap().child(item_sibling_index.row()); }
 
-            // If we have something of the same type than our `TreeIter`...
-            if second_type == *selection_type {
+            // Get the path of the previous item.
+            let path = get_path_from_item(&app_ui, item_sibling, true);
 
-                // Get the other `TreeIter`s text.
-                let second_name: String = folder_tree_store.get_value(&tree_iter_second, 0).get().unwrap();
-                let current_name: String = folder_tree_store.get_value(tree_iter, 0).get().unwrap();
+            // Send the Path to the Background Thread, and get the type of the item.
+            sender_qt.send("get_type_of_path").unwrap();
+            sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
+            let response = receiver_qt.borrow().recv().unwrap().unwrap();
+            let item_sibling_type: TreePathType = serde_json::from_slice(&response).unwrap();
+
+            // If both are of the same type...
+            if item_type == item_sibling_type {
+
+                // Get both texts.
+                let item_name: String;
+                let sibling_name: String;
+                unsafe { item_name = QString::to_std_string(&item.as_mut().unwrap().text()); }
+                unsafe { sibling_name = QString::to_std_string(&item_sibling.as_mut().unwrap().text()); }
 
                 // Depending on our direction, we sort one way or another
                 if direction {
 
-                    // For previous `TreeIter`...
-                    let name_list = vec![second_name.to_owned(), current_name.to_owned()];
-                    let mut name_list_sorted = vec![second_name.to_owned(), current_name.to_owned()];
+                    // For the previous item...
+                    let name_list = vec![sibling_name.to_owned(), item_name.to_owned()];
+                    let mut name_list_sorted = vec![sibling_name.to_owned(), item_name.to_owned()];
                     name_list_sorted.sort();
 
-                    // If the order hasn't changed...
-                    if name_list == name_list_sorted {
-
-                        // We are done.
-                        break;
-                    }
+                    // If the order hasn't changed, we're done.
+                    if name_list == name_list_sorted { break; }
 
                     // If they have changed positions...
                     else {
 
-                        // We swap them, and update them for the next loop.
-                        folder_tree_store.swap(tree_iter, &tree_iter_second);
+                        // Move the item one position above.
+                        let item_x;
+                        unsafe { item_x = parent.as_mut().unwrap().take_row(item_index.row()); }
+                        unsafe { parent.as_mut().unwrap().insert_row(item_sibling_index.row(), &item_x); }
+                        unsafe { item = parent.as_mut().unwrap().child(item_sibling_index.row()); }
+                        unsafe { item_index = item.as_mut().unwrap().index(); }
                     }
+                } else {
 
-                }
-
-                else {
-
-                    // For next `TreeIter`...
-                    let name_list = vec![current_name.to_owned(), second_name.to_owned()];
-                    let mut name_list_sorted = vec![current_name.to_owned(), second_name.to_owned()];
+                    // For the next item...
+                    let name_list = vec![item_name.to_owned(), sibling_name.to_owned()];
+                    let mut name_list_sorted = vec![item_name.to_owned(), sibling_name.to_owned()];
                     name_list_sorted.sort();
 
-                    // If the order hasn't changed...
-                    if name_list == name_list_sorted {
-
-                        // We are done.
-                        break;
-                    }
+                    // If the order hasn't changed, we're done.
+                    if name_list == name_list_sorted { break; }
 
                     // If they have changed positions...
                     else {
 
-                        // We swap them, and update them for the next loop.
-                        folder_tree_store.swap(tree_iter, &tree_iter_second);
+                        // Move the item one position below.
+                        let item_x;
+                        unsafe { item_x = parent.as_mut().unwrap().take_row(item_index.row()); }
+                        unsafe { parent.as_mut().unwrap().insert_row(item_sibling_index.row() + 1, &item_x); }
+                        unsafe { item = parent.as_mut().unwrap().child(item_sibling_index.row()); }
+                        unsafe { item_index = item.as_mut().unwrap().index(); }
                     }
-
                 }
             }
 
             // If the top one is a File and the bottom one a Folder, it's an special situation. Just swap them.
-            else if selection_type == &TreePathType::Folder(vec![String::new()]) && second_type == TreePathType::File((vec![String::new()], 1)) {
-                folder_tree_store.swap(tree_iter, &tree_iter_second);
+            else if item_type == TreePathType::Folder(vec![String::new()]) && item_sibling_type == TreePathType::File((vec![String::new()], 1)) {
+
+                // We swap them, and update them for the next loop.
+                let item_x;
+                unsafe { item_x = parent.as_mut().unwrap().take_row(item_index.row()); }
+                unsafe { parent.as_mut().unwrap().insert_row(item_sibling_index.row(), &item_x); }
+                unsafe { item = parent.as_mut().unwrap().child(item_sibling_index.row()); }
+                unsafe { item_index = item.as_mut().unwrap().index(); }
             }
 
             // If the type is different and it's not an special situation, we can't move anymore.
             else { break; }
         }
 
-        // If the `TreeIter` is invalid, we can't move anymore.
+        // If the Item is invalid, we can't move anymore.
         else { break; }
     }
 }
-*/

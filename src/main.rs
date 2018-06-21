@@ -42,8 +42,11 @@ use qt_widgets::file_dialog::FileDialog;
 use qt_widgets::widget::connection::CustomContextMenuRequested;
 use qt_core::point::Point;
 use qt_widgets::slots::SlotQtCorePointRef;
+use qt_core::slots::SlotModelIndexRef;
 use qt_gui::cursor::Cursor;
 use qt_core::slots::SlotItemSelectionRefItemSelectionRef;
+use qt_core::slots::SlotModelIndexRefModelIndexRef;
+use qt_widgets::file_dialog::FileMode;
 
 use qt_core::qt::ContextMenuPolicy;
 use qt_gui::desktop_services::DesktopServices;
@@ -4051,6 +4054,7 @@ fn main() {
             mymod_stuff,
             mode,
             sender_qt,
+            sender_qt_data,
             receiver_qt => move |_| {
 
                 // Check first if there has been changes in the PackFile.
@@ -4081,17 +4085,10 @@ fn main() {
                             let data = data.unwrap();
 
                             // Deserialize it (name of the packfile, paths of the PackedFiles).
-                            let data: (&str, Vec<Vec<String>>, u32) = serde_json::from_slice(&data).unwrap();
-
-                            // Update the TreeView.
-                            update_treeview(
-                                &app_ui,
-                                (&data.0, data.1.to_vec()),
-                                TreeViewOperation::Build,
-                            );
+                            let packed_file_type: u32 = serde_json::from_slice(&data).unwrap();
 
                             // We choose the right option, depending on our PackFile (In this case, it's usually mod).
-                            match data.2 {
+                            match packed_file_type {
                                 0 => unsafe { app_ui.change_packfile_type_boot.as_mut().unwrap().set_checked(true); }
                                 1 => unsafe { app_ui.change_packfile_type_release.as_mut().unwrap().set_checked(true); }
                                 2 => unsafe { app_ui.change_packfile_type_patch.as_mut().unwrap().set_checked(true); }
@@ -4099,6 +4096,15 @@ fn main() {
                                 4 => unsafe { app_ui.change_packfile_type_movie.as_mut().unwrap().set_checked(true); }
                                 _ => unsafe { app_ui.change_packfile_type_other.as_mut().unwrap().set_checked(true); }
                             }
+
+                            // Update the TreeView.
+                            update_treeview(
+                                &sender_qt,
+                                &sender_qt_data,
+                                receiver_qt.clone(),
+                                &app_ui,
+                                TreeViewOperation::Build,
+                            );
 
                             // Stop the loop.
                             break;
@@ -4359,8 +4365,10 @@ fn main() {
 
                                             // Rename it with the new name.
                                             update_treeview(
+                                                &sender_qt,
+                                                &sender_qt_data,
+                                                receiver_qt.clone(),
                                                 &app_ui,
-                                                ("", vec![]),
                                                 TreeViewOperation::Rename(TreePathType::PackFile, path.file_name().unwrap().to_string_lossy().as_ref().to_owned()),
                                             );
 
@@ -4624,8 +4632,10 @@ fn main() {
 
                                 // Update the TreeView.
                                 update_treeview(
+                                    &sender_qt,
+                                    &sender_qt_data,
+                                    receiver_qt.clone(),
                                     &app_ui,
-                                    (&data.0, data.1.to_vec()),
                                     TreeViewOperation::Build,
                                 );
                             }
@@ -4840,6 +4850,477 @@ fn main() {
         // Action to show the Contextual Menu for the Treeview.
         unsafe { (app_ui.folder_tree_view as *mut Widget).as_ref().unwrap().signals().custom_context_menu_requested().connect(&slot_folder_tree_view_context_menu); }
 
+        // What happens when we trigger the "Add File/s" action in the Contextual Menu.
+        let slot_contextual_menu_add_file = SlotBool::new(clone!(
+            sender_qt,
+            sender_qt_data,
+            receiver_qt,
+            is_packedfile_opened,
+            is_modified,
+            mode,
+            rpfm_path => move |_| {
+
+                // We only do something in case the focus is in the TreeView. This should stop
+                // problems with the accels working everywhere.
+                let has_focus;
+                unsafe { has_focus = app_ui.folder_tree_view.as_mut().unwrap().has_focus() };
+                if has_focus {
+
+                    // Create the FileDialog to get the file/s to add.
+                    let mut file_dialog;
+                    unsafe { file_dialog = FileDialog::new_unsafe((
+                        app_ui.window as *mut Widget,
+                        &QString::from_std_str("Add File/s"),
+                    )); }
+
+                    // Set it to allow to add multiple files at once.
+                    file_dialog.set_file_mode(FileMode::ExistingFiles);
+
+                    // Depending on the current Operational Mode...
+                    match *mode.borrow() {
+
+                        // If we have a "MyMod" selected...
+                        Mode::MyMod {ref game_folder_name, ref mod_name} => {
+
+                            // Get the settings.
+                            sender_qt.send("get_settings").unwrap();
+                            let settings = receiver_qt.borrow().recv().unwrap().unwrap();
+                            let settings: Settings = serde_json::from_slice(&settings).unwrap();
+
+                            // In theory, if we reach this line this should always exist. In theory I should be rich.
+                            if let Some(ref my_mods_base_path) = settings.paths.my_mods_base_path {
+
+                                // We get the assets folder of our mod (without .pack extension).
+                                let mut assets_folder = my_mods_base_path.to_path_buf();
+                                assets_folder.push(&game_folder_name);
+                                assets_folder.push(Path::new(&mod_name).file_stem().unwrap().to_string_lossy().as_ref().to_owned());
+
+                                // We check that path exists, and create it if it doesn't.
+                                if !assets_folder.is_dir() {
+                                    if let Err(_) = DirBuilder::new().recursive(true).create(&assets_folder) {
+                                        return show_dialog(&app_ui, false, "Error while adding files:\n The MyMod's asset folder does not exists and it cannot be created.");
+                                    }
+                                }
+
+                                // Set the base directory of the File Chooser to be the assets folder of the MyMod.
+                                file_dialog.set_directory(&QString::from_std_str(assets_folder.to_string_lossy().to_owned()));
+
+                                // Run it and expect a response (1 => Accept, 0 => Cancel).
+                                if file_dialog.exec() == 1 {
+
+                                    // Get the Paths of the files we want to add.
+                                    let mut paths: Vec<PathBuf> = vec![];
+                                    let paths_qt = file_dialog.selected_files();
+                                    for index in 0..paths_qt.size() { paths.push(PathBuf::from(paths_qt.at(index).to_std_string())); }
+
+                                    // Check if the files are in the Assets Folder. All are in the same folder, so we can just check the first one.
+                                    let mut paths_packedfile = if paths[0].starts_with(&assets_folder) {
+
+                                        // Get their final paths in the PackFile.
+                                        let mut paths_packedfile: Vec<Vec<String>> = vec![];
+                                        for path in &paths {
+
+                                            // Get his path, and turn it into a Vec<String>;
+                                            let filtered_path = path.strip_prefix(&assets_folder).unwrap();
+                                            paths_packedfile.push(filtered_path.iter().map(|x| x.to_string_lossy().as_ref().to_owned()).collect::<Vec<String>>());
+                                        }
+
+                                        // Return the new paths for the TreeView.
+                                        paths_packedfile
+                                    }
+
+                                    // Otherwise, they are added like normal files.
+                                    else {
+
+                                        // Get their final paths in the PackFile.
+                                        let mut paths_packedfile: Vec<Vec<String>> = vec![];
+                                        for path in &paths { paths_packedfile.append(&mut get_path_from_pathbuf(&app_ui, &path, true)); }
+
+                                        // Return the new paths for the TreeView.
+                                        paths_packedfile
+                                    };
+
+                                    // Tell the Background Thread to add the files.
+                                    sender_qt.send("add_packedfile").unwrap();
+                                    sender_qt_data.send(serde_json::to_vec(&paths).map_err(From::from)).unwrap();
+                                    sender_qt_data.send(serde_json::to_vec(&paths_packedfile).map_err(From::from)).unwrap();
+
+                                    // Prepare the event loop, so we don't hang the UI while the background thread is working.
+                                    let mut event_loop = EventLoop::new();
+
+                                    // Disable the Main Window (so we can't do other stuff).
+                                    unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+
+                                    // Until we receive a response from the worker thread...
+                                    loop {
+
+                                        // When we finally receive a response...
+                                        if let Ok(data) = receiver_qt.borrow().try_recv() {
+
+                                            // If we got a response...
+                                            if let Ok(data) = data {
+
+                                                // Get the list of errors.
+                                                let error_list: Vec<Vec<String>> = serde_json::from_slice(&data).unwrap();
+
+                                                // If there is any error, report it. Otherwise, it's a success.
+                                                let error_message = error_list.iter().map(|x| format!("<li>{:?}</li>", x.iter().collect::<PathBuf>())).collect::<String>();
+                                                if !error_list.is_empty() { show_dialog(&app_ui, false, format!("<p>The following files failed to be imported:</p> <ul>{}</ul>", error_message)); }
+
+                                                // Set it as modified.
+                                                *is_modified.borrow_mut() = set_modified(true, &app_ui);
+
+                                                // Take out of the path list the ones that failed.
+                                                paths_packedfile.retain(|x| !error_list.contains(x));
+
+                                                // Update the TreeView.
+                                                update_treeview(
+                                                    &sender_qt,
+                                                    &sender_qt_data,
+                                                    receiver_qt.clone(),
+                                                    &app_ui,
+                                                    TreeViewOperation::Add(paths_packedfile),
+                                                );
+                                            }
+
+                                            // Stop the loop.
+                                            break;
+                                        }
+
+                                        // Keep the UI responsive.
+                                        event_loop.process_events(());
+
+                                        // Wait a bit to not saturate a CPU core.
+                                        thread::sleep(Duration::from_millis(50));
+                                    }
+
+                                    // Re-enable the Main Window.
+                                    unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
+                                }
+                            }
+
+                            // If there is no "MyMod" path configured, report it.
+                            else { return show_dialog(&app_ui, false, "Error while adding files:\n MyMod Path not configured."); }
+                        }
+
+                        // If it's in "Normal" mode...
+                        Mode::Normal => {
+
+                            // Run it and expect a response (1 => Accept, 0 => Cancel).
+                            if file_dialog.exec() == 1 {
+
+                                // Get the Paths of the files we want to add.
+                                let mut paths: Vec<PathBuf> = vec![];
+                                let paths_qt = file_dialog.selected_files();
+                                for index in 0..paths_qt.size() { paths.push(PathBuf::from(paths_qt.at(index).to_std_string())); }
+
+                                // Get their final paths in the PackFile.
+                                let mut paths_packedfile: Vec<Vec<String>> = vec![];
+                                for path in &paths { paths_packedfile.append(&mut get_path_from_pathbuf(&app_ui, &path, true)); }
+
+                                // Tell the Background Thread to add the files.
+                                sender_qt.send("add_packedfile").unwrap();
+                                sender_qt_data.send(serde_json::to_vec(&paths).map_err(From::from)).unwrap();
+                                sender_qt_data.send(serde_json::to_vec(&paths_packedfile).map_err(From::from)).unwrap();
+
+                                // Prepare the event loop, so we don't hang the UI while the background thread is working.
+                                let mut event_loop = EventLoop::new();
+
+                                // Disable the Main Window (so we can't do other stuff).
+                                unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+
+                                // Until we receive a response from the worker thread...
+                                loop {
+
+                                    // When we finally receive a response...
+                                    if let Ok(data) = receiver_qt.borrow().try_recv() {
+
+                                        // If we got a response...
+                                        if let Ok(data) = data {
+
+                                            // Get the list of errors.
+                                            let error_list: Vec<Vec<String>> = serde_json::from_slice(&data).unwrap();
+
+                                            // If there is any error, report it. Otherwise, it's a success.
+                                            let error_message = error_list.iter().map(|x| format!("<li>{:?}</li>", x.iter().collect::<PathBuf>())).collect::<String>();
+                                            if !error_list.is_empty() { show_dialog(&app_ui, false, format!("<p>The following files failed to be imported:</p> <ul>{}</ul>", error_message)); }
+
+                                            // Set it as modified.
+                                            *is_modified.borrow_mut() = set_modified(true, &app_ui);
+
+                                            // Take out of the path list the ones that failed.
+                                            paths_packedfile.retain(|x| !error_list.contains(x));
+
+                                            // Update the TreeView.
+                                            update_treeview(
+                                                &sender_qt,
+                                                &sender_qt_data,
+                                                receiver_qt.clone(),
+                                                &app_ui,
+                                                TreeViewOperation::Add(paths_packedfile),
+                                            );
+                                        }
+
+                                        // Stop the loop.
+                                        break;
+                                    }
+
+                                    // Keep the UI responsive.
+                                    event_loop.process_events(());
+
+                                    // Wait a bit to not saturate a CPU core.
+                                    thread::sleep(Duration::from_millis(50));
+                                }
+
+                                // Re-enable the Main Window.
+                                unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
+                            }
+                        }
+                    }
+                }
+            }
+        ));
+
+        // What happens when we trigger the "Add Folder/s" action in the Contextual Menu.
+        let slot_contextual_menu_add_folder = SlotBool::new(clone!(
+            sender_qt,
+            sender_qt_data,
+            receiver_qt,
+            is_packedfile_opened,
+            is_modified,
+            mode,
+            rpfm_path => move |_| {
+
+                // We only do something in case the focus is in the TreeView. This should stop
+                // problems with the accels working everywhere.
+                let has_focus;
+                unsafe { has_focus = app_ui.folder_tree_view.as_mut().unwrap().has_focus() };
+                if has_focus {
+
+                    // Create the FileDialog to get the folder/s to add.
+                    let mut file_dialog;
+                    unsafe { file_dialog = FileDialog::new_unsafe((
+                        app_ui.window as *mut Widget,
+                        &QString::from_std_str("Add Folder/s"),
+                    )); }
+
+                    // TODO: Make this able to select multiple directories at once.
+                    // Set it to only allow selecting directories.
+                    file_dialog.set_file_mode(FileMode::Directory);
+
+                    // Depending on the current Operational Mode...
+                    match *mode.borrow() {
+
+                        // If we have a "MyMod" selected...
+                        Mode::MyMod {ref game_folder_name, ref mod_name} => {
+
+                            // Get the settings.
+                            sender_qt.send("get_settings").unwrap();
+                            let settings = receiver_qt.borrow().recv().unwrap().unwrap();
+                            let settings: Settings = serde_json::from_slice(&settings).unwrap();
+
+                            // In theory, if we reach this line this should always exist. In theory I should be rich.
+                            if let Some(ref my_mods_base_path) = settings.paths.my_mods_base_path {
+
+                                // We get the assets folder of our mod (without .pack extension).
+                                let mut assets_folder = my_mods_base_path.to_path_buf();
+                                assets_folder.push(&game_folder_name);
+                                assets_folder.push(Path::new(&mod_name).file_stem().unwrap().to_string_lossy().as_ref().to_owned());
+
+                                // We check that path exists, and create it if it doesn't.
+                                if !assets_folder.is_dir() {
+                                    if let Err(_) = DirBuilder::new().recursive(true).create(&assets_folder) {
+                                        return show_dialog(&app_ui, false, "Error while adding files:\n The MyMod's asset folder does not exists and it cannot be created.");
+                                    }
+                                }
+
+                                // Set the base directory of the File Chooser to be the assets folder of the MyMod.
+                                file_dialog.set_directory(&QString::from_std_str(assets_folder.to_string_lossy().to_owned()));
+
+                                // Run it and expect a response (1 => Accept, 0 => Cancel).
+                                if file_dialog.exec() == 1 {
+
+                                    // Get the Paths of the folders we want to add.
+                                    let mut folder_paths: Vec<PathBuf> = vec![];
+                                    let paths_qt = file_dialog.selected_files();
+                                    for index in 0..paths_qt.size() { folder_paths.push(PathBuf::from(paths_qt.at(index).to_std_string())); }
+
+                                    // Get the Paths of the files inside the folders we want to add.
+                                    let mut paths: Vec<PathBuf> = vec![];
+                                    for path in &folder_paths { paths.append(&mut get_files_from_subdir(&path).unwrap()); }
+
+                                    // Check if the files are in the Assets Folder. All are in the same folder, so we can just check the first one.
+                                    let mut paths_packedfile = if paths[0].starts_with(&assets_folder) {
+
+                                        // Get their final paths in the PackFile.
+                                        let mut paths_packedfile: Vec<Vec<String>> = vec![];
+                                        for path in &paths {
+
+                                            // Get his path, and turn it into a Vec<String>;
+                                            let filtered_path = path.strip_prefix(&assets_folder).unwrap();
+                                            paths_packedfile.push(filtered_path.iter().map(|x| x.to_string_lossy().as_ref().to_owned()).collect::<Vec<String>>());
+                                        }
+
+                                        // Return the new paths for the TreeView.
+                                        paths_packedfile
+                                    }
+
+                                    // Otherwise, they are added like normal files.
+                                    else {
+
+                                        // Get their final paths in the PackFile.
+                                        let mut paths_packedfile: Vec<Vec<String>> = vec![];
+                                        for path in &folder_paths { paths_packedfile.append(&mut get_path_from_pathbuf(&app_ui, &path, false)); }
+
+                                        // Return the new paths for the TreeView.
+                                        paths_packedfile
+                                    };
+
+                                    // Tell the Background Thread to add the files.
+                                    sender_qt.send("add_packedfile").unwrap();
+                                    sender_qt_data.send(serde_json::to_vec(&paths).map_err(From::from)).unwrap();
+                                    sender_qt_data.send(serde_json::to_vec(&paths_packedfile).map_err(From::from)).unwrap();
+
+                                    // Prepare the event loop, so we don't hang the UI while the background thread is working.
+                                    let mut event_loop = EventLoop::new();
+
+                                    // Disable the Main Window (so we can't do other stuff).
+                                    unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+
+                                    // Until we receive a response from the worker thread...
+                                    loop {
+
+                                        // When we finally receive a response...
+                                        if let Ok(data) = receiver_qt.borrow().try_recv() {
+
+                                            // If we got a response...
+                                            if let Ok(data) = data {
+
+                                                // Get the list of errors.
+                                                let error_list: Vec<Vec<String>> = serde_json::from_slice(&data).unwrap();
+
+                                                // If there is any error, report it. Otherwise, it's a success.
+                                                let error_message = error_list.iter().map(|x| format!("<li>{:?}</li>", x.iter().collect::<PathBuf>())).collect::<String>();
+                                                if !error_list.is_empty() { show_dialog(&app_ui, false, format!("<p>The following files failed to be imported:</p> <ul>{}</ul>", error_message)); }
+
+                                                // Set it as modified.
+                                                *is_modified.borrow_mut() = set_modified(true, &app_ui);
+
+                                                // Take out of the path list the ones that failed.
+                                                paths_packedfile.retain(|x| !error_list.contains(x));
+
+                                                // Update the TreeView.
+                                                update_treeview(
+                                                    &sender_qt,
+                                                    &sender_qt_data,
+                                                    receiver_qt.clone(),
+                                                    &app_ui,
+                                                    TreeViewOperation::Add(paths_packedfile),
+                                                );
+                                            }
+
+                                            // Stop the loop.
+                                            break;
+                                        }
+
+                                        // Keep the UI responsive.
+                                        event_loop.process_events(());
+
+                                        // Wait a bit to not saturate a CPU core.
+                                        thread::sleep(Duration::from_millis(50));
+                                    }
+
+                                    // Re-enable the Main Window.
+                                    unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
+                                }
+                            }
+
+                            // If there is no "MyMod" path configured, report it.
+                            else { return show_dialog(&app_ui, false, "Error while adding files:\n MyMod Path not configured."); }
+                        }
+
+                        // If it's in "Normal" mode, we just get the paths of the files inside them and add those files.
+                        Mode::Normal => {
+
+                            // Run it and expect a response (1 => Accept, 0 => Cancel).
+                            if file_dialog.exec() == 1 {
+
+                                // Get the Paths of the folders we want to add.
+                                let mut folder_paths: Vec<PathBuf> = vec![];
+                                let paths_qt = file_dialog.selected_files();
+                                for index in 0..paths_qt.size() { folder_paths.push(PathBuf::from(paths_qt.at(index).to_std_string())); }
+
+                                // Get the Paths of the files inside the folders we want to add.
+                                let mut paths: Vec<PathBuf> = vec![];
+                                for path in &folder_paths { paths.append(&mut get_files_from_subdir(&path).unwrap()); }
+
+                                // Get their final paths in the PackFile.
+                                let mut paths_packedfile: Vec<Vec<String>> = vec![];
+                                for path in &folder_paths { paths_packedfile.append(&mut get_path_from_pathbuf(&app_ui, &path, false)); }
+
+                                // Tell the Background Thread to add the files.
+                                sender_qt.send("add_packedfile").unwrap();
+                                sender_qt_data.send(serde_json::to_vec(&paths).map_err(From::from)).unwrap();
+                                sender_qt_data.send(serde_json::to_vec(&paths_packedfile).map_err(From::from)).unwrap();
+
+                                // Prepare the event loop, so we don't hang the UI while the background thread is working.
+                                let mut event_loop = EventLoop::new();
+
+                                // Disable the Main Window (so we can't do other stuff).
+                                unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+
+                                // Until we receive a response from the worker thread...
+                                loop {
+
+                                    // When we finally receive a response...
+                                    if let Ok(data) = receiver_qt.borrow().try_recv() {
+
+                                        // If we got a response...
+                                        if let Ok(data) = data {
+
+                                            // Get the list of errors.
+                                            let error_list: Vec<Vec<String>> = serde_json::from_slice(&data).unwrap();
+
+                                            // If there is any error, report it. Otherwise, it's a success.
+                                            let error_message = error_list.iter().map(|x| format!("<li>{:?}</li>", x.iter().collect::<PathBuf>())).collect::<String>();
+                                            if !error_list.is_empty() { show_dialog(&app_ui, false, format!("<p>The following files failed to be imported:</p> <ul>{}</ul>", error_message)); }
+
+                                            // Set it as modified.
+                                            *is_modified.borrow_mut() = set_modified(true, &app_ui);
+
+                                            // Take out of the path list the ones that failed.
+                                            paths_packedfile.retain(|x| !error_list.contains(x));
+
+                                            // Update the TreeView.
+                                            update_treeview(
+                                                &sender_qt,
+                                                &sender_qt_data,
+                                                receiver_qt.clone(),
+                                                &app_ui,
+                                                TreeViewOperation::Add(paths_packedfile),
+                                            );
+                                        }
+
+                                        // Stop the loop.
+                                        break;
+                                    }
+
+                                    // Keep the UI responsive.
+                                    event_loop.process_events(());
+
+                                    // Wait a bit to not saturate a CPU core.
+                                    thread::sleep(Duration::from_millis(50));
+                                }
+
+                                // Re-enable the Main Window.
+                                unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
+                            }
+                        }
+                    }
+                }
+            }
+        ));
+
         // What happens when we trigger the "Delete" action in the Contextual Menu.
         let slot_contextual_menu_delete = SlotBool::new(clone!(
             sender_qt,
@@ -4897,8 +5378,10 @@ fn main() {
 
                                         // Update the TreeView.
                                         update_treeview(
+                                            &sender_qt,
+                                            &sender_qt_data,
+                                            receiver_qt.clone(),
                                             &app_ui,
-                                            ("", vec![]),
                                             TreeViewOperation::Delete(path_type),
                                         );
                                     }
@@ -5141,8 +5624,48 @@ fn main() {
         ));
 
         // Contextual Menu Actions.
+        unsafe { app_ui.context_menu_add_file.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_add_file); }
+        unsafe { app_ui.context_menu_add_folder.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_add_folder); }
         unsafe { app_ui.context_menu_delete.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_delete); }
         unsafe { app_ui.context_menu_extract.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_extract); }
+        /*
+        // Rename action is a bit special, it needs an action to start editing, and another to actually rename.
+        let old_snake = Rc::new(RefCell::new(String::new()));
+
+        // When we double-click something (start editing), we store his name in old_snake.
+        let slot_contextual_menu_rename_get_old_name = SlotModelIndexRef::new(clone!(
+            old_snake => move |model_index| {
+                *old_snake.borrow_mut() = QString::to_std_string(&model_index.data(()).to_string());
+            }
+        ));
+        unsafe { app_ui.folder_tree_view.as_ref().unwrap().signals().double_clicked().connect(&slot_contextual_menu_rename_get_old_name); }
+
+        // What happens when we trigger the "Rename" Action.
+        let slot_contextual_menu_rename_button = SlotBool::new(clone!(
+            old_snake => move |_| {
+
+                // Start the editing of the item.
+                let model_index;
+                unsafe { model_index = app_ui.folder_tree_view.as_ref().unwrap().current_index(); }
+                unsafe { app_ui.folder_tree_view.as_mut().unwrap().edit(&model_index); }
+
+                // Store his old name, for future checks.
+                *old_snake.borrow_mut() = QString::to_std_string(&model_index.data(()).to_string());
+            }
+        ));
+
+        // What happens when we finish the "Rename" Action.
+        let slot_contextual_menu_rename = qt_core::slots::SlotModelIndexRefModelIndexRefVectorVectorCIntRef::new(move |new_model_index,_,_| {
+            unsafe { println!("{:?}", QString::to_std_string(&new_model_index.data(()).to_string())); }
+            println!("{:?}", 1);
+        });
+
+
+        unsafe { app_ui.context_menu_rename.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_rename_button); }
+        unsafe { app_ui.folder_tree_model.as_ref().unwrap().signals().data_changed().connect(&slot_contextual_menu_rename); }
+        */
+
+
 
         //-----------------------------------------------------//
         // Show the Main Window and start everything...
@@ -5274,7 +5797,7 @@ fn background_loop(
                         schema = Schema::load(&rpfm_path, &supported_games.iter().filter(|x| x.folder_name == *game_selected.game).map(|x| x.schema.to_owned()).collect::<String>()).ok();
 
                         // Get the data we must return to the UI thread and serialize it.
-                        let data = serde_json::to_vec(&(&pack_file_decoded.extra_data.file_name, pack_file_decoded.data.packed_files.iter().map(|x| x.path.to_vec()).collect::<Vec<Vec<String>>>(), pack_file_decoded.header.pack_file_type)).map_err(From::from);
+                        let data = serde_json::to_vec(&pack_file_decoded.header.pack_file_type).map_err(From::from);
 
                         // Send a response to the UI thread.
                         sender.send(data).unwrap();
@@ -5300,11 +5823,7 @@ fn background_loop(
                                 schema = Schema::load(&rpfm_path, &supported_games.iter().filter(|x| x.folder_name == *game_selected.game).map(|x| x.schema.to_owned()).collect::<String>()).ok();
 
                                 // Get the data we must return to the UI thread and serialize it.
-                                let data = serde_json::to_vec(&(
-                                    &pack_file_decoded.extra_data.file_name,
-                                    pack_file_decoded.data.packed_files.iter().map(|x| x.path.to_vec()).collect::<Vec<Vec<String>>>(),
-                                    pack_file_decoded.header.pack_file_type
-                                )).map_err(From::from);
+                                let data = serde_json::to_vec(&pack_file_decoded.header.pack_file_type).map_err(From::from);
 
                                 // Send a response to the UI thread.
                                 sender.send(data).unwrap();
@@ -5597,6 +6116,33 @@ fn background_loop(
                         }
                     }
 
+                    // When we want to add the PackedFiles in a Path...
+                    "add_packedfile" => {
+
+                        // Get the Paths of the PackedFiles we want to add.
+                        let data = receiver_data.recv().unwrap().unwrap();
+                        let paths: Vec<PathBuf> = serde_json::from_slice(&data).unwrap();
+
+                        // Get the Paths in the PackFile of the PackedFiles we want to add.
+                        let data = receiver_data.recv().unwrap().unwrap();
+                        let paths_packedfile: Vec<Vec<String>> = serde_json::from_slice(&data).unwrap();
+
+                        // Get a list of the PackedFiles that failed to be added, for one reason or another.
+                        let mut errors = vec![];
+
+                        // For each file...
+                        for index in 0..paths.len() {
+
+                            // Try to add it to the PackFile. If it fails, add it to the error list.
+                            if let Err(_) = packfile::add_file_to_packfile(&mut pack_file_decoded, &paths[index], paths_packedfile[index].to_vec()) {
+                                errors.push(paths_packedfile[index].to_vec());
+                            }
+                        }
+
+                        // Send back the list of files that failed.
+                        sender.send(serde_json::to_vec(&errors).map_err(From::from)).unwrap();
+                    }
+
                     // When we want to delete the PackedFiles in a Path...
                     "delete_packedfile" => {
 
@@ -5640,7 +6186,7 @@ fn background_loop(
                         }
                     }
 
-                    // When you want to get the type of an item...
+                    // When we want to get the type of an item...
                     "get_type_of_path" => {
 
                         // Get the path to check.
@@ -5653,6 +6199,22 @@ fn background_loop(
                         // Send the type back.
                         sender.send(serde_json::to_vec(&selection_type).map_err(From::from)).unwrap();
                     }
+
+                    // When we want to get the "data" of a PackFile needed for the TreeView...
+                    "get_packfile_data_for_treeview" => {
+
+                        // Get the data we must return to the UI thread and serialize it.
+                        let data = serde_json::to_vec(&(
+                            &pack_file_decoded.extra_data.file_name,
+                            pack_file_decoded.data.packed_files.iter().map(|x| x.path.to_vec()).collect::<Vec<Vec<String>>>(),
+                        )).map_err(From::from);
+
+                        // Send a response to the UI thread.
+                        sender.send(data).unwrap();
+                    }
+
+
+
 
                     _ => println!("Error while receiving message, \"{}\" is not a valid message.", data),
                 }
@@ -5809,17 +6371,10 @@ fn open_packfile(
                 Ok(data) => {
 
                     // Deserialize it (name of the packfile, paths of the PackedFiles, type of the PackFile).
-                    let data: (&str, Vec<Vec<String>>, u32) = serde_json::from_slice(&data).unwrap();
-
-                    // Update the TreeView.
-                    update_treeview(
-                        &app_ui,
-                        (&data.0, data.1.to_vec()),
-                        TreeViewOperation::Build,
-                    );
+                    let pack_file_type: u32 = serde_json::from_slice(&data).unwrap();
 
                     // We choose the right option, depending on our PackFile.
-                    match data.2 {
+                    match pack_file_type {
                         0 => unsafe { app_ui.change_packfile_type_boot.as_mut().unwrap().set_checked(true); }
                         1 => unsafe { app_ui.change_packfile_type_release.as_mut().unwrap().set_checked(true); }
                         2 => unsafe { app_ui.change_packfile_type_patch.as_mut().unwrap().set_checked(true); }
@@ -5827,6 +6382,15 @@ fn open_packfile(
                         4 => unsafe { app_ui.change_packfile_type_movie.as_mut().unwrap().set_checked(true); }
                         _ => unsafe { app_ui.change_packfile_type_other.as_mut().unwrap().set_checked(true); }
                     }
+
+                    // Update the TreeView.
+                    update_treeview(
+                        sender_qt,
+                        sender_qt_data,
+                        receiver_qt.clone(),
+                        &app_ui,
+                        TreeViewOperation::Build,
+                    );
 
                     // Stop the loop.
                     break;
@@ -6051,18 +6615,14 @@ fn build_my_mod_menu(
                         loop {
 
                             // When we finally receive the data of the PackFile...
-                            if let Ok(data) = receiver_qt.borrow().try_recv() {
-
-                                // Unwrap the data.
-                                let data = data.unwrap();
-
-                                // Deserialize it (name of the packfile, paths of the PackedFiles).
-                                let data: (&str, Vec<Vec<String>>, u32) = serde_json::from_slice(&data).unwrap();
+                            if let Ok(_) = receiver_qt.borrow().try_recv() {
 
                                 // Update the TreeView.
                                 update_treeview(
+                                    &sender_qt,
+                                    &sender_qt_data,
+                                    receiver_qt.clone(),
                                     &app_ui,
-                                    (&data.0, data.1.to_vec()),
                                     TreeViewOperation::Build,
                                 );
 
@@ -6154,8 +6714,10 @@ fn build_my_mod_menu(
 
                                         // Rename the Unknown PackFile to his final name.
                                         update_treeview(
+                                            &sender_qt,
+                                            &sender_qt_data,
+                                            receiver_qt.clone(),
                                             &app_ui,
-                                            ("", vec![]),
                                             TreeViewOperation::Rename(TreePathType::PackFile, full_mod_name),
                                         );
                                     }
