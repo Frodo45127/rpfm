@@ -73,9 +73,11 @@ use std::path::{Path, PathBuf};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::fs::{
-    DirBuilder, copy, remove_file, remove_dir_all
+    File, DirBuilder, copy, remove_file, remove_dir_all
 };
 use std::env::args;
+use std::io::BufReader;
+
 use failure::Error;
 use url::Url;
 use common::*;
@@ -3631,25 +3633,6 @@ pub struct AppUI {
     pub context_menu_rename: *mut Action,
 }
 
-/// This struct will hold all the MyMod-related stuff we have to recreate from time to time.
-#[derive(Copy, Clone)]
-struct MyModStuff {
-    pub new_mymod: *mut Action,
-    pub delete_selected_mymod: *mut Action,
-    pub install_mymod: *mut Action,
-    pub uninstall_mymod: *mut Action,
-}
-
-/// This struct holds all the Slots related to the "MyMod" Menu, as otherwise they'll die before we
-/// press their buttons and do nothing.
-struct MyModSlots {
-    pub new_mymod: SlotBool<'static>,
-    pub delete_selected_mymod: SlotBool<'static>,
-    pub install_mymod: SlotBool<'static>,
-    pub uninstall_mymod: SlotBool<'static>,
-    pub open_mymod: Vec<SlotBool<'static>>,
-}
-
 /// Main function.
 fn main() {
 
@@ -3895,8 +3878,14 @@ fn main() {
         let receiver_qt = Rc::new(RefCell::new(receiver_qt));
         let is_modified = Rc::new(RefCell::new(false));
         let is_packedfile_opened = Rc::new(RefCell::new(false));
+        let is_folder_tree_view_locked = Rc::new(RefCell::new(false));
         let mymod_menu_needs_rebuild = Rc::new(RefCell::new(false));
         let mode = Rc::new(RefCell::new(Mode::Normal));
+
+        // Build the empty structs we need for certain features.
+        let result = AddFromPackFileStuff::new();
+        let add_from_packfile_stuff = Rc::new(RefCell::new(result.0));
+        let add_from_packfile_slots = Rc::new(RefCell::new(result.1));
 
         // Display the basic tips by default.
         display_help_tips(&app_ui);
@@ -4102,8 +4091,9 @@ fn main() {
                                 &sender_qt,
                                 &sender_qt_data,
                                 receiver_qt.clone(),
-                                &app_ui,
-                                TreeViewOperation::Build,
+                                app_ui.folder_tree_view,
+                                app_ui.folder_tree_model,
+                                TreeViewOperation::Build(false),
                             );
 
                             // Stop the loop.
@@ -4368,7 +4358,8 @@ fn main() {
                                                 &sender_qt,
                                                 &sender_qt_data,
                                                 receiver_qt.clone(),
-                                                &app_ui,
+                                                app_ui.folder_tree_view,
+                                                app_ui.folder_tree_model,
                                                 TreeViewOperation::Rename(TreePathType::PackFile, path.file_name().unwrap().to_string_lossy().as_ref().to_owned()),
                                             );
 
@@ -4635,8 +4626,9 @@ fn main() {
                                     &sender_qt,
                                     &sender_qt_data,
                                     receiver_qt.clone(),
-                                    &app_ui,
-                                    TreeViewOperation::Build,
+                                    app_ui.folder_tree_view,
+                                    app_ui.folder_tree_model,
+                                    TreeViewOperation::Build(false),
                                 );
                             }
 
@@ -4745,7 +4737,7 @@ fn main() {
             receiver_qt => move |selection,_| {
 
                 // Get the path of the selected item.
-                let path = get_path_from_item_selection(&app_ui, &selection, true);
+                let path = get_path_from_item_selection(app_ui.folder_tree_model, &selection, true);
 
                 // Send the Path to the Background Thread, and get the type of the item.
                 sender_qt.send("get_type_of_path").unwrap();
@@ -4978,7 +4970,8 @@ fn main() {
                                                     &sender_qt,
                                                     &sender_qt_data,
                                                     receiver_qt.clone(),
-                                                    &app_ui,
+                                                    app_ui.folder_tree_view,
+                                                    app_ui.folder_tree_model,
                                                     TreeViewOperation::Add(paths_packedfile),
                                                 );
                                             }
@@ -5056,7 +5049,8 @@ fn main() {
                                                 &sender_qt,
                                                 &sender_qt_data,
                                                 receiver_qt.clone(),
-                                                &app_ui,
+                                                app_ui.folder_tree_view,
+                                                app_ui.folder_tree_model,
                                                 TreeViewOperation::Add(paths_packedfile),
                                             );
                                         }
@@ -5214,7 +5208,8 @@ fn main() {
                                                     &sender_qt,
                                                     &sender_qt_data,
                                                     receiver_qt.clone(),
-                                                    &app_ui,
+                                                    app_ui.folder_tree_view,
+                                                    app_ui.folder_tree_model,
                                                     TreeViewOperation::Add(paths_packedfile),
                                                 );
                                             }
@@ -5296,7 +5291,8 @@ fn main() {
                                                 &sender_qt,
                                                 &sender_qt_data,
                                                 receiver_qt.clone(),
-                                                &app_ui,
+                                                app_ui.folder_tree_view,
+                                                app_ui.folder_tree_model,
                                                 TreeViewOperation::Add(paths_packedfile),
                                             );
                                         }
@@ -5316,6 +5312,114 @@ fn main() {
                                 unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
                             }
                         }
+                    }
+                }
+            }
+        ));
+
+        // What happens when we trigger the "Add from PackFile" action in the Contextual Menu.
+        let slot_contextual_menu_add_from_packfile = SlotBool::new(clone!(
+            sender_qt,
+            sender_qt_data,
+            receiver_qt,
+            is_packedfile_opened,
+            is_folder_tree_view_locked,
+            is_modified,
+            mode,
+            add_from_packfile_stuff,
+            add_from_packfile_slots,
+            rpfm_path => move |_| {
+
+                // We only do something in case the focus is in the TreeView. This should stop
+                // problems with the accels working everywhere.
+                let has_focus;
+                unsafe { has_focus = app_ui.folder_tree_view.as_mut().unwrap().has_focus() };
+                if has_focus {
+
+                    // Create the FileDialog to get the PackFile to open.
+                    let mut file_dialog;
+                    unsafe { file_dialog = FileDialog::new_unsafe((
+                        app_ui.window as *mut Widget,
+                        &QString::from_std_str("Select PackFile"),
+                    )); }
+
+                    // Filter it so it only shows PackFiles.
+                    file_dialog.set_name_filter(&QString::from_std_str("PackFiles (*.pack)"));
+
+                    // Run it and expect a response (1 => Accept, 0 => Cancel).
+                    if file_dialog.exec() == 1 {
+
+                        // Get the path of the selected file and turn it in a Rust's PathBuf.
+                        let mut path: PathBuf = PathBuf::new();
+                        let path_qt = file_dialog.selected_files();
+                        for index in 0..path_qt.size() { path.push(path_qt.at(index).to_std_string()); }
+
+                        // Tell the Background Thread to open the secondary PackFile.
+                        sender_qt.send("open_packfile_extra").unwrap();
+
+                        // Send the path to the Background Thread.
+                        sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
+
+                        // Prepare the event loop, so we don't hang the UI while the background thread is working.
+                        let mut event_loop = EventLoop::new();
+
+                        // Disable the Main Window (so we can't do other stuff).
+                        unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+
+                        // Until we receive a response from the worker thread...
+                        loop {
+
+                            // When we finally receive the data of the PackFile...
+                            if let Ok(data) = receiver_qt.borrow().try_recv() {
+
+                                // Check if the PackFile was succesfully decoded or not.
+                                match data {
+
+                                    // If it was it, stop the loop and continue.
+                                    Ok(_) => break,
+
+                                    // Otherwise, return an error.
+                                    Err(error) => return show_dialog(&app_ui, false, format!("<p>Error while opening the secondary PackFile:</p> <p>{}</p>", error)),
+                                }
+                            }
+
+                            // Keep the UI responsive.
+                            event_loop.process_events(());
+
+                            // Wait a bit to not saturate a CPU core.
+                            thread::sleep(Duration::from_millis(50));
+                        }
+
+                        // Block the main `TreeView` from decoding stuff.
+                        *is_folder_tree_view_locked.borrow_mut() = true;
+
+                        // Destroy whatever it's in the PackedFile's View.
+                        purge_them_all(&app_ui);
+
+                        // Build the TreeView to hold all the Extra PackFile's data.
+                        let ui_stuff = AddFromPackFileStuff::new_with_grid(
+                            sender_qt.clone(),
+                            &sender_qt_data,
+                            receiver_qt.clone(),
+                            app_ui,
+                            is_folder_tree_view_locked.clone(),
+                            is_modified.clone(),
+                        );
+                        *add_from_packfile_stuff.borrow_mut() = ui_stuff.0;
+                        *add_from_packfile_slots.borrow_mut() = ui_stuff.1;
+
+                        // Update the TreeView.
+                        update_treeview(
+                            &sender_qt,
+                            &sender_qt_data,
+                            receiver_qt.clone(),
+                            add_from_packfile_stuff.borrow().tree_view,
+                            add_from_packfile_stuff.borrow().tree_model,
+                            TreeViewOperation::Build(true),
+                        );
+
+                        // Re-enable the Main Window.
+                        unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
                     }
                 }
             }
@@ -5381,7 +5485,8 @@ fn main() {
                                             &sender_qt,
                                             &sender_qt_data,
                                             receiver_qt.clone(),
-                                            &app_ui,
+                                            app_ui.folder_tree_view,
+                                            app_ui.folder_tree_model,
                                             TreeViewOperation::Delete(path_type),
                                         );
                                     }
@@ -5626,6 +5731,7 @@ fn main() {
         // Contextual Menu Actions.
         unsafe { app_ui.context_menu_add_file.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_add_file); }
         unsafe { app_ui.context_menu_add_folder.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_add_folder); }
+        unsafe { app_ui.context_menu_add_from_packfile.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_add_from_packfile); }
         unsafe { app_ui.context_menu_delete.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_delete); }
         unsafe { app_ui.context_menu_extract.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_extract); }
         /*
@@ -5742,6 +5848,10 @@ fn background_loop(
     let mut pack_file_decoded = PackFile::new();
     let mut pack_file_decoded_extra = PackFile::new();
 
+    // TODO: Fix this shit.
+    // The extra PackFile needs to keep a BufReader to not destroy the Ram.
+    let mut pack_file_decoded_extra_buffer = BufReader::new(File::open("LICENSE").unwrap());
+
     // We load the list of Supported Games here.
     // TODO: Move this to a const when const fn reach stable in Rust.
     let supported_games = GameInfo::new();
@@ -5782,6 +5892,13 @@ fn background_loop(
 
                         // Create the new PackFile.
                         pack_file_decoded = PackFile::new();
+                    }
+
+                    // In case we want to reset the Secondary PackFile to his original state (dummy)...
+                    "reset_packfile_extra" => {
+
+                        // Create the new PackFile.
+                        pack_file_decoded_extra = PackFile::new();
                     }
 
                     // In case we want to create a "New PackFile"...
@@ -5847,6 +5964,35 @@ fn background_loop(
                                 //         }
                                 //     }
                                 // }
+                            }
+
+                            // If there is an error, send it back to the UI.
+                            Err(error) => sender.send(Err(error)).unwrap(),
+                        }
+                    }
+
+                    // In case we want to Add Files from another PAckFile...
+                    "open_packfile_extra" => {
+
+                        // Get the path to the PackFile.
+                        let path = receiver_data.recv().unwrap().unwrap();
+
+                        // Try to deserialize it as a path.
+                        let path = serde_json::from_slice(&path).unwrap();
+
+                        // Open the PackFile (Or die trying it).
+                        match packfile::open_packfile_with_bufreader(path) {
+                            Ok(result) => {
+
+                                // Get the PackFile and the Buffer in an easier way to use.
+                                pack_file_decoded_extra = result.0;
+                                pack_file_decoded_extra_buffer = result.1;
+
+                                // Send success, so we can continue with the loading.
+                                let data = serde_json::to_vec(&()).map_err(From::from);
+
+                                // Send a response to the UI thread.
+                                sender.send(data).unwrap();
                             }
 
                             // If there is an error, send it back to the UI.
@@ -6213,8 +6359,70 @@ fn background_loop(
                         sender.send(data).unwrap();
                     }
 
+                    // When we want to get the "data" of a Secondary PackFile needed for the TreeView...
+                    "get_packfile_extra_data_for_treeview" => {
 
+                        // Get the data we must return to the UI thread and serialize it.
+                        let data = serde_json::to_vec(&(
+                            &pack_file_decoded_extra.extra_data.file_name,
+                            pack_file_decoded_extra.data.packed_files.iter().map(|x| x.path.to_vec()).collect::<Vec<Vec<String>>>(),
+                        )).map_err(From::from);
 
+                        // Send a response to the UI thread.
+                        sender.send(data).unwrap();
+                    }
+
+                    // When we want to move stuff from one PackFile to another...
+                    "add_packedfile_from_packfile" => {
+
+                        // Get the Paths.
+                        let data = receiver_data.recv().unwrap().unwrap();
+                        let paths: (Vec<String>, Vec<String>) = serde_json::from_slice(&data).unwrap();
+
+                        // Try to add the PackedFile to the main PackFile.
+                        match packfile::add_packedfile_to_packfile(
+                            &mut pack_file_decoded_extra_buffer,
+                            &pack_file_decoded_extra,
+                            &mut pack_file_decoded,
+                            &paths.0,
+                            &paths.1,
+                        ) {
+
+                            // In case of success, get the list of copied PackedFiles and send it back.
+                            Ok(_) => {
+
+                                // Get the new "Prefix" for the PackedFiles.
+                                let mut source_prefix = paths.0;
+
+                                // Remove the PackFile's name from it.
+                                source_prefix.reverse();
+                                source_prefix.pop();
+                                source_prefix.reverse();
+
+                                // Get the new "Prefix" for the Destination PackedFiles.
+                                let mut destination_prefix = paths.1;
+
+                                // Remove the PackFile's name from it.
+                                destination_prefix.reverse();
+                                destination_prefix.pop();
+                                destination_prefix.reverse();
+
+                                // Get all the PackedFiles to copy.
+                                let path_list: Vec<Vec<String>> = pack_file_decoded_extra
+                                    .data.packed_files
+                                    .iter()
+                                    .filter(|x| x.path.starts_with(&source_prefix))
+                                    .map(|x| x.path.to_vec())
+                                    .collect();
+
+                                // Send all of it back.
+                                sender.send(serde_json::to_vec(&(source_prefix, destination_prefix, path_list)).map_err(From::from)).unwrap();
+                            }
+
+                            // In case of error, report it.
+                            Err(error) => sender.send(Err(error)).unwrap(),
+                        }
+                    }
 
                     _ => println!("Error while receiving message, \"{}\" is not a valid message.", data),
                 }
@@ -6388,8 +6596,9 @@ fn open_packfile(
                         sender_qt,
                         sender_qt_data,
                         receiver_qt.clone(),
-                        &app_ui,
-                        TreeViewOperation::Build,
+                        app_ui.folder_tree_view,
+                        app_ui.folder_tree_model,
+                        TreeViewOperation::Build(false),
                     );
 
                     // Stop the loop.
@@ -6622,8 +6831,9 @@ fn build_my_mod_menu(
                                     &sender_qt,
                                     &sender_qt_data,
                                     receiver_qt.clone(),
-                                    &app_ui,
-                                    TreeViewOperation::Build,
+                                    app_ui.folder_tree_view,
+                                    app_ui.folder_tree_model,
+                                    TreeViewOperation::Build(false),
                                 );
 
                                 // Mark it as "Mod" in the UI.
@@ -6717,7 +6927,8 @@ fn build_my_mod_menu(
                                             &sender_qt,
                                             &sender_qt_data,
                                             receiver_qt.clone(),
-                                            &app_ui,
+                                            app_ui.folder_tree_view,
+                                            app_ui.folder_tree_model,
                                             TreeViewOperation::Rename(TreePathType::PackFile, full_mod_name),
                                         );
                                     }
