@@ -86,16 +86,17 @@ use packfile::packfile::PackFileExtraData;
 use packfile::packfile::PackFileHeader;
 use packfile::packfile::PackedFile;
 use packedfile::*;
+use packedfile::loc::*;
 use packedfile::db::schemas::*;
 use packedfile::db::schemas_importer::*;
 use settings::*;
 use updater::*;
 use ui::*;
+use ui::packedfile_loc::*;
 use ui::settings::*;
 use ui::updater::*;
 /*
 use ui::packedfile_db::*;
-use ui::packedfile_loc::*;
 use ui::packedfile_text::*;
 use ui::packedfile_image::*;
 use ui::packedfile_rigidmodel::*;
@@ -134,7 +135,7 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 /// If you don't want to explicity create a new Schema for a game, leave this disabled.
 const GENERATE_NEW_SCHEMA: bool = false;
 
-/// Custom type to deal with QStrirngs more easely.
+/// Custom type to deal with QStrings more easely.
 type QString = qt_core::string::String;
 
 /// This enum represent the current "Operational Mode" for RPFM. The allowed modes are:
@@ -3887,6 +3888,8 @@ fn main() {
         let add_from_packfile_stuff = Rc::new(RefCell::new(result.0));
         let add_from_packfile_slots = Rc::new(RefCell::new(result.1));
 
+        let loc_slots = Rc::new(RefCell::new(PackedFileLocTreeView::new()));
+
         // Display the basic tips by default.
         display_help_tips(&app_ui);
 
@@ -3913,6 +3916,7 @@ fn main() {
             mode.clone(),
             supported_games.to_vec(),
             mymod_menu_needs_rebuild.clone(),
+            &is_packedfile_opened
         );
 
         let mymod_stuff = Rc::new(RefCell::new(result.0));
@@ -4042,6 +4046,7 @@ fn main() {
             is_modified,
             mymod_stuff,
             mode,
+            is_packedfile_opened,
             sender_qt,
             sender_qt_data,
             receiver_qt => move |_| {
@@ -4050,7 +4055,7 @@ fn main() {
                 if are_you_sure(&is_modified, false) {
 
                     // Destroy whatever it's in the PackedFile's view, to avoid data corruption.
-                    purge_them_all(&app_ui);
+                    purge_them_all(&app_ui, &is_packedfile_opened);
 
                     // Show the "Tips".
                     display_help_tips(&app_ui);
@@ -4134,6 +4139,7 @@ fn main() {
             mymod_stuff,
             sender_qt,
             sender_qt_data,
+            is_packedfile_opened,
             receiver_qt => move |_| {
 
                 // Check first if there has been changes in the PackFile.
@@ -4180,6 +4186,7 @@ fn main() {
                             &is_modified,
                             &mode,
                             "",
+                            &is_packedfile_opened
                         ) {
                             show_dialog(&app_ui, false, format!("Error while opening the PackFile:\n\n{}", error.cause()));
                         }
@@ -5394,16 +5401,17 @@ fn main() {
                         *is_folder_tree_view_locked.borrow_mut() = true;
 
                         // Destroy whatever it's in the PackedFile's View.
-                        purge_them_all(&app_ui);
+                        purge_them_all(&app_ui, &is_packedfile_opened);
 
                         // Build the TreeView to hold all the Extra PackFile's data.
                         let ui_stuff = AddFromPackFileStuff::new_with_grid(
                             sender_qt.clone(),
                             &sender_qt_data,
-                            receiver_qt.clone(),
+                            &receiver_qt,
                             app_ui,
-                            is_folder_tree_view_locked.clone(),
-                            is_modified.clone(),
+                            &is_folder_tree_view_locked,
+                            &is_modified,
+                            &is_packedfile_opened,
                         );
                         *add_from_packfile_stuff.borrow_mut() = ui_stuff.0;
                         *add_from_packfile_slots.borrow_mut() = ui_stuff.1;
@@ -5771,7 +5779,127 @@ fn main() {
         unsafe { app_ui.folder_tree_model.as_ref().unwrap().signals().data_changed().connect(&slot_contextual_menu_rename); }
         */
 
+        //-----------------------------------------------------//
+        // Special Actions, like opening a PackedFile...
+        //-----------------------------------------------------//
 
+        // What happens when we try to open a PackedFile...
+        let slot_open_packedfile = SlotNoArgs::new(clone!(
+            mymod_stuff,
+            mymod_stuff_slots,
+            sender_qt,
+            sender_qt_data,
+            receiver_qt,
+            is_modified,
+            mode,
+            is_folder_tree_view_locked,
+            is_packedfile_opened,
+            mymod_menu_needs_rebuild => move || {
+
+                // Before anything else, we need to check if the TreeView is unlocked. Otherwise we don't do anything from here.
+                if !(*is_folder_tree_view_locked.borrow()) {
+
+                    // Destroy any children that the PackedFile's View we use may have, cleaning it.
+                    purge_them_all(&app_ui, &is_packedfile_opened);
+
+                    // Get the selection to see what we are going to open.
+                    let selection;
+                    unsafe { selection = app_ui.folder_tree_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection(); }
+
+                    // Get the path of the selected item.
+                    let path = get_path_from_item_selection(app_ui.folder_tree_model, &selection, true);
+
+                    // Send the Path to the Background Thread, and get the type of the item.
+                    sender_qt.send("get_type_of_path").unwrap();
+                    sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
+                    let response = receiver_qt.borrow().recv().unwrap().unwrap();
+                    let item_type: TreePathType = serde_json::from_slice(&response).unwrap();
+
+                    // We act, depending on his type.
+                    match item_type {
+
+                        // Only in case it's a file, we do something.
+                        TreePathType::File((tree_path, index)) => {
+
+                            // Get the name of the PackedFile (we are going to use it a lot).
+                            let packedfile_name = tree_path.last().unwrap().to_owned();
+
+                            // We get his type to decode it properly
+                            let mut packed_file_type: &str =
+
+                                // If it's in the "db" folder, it's a DB PackedFile (or you put something were it shouldn't be).
+                                if tree_path[0] == "db" { "DB" }
+
+                                // If it ends in ".loc", it's a localisation PackedFile.
+                                else if packedfile_name.ends_with(".loc") { "LOC" }
+
+                                // If it ends in ".rigid_model_v2", it's a RigidModel PackedFile.
+                                else if packedfile_name.ends_with(".rigid_model_v2") { "RIGIDMODEL" }
+
+                                // If it ends in any of these, it's a plain text PackedFile.
+                                else if packedfile_name.ends_with(".lua") ||
+                                        packedfile_name.ends_with(".xml") ||
+                                        packedfile_name.ends_with(".xml.shader") ||
+                                        packedfile_name.ends_with(".xml.material") ||
+                                        packedfile_name.ends_with(".variantmeshdefinition") ||
+                                        packedfile_name.ends_with(".environment") ||
+                                        packedfile_name.ends_with(".lighting") ||
+                                        packedfile_name.ends_with(".wsmodel") ||
+                                        packedfile_name.ends_with(".csv") ||
+                                        packedfile_name.ends_with(".tsv") ||
+                                        packedfile_name.ends_with(".inl") ||
+                                        packedfile_name.ends_with(".battle_speech_camera") ||
+                                        packedfile_name.ends_with(".bob") ||
+                                        //packedfile_name.ends_with(".benchmark") || // This one needs special decoding/encoding.
+                                        packedfile_name.ends_with(".txt") { "TEXT" }
+
+                                // If it ends in any of these, it's an image.
+                                else if packedfile_name.ends_with(".jpg") ||
+                                        packedfile_name.ends_with(".jpeg") ||
+                                        packedfile_name.ends_with(".tga") ||
+                                        packedfile_name.ends_with(".png") { "IMAGE" }
+
+                                // Otherwise, we don't have a decoder for that PackedFile... yet.
+                                else { "None" };
+
+                            // Then, depending of his type we decode it properly (if we have it implemented support
+                            // for his type).
+                            match packed_file_type {
+
+                                // If the file is a Loc PackedFile...
+                                "LOC" => {
+
+                                    // Try to get the view build, or return error.
+                                    match PackedFileLocTreeView::create_tree_view(
+                                        sender_qt.clone(),
+                                        &sender_qt_data,
+                                        &receiver_qt,
+                                        &is_modified,
+                                        &app_ui,
+                                        &index
+                                    ) {
+                                        Ok(new_loc_slots) => *loc_slots.borrow_mut() = new_loc_slots,
+                                        Err(error) => return show_dialog(&app_ui, false, format!("<p>Error while opening a Loc PackedFile:</p> <p>{}</p>", error.cause())),
+                                    }
+
+                                    // Tell the program there is an open PackedFile.
+                                    *is_packedfile_opened.borrow_mut() = true;
+                                }
+
+                                // For any other PackedFile, just restore the display tips.
+                                _ => display_help_tips(&app_ui),
+                            }
+                        }
+
+                        // If it's anything else, then we just show the "Tips" list.
+                        _ => display_help_tips(&app_ui),
+                    }
+                }
+            }
+        ));
+
+        // Action to try to open a PackedFile.
+        unsafe { app_ui.folder_tree_view.as_ref().unwrap().signals().activated().connect(&slot_open_packedfile); }
 
         //-----------------------------------------------------//
         // Show the Main Window and start everything...
@@ -5782,6 +5910,7 @@ fn main() {
             mymod_stuff,
             mymod_stuff_slots,
             sender_qt,
+            is_packedfile_opened,
             sender_qt_data,
             receiver_qt,
             is_modified,
@@ -5800,6 +5929,7 @@ fn main() {
                         mode.clone(),
                         supported_games.to_vec(),
                         mymod_menu_needs_rebuild.clone(),
+                        &is_packedfile_opened
                     );
 
                     // And store the new values.
@@ -5851,6 +5981,9 @@ fn background_loop(
     // TODO: Fix this shit.
     // The extra PackFile needs to keep a BufReader to not destroy the Ram.
     let mut pack_file_decoded_extra_buffer = BufReader::new(File::open("LICENSE").unwrap());
+
+    // These are a list of empty PackedFiles, used to store data of the open PackedFile.
+    let mut packed_file_loc = Loc::new();
 
     // We load the list of Supported Games here.
     // TODO: Move this to a const when const fn reach stable in Rust.
@@ -6424,6 +6557,73 @@ fn background_loop(
                         }
                     }
 
+                    // When we want to decode a Loc PackedFile...
+                    "decode_packed_file_loc" => {
+
+                        // Get the Index of the PackedFile.
+                        let data = receiver_data.recv().unwrap().unwrap();
+                        let index: usize = serde_json::from_slice(&data).unwrap();
+
+                        // We try to decode it as a Loc PackedFile.
+                        match Loc::read(&pack_file_decoded.data.packed_files[index].data) {
+
+                            // If we succeed, store it and send it back.
+                            Ok(packed_file_decoded) => {
+                                packed_file_loc = packed_file_decoded;
+                                sender.send(serde_json::to_vec(&packed_file_loc.data).map_err(From::from)).unwrap();
+                            }
+
+                            // In case of error, report it.
+                            Err(error) => sender.send(Err(error)).unwrap(),
+                        }
+                    }
+
+                    // When we want to decode a Loc PackedFile...
+                    "encode_packed_file_loc" => {
+
+                        // Get the Index and the Data of the PackedFile.
+                        let data = receiver_data.recv().unwrap().unwrap();
+                        let data: (LocData, usize) = serde_json::from_slice(&data).unwrap();
+
+                        // Replace the old encoded data with the new one.
+                        packed_file_loc.data = data.0;
+
+                        // Update the PackFile to reflect the changes.
+                        packfile::update_packed_file_data_loc(
+                            &packed_file_loc,
+                            &mut pack_file_decoded,
+                            data.1
+                        );
+                    }
+
+                    // When we want to import a TSV file into a Loc PackedFile...
+                    "import_tsv_packed_file_loc" => {
+
+                        // Get the Path of the TSV File.
+                        let data = receiver_data.recv().unwrap().unwrap();
+                        let path: PathBuf = serde_json::from_slice(&data).unwrap();
+
+                        // Try to import the TSV into the open Loc PackedFile, or die trying.
+                        match packed_file_loc.data.import_tsv(&path, "Loc PackedFile") {
+                            Ok(_) => sender.send(serde_json::to_vec(&packed_file_loc.data).map_err(From::from)).unwrap(),
+                            Err(error) => sender.send(Err(error)).unwrap(),
+                        }
+                    }
+
+                    // When we want to export a Loc PackedFile into a TSV file...
+                    "export_tsv_packed_file_loc" => {
+
+                        // Get the Path of the TSV File.
+                        let data = receiver_data.recv().unwrap().unwrap();
+                        let path: PathBuf = serde_json::from_slice(&data).unwrap();
+
+                        // Try to import the TSV into the open Loc PackedFile, or die trying.
+                        match packed_file_loc.data.export_tsv(&path, ("Loc PackedFile", 9001)) {
+                            Ok(success) => sender.send(serde_json::to_vec(&success).map_err(From::from)).unwrap(),
+                            Err(error) => sender.send(Err(error)).unwrap(),
+                        }
+                    }
+
                     _ => println!("Error while receiving message, \"{}\" is not a valid message.", data),
                 }
             }
@@ -6552,6 +6752,7 @@ fn open_packfile(
     is_modified: &Rc<RefCell<bool>>,
     mode: &Rc<RefCell<Mode>>,
     game_folder: &str,
+    is_packedfile_opened: &Rc<RefCell<bool>>,
 ) -> Result<(), Error> {
 
     // Tell the Background Thread to create a new PackFile.
@@ -6725,7 +6926,7 @@ fn open_packfile(
     enable_packfile_actions(&app_ui, &game_selected, true);
 
     // Destroy whatever it's in the PackedFile's view, to avoid data corruption.
-    purge_them_all(&app_ui);
+    purge_them_all(&app_ui, &is_packedfile_opened);
 
     // Show the "Tips".
     display_help_tips(&app_ui);
@@ -6750,6 +6951,7 @@ fn build_my_mod_menu(
     mode: Rc<RefCell<Mode>>,
     supported_games: Vec<GameInfo>,
     needs_rebuild: Rc<RefCell<bool>>,
+    is_packedfile_opened: &Rc<RefCell<bool>>
 ) -> (MyModStuff, MyModSlots) {
 
     // Get the current Settings.
@@ -7237,6 +7439,7 @@ fn build_my_mod_menu(
                                         mode,
                                         mymod_stuff,
                                         pack_file,
+                                        is_packedfile_opened,
                                         sender_qt,
                                         sender_qt_data,
                                         receiver_qt => move |_| {
@@ -7255,6 +7458,7 @@ fn build_my_mod_menu(
                                                     &is_modified,
                                                     &mode,
                                                     &game_folder_name,
+                                                    &is_packedfile_opened,
                                                 ) { show_dialog(&app_ui, false, format!("Error while opening the PackFile:\n\n{}", error.cause())) }
                                             }
                                         }

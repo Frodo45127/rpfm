@@ -60,25 +60,25 @@ use QString;
 
 
 
+pub mod packedfile_loc;
 pub mod settings;
 pub mod updater;
 
 use AppUI;
 use common::*;
+use packedfile::*;
+use packedfile::loc::*;
 /*
 
 
 
 
-use packedfile::*;
 use packedfile::db::*;
-use packedfile::loc::*;
 use packedfile::db::schemas::Schema;
 use packfile::packfile::PackFile;
 use packfile::packfile::PackedFile;
 
 pub mod packedfile_db;
-pub mod packedfile_loc;
 pub mod packedfile_text;
 pub mod packedfile_image;
 pub mod packedfile_rigidmodel;
@@ -1005,10 +1005,11 @@ impl AddFromPackFileStuff {
     pub fn new_with_grid(
         sender_qt: Sender<&'static str>,
         sender_qt_data: &Sender<Result<Vec<u8>, Error>>,
-        receiver_qt: Rc<RefCell<Receiver<Result<Vec<u8>, Error>>>>,
+        receiver_qt: &Rc<RefCell<Receiver<Result<Vec<u8>, Error>>>>,
         app_ui: AppUI,
-        is_folder_tree_view_locked: Rc<RefCell<bool>>,
-        is_modified: Rc<RefCell<bool>>,
+        is_folder_tree_view_locked: &Rc<RefCell<bool>>,
+        is_modified: &Rc<RefCell<bool>>,
+        is_packedfile_opened: &Rc<RefCell<bool>>
     ) -> (AddFromPackFileStuff, AddFromPackFileSlots) {
 
         // Create the stuff.
@@ -1133,13 +1134,14 @@ impl AddFromPackFileStuff {
                 }
             )),
             exit: SlotNoArgs::new(clone!(
+                is_packedfile_opened,
                 is_folder_tree_view_locked => move || {
 
                     // Reset the Secondary PackFile.
                     sender_qt.send("reset_packfile_extra").unwrap();
 
                     // Destroy the "Add from PackFile" stuff.
-                    purge_them_all(&app_ui);
+                    purge_them_all(&app_ui, &is_packedfile_opened);
 
                     // Show the "Tips".
                     display_help_tips(&app_ui);
@@ -1238,7 +1240,7 @@ pub fn set_modified(
 }
 
 /// This function delete whatever it's in the right side of the screen.
-pub fn purge_them_all(app_ui: &AppUI) {
+pub fn purge_them_all(app_ui: &AppUI, is_packedfile_opened: &Rc<RefCell<bool>>) {
     unsafe {
         for _ in 0..app_ui.packed_file_layout.as_mut().unwrap().count() {
             let child = app_ui.packed_file_layout.as_mut().unwrap().take_at(0);
@@ -1246,6 +1248,9 @@ pub fn purge_them_all(app_ui: &AppUI) {
             app_ui.packed_file_layout.as_mut().unwrap().remove_item(child);
         }
     }
+
+    // Set it as not having an opened PackedFile, just in case.
+    *is_packedfile_opened.borrow_mut() = false;
 }
 
 /// This function shows a Message in the specified Grid.
@@ -2057,10 +2062,6 @@ fn sort_item_in_tree_view(
         unsafe { previous_name = QString::to_std_string(&parent.as_mut().unwrap().child(item_index.row() - 1).as_mut().unwrap().text()); }
         unsafe { current_name = QString::to_std_string(&parent.as_mut().unwrap().child(item_index.row()).as_mut().unwrap().text()); }
         unsafe { next_name = QString::to_std_string(&parent.as_mut().unwrap().child(item_index.row() + 1).as_mut().unwrap().text()); }
-
-        println!("ss{:?}", previous_name);
-        println!("dd{:?}", current_name);
-        println!("ee{:?}", next_name);
 
         // If, after sorting, the previous hasn't changed position, it shouldn't go up.
         let name_list = vec![previous_name.to_owned(), current_name.to_owned()];
