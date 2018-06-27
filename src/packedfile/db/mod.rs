@@ -72,7 +72,6 @@ pub struct DBData {
 /// `DecodedData`: This enum is used to store the data from the different fields of a row of a DB PackedFile.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum DecodedData {
-    Index(String),
     Boolean(bool),
     Float(f32),
     Integer(i32),
@@ -372,11 +371,6 @@ impl DBData {
         // Create the Vector to store the decoded row.
         let mut decoded_row: Vec<DecodedData> = vec![];
 
-        // If we are not using this to get a list's fields, add the index column to the row.
-        if !is_list {
-            decoded_row.push(DecodedData::Index(format!("{:0count$}", (row_number), count = (entry_count.to_string().len() + 1))));
-        }
-
         // For each column...
         for column in 0..column_amount {
 
@@ -541,7 +535,6 @@ impl DBData {
             match *field {
 
                 // In case of index, skip the column. We don't need it other than for the UI.
-                DecodedData::Index(_) => continue,
                 DecodedData::Boolean(data) => encoded_row.push(encode_bool(data)),
                 DecodedData::Float(data) => encoded_row.append(&mut encode_float_f32(data)),
                 DecodedData::Integer(data) => encoded_row.append(&mut encode_integer_i32(data)),
@@ -619,7 +612,7 @@ impl SerializableToTSV for DBData {
                                 // If not, then we stop the import and return an error. This should avoid the problem with undecodeable
                                 // tables after importing into them a TSV from another table that passes the schema filter from below.
                                 if entry.len() == self.table_definition.fields.len() {
-                                    let mut entry_complete = vec![DecodedData::Index(format!("{:0count$}", index, count = (entry.iter().count().to_string().len() + 1)))];
+                                    let mut entry_complete = vec![];
                                     for (index, field) in entry.iter().enumerate() {
                                         match self.table_definition.fields[index].field_type {
                                             FieldType::Boolean => entry_complete.push(DecodedData::Boolean(field.parse::<bool>()?)),
@@ -678,7 +671,7 @@ impl SerializableToTSV for DBData {
         for entry in &self.entries {
 
             // We don't want the index, as that's not really needed outside the program.
-            writer.serialize(&entry[1..])?;
+            writer.serialize(&entry)?;
         }
 
         // Then, we try to write it on disk. If there is an error, report it.

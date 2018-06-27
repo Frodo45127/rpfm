@@ -47,8 +47,8 @@ use qt_gui::cursor::Cursor;
 use qt_core::slots::SlotItemSelectionRefItemSelectionRef;
 use qt_core::slots::SlotModelIndexRefModelIndexRef;
 use qt_widgets::file_dialog::FileMode;
+use qt_gui::key_sequence::KeySequence;
 
-use qt_core::qt::ContextMenuPolicy;
 use qt_gui::desktop_services::DesktopServices;
 use qt_gui::standard_item_model::StandardItemModel;
 use qt_gui::icon::Icon;
@@ -62,6 +62,7 @@ use qt_core::object::Object;
 use qt_core::variant::Variant;
 use qt_core::slots::SlotBool;
 use qt_core::slots::SlotNoArgs;
+use qt_core::qt::{ContextMenuPolicy, ShortcutContext};
 use cpp_utils::{CppBox, StaticCast};
 
 use std::sync::mpsc::{channel, Sender, Receiver};
@@ -87,16 +88,17 @@ use packfile::packfile::PackFileHeader;
 use packfile::packfile::PackedFile;
 use packedfile::*;
 use packedfile::loc::*;
+use packedfile::db::*;
 use packedfile::db::schemas::*;
 use packedfile::db::schemas_importer::*;
 use settings::*;
 use updater::*;
 use ui::*;
+use ui::packedfile_db::*;
 use ui::packedfile_loc::*;
 use ui::settings::*;
 use ui::updater::*;
 /*
-use ui::packedfile_db::*;
 use ui::packedfile_text::*;
 use ui::packedfile_image::*;
 use ui::packedfile_rigidmodel::*;
@@ -3872,6 +3874,26 @@ fn main() {
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().set_context_menu_policy(ContextMenuPolicy::Custom); }
 
         //---------------------------------------------------------------------------------------//
+        // Shortcuts for the Menu Bar...
+        //---------------------------------------------------------------------------------------//
+
+        // Set the shortcuts for these actions.
+        unsafe { app_ui.new_packfile.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+n"))); }
+        unsafe { app_ui.open_packfile.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+o"))); }
+        unsafe { app_ui.save_packfile.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+s"))); }
+        unsafe { app_ui.save_packfile_as.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+shift+s"))); }
+        unsafe { app_ui.preferences.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+p"))); }
+        unsafe { app_ui.quit.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+q"))); }
+
+        // Set the shortcuts to only trigger in the TreeView.
+        unsafe { app_ui.new_packfile.as_mut().unwrap().set_shortcut_context(ShortcutContext::Application); }
+        unsafe { app_ui.open_packfile.as_mut().unwrap().set_shortcut_context(ShortcutContext::Application); }
+        unsafe { app_ui.save_packfile.as_mut().unwrap().set_shortcut_context(ShortcutContext::Application); }
+        unsafe { app_ui.save_packfile_as.as_mut().unwrap().set_shortcut_context(ShortcutContext::Application); }
+        unsafe { app_ui.preferences.as_mut().unwrap().set_shortcut_context(ShortcutContext::Application); }
+        unsafe { app_ui.quit.as_mut().unwrap().set_shortcut_context(ShortcutContext::Application); }
+
+        //---------------------------------------------------------------------------------------//
         // Preparing initial state of the Main Window...
         //---------------------------------------------------------------------------------------//
 
@@ -3883,12 +3905,16 @@ fn main() {
         let mymod_menu_needs_rebuild = Rc::new(RefCell::new(false));
         let mode = Rc::new(RefCell::new(Mode::Normal));
 
+        // Rename action is a bit special, it needs an action to start editing, and another to actually rename.
+        let old_snake = Rc::new(RefCell::new((String::new(), false)));
+
         // Build the empty structs we need for certain features.
         let result = AddFromPackFileStuff::new();
         let add_from_packfile_stuff = Rc::new(RefCell::new(result.0));
         let add_from_packfile_slots = Rc::new(RefCell::new(result.1));
 
         let loc_slots = Rc::new(RefCell::new(PackedFileLocTreeView::new()));
+        let db_slots = Rc::new(RefCell::new(PackedFileDBTreeView::new()));
 
         // Display the basic tips by default.
         display_help_tips(&app_ui);
@@ -3938,6 +3964,42 @@ fn main() {
             app_ui.context_menu_extract.as_mut().unwrap().set_enabled(false);
             app_ui.context_menu_rename.as_mut().unwrap().set_enabled(false);
         }
+
+        // Set the shortcuts for these actions.
+        unsafe { app_ui.context_menu_add_file.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+shift+a"))); }
+        unsafe { app_ui.context_menu_add_folder.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+shift+f"))); }
+        unsafe { app_ui.context_menu_add_from_packfile.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+shift+p"))); }
+        unsafe { app_ui.context_menu_create_db.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+b"))); }
+        unsafe { app_ui.context_menu_create_loc.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+n"))); }
+        unsafe { app_ui.context_menu_create_text.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+m"))); }
+        unsafe { app_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+."))); }
+        unsafe { app_ui.context_menu_delete.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+d"))); }
+        unsafe { app_ui.context_menu_extract.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+e"))); }
+        unsafe { app_ui.context_menu_rename.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+r"))); }
+
+        // Set the shortcuts to only trigger in the TreeView.
+        unsafe { app_ui.context_menu_add_file.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+        unsafe { app_ui.context_menu_add_folder.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+        unsafe { app_ui.context_menu_add_from_packfile.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+        unsafe { app_ui.context_menu_create_db.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+        unsafe { app_ui.context_menu_create_loc.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+        unsafe { app_ui.context_menu_create_text.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+        unsafe { app_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+        unsafe { app_ui.context_menu_delete.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+        unsafe { app_ui.context_menu_extract.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+        unsafe { app_ui.context_menu_rename.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+
+        // Add the actions to the TreeView, so the shortcuts work.
+        unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_add_file); }
+        unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_add_folder); }
+        unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_add_from_packfile); }
+        unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_create_db); }
+        unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_create_loc); }
+        unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_create_text); }
+        unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_mass_import_tsv); }
+        unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_delete); }
+        unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_extract); }
+        unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_rename); }
 
         // Set the current "Operational Mode" to `Normal`.
         set_my_mod_mode(&mymod_stuff, &mode, None);
@@ -5742,20 +5804,20 @@ fn main() {
         unsafe { app_ui.context_menu_add_from_packfile.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_add_from_packfile); }
         unsafe { app_ui.context_menu_delete.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_delete); }
         unsafe { app_ui.context_menu_extract.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_extract); }
-        /*
-        // Rename action is a bit special, it needs an action to start editing, and another to actually rename.
-        let old_snake = Rc::new(RefCell::new(String::new()));
 
-        // When we double-click something (start editing), we store his name in old_snake.
-        let slot_contextual_menu_rename_get_old_name = SlotModelIndexRef::new(clone!(
-            old_snake => move |model_index| {
-                *old_snake.borrow_mut() = QString::to_std_string(&model_index.data(()).to_string());
-            }
-        ));
-        unsafe { app_ui.folder_tree_view.as_ref().unwrap().signals().double_clicked().connect(&slot_contextual_menu_rename_get_old_name); }
+
+
+
+
+
+
+
+
+
+        /*
 
         // What happens when we trigger the "Rename" Action.
-        let slot_contextual_menu_rename_button = SlotBool::new(clone!(
+        let slot_contextual_menu_rename = SlotBool::new(clone!(
             old_snake => move |_| {
 
                 // Start the editing of the item.
@@ -5764,19 +5826,39 @@ fn main() {
                 unsafe { app_ui.folder_tree_view.as_mut().unwrap().edit(&model_index); }
 
                 // Store his old name, for future checks.
-                *old_snake.borrow_mut() = QString::to_std_string(&model_index.data(()).to_string());
+                *old_snake.borrow_mut() = (QString::to_std_string(&model_index.data(()).to_string()), true);
             }
         ));
 
+        // Action to start the Renaming Process.
+        unsafe { app_ui.context_menu_rename.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_rename); }
+
         // What happens when we finish the "Rename" Action.
-        let slot_contextual_menu_rename = qt_core::slots::SlotModelIndexRefModelIndexRefVectorVectorCIntRef::new(move |new_model_index,_,_| {
-            unsafe { println!("{:?}", QString::to_std_string(&new_model_index.data(()).to_string())); }
-            println!("{:?}", 1);
+        let slot_item_renamed = qt_gui::slots::SlotStandardItemMutPtr::new(move |item| {
+
+            // If we were editing something...
+            if old_snake.borrow().1 {
+
+                unsafe { println!("{:?}", QString::to_std_string(&item.as_mut().unwrap().text())); }
+            }
+
+            // Reset the edition stuff.
+            *old_snake.borrow_mut() = (String::new(), false);
         });
+        let slot_item_renamed = qt_gui::slots::SlotStandardItemMutPtr::new(move |item| {
 
+            // If we were editing something...
+            if old_snake.borrow().1 {
 
-        unsafe { app_ui.context_menu_rename.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_rename_button); }
-        unsafe { app_ui.folder_tree_model.as_ref().unwrap().signals().data_changed().connect(&slot_contextual_menu_rename); }
+                unsafe { println!("{:?}", QString::to_std_string(&item.as_mut().unwrap().text())); }
+            }
+
+            // Reset the edition stuff.
+            *old_snake.borrow_mut() = (String::new(), false);
+        });
+        unsafe { app_ui.folder_tree_view.as_ref().unwrap().slots().close_editor().connect(&slot_item_renamed); }
+
+        unsafe { app_ui.folder_tree_model.as_ref().unwrap().signals().item_changed().connect(&slot_item_renamed); }
         */
 
         //-----------------------------------------------------//
@@ -5886,6 +5968,29 @@ fn main() {
                                     *is_packedfile_opened.borrow_mut() = true;
                                 }
 
+                                // If the file is a DB PackedFile...
+                                "DB" => {
+
+                                    // Try to get the view build, or return error.
+                                    match PackedFileDBTreeView::create_table_view(
+                                        sender_qt.clone(),
+                                        &sender_qt_data,
+                                        &receiver_qt,
+                                        &is_modified,
+                                        &app_ui,
+                                        &index
+                                    ) {
+                                        Ok(new_db_slots) => *db_slots.borrow_mut() = new_db_slots,
+                                        Err(error) => return show_dialog(&app_ui, false, format!("<p>Error while opening a DB PackedFile:</p> <p>{}</p>", error.cause())),
+                                    }
+
+                                    // Tell the program there is an open PackedFile.
+                                    *is_packedfile_opened.borrow_mut() = true;
+
+                                    // Disable the "Change game selected" function, so we cannot change the current schema with an open table.
+                                    unsafe { app_ui.game_selected_group.as_mut().unwrap().set_enabled(false); }
+                                }
+
                                 // For any other PackedFile, just restore the display tips.
                                 _ => display_help_tips(&app_ui),
                             }
@@ -5897,6 +6002,7 @@ fn main() {
                 }
             }
         ));
+
 
         // Action to try to open a PackedFile.
         unsafe { app_ui.folder_tree_view.as_ref().unwrap().signals().activated().connect(&slot_open_packedfile); }
@@ -5984,6 +6090,7 @@ fn background_loop(
 
     // These are a list of empty PackedFiles, used to store data of the open PackedFile.
     let mut packed_file_loc = Loc::new();
+    let mut packed_file_db = DB::new("", 0, TableDefinition::new(0));
 
     // We load the list of Supported Games here.
     // TODO: Move this to a const when const fn reach stable in Rust.
@@ -6619,6 +6726,91 @@ fn background_loop(
 
                         // Try to import the TSV into the open Loc PackedFile, or die trying.
                         match packed_file_loc.data.export_tsv(&path, ("Loc PackedFile", 9001)) {
+                            Ok(success) => sender.send(serde_json::to_vec(&success).map_err(From::from)).unwrap(),
+                            Err(error) => sender.send(Err(error)).unwrap(),
+                        }
+                    }
+
+                    // When we want to decode a DB PackedFile...
+                    "decode_packed_file_db" => {
+
+                        // Get the Index of the PackedFile.
+                        let data = receiver_data.recv().unwrap().unwrap();
+                        let index: usize = serde_json::from_slice(&data).unwrap();
+
+                        // Depending if there is an Schema for this game or not...
+                        match schema {
+
+                            // If there is an Schema loaded for this game...
+                            Some(ref schema) => {
+
+                                // We try to decode it as a DB PackedFile.
+                                match DB::read(
+                                    &pack_file_decoded.data.packed_files[index].data,
+                                    &pack_file_decoded.data.packed_files[index].path[1],
+                                    schema,
+                                ) {
+
+                                    // If we succeed, store it and send it back.
+                                    Ok(packed_file_decoded) => {
+                                        packed_file_db = packed_file_decoded;
+                                        sender.send(serde_json::to_vec(&packed_file_db.data).map_err(From::from)).unwrap();
+                                    }
+
+                                    // In case of error, report it.
+                                    Err(error) => sender.send(Err(error)).unwrap(),
+                                }
+                            }
+
+                            // If there is no schema, return an error.
+                            None => sender.send(Err(format_err!("<p>Error while trying to open a DB Table:</p><p>There is no Schema loaded for this Game.</p>"))).unwrap(),
+                        }
+                    }
+
+                    // When we want to decode a DB PackedFile...
+                    "encode_packed_file_db" => {
+
+                        // Get the Index and the Data of the PackedFile.
+                        let data = receiver_data.recv().unwrap().unwrap();
+                        let data: (DBData, usize) = serde_json::from_slice(&data).unwrap();
+
+                        // Replace the old encoded data with the new one.
+                        packed_file_db.data = data.0;
+
+                        // Update the PackFile to reflect the changes.
+                        packfile::update_packed_file_data_db(
+                            &packed_file_db,
+                            &mut pack_file_decoded,
+                            data.1
+                        );
+                    }
+
+                    // When we want to import a TSV file into a DB PackedFile...
+                    "import_tsv_packed_file_db" => {
+
+                        // Get the Path of the TSV File.
+                        let data = receiver_data.recv().unwrap().unwrap();
+                        let path: PathBuf = serde_json::from_slice(&data).unwrap();
+
+                        // Get his name.
+                        let name = &packed_file_db.db_type;
+
+                        // Try to import the TSV into the open DB PackedFile, or die trying.
+                        match packed_file_db.data.import_tsv(&path, name) {
+                            Ok(_) => sender.send(serde_json::to_vec(&packed_file_db.data).map_err(From::from)).unwrap(),
+                            Err(error) => sender.send(Err(error)).unwrap(),
+                        }
+                    }
+
+                    // When we want to export a DB PackedFile into a TSV file...
+                    "export_tsv_packed_file_db" => {
+
+                        // Get the Path of the TSV File.
+                        let data = receiver_data.recv().unwrap().unwrap();
+                        let path: PathBuf = serde_json::from_slice(&data).unwrap();
+
+                        // Try to import the TSV into the open DB PackedFile, or die trying.
+                        match packed_file_db.data.export_tsv(&path, (&packed_file_db.db_type, packed_file_db.header.version)) {
                             Ok(success) => sender.send(serde_json::to_vec(&success).map_err(From::from)).unwrap(),
                             Err(error) => sender.send(Err(error)).unwrap(),
                         }

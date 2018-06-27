@@ -1,9 +1,954 @@
 // In this file are all the helper functions used by the UI when decoding DB PackedFiles.
-extern crate gtk;
-extern crate gdk;
-extern crate gio;
-extern crate glib;
 extern crate failure;
+extern crate qt_widgets;
+extern crate qt_gui;
+extern crate qt_core;
+
+use qt_widgets::widget::Widget;
+use qt_widgets::table_view::TableView;
+use qt_widgets::menu::Menu;
+use qt_widgets::slots::SlotQtCorePointRef;
+use qt_widgets::file_dialog::FileDialog;
+
+use qt_gui::standard_item::StandardItem;
+use qt_gui::standard_item_model::StandardItemModel;
+use qt_gui::cursor::Cursor;
+use qt_gui::gui_application::GuiApplication;
+use qt_gui::list::ListStandardItemMutPtr;
+use qt_gui::key_sequence::KeySequence;
+
+use qt_core::slots::SlotModelIndexRefModelIndexRefVectorVectorCIntRef;
+use qt_core::slots::SlotItemSelectionRefItemSelectionRef;
+use qt_core::abstract_item_model::AbstractItemModel;
+use qt_core::event_loop::EventLoop;
+use qt_core::connection::Signal;
+use qt_core::variant::Variant;
+use qt_core::slots::SlotBool;
+use qt_core::qt::{Orientation, CheckState, ContextMenuPolicy, ShortcutContext};
+
+use failure::Error;
+use std::cell::RefCell;
+use std::rc::Rc;
+use std::thread;
+use std::time::Duration;
+use std::sync::mpsc::{Sender, Receiver};
+
+use AppUI;
+use ui::*;
+use packedfile::db::schemas::*;
+
+/// Struct `PackedFileDBTreeView`: contains all the stuff we need to give to the program to show a
+/// TableView with the data of a DB PackedFile, allowing us to manipulate it.
+pub struct PackedFileDBTreeView {
+    pub slot_context_menu: SlotQtCorePointRef<'static>,
+    pub slot_context_menu_enabler: SlotItemSelectionRefItemSelectionRef<'static>,
+    pub save_changes: SlotModelIndexRefModelIndexRefVectorVectorCIntRef<'static>,
+    pub slot_context_menu_add: SlotBool<'static>,
+    pub slot_context_menu_insert: SlotBool<'static>,
+    pub slot_context_menu_delete: SlotBool<'static>,
+    pub slot_context_menu_clone: SlotBool<'static>,
+    pub slot_context_menu_copy: SlotBool<'static>,
+    pub slot_context_menu_paste: SlotBool<'static>,
+    pub slot_context_menu_import: SlotBool<'static>,
+    pub slot_context_menu_export: SlotBool<'static>,
+}
+
+/// Implementation of PackedFileDBTreeView.
+impl PackedFileDBTreeView {
+
+    /// This functin returns a dummy struct. Use it for initialization.
+    pub fn new() -> Self {
+
+        // Create some dummy slots and return it.
+        Self {
+            slot_context_menu: SlotQtCorePointRef::new(|_| {}),
+            slot_context_menu_enabler: SlotItemSelectionRefItemSelectionRef::new(|_,_| {}),
+            save_changes: SlotModelIndexRefModelIndexRefVectorVectorCIntRef::new(|_,_,_| {}),
+            slot_context_menu_add: SlotBool::new(|_| {}),
+            slot_context_menu_insert: SlotBool::new(|_| {}),
+            slot_context_menu_delete: SlotBool::new(|_| {}),
+            slot_context_menu_clone: SlotBool::new(|_| {}),
+            slot_context_menu_copy: SlotBool::new(|_| {}),
+            slot_context_menu_paste: SlotBool::new(|_| {}),
+            slot_context_menu_import: SlotBool::new(|_| {}),
+            slot_context_menu_export: SlotBool::new(|_| {}),
+        }
+    }
+
+    /// This function creates a new Table with the PackedFile's View as father and returns a
+    /// `PackedFileDBTreeView` with all his data.
+    pub fn create_table_view(
+        sender_qt: Sender<&'static str>,
+        sender_qt_data: &Sender<Result<Vec<u8>, Error>>,
+        receiver_qt: &Rc<RefCell<Receiver<Result<Vec<u8>, Error>>>>,
+        is_modified: &Rc<RefCell<bool>>,
+        app_ui: &AppUI,
+        packed_file_index: &usize,
+    ) -> Result<Self, Error> {
+
+        // Send the index back to the background thread, and wait until we get a response.
+        sender_qt.send("decode_packed_file_db").unwrap();
+        sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
+
+        // Prepare the event loop, so we don't hang the UI while the background thread is working.
+        let mut event_loop = EventLoop::new();
+
+        // Disable the Main Window (so we can't do other stuff).
+        unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+
+        // Until we receive a response from the worker thread...
+        loop {
+
+            // When we finally receive a response...
+            if let Ok(data) = receiver_qt.borrow().try_recv() {
+
+                // Check what the result of the patching process was.
+                match data {
+
+                    // In case of success, we get the data and build the UI for it.
+                    Ok(data) => {
+
+                        // Get the DB's data.
+                        let mut packed_file_data: DBData = serde_json::from_slice(&data).unwrap();
+
+                        // Create the TableView.
+                        let mut table_view = TableView::new().into_raw();
+                        let mut model = StandardItemModel::new(()).into_raw();
+
+                        // Prepare the TableView to have a Contextual Menu.
+                        unsafe { table_view.as_mut().unwrap().set_context_menu_policy(ContextMenuPolicy::Custom); }
+
+                        // Load the data to the Table. For some reason, if we do this after setting the titles of
+                        // the columns, the titles will be reseted to 1, 2, 3,... so we do this here.
+                        Self::load_data_to_table_view(&packed_file_data, model);
+
+                        // Add Table to the Grid.
+                        unsafe { table_view.as_mut().unwrap().set_model(model as *mut AbstractItemModel); }
+                        unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((table_view as *mut Widget, 0, 0, 1, 1)); }
+
+                        // Build the Column's "Data".
+                        build_columns(&packed_file_data.table_definition, table_view, model);
+
+                        // Set both headers visible.
+                        unsafe { table_view.as_mut().unwrap().vertical_header().as_mut().unwrap().set_visible(true); }
+                        unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_visible(true); }
+
+                        // Enable sorting the columns.
+                        unsafe { table_view.as_mut().unwrap().set_sorting_enabled(true); }
+
+                        // Create the Contextual Menu for the TableView.
+                        let mut context_menu = Menu::new(());
+                        let context_menu_add = context_menu.add_action(&QString::from_std_str("&Add Row"));
+                        let context_menu_insert = context_menu.add_action(&QString::from_std_str("&Insert Row"));
+                        let context_menu_delete = context_menu.add_action(&QString::from_std_str("&Delete Row"));
+                        let context_menu_clone = context_menu.add_action(&QString::from_std_str("&Clone"));
+                        let context_menu_copy = context_menu.add_action(&QString::from_std_str("&Copy"));
+                        let context_menu_paste = context_menu.add_action(&QString::from_std_str("&Paste"));
+                        let context_menu_import = context_menu.add_action(&QString::from_std_str("&Import"));
+                        let context_menu_export = context_menu.add_action(&QString::from_std_str("&Export"));
+
+                        // Set the shortcuts for these actions.
+                        unsafe { context_menu_add.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+shift+a"))); }
+                        unsafe { context_menu_insert.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+i"))); }
+                        unsafe { context_menu_delete.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+r"))); }
+                        unsafe { context_menu_clone.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+d"))); }
+                        unsafe { context_menu_copy.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+c"))); }
+                        unsafe { context_menu_paste.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+v"))); }
+                        unsafe { context_menu_import.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+w"))); }
+                        unsafe { context_menu_export.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+e"))); }
+
+                        // Set the shortcuts to only trigger in the Table.
+                        unsafe { context_menu_add.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+                        unsafe { context_menu_insert.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+                        unsafe { context_menu_delete.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+                        unsafe { context_menu_clone.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+                        unsafe { context_menu_copy.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+                        unsafe { context_menu_paste.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+                        unsafe { context_menu_import.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+                        unsafe { context_menu_export.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+
+                        // Add the actions to the TableView, so the shortcuts work.
+                        unsafe { table_view.as_mut().unwrap().add_action(context_menu_add); }
+                        unsafe { table_view.as_mut().unwrap().add_action(context_menu_insert); }
+                        unsafe { table_view.as_mut().unwrap().add_action(context_menu_delete); }
+                        unsafe { table_view.as_mut().unwrap().add_action(context_menu_clone); }
+                        unsafe { table_view.as_mut().unwrap().add_action(context_menu_copy); }
+                        unsafe { table_view.as_mut().unwrap().add_action(context_menu_paste); }
+                        unsafe { table_view.as_mut().unwrap().add_action(context_menu_import); }
+                        unsafe { table_view.as_mut().unwrap().add_action(context_menu_export); }
+
+                        // Insert some separators to space the menu.
+                        unsafe { context_menu.insert_separator(context_menu_clone); }
+                        unsafe { context_menu.insert_separator(context_menu_import); }
+
+                        // Slots for the TableView...
+                        let mut slots = Self {
+                            slot_context_menu: SlotQtCorePointRef::new(move |_| { context_menu.exec2(&Cursor::pos()); }),
+                            slot_context_menu_enabler: SlotItemSelectionRefItemSelectionRef::new(move |selection,_| {
+
+                                   // If we have something selected, enable these actions.
+                                   if selection.indexes().count(()) > 0 {
+                                       unsafe {
+                                           context_menu_clone.as_mut().unwrap().set_enabled(true);
+                                           context_menu_copy.as_mut().unwrap().set_enabled(true);
+                                           context_menu_delete.as_mut().unwrap().set_enabled(true);
+                                       }
+                                   }
+
+                                   // Otherwise, disable them.
+                                   else {
+                                       unsafe {
+                                           context_menu_clone.as_mut().unwrap().set_enabled(false);
+                                           context_menu_copy.as_mut().unwrap().set_enabled(false);
+                                           context_menu_delete.as_mut().unwrap().set_enabled(false);
+                                       }
+                                   }
+                               }
+                            ),
+                            save_changes: SlotModelIndexRefModelIndexRefVectorVectorCIntRef::new(clone!(
+                                packed_file_index,
+                                app_ui,
+                                is_modified,
+                                packed_file_data,
+                                sender_qt,
+                                sender_qt_data,
+                                receiver_qt => move |_,_,_| {
+
+                                    // Get a local copy of the data.
+                                    let mut data = packed_file_data.clone();
+
+                                    // Update the DBData with the data in the table, or report error if it fails.
+                                    if let Err(error) = Self::return_data_from_table_view(&mut data, model) {
+                                        return show_dialog(&app_ui, false, format!("<p>Error while trying to save the DB Table:</p><p>{}</p><p>This is probably caused by one of the fields you just changed. Please, make sure the data in that field it's of the correct type.</p>", error.cause()));
+                                    };
+
+                                    // Tell the background thread to start saving the PackedFile.
+                                    sender_qt.send("encode_packed_file_db").unwrap();
+
+                                    // Send the new DBData.
+                                    sender_qt_data.send(serde_json::to_vec(&(data, packed_file_index)).map_err(From::from)).unwrap();
+
+                                    // Set the mod as "Modified".
+                                    *is_modified.borrow_mut() = set_modified(true, &app_ui);
+                                }
+                            )),
+                            slot_context_menu_add: SlotBool::new(clone!(
+                                packed_file_data => move |_| {
+
+                                    // We only do something in case the focus is in the TableView. This should stop problems with
+                                    // the accels working everywhere.
+                                    let has_focus;
+                                    unsafe { has_focus = table_view.as_mut().unwrap().has_focus() };
+                                    if has_focus {
+
+                                        // Create a new list of StandardItem.
+                                        let mut qlist = ListStandardItemMutPtr::new(());
+
+                                        // For each field in the definition...
+                                        for field in &packed_file_data.table_definition.fields {
+
+                                            // Create a new Item.
+                                            let item = match field.field_type {
+
+                                                // This one needs a couple of changes before turning it into an item in the table.
+                                                FieldType::Boolean => {
+                                                    let mut item = StandardItem::new(());
+                                                    item.set_editable(false);
+                                                    item.set_checkable(true);
+                                                    item.set_check_state(CheckState::Checked);
+                                                    item
+                                                }
+
+                                                FieldType::Float => StandardItem::new(&QString::from_std_str(format!("{}", 0.0))),
+                                                FieldType::Integer => StandardItem::new(&QString::from_std_str(format!("{}", 0))),
+                                                FieldType::LongInteger => StandardItem::new(&QString::from_std_str(format!("{}", 0))),
+
+                                                // All these are Strings, so it can be together.
+                                                FieldType::StringU8 |
+                                                FieldType::StringU16 |
+                                                FieldType::OptionalStringU8 |
+                                                FieldType::OptionalStringU16 => StandardItem::new(&QString::from_std_str("")),
+                                            };
+
+                                            // Add the item to the list.
+                                            unsafe { qlist.append_unsafe(&item.into_raw()); }
+                                        }
+
+                                        // Append the new row.
+                                        unsafe { model.as_mut().unwrap().append_row(&qlist); }
+                                    }
+                                }
+                            )),
+                            slot_context_menu_insert: SlotBool::new(clone!(
+                                packed_file_data => move |_| {
+
+                                    // We only do something in case the focus is in the TableView. This should stop problems with
+                                    // the accels working everywhere.
+                                    let has_focus;
+                                    unsafe { has_focus = table_view.as_mut().unwrap().has_focus() };
+                                    if has_focus {
+
+                                        // Create a new list of StandardItem.
+                                        let mut qlist = ListStandardItemMutPtr::new(());
+
+                                        // For each field in the definition...
+                                        for field in &packed_file_data.table_definition.fields {
+
+                                            // Create a new Item.
+                                            let item = match field.field_type {
+
+                                                // This one needs a couple of changes before turning it into an item in the table.
+                                                FieldType::Boolean => {
+                                                    let mut item = StandardItem::new(());
+                                                    item.set_editable(false);
+                                                    item.set_checkable(true);
+                                                    item.set_check_state(CheckState::Checked);
+                                                    item
+                                                }
+
+                                                FieldType::Float => StandardItem::new(&QString::from_std_str(format!("{}", 0.0))),
+                                                FieldType::Integer => StandardItem::new(&QString::from_std_str(format!("{}", 0))),
+                                                FieldType::LongInteger => StandardItem::new(&QString::from_std_str(format!("{}", 0))),
+
+                                                // All these are Strings, so it can be together.
+                                                FieldType::StringU8 |
+                                                FieldType::StringU16 |
+                                                FieldType::OptionalStringU8 |
+                                                FieldType::OptionalStringU16 => StandardItem::new(&QString::from_std_str("")),
+                                            };
+
+                                            // Add the item to the list.
+                                            unsafe { qlist.append_unsafe(&item.into_raw()); }
+                                        }
+
+                                        // Get the current row.
+                                        let selection;
+                                        unsafe { selection = table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection(); }
+
+                                        // If there is any row selected...
+                                        if selection.indexes().count(()) > 0 {
+
+                                            // Get the current row.
+                                            let row = selection.indexes().at(0).row();
+
+                                            // Insert the new row where the current one is.
+                                            unsafe { model.as_mut().unwrap().insert_row((row, &qlist)); }
+                                        }
+
+                                        // Otherwise, just do the same the "Add Row" do.
+                                        else { unsafe { model.as_mut().unwrap().append_row(&qlist); } }
+                                    }
+                                }
+                            )),
+                            slot_context_menu_delete: SlotBool::new(clone!(
+                                packed_file_index,
+                                app_ui,
+                                is_modified,
+                                packed_file_data,
+                                sender_qt,
+                                sender_qt_data,
+                                receiver_qt => move |_| {
+
+                                    // We only do something in case the focus is in the TableView. This should stop problems with
+                                    // the accels working everywhere.
+                                    let has_focus;
+                                    unsafe { has_focus = table_view.as_mut().unwrap().has_focus() };
+                                    if has_focus {
+
+                                        // Get the current selection.
+                                        let selection;
+                                        unsafe { selection = table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection(); }
+                                        let indexes = selection.indexes();
+
+                                        // For each selected index...
+                                        for index in (0..indexes.count(())).rev() {
+
+                                            // Get his row and delete it.
+                                            let row = indexes.at(index).row();
+                                            unsafe { model.as_mut().unwrap().remove_rows((row, 1)); }
+
+                                            // Get a local copy of the data.
+                                            let mut data = packed_file_data.clone();
+
+                                            // Update the DBData with the data in the table, or report error if it fails.
+                                            if let Err(error) = Self::return_data_from_table_view(&mut data, model) {
+                                                return show_dialog(&app_ui, false, format!("<p>Error while trying to save the DB Table:</p><p>{}</p><p>This is probably caused by one of the fields you just changed. Please, make sure the data in that field it's of the correct type.</p>", error.cause()));
+                                            };
+
+                                            // Tell the background thread to start saving the PackedFile.
+                                            sender_qt.send("encode_packed_file_db").unwrap();
+
+                                            // Send the new DBData.
+                                            sender_qt_data.send(serde_json::to_vec(&(data, packed_file_index)).map_err(From::from)).unwrap();
+
+                                            // Set the mod as "Modified".
+                                            *is_modified.borrow_mut() = set_modified(true, &app_ui);
+                                        }
+                                    }
+                                }
+                            )),
+                            slot_context_menu_clone: SlotBool::new(clone!(
+                                packed_file_index,
+                                app_ui,
+                                is_modified,
+                                packed_file_data,
+                                sender_qt,
+                                sender_qt_data,
+                                receiver_qt => move |_| {
+
+                                    // We only do something in case the focus is in the TableView. This should stop problems with
+                                    // the accels working everywhere.
+                                    let has_focus;
+                                    unsafe { has_focus = table_view.as_mut().unwrap().has_focus() };
+                                    if has_focus {
+
+                                        // Get the current selection.
+                                        let selection;
+                                        unsafe { selection = table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection(); }
+                                        let indexes = selection.indexes();
+
+                                        // Get all the selected rows.
+                                        let mut rows: Vec<i32> = vec![];
+                                        for index in 0..indexes.size() { rows.push(indexes.at(index).row()); }
+
+                                        // Dedup the list and reverse it.
+                                        rows.sort();
+                                        rows.dedup();
+                                        rows.reverse();
+
+                                        // For each row...
+                                        for row in &rows {
+
+                                            // Create a new list of StandardItem.
+                                            let mut qlist = ListStandardItemMutPtr::new(());
+
+                                            // For each field in the definition...
+                                            for column in 0..packed_file_data.table_definition.fields.len() {
+
+                                                // Get the original item.
+                                                let original_item;
+                                                unsafe { original_item = model.as_mut().unwrap().item((*row, column as i32)); }
+
+                                                // Get a clone of the item of that column.
+                                                let item;
+                                                unsafe { item = original_item.as_mut().unwrap().clone(); }
+
+                                                // Depending on the column, we try to encode the data in one format or another.
+                                                match packed_file_data.table_definition.fields[column as usize].field_type {
+
+                                                    // If it's a boolean...
+                                                    FieldType::Boolean => {
+
+                                                        // Set the item as checkable and disable his editing.
+                                                        unsafe { item.as_mut().unwrap().set_checkable(true); }
+                                                        unsafe { item.as_mut().unwrap().set_editable(false); }
+
+                                                        // Depending on his original state, set it as checked or unchecked.
+                                                        unsafe { item.as_mut().unwrap().set_check_state(original_item.as_mut().unwrap().check_state()); }
+                                                    }
+                                                    _ => unsafe { item.as_mut().unwrap().set_text(&original_item.as_mut().unwrap().text()) },
+                                                }
+
+                                                // Add the item to the list.
+                                                unsafe { qlist.append_unsafe(&item); }
+                                            }
+
+                                            // Insert the new row after the original one.
+                                            unsafe { model.as_mut().unwrap().insert_row((row + 1, &qlist)); }
+                                        }
+
+                                        // If we cloned anything, save the data.
+                                        if rows.len() > 0 {
+
+                                            // Get a local copy of the data.
+                                            let mut data = packed_file_data.clone();
+
+                                            // Update the DBData with the data in the table, or report error if it fails.
+                                            if let Err(error) = Self::return_data_from_table_view(&mut data, model) {
+                                                return show_dialog(&app_ui, false, format!("<p>Error while trying to save the DB Table:</p><p>{}</p><p>This is probably caused by one of the fields you just changed. Please, make sure the data in that field it's of the correct type.</p>", error.cause()));
+                                            };
+
+                                            // Tell the background thread to start saving the PackedFile.
+                                            sender_qt.send("encode_packed_file_db").unwrap();
+
+                                            // Send the new DBData.
+                                            sender_qt_data.send(serde_json::to_vec(&(data, packed_file_index)).map_err(From::from)).unwrap();
+
+                                            // Set the mod as "Modified".
+                                            *is_modified.borrow_mut() = set_modified(true, &app_ui);
+                                        }
+                                    }
+                                }
+                            )),
+
+
+                            slot_context_menu_copy: SlotBool::new(move |_| {
+
+                                // We only do something in case the focus is in the TableView. This should stop problems with
+                                // the accels working everywhere.
+                                let has_focus;
+                                unsafe { has_focus = table_view.as_mut().unwrap().has_focus() };
+                                if has_focus {
+
+                                    // Create a string to keep all the values in a TSV format (x\tx\tx).
+                                    let mut copy = String::new();
+
+                                    // Get the current selection.
+                                    let selection;
+                                    unsafe { selection = table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection(); }
+                                    let indexes = selection.indexes();
+
+                                    // For each selected index...
+                                    for index in 0..indexes.count(()) {
+
+                                        // Get his StandardItem.
+                                        let model_index = indexes.at(index);
+                                        let standard_item;
+                                        unsafe { standard_item = model.as_mut().unwrap().item_from_index(&model_index); }
+
+                                        unsafe {
+
+                                            // If it's checkable, we need to get a bool.
+                                            if standard_item.as_mut().unwrap().is_checkable() {
+
+                                                // Turn his CheckState into a bool and add it to the copy string.
+                                                if standard_item.as_mut().unwrap().check_state() == CheckState::Checked { copy.push_str("true"); }
+                                                else {copy.push_str("false"); }
+                                            }
+
+                                            // Otherwise, it's a string.
+                                            else {
+
+                                                // Get his text and push them to the copy string.
+                                                copy.push_str(&QString::to_std_string(&standard_item.as_mut().unwrap().text()));
+                                            }
+                                        }
+
+                                        // Add a \t to separate fields except if it's the last field.
+                                        if index < (indexes.count(()) - 1) { copy.push('\t'); }
+                                    }
+
+                                    // Put the baby into the oven.
+                                    unsafe { GuiApplication::clipboard().as_mut().unwrap().set_text(&QString::from_std_str(copy)); }
+                                }
+                            }),
+
+                            slot_context_menu_paste: SlotBool::new(clone!(
+                                packed_file_index,
+                                app_ui,
+                                is_modified,
+                                packed_file_data,
+                                sender_qt,
+                                sender_qt_data,
+                                receiver_qt => move |_| {
+
+                                    // We only do something in case the focus is in the TableView. This should stop problems with
+                                    // the accels working everywhere.
+                                    let has_focus;
+                                    unsafe { has_focus = table_view.as_mut().unwrap().has_focus() };
+                                    if has_focus {
+
+                                        // If whatever it's in the Clipboard is pasteable in our selection...
+                                        if check_clipboard(&packed_file_data.table_definition, table_view, model) {
+
+                                            // Get the clipboard.
+                                            let clipboard = GuiApplication::clipboard();
+
+                                            // Get the current selection.
+                                            let selection;
+                                            unsafe { selection = table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection(); }
+                                            let indexes = selection.indexes();
+
+                                            // Get the text from the clipboard.
+                                            let text;
+                                            unsafe { text = QString::to_std_string(&clipboard.as_mut().unwrap().text(())); }
+
+                                            // Split the text into individual strings.
+                                            let text = text.split('\t').collect::<Vec<&str>>();
+
+                                            // Vector to store the selected items.
+                                            let mut items = vec![];
+
+                                            // For each selected index...
+                                            for index in 0..indexes.count(()) {
+
+                                                // Get his StandardItem and add it to the Vector.
+                                                let model_index = indexes.at(index);
+                                                unsafe { items.push(model.as_mut().unwrap().item_from_index(&model_index)); }
+                                            }
+
+                                            // Zip together both vectors.
+                                            let data = items.iter().zip(text);
+
+                                            // For each cell we have...
+                                            for cell in data.clone() {
+
+                                                unsafe {
+
+                                                    // Get the column of that cell.
+                                                    let column = cell.0.as_mut().unwrap().index().column();
+
+                                                    // Depending on the column, we try to encode the data in one format or another.
+                                                    match packed_file_data.table_definition.fields[column as usize].field_type {
+                                                        FieldType::Boolean => {
+                                                            if cell.1 == "true" { cell.0.as_mut().unwrap().set_check_state(CheckState::Checked); }
+                                                            else { cell.0.as_mut().unwrap().set_check_state(CheckState::Checked); }
+                                                        }
+                                                        _ => cell.0.as_mut().unwrap().set_text(&QString::from_std_str(cell.1)),
+                                                    }
+                                                }
+                                            }
+
+                                            // If we pasted anything, save.
+                                            if data.count() > 0 {
+
+                                                // Get a local copy of the data.
+                                                let mut data = packed_file_data.clone();
+
+                                                // Update the DBData with the data in the table, or report error if it fails.
+                                                if let Err(error) = Self::return_data_from_table_view(&mut data, model) {
+                                                    return show_dialog(&app_ui, false, format!("<p>Error while trying to save the DB Table:</p><p>{}</p><p>This is probably caused by one of the fields you just changed. Please, make sure the data in that field it's of the correct type.</p>", error.cause()));
+                                                };
+
+                                                // Tell the background thread to start saving the PackedFile.
+                                                sender_qt.send("encode_packed_file_db").unwrap();
+
+                                                // Send the new DBData.
+                                                sender_qt_data.send(serde_json::to_vec(&(data, packed_file_index)).map_err(From::from)).unwrap();
+
+                                                // Set the mod as "Modified".
+                                                *is_modified.borrow_mut() = set_modified(true, &app_ui);
+                                            }
+                                        }
+                                    }
+                                }
+                            )),
+
+
+                            slot_context_menu_import: SlotBool::new(clone!(
+                                packed_file_index,
+                                app_ui,
+                                is_modified,
+                                packed_file_data,
+                                sender_qt,
+                                sender_qt_data,
+                                receiver_qt => move |_| {
+
+                                    // We only do something in case the focus is in the TableView. This should stop problems with
+                                    // the accels working everywhere.
+                                    let has_focus;
+                                    unsafe { has_focus = table_view.as_mut().unwrap().has_focus() };
+                                    if has_focus {
+
+                                        // Create the FileDialog to get the PackFile to open.
+                                        let mut file_dialog;
+                                        unsafe { file_dialog = FileDialog::new_unsafe((
+                                            app_ui.window as *mut Widget,
+                                            &QString::from_std_str("Select TSV File to Import..."),
+                                        )); }
+
+                                        // Filter it so it only shows TSV Files.
+                                        file_dialog.set_name_filter(&QString::from_std_str("TSV Files (*.tsv)"));
+
+                                        // Run it and expect a response (1 => Accept, 0 => Cancel).
+                                        if file_dialog.exec() == 1 {
+
+                                            // Get the path of the selected file and turn it in a Rust's PathBuf.
+                                            let mut path: PathBuf = PathBuf::new();
+                                            let path_qt = file_dialog.selected_files();
+                                            for index in 0..path_qt.size() { path.push(path_qt.at(index).to_std_string()); }
+
+                                            // Tell the background thread to start importing the TSV.
+                                            sender_qt.send("import_tsv_packed_file_db").unwrap();
+                                            sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
+
+                                            // Receive the new data to load in the TableView, or an error.
+                                            match receiver_qt.borrow().recv().unwrap() {
+
+                                                // If the importing was succesful, load the data into the Table.
+                                                Ok(new_data) => Self::load_data_to_table_view(&serde_json::from_slice(&new_data).unwrap(), model),
+
+                                                // If there was an error, report it.
+                                                Err(error) => return show_dialog(&app_ui, false, format!("<p>Error while importing the TSV File:</p><p>{}</p>", error.cause())),
+                                            }
+
+                                            // Build the Column's "Data".
+                                            build_columns(&packed_file_data.table_definition, table_view, model);
+
+                                            // Get a local copy of the data.
+                                            let mut data = packed_file_data.clone();
+
+                                            // Update the DBData with the data in the table, or report error if it fails.
+                                            if let Err(error) = Self::return_data_from_table_view(&mut data, model) {
+                                                return show_dialog(&app_ui, false, format!("<p>Error while trying to save the DB Table:</p><p>{}</p><p>This is probably caused by one of the fields you just changed. Please, make sure the data in that field it's of the correct type.</p>", error.cause()));
+                                            };
+
+                                            // Tell the background thread to start saving the PackedFile.
+                                            sender_qt.send("encode_packed_file_db").unwrap();
+
+                                            // Send the new DBData.
+                                            sender_qt_data.send(serde_json::to_vec(&(data, packed_file_index)).map_err(From::from)).unwrap();
+
+                                            // Set the mod as "Modified".
+                                            *is_modified.borrow_mut() = set_modified(true, &app_ui);
+                                        }
+                                    }
+                                }
+                            )),
+                            slot_context_menu_export: SlotBool::new(clone!(
+                                packed_file_index,
+                                app_ui,
+                                is_modified,
+                                sender_qt,
+                                sender_qt_data,
+                                receiver_qt => move |_| {
+
+                                    // Create a File Chooser to get the destination path.
+                                    let mut file_dialog;
+                                    unsafe { file_dialog = FileDialog::new_unsafe((
+                                        app_ui.window as *mut Widget,
+                                        &QString::from_std_str("Export TSV File..."),
+                                    )); }
+
+                                    // Set it to save mode.
+                                    file_dialog.set_accept_mode(qt_widgets::file_dialog::AcceptMode::Save);
+
+                                    // Ask for confirmation in case of overwrite.
+                                    file_dialog.set_confirm_overwrite(true);
+
+                                    // Filter it so it only shows TSV Files.
+                                    file_dialog.set_name_filter(&QString::from_std_str("TSV Files (*.tsv)"));
+
+                                    // Set the default suffix to ".tsv", in case we forgot to write it.
+                                    file_dialog.set_default_suffix(&QString::from_std_str("tsv"));
+
+                                    // Run it and expect a response (1 => Accept, 0 => Cancel).
+                                    if file_dialog.exec() == 1 {
+
+                                        // Get the path of the selected file and turn it in a Rust's PathBuf.
+                                        let mut path: PathBuf = PathBuf::new();
+                                        let path_qt = file_dialog.selected_files();
+                                        for index in 0..path_qt.size() { path.push(path_qt.at(index).to_std_string()); }
+
+                                        // Tell the background thread to start exporting the TSV.
+                                        sender_qt.send("export_tsv_packed_file_db").unwrap();
+                                        sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
+
+                                        // Receive the result of the exporting.
+                                        match receiver_qt.borrow().recv().unwrap() {
+
+                                            // If the exporting was succesful, report it.
+                                            Ok(success) => {
+                                                let message: String = serde_json::from_slice(&success).unwrap();
+                                                return show_dialog(&app_ui, true, message);
+                                            }
+
+                                            // If there was an error, report it.
+                                            Err(error) => return show_dialog(&app_ui, false, format!("<p>Error while exporting the TSV File:</p><p>{}</p>", error.cause())),
+                                        }
+                                    }
+                                }
+                            )),
+                        };
+
+                        // Actions for the TableView...
+                        unsafe { (table_view as *mut Widget).as_ref().unwrap().signals().custom_context_menu_requested().connect(&slots.slot_context_menu); }
+                        unsafe { model.as_mut().unwrap().signals().data_changed().connect(&slots.save_changes); }
+                        unsafe { context_menu_add.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_add); }
+                        unsafe { context_menu_insert.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_insert); }
+                        unsafe { context_menu_delete.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_delete); }
+                        unsafe { context_menu_clone.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_clone); }
+                        unsafe { context_menu_copy.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_copy); }
+                        unsafe { context_menu_paste.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_paste); }
+                        unsafe { context_menu_import.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_import); }
+                        unsafe { context_menu_export.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_export); }
+
+                        // Initial states for the Contextual Menu Actions.
+                        unsafe {
+                            context_menu_add.as_mut().unwrap().set_enabled(true);
+                            context_menu_insert.as_mut().unwrap().set_enabled(true);
+                            context_menu_delete.as_mut().unwrap().set_enabled(false);
+                            context_menu_clone.as_mut().unwrap().set_enabled(false);
+                            context_menu_copy.as_mut().unwrap().set_enabled(false);
+                            context_menu_paste.as_mut().unwrap().set_enabled(true);
+                            context_menu_import.as_mut().unwrap().set_enabled(true);
+                            context_menu_export.as_mut().unwrap().set_enabled(true);
+                        }
+
+                        // Trigger the "Enable/Disable" slot every time we change the selection in the TreeView.
+                        unsafe { table_view.as_mut().unwrap().selection_model().as_ref().unwrap().signals().selection_changed().connect(&slots.slot_context_menu_enabler); }
+
+                        // Re-enable the Main Window.
+                        unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
+
+                        // Return the slots to keep them as hostages.
+                        return Ok(slots)
+
+                    }
+
+                    // In case of error, report the error.
+                    Err(error) => return Err(error),
+                }
+            }
+
+            // Keep the UI responsive.
+            event_loop.process_events(());
+
+            // Wait a bit to not saturate a CPU core.
+            thread::sleep(Duration::from_millis(50));
+        }
+    }
+
+    /// This function loads the data from a LocData into a TableView.
+    pub fn load_data_to_table_view(
+        packed_file_data: &DBData,
+        model: *mut StandardItemModel,
+    ) {
+        // First, we delete all the data from the `ListStore`. Just in case there is something there.
+        unsafe { model.as_mut().unwrap().clear(); }
+
+        // Then we add every line to the ListStore.
+        for entry in &packed_file_data.entries {
+
+            // Create a new list of StandardItem.
+            let mut qlist = ListStandardItemMutPtr::new(());
+
+            // For each field we have in the definition...
+            for field in entry {
+
+                // Create a new Item.
+                let item = match *field {
+
+                    // This one needs a couple of changes before turning it into an item in the table.
+                    DecodedData::Boolean(ref data) => {
+                        let mut item = StandardItem::new(());
+                        item.set_editable(false);
+                        item.set_checkable(true);
+                        item.set_check_state(if *data { CheckState::Checked } else { CheckState::Unchecked });
+                        item
+                    }
+
+                    DecodedData::Float(ref data) => StandardItem::new(&QString::from_std_str(format!("{}", data))),
+                    DecodedData::Integer(ref data) => StandardItem::new(&QString::from_std_str(format!("{}", data))),
+                    DecodedData::LongInteger(ref data) => StandardItem::new(&QString::from_std_str(format!("{}", data))),
+
+                    // All these are Strings, so it can be together,
+                    DecodedData::StringU8(ref data) |
+                    DecodedData::StringU16(ref data) |
+                    DecodedData::OptionalStringU8(ref data) |
+                    DecodedData::OptionalStringU16(ref data) => StandardItem::new(&QString::from_std_str(data)),
+                };
+
+                // Add the item to the list.
+                unsafe { qlist.append_unsafe(&item.into_raw()); }
+            }
+
+            // Append the new row.
+            unsafe { model.as_mut().unwrap().append_row(&qlist); }
+        }
+
+        // If the table it's empty, we add an empty row.
+        if packed_file_data.entries.len() == 0 {
+
+            // Create a new list of StandardItem.
+            let mut qlist = ListStandardItemMutPtr::new(());
+
+            // For each field in the definition...
+            for field in &packed_file_data.table_definition.fields {
+
+                // Create a new Item.
+                let item = match field.field_type {
+
+                    // This one needs a couple of changes before turning it into an item in the table.
+                    FieldType::Boolean => {
+                        let mut item = StandardItem::new(());
+                        item.set_editable(false);
+                        item.set_checkable(true);
+                        item.set_check_state(CheckState::Checked);
+                        item
+                    }
+
+                    FieldType::Float => StandardItem::new(&QString::from_std_str(format!("{}", 0.0))),
+                    FieldType::Integer => StandardItem::new(&QString::from_std_str(format!("{}", 0))),
+                    FieldType::LongInteger => StandardItem::new(&QString::from_std_str(format!("{}", 0))),
+
+                    // All these are Strings, so it can be together,
+                    FieldType::StringU8 |
+                    FieldType::StringU16 |
+                    FieldType::OptionalStringU8 |
+                    FieldType::OptionalStringU16 => StandardItem::new(&QString::from_std_str("")),
+                };
+
+                // Add the item to the list.
+                unsafe { qlist.append_unsafe(&item.into_raw()); }
+            }
+
+            // Append the new row.
+            unsafe { model.as_mut().unwrap().append_row(&qlist); }
+        }
+    }
+
+
+    /// This function returns a DBData with all the stuff in the table. This can and will fail in case
+    /// the data of a field cannot be parsed to the type of that field. Beware of that.
+    pub fn return_data_from_table_view(
+        packed_file_data: &mut DBData,
+        model: *mut StandardItemModel,
+    ) -> Result<(), Error> {
+
+        // This list is to store the new data before passing it to the DBData, just in case it fails.
+        let mut new_data: Vec<Vec<DecodedData>> = vec![];
+
+        // Get the amount of rows we have.
+        let rows;
+        unsafe { rows = model.as_mut().unwrap().row_count(()); }
+
+        // For each row we have...
+        for row in 0..rows {
+
+            let mut new_row: Vec<DecodedData> = vec![];
+
+            // For each field in that table...
+            for (column, field) in packed_file_data.table_definition.fields.iter().enumerate() {
+
+                // Create a new Item.
+                let item;
+                unsafe {
+                    item = match field.field_type {
+
+                        // This one needs a couple of changes before turning it into an item in the table.
+                        FieldType::Boolean => DecodedData::Boolean(if model.as_mut().unwrap().item((row as i32, column as i32)).as_mut().unwrap().check_state() == CheckState::Checked { true } else { false }),
+
+                        // Numbers need parsing, and this can fail.
+                        FieldType::Float => DecodedData::Float(QString::to_std_string(&model.as_mut().unwrap().item((row as i32, column as i32)).as_mut().unwrap().text()).parse::<f32>()?),
+                        FieldType::Integer => DecodedData::Integer(QString::to_std_string(&model.as_mut().unwrap().item((row as i32, column as i32)).as_mut().unwrap().text()).parse::<i32>()?),
+                        FieldType::LongInteger => DecodedData::LongInteger(QString::to_std_string(&model.as_mut().unwrap().item((row as i32, column as i32)).as_mut().unwrap().text()).parse::<i64>()?),
+
+                        // All these are just normal Strings.
+                        FieldType::StringU8 => DecodedData::StringU8(QString::to_std_string(&model.as_mut().unwrap().item((row as i32, column as i32)).as_mut().unwrap().text())),
+                        FieldType::StringU16 => DecodedData::StringU16(QString::to_std_string(&model.as_mut().unwrap().item((row as i32, column as i32)).as_mut().unwrap().text())),
+                        FieldType::OptionalStringU8 => DecodedData::OptionalStringU8(QString::to_std_string(&model.as_mut().unwrap().item((row as i32, column as i32)).as_mut().unwrap().text())),
+                        FieldType::OptionalStringU16 => DecodedData::OptionalStringU16(QString::to_std_string(&model.as_mut().unwrap().item((row as i32, column as i32)).as_mut().unwrap().text())),
+                    };
+                }
+
+                // Add it to the list.
+                new_row.push(item);
+            }
+
+            // Add it to the list of rows.
+            new_data.push(new_row);
+        }
+
+        // If we reached this place, it means there has been no errors while parsing the data, so we
+        // replace the old entries with the new ones.
+        packed_file_data.entries = new_data;
+
+        // Return success.
+        Ok(())
+    }
+}
+
 /*
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -4449,3 +5394,129 @@ fn clean_column_names(field_name: &str) -> String {
     new_name
 }
 */
+
+/// This function is meant to be used to prepare and build the column headers, and the column-related stuff.
+/// His intended use is for just after we reload the data to the table.
+fn build_columns(
+    definition: &TableDefinition,
+    table_view: *mut TableView,
+    model: *mut StandardItemModel
+) {
+
+    // For each column...
+    for (index, field) in definition.fields.iter().enumerate() {
+
+        // Create the "New" processed `String`.
+        let mut new_name = String::new();
+
+        // Variable to know if the next character should be uppercase.
+        let mut should_be_uppercase = false;
+
+        // For each character...
+        for character in field.field_name.chars() {
+
+            // If it's the first character, or it should be Uppercase....
+            if new_name.is_empty() || should_be_uppercase {
+
+                // Make it Uppercase and set that flag to false.
+                new_name.push_str(&character.to_uppercase().to_string());
+                should_be_uppercase = false;
+            }
+
+            // If it's an underscore...
+            else if character == '_' {
+
+                // Replace it with a whitespace and set the "Uppercase" flag to true.
+                new_name.push(' ');
+                should_be_uppercase = true;
+            }
+
+            // Otherwise... it's a normal character.
+            else { new_name.push(character); }
+        }
+
+        // Set his title.
+        unsafe { model.as_mut().unwrap().set_header_data((index as i32, Orientation::Horizontal, &Variant::new0(&QString::from_std_str(&new_name)))); }
+
+        // Depending on his type, set one width or another.
+        match field.field_type {
+            FieldType::Boolean => unsafe { table_view.as_mut().unwrap().set_column_width(index as i32, 100); }
+            FieldType::Float => unsafe { table_view.as_mut().unwrap().set_column_width(index as i32, 100); }
+            FieldType::Integer => unsafe { table_view.as_mut().unwrap().set_column_width(index as i32, 100); }
+            FieldType::LongInteger => unsafe { table_view.as_mut().unwrap().set_column_width(index as i32, 100); }
+            FieldType::StringU8 => unsafe { table_view.as_mut().unwrap().set_column_width(index as i32, 350); }
+            FieldType::StringU16 => unsafe { table_view.as_mut().unwrap().set_column_width(index as i32, 350); }
+            FieldType::OptionalStringU8 => unsafe { table_view.as_mut().unwrap().set_column_width(index as i32, 350); }
+            FieldType::OptionalStringU16 => unsafe { table_view.as_mut().unwrap().set_column_width(index as i32, 350); }
+        }
+    }
+}
+
+/// This function checks if the data in the clipboard is suitable for the selected Items.
+fn check_clipboard(
+    definition: &TableDefinition,
+    table_view: *mut TableView,
+    model: *mut StandardItemModel
+) -> bool {
+
+    // Get the clipboard.
+    let clipboard = GuiApplication::clipboard();
+
+    // Get the current selection.
+    let selection;
+    unsafe { selection = table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection(); }
+    let indexes = selection.indexes();
+
+    // Get the text from the clipboard.
+    let text;
+    unsafe { text = QString::to_std_string(&clipboard.as_mut().unwrap().text(())); }
+
+    // If there is something in the clipboard...
+    if !text.is_empty() {
+
+        // Split the text into individual strings.
+        let text = text.split('\t').collect::<Vec<&str>>();
+
+        // Vector to store the selected items.
+        let mut items = vec![];
+
+        // For each selected index...
+        for index in 0..indexes.count(()) {
+
+            // Get his StandardItem and add it to the Vector.
+            let model_index = indexes.at(index);
+            unsafe { items.push(model.as_mut().unwrap().item_from_index(&model_index)); }
+        }
+
+        // Zip together both vectors.
+        let data = items.iter().zip(text);
+
+        // For each cell we have...
+        for cell in data {
+
+            // Get the column of that cell.
+            let column;
+            unsafe { column = cell.0.as_mut().unwrap().index().column(); }
+
+            // Depending on the column, we try to encode the data in one format or another.
+            match definition.fields[column as usize].field_type {
+                    FieldType::Boolean => if cell.1 == "true" || cell.1 == "false" { continue } else { return false },
+                    FieldType::Float => if cell.1.parse::<f32>().is_ok() { continue } else { return false },
+                    FieldType::Integer => if cell.1.parse::<i32>().is_ok() { continue } else { return false },
+                    FieldType::LongInteger => if cell.1.parse::<i64>().is_ok() { continue } else { return false },
+
+                    // All these are Strings, so we can skip their checks....
+                    FieldType::StringU8 |
+                    FieldType::StringU16 |
+                    FieldType::OptionalStringU8 |
+                    FieldType::OptionalStringU16 => continue
+            }
+        }
+
+        // If we reach this place, it means none of the cells was incorrect, so we can paste.
+        true
+    }
+
+    // Otherwise, we cannot paste anything.
+    else { false }
+}

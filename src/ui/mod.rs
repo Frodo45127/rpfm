@@ -52,33 +52,26 @@ use std::path::{Path, PathBuf};
 use std::fmt::Display;
 
 use QString;
-
-
-
-
-
-
-
-
-pub mod packedfile_loc;
-pub mod settings;
-pub mod updater;
-
 use AppUI;
 use common::*;
 use packedfile::*;
+use packedfile::db::*;
+use packedfile::db::schemas::Schema;
 use packedfile::loc::*;
+
+
+pub mod packedfile_db;
+pub mod packedfile_loc;
+pub mod settings;
+pub mod updater;
 /*
 
 
 
 
-use packedfile::db::*;
-use packedfile::db::schemas::Schema;
 use packfile::packfile::PackFile;
 use packfile::packfile::PackedFile;
 
-pub mod packedfile_db;
 pub mod packedfile_text;
 pub mod packedfile_image;
 pub mod packedfile_rigidmodel;
@@ -1251,6 +1244,9 @@ pub fn purge_them_all(app_ui: &AppUI, is_packedfile_opened: &Rc<RefCell<bool>>) 
 
     // Set it as not having an opened PackedFile, just in case.
     *is_packedfile_opened.borrow_mut() = false;
+
+    // Just in case what was open before this was a DB Table, make sure the "Game Selected" menu is re-enabled.
+    unsafe { app_ui.game_selected_group.as_mut().unwrap().set_enabled(true); }
 }
 
 /// This function shows a Message in the specified Grid.
@@ -1563,10 +1559,11 @@ pub fn update_treeview(
             // Second, we set as the big_parent, the base for the folders of the TreeView, a fake folder
             // with the name of the PackFile. All big things start with a lie.
             let mut big_parent = StandardItem::new(&QString::from_std_str(pack_file_data.0));
-            unsafe { model.as_mut().unwrap().append_row_unsafe(big_parent.into_raw()); }
 
             // Also, set it as not editable by the user. Otherwise will cause problems when renaming.
-            unsafe { model.as_ref().unwrap().item(0).as_mut().unwrap().set_editable(false); }
+            big_parent.set_editable(false);
+
+            unsafe { model.as_mut().unwrap().append_row_unsafe(big_parent.into_raw()); }
 
             // Third, we get all the paths of the PackedFiles inside the Packfile in a Vector.
             let mut sorted_path_list = pack_file_data.1;
@@ -1636,6 +1633,10 @@ pub fn update_treeview(
 
                         // Add the file to the TreeView.
                         let mut file = StandardItem::new(&QString::from_std_str(name));
+
+                        // Also, set it as not editable by the user. Otherwise will cause problems when renaming.
+                        file.set_editable(false);
+
                         unsafe { parent.as_mut().unwrap().append_row_unsafe(file.into_raw()); }
                     }
 
@@ -1684,6 +1685,9 @@ pub fn update_treeview(
 
                                     // Add the file to the TreeView.
                                     let mut folder = StandardItem::new(&QString::from_std_str(name));
+
+                                    // Also, set it as not editable by the user. Otherwise will cause problems when renaming.
+                                    folder.set_editable(false);
                                     parent.as_mut().unwrap().append_row_unsafe(folder.into_raw());
 
                                     // This is our parent now.
@@ -1697,6 +1701,9 @@ pub fn update_treeview(
 
                                 // Add the file to the TreeView.
                                 let mut folder = StandardItem::new(&QString::from_std_str(name));
+
+                                // Also, set it as not editable by the user. Otherwise will cause problems when renaming.
+                                folder.set_editable(false);
                                 parent.as_mut().unwrap().append_row_unsafe(folder.into_raw());
 
                                 // This is our parent now.
@@ -1727,6 +1734,9 @@ pub fn update_treeview(
 
                         // Add the file to the TreeView.
                         let item = StandardItem::new(&QString::from_std_str(field)).into_raw();
+
+                        // Also, set it as not editable by the user. Otherwise will cause problems when renaming.
+                        unsafe { item.as_mut().unwrap().set_editable(false); }
                         unsafe { parent.as_mut().unwrap().append_row_unsafe(item); }
 
                         // Sort the TreeView.
@@ -1778,6 +1788,9 @@ pub fn update_treeview(
 
                                     // Add the file to the TreeView.
                                     let mut folder = StandardItem::new(&QString::from_std_str(field)).into_raw();
+
+                                    // Also, set it as not editable by the user. Otherwise will cause problems when renaming.
+                                    unsafe { folder.as_mut().unwrap().set_editable(false); }
                                     parent.as_mut().unwrap().append_row_unsafe(folder);
 
                                     // This is our parent now.
@@ -1801,6 +1814,9 @@ pub fn update_treeview(
 
                                 // Add the file to the TreeView.
                                 let mut folder = StandardItem::new(&QString::from_std_str(field)).into_raw();
+
+                                // Also, set it as not editable by the user. Otherwise will cause problems when renaming.
+                                unsafe { folder.as_mut().unwrap().set_editable(false); }
                                 parent.as_mut().unwrap().append_row_unsafe(folder);
 
                                 // This is our parent now.

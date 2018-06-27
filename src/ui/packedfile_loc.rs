@@ -15,6 +15,7 @@ use qt_gui::standard_item_model::StandardItemModel;
 use qt_gui::cursor::Cursor;
 use qt_gui::gui_application::GuiApplication;
 use qt_gui::list::ListStandardItemMutPtr;
+use qt_gui::key_sequence::KeySequence;
 
 use qt_core::slots::SlotModelIndexRefModelIndexRefVectorVectorCIntRef;
 use qt_core::slots::SlotItemSelectionRefItemSelectionRef;
@@ -23,7 +24,7 @@ use qt_core::event_loop::EventLoop;
 use qt_core::connection::Signal;
 use qt_core::variant::Variant;
 use qt_core::slots::SlotBool;
-use qt_core::qt::{Orientation, CheckState, ContextMenuPolicy};
+use qt_core::qt::{Orientation, CheckState, ContextMenuPolicy, ShortcutContext};
 
 use failure::Error;
 use std::cell::RefCell;
@@ -119,10 +120,6 @@ impl PackedFileLocTreeView {
                         Self::load_data_to_tree_view(&packed_file_data, model);
 
                         // Configure the table to fit Loc PackedFiles.
-                        unsafe { model.as_mut().unwrap().set_column_count(3); }
-                        unsafe { model.as_mut().unwrap().set_header_data((0, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Key")))); }
-                        unsafe { model.as_mut().unwrap().set_header_data((1, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Text")))); }
-                        unsafe { model.as_mut().unwrap().set_header_data((2, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Tooltip")))); }
                         unsafe { table_view.as_mut().unwrap().vertical_header().as_mut().unwrap().set_visible(true); }
                         unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_visible(true); }
 
@@ -130,10 +127,8 @@ impl PackedFileLocTreeView {
                         unsafe { table_view.as_mut().unwrap().set_model(model as *mut AbstractItemModel); }
                         unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((table_view as *mut Widget, 0, 0, 1, 1)); }
 
-                        // Set the width of the columns.
-                        unsafe { table_view.as_mut().unwrap().set_column_width(0, 450); }
-                        unsafe { table_view.as_mut().unwrap().set_column_width(1, 450); }
-                        unsafe { table_view.as_mut().unwrap().set_column_width(2, 60); }
+                        // Build the columns.
+                        build_columns(table_view, model);
 
                         // Enable sorting the columns.
                         unsafe { table_view.as_mut().unwrap().set_sorting_enabled(true); }
@@ -147,6 +142,37 @@ impl PackedFileLocTreeView {
                         let context_menu_paste = context_menu.add_action(&QString::from_std_str("&Paste"));
                         let context_menu_import = context_menu.add_action(&QString::from_std_str("&Import"));
                         let context_menu_export = context_menu.add_action(&QString::from_std_str("&Export"));
+
+                        // Set the shortcuts for these actions.
+                        unsafe { context_menu_add.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+shift+a"))); }
+                        unsafe { context_menu_insert.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+i"))); }
+                        unsafe { context_menu_delete.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+r"))); }
+                        unsafe { context_menu_copy.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+c"))); }
+                        unsafe { context_menu_paste.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+v"))); }
+                        unsafe { context_menu_import.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+w"))); }
+                        unsafe { context_menu_export.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+e"))); }
+
+                        // Set the shortcuts to only trigger in the Table.
+                        unsafe { context_menu_add.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+                        unsafe { context_menu_insert.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+                        unsafe { context_menu_delete.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+                        unsafe { context_menu_copy.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+                        unsafe { context_menu_paste.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+                        unsafe { context_menu_import.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+                        unsafe { context_menu_export.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+
+                        // Add the actions to the TableView, so the shortcuts work.
+                        unsafe { table_view.as_mut().unwrap().add_action(context_menu_add); }
+                        unsafe { table_view.as_mut().unwrap().add_action(context_menu_insert); }
+                        unsafe { table_view.as_mut().unwrap().add_action(context_menu_delete); }
+                        unsafe { table_view.as_mut().unwrap().add_action(context_menu_copy); }
+                        unsafe { table_view.as_mut().unwrap().add_action(context_menu_paste); }
+                        unsafe { table_view.as_mut().unwrap().add_action(context_menu_import); }
+                        unsafe { table_view.as_mut().unwrap().add_action(context_menu_export); }
+
+                        // Insert some separators to space the menu.
+                        unsafe { context_menu.insert_separator(context_menu_copy); }
+                        unsafe { context_menu.insert_separator(context_menu_import); }
 
                         // Slots for the TableView...
                         let mut slots = Self {
@@ -479,6 +505,9 @@ impl PackedFileLocTreeView {
                                                 Err(error) => return show_dialog(&app_ui, false, format!("<p>Error while importing the TSV File:</p><p>{}</p>", error.cause())),
                                             }
 
+                                            // Build the columns.
+                                            build_columns(table_view, model);
+
                                             // Tell the background thread to start saving the PackedFile.
                                             sender_qt.send("encode_packed_file_loc").unwrap();
 
@@ -543,7 +572,7 @@ impl PackedFileLocTreeView {
                                             }
 
                                             // If there was an error, report it.
-                                            Err(error) => return show_dialog(&app_ui, false, format!("<p>Error while importing the TSV File:</p><p>{}</p>", error.cause())),
+                                            Err(error) => return show_dialog(&app_ui, false, format!("<p>Error while exporting the TSV File:</p><p>{}</p>", error.cause())),
                                         }
                                     }
                                 }
@@ -616,7 +645,29 @@ impl PackedFileLocTreeView {
             tooltip.set_editable(false);
             tooltip.set_checkable(true);
             tooltip.set_check_state(if entry.tooltip { CheckState::Checked } else { CheckState::Unchecked });
-            //tooltip.set_text_alignment(Flags::from_int(128));
+
+            // Add the items to the list.
+            unsafe { qlist.append_unsafe(&key.into_raw()); }
+            unsafe { qlist.append_unsafe(&text.into_raw()); }
+            unsafe { qlist.append_unsafe(&tooltip.into_raw()); }
+
+            // Just append a new row.
+            unsafe { model.as_mut().unwrap().append_row(&qlist); }
+        }
+
+        // If there are no entries, add an empty row with default values, so Qt shows the table anyway.
+        if packed_file_data.entries.len() == 0 {
+
+            // Create a new list of StandardItem.
+            let mut qlist = ListStandardItemMutPtr::new(());
+
+            // Create the items of the new row.
+            let key = StandardItem::new(&QString::from_std_str(""));
+            let text = StandardItem::new(&QString::from_std_str(""));
+            let mut tooltip = StandardItem::new(());
+            tooltip.set_editable(false);
+            tooltip.set_checkable(true);
+            tooltip.set_check_state(CheckState::Checked);
 
             // Add the items to the list.
             unsafe { qlist.append_unsafe(&key.into_raw()); }
@@ -658,6 +709,24 @@ impl PackedFileLocTreeView {
         // Return the new LocData.
         loc_data
     }
+}
+
+/// This function is meant to be used to prepare and build the column headers, and the column-related stuff.
+/// His intended use is for just after we reload the data to the table.
+fn build_columns(
+    table_view: *mut TableView,
+    model: *mut StandardItemModel
+) {
+
+    // Fix the columns titles.
+    unsafe { model.as_mut().unwrap().set_header_data((0, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Key")))); }
+    unsafe { model.as_mut().unwrap().set_header_data((1, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Text")))); }
+    unsafe { model.as_mut().unwrap().set_header_data((2, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Tooltip")))); }
+
+    // Set the width of the columns.
+    unsafe { table_view.as_mut().unwrap().set_column_width(0, 450); }
+    unsafe { table_view.as_mut().unwrap().set_column_width(1, 450); }
+    unsafe { table_view.as_mut().unwrap().set_column_width(2, 60); }
 }
 
 /// This function checks if the data in the clipboard is suitable for the selected Items.
