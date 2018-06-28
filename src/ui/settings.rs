@@ -1004,6 +1004,9 @@ impl SettingsDialog {
         let mut dialog;
         unsafe { dialog = Dialog::new_unsafe(app_ui.window as *mut Widget); }
 
+        // Change his title.
+        dialog.set_window_title(&QString::from_std_str("Preferences"));
+
         // Set it Modal, so you can't touch the Main Window with this dialog open.
         dialog.set_modal(true);
 
@@ -1308,6 +1311,9 @@ impl NewMyModDialog {
         let mut dialog;
         unsafe { dialog = Dialog::new_unsafe(app_ui.window as *mut Widget); }
 
+        // Change his title.
+        dialog.set_window_title(&QString::from_std_str("New MyMod"));
+
         // Set it Modal, so you can't touch the Main Window with this dialog open.
         dialog.set_modal(true);
 
@@ -1444,6 +1450,70 @@ impl NewMyModDialog {
         // Otherwise, return None.
         else { None }
     }
+}
+
+/// This function creates the entire "Rename" dialog. It returns the new name of the PackedFile, or
+/// None if the dialog is canceled or closed.
+pub fn create_rename_dialog(
+    app_ui: &AppUI,
+    name: &str,
+) -> Option<String> {
+
+    //-------------------------------------------------------------------------------------------//
+    // Creating the Rename Dialog...
+    //-------------------------------------------------------------------------------------------//
+
+    // Create the "New MyMod" Dialog.
+    let mut dialog;
+    unsafe { dialog = Dialog::new_unsafe(app_ui.window as *mut Widget); }
+
+    // Change his title.
+    dialog.set_window_title(&QString::from_std_str("Rename"));
+
+    // Set it Modal, so you can't touch the Main Window with this dialog open.
+    dialog.set_modal(true);
+
+    // Resize the Dialog.
+    dialog.resize((300, 0));
+
+    // Create the main Grid.
+    let main_grid = GridLayout::new().into_raw();
+
+    // Create the "New Name" LineEdit.
+    let mut new_name_line_edit = LineEdit::new(());
+
+    // Set the current name as default.
+    new_name_line_edit.set_text(&QString::from_std_str(name));
+
+    // Create the "Rename" button.
+    let rename_button = PushButton::new(&QString::from_std_str("Rename")).into_raw();
+
+    // Add all the widgets to the main grid.
+    unsafe { main_grid.as_mut().unwrap().add_widget((new_name_line_edit.static_cast_mut() as *mut Widget, 0, 0, 1, 1)); }
+    unsafe { main_grid.as_mut().unwrap().add_widget((rename_button as *mut Widget, 0, 1, 1, 1)); }
+
+    // And the Main Grid to the Dialog...
+    unsafe { dialog.set_layout(main_grid as *mut Layout); }
+
+    //-------------------------------------------------------------------------------------------//
+    // Actions for the Rename Dialog...
+    //-------------------------------------------------------------------------------------------//
+
+    // What happens when we hit the "Rename" button.
+    unsafe { rename_button.as_mut().unwrap().signals().released().connect(&dialog.slots().accept()); }
+
+    // Show the Dialog and, if we hit the "Rename" button...
+    if dialog.exec() == 1 {
+
+        // Get the text from the LineEdit.
+        let mod_name = QString::to_std_string(&new_name_line_edit.text());
+
+        // Return the new name.
+        Some(mod_name)
+    }
+
+    // Otherwise, return None.
+    else { None }
 }
 
 /// This function takes care of updating the provided LineEdits with the selected path.

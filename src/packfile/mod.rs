@@ -137,7 +137,7 @@ pub fn add_file_to_packfile(
     file_path: &PathBuf,
     tree_path: Vec<String>
 ) -> Result<String, Error> {
-    
+
     // Before anything, check for duplicates.
     if !pack_file.data.packedfile_exists(&tree_path) {
 

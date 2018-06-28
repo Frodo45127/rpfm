@@ -3127,361 +3127,6 @@ fn build_ui(application: &Application) {
 // becoming a mess to maintain, and was needed to be split.
 //-----------------------------------------------------------------------------
 
-/// This function opens the PackFile at the provided Path, and sets all the stuff needed, depending
-/// on the situation.
-fn open_packfile(
-    pack_file_path: PathBuf,
-    rpfm_path: &PathBuf,
-    app_ui: &AppUI,
-    settings: &Settings,
-    mode: &Rc<RefCell<Mode>>,
-    schema: &Rc<RefCell<Option<Schema>>>,
-    supported_games: &[GameInfo],
-    game_selected: &Rc<RefCell<GameSelected>>,
-    dependency_database: &Rc<RefCell<Option<Vec<PackedFile>>>>,
-    is_my_mod: &(bool, Option<String>),
-    pack_file_decoded: &Rc<RefCell<PackFile>>,
-    pack_file_decoded_extra: &Rc<RefCell<PackFile>>,
-) -> Result<(), Error> {
-    match packfile::open_packfile(pack_file_path.to_path_buf()) {
-        Ok(pack_file_opened) => {
-
-            // If there is no secondary PackFile opened using the "Data View" at the right side...
-            if pack_file_decoded_extra.borrow().extra_data.file_name.is_empty() {
-
-                // We need to destroy any children that the packed_file_data_display we use may have, cleaning it.
-                let children_to_utterly_destroy = app_ui.packed_file_data_display.get_children();
-                if !children_to_utterly_destroy.is_empty() {
-                    for i in &children_to_utterly_destroy {
-                        i.destroy();
-                    }
-                }
-
-                // Show the "Tips".
-                display_help_tips(&app_ui.packed_file_data_display);
-            }
-
-            // Get the PackFile into our main PackFile...
-            *pack_file_decoded.borrow_mut() = pack_file_opened;
-
-            // Update the Window and the TreeView with his data...
-            set_modified(false, &app_ui.window, &mut pack_file_decoded.borrow_mut());
-
-            // Clear the `TreeView` before updating it (fixes CTD with borrowed PackFile).
-            app_ui.folder_tree_store.clear();
-
-            // Build the `TreeView`.
-            update_treeview(
-                &app_ui.folder_tree_store,
-                &pack_file_decoded.borrow(),
-                &app_ui.folder_tree_selection,
-                TreeViewOperation::Build,
-                &TreePathType::None,
-            );
-
-            // We choose the right option, depending on our PackFile.
-            match pack_file_decoded.borrow().header.pack_file_type {
-                0 => app_ui.menu_bar_change_packfile_type.change_state(&"boot".to_variant()),
-                1 => app_ui.menu_bar_change_packfile_type.change_state(&"release".to_variant()),
-                2 => app_ui.menu_bar_change_packfile_type.change_state(&"patch".to_variant()),
-                3 => app_ui.menu_bar_change_packfile_type.change_state(&"mod".to_variant()),
-                4 => app_ui.menu_bar_change_packfile_type.change_state(&"movie".to_variant()),
-                _ => app_ui.menu_bar_change_packfile_type.change_state(&"other".to_variant()),
-            }
-
-            // Disable the "PackFile Management" actions.
-            enable_packfile_actions(app_ui, game_selected, false);
-
-            // If it's a "MyMod", we choose the game selected depending on his folder's name.
-            if is_my_mod.0 {
-
-                // Set `GameSelected` depending on the folder of the "MyMod".
-                let game_name = is_my_mod.1.clone().unwrap();
-                game_selected.borrow_mut().change_game_selected(&game_name, &settings.paths.game_paths.iter().filter(|x| x.game == game_name).map(|x| x.path.clone()).collect::<Option<PathBuf>>(), supported_games);
-                app_ui.menu_bar_change_game_selected.change_state(&game_name.to_variant());
-
-                // Set the current "Operational Mode" to `MyMod`.
-                set_my_mod_mode(app_ui, mode, Some(pack_file_path));
-            }
-
-            // If it's not a "MyMod", we choose the new GameSelected depending on what the open mod id is.
-            else {
-
-                // Set `GameSelected` depending on the ID of the PackFile.
-                match &*pack_file_decoded.borrow().header.id {
-                    "PFH5" => {
-                        game_selected.borrow_mut().change_game_selected("warhammer_2", &settings.paths.game_paths.iter().filter(|x| &x.game == "warhammer_2").map(|x| x.path.clone()).collect::<Option<PathBuf>>(), supported_games);
-                        app_ui.menu_bar_change_game_selected.change_state(&"warhammer_2".to_variant());
-                    },
-
-                    "PFH4" | _ => {
-
-                        // If we have Warhammer selected, we keep Warhammer. If we have Attila, we keep Attila.
-                        // In any other case, we select Attila by default.
-                        match &*(app_ui.menu_bar_change_game_selected.get_state().unwrap().get::<String>().unwrap()) {
-                            "warhammer" => {
-                                game_selected.borrow_mut().change_game_selected("warhammer", &settings.paths.game_paths.iter().filter(|x| &x.game == "warhammer").map(|x| x.path.clone()).collect::<Option<PathBuf>>(), supported_games);
-                                app_ui.menu_bar_change_game_selected.change_state(&"warhammer".to_variant());
-                            }
-                            "attila" | _ => {
-                                game_selected.borrow_mut().change_game_selected("attila", &settings.paths.game_paths.iter().filter(|x| &x.game == "attila").map(|x| x.path.clone()).collect::<Option<PathBuf>>(), supported_games);
-                                app_ui.menu_bar_change_game_selected.change_state(&"attila".to_variant());
-                            }
-                        }
-                    },
-                }
-
-                // Change the `dependency_database` for that game.
-                *dependency_database.borrow_mut() = match packfile::open_packfile(game_selected.borrow().game_dependency_packfile_path.to_path_buf()) {
-                    Ok(data) => Some(data.data.packed_files),
-                    Err(_) => None,
-                };
-
-                // Set the current "Operational Mode" to `Normal`.
-                set_my_mod_mode(app_ui, mode, None);
-            }
-
-            // Enable the "PackFile Management" actions.
-            enable_packfile_actions(app_ui, game_selected, true);
-
-            // Try to load the Schema for this PackFile's game.
-            *schema.borrow_mut() = Schema::load(rpfm_path, &supported_games.iter().filter(|x| x.folder_name == *game_selected.borrow().game).map(|x| x.schema.to_owned()).collect::<String>()).ok();
-
-            // Test to see if every DB Table can be decoded.
-            // let mut counter = 0;
-            // for i in pack_file_decoded.borrow().data.packed_files.iter() {
-            //     if i.path.starts_with(&["db".to_owned()]) {
-            //         if let Some(ref schema) = *schema.borrow() {
-            //             if let Err(_) = packedfile::db::DB::read(&i.data, &i.path[1], &schema) {
-            //                 match packedfile::db::DBHeader::read(&i.data, &mut 0) {
-            //                     Ok(db_header) => {
-            //                         if db_header.entry_count > 0 {
-            //                             counter += 1;
-            //                             println!("{}, {:?}", counter, i.path);
-            //                         }
-            //                     }
-            //                     Err(_) => println!("Error in {:?}", i.path),
-            //                 }
-            //             }
-            //         }
-            //     }
-            // }
-
-            // Return success.
-            Ok(())
-        }
-
-        // In case of error while opening the PackFile, return the error.
-        Err(error) => Err(error),
-    }
-}
-
-/// This function takes care of the re-creation of the "MyMod" list in the following moments:
-/// - At the start of the program (here).
-/// - At the end of MyMod deletion.
-/// - At the end of MyMod creation.
-/// - At the end of settings update.
-fn build_my_mod_menu(
-    application: &Application,
-    app_ui: &AppUI,
-    settings: &Settings,
-    mode: &Rc<RefCell<Mode>>,
-    schema: &Rc<RefCell<Option<Schema>>>,
-    game_selected: &Rc<RefCell<GameSelected>>,
-    supported_games: &Rc<RefCell<Vec<GameInfo>>>,
-    dependency_database: &Rc<RefCell<Option<Vec<PackedFile>>>>,
-    pack_file_decoded: &Rc<RefCell<PackFile>>,
-    pack_file_decoded_extra: &Rc<RefCell<PackFile>>,
-    rpfm_path: &PathBuf,
-) {
-    // First, we clear the list.
-    app_ui.my_mod_list.remove_all();
-
-    // If we have the "MyMod" path configured...
-    if let Some(ref my_mod_base_path) = settings.paths.my_mods_base_path {
-
-        // And can get without errors the folders in that path...
-        if let Ok(game_folder_list) = my_mod_base_path.read_dir() {
-
-            // We get all the games that have mods created (Folder exists and has at least a *.pack file inside).
-            for game_folder in game_folder_list {
-
-                // If the file/folder is valid, we see if it's one of our supported game's folder.
-                if let Ok(game_folder) = game_folder {
-
-                    let supported_folders = supported_games.borrow().iter().map(|x| x.folder_name.to_owned()).collect::<Vec<String>>();
-                    if game_folder.path().is_dir() && supported_folders.contains(&game_folder.file_name().to_string_lossy().as_ref().to_owned()) {
-
-                        // We create that game's menu here.
-                        let game_submenu: Menu = Menu::new();
-                        let game_folder_name = game_folder.file_name().to_string_lossy().as_ref().to_owned();
-
-                        // If there were no errors while reading the path...
-                        if let Ok(game_folder_files) = game_folder.path().read_dir() {
-
-                            // Index to count the valid packfiles.
-                            let mut valid_mod_index = 0;
-
-                            // We need to sort these files, so they appear sorted in the menu.
-                            // FIXME: remove this unwrap.
-                            let mut game_folder_files_sorted: Vec<_> = game_folder_files.map(|res| res.unwrap().path()).collect();
-                            game_folder_files_sorted.sort();
-
-                            // We get all the stuff in that game's folder...
-                            for game_folder_file in game_folder_files_sorted {
-
-                                // And it's a file that ends in .pack...
-                                if game_folder_file.is_file() &&
-                                    game_folder_file.extension().unwrap_or_else(||OsStr::new("invalid")).to_string_lossy() =="pack" {
-
-                                    // That means our game_folder is a valid folder and it needs to be added to the menu.
-                                    let mod_name = game_folder_file.file_name().unwrap_or_else(||OsStr::new("invalid")).to_string_lossy().as_ref().to_owned();
-                                    let mod_action = &*format!("my-mod-open-{}-{}", game_folder_name, valid_mod_index);
-
-                                    // GTK have... behavior that needs to be changed when showing "_".
-                                    let mod_name_visual = mod_name.replace('_', "__");
-                                    game_submenu.append(Some(&*mod_name_visual), Some(&*format!("app.{}", mod_action)));
-
-                                    // We create the action for the new button.
-                                    let open_mod = SimpleAction::new(mod_action, None);
-                                    application.add_action(&open_mod);
-
-                                    // And when activating the mod button, we open it and set it as selected (chaos incoming).
-                                    let game_folder_name = Rc::new(RefCell::new(game_folder_name.clone()));
-
-                                    open_mod.connect_activate(clone!(
-                                        app_ui,
-                                        settings,
-                                        schema,
-                                        mode,
-                                        game_folder_name,
-                                        rpfm_path,
-                                        supported_games,
-                                        game_selected,
-                                        dependency_database,
-                                        pack_file_decoded_extra,
-                                        pack_file_decoded => move |_,_| {
-
-                                            // If the current PackFile has been changed in any way, we pop up the "Are you sure?" message.
-                                            if are_you_sure(&app_ui.window, pack_file_decoded.borrow().extra_data.is_modified, false) {
-
-                                                // If we got confirmation...
-                                                let pack_file_path = game_folder_file.to_path_buf();
-
-                                                // Open the PackFile (or die trying it!).
-                                                if let Err(error) = open_packfile(
-                                                    pack_file_path,
-                                                    &rpfm_path,
-                                                    &app_ui,
-                                                    &settings,
-                                                    &mode,
-                                                    &schema,
-                                                    &supported_games.borrow(),
-                                                    &game_selected,
-                                                    &dependency_database,
-                                                    &(true, Some(game_folder_name.borrow().to_owned())),
-                                                    &pack_file_decoded,
-                                                    &pack_file_decoded_extra
-                                                ) { show_dialog(&app_ui.window, false, error.cause()) };
-                                            }
-                                        }
-                                    ));
-
-                                    valid_mod_index += 1;
-                                }
-                            }
-                        }
-
-                        // Only if the submenu has items, we add it to the big menu.
-                        if game_submenu.get_n_items() > 0 {
-                            let game_submenu_name = supported_games.borrow().iter().filter(|x| game_folder_name == x.folder_name).map(|x| x.display_name.to_owned()).collect::<String>();
-                            app_ui.my_mod_list.append_submenu(Some(&*format!("{}", game_submenu_name)), &game_submenu);
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-/// This function serves as a common function for all the "Patch SiegeAI" buttons from "Special Stuff".
-fn patch_siege_ai(
-    app_ui: &AppUI,
-    pack_file_decoded: &Rc<RefCell<PackFile>>,
-) {
-
-    // First, we try to patch the PackFile. If there are no errors, we save the result in a tuple.
-    // Then we check that tuple and, if it's a success, we save the PackFile and update the TreeView.
-    let mut sucessful_patching = (false, String::new());
-    match packfile::patch_siege_ai(&mut *pack_file_decoded.borrow_mut()) {
-        Ok(result) => sucessful_patching = (true, result),
-        Err(error) => show_dialog(&app_ui.window, false, error.cause())
-    }
-    if sucessful_patching.0 {
-        let mut success = false;
-        match packfile::save_packfile( &mut *pack_file_decoded.borrow_mut(), None) {
-            Ok(_) => {
-                success = true;
-                show_dialog(&app_ui.window, true, format!("{}\n\n{}", sucessful_patching.1, "PackFile succesfully saved."));
-            },
-            Err(error) => show_dialog(&app_ui.window, false, error.cause())
-        }
-
-        // If it succeed...
-        if success {
-
-            // Clear the `TreeView` before updating it (fixes CTD with borrowed PackFile).
-            app_ui.folder_tree_store.clear();
-
-            // TODO: Make this update, not rebuild.
-            // Rebuild the `TreeView`.
-            update_treeview(
-                &app_ui.folder_tree_store,
-                &*pack_file_decoded.borrow(),
-                &app_ui.folder_tree_selection,
-                TreeViewOperation::Build,
-                &TreePathType::None,
-            );
-        }
-    }
-}
-
-/// This function serves as a common function for all the "Generate Dependency Pack" buttons from "Special Stuff".
-fn generate_dependency_pack(
-    app_ui: &AppUI,
-    rpfm_path: &PathBuf,
-    game_selected: &Rc<RefCell<GameSelected>>,
-) {
-
-    // Get the data folder of game_selected and try to create our dependency PackFile.
-    match game_selected.borrow().game_data_path {
-        Some(ref path) => {
-            let mut data_pack_path = path.to_path_buf();
-            data_pack_path.push("data.pack");
-            match packfile::open_packfile(data_pack_path) {
-                Ok(ref mut data_packfile) => {
-                    data_packfile.data.packed_files.retain(|packed_file| packed_file.path.starts_with(&["db".to_owned()]));
-                    data_packfile.header.packed_file_count = data_packfile.data.packed_files.len() as u32;
-
-                    // Just in case the folder doesn't exists, we try to create it.
-                    let mut dep_packs_path = rpfm_path.clone();
-                    dep_packs_path.push("dependency_packs");
-
-                    match DirBuilder::new().create(&dep_packs_path) { Ok(_) | Err(_) => {}, }
-
-                    let pack_file_path = game_selected.borrow().game_dependency_packfile_path.to_path_buf();
-                    match packfile::save_packfile(data_packfile, Some(pack_file_path)) {
-                        Ok(_) => show_dialog(&app_ui.window, true, "Dependency pack created. Remember to re-create it if you update the game ;)."),
-                        Err(error) => show_dialog(&app_ui.window, false, format_err!("Error: generated dependency pack couldn't be saved. {:?}", error)),
-                    }
-                }
-                Err(_) => show_dialog(&app_ui.window, false, "Error: data.pack couldn't be open.")
-            }
-        },
-        None => show_dialog(&app_ui.window, false, "Error: data path of the game not found.")
-    }
-}
-
 /// This function serves as a common function to all the "Create Prefab" buttons from "Special Stuff".
 fn create_prefab(
     application: &Application,
@@ -3530,25 +3175,6 @@ fn create_prefab(
     else { show_dialog(&app_ui.window, false, "There are no catchment PackedFiles in this PackFile."); }
 }
 
-/// This function concatenates the last two messages of the status_bar and shows them like one.
-fn concatenate_check_update_messages(status_bar: &Statusbar) {
-
-    // Get the ID of all messages passed to the status_bar with the helper function.
-    let context_id = status_bar.get_context_id("Yekaterina");
-
-    // Get the current text, if any.
-    let current_text = status_bar.get_message_area().unwrap().get_children()[0].clone().downcast::<Label>().unwrap().get_text().unwrap();
-
-    // Remove it from the status_bar.
-    status_bar.pop(context_id);
-
-    // Get the new current text, if any.
-    let old_text = status_bar.get_message_area().unwrap().get_children()[0].clone().downcast::<Label>().unwrap().get_text().unwrap();
-
-    // Concatenate both texts and push them.
-    let new_text = format!("{} {}", old_text, current_text);
-    status_bar.push(context_id, &new_text);
-}
 */
 /// This struct contains all the "Special Stuff" Actions, so we can pass all of them to functions at once.
 #[derive(Copy, Clone)]
@@ -3904,9 +3530,6 @@ fn main() {
         let is_folder_tree_view_locked = Rc::new(RefCell::new(false));
         let mymod_menu_needs_rebuild = Rc::new(RefCell::new(false));
         let mode = Rc::new(RefCell::new(Mode::Normal));
-
-        // Rename action is a bit special, it needs an action to start editing, and another to actually rename.
-        let old_snake = Rc::new(RefCell::new((String::new(), false)));
 
         // Build the empty structs we need for certain features.
         let result = AddFromPackFileStuff::new();
@@ -5806,60 +5429,86 @@ fn main() {
         unsafe { app_ui.context_menu_extract.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_extract); }
 
 
-
-
-
-
-
-
-
-
-        /*
+        //-----------------------------------------------------------------------------------------//
+        // Rename Action. Due to me not understanding how the edition of a TreeView works, we do it
+        // in a special way. So TODO: Fix this shit.
+        //-----------------------------------------------------------------------------------------//
 
         // What happens when we trigger the "Rename" Action.
         let slot_contextual_menu_rename = SlotBool::new(clone!(
-            old_snake => move |_| {
+            is_modified,
+            sender_qt,
+            sender_qt_data,
+            receiver_qt => move |_| {
 
-                // Start the editing of the item.
-                let model_index;
-                unsafe { model_index = app_ui.folder_tree_view.as_ref().unwrap().current_index(); }
-                unsafe { app_ui.folder_tree_view.as_mut().unwrap().edit(&model_index); }
+                // We only do something in case the focus is in the TreeView. This should stop
+                // problems with the accels working everywhere.
+                let has_focus;
+                unsafe { has_focus = app_ui.folder_tree_view.as_mut().unwrap().has_focus() };
+                if has_focus {
 
-                // Store his old name, for future checks.
-                *old_snake.borrow_mut() = (QString::to_std_string(&model_index.data(()).to_string()), true);
+                    // Get his Path, including the name of the PackFile.
+                    let complete_path = get_path_from_selection(&app_ui, true);
+
+                    // Send the Path to the Background Thread, and get the type of the item.
+                    sender_qt.send("get_type_of_path").unwrap();
+                    sender_qt_data.send(serde_json::to_vec(&complete_path).map_err(From::from)).unwrap();
+                    let response = receiver_qt.borrow().recv().unwrap().unwrap();
+                    let item_type: TreePathType = serde_json::from_slice(&response).unwrap();
+
+                    // Depending on the type of the selection...
+                    match item_type.clone() {
+
+                        // If it's a file or a folder...
+                        TreePathType::File((path,_)) | TreePathType::Folder(path) => {
+
+                            // Get the name of the selected item.
+                            let current_name = path.last().unwrap();
+
+                            // Create the "Rename" dialog and wait for a new name (or a cancelation).
+                            if let Some(new_name) = create_rename_dialog(&app_ui, &current_name) {
+
+                                // Send the New Name to the Background Thread, wait for a response.
+                                sender_qt.send("rename_packed_file").unwrap();
+                                sender_qt_data.send(serde_json::to_vec(&(complete_path, &new_name)).map_err(From::from)).unwrap();
+                                let response = receiver_qt.borrow().recv().unwrap();
+
+                                // Depending on the result, we act...
+                                match response {
+
+                                    // If the new name was valid...
+                                    Ok(_) => {
+
+                                        // Set the mod as "Modified".
+                                        *is_modified.borrow_mut() = set_modified(true, &app_ui);
+
+                                        // Update the TreeView.
+                                        update_treeview(
+                                            &sender_qt,
+                                            &sender_qt_data,
+                                            receiver_qt.clone(),
+                                            app_ui.folder_tree_view,
+                                            app_ui.folder_tree_model,
+                                            TreeViewOperation::Rename(item_type, new_name),
+                                        );
+                                    }
+
+                                    // If the new name was invalid...
+                                    Err(error) => show_dialog(&app_ui, false, error.cause()),
+                                }
+                            }
+                        }
+
+                        // Otherwise, it's the PackFile or None, and we return, as we can't rename that.
+                        _ => return,
+                    }
+
+                }
             }
         ));
 
         // Action to start the Renaming Process.
         unsafe { app_ui.context_menu_rename.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_rename); }
-
-        // What happens when we finish the "Rename" Action.
-        let slot_item_renamed = qt_gui::slots::SlotStandardItemMutPtr::new(move |item| {
-
-            // If we were editing something...
-            if old_snake.borrow().1 {
-
-                unsafe { println!("{:?}", QString::to_std_string(&item.as_mut().unwrap().text())); }
-            }
-
-            // Reset the edition stuff.
-            *old_snake.borrow_mut() = (String::new(), false);
-        });
-        let slot_item_renamed = qt_gui::slots::SlotStandardItemMutPtr::new(move |item| {
-
-            // If we were editing something...
-            if old_snake.borrow().1 {
-
-                unsafe { println!("{:?}", QString::to_std_string(&item.as_mut().unwrap().text())); }
-            }
-
-            // Reset the edition stuff.
-            *old_snake.borrow_mut() = (String::new(), false);
-        });
-        unsafe { app_ui.folder_tree_view.as_ref().unwrap().slots().close_editor().connect(&slot_item_renamed); }
-
-        unsafe { app_ui.folder_tree_model.as_ref().unwrap().signals().item_changed().connect(&slot_item_renamed); }
-        */
 
         //-----------------------------------------------------//
         // Special Actions, like opening a PackedFile...
@@ -6057,6 +5706,31 @@ fn main() {
 
         // If we have it enabled in the prefs, check if there are schema updates.
         if settings.check_schema_updates_on_start { check_schema_updates(&app_ui, false, &rpfm_path, &sender_qt, &sender_qt_data, &receiver_qt) };
+
+        // If we have an argument (we open RPFM by clicking in a PackFile directly)...
+        if arguments.len() > 1 {
+
+            // Turn the fist argument into a Path.
+            let path = PathBuf::from(&arguments[1]);
+
+            // If that argument it's a valid File (not Qt-related)...
+            if path.is_file() {
+
+                // Try to open it, and report it case of error.
+                if let Err(error) = open_packfile(
+                    &sender_qt,
+                    &sender_qt_data,
+                    &receiver_qt,
+                    path,
+                    &app_ui,
+                    &mymod_stuff,
+                    &is_modified,
+                    &mode,
+                    "",
+                    &is_packedfile_opened
+                ) { show_dialog(&app_ui, false, format!("<p>Error while opening the PackFile:</p><p>{}</p>", error.cause())) }
+            }
+        }
 
         // And launch it.
         Application::exec()
@@ -6811,6 +6485,20 @@ fn background_loop(
 
                         // Try to import the TSV into the open DB PackedFile, or die trying.
                         match packed_file_db.data.export_tsv(&path, (&packed_file_db.db_type, packed_file_db.header.version)) {
+                            Ok(success) => sender.send(serde_json::to_vec(&success).map_err(From::from)).unwrap(),
+                            Err(error) => sender.send(Err(error)).unwrap(),
+                        }
+                    }
+
+                    // When we want to "Rename a PackedFile"...
+                    "rename_packed_file" => {
+
+                        // Get the current Path and the New Name of the File/Folders.
+                        let data = receiver_data.recv().unwrap().unwrap();
+                        let data: (Vec<String>, &str) = serde_json::from_slice(&data).unwrap();
+
+                        // Try to rename it and report the result.
+                        match packfile::rename_packed_file(&mut pack_file_decoded, &data.0, data.1) {
                             Ok(success) => sender.send(serde_json::to_vec(&success).map_err(From::from)).unwrap(),
                             Err(error) => sender.send(Err(error)).unwrap(),
                         }

@@ -1961,7 +1961,7 @@ pub fn update_treeview(
 
                 // Get the item.
                 let item;
-                unsafe { item = model.as_mut().unwrap().item((selection.row(), selection.column())); }
+                unsafe { item = model.as_mut().unwrap().item_from_index(selection); }
 
                 // Sort it.
                 sort_item_in_tree_view(
@@ -2175,7 +2175,7 @@ fn sort_item_in_tree_view(
                         // Move the item one position below.
                         let item_x;
                         unsafe { item_x = parent.as_mut().unwrap().take_row(item_index.row()); }
-                        unsafe { parent.as_mut().unwrap().insert_row(item_sibling_index.row() + 1, &item_x); }
+                        unsafe { parent.as_mut().unwrap().insert_row(item_sibling_index.row(), &item_x); }
                         unsafe { item = parent.as_mut().unwrap().child(item_sibling_index.row()); }
                         unsafe { item_index = item.as_mut().unwrap().index(); }
                     }
