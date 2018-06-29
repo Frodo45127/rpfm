@@ -5761,7 +5761,7 @@ fn background_loop(
 
     // TODO: Fix this shit.
     // The extra PackFile needs to keep a BufReader to not destroy the Ram.
-    let mut pack_file_decoded_extra_buffer = BufReader::new(File::open("LICENSE").unwrap());
+    let mut pack_file_decoded_extra_buffer = BufReader::new(File::open(rpfm_path.join(PathBuf::from("LICENSE"))).unwrap());
 
     // These are a list of empty PackedFiles, used to store data of the open PackedFile.
     let mut packed_file_loc = Loc::new();
