@@ -3317,6 +3317,7 @@ fn main() {
         // Create the main window of the program.
         let mut window = MainWindow::new();
         window.set_window_title(&QString::from_std_str("Rusted PackFile Manager"));
+        window.resize((950, 400));
 
         // Create a Central Widget and populate it.
         let mut central_widget = Widget::new();
