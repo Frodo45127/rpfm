@@ -5402,6 +5402,8 @@ fn build_columns(
     table_view: *mut TableView,
     model: *mut StandardItemModel
 ) {
+    // Create a list of "Key" columns.
+    let mut keys = vec![];
 
     // For each column...
     for (index, field) in definition.fields.iter().enumerate() {
@@ -5448,6 +5450,24 @@ fn build_columns(
             FieldType::StringU16 => unsafe { table_view.as_mut().unwrap().set_column_width(index as i32, 350); }
             FieldType::OptionalStringU8 => unsafe { table_view.as_mut().unwrap().set_column_width(index as i32, 350); }
             FieldType::OptionalStringU16 => unsafe { table_view.as_mut().unwrap().set_column_width(index as i32, 350); }
+        }
+
+        // If the field is key, add that column to the "Key" list, so we can move them at the begining later.
+        if field.field_is_key { keys.push(index); }
+    }
+
+    // If we have any "Key" field...
+    if !keys.is_empty() {
+
+        // Get the Horizontal Header of the Table.
+        let header;
+        unsafe { header = table_view.as_mut().unwrap().horizontal_header(); }
+
+        // For each key column (in reverse)...
+        for column in keys.iter().rev() {
+
+            // Move the column to the begining.
+            unsafe { header.as_mut().unwrap().move_section(*column as i32, 0); }
         }
     }
 }
