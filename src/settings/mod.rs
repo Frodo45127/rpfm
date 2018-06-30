@@ -34,6 +34,7 @@ pub struct Settings {
     pub allow_editing_of_ca_packfiles: bool,
     pub check_updates_on_start: bool,
     pub check_schema_updates_on_start: bool,
+    pub use_pfm_extracting_behavior: bool,
 }
 
 /// This struct should hold any path we need to store in the settings.
@@ -133,6 +134,7 @@ impl Settings {
             allow_editing_of_ca_packfiles: false,
             check_updates_on_start: true,
             check_schema_updates_on_start: true,
+            use_pfm_extracting_behavior: false,
         }
     }
 

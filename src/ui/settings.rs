@@ -969,6 +969,7 @@ pub struct SettingsDialog {
     pub extra_allow_editing_of_ca_packfiles: CppBox<CheckBox>,
     pub extra_check_updates_on_start: CppBox<CheckBox>,
     pub extra_check_schema_updates_on_start: CppBox<CheckBox>,
+    pub extra_use_pfm_extracting_behavior: CppBox<CheckBox>,
     //pub theme_prefer_dark_theme: CheckButton,
     //pub theme_font_button: FontButton,
     pub cancel_button: *mut PushButton,
@@ -991,8 +992,7 @@ impl SettingsDialog {
     /// the window to. It returns the new Settings, or None if we are cancelling.
     pub fn create_settings_dialog(
         app_ui: &AppUI,
-        rpfm_path: &PathBuf,
-        mut settings: Settings,
+        settings: &Settings,
         supported_games: &[GameInfo]
     ) -> Option<Settings> {
 
@@ -1083,16 +1083,18 @@ impl SettingsDialog {
         unsafe { default_game_combobox.set_model(default_game_model.static_cast_mut()); }
 
         // Add the games to the ComboBox.
-        unsafe { for game in supported_games { default_game_combobox.add_item(&QString::from_std_str(&game.display_name)); } }
+        for game in supported_games { default_game_combobox.add_item(&QString::from_std_str(&game.display_name)); }
 
         // Create the aditional CheckBoxes.
         let allow_editing_of_ca_packfiles_label = Label::new(&QString::from_std_str("Allow Editing of CA PackFiles:"));
         let check_updates_on_start_label = Label::new(&QString::from_std_str("Check Updates on Start:"));
         let check_schema_updates_on_start_label = Label::new(&QString::from_std_str("Check Schema Updates on Start:"));
+        let use_pfm_extracting_behavior_label = Label::new(&QString::from_std_str("Use PFM Extracting Behavior:"));
 
         let mut allow_editing_of_ca_packfiles_checkbox = CheckBox::new(());
         let mut check_updates_on_start_checkbox = CheckBox::new(());
         let mut check_schema_updates_on_start_checkbox = CheckBox::new(());
+        let mut use_pfm_extracting_behavior_checkbox = CheckBox::new(());
 
         // Add the "Default Game" stuff to the Grid.
         unsafe { extra_settings_grid.as_mut().unwrap().add_widget((default_game_label as *mut Widget, 0, 0, 1, 1)); }
@@ -1106,6 +1108,9 @@ impl SettingsDialog {
 
         unsafe { extra_settings_grid.as_mut().unwrap().add_widget((check_schema_updates_on_start_label.into_raw() as *mut Widget, 3, 0, 1, 1)); }
         unsafe { extra_settings_grid.as_mut().unwrap().add_widget((check_schema_updates_on_start_checkbox.static_cast_mut() as *mut Widget, 3, 1, 1, 1)); }
+
+        unsafe { extra_settings_grid.as_mut().unwrap().add_widget((use_pfm_extracting_behavior_label.into_raw() as *mut Widget, 4, 0, 1, 1)); }
+        unsafe { extra_settings_grid.as_mut().unwrap().add_widget((use_pfm_extracting_behavior_checkbox.static_cast_mut() as *mut Widget, 4, 1, 1, 1)); }
 
         unsafe {
 
@@ -1171,7 +1176,7 @@ impl SettingsDialog {
         }
 
         // What happens when we hit the "..." button for MyMods.
-        unsafe { mymod_button.borrow().signals().released().connect(&slot_select_mymod_path); }
+        mymod_button.borrow().signals().released().connect(&slot_select_mymod_path);
 
         // What happens when we hit the "Cancel" button.
         unsafe { cancel_button.as_mut().unwrap().signals().released().connect(&dialog.slots().close()); }
@@ -1192,6 +1197,7 @@ impl SettingsDialog {
             extra_allow_editing_of_ca_packfiles: allow_editing_of_ca_packfiles_checkbox,
             extra_check_updates_on_start: check_updates_on_start_checkbox,
             extra_check_schema_updates_on_start: check_schema_updates_on_start_checkbox,
+            extra_use_pfm_extracting_behavior: use_pfm_extracting_behavior_checkbox,
             cancel_button,
             accept_button,
         };
@@ -1255,6 +1261,7 @@ impl SettingsDialog {
         self.extra_allow_editing_of_ca_packfiles.set_checked(settings.allow_editing_of_ca_packfiles);
         self.extra_check_updates_on_start.set_checked(settings.check_updates_on_start);
         self.extra_check_schema_updates_on_start.set_checked(settings.check_schema_updates_on_start);
+        self.extra_use_pfm_extracting_behavior.set_checked(settings.use_pfm_extracting_behavior);
     }
 
     /// This function gets the data from the Settings Dialog and returns a Settings struct with that
@@ -1286,6 +1293,7 @@ impl SettingsDialog {
         settings.allow_editing_of_ca_packfiles = self.extra_allow_editing_of_ca_packfiles.is_checked();
         settings.check_updates_on_start = self.extra_check_updates_on_start.is_checked();
         settings.check_schema_updates_on_start = self.extra_check_schema_updates_on_start.is_checked();
+        settings.use_pfm_extracting_behavior = self.extra_use_pfm_extracting_behavior.is_checked();
 
         // Return the new Settings.
         settings

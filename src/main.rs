@@ -47,6 +47,7 @@ use qt_gui::cursor::Cursor;
 use qt_core::slots::SlotItemSelectionRefItemSelectionRef;
 use qt_core::slots::SlotModelIndexRefModelIndexRef;
 use qt_widgets::file_dialog::FileMode;
+use qt_widgets::file_dialog::AcceptMode;
 use qt_gui::key_sequence::KeySequence;
 
 use qt_gui::desktop_services::DesktopServices;
@@ -4139,7 +4140,7 @@ fn main() {
                 let old_settings: Settings = serde_json::from_slice(&settings_encoded).unwrap();
 
                 // Create the Settings Dialog. If we got new settings...
-                if let Some(settings) = SettingsDialog::create_settings_dialog(&app_ui, &rpfm_path, old_settings.clone(), &supported_games) {
+                if let Some(settings) = SettingsDialog::create_settings_dialog(&app_ui, &old_settings, &supported_games) {
 
                     // Send the signal to save them.
                     sender_qt.send("set_settings").unwrap();
@@ -5233,16 +5234,16 @@ fn main() {
                     let response = receiver_qt.borrow().recv().unwrap().unwrap();
                     let item_type: TreePathType = serde_json::from_slice(&response).unwrap();
 
+                    // Get the settings.
+                    sender_qt.send("get_settings").unwrap();
+                    let settings = receiver_qt.borrow().recv().unwrap().unwrap();
+                    let settings: Settings = serde_json::from_slice(&settings).unwrap();
+
                     // Depending on the current Operational Mode...
                     match *mode.borrow() {
 
                         // If we have a "MyMod" selected...
                         Mode::MyMod {ref game_folder_name, ref mod_name} => {
-
-                            // Get the settings.
-                            sender_qt.send("get_settings").unwrap();
-                            let settings = receiver_qt.borrow().recv().unwrap().unwrap();
-                            let settings: Settings = serde_json::from_slice(&settings).unwrap();
 
                             // In theory, if we reach this line this should always exist. In theory I should be rich.
                             if let Some(ref my_mods_base_path) = settings.paths.my_mods_base_path {
@@ -5334,87 +5335,182 @@ fn main() {
                         // If we are in "Normal" Mode....
                         Mode::Normal => {
 
-                            // Create a File Chooser to get the destination path.
-                            let mut file_dialog;
-                            unsafe { file_dialog = FileDialog::new_unsafe((
-                                app_ui.window as *mut Widget,
-                                &QString::from_std_str("Extract File/Folder"),
-                            )); }
+                            // If we want the old PFM behavior (extract full path)...
+                            if settings.use_pfm_extracting_behavior {
 
-                            // Set it to save mode.
-                            file_dialog.set_accept_mode(qt_widgets::file_dialog::AcceptMode::Save);
+                                // Get a "Folder-only" FileDialog.
+                                let extraction_path;
+                                unsafe {extraction_path = FileDialog::get_existing_directory_unsafe((
+                                    app_ui.window as *mut Widget,
+                                    &QString::from_std_str("Extract File/Folder")
+                                )); }
 
-                            // Ask for confirmation in case of overwrite.
-                            file_dialog.set_confirm_overwrite(true);
+                                // If we got a path...
+                                if !extraction_path.is_empty() {
 
-                            // Depending of the item type, change the dialog.
-                            match item_type {
+                                    // If we are trying to extract the PackFile...
+                                    let final_extraction_path =
+                                        if let TreePathType::PackFile = item_type {
 
-                                // If we have selected a file/folder, use his name as default names.
-                                TreePathType::File((path,_)) | TreePathType::Folder(path) => file_dialog.select_file(&QString::from_std_str(&path.last().unwrap())),
+                                            // Get the Path we choose to save the file/folder and return it.
+                                            PathBuf::from(extraction_path.to_std_string())
+                                        }
 
-                                // For the rest, use the name of the PackFile.
-                                _ => {
+                                        // Otherwise, we use a more complex method.
+                                        else {
 
-                                    // Get the name of the PackFile and use it as default name.
-                                    let model_index;
-                                    let name;
-                                    unsafe { model_index = app_ui.folder_tree_model.as_ref().unwrap().index((0, 0)); }
-                                    name = model_index.data(()).to_string();
-                                    file_dialog.select_file(&name);
+                                            // Get the Path we choose to save the file/folder.
+                                            let mut base_extraction_path = PathBuf::from(extraction_path.to_std_string());
+
+                                            // Add the full path to the extraction path.
+                                            let mut addon_path = path.to_vec();
+                                            addon_path.reverse();
+                                            addon_path.pop();
+                                            addon_path.reverse();
+
+                                            // Store the last item.
+                                            let final_field = addon_path.pop().unwrap();
+
+                                            // Put together the big path.
+                                            let mut final_extraction_path = base_extraction_path.join(addon_path.iter().collect::<PathBuf>());
+
+                                            // Create that directory.
+                                            DirBuilder::new().recursive(true).create(&final_extraction_path).unwrap();
+
+                                            // Add back the final item to the path.
+                                            final_extraction_path.push(&final_field);
+
+                                            // Return the path.
+                                            final_extraction_path
+                                    };
+
+                                    // Tell the Background Thread to delete the selected stuff.
+                                    sender_qt.send("extract_packedfile").unwrap();
+                                    sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
+                                    sender_qt_data.send(serde_json::to_vec(&final_extraction_path).map_err(From::from)).unwrap();
+
+                                    // Disable the Main Window (so we can't do other stuff).
+                                    unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+
+                                    // Until we receive a response from the worker thread...
+                                    loop {
+
+                                        // When we finally receive the data...
+                                        if let Ok(data) = receiver_qt.borrow().try_recv() {
+
+                                            // Check what the result of the deletion process was.
+                                            match data {
+
+                                                // In case of success...
+                                                Ok(response) => {
+
+                                                    // Get the result, and show it.
+                                                    let result: String = serde_json::from_slice(&response).unwrap();
+                                                    show_dialog(&app_ui, true, result);
+                                                },
+
+                                                // In case of error, show the dialog with the error.
+                                                Err(error) => show_dialog(&app_ui, false, error.cause()),
+                                            }
+
+                                            // Stop the loop.
+                                            break;
+                                        }
+
+                                        // Keep the UI responsive.
+                                        event_loop.process_events(());
+
+                                        // Wait a bit to not saturate a CPU core.
+                                        thread::sleep(Duration::from_millis(50));
+                                    }
+
+                                    // Re-enable the Main Window.
+                                    unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
                                 }
                             }
 
-                            // Run it and expect a response (1 => Accept, 0 => Cancel).
-                            if file_dialog.exec() == 1 {
+                            // Otherwise, get the default FileDialog.
+                            else {
 
-                                // Get the Path we choose to save the file/folder.
-                                let mut extraction_path: PathBuf = PathBuf::new();
-                                let path_qt = file_dialog.selected_files();
-                                for index in 0..path_qt.size() { extraction_path.push(path_qt.at(index).to_std_string()); }
+                                let mut file_dialog;
+                                unsafe { file_dialog = FileDialog::new_unsafe((
+                                    app_ui.window as *mut Widget,
+                                    &QString::from_std_str("Extract File/Folder"),
+                                )); }
 
-                                // Tell the Background Thread to delete the selected stuff.
-                                sender_qt.send("extract_packedfile").unwrap();
-                                sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
-                                sender_qt_data.send(serde_json::to_vec(&extraction_path).map_err(From::from)).unwrap();
+                                // Set it to save mode.
+                                file_dialog.set_accept_mode(AcceptMode::Save);
 
-                                // Disable the Main Window (so we can't do other stuff).
-                                unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+                                // Ask for confirmation in case of overwrite.
+                                file_dialog.set_confirm_overwrite(true);
 
-                                // Until we receive a response from the worker thread...
-                                loop {
+                                // Depending of the item type, change the dialog.
+                                match item_type {
 
-                                    // When we finally receive the data...
-                                    if let Ok(data) = receiver_qt.borrow().try_recv() {
+                                    // If we have selected a file/folder, use his name as default names.
+                                    TreePathType::File((path,_)) | TreePathType::Folder(path) => file_dialog.select_file(&QString::from_std_str(&path.last().unwrap())),
 
-                                        // Check what the result of the deletion process was.
-                                        match data {
+                                    // For the rest, use the name of the PackFile.
+                                    _ => {
 
-                                            // In case of success...
-                                            Ok(response) => {
-
-                                                // Get the result, and show it.
-                                                let result: String = serde_json::from_slice(&response).unwrap();
-                                                show_dialog(&app_ui, true, result);
-                                            },
-
-                                            // In case of error, show the dialog with the error.
-                                            Err(error) => show_dialog(&app_ui, false, error.cause()),
-                                        }
-
-                                        // Stop the loop.
-                                        break;
+                                        // Get the name of the PackFile and use it as default name.
+                                        let model_index;
+                                        let name;
+                                        unsafe { model_index = app_ui.folder_tree_model.as_ref().unwrap().index((0, 0)); }
+                                        name = model_index.data(()).to_string();
+                                        file_dialog.select_file(&name);
                                     }
-
-                                    // Keep the UI responsive.
-                                    event_loop.process_events(());
-
-                                    // Wait a bit to not saturate a CPU core.
-                                    thread::sleep(Duration::from_millis(50));
                                 }
 
-                                // Re-enable the Main Window.
-                                unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
+                                // Run it and expect a response (1 => Accept, 0 => Cancel).
+                                if file_dialog.exec() == 1 {
+
+                                    // Get the Path we choose to save the file/folder.
+                                    let mut extraction_path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
+
+                                    // Tell the Background Thread to delete the selected stuff.
+                                    sender_qt.send("extract_packedfile").unwrap();
+                                    sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
+                                    sender_qt_data.send(serde_json::to_vec(&extraction_path).map_err(From::from)).unwrap();
+
+                                    // Disable the Main Window (so we can't do other stuff).
+                                    unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+
+                                    // Until we receive a response from the worker thread...
+                                    loop {
+
+                                        // When we finally receive the data...
+                                        if let Ok(data) = receiver_qt.borrow().try_recv() {
+
+                                            // Check what the result of the deletion process was.
+                                            match data {
+
+                                                // In case of success...
+                                                Ok(response) => {
+
+                                                    // Get the result, and show it.
+                                                    let result: String = serde_json::from_slice(&response).unwrap();
+                                                    show_dialog(&app_ui, true, result);
+                                                },
+
+                                                // In case of error, show the dialog with the error.
+                                                Err(error) => show_dialog(&app_ui, false, error.cause()),
+                                            }
+
+                                            // Stop the loop.
+                                            break;
+                                        }
+
+                                        // Keep the UI responsive.
+                                        event_loop.process_events(());
+
+                                        // Wait a bit to not saturate a CPU core.
+                                        thread::sleep(Duration::from_millis(50));
+                                    }
+
+                                    // Re-enable the Main Window.
+                                    unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
+                                }
                             }
                         }
                     }
