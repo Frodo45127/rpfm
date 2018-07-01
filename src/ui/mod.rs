@@ -1634,7 +1634,7 @@ pub fn update_treeview(
             unsafe { model.as_mut().unwrap().append_row_unsafe(big_parent); }
 
             // Give it an Icon.
-            set_icon_to_item(big_parent, &icons, IconType::PackFile(true));
+            set_icon_to_item(big_parent, &icons, IconType::PackFile(is_extra_packfile));
 
             // Third, we get all the paths of the PackedFiles inside the Packfile in a Vector.
             let mut sorted_path_list = pack_file_data.1;
