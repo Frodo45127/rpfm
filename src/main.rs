@@ -3319,7 +3319,7 @@ fn main() {
         // Create the main window of the program.
         let mut window = MainWindow::new();
         window.set_window_title(&QString::from_std_str("Rusted PackFile Manager"));
-        window.resize((950, 400));
+        window.resize((1200, 400));
 
         // Create a Central Widget and populate it.
         let mut central_widget = Widget::new();
@@ -3346,6 +3346,13 @@ fn main() {
         // Add the corresponding widgets to the layout.
         unsafe { central_splitter.add_widget(folder_tree_view.static_cast_mut()); }
         unsafe { central_splitter.add_widget(packed_file_view.as_mut_ptr()); }
+
+        // Set the correct proportions for the Splitter.
+        // TODO: Make the size of the TreeView consistent.
+        let mut clist = qt_core::list::ListCInt::new(());
+        clist.append(&400);
+        clist.append(&1200);
+        central_splitter.set_sizes(&clist);
 
         // MenuBar at the top of the Window.
         let mut menu_bar = &window.menu_bar();
