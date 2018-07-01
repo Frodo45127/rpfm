@@ -83,6 +83,7 @@ use std::io::BufReader;
 use failure::Error;
 use url::Url;
 use common::*;
+use common::coding_helpers::*;
 use packfile::packfile::PackFile;
 use packfile::packfile::PackFileExtraData;
 use packfile::packfile::PackFileHeader;
@@ -97,10 +98,10 @@ use updater::*;
 use ui::*;
 use ui::packedfile_db::*;
 use ui::packedfile_loc::*;
+use ui::packedfile_text::*;
 use ui::settings::*;
 use ui::updater::*;
 /*
-use ui::packedfile_text::*;
 use ui::packedfile_image::*;
 use ui::packedfile_rigidmodel::*;
 */
@@ -3547,8 +3548,9 @@ fn main() {
         let add_from_packfile_stuff = Rc::new(RefCell::new(result.0));
         let add_from_packfile_slots = Rc::new(RefCell::new(result.1));
 
-        let loc_slots = Rc::new(RefCell::new(PackedFileLocTreeView::new()));
         let db_slots = Rc::new(RefCell::new(PackedFileDBTreeView::new()));
+        let loc_slots = Rc::new(RefCell::new(PackedFileLocTreeView::new()));
+        let text_slots = Rc::new(RefCell::new(PackedFileTextView::new()));
 
         // Display the basic tips by default.
         display_help_tips(&app_ui);
@@ -5829,6 +5831,26 @@ fn main() {
                                     unsafe { app_ui.game_selected_group.as_mut().unwrap().set_enabled(false); }
                                 }
 
+                                // If the file is a Text PackedFile...
+                                "TEXT" => {
+
+                                    // Try to get the view build, or return error.
+                                    match PackedFileTextView::create_text_view(
+                                        sender_qt.clone(),
+                                        &sender_qt_data,
+                                        &receiver_qt,
+                                        &is_modified,
+                                        &app_ui,
+                                        &index
+                                    ) {
+                                        Ok(new_text_slots) => *text_slots.borrow_mut() = new_text_slots,
+                                        Err(error) => return show_dialog(&app_ui, false, format!("<p>Error while opening a Text PackedFile:</p> <p>{}</p>", error.cause())),
+                                    }
+
+                                    // Tell the program there is an open PackedFile.
+                                    *is_packedfile_opened.borrow_mut() = true;
+                                }
+
                                 // For any other PackedFile, just restore the display tips.
                                 _ => display_help_tips(&app_ui),
                             }
@@ -5957,6 +5979,7 @@ fn background_loop(
     // These are a list of empty PackedFiles, used to store data of the open PackedFile.
     let mut packed_file_loc = Loc::new();
     let mut packed_file_db = DB::new("", 0, TableDefinition::new(0));
+    let mut packed_file_text: Vec<u8> = vec![];
 
     // We load the list of Supported Games here.
     // TODO: Move this to a const when const fn reach stable in Rust.
@@ -6712,6 +6735,48 @@ fn background_loop(
                             Ok(success) => sender.send(serde_json::to_vec(&success).map_err(From::from)).unwrap(),
                             Err(error) => sender.send(Err(error)).unwrap(),
                         }
+                    }
+
+                    // When we want to decode the text from a text file...
+                    "decode_packed_file_text" => {
+
+                        // Get the Index of the PackedFile.
+                        let data = receiver_data.recv().unwrap().unwrap();
+                        let index: usize = serde_json::from_slice(&data).unwrap();
+
+                        // Try to decode the PackedFile as a normal UTF-8 string.
+                        let mut decoded_string = decode_string_u8(&pack_file_decoded.data.packed_files[index].data);
+
+                        // If there is an error, try again as ISO_8859_1, as there are some text files using that encoding.
+                        if decoded_string.is_err() {
+                            if let Ok(string) = decode_string_u8_iso_8859_1(&pack_file_decoded.data.packed_files[index].data) {
+                                decoded_string = Ok(string);
+                            }
+                        }
+
+                        // NOTE: This only works for UTF-8 and ISO_8859_1 encoded files. Check their encoding before adding them here to be decoded.
+                        match decoded_string {
+                            Ok(text) => sender.send(serde_json::to_vec(&text).map_err(From::from)).unwrap(),
+                            Err(error) => sender.send(Err(error)).unwrap(),
+                        }
+                    }
+
+                    // When we want to encode a Text PackedFile...
+                    "encode_packed_file_text" => {
+
+                        // Get the Index and the Data of the PackedFile.
+                        let data = receiver_data.recv().unwrap().unwrap();
+                        let data: (Vec<u8>, usize) = serde_json::from_slice(&data).unwrap();
+
+                        // Replace the old encoded data with the new one.
+                        packed_file_text = data.0;
+
+                        // Update the PackFile to reflect the changes.
+                        packfile::update_packed_file_data_text(
+                            &packed_file_text,
+                            &mut pack_file_decoded,
+                            data.1
+                        );
                     }
 
                     // When we want to "Rename a PackedFile"...

@@ -63,6 +63,7 @@ use packedfile::loc::*;
 
 pub mod packedfile_db;
 pub mod packedfile_loc;
+pub mod packedfile_text;
 pub mod settings;
 pub mod updater;
 /*
@@ -73,7 +74,6 @@ pub mod updater;
 use packfile::packfile::PackFile;
 use packfile::packfile::PackedFile;
 
-pub mod packedfile_text;
 pub mod packedfile_image;
 pub mod packedfile_rigidmodel;
 
