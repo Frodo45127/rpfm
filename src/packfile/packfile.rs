@@ -414,17 +414,22 @@ impl PackFileData {
     /// - self: a PackFileData to check for the folder.
     /// - path: the path of the folder we want to check.
     pub fn folder_exists(&self, path: &[String]) -> bool {
-        for packed_file in &self.packed_files {
-            if packed_file.path.starts_with(path) && packed_file.path.len() > path.len() {
-                return true;
+
+        // If the path is empty, this triggers a false positive, so it needs to be checked here.
+        if path.is_empty() { false }
+        else {
+            for packed_file in &self.packed_files {
+                if packed_file.path.starts_with(path) && packed_file.path.len() > path.len() {
+                    return true;
+                }
             }
-        }
 
-        for folder in &self.empty_folders {
-            if folder.starts_with(path) { return true; }
-        }
+            for folder in &self.empty_folders {
+                if folder.starts_with(path) { return true; }
+            }
 
-        false
+            false
+        }
     }
 
     /// This function is used to check if any "empty folder" has been used for a PackedFile, and
@@ -439,9 +444,19 @@ impl PackFileData {
 
             // For each PackedFile...
             for packed_file in &self.packed_files {
-                if packed_file.path.starts_with(folder) && packed_file.path.len() > folder.len() {
+
+                // starts_with fails if the path is empty.
+                if !folder.is_empty() {
+                    if packed_file.path.starts_with(folder) && packed_file.path.len() > folder.len() {
+                        folders_to_remove.push(index);
+                        break;
+                    }
+                }
+
+                // If the path is empty, remove it as it's an error.
+                else {
                     folders_to_remove.push(index);
-                    continue;
+                    break;
                 }
             }
         }
