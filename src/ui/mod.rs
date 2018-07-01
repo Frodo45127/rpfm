@@ -24,6 +24,7 @@ use qt_widgets::action_group::ActionGroup;
 use qt_widgets::label::Label;
 use qt_core::item_selection::ItemSelection;
 use qt_core::flags::Flags;
+use qt_gui::icon;
 use qt_widgets::size_policy::SizePolicy;
 use qt_widgets::size_policy::Policy;
 use qt_core::slots::SlotItemSelectionRefItemSelectionRef;
@@ -76,27 +77,6 @@ pub mod packedfile_text;
 pub mod packedfile_image;
 pub mod packedfile_rigidmodel;
 
-/// This struct is what we return to create the main window at the start of the program.
-pub struct MainWindow {
-
-    // Main window.
-    pub window: ApplicationWindow,
-
-    // This is the box where all the PackedFile Views are created.
-    pub packed_file_data_display: Grid,
-
-    // Status bar at the bottom of the program. To show informative messages.
-    pub status_bar: Statusbar,
-
-    // TreeView used to see the PackedFiles, and his TreeStore and TreeSelection.
-    pub folder_tree_view: TreeView,
-    pub folder_tree_store: TreeStore,
-    pub folder_tree_selection: TreeSelection,
-
-    // Column and cells for the `TreeView`.
-    pub folder_tree_view_cell: CellRendererText,
-    pub folder_tree_view_column: TreeViewColumn,
-}
 
 //----------------------------------------------------------------------------//
 //             UI Creation functions (to build the UI on start)
@@ -822,112 +802,11 @@ pub fn show_tsv_mass_import_window(
     ));
 }
 
-//----------------------------------------------------------------------------//
-//              Utility functions (helpers and stuff like that)
-//----------------------------------------------------------------------------//
-
-
-
-/// This function shows a "Success" or "Error" Dialog with some text. For notification of success and
-/// high importance errors.
-/// It requires:
-/// - parent_window: a reference to the `Window` that'll act as "parent" of the dialog.
-/// - is_success: true for "Success" Dialog, false for "Error" Dialog.
-/// - text: something that implements the trait "Display", so we want to put in the dialog window.
-pub fn show_dialog<T: Display>(parent_window: &ApplicationWindow, is_success: bool, text: T) {
-
-    // Depending on the type of the dialog, set everything specific here.
-    let title = if is_success { "Success!" } else { "Error!" };
-    let message_type = if is_success { MessageType::Info } else { MessageType::Error };
-
-    // Create the dialog...
-    let dialog = MessageDialog::new(
-        Some(parent_window),
-        DialogFlags::from_bits(1).unwrap(),
-        message_type,
-        ButtonsType::Ok,
-        title
-    );
-
-    // Set the title and secondary text.
-    dialog.set_title(title);
-    dialog.set_property_secondary_text(Some(&text.to_string()));
-
-    // Run & Destroy the Dialog.
-    dialog.run();
-    dialog.destroy();
-}
-
-/// This function shows a message in the Statusbar. For notification of common errors and low
-/// importance stuff. It requires:
-/// - status_bar: a reference to the `Statusbar` where to show the message.
-/// - text: something that implements the trait "Display", so we want to put in the Statusbar.
-pub fn show_message_in_statusbar<T: Display>(status_bar: &Statusbar, message: T) {
-    status_bar.push(status_bar.get_context_id("Yekaterina"), &message.to_string());
-}
-
-
-
-/// This function cleans the accelerators and actions created by the PackedFile Views, so they can be
-/// reused in another View.
-pub fn remove_temporal_accelerators(application: &Application) {
-
-    // Remove stuff of Loc View.
-    application.set_accels_for_action("packedfile_loc_add_rows", &[]);
-    application.set_accels_for_action("packedfile_loc_delete_rows", &[]);
-    application.set_accels_for_action("packedfile_loc_copy_cell", &[]);
-    application.set_accels_for_action("packedfile_loc_paste_cell", &[]);
-    application.set_accels_for_action("packedfile_loc_copy_rows", &[]);
-    application.set_accels_for_action("packedfile_loc_paste_rows", &[]);
-    application.set_accels_for_action("packedfile_loc_copy_columns", &[]);
-    application.set_accels_for_action("packedfile_loc_paste_columns", &[]);
-    application.set_accels_for_action("packedfile_loc_import_tsv", &[]);
-    application.set_accels_for_action("packedfile_loc_export_tsv", &[]);
-    application.remove_action("packedfile_loc_add_rows");
-    application.remove_action("packedfile_loc_delete_rows");
-    application.remove_action("packedfile_loc_copy_cell");
-    application.remove_action("packedfile_loc_paste_cell");
-    application.remove_action("packedfile_loc_copy_rows");
-    application.remove_action("packedfile_loc_paste_rows");
-    application.remove_action("packedfile_loc_copy_columns");
-    application.remove_action("packedfile_loc_paste_columns");
-    application.remove_action("packedfile_loc_import_tsv");
-    application.remove_action("packedfile_loc_export_tsv");
-
-    // Remove stuff of DB View.
-    application.set_accels_for_action("packedfile_db_add_rows", &[]);
-    application.set_accels_for_action("packedfile_db_delete_rows", &[]);
-    application.set_accels_for_action("packedfile_db_copy_cell", &[]);
-    application.set_accels_for_action("packedfile_db_paste_cell", &[]);
-    application.set_accels_for_action("packedfile_db_clone_rows", &[]);
-    application.set_accels_for_action("packedfile_db_copy_rows", &[]);
-    application.set_accels_for_action("packedfile_db_paste_rows", &[]);
-    application.set_accels_for_action("packedfile_db_copy_columns", &[]);
-    application.set_accels_for_action("packedfile_db_paste_columns", &[]);
-    application.set_accels_for_action("packedfile_db_import_tsv", &[]);
-    application.set_accels_for_action("packedfile_db_export_tsv", &[]);
-    application.remove_action("packedfile_db_add_rows");
-    application.remove_action("packedfile_db_delete_rows");
-    application.remove_action("packedfile_db_copy_cell");
-    application.remove_action("packedfile_db_paste_cell");
-    application.remove_action("packedfile_db_clone_rows");
-    application.remove_action("packedfile_db_copy_rows");
-    application.remove_action("packedfile_db_paste_rows");
-    application.remove_action("packedfile_db_copy_columns");
-    application.remove_action("packedfile_db_paste_columns");
-    application.remove_action("packedfile_db_import_tsv");
-    application.remove_action("packedfile_db_export_tsv");
-
-    // Remove stuff of DB decoder View.
-    application.set_accels_for_action("move_row_up", &[]);
-    application.set_accels_for_action("move_row_down", &[]);
-    application.set_accels_for_action("delete_row", &[]);
-    application.remove_action("move_row_up");
-    application.remove_action("move_row_down");
-    application.remove_action("delete_row");
-}
 */
 
+//----------------------------------------------------------------------------//
+//             UI Creation functions (to build the UI on start)
+//----------------------------------------------------------------------------//
 
 /// This struct will hold all the MyMod-related stuff we have to recreate from time to time.
 #[derive(Copy, Clone)]
@@ -996,6 +875,7 @@ impl AddFromPackFileStuff {
 
     /// This function creates a new "Add From PackFile" struct and returns it.
     pub fn new_with_grid(
+        rpfm_path: PathBuf,
         sender_qt: Sender<&'static str>,
         sender_qt_data: &Sender<Result<Vec<u8>, Error>>,
         receiver_qt: &Rc<RefCell<Receiver<Result<Vec<u8>, Error>>>>,
@@ -1098,6 +978,7 @@ impl AddFromPackFileStuff {
 
                                     // Update the TreeView.
                                     update_treeview(
+                                        &rpfm_path,
                                         &sender_qt,
                                         &sender_qt_data,
                                         receiver_qt.clone(),
@@ -1522,6 +1403,188 @@ pub fn get_path_from_pathbuf(
     paths
 }
 
+/// Struct `Icons`. This struct is used to hold all the Qt Icons used by the TreeView. This is generated
+/// everytime we call "update_treeview", but ideally we should move it to on start.
+struct Icons {
+    pub packfile_editable: icon::Icon,
+    pub packfile_locked: icon::Icon,
+    pub folder: icon::Icon,
+
+    // For generic files.
+    pub file: icon::Icon,
+
+    // For tables and loc files.
+    pub table: icon::Icon,
+
+    // For images.
+    pub image_generic: icon::Icon,
+    pub image_png: icon::Icon,
+    pub image_jpg: icon::Icon,
+
+    // For text files.
+    pub text_generic: icon::Icon,
+    pub text_csv: icon::Icon,
+    pub text_html: icon::Icon,
+    pub text_txt: icon::Icon,
+    pub text_xml: icon::Icon,
+
+    // For rigidmodels.
+    pub rigid_model: icon::Icon,
+}
+
+/// Implementation of "Icons".
+impl Icons {
+
+    /// This function creates a list of Icons from certain paths in disk.
+    fn new(rpfm_path: &PathBuf) -> Self {
+
+        // Get the Path as a String, so Qt can understand it.
+        let rpfm_path_string = rpfm_path.to_string_lossy().as_ref().to_string();
+
+        // Prepare the path for the icons of the TreeView.
+        let mut icon_packfile_editable_path = rpfm_path_string.to_owned();
+        let mut icon_packfile_locked_path = rpfm_path_string.to_owned();
+        let mut icon_folder_path = rpfm_path_string.to_owned();
+        let mut icon_file_path = rpfm_path_string.to_owned();
+
+        let mut icon_table_path = rpfm_path_string.to_owned();
+
+        let mut icon_image_generic_path = rpfm_path_string.to_owned();
+        let mut icon_image_png_path = rpfm_path_string.to_owned();
+        let mut icon_image_jpg_path = rpfm_path_string.to_owned();
+
+        let mut icon_text_generic_path = rpfm_path_string.to_owned();
+        let mut icon_text_csv_path = rpfm_path_string.to_owned();
+        let mut icon_text_html_path = rpfm_path_string.to_owned();
+        let mut icon_text_txt_path = rpfm_path_string.to_owned();
+        let mut icon_text_xml_path = rpfm_path_string.to_owned();
+
+        let mut icon_rigid_model_path = rpfm_path_string.to_owned();
+
+        // Get the Icons for each type of Item.
+        icon_packfile_editable_path.push_str("/img/packfile_editable.svg");
+        icon_packfile_locked_path.push_str("/img/packfile_locked.svg");
+        icon_folder_path.push_str("/img/folder.svg");
+        icon_file_path.push_str("/img/file.svg");
+
+        icon_table_path.push_str("/img/database.svg");
+
+        icon_image_generic_path.push_str("/img/generic_image.svg");
+        icon_image_png_path.push_str("/img/png.svg");
+        icon_image_jpg_path.push_str("/img/jpg.svg");
+
+        icon_text_generic_path.push_str("/img/generic_text.svg");
+        icon_text_csv_path.push_str("/img/csv.svg");
+        icon_text_html_path.push_str("/img/html.svg");
+        icon_text_txt_path.push_str("/img/txt.svg");
+        icon_text_xml_path.push_str("/img/xml.svg");
+
+        icon_rigid_model_path.push_str("/img/rigid_model.svg");
+
+        // Get the Icons in Qt Icon format.
+        Self {
+            packfile_editable: icon::Icon::new(&QString::from_std_str(icon_packfile_editable_path)),
+            packfile_locked: icon::Icon::new(&QString::from_std_str(icon_packfile_locked_path)),
+            folder: icon::Icon::new(&QString::from_std_str(icon_folder_path)),
+            file: icon::Icon::new(&QString::from_std_str(icon_file_path)),
+
+            table: icon::Icon::new(&QString::from_std_str(icon_table_path)),
+
+            image_generic: icon::Icon::new(&QString::from_std_str(icon_image_generic_path)),
+            image_png: icon::Icon::new(&QString::from_std_str(icon_image_png_path)),
+            image_jpg: icon::Icon::new(&QString::from_std_str(icon_image_jpg_path)),
+
+            text_generic: icon::Icon::new(&QString::from_std_str(icon_text_generic_path)),
+            text_csv: icon::Icon::new(&QString::from_std_str(icon_text_csv_path)),
+            text_html: icon::Icon::new(&QString::from_std_str(icon_text_html_path)),
+            text_txt: icon::Icon::new(&QString::from_std_str(icon_text_txt_path)),
+            text_xml: icon::Icon::new(&QString::from_std_str(icon_text_xml_path)),
+
+            rigid_model: icon::Icon::new(&QString::from_std_str(icon_rigid_model_path)),
+        }
+    }
+}
+
+/// Enum `IconType`: This enum holds all the possible Icon Types we can have in the TreeView,
+/// depending on the type of the PackedFiles.
+enum IconType {
+
+    // For normal PackFiles. True for editable, false for read-only.
+    PackFile(bool),
+
+    // For folders.
+    Folder,
+
+    // For files with no other Icon. Includes the path without the Packfile.
+    File(Vec<String>),
+}
+
+/// This function is used to set the icon of an Item in the TreeView. It requires:
+/// - item: the item to put the icon in.
+/// - icons: the list of pre-generated icons.
+/// - icon_type: the type of icon needed for this file.
+fn set_icon_to_item(
+    item: *mut StandardItem,
+    icons: &Icons,
+    icon_type: IconType,
+) {
+
+    // Depending on the IconType we receive...
+    match icon_type {
+
+        // For PackFiles.
+        IconType::PackFile(editable) => {
+            if editable { unsafe { item.as_mut().unwrap().set_icon(&icons.packfile_editable); } }
+            else { unsafe { item.as_mut().unwrap().set_icon(&icons.packfile_locked); } }
+        },
+
+        // For folders.
+        IconType::Folder => unsafe { item.as_mut().unwrap().set_icon(&icons.folder); },
+
+        // For files.
+        IconType::File(path) => {
+
+            // Get the name of the file.
+            let packed_file_name = path.last().unwrap();
+
+            // If it's in the "db" folder, it's a DB PackedFile (or you put something were it shouldn't be).
+            if path[0] == "db" { unsafe { item.as_mut().unwrap().set_icon(&icons.table); } }
+
+            // If it ends in ".loc", it's a localisation PackedFile.
+            else if packed_file_name.ends_with(".loc") { unsafe { item.as_mut().unwrap().set_icon(&icons.table); } }
+
+            // If it ends in ".rigid_model_v2", it's a RigidModel PackedFile.
+            else if packed_file_name.ends_with(".rigid_model_v2") { unsafe { item.as_mut().unwrap().set_icon(&icons.rigid_model); } }
+
+            // If it ends in any of these, it's a plain text PackedFile.
+            else if packed_file_name.ends_with(".lua") { unsafe { item.as_mut().unwrap().set_icon(&icons.text_generic); } }
+            else if packed_file_name.ends_with(".xml") { unsafe { item.as_mut().unwrap().set_icon(&icons.text_xml); } }
+            else if packed_file_name.ends_with(".xml.shader") { unsafe { item.as_mut().unwrap().set_icon(&icons.text_xml); } }
+            else if packed_file_name.ends_with(".xml.material") { unsafe { item.as_mut().unwrap().set_icon(&icons.text_xml); } }
+            else if packed_file_name.ends_with(".variantmeshdefinition") { unsafe { item.as_mut().unwrap().set_icon(&icons.text_xml); } }
+            else if packed_file_name.ends_with(".environment") { unsafe { item.as_mut().unwrap().set_icon(&icons.text_xml); } }
+            else if packed_file_name.ends_with(".lighting") { unsafe { item.as_mut().unwrap().set_icon(&icons.text_generic); } }
+            else if packed_file_name.ends_with(".wsmodel") { unsafe { item.as_mut().unwrap().set_icon(&icons.text_generic); } }
+            else if packed_file_name.ends_with(".csv") { unsafe { item.as_mut().unwrap().set_icon(&icons.text_csv); } }
+            else if packed_file_name.ends_with(".tsv") { unsafe { item.as_mut().unwrap().set_icon(&icons.text_csv); } }
+            else if packed_file_name.ends_with(".inl") { unsafe { item.as_mut().unwrap().set_icon(&icons.text_generic); } }
+            else if packed_file_name.ends_with(".battle_speech_camera") { unsafe { item.as_mut().unwrap().set_icon(&icons.text_generic); } }
+            else if packed_file_name.ends_with(".bob") { unsafe { item.as_mut().unwrap().set_icon(&icons.text_generic); } }
+            //else if packed_file_name.ends_with(".benchmark") || // This one needs special decoding/encoding.
+            else if packed_file_name.ends_with(".txt") { unsafe { item.as_mut().unwrap().set_icon(&icons.text_txt); } }
+
+            // If it ends in any of these, it's an image.
+            else if packed_file_name.ends_with(".jpg") { unsafe { item.as_mut().unwrap().set_icon(&icons.image_jpg); } }
+            else if packed_file_name.ends_with(".jpeg") { unsafe { item.as_mut().unwrap().set_icon(&icons.image_jpg); } }
+            else if packed_file_name.ends_with(".tga") { unsafe { item.as_mut().unwrap().set_icon(&icons.image_generic); } }
+            else if packed_file_name.ends_with(".dds") { unsafe { item.as_mut().unwrap().set_icon(&icons.image_generic); } }
+            else if packed_file_name.ends_with(".png") { unsafe { item.as_mut().unwrap().set_icon(&icons.image_png); } }
+
+            // Otherwise, it's a generic file.
+            else { unsafe { item.as_mut().unwrap().set_icon(&icons.file); } }
+        }
+    }
+}
 
 /// This function updates the provided `TreeView`, depending on the operation we want to do.
 /// It requires:
@@ -1531,6 +1594,7 @@ pub fn get_path_from_pathbuf(
 /// - operation: the `TreeViewOperation` we want to realise.
 /// - type: the type of whatever is selected.
 pub fn update_treeview(
+    rpfm_path: &PathBuf,
     sender_qt: &Sender<&str>,
     sender_qt_data: &Sender<Result<Vec<u8>, Error>>,
     receiver_qt: Rc<RefCell<Receiver<Result<Vec<u8>, Error>>>>,
@@ -1538,6 +1602,9 @@ pub fn update_treeview(
     model: *mut StandardItemModel,
     operation: TreeViewOperation,
 ) {
+
+    // Get the Icons for the TreeView.
+    let icons = Icons::new(&rpfm_path);
 
     // We act depending on the operation requested.
     match operation {
@@ -1558,12 +1625,16 @@ pub fn update_treeview(
 
             // Second, we set as the big_parent, the base for the folders of the TreeView, a fake folder
             // with the name of the PackFile. All big things start with a lie.
-            let mut big_parent = StandardItem::new(&QString::from_std_str(pack_file_data.0));
+            let mut big_parent = StandardItem::new(&QString::from_std_str(pack_file_data.0)).into_raw();
 
             // Also, set it as not editable by the user. Otherwise will cause problems when renaming.
-            big_parent.set_editable(false);
+            unsafe { big_parent.as_mut().unwrap().set_editable(false); }
 
-            unsafe { model.as_mut().unwrap().append_row_unsafe(big_parent.into_raw()); }
+            // Add the Big Parent to the Model.
+            unsafe { model.as_mut().unwrap().append_row_unsafe(big_parent); }
+
+            // Give it an Icon.
+            set_icon_to_item(big_parent, &icons, IconType::PackFile(true));
 
             // Third, we get all the paths of the PackedFiles inside the Packfile in a Vector.
             let mut sorted_path_list = pack_file_data.1;
@@ -1632,12 +1703,19 @@ pub fn update_treeview(
                     if name == path.last().unwrap() {
 
                         // Add the file to the TreeView.
-                        let mut file = StandardItem::new(&QString::from_std_str(name));
+                        let mut file = StandardItem::new(&QString::from_std_str(name)).into_raw();
 
                         // Also, set it as not editable by the user. Otherwise will cause problems when renaming.
-                        file.set_editable(false);
+                        unsafe { file.as_mut().unwrap().set_editable(false); }
 
-                        unsafe { parent.as_mut().unwrap().append_row_unsafe(file.into_raw()); }
+                        // Add it to the TreeView.
+                        unsafe { parent.as_mut().unwrap().append_row_unsafe(file); }
+
+                        // Get the Path of the File.
+                        let path = get_path_from_item(model, file, false);
+
+                        // Give it an icon.
+                        set_icon_to_item(file, &icons, IconType::File(path));
                     }
 
                     // If it's a folder, we check first if it's already in the TreeStore using the following
@@ -1683,12 +1761,17 @@ pub fn update_treeview(
                                 // Otherwise, add it to the parent, and turn it into the new parent.
                                 else {
 
-                                    // Add the file to the TreeView.
-                                    let mut folder = StandardItem::new(&QString::from_std_str(name));
+                                    // Add the folder to the TreeView.
+                                    let mut folder = StandardItem::new(&QString::from_std_str(name)).into_raw();
 
                                     // Also, set it as not editable by the user. Otherwise will cause problems when renaming.
-                                    folder.set_editable(false);
-                                    parent.as_mut().unwrap().append_row_unsafe(folder.into_raw());
+                                    folder.as_mut().unwrap().set_editable(false);
+
+                                    // Add it to the model.
+                                    parent.as_mut().unwrap().append_row_unsafe(folder);
+
+                                    // Give it an Icon.
+                                    set_icon_to_item(folder, &icons, IconType::Folder);
 
                                     // This is our parent now.
                                     let index = parent.as_ref().unwrap().row_count() - 1;
@@ -1699,12 +1782,17 @@ pub fn update_treeview(
                             // If our current parent doesn't have anything, just add it.
                             else {
 
-                                // Add the file to the TreeView.
-                                let mut folder = StandardItem::new(&QString::from_std_str(name));
+                                // Add the folder to the TreeView.
+                                let mut folder = StandardItem::new(&QString::from_std_str(name)).into_raw();
 
                                 // Also, set it as not editable by the user. Otherwise will cause problems when renaming.
-                                folder.set_editable(false);
-                                parent.as_mut().unwrap().append_row_unsafe(folder.into_raw());
+                                folder.as_mut().unwrap().set_editable(false);
+
+                                // Add it to the model.
+                                parent.as_mut().unwrap().append_row_unsafe(folder);
+
+                                // Give it an Icon.
+                                set_icon_to_item(folder, &icons, IconType::Folder);
 
                                 // This is our parent now.
                                 let index = parent.as_ref().unwrap().row_count() - 1;
@@ -1739,6 +1827,25 @@ pub fn update_treeview(
                         unsafe { item.as_mut().unwrap().set_editable(false); }
                         unsafe { parent.as_mut().unwrap().append_row_unsafe(item); }
 
+                        // Get the Path of the File.
+                        let path = get_path_from_item(model, item, false);
+
+                        // Send the Path to the Background Thread, and get the type of the item.
+                        sender_qt.send("get_type_of_path").unwrap();
+                        sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
+                        let response = receiver_qt.borrow().recv().unwrap().unwrap();
+                        let item_type: TreePathType = serde_json::from_slice(&response).unwrap();
+
+                        // If it's a Folder...
+                        if item_type == TreePathType::Folder(vec![String::new()]) {
+
+                            // Give it a folder icon.
+                            set_icon_to_item(item, &icons, IconType::Folder);
+                        }
+
+                        // Otherwise, give it an icon.
+                        else { set_icon_to_item(item, &icons, IconType::File(path)); }
+
                         // Sort the TreeView.
                         sort_item_in_tree_view(
                             sender_qt,
@@ -1746,7 +1853,7 @@ pub fn update_treeview(
                             receiver_qt.clone(),
                             model,
                             item,
-                            TreePathType::File((vec![String::new()],0))
+                            item_type
                         );
                     }
 
@@ -1790,8 +1897,11 @@ pub fn update_treeview(
                                     let mut folder = StandardItem::new(&QString::from_std_str(field)).into_raw();
 
                                     // Also, set it as not editable by the user. Otherwise will cause problems when renaming.
-                                    unsafe { folder.as_mut().unwrap().set_editable(false); }
+                                    folder.as_mut().unwrap().set_editable(false);
                                     parent.as_mut().unwrap().append_row_unsafe(folder);
+
+                                    // Give it an icon.
+                                    set_icon_to_item(folder, &icons, IconType::Folder);
 
                                     // This is our parent now.
                                     let index = parent.as_ref().unwrap().row_count() - 1;
@@ -1816,8 +1926,11 @@ pub fn update_treeview(
                                 let mut folder = StandardItem::new(&QString::from_std_str(field)).into_raw();
 
                                 // Also, set it as not editable by the user. Otherwise will cause problems when renaming.
-                                unsafe { folder.as_mut().unwrap().set_editable(false); }
+                                folder.as_mut().unwrap().set_editable(false);
                                 parent.as_mut().unwrap().append_row_unsafe(folder);
+
+                                // Give it an icon.
+                                set_icon_to_item(folder, &icons, IconType::Folder);
 
                                 // This is our parent now.
                                 let index = parent.as_ref().unwrap().row_count() - 1;
@@ -1862,6 +1975,7 @@ pub fn update_treeview(
 
             // Update the TreeView with all the new Paths.
             update_treeview(
+                &rpfm_path,
                 &sender_qt,
                 &sender_qt_data,
                 receiver_qt.clone(),
@@ -1975,6 +2089,9 @@ pub fn update_treeview(
             }
         },
     }
+
+    // If we have altered the TreeView in ANY way, we need to recheck the empty folders list.
+    sender_qt.send("update_empty_folders").unwrap();
 }
 
 /// This function sorts items in a TreeView following this order:

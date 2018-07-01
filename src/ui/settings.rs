@@ -1524,6 +1524,69 @@ pub fn create_rename_dialog(
     else { None }
 }
 
+/// This function creates the entire "New Folder" dialog. It returns the new name of the Folder, or
+/// None if the dialog is canceled or closed.
+pub fn create_new_folder_dialog(
+    app_ui: &AppUI,
+) -> Option<String> {
+
+    //-------------------------------------------------------------------------------------------//
+    // Creating the New Folder Dialog...
+    //-------------------------------------------------------------------------------------------//
+
+    // Create the "New Folder" Dialog.
+    let mut dialog;
+    unsafe { dialog = Dialog::new_unsafe(app_ui.window as *mut Widget); }
+
+    // Change his title.
+    dialog.set_window_title(&QString::from_std_str("New Folder"));
+
+    // Set it Modal, so you can't touch the Main Window with this dialog open.
+    dialog.set_modal(true);
+
+    // Resize the Dialog.
+    dialog.resize((300, 0));
+
+    // Create the main Grid.
+    let main_grid = GridLayout::new().into_raw();
+
+    // Create the "New Folder" LineEdit.
+    let mut new_folder_line_edit = LineEdit::new(());
+
+    // Set the current name as default.
+    new_folder_line_edit.set_text(&QString::from_std_str("new_folder"));
+
+    // Create the "New Folder" button.
+    let new_folder_button = PushButton::new(&QString::from_std_str("New Folder")).into_raw();
+
+    // Add all the widgets to the main grid.
+    unsafe { main_grid.as_mut().unwrap().add_widget((new_folder_line_edit.static_cast_mut() as *mut Widget, 0, 0, 1, 1)); }
+    unsafe { main_grid.as_mut().unwrap().add_widget((new_folder_button as *mut Widget, 0, 1, 1, 1)); }
+
+    // And the Main Grid to the Dialog...
+    unsafe { dialog.set_layout(main_grid as *mut Layout); }
+
+    //-------------------------------------------------------------------------------------------//
+    // Actions for the New Folder Dialog...
+    //-------------------------------------------------------------------------------------------//
+
+    // What happens when we hit the "Rename" button.
+    unsafe { new_folder_button.as_mut().unwrap().signals().released().connect(&dialog.slots().accept()); }
+
+    // Show the Dialog and, if we hit the "Rename" button...
+    if dialog.exec() == 1 {
+
+        // Get the text from the LineEdit.
+        let mod_name = QString::to_std_string(&new_folder_line_edit.text());
+
+        // Return the new name.
+        Some(mod_name)
+    }
+
+    // Otherwise, return None.
+    else { None }
+}
+
 /// This function takes care of updating the provided LineEdits with the selected path.
 fn update_entry_path(
     line_edit: &Rc<RefCell<CppBox<LineEdit>>>,

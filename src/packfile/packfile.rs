@@ -71,10 +71,12 @@ pub struct PackFileHeader {
 /// `PackFileData`: This struct stores all the data from the PackFile outside the header:
 /// - pack_files: a list of PackFiles our PackFile is meant to overwrite (I guess).
 /// - packed_files: a list of the PackedFiles contained inside our PackFile.
+/// - empty_folders: a list of every empty folder we have in the PackFile.
 #[derive(Clone, Debug)]
 pub struct PackFileData {
     pub pack_files: Vec<String>,
     pub packed_files: Vec<PackedFile>,
+    pub empty_folders: Vec<Vec<String>>
 }
 
 /// `PackedFile`: This struct stores the data of a PackedFile:
@@ -390,6 +392,7 @@ impl PackFileData {
         Self {
             pack_files: vec![],
             packed_files: vec![],
+            empty_folders: vec![],
         }
     }
 
@@ -416,7 +419,35 @@ impl PackFileData {
                 return true;
             }
         }
+
+        for folder in &self.empty_folders {
+            if folder.starts_with(path) { return true; }
+        }
+
         false
+    }
+
+    /// This function is used to check if any "empty folder" has been used for a PackedFile, and
+    /// remove it from the empty folder list in that case.
+    pub fn update_empty_folders(&mut self) {
+
+        // List of folders to remove from the empty list.
+        let mut folders_to_remove = vec![];
+
+        // For each empty folder...
+        for (index, folder) in self.empty_folders.iter().enumerate() {
+
+            // For each PackedFile...
+            for packed_file in &self.packed_files {
+                if packed_file.path.starts_with(folder) && packed_file.path.len() > folder.len() {
+                    folders_to_remove.push(index);
+                    continue;
+                }
+            }
+        }
+
+        // Remove every folder in the "to remove" list.
+        folders_to_remove.iter().rev().for_each(|x| { self.empty_folders.remove(*x); });
     }
 
     /// This function reads the Data part of a PackFile, and creates a PackedFileData with it.

@@ -3254,6 +3254,7 @@ pub struct AppUI {
     pub context_menu_add_file: *mut Action,
     pub context_menu_add_folder: *mut Action,
     pub context_menu_add_from_packfile: *mut Action,
+    pub context_menu_create_folder: *mut Action,
     pub context_menu_create_loc: *mut Action,
     pub context_menu_create_db: *mut Action,
     pub context_menu_create_text: *mut Action,
@@ -3459,7 +3460,8 @@ fn main() {
                 context_menu_add_folder: menu_add.as_mut().unwrap().add_action(&QString::from_std_str("Add &Folder")),
                 context_menu_add_from_packfile: menu_add.as_mut().unwrap().add_action(&QString::from_std_str("Add from &PackFile")),
 
-                context_menu_create_loc:  menu_create.as_mut().unwrap().add_action(&QString::from_std_str("&Create Loc")),
+                context_menu_create_folder: menu_create.as_mut().unwrap().add_action(&QString::from_std_str("&Create Folder")),
+                context_menu_create_loc: menu_create.as_mut().unwrap().add_action(&QString::from_std_str("&Create Loc")),
                 context_menu_create_db: menu_create.as_mut().unwrap().add_action(&QString::from_std_str("Create &DB")),
                 context_menu_create_text: menu_create.as_mut().unwrap().add_action(&QString::from_std_str("Create &Text")),
 
@@ -3558,6 +3560,7 @@ fn main() {
 
         // Build the entire "MyMod" Menu.
         let result = build_my_mod_menu(
+            rpfm_path.to_path_buf(),
             sender_qt.clone(),
             &sender_qt_data,
             receiver_qt.clone(),
@@ -3581,6 +3584,7 @@ fn main() {
             app_ui.context_menu_add_file.as_mut().unwrap().set_enabled(false);
             app_ui.context_menu_add_folder.as_mut().unwrap().set_enabled(false);
             app_ui.context_menu_add_from_packfile.as_mut().unwrap().set_enabled(false);
+            app_ui.context_menu_create_folder.as_mut().unwrap().set_enabled(false);
             app_ui.context_menu_create_db.as_mut().unwrap().set_enabled(false);
             app_ui.context_menu_create_loc.as_mut().unwrap().set_enabled(false);
             app_ui.context_menu_create_text.as_mut().unwrap().set_enabled(false);
@@ -3594,6 +3598,7 @@ fn main() {
         unsafe { app_ui.context_menu_add_file.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+shift+a"))); }
         unsafe { app_ui.context_menu_add_folder.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+shift+f"))); }
         unsafe { app_ui.context_menu_add_from_packfile.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+shift+p"))); }
+        unsafe { app_ui.context_menu_create_folder.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+l"))); }
         unsafe { app_ui.context_menu_create_db.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+b"))); }
         unsafe { app_ui.context_menu_create_loc.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+n"))); }
         unsafe { app_ui.context_menu_create_text.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+m"))); }
@@ -3606,6 +3611,7 @@ fn main() {
         unsafe { app_ui.context_menu_add_file.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_add_folder.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_add_from_packfile.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+        unsafe { app_ui.context_menu_create_folder.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_create_db.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_create_loc.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_create_text.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
@@ -3618,6 +3624,7 @@ fn main() {
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_add_file); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_add_folder); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_add_from_packfile); }
+        unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_create_folder); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_create_db); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_create_loc); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_create_text); }
@@ -3730,6 +3737,7 @@ fn main() {
 
         // What happens when we trigger the "New PackFile" action.
         let slot_new_packfile = SlotBool::new(clone!(
+            rpfm_path,
             is_modified,
             mymod_stuff,
             mode,
@@ -3780,6 +3788,7 @@ fn main() {
 
                             // Update the TreeView.
                             update_treeview(
+                                &rpfm_path,
                                 &sender_qt,
                                 &sender_qt_data,
                                 receiver_qt.clone(),
@@ -3821,6 +3830,7 @@ fn main() {
 
         // What happens when we trigger the "Open PackFile" action.
         let slot_open_packfile = SlotBool::new(clone!(
+            rpfm_path,
             is_modified,
             mode,
             mymod_stuff,
@@ -3864,6 +3874,7 @@ fn main() {
 
                         // Try to open it, and report it case of error.
                         if let Err(error) = open_packfile(
+                            &rpfm_path,
                             &sender_qt,
                             &sender_qt_data,
                             &receiver_qt,
@@ -3942,6 +3953,7 @@ fn main() {
 
         // What happens when we trigger the "Save PackFile As" action.
         let slot_save_packfile_as = SlotBool::new(clone!(
+            rpfm_path,
             is_modified,
             mode,
             mymod_stuff,
@@ -4049,6 +4061,7 @@ fn main() {
 
                                             // Rename it with the new name.
                                             update_treeview(
+                                                &rpfm_path,
                                                 &sender_qt,
                                                 &sender_qt_data,
                                                 receiver_qt.clone(),
@@ -4276,6 +4289,7 @@ fn main() {
 
         // What happens when we trigger the "Patch Siege AI" action.
         let slot_patch_siege_ai = SlotBool::new(clone!(
+            rpfm_path,
             is_modified,
             receiver_qt,
             sender_qt,
@@ -4317,6 +4331,7 @@ fn main() {
 
                                 // Update the TreeView.
                                 update_treeview(
+                                    &rpfm_path,
                                     &sender_qt,
                                     &sender_qt_data,
                                     receiver_qt.clone(),
@@ -4387,6 +4402,7 @@ fn main() {
                             <li>Icon by: <b>Maruka</b>.</li>
                             <li>RigidModel research by: <b>Mr.Jox</b>, <b>Der Spaten</b>, <b>Maruka</b> and <b>Frodo45127</b>.</li>
                             <li>LUA functions by: <b>Aexrael Dex</b>.</li>
+                            <li>TreeView Icons made by <a href=\"https://www.flaticon.com/authors/smashicons\" title=\"Smashicons\">Smashicons</a> from <a href=\"https://www.flaticon.com/\" title=\"Flaticon\">www.flaticon.com</a>. Licensed under <a href=\"http://creativecommons.org/licenses/by/3.0/\" title=\"Creative Commons BY 3.0\" target=\"_blank\">CC 3.0 BY</a>
                         </ul>
 
                         <h3>Special thanks</h3>
@@ -4448,6 +4464,7 @@ fn main() {
                             app_ui.context_menu_add_file.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_add_folder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_add_from_packfile.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_create_folder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_create_db.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_create_loc.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_create_text.as_mut().unwrap().set_enabled(false);
@@ -4464,6 +4481,7 @@ fn main() {
                             app_ui.context_menu_add_file.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_add_folder.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_add_from_packfile.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_create_folder.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_create_db.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_create_loc.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_create_text.as_mut().unwrap().set_enabled(true);
@@ -4480,6 +4498,7 @@ fn main() {
                             app_ui.context_menu_add_file.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_add_folder.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_add_from_packfile.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_create_folder.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_create_db.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_create_loc.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_create_text.as_mut().unwrap().set_enabled(true);
@@ -4496,6 +4515,7 @@ fn main() {
                             app_ui.context_menu_add_file.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_add_folder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_add_from_packfile.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_create_folder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_create_db.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_create_loc.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_create_text.as_mut().unwrap().set_enabled(false);
@@ -4538,6 +4558,7 @@ fn main() {
 
         // What happens when we trigger the "Add File/s" action in the Contextual Menu.
         let slot_contextual_menu_add_file = SlotBool::new(clone!(
+            rpfm_path,
             sender_qt,
             sender_qt_data,
             receiver_qt,
@@ -4661,6 +4682,7 @@ fn main() {
 
                                                 // Update the TreeView.
                                                 update_treeview(
+                                                    &rpfm_path,
                                                     &sender_qt,
                                                     &sender_qt_data,
                                                     receiver_qt.clone(),
@@ -4740,6 +4762,7 @@ fn main() {
 
                                             // Update the TreeView.
                                             update_treeview(
+                                                &rpfm_path,
                                                 &sender_qt,
                                                 &sender_qt_data,
                                                 receiver_qt.clone(),
@@ -4771,6 +4794,7 @@ fn main() {
 
         // What happens when we trigger the "Add Folder/s" action in the Contextual Menu.
         let slot_contextual_menu_add_folder = SlotBool::new(clone!(
+            rpfm_path,
             sender_qt,
             sender_qt_data,
             receiver_qt,
@@ -4899,6 +4923,7 @@ fn main() {
 
                                                 // Update the TreeView.
                                                 update_treeview(
+                                                    &rpfm_path,
                                                     &sender_qt,
                                                     &sender_qt_data,
                                                     receiver_qt.clone(),
@@ -4982,6 +5007,7 @@ fn main() {
 
                                             // Update the TreeView.
                                             update_treeview(
+                                                &rpfm_path,
                                                 &sender_qt,
                                                 &sender_qt_data,
                                                 receiver_qt.clone(),
@@ -5013,6 +5039,7 @@ fn main() {
 
         // What happens when we trigger the "Add from PackFile" action in the Contextual Menu.
         let slot_contextual_menu_add_from_packfile = SlotBool::new(clone!(
+            rpfm_path,
             sender_qt,
             sender_qt_data,
             receiver_qt,
@@ -5092,6 +5119,7 @@ fn main() {
 
                         // Build the TreeView to hold all the Extra PackFile's data.
                         let ui_stuff = AddFromPackFileStuff::new_with_grid(
+                            rpfm_path.to_path_buf(),
                             sender_qt.clone(),
                             &sender_qt_data,
                             &receiver_qt,
@@ -5105,6 +5133,7 @@ fn main() {
 
                         // Update the TreeView.
                         update_treeview(
+                            &rpfm_path,
                             &sender_qt,
                             &sender_qt_data,
                             receiver_qt.clone(),
@@ -5120,8 +5149,60 @@ fn main() {
             }
         ));
 
+        // What happens when we trigger the "Create Folder" Action.
+        let slot_contextual_menu_create_folder = SlotBool::new(clone!(
+            rpfm_path,
+            is_modified,
+            sender_qt,
+            sender_qt_data,
+            receiver_qt => move |_| {
+
+                // We only do something in case the focus is in the TreeView. This should stop
+                // problems with the accels working everywhere.
+                let has_focus;
+                unsafe { has_focus = app_ui.folder_tree_view.as_mut().unwrap().has_focus() };
+                if has_focus {
+
+                    // Create the "New Folder" dialog and wait for a new name (or a cancelation).
+                    if let Some(new_folder_name) = create_new_folder_dialog(&app_ui) {
+
+                        // Get his Path, including the name of the PackFile.
+                        let mut complete_path = get_path_from_selection(&app_ui, false);
+
+                        // Add the folder's name to the list.
+                        complete_path.push(new_folder_name);
+
+                        // Check if the folder exists.
+                        sender_qt.send("folder_exists").unwrap();
+                        sender_qt_data.send(serde_json::to_vec(&complete_path).map_err(From::from)).unwrap();
+                        let response = receiver_qt.borrow().recv().unwrap().unwrap();
+                        let folder_exists: bool = serde_json::from_slice(&response).unwrap();
+
+                        // If the folder already exists, return an error.
+                        if folder_exists { return show_dialog(&app_ui, false, "Error: this folder already exists in this Path.")}
+
+                        // Add it to the PackFile.
+                        sender_qt.send("create_folder").unwrap();
+                        sender_qt_data.send(serde_json::to_vec(&complete_path).map_err(From::from)).unwrap();
+
+                        // Add the new Folder to the TreeView.
+                        update_treeview(
+                            &rpfm_path,
+                            &sender_qt,
+                            &sender_qt_data,
+                            receiver_qt.clone(),
+                            app_ui.folder_tree_view,
+                            app_ui.folder_tree_model,
+                            TreeViewOperation::Add(vec![complete_path; 1]),
+                        );
+                    }
+                }
+            }
+        ));
+
         // What happens when we trigger the "Delete" action in the Contextual Menu.
         let slot_contextual_menu_delete = SlotBool::new(clone!(
+            rpfm_path,
             sender_qt,
             sender_qt_data,
             receiver_qt,
@@ -5177,6 +5258,7 @@ fn main() {
 
                                         // Update the TreeView.
                                         update_treeview(
+                                            &rpfm_path,
                                             &sender_qt,
                                             &sender_qt_data,
                                             receiver_qt.clone(),
@@ -5522,6 +5604,7 @@ fn main() {
         unsafe { app_ui.context_menu_add_file.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_add_file); }
         unsafe { app_ui.context_menu_add_folder.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_add_folder); }
         unsafe { app_ui.context_menu_add_from_packfile.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_add_from_packfile); }
+        unsafe { app_ui.context_menu_create_folder.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_create_folder); }
         unsafe { app_ui.context_menu_delete.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_delete); }
         unsafe { app_ui.context_menu_extract.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_extract); }
 
@@ -5533,6 +5616,7 @@ fn main() {
 
         // What happens when we trigger the "Rename" Action.
         let slot_contextual_menu_rename = SlotBool::new(clone!(
+            rpfm_path,
             is_modified,
             sender_qt,
             sender_qt_data,
@@ -5581,6 +5665,7 @@ fn main() {
 
                                         // Update the TreeView.
                                         update_treeview(
+                                            &rpfm_path,
                                             &sender_qt,
                                             &sender_qt_data,
                                             receiver_qt.clone(),
@@ -5759,6 +5844,7 @@ fn main() {
 
         // We need to rebuild the MyMod menu while opening it if the variable for it is true.
         let slot_rebuild_mymod_menu = SlotNoArgs::new(clone!(
+            rpfm_path,
             mymod_stuff,
             mymod_stuff_slots,
             sender_qt,
@@ -5772,6 +5858,7 @@ fn main() {
 
                     // Then recreate the "MyMod" submenu.
                     let result = build_my_mod_menu(
+                        rpfm_path.to_path_buf(),
                         sender_qt.clone(),
                         &sender_qt_data,
                         receiver_qt.clone(),
@@ -5815,6 +5902,7 @@ fn main() {
 
                 // Try to open it, and report it case of error.
                 if let Err(error) = open_packfile(
+                    &rpfm_path,
                     &sender_qt,
                     &sender_qt_data,
                     &receiver_qt,
@@ -6357,6 +6445,38 @@ fn background_loop(
                         sender.send(serde_json::to_vec(&selection_type).map_err(From::from)).unwrap();
                     }
 
+                    // When we want to know if a folder exists...
+                    "folder_exists" => {
+
+                        // Get the path to check.
+                        let path = receiver_data.recv().unwrap().unwrap();
+                        let path: Vec<String> = serde_json::from_slice(&path).unwrap();
+
+                        // Check if the path exists as a folder.
+                        let exists = pack_file_decoded.data.folder_exists(&path);
+
+                        // Send the result back.
+                        sender.send(serde_json::to_vec(&exists).map_err(From::from)).unwrap();
+                    }
+
+                    // When we want to create a new folder...
+                    "create_folder" => {
+
+                        // Get the path to check.
+                        let path = receiver_data.recv().unwrap().unwrap();
+                        let path: Vec<String> = serde_json::from_slice(&path).unwrap();
+
+                        // Check if the path exists as a folder.
+                        pack_file_decoded.data.empty_folders.push(path);
+                    }
+
+                    // When we want to update the empty folder list...
+                    "update_empty_folders" => {
+
+                        // Update the empty folder list, if needed.
+                        pack_file_decoded.data.update_empty_folders();
+                    }
+
                     // When we want to get the "data" of a PackFile needed for the TreeView...
                     "get_packfile_data_for_treeview" => {
 
@@ -6720,6 +6840,7 @@ fn set_my_mod_mode(
 /// on the situation.
 /// NOTE: The `game_folder` &str is for when using this function with "MyMods".
 fn open_packfile(
+    rpfm_path: &PathBuf,
     sender_qt: &Sender<&str>,
     sender_qt_data: &Sender<Result<Vec<u8>, Error>>,
     receiver_qt: &Rc<RefCell<Receiver<Result<Vec<u8>, Error>>>>,
@@ -6771,6 +6892,7 @@ fn open_packfile(
 
                     // Update the TreeView.
                     update_treeview(
+                        &rpfm_path,
                         sender_qt,
                         sender_qt_data,
                         receiver_qt.clone(),
@@ -6919,6 +7041,7 @@ fn open_packfile(
 /// - At the end of settings update.
 /// We need to return the struct for further manipulation of his actions.
 fn build_my_mod_menu(
+    rpfm_path: PathBuf,
     sender_qt: Sender<&'static str>,
     sender_qt_data: &Sender<Result<Vec<u8>, Error>>,
     receiver_qt: Rc<RefCell<Receiver<Result<Vec<u8>, Error>>>>,
@@ -6960,6 +7083,7 @@ fn build_my_mod_menu(
     // And we create the slots.
     let mut mymod_slots = MyModSlots {
         new_mymod: SlotBool::new(clone!(
+            rpfm_path,
             sender_qt,
             sender_qt_data,
             receiver_qt,
@@ -7007,6 +7131,7 @@ fn build_my_mod_menu(
 
                                 // Update the TreeView.
                                 update_treeview(
+                                    &rpfm_path,
                                     &sender_qt,
                                     &sender_qt_data,
                                     receiver_qt.clone(),
@@ -7103,6 +7228,7 @@ fn build_my_mod_menu(
 
                                         // Rename the Unknown PackFile to his final name.
                                         update_treeview(
+                                            &rpfm_path,
                                             &sender_qt,
                                             &sender_qt_data,
                                             receiver_qt.clone(),
@@ -7203,7 +7329,6 @@ fn build_my_mod_menu(
 
                     // If we deleted the "MyMod", we allow chaos to form below.
                     if mod_deleted {
-
 
                         // Set the current "Operational Mode" to `Normal`.
                         set_my_mod_mode(&Rc::new(RefCell::new(mymod_stuff.clone())), &mode, None);
@@ -7411,6 +7536,7 @@ fn build_my_mod_menu(
 
                                     // Create the slot for that action.
                                     let slot_open_mod = SlotBool::new(clone!(
+                                        rpfm_path,
                                         game_folder_name,
                                         is_modified,
                                         mode,
@@ -7426,6 +7552,7 @@ fn build_my_mod_menu(
 
                                                 // Open the PackFile (or die trying it!).
                                                 if let Err(error) = open_packfile(
+                                                    &rpfm_path,
                                                     &sender_qt,
                                                     &sender_qt_data,
                                                     &receiver_qt,
