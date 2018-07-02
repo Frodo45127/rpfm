@@ -63,20 +63,9 @@ pub fn create_packed_file(
     // Depending on their type, we do different things to prepare the PackedFile and get his data.
     let data = match packed_file_type {
 
+        // If it's a Loc PackedFile, create it and generate his data.
+        PackedFileType::Loc(_) => Loc::new().save(),
         /*
-        // If it's a Loc PackedFile...
-        PackedFileType::Loc => {
-
-            // Ensure his termination is ".loc", and fix it if it's not.
-            if let Some(name) = path.last_mut() {
-                if !name.ends_with(".loc") {
-                    name.push_str(".loc");
-                }
-            }
-
-            // Create it and generate his data.
-            Loc::new().save()
-        }
 
         // If it's a DB table...
         PackedFileType::DB => {
@@ -128,7 +117,7 @@ pub fn create_packed_file(
         }
         */
         // If it's a Text PackedFile, return an empty encoded string.
-        PackedFileType::Text(name) => encode_string_u8(""),
+        PackedFileType::Text(_) => encode_string_u8(""),
 
         _ => vec![]
     };
