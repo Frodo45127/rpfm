@@ -3551,6 +3551,7 @@ fn main() {
 
         let db_slots = Rc::new(RefCell::new(PackedFileDBTreeView::new()));
         let loc_slots = Rc::new(RefCell::new(PackedFileLocTreeView::new()));
+        let text_slots = Rc::new(RefCell::new(PackedFileTextView::new()));
 
         // Display the basic tips by default.
         display_help_tips(&app_ui);
@@ -5209,6 +5210,91 @@ fn main() {
             }
         ));
 
+        // What happens when we trigger the "Create Text PackedFile" Action.
+        let slot_contextual_menu_create_packed_file_text = SlotBool::new(clone!(
+            rpfm_path,
+            is_modified,
+            sender_qt,
+            sender_qt_data,
+            receiver_qt => move |_| {
+
+                // We only do something in case the focus is in the TreeView. This should stop
+                // problems with the accels working everywhere.
+                let has_focus;
+                unsafe { has_focus = app_ui.folder_tree_view.as_mut().unwrap().has_focus() };
+                if has_focus {
+
+                    // Create the "New PackedFile" dialog and wait for his data (or a cancelation).
+                    if let Some(packed_file_type) = create_new_packed_file_dialog(&app_ui, PackedFileType::Text("".to_owned())) {
+
+                        // Get the name of the PackedFile.
+                        if let PackedFileType::Text(mut name) = packed_file_type.clone() {
+
+                            // If the name is not empty...
+                            if !name.is_empty() {
+
+                                // If the name doesn't end in a text termination, call it .txt.
+                                if !name.ends_with(".lua") &&
+                                    !name.ends_with(".xml") &&
+                                    !name.ends_with(".xml.shader") &&
+                                    !name.ends_with(".xml.material") &&
+                                    !name.ends_with(".variantmeshdefinition") &&
+                                    !name.ends_with(".environment") &&
+                                    !name.ends_with(".lighting") &&
+                                    !name.ends_with(".wsmodel") &&
+                                    !name.ends_with(".csv") &&
+                                    !name.ends_with(".tsv") &&
+                                    !name.ends_with(".inl") &&
+                                    !name.ends_with(".battle_speech_camera") &&
+                                    !name.ends_with(".bob") &&
+                                    !name.ends_with(".txt") {
+                                    name.push_str(".txt");
+                                }
+
+                                // Get his Path, including the name of the PackFile.
+                                let mut complete_path = get_path_from_selection(&app_ui, false);
+
+                                // Add the folder's name to the list.
+                                complete_path.push(name);
+
+                                // Check if the folder exists.
+                                sender_qt.send("packed_file_exists").unwrap();
+                                sender_qt_data.send(serde_json::to_vec(&complete_path).map_err(From::from)).unwrap();
+                                let response = receiver_qt.borrow().recv().unwrap().unwrap();
+                                let exists: bool = serde_json::from_slice(&response).unwrap();
+
+                                // If the folder already exists, return an error.
+                                if exists { return show_dialog(&app_ui, false, "Error: there is already a File with this name in this Path.")}
+
+                                // Add it to the PackFile.
+                                sender_qt.send("create_packed_file").unwrap();
+                                sender_qt_data.send(serde_json::to_vec(&complete_path).map_err(From::from)).unwrap();
+                                sender_qt_data.send(serde_json::to_vec(&packed_file_type).map_err(From::from)).unwrap();
+
+                                // Get the response, just in case it failed.
+                                let response = receiver_qt.borrow().recv().unwrap();
+                                if let Err(error) = response { return show_dialog(&app_ui, false, format_err!("<p>Error while creating the new PackedFile:</p><p>{}</p>", error.cause())) }
+
+                                // Add the new Folder to the TreeView.
+                                update_treeview(
+                                    &rpfm_path,
+                                    &sender_qt,
+                                    &sender_qt_data,
+                                    receiver_qt.clone(),
+                                    app_ui.folder_tree_view,
+                                    app_ui.folder_tree_model,
+                                    TreeViewOperation::Add(vec![complete_path; 1]),
+                                );
+                            }
+
+                            // Otherwise, the name is invalid.
+                            else { return show_dialog(&app_ui, false, "Error: only my heart can be empty.") }
+                        }
+                    }
+                }
+            }
+        ));
+
         // What happens when we trigger the "Delete" action in the Contextual Menu.
         let slot_contextual_menu_delete = SlotBool::new(clone!(
             rpfm_path,
@@ -5614,6 +5700,7 @@ fn main() {
         unsafe { app_ui.context_menu_add_folder.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_add_folder); }
         unsafe { app_ui.context_menu_add_from_packfile.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_add_from_packfile); }
         unsafe { app_ui.context_menu_create_folder.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_create_folder); }
+        unsafe { app_ui.context_menu_create_text.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_create_packed_file_text); }
         unsafe { app_ui.context_menu_delete.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_delete); }
         unsafe { app_ui.context_menu_extract.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_extract); }
 
@@ -5836,14 +5923,17 @@ fn main() {
                                 "TEXT" => {
 
                                     // Try to get the view build, or return error.
-                                    if let Err(error) = PackedFileTextView::create_text_view(
+                                    match PackedFileTextView::create_text_view(
                                         sender_qt.clone(),
                                         &sender_qt_data,
                                         &receiver_qt,
                                         &is_modified,
                                         &app_ui,
                                         &index
-                                    ) { return show_dialog(&app_ui, false, format!("<p>Error while opening a Text PackedFile:</p> <p>{}</p>", error.cause())); }
+                                    ) {
+                                        Ok(new_text_slots) => *text_slots.borrow_mut() = new_text_slots,
+                                        Err(error) => return show_dialog(&app_ui, false, format!("<p>Error while opening a Text PackedFile:</p> <p>{}</p>", error.cause())),
+                                    }
 
                                     // Tell the program there is an open PackedFile.
                                     *is_packedfile_opened.borrow_mut() = true;
@@ -6490,6 +6580,20 @@ fn background_loop(
                         sender.send(serde_json::to_vec(&selection_type).map_err(From::from)).unwrap();
                     }
 
+                    // When we want to know if a PackedFile exists...
+                    "packed_file_exists" => {
+
+                        // Get the path to check.
+                        let path = receiver_data.recv().unwrap().unwrap();
+                        let path: Vec<String> = serde_json::from_slice(&path).unwrap();
+
+                        // Check if the path exists as a folder.
+                        let exists = pack_file_decoded.data.packedfile_exists(&path);
+
+                        // Send the result back.
+                        sender.send(serde_json::to_vec(&exists).map_err(From::from)).unwrap();
+                    }
+
                     // When we want to know if a folder exists...
                     "folder_exists" => {
 
@@ -6502,6 +6606,31 @@ fn background_loop(
 
                         // Send the result back.
                         sender.send(serde_json::to_vec(&exists).map_err(From::from)).unwrap();
+                    }
+
+                    // When we want to create a new PackedFile...
+                    "create_packed_file" => {
+
+                        // Get the path to check.
+                        let path = receiver_data.recv().unwrap().unwrap();
+                        let path: Vec<String> = serde_json::from_slice(&path).unwrap();
+
+                        // Get the data of the new PackedFile.
+                        let data = receiver_data.recv().unwrap().unwrap();
+                        let data: PackedFileType = serde_json::from_slice(&data).unwrap();
+
+                        // Create the PackedFile.
+                        match create_packed_file(
+                            &mut pack_file_decoded,
+                            data,
+                            path,
+                            &schema,
+                            &dependency_database
+                        ) {
+                            // Send the result back.
+                            Ok(_) => sender.send(serde_json::to_vec(&()).map_err(From::from)).unwrap(),
+                            Err(error) => sender.send(Err(error)).unwrap(),
+                        }
                     }
 
                     // When we want to create a new folder...

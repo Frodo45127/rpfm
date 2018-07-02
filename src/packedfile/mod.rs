@@ -19,11 +19,17 @@ pub mod db;
 pub mod rigidmodel;
 
 /// This enum specifies the PackedFile types we can create.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum PackedFileType {
-    Loc,
-    DB,
-    Text,
+
+    // Name of the File.
+    Loc(String),
+
+    // Name of the File, Name of the table, version of the table.
+    DB(String, String, i32),
+
+    // Name of the File.
+    Text(String),
 }
 
 /*
@@ -47,20 +53,17 @@ pub trait SerializableToTSV {
 
 /// This function is used to create a PackedFile outtanowhere. It returns his new path.
 pub fn create_packed_file(
-    name: &str,
-    db_type: &str,
-    schema: &Option<Schema>,
     pack_file: &mut PackFile,
+    packed_file_type: PackedFileType,
+    path: Vec<String>,
+    schema: &Option<Schema>,
     dependency_database: &Option<Vec<PackedFile>>,
-    packed_file_type: &PackedFileType,
-) -> Result<Vec<String>, Error> {
-
-    // Get the path of the new file.
-    let mut path = name.split('/').map(|x| x.to_owned()).collect::<Vec<String>>();
+) -> Result<(), Error> {
 
     // Depending on their type, we do different things to prepare the PackedFile and get his data.
     let data = match packed_file_type {
 
+        /*
         // If it's a Loc PackedFile...
         PackedFileType::Loc => {
 
@@ -123,40 +126,18 @@ pub fn create_packed_file(
                 None => return Err(format_err!("We don't have a table definition for this table/version of the table, so we can neither decode it nor create it."))
             }
         }
+        */
+        // If it's a Text PackedFile, return an empty encoded string.
+        PackedFileType::Text(name) => encode_string_u8(""),
 
-        // If it's a Text PackedFile...
-        PackedFileType::Text => {
-
-            // Ensure his termination is correct, and fix it if it's not.
-            if let Some(name) = path.last_mut() {
-                if !name.ends_with(".lua") &&
-                    !name.ends_with(".xml") &&
-                    !name.ends_with(".xml.shader") &&
-                    !name.ends_with(".xml.material") &&
-                    !name.ends_with(".variantmeshdefinition") &&
-                    !name.ends_with(".environment") &&
-                    !name.ends_with(".lighting") &&
-                    !name.ends_with(".wsmodel") &&
-                    !name.ends_with(".csv") &&
-                    !name.ends_with(".tsv") &&
-                    !name.ends_with(".inl") &&
-                    !name.ends_with(".battle_speech_camera") &&
-                    !name.ends_with(".bob") &&
-                    !name.ends_with(".txt") {
-                    name.push_str(".lua");
-                }
-            }
-
-            // Get his data.
-            encode_string_u8("")
-        }
+        _ => vec![]
     };
 
     // Create and add the new PackedFile to the PackFile.
-    pack_file.add_packedfiles(vec![PackedFile::read(data.len() as u32, path.to_vec(), data); 1]);
+    pack_file.add_packedfiles(vec![PackedFile::read(data.len() as u32, path, data); 1]);
 
     // Return the path to update the UI.
-    Ok(path)
+    Ok(())
 }
 
 /// This function is used to Mass-Import TSV files into a PackFile. Note that this will OVERWRITE any

@@ -22,6 +22,9 @@ use qt_widgets::message_box::Icon;
 use qt_widgets::message_box::StandardButton;
 use qt_widgets::action_group::ActionGroup;
 use qt_widgets::label::Label;
+use qt_widgets::layout::Layout;
+use qt_widgets::line_edit::LineEdit;
+use qt_widgets::dialog::Dialog;
 use qt_core::item_selection::ItemSelection;
 use qt_core::flags::Flags;
 use qt_gui::icon;
@@ -1034,6 +1037,78 @@ impl AddFromPackFileStuff {
         // Return the stuff and slots needed for it to work.
         (stuff, slots)
     }
+}
+
+/// This function creates all the "New PackedFile" dialogs. It returns the type/name of the new file,
+/// or None if the dialog is canceled or closed.
+pub fn create_new_packed_file_dialog(
+    app_ui: &AppUI,
+    packed_file_type: PackedFileType
+) -> Option<PackedFileType> {
+
+    //-------------------------------------------------------------------------------------------//
+    // Creating the New PackedFile Dialog...
+    //-------------------------------------------------------------------------------------------//
+
+    // Create the "New PackedFile" Dialog.
+    let mut dialog;
+    unsafe { dialog = Dialog::new_unsafe(app_ui.window as *mut Widget); }
+
+    // Change his title.
+    match packed_file_type {
+        PackedFileType::Loc(_) => dialog.set_window_title(&QString::from_std_str("New Loc PackedFile")),
+        PackedFileType::DB(_,_,_) => dialog.set_window_title(&QString::from_std_str("New DB Table")),
+        PackedFileType::Text(_) => dialog.set_window_title(&QString::from_std_str("New Text PackedFile")),
+    }
+
+    // Set it Modal, so you can't touch the Main Window with this dialog open.
+    dialog.set_modal(true);
+
+    // Resize the Dialog.
+    dialog.resize((300, 0));
+
+    // Create the main Grid.
+    let main_grid = GridLayout::new().into_raw();
+
+    // Create the "New Name" LineEdit.
+    let mut new_packed_file_name_edit = LineEdit::new(());
+
+    // Set the current name as default.
+    new_packed_file_name_edit.set_text(&QString::from_std_str("new_file"));
+
+    // Create the "Create" button.
+    let create_button = PushButton::new(&QString::from_std_str("Create")).into_raw();
+
+    // Add all the widgets to the main grid.
+    unsafe { main_grid.as_mut().unwrap().add_widget((new_packed_file_name_edit.static_cast_mut() as *mut Widget, 0, 0, 1, 1)); }
+    unsafe { main_grid.as_mut().unwrap().add_widget((create_button as *mut Widget, 0, 1, 1, 1)); }
+
+    // And the Main Grid to the Dialog...
+    unsafe { dialog.set_layout(main_grid as *mut Layout); }
+
+    //-------------------------------------------------------------------------------------------//
+    // Actions for the New PackedFile Dialog...
+    //-------------------------------------------------------------------------------------------//
+
+    // What happens when we hit the "Rename" button.
+    unsafe { create_button.as_mut().unwrap().signals().released().connect(&dialog.slots().accept()); }
+
+    // Show the Dialog and, if we hit the "Rename" button...
+    if dialog.exec() == 1 {
+
+        // Get the text from the LineEdit.
+        let packed_file_name = new_packed_file_name_edit.text().to_std_string();
+
+        // Depending on the PackedFile's Type, return the new name.
+        match packed_file_type {
+            PackedFileType::Loc(_) => Some(PackedFileType::Loc(packed_file_name)),
+            PackedFileType::DB(_,_,_) => Some(PackedFileType::DB(packed_file_name, "".to_owned(), 0)),
+            PackedFileType::Text(_) => Some(PackedFileType::Text(packed_file_name)),
+        }
+    }
+
+    // Otherwise, return None.
+    else { None }
 }
 
 //----------------------------------------------------------------------------//
