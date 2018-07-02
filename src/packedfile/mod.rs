@@ -26,7 +26,7 @@ pub enum PackedFileType {
     Loc(String),
 
     // Name of the File, Name of the table, version of the table.
-    DB(String, String, i32),
+    DB(String, String, u32),
 
     // Name of the File.
     Text(String),
@@ -57,7 +57,6 @@ pub fn create_packed_file(
     packed_file_type: PackedFileType,
     path: Vec<String>,
     schema: &Option<Schema>,
-    dependency_database: &Option<Vec<PackedFile>>,
 ) -> Result<(), Error> {
 
     // Depending on their type, we do different things to prepare the PackedFile and get his data.
@@ -65,61 +64,25 @@ pub fn create_packed_file(
 
         // If it's a Loc PackedFile, create it and generate his data.
         PackedFileType::Loc(_) => Loc::new().save(),
-        /*
 
         // If it's a DB table...
-        PackedFileType::DB => {
-
-            // Replace his path with one inside the table's directory.
-            path = vec!["db".to_owned(), db_type.to_owned(), name.to_owned()];
-
-            // If there is a dependency_database, use it to get the version of the table currently in use by the game. Otherwise, return error.
-            let version = match dependency_database {
-                Some(ref dependency_database) => {
-
-                    // Initialize version to 9999. If it fails, this'll cause the schema to not be found and properly return error.
-                    let mut version = 9999;
-
-                    // For each table in our dependency_database...
-                    for table in dependency_database.iter() {
-
-                        // If it's a table...
-                        if table.path[0] == "db" {
-
-                            // And the one we're searching for...
-                            if table.path[1] == db_type {
-
-                                // Get his version...
-                                version = DBHeader::read(&table.data, &mut 0).unwrap().version
-                            }
-                        }
-                    }
-
-                    // Return the version. If None has been found, return 0.
-                    version
-                }
-
-                // If there is None, return error.
-                None => return Err(format_err!("To be able to create a DB Table we need first a Dependency Database created for that game. Create one and try again."))
-            };
+        PackedFileType::DB(_, table, version) => {
 
             // Try to get his table definition.
             let table_definition = match schema {
-                Some(schema) => DB::get_schema(&db_type, version, &schema),
+                Some(schema) => DB::get_schema(&table, version, &schema),
                 None => return Err(format_err!("There is no schema loaded for this game."))
             };
 
             // If there is a table definition, create the new table. Otherwise, return error.
             match table_definition {
-                Some(table_definition) => DB::new(&db_type, version, table_definition).save(),
+                Some(table_definition) => DB::new(&table, version, table_definition).save(),
                 None => return Err(format_err!("We don't have a table definition for this table/version of the table, so we can neither decode it nor create it."))
             }
         }
-        */
+
         // If it's a Text PackedFile, return an empty encoded string.
         PackedFileType::Text(_) => encode_string_u8(""),
-
-        _ => vec![]
     };
 
     // Create and add the new PackedFile to the PackFile.

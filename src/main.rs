@@ -5210,6 +5210,73 @@ fn main() {
             }
         ));
 
+        // What happens when we trigger the "Create DB PackedFile" Action.
+        let slot_contextual_menu_create_packed_file_db = SlotBool::new(clone!(
+            rpfm_path,
+            is_modified,
+            sender_qt,
+            sender_qt_data,
+            receiver_qt => move |_| {
+
+                // We only do something in case the focus is in the TreeView. This should stop
+                // problems with the accels working everywhere.
+                let has_focus;
+                unsafe { has_focus = app_ui.folder_tree_view.as_mut().unwrap().has_focus() };
+                if has_focus {
+
+                    // Create the "New PackedFile" dialog and wait for his data (or a cancelation).
+                    if let Some(packed_file_type) = create_new_packed_file_dialog(&app_ui, &sender_qt, &receiver_qt, PackedFileType::DB("".to_owned(), "".to_owned(), 0)) {
+
+                        // Get the name of the PackedFile.
+                        if let PackedFileType::DB(name, table,_) = packed_file_type.clone() {
+
+                            // If the name is not empty...
+                            if !name.is_empty() {
+
+                                // Get his Path, without the name of the PackFile.
+                                let mut complete_path = vec!["db".to_owned(), table, name];
+
+                                // Check if the folder exists.
+                                sender_qt.send("packed_file_exists").unwrap();
+                                sender_qt_data.send(serde_json::to_vec(&complete_path).map_err(From::from)).unwrap();
+                                let response = receiver_qt.borrow().recv().unwrap().unwrap();
+                                let exists: bool = serde_json::from_slice(&response).unwrap();
+
+                                // If the folder already exists, return an error.
+                                if exists { return show_dialog(&app_ui, false, "Error: there is already a File with this name in this Path.")}
+
+                                // Add it to the PackFile.
+                                sender_qt.send("create_packed_file").unwrap();
+                                sender_qt_data.send(serde_json::to_vec(&complete_path).map_err(From::from)).unwrap();
+                                sender_qt_data.send(serde_json::to_vec(&packed_file_type).map_err(From::from)).unwrap();
+
+                                // Get the response, just in case it failed.
+                                let response = receiver_qt.borrow().recv().unwrap();
+                                if let Err(error) = response { return show_dialog(&app_ui, false, format_err!("<p>Error while creating the new PackedFile:</p><p>{}</p>", error.cause())) }
+
+                                // Set it as modified.
+                                *is_modified.borrow_mut() = set_modified(true, &app_ui);
+
+                                // Add the new Folder to the TreeView.
+                                update_treeview(
+                                    &rpfm_path,
+                                    &sender_qt,
+                                    &sender_qt_data,
+                                    receiver_qt.clone(),
+                                    app_ui.folder_tree_view,
+                                    app_ui.folder_tree_model,
+                                    TreeViewOperation::Add(vec![complete_path; 1]),
+                                );
+                            }
+
+                            // Otherwise, the name is invalid.
+                            else { return show_dialog(&app_ui, false, "Error: only my heart can be empty.") }
+                        }
+                    }
+                }
+            }
+        ));
+
         // What happens when we trigger the "Create Loc PackedFile" Action.
         let slot_contextual_menu_create_packed_file_loc = SlotBool::new(clone!(
             rpfm_path,
@@ -5225,7 +5292,7 @@ fn main() {
                 if has_focus {
 
                     // Create the "New PackedFile" dialog and wait for his data (or a cancelation).
-                    if let Some(packed_file_type) = create_new_packed_file_dialog(&app_ui, PackedFileType::Loc("".to_owned())) {
+                    if let Some(packed_file_type) = create_new_packed_file_dialog(&app_ui, &sender_qt, &receiver_qt, PackedFileType::Loc("".to_owned())) {
 
                         // Get the name of the PackedFile.
                         if let PackedFileType::Loc(mut name) = packed_file_type.clone() {
@@ -5238,7 +5305,7 @@ fn main() {
                                     name.push_str(".loc");
                                 }
 
-                                // Get his Path, including the name of the PackFile.
+                                // Get his Path, without the name of the PackFile.
                                 let mut complete_path = get_path_from_selection(&app_ui, false);
 
                                 // Add the folder's name to the list.
@@ -5300,7 +5367,7 @@ fn main() {
                 if has_focus {
 
                     // Create the "New PackedFile" dialog and wait for his data (or a cancelation).
-                    if let Some(packed_file_type) = create_new_packed_file_dialog(&app_ui, PackedFileType::Text("".to_owned())) {
+                    if let Some(packed_file_type) = create_new_packed_file_dialog(&app_ui, &sender_qt, &receiver_qt, PackedFileType::Text("".to_owned())) {
 
                         // Get the name of the PackedFile.
                         if let PackedFileType::Text(mut name) = packed_file_type.clone() {
@@ -5326,7 +5393,7 @@ fn main() {
                                     name.push_str(".txt");
                                 }
 
-                                // Get his Path, including the name of the PackFile.
+                                // Get his Path, without the name of the PackFile.
                                 let mut complete_path = get_path_from_selection(&app_ui, false);
 
                                 // Add the folder's name to the list.
@@ -5778,6 +5845,7 @@ fn main() {
         unsafe { app_ui.context_menu_add_folder.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_add_folder); }
         unsafe { app_ui.context_menu_add_from_packfile.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_add_from_packfile); }
         unsafe { app_ui.context_menu_create_folder.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_create_folder); }
+        unsafe { app_ui.context_menu_create_db.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_create_packed_file_db); }
         unsafe { app_ui.context_menu_create_loc.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_create_packed_file_loc); }
         unsafe { app_ui.context_menu_create_text.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_create_packed_file_text); }
         unsafe { app_ui.context_menu_delete.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_delete); }
@@ -6378,6 +6446,13 @@ fn background_loop(
                         pack_file_decoded.header.pack_file_type = new_type;
                     }
 
+                    // When we want to get the currently loaded schema...
+                    "get_schema" => {
+
+                        // Send the current Game Selected back to the UI thread.
+                        sender.send(serde_json::to_vec(&schema).map_err(From::from)).unwrap();
+                    }
+
                     // When we want to know what game is selected...
                     "get_settings" => {
 
@@ -6704,7 +6779,6 @@ fn background_loop(
                             data,
                             path,
                             &schema,
-                            &dependency_database
                         ) {
                             // Send the result back.
                             Ok(_) => sender.send(serde_json::to_vec(&()).map_err(From::from)).unwrap(),

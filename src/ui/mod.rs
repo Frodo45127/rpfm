@@ -27,6 +27,7 @@ use qt_widgets::line_edit::LineEdit;
 use qt_widgets::dialog::Dialog;
 use qt_core::item_selection::ItemSelection;
 use qt_core::flags::Flags;
+use qt_widgets::combo_box::ComboBox;
 use qt_gui::icon;
 use qt_widgets::size_policy::SizePolicy;
 use qt_widgets::size_policy::Policy;
@@ -60,7 +61,7 @@ use AppUI;
 use common::*;
 use packedfile::*;
 use packedfile::db::*;
-use packedfile::db::schemas::Schema;
+use packedfile::db::schemas::*;
 use packedfile::loc::*;
 
 
@@ -1043,6 +1044,8 @@ impl AddFromPackFileStuff {
 /// or None if the dialog is canceled or closed.
 pub fn create_new_packed_file_dialog(
     app_ui: &AppUI,
+    sender: &Sender<&'static str>,
+    receiver: &Rc<RefCell<Receiver<Result<Vec<u8>, Error>>>>,
     packed_file_type: PackedFileType
 ) -> Option<PackedFileType> {
 
@@ -1079,6 +1082,11 @@ pub fn create_new_packed_file_dialog(
     // Create the "Create" button.
     let create_button = PushButton::new(&QString::from_std_str("Create")).into_raw();
 
+    // Create a dropdown to select the table.
+    let mut table_dropdown = ComboBox::new();
+    let mut table_model = StandardItemModel::new(());
+    unsafe { table_dropdown.set_model(table_model.static_cast_mut()); }
+
     // Add all the widgets to the main grid.
     unsafe { main_grid.as_mut().unwrap().add_widget((new_packed_file_name_edit.static_cast_mut() as *mut Widget, 0, 0, 1, 1)); }
     unsafe { main_grid.as_mut().unwrap().add_widget((create_button as *mut Widget, 0, 1, 1, 1)); }
@@ -1086,14 +1094,47 @@ pub fn create_new_packed_file_dialog(
     // And the Main Grid to the Dialog...
     unsafe { dialog.set_layout(main_grid as *mut Layout); }
 
+    // If it's a DB Table...
+    if let PackedFileType::DB(_,_,_) = packed_file_type {
+
+        // Get the current schema.
+        sender.send("get_schema").unwrap();
+        let response = receiver.borrow().recv().unwrap().unwrap();
+        let schema: Option<Schema> = serde_json::from_slice(&response).unwrap();
+
+        // Check if we actually have an schema.
+        match schema {
+
+            // If we have an schema...
+            Some(schema) => {
+
+                // Add every table to the dropdown.
+                schema.tables_definitions.iter().for_each(|x| table_dropdown.add_item(&QString::from_std_str(&x.name)));
+
+                // Add the dropdown to the dialog.
+                unsafe { main_grid.as_mut().unwrap().add_widget((table_dropdown.static_cast_mut() as *mut Widget, 1, 0, 1, 1)); }
+            }
+
+            // If we don't have an schema...
+            None => {
+
+                // Show an error.
+                show_dialog(&app_ui, false, "Error: There is no schema for the Game Selected.");
+
+                // Return None.
+                return None
+            }
+        }
+    }
+
     //-------------------------------------------------------------------------------------------//
     // Actions for the New PackedFile Dialog...
     //-------------------------------------------------------------------------------------------//
 
-    // What happens when we hit the "Rename" button.
+    // What happens when we hit the "Create" button.
     unsafe { create_button.as_mut().unwrap().signals().released().connect(&dialog.slots().accept()); }
 
-    // Show the Dialog and, if we hit the "Rename" button...
+    // Show the Dialog and, if we hit the "Create" button...
     if dialog.exec() == 1 {
 
         // Get the text from the LineEdit.
@@ -1102,7 +1143,40 @@ pub fn create_new_packed_file_dialog(
         // Depending on the PackedFile's Type, return the new name.
         match packed_file_type {
             PackedFileType::Loc(_) => Some(PackedFileType::Loc(packed_file_name)),
-            PackedFileType::DB(_,_,_) => Some(PackedFileType::DB(packed_file_name, "".to_owned(), 0)),
+            PackedFileType::DB(_,_,_) => {
+
+                // Get the current schema.
+                sender.send("get_schema").unwrap();
+                let response = receiver.borrow().recv().unwrap().unwrap();
+                let schema: Option<Schema> = serde_json::from_slice(&response).unwrap();
+
+                // Check if we actually have an schema.
+                match schema {
+
+                    // If we have an schema...
+                    Some(schema) => {
+
+                        // Get the table and his version.
+                        let table = table_dropdown.current_text().to_std_string();
+                        let table_schema = schema.tables_definitions.iter().filter(|x| x.name == table).cloned().collect::<Vec<TableDefinitions>>();
+                        let mut versions = table_schema[0].versions.iter().map(|x| x.version).collect::<Vec<u32>>();
+                        versions.sort();
+                        let version = versions[0];
+
+                        Some(PackedFileType::DB(packed_file_name, table, version))
+                    }
+
+                    // If we don't have an schema...
+                    None => {
+
+                        // Show an error.
+                        show_dialog(&app_ui, false, "Error: There is no schema for the Game Selected.");
+
+                        // Return None.
+                        return None
+                    }
+                }
+            },
             PackedFileType::Text(_) => Some(PackedFileType::Text(packed_file_name)),
         }
     }
