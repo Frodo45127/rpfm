@@ -5275,6 +5275,9 @@ fn main() {
                                 let response = receiver_qt.borrow().recv().unwrap();
                                 if let Err(error) = response { return show_dialog(&app_ui, false, format_err!("<p>Error while creating the new PackedFile:</p><p>{}</p>", error.cause())) }
 
+                                // Set it as modified.
+                                *is_modified.borrow_mut() = set_modified(true, &app_ui);
+
                                 // Add the new Folder to the TreeView.
                                 update_treeview(
                                     &rpfm_path,
