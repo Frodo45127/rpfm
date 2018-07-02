@@ -5874,9 +5874,13 @@ fn main() {
             }
         ));
 
-
         // Action to try to open a PackedFile.
-        unsafe { app_ui.folder_tree_view.as_ref().unwrap().signals().clicked().connect(&slot_open_packedfile); }
+        unsafe { app_ui.folder_tree_view.as_ref().unwrap().signals().activated().connect(&slot_open_packedfile); }
+
+        // In windows "activated" means double click, so we need to add this action too to compensate it.
+        if cfg!(target_os = "windows") {
+            unsafe { app_ui.folder_tree_view.as_ref().unwrap().signals().clicked().connect(&slot_open_packedfile); }
+        }
 
         //-----------------------------------------------------//
         // Show the Main Window and start everything...
