@@ -77,8 +77,9 @@ use std::rc::Rc;
 use std::fs::{
     File, DirBuilder, copy, remove_file, remove_dir_all
 };
-use std::env::args;
-use std::io::BufReader;
+
+use std::env::{args, temp_dir};
+use std::io::{BufReader, Write};
 
 use failure::Error;
 use url::Url;
@@ -3550,7 +3551,6 @@ fn main() {
 
         let db_slots = Rc::new(RefCell::new(PackedFileDBTreeView::new()));
         let loc_slots = Rc::new(RefCell::new(PackedFileLocTreeView::new()));
-        let text_slots = Rc::new(RefCell::new(PackedFileTextView::new()));
 
         // Display the basic tips by default.
         display_help_tips(&app_ui);
@@ -5779,6 +5779,7 @@ fn main() {
                                 else if packedfile_name.ends_with(".jpg") ||
                                         packedfile_name.ends_with(".jpeg") ||
                                         packedfile_name.ends_with(".tga") ||
+                                        packedfile_name.ends_with(".dds") ||
                                         packedfile_name.ends_with(".png") { "IMAGE" }
 
                                 // Otherwise, we don't have a decoder for that PackedFile... yet.
@@ -5835,20 +5836,30 @@ fn main() {
                                 "TEXT" => {
 
                                     // Try to get the view build, or return error.
-                                    match PackedFileTextView::create_text_view(
+                                    if let Err(error) = PackedFileTextView::create_text_view(
                                         sender_qt.clone(),
                                         &sender_qt_data,
                                         &receiver_qt,
                                         &is_modified,
                                         &app_ui,
                                         &index
-                                    ) {
-                                        Ok(new_text_slots) => *text_slots.borrow_mut() = new_text_slots,
-                                        Err(error) => return show_dialog(&app_ui, false, format!("<p>Error while opening a Text PackedFile:</p> <p>{}</p>", error.cause())),
-                                    }
+                                    ) { return show_dialog(&app_ui, false, format!("<p>Error while opening a Text PackedFile:</p> <p>{}</p>", error.cause())); }
 
                                     // Tell the program there is an open PackedFile.
                                     *is_packedfile_opened.borrow_mut() = true;
+                                }
+
+                                // If the file is a Text PackedFile...
+                                "IMAGE" => {
+
+                                    // Try to get the view build, or return error.
+                                    if let Err(error) = ui::packedfile_image::create_image_view(
+                                        sender_qt.clone(),
+                                        &sender_qt_data,
+                                        &receiver_qt,
+                                        &app_ui,
+                                        &index
+                                    ) { return show_dialog(&app_ui, false, error.cause()); }
                                 }
 
                                 // For any other PackedFile, just restore the display tips.
@@ -6766,17 +6777,48 @@ fn background_loop(
 
                         // Get the Index and the Data of the PackedFile.
                         let data = receiver_data.recv().unwrap().unwrap();
-                        let data: (Vec<u8>, usize) = serde_json::from_slice(&data).unwrap();
+                        let data: (String, usize) = serde_json::from_slice(&data).unwrap();
 
-                        // Replace the old encoded data with the new one.
-                        packed_file_text = data.0;
+                        // Encode the text.
+                        let encoded_text = encode_string_u8(&data.0);
 
                         // Update the PackFile to reflect the changes.
                         packfile::update_packed_file_data_text(
-                            &packed_file_text,
+                            &encoded_text,
                             &mut pack_file_decoded,
                             data.1
                         );
+                    }
+
+                    // When we want to decode an Image...
+                    "decode_packed_file_image" => {
+
+                        // Get the Index of the PackedFile.
+                        let data = receiver_data.recv().unwrap().unwrap();
+                        let index: usize = serde_json::from_slice(&data).unwrap();
+
+                        // Get the data of the image we want to open, and his name.
+                        let image_data = &pack_file_decoded.data.packed_files[index].data;
+                        let image_name = &pack_file_decoded.data.packed_files[index].path.last().unwrap().to_owned();
+
+                        // Create a temporal file for the image in the TEMP directory of the filesystem.
+                        let mut temporal_file_path = temp_dir();
+                        temporal_file_path.push(image_name);
+                        match File::create(&temporal_file_path) {
+                            Ok(mut temporal_file) => {
+
+                                // If there is an error while trying to write the image to the TEMP folder, report it.
+                                if temporal_file.write_all(image_data).is_err() {
+                                    sender.send(Err(format_err!("<p>Error while trying to open the following image:\"{}\".</p>", image_name))).unwrap();
+                                }
+
+                                // If it worked, create an Image with the new file and show it inside a ScrolledWindow.
+                                else { sender.send(serde_json::to_vec(&temporal_file_path).map_err(From::from)).unwrap(); }
+                            }
+
+                            // If there is an error when trying to create the file into the TEMP folder, report it.
+                            Err(_) => sender.send(Err(format_err!("<p>Error while trying to open the following image:\"{}\".</p>", image_name))).unwrap(),
+                        }
                     }
 
                     // When we want to "Rename a PackedFile"...

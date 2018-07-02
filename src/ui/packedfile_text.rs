@@ -101,12 +101,12 @@ impl PackedFileTextView {
                             // Tell the background thread to start saving the PackedFile.
                             sender_qt.send("encode_packed_file_text").unwrap();
 
-                            // Get the data from the PlainTextEdit.
-                            let encoded_text;
-                            unsafe { encoded_text = encode_string_u8(&plain_text_edit.as_mut().unwrap().to_plain_text().to_std_string()); }
+                            // Get the text from the PlainTextEdit.
+                            let text;
+                            unsafe { text = plain_text_edit.as_mut().unwrap().to_plain_text().to_std_string(); }
 
-                            // Send the new data.
-                            sender_qt_data.send(serde_json::to_vec(&(encoded_text, packed_file_index)).map_err(From::from)).unwrap();
+                            // Send the new text.
+                            sender_qt_data.send(serde_json::to_vec(&(text, packed_file_index)).map_err(From::from)).unwrap();
 
                             // Set the mod as "Modified".
                             *is_modified.borrow_mut() = set_modified(true, &app_ui);

@@ -1,60 +1,83 @@
 // In this file are all the helper functions used by the UI when showing Image PackedFiles.
-extern crate gtk;
 extern crate failure;
-/*
+extern crate qt_widgets;
+extern crate qt_gui;
+extern crate qt_core;
+
+use qt_widgets::widget::Widget;
+use qt_widgets::label::Label;
+use qt_gui::pixmap::Pixmap;
+use qt_core::qt::AspectRatioMode;
+use qt_core::flags::Flags;
+
 use failure::Error;
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::env;
-use std::fs::File;
-use std::io::Write;
-use gtk::prelude::*;
-use gtk::{Image, ScrolledWindow};
-use AppUI;
-use packfile::packfile::PackFile;
 
-/// This function is used to create a ScrolledWindow with the selected Image inside. If there is an
-/// error, just say it in the statusbar.
+use AppUI;
+use ui::*;
+
+/// This function creates a new TreeView with the PackedFile's View as father and returns a
+/// `PackedFileLocTreeView` with all his data.
 pub fn create_image_view(
+    sender_qt: Sender<&'static str>,
+    sender_qt_data: &Sender<Result<Vec<u8>, Error>>,
+    receiver_qt: &Rc<RefCell<Receiver<Result<Vec<u8>, Error>>>>,
     app_ui: &AppUI,
-    pack_file: &Rc<RefCell<PackFile>>,
-    packed_file_decoded_index: &usize,
+    packed_file_index: &usize,
 ) -> Result<(), Error> {
 
-    // Get the data of the image we want to open, and his name.
-    let image_data = &pack_file.borrow().data.packed_files[*packed_file_decoded_index].data;
-    let image_name = &pack_file.borrow().data.packed_files[*packed_file_decoded_index].path.last().unwrap().to_owned();
+    // Get the path of the extracted Image.
+    sender_qt.send("decode_packed_file_image").unwrap();
+    sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
+    let response = receiver_qt.borrow().recv().unwrap();
 
-    // Create a temporal file for the image in the TEMP directory of the filesystem.
-    let mut temporal_file_path = env::temp_dir();
-    temporal_file_path.push(image_name);
-    match File::create(&temporal_file_path) {
-        Ok(mut temporal_file) => {
+    // Check if we could get the path or not.
+    match response {
 
-            // If there is an error while trying to write the image to the TEMP folder, report it.
-            if temporal_file.write_all(image_data).is_err() {
-                return Err(format_err!("Error while trying to open the following image: \"{}\".", image_name));
+        // In case of success...
+        Ok(response) => {
+
+            // Get the image's path.
+            let path: PathBuf = serde_json::from_slice(&response).unwrap();
+            let path_string = path.to_string_lossy().as_ref().to_string();
+
+            // Create the QPixmap.
+            let image = Pixmap::new(&QString::from_std_str(&path_string));
+
+            // Get the size of the holding widget.
+            let widget_height;
+            let widget_width;
+            unsafe { widget_height = app_ui.packed_file_layout.as_mut().unwrap().parent_widget().as_mut().unwrap().height(); }
+            unsafe { widget_width = app_ui.packed_file_layout.as_mut().unwrap().parent_widget().as_mut().unwrap().width(); }
+
+            // If the image is bigger than the current widget...
+            let scaled_image = if image.height() >= widget_height || image.width() >= widget_width {
+
+                // Resize it so it doesn't occupy the entire screen if it's too big.
+                image.scaled((widget_height - 25, widget_width - 25, AspectRatioMode::KeepAspectRatio))
             }
 
-            // If it worked, create an Image with the new file and show it inside a ScrolledWindow.
-            else {
-                let image = Image::new_from_file(&temporal_file_path);
-                let image_scroll = ScrolledWindow::new(None, None);
+            // Otherwise, we use the normal image.
+            else { image };
 
-                image_scroll.add(&image);
-                image_scroll.set_hexpand(true);
-                image_scroll.set_vexpand(true);
+            // Create a Label.
+            let label = Label::new(()).into_raw();
 
-                app_ui.packed_file_data_display.attach(&image_scroll, 0, 0, 1, 1);
-                app_ui.packed_file_data_display.show_all();
+            // Center the Label.
+            unsafe { label.as_mut().unwrap().set_alignment(Flags::from_int(132))}
 
-                // Return success.
-                Ok(())
-            }
+            // Put the image into the Label.
+            unsafe { label.as_mut().unwrap().set_pixmap(&scaled_image); }
+
+            // Attach the label to the PackedFile View.
+            unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((label as *mut Widget, 0, 0, 1, 1)); }
+
+            // Return success.
+            Ok(())
         }
 
-        // If there is an error when trying to create the file into the TEMP folder, report it.
-        Err(_) => return Err(format_err!("Error while trying to open the following image: \"{}\".", image_name)),
+        // In case of error, return it.
+        Err(error) => Err(error),
     }
 }
-*/
