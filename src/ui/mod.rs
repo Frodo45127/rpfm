@@ -1903,13 +1903,19 @@ pub fn update_treeview(
                         unsafe { parent.as_mut().unwrap().append_row_unsafe(item); }
 
                         // Get the Path of the File.
-                        let path = get_path_from_item(model, item, false);
+                        let path = get_path_from_item(model, item, true);
 
                         // Send the Path to the Background Thread, and get the type of the item.
                         sender_qt.send("get_type_of_path").unwrap();
                         sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
                         let response = receiver_qt.borrow().recv().unwrap().unwrap();
                         let item_type: TreePathType = serde_json::from_slice(&response).unwrap();
+
+                        // Get the incomplete Path.
+                        let mut incomplete_path = path.to_vec();
+                        incomplete_path.reverse();
+                        incomplete_path.pop();
+                        incomplete_path.reverse();
 
                         // If it's a Folder...
                         if item_type == TreePathType::Folder(vec![String::new()]) {
@@ -1919,7 +1925,7 @@ pub fn update_treeview(
                         }
 
                         // Otherwise, give it an icon.
-                        else { set_icon_to_item(item, &icons, IconType::File(path)); }
+                        else { set_icon_to_item(item, &icons, IconType::File(incomplete_path)); }
 
                         // Sort the TreeView.
                         sort_item_in_tree_view(
