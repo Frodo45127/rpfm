@@ -24,7 +24,7 @@ use qt_core::event_loop::EventLoop;
 use qt_core::connection::Signal;
 use qt_core::variant::Variant;
 use qt_core::slots::SlotBool;
-use qt_core::qt::{Orientation, CheckState, ContextMenuPolicy, ShortcutContext};
+use qt_core::qt::{Orientation, CheckState, ContextMenuPolicy, ShortcutContext, SortOrder};
 
 use failure::Error;
 use std::cell::RefCell;
@@ -118,6 +118,10 @@ impl PackedFileDBTreeView {
                         // Prepare the TableView to have a Contextual Menu.
                         unsafe { table_view.as_mut().unwrap().set_context_menu_policy(ContextMenuPolicy::Custom); }
 
+                        // Enable sorting the columns.
+                        unsafe { table_view.as_mut().unwrap().set_sorting_enabled(true); }
+                        unsafe { table_view.as_mut().unwrap().sort_by_column((-1, SortOrder::Ascending)); }
+
                         // Load the data to the Table. For some reason, if we do this after setting the titles of
                         // the columns, the titles will be reseted to 1, 2, 3,... so we do this here.
                         Self::load_data_to_table_view(&packed_file_data, model);
@@ -132,9 +136,6 @@ impl PackedFileDBTreeView {
                         // Set both headers visible.
                         unsafe { table_view.as_mut().unwrap().vertical_header().as_mut().unwrap().set_visible(true); }
                         unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_visible(true); }
-
-                        // Enable sorting the columns.
-                        unsafe { table_view.as_mut().unwrap().set_sorting_enabled(true); }
 
                         // Create the Contextual Menu for the TableView.
                         let mut context_menu = Menu::new(());
