@@ -3509,6 +3509,9 @@ fn main() {
         unsafe { menu_bar_packfile.as_mut().unwrap().insert_menu(app_ui.preferences, menu_change_packfile_type); }
         unsafe { menu_bar_packfile.as_mut().unwrap().insert_separator(app_ui.preferences); }
 
+        // Put a separator in the "Create" contextual menu.
+        unsafe { menu_create.as_mut().unwrap().insert_separator(app_ui.context_menu_mass_import_tsv); }
+
         // Prepare the TreeView to have a Contextual Menu.
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().set_context_menu_policy(ContextMenuPolicy::Custom); }
 
