@@ -19,13 +19,12 @@ use qt_gui::gui_application::GuiApplication;
 use qt_gui::list::ListStandardItemMutPtr;
 use qt_gui::key_sequence::KeySequence;
 
-use qt_core::slots::SlotModelIndexRefModelIndexRefVectorVectorCIntRef;
 use qt_core::sort_filter_proxy_model::SortFilterProxyModel;
 use qt_core::abstract_item_model::AbstractItemModel;
 use qt_core::event_loop::EventLoop;
 use qt_core::connection::Signal;
 use qt_core::variant::Variant;
-use qt_core::slots::{SlotBool, SlotCInt, SlotStringRef, SlotItemSelectionRefItemSelectionRef};
+use qt_core::slots::{SlotBool, SlotCInt, SlotStringRef, SlotItemSelectionRefItemSelectionRef, SlotModelIndexRefModelIndexRefVectorVectorCIntRef};
 use qt_core::reg_exp::RegExp;
 use qt_core::qt::{Orientation, CheckState, ContextMenuPolicy, ShortcutContext, SortOrder, CaseSensitivity};
 
