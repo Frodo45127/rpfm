@@ -5440,6 +5440,99 @@ fn main() {
             }
         ));
 
+        // What happens when we trigger the "Mass-Import TSV" Action.
+        let slot_contextual_menu_mass_import_tsv = SlotBool::new(clone!(
+            rpfm_path,
+            is_modified,
+            sender_qt,
+            sender_qt_data,
+            receiver_qt => move |_| {
+
+                // We only do something in case the focus is in the TreeView. This should stop
+                // problems with the accels working everywhere.
+                let has_focus;
+                unsafe { has_focus = app_ui.folder_tree_view.as_mut().unwrap().has_focus() };
+                if has_focus {
+
+                    // Create the "Mass-Import TSV" dialog and wait for his data (or a cancelation).
+                    if let Some(data) = create_mass_import_tsv_dialog(&app_ui) {
+
+                        // If there is no name...
+                        if data.0.is_empty() { return show_dialog(&app_ui, false, "Error: You need a name in order to import the files.") }
+
+                        // If there is no file selected...
+                        else if data.1.is_empty() { return show_dialog(&app_ui, false, "Error: You didn't selected any file to import.") }
+
+                        // Otherwise...
+                        else {
+
+                            // Try to import them.
+                            sender_qt.send("mass_import_tsv").unwrap();
+                            sender_qt_data.send(serde_json::to_vec(&data).map_err(From::from)).unwrap();
+
+                            // Disable the Main Window (so we can't do other stuff).
+                            unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+
+                            // Prepare the event loop, so we don't hang the UI while the background thread is working.
+                            let mut event_loop = EventLoop::new();
+
+                            // Until we receive a response from the worker thread...
+                            loop {
+
+                                // When we finally receive the data...
+                                if let Ok(data) = receiver_qt.borrow().try_recv() {
+
+                                    // Check what the result of the importing process was.
+                                    match data {
+
+                                        // In case of success...
+                                        Ok(response) => {
+
+                                            // Get the list of paths to replace, and to add to the view.
+                                            let mut paths: (Vec<Vec<String>>, Vec<Vec<String>>) = serde_json::from_slice(&response).unwrap();
+
+                                            // Set it as modified.
+                                            *is_modified.borrow_mut() = set_modified(true, &app_ui);
+
+                                            // Get the list of paths to add, removing those we "replaced".
+                                            let mut paths_to_add = paths.1.to_vec();
+                                            paths_to_add.retain(|x| !paths.0.contains(&x));
+
+                                            // Update the TreeView.
+                                            update_treeview(
+                                                &rpfm_path,
+                                                &sender_qt,
+                                                &sender_qt_data,
+                                                receiver_qt.clone(),
+                                                app_ui.folder_tree_view,
+                                                app_ui.folder_tree_model,
+                                                TreeViewOperation::Add(paths_to_add),
+                                            );
+                                        }
+
+                                        // In case of error, show the dialog with the error.
+                                        Err(error) => show_dialog(&app_ui, false, format!("<p>Error while importing TSV Files:</p><p>{}</p>", error.cause())),
+                                    }
+
+                                    // Stop the loop.
+                                    break;
+                                }
+
+                                // Keep the UI responsive.
+                                event_loop.process_events(());
+
+                                // Wait a bit to not saturate a CPU core.
+                                thread::sleep(Duration::from_millis(50));
+                            }
+
+                            // Re-enable the Main Window.
+                            unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
+                        }
+                    }
+                }
+            }
+        ));
+
         // What happens when we trigger the "Delete" action in the Contextual Menu.
         let slot_contextual_menu_delete = SlotBool::new(clone!(
             rpfm_path,
@@ -5848,6 +5941,7 @@ fn main() {
         unsafe { app_ui.context_menu_create_db.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_create_packed_file_db); }
         unsafe { app_ui.context_menu_create_loc.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_create_packed_file_loc); }
         unsafe { app_ui.context_menu_create_text.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_create_packed_file_text); }
+        unsafe { app_ui.context_menu_mass_import_tsv.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_mass_import_tsv); }
         unsafe { app_ui.context_menu_delete.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_delete); }
         unsafe { app_ui.context_menu_extract.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_extract); }
 
@@ -6878,6 +6972,20 @@ fn background_loop(
                             }
 
                             // In case of error, report it.
+                            Err(error) => sender.send(Err(error)).unwrap(),
+                        }
+                    }
+
+                    // When we want to mass-import Tsv Files...
+                    "mass_import_tsv" => {
+
+                        // Get the data needed for importing the files.
+                        let data = receiver_data.recv().unwrap().unwrap();
+                        let data: (String, Vec<PathBuf>) = serde_json::from_slice(&data).unwrap();
+
+                        // Try to import the files.
+                        match packedfile::tsv_mass_import(&data.1, &data.0, &schema, &mut pack_file_decoded) {
+                            Ok(result) => sender.send(serde_json::to_vec(&result).map_err(From::from)).unwrap(),
                             Err(error) => sender.send(Err(error)).unwrap(),
                         }
                     }

@@ -138,7 +138,7 @@ pub fn tsv_mass_import(
                             // Create his new path.
                             let mut path = vec!["text".to_owned(), "db".to_owned(), format!("{}.loc", name)];
 
-                            // If that path already exists in th list of PackedFiles to add, change it using the index.
+                            // If that path already exists in the list of PackedFiles to add, change it using the index.
                             for packed_file in &packed_files {
                                 if packed_file.path == path {
                                     path[2] = format!("{}_{}.loc", name, index);
@@ -186,7 +186,7 @@ pub fn tsv_mass_import(
                             // Change his path.
                             let mut path = vec!["db".to_owned(), table_type.to_owned(), name.to_owned()];
 
-                            // If that path already exists in th list of PackedFiles to add, change it using the index.
+                            // If that path already exists in the list of PackedFiles to add, change it using the index.
                             for packed_file in &packed_files {
                                 if packed_file.path == path {
                                     path[2] = format!("{}_{}", name, index);
@@ -216,7 +216,7 @@ pub fn tsv_mass_import(
 
     // If any of the files returned error, return error.
     if !error_files.is_empty() {
-        return Err(format_err!("The following files returned error when trying to import them:\n\n{:#?}", error_files))
+        return Err(format_err!("<p>The following files returned error when trying to import them:</p><p>{:#?}</p><p>No files have been imported.</p>", error_files))
     }
 
     // Get the "TreePath" of the new PackFiles to return them.
