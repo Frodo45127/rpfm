@@ -17,14 +17,14 @@ use qt_gui::gui_application::GuiApplication;
 use qt_gui::list::ListStandardItemMutPtr;
 use qt_gui::key_sequence::KeySequence;
 
-use qt_core::slots::SlotModelIndexRefModelIndexRefVectorVectorCIntRef;
-use qt_core::slots::SlotItemSelectionRefItemSelectionRef;
+use qt_core::sort_filter_proxy_model::SortFilterProxyModel;
 use qt_core::abstract_item_model::AbstractItemModel;
 use qt_core::event_loop::EventLoop;
 use qt_core::connection::Signal;
 use qt_core::variant::Variant;
-use qt_core::slots::SlotBool;
-use qt_core::qt::{Orientation, CheckState, ContextMenuPolicy, ShortcutContext, SortOrder};
+use qt_core::slots::{SlotBool, SlotCInt, SlotStringRef, SlotItemSelectionRefItemSelectionRef, SlotModelIndexRefModelIndexRefVectorVectorCIntRef};
+use qt_core::reg_exp::RegExp;
+use qt_core::qt::{Orientation, CheckState, ContextMenuPolicy, ShortcutContext, SortOrder, CaseSensitivity};
 
 use failure::Error;
 use std::cell::RefCell;
@@ -43,6 +43,9 @@ pub struct PackedFileDBTreeView {
     pub slot_context_menu: SlotQtCorePointRef<'static>,
     pub slot_context_menu_enabler: SlotItemSelectionRefItemSelectionRef<'static>,
     pub save_changes: SlotModelIndexRefModelIndexRefVectorVectorCIntRef<'static>,
+    pub slot_row_filter_change_text: SlotStringRef<'static>,
+    pub slot_row_filter_change_column: SlotCInt<'static>,
+    pub slot_row_filter_change_case_sensitive: SlotBool<'static>,
     pub slot_context_menu_add: SlotBool<'static>,
     pub slot_context_menu_insert: SlotBool<'static>,
     pub slot_context_menu_delete: SlotBool<'static>,
@@ -64,6 +67,9 @@ impl PackedFileDBTreeView {
             slot_context_menu: SlotQtCorePointRef::new(|_| {}),
             slot_context_menu_enabler: SlotItemSelectionRefItemSelectionRef::new(|_,_| {}),
             save_changes: SlotModelIndexRefModelIndexRefVectorVectorCIntRef::new(|_,_,_| {}),
+            slot_row_filter_change_text: SlotStringRef::new(|_| {}),
+            slot_row_filter_change_column: SlotCInt::new(|_| {}),
+            slot_row_filter_change_case_sensitive: SlotBool::new(|_| {}),
             slot_context_menu_add: SlotBool::new(|_| {}),
             slot_context_menu_insert: SlotBool::new(|_| {}),
             slot_context_menu_delete: SlotBool::new(|_| {}),
@@ -113,7 +119,25 @@ impl PackedFileDBTreeView {
 
                         // Create the TableView.
                         let mut table_view = TableView::new().into_raw();
+                        let mut filter_model = SortFilterProxyModel::new().into_raw();
                         let mut model = StandardItemModel::new(()).into_raw();
+
+                        // Create the filter's LineEdit.
+                        let mut row_filter_line_edit = LineEdit::new(()).into_raw();
+                        unsafe { row_filter_line_edit.as_mut().unwrap().set_placeholder_text(&QString::from_std_str("Type here to filter the rows in the table. Works with Regex too!")); }
+
+                        // Create the filter's column selector.
+                        let mut row_filter_column_selector = ComboBox::new().into_raw();
+                        let mut row_filter_column_list = StandardItemModel::new(()).into_raw();
+                        unsafe { row_filter_column_selector.as_mut().unwrap().set_model(row_filter_column_list as *mut AbstractItemModel); }
+                        for column in &packed_file_data.table_definition.fields {
+                            let mut name = clean_column_names(&column.field_name);
+                            unsafe { row_filter_column_selector.as_mut().unwrap().add_item(&QString::from_std_str(&name)); }
+                        }
+
+                        // Create the filter's "Case Sensitive" button.
+                        let mut row_filter_case_sensitive_button = PushButton::new(&QString::from_std_str("Case Sensitive")).into_raw();
+                        unsafe { row_filter_case_sensitive_button.as_mut().unwrap().set_checkable(true); }
 
                         // Prepare the TableView to have a Contextual Menu.
                         unsafe { table_view.as_mut().unwrap().set_context_menu_policy(ContextMenuPolicy::Custom); }
@@ -127,8 +151,12 @@ impl PackedFileDBTreeView {
                         Self::load_data_to_table_view(&packed_file_data, model);
 
                         // Add Table to the Grid.
-                        unsafe { table_view.as_mut().unwrap().set_model(model as *mut AbstractItemModel); }
-                        unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((table_view as *mut Widget, 0, 0, 1, 1)); }
+                        unsafe { filter_model.as_mut().unwrap().set_source_model(model as *mut AbstractItemModel); }
+                        unsafe { table_view.as_mut().unwrap().set_model(filter_model as *mut AbstractItemModel); }
+                        unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((table_view as *mut Widget, 0, 0, 1, 3)); }
+                        unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((row_filter_line_edit as *mut Widget, 1, 0, 1, 1)); }
+                        unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((row_filter_case_sensitive_button as *mut Widget, 1, 1, 1, 1)); }
+                        unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((row_filter_column_selector as *mut Widget, 1, 2, 1, 1)); }
 
                         // Build the Column's "Data".
                         build_columns(&packed_file_data.table_definition, table_view, model);
@@ -233,6 +261,57 @@ impl PackedFileDBTreeView {
                                     *is_modified.borrow_mut() = set_modified(true, &app_ui);
                                 }
                             )),
+
+                            slot_row_filter_change_text: SlotStringRef::new(move |filter_text| {
+
+                                // Get the column selected.
+                                unsafe { filter_model.as_mut().unwrap().set_filter_key_column(row_filter_column_selector.as_mut().unwrap().current_index()); }
+
+                                // Check if the filter should be "Case Sensitive".
+                                let case_sensitive;
+                                unsafe { case_sensitive = row_filter_case_sensitive_button.as_mut().unwrap().is_checked(); }
+
+                                // Get the Regex and set his "Case Sensitivity".
+                                let mut reg_exp = RegExp::new(filter_text);
+                                if case_sensitive { reg_exp.set_case_sensitivity(CaseSensitivity::Sensitive); }
+                                else { reg_exp.set_case_sensitivity(CaseSensitivity::Insensitive); }
+
+                                // Filter whatever it's in that column by the text we got.
+                                unsafe { filter_model.as_mut().unwrap().set_filter_reg_exp(&reg_exp); }
+                            }),
+                            slot_row_filter_change_column: SlotCInt::new(move |index| {
+
+                                // Get the column selected.
+                                unsafe { filter_model.as_mut().unwrap().set_filter_key_column(index); }
+
+                                // Check if the filter should be "Case Sensitive".
+                                let case_sensitive;
+                                unsafe { case_sensitive = row_filter_case_sensitive_button.as_mut().unwrap().is_checked(); }
+
+                                // Get the Regex and set his "Case Sensitivity".
+                                let mut reg_exp;
+                                unsafe { reg_exp = RegExp::new(&row_filter_line_edit.as_mut().unwrap().text()); }
+                                if case_sensitive { reg_exp.set_case_sensitivity(CaseSensitivity::Sensitive); }
+                                else { reg_exp.set_case_sensitivity(CaseSensitivity::Insensitive); }
+
+                                // Filter whatever it's in that column by the text we got.
+                                unsafe { filter_model.as_mut().unwrap().set_filter_reg_exp(&reg_exp); }
+                            }),
+                            slot_row_filter_change_case_sensitive: SlotBool::new(move |case_sensitive| {
+
+                                // Get the column selected.
+                                unsafe { filter_model.as_mut().unwrap().set_filter_key_column(row_filter_column_selector.as_mut().unwrap().current_index()); }
+
+                                // Get the Regex and set his "Case Sensitivity".
+                                let mut reg_exp;
+                                unsafe { reg_exp = RegExp::new(&row_filter_line_edit.as_mut().unwrap().text()); }
+                                if case_sensitive { reg_exp.set_case_sensitivity(CaseSensitivity::Sensitive); }
+                                else { reg_exp.set_case_sensitivity(CaseSensitivity::Insensitive); }
+
+                                // Filter whatever it's in that column by the text we got.
+                                unsafe { filter_model.as_mut().unwrap().set_filter_reg_exp(&reg_exp); }
+                            }),
+
                             slot_context_menu_add: SlotBool::new(clone!(
                                 packed_file_data => move |_| {
 
@@ -329,11 +408,23 @@ impl PackedFileDBTreeView {
                                         // If there is any row selected...
                                         if selection.indexes().count(()) > 0 {
 
-                                            // Get the current row.
-                                            let row = selection.indexes().at(0).row();
+                                            // Get the current filtered ModelIndex.
+                                            let model_index_list = selection.indexes();
+                                            let model_index = model_index_list.at(0);
 
-                                            // Insert the new row where the current one is.
-                                            unsafe { model.as_mut().unwrap().insert_row((row, &qlist)); }
+                                            // Check if the ModelIndex is valid. Otherwise this can crash.
+                                            if model_index.is_valid() {
+
+                                                // Get the source ModelIndex for our filtered ModelIndex.
+                                                let model_index_source;
+                                                unsafe {model_index_source = filter_model.as_mut().unwrap().map_to_source(&model_index); }
+
+                                                // Get the current row.
+                                                let row = model_index_source.row();
+
+                                                // Insert the new row where the current one is.
+                                                unsafe { model.as_mut().unwrap().insert_row((row, &qlist)); }
+                                            }
                                         }
 
                                         // Otherwise, just do the same the "Add Row" do.
@@ -364,26 +455,39 @@ impl PackedFileDBTreeView {
                                         // For each selected index...
                                         for index in (0..indexes.count(())).rev() {
 
-                                            // Get his row and delete it.
-                                            let row = indexes.at(index).row();
-                                            unsafe { model.as_mut().unwrap().remove_rows((row, 1)); }
+                                            // Get the ModelIndex.
+                                            let model_index = indexes.at(index);
 
-                                            // Get a local copy of the data.
-                                            let mut data = packed_file_data.clone();
+                                            // Check if the ModelIndex is valid. Otherwise this can crash.
+                                            if model_index.is_valid() {
 
-                                            // Update the DBData with the data in the table, or report error if it fails.
-                                            if let Err(error) = Self::return_data_from_table_view(&mut data, model) {
-                                                return show_dialog(&app_ui, false, format!("<p>Error while trying to save the DB Table:</p><p>{}</p><p>This is probably caused by one of the fields you just changed. Please, make sure the data in that field it's of the correct type.</p>", error.cause()));
-                                            };
+                                                // Get the source ModelIndex for our filtered ModelIndex.
+                                                let model_index_source;
+                                                unsafe {model_index_source = filter_model.as_mut().unwrap().map_to_source(&model_index); }
 
-                                            // Tell the background thread to start saving the PackedFile.
-                                            sender_qt.send("encode_packed_file_db").unwrap();
+                                                // Get the current row.
+                                                let row = model_index_source.row();
 
-                                            // Send the new DBData.
-                                            sender_qt_data.send(serde_json::to_vec(&(data, packed_file_index)).map_err(From::from)).unwrap();
+                                                // Delete it.
+                                                unsafe { model.as_mut().unwrap().remove_rows((row, 1)); }
 
-                                            // Set the mod as "Modified".
-                                            *is_modified.borrow_mut() = set_modified(true, &app_ui);
+                                                // Get a local copy of the data.
+                                                let mut data = packed_file_data.clone();
+
+                                                // Update the DBData with the data in the table, or report error if it fails.
+                                                if let Err(error) = Self::return_data_from_table_view(&mut data, model) {
+                                                    return show_dialog(&app_ui, false, format!("<p>Error while trying to save the DB Table:</p><p>{}</p><p>This is probably caused by one of the fields you just changed. Please, make sure the data in that field it's of the correct type.</p>", error.cause()));
+                                                };
+
+                                                // Tell the background thread to start saving the PackedFile.
+                                                sender_qt.send("encode_packed_file_db").unwrap();
+
+                                                // Send the new DBData.
+                                                sender_qt_data.send(serde_json::to_vec(&(data, packed_file_index)).map_err(From::from)).unwrap();
+
+                                                // Set the mod as "Modified".
+                                                *is_modified.borrow_mut() = set_modified(true, &app_ui);
+                                            }
                                         }
                                     }
                                 }
@@ -410,7 +514,25 @@ impl PackedFileDBTreeView {
 
                                         // Get all the selected rows.
                                         let mut rows: Vec<i32> = vec![];
-                                        for index in 0..indexes.size() { rows.push(indexes.at(index).row()); }
+                                        for index in 0..indexes.size() {
+
+                                            // Get the ModelIndex.
+                                            let model_index = indexes.at(index);
+
+                                            // Check if the ModelIndex is valid. Otherwise this can crash.
+                                            if model_index.is_valid() {
+
+                                                // Get the source ModelIndex for our filtered ModelIndex.
+                                                let model_index_source;
+                                                unsafe {model_index_source = filter_model.as_mut().unwrap().map_to_source(&model_index); }
+
+                                                // Get the current row.
+                                                let row = model_index_source.row();
+
+                                                // Add it to the list.
+                                                rows.push(row);
+                                            }
+                                        }
 
                                         // Dedup the list and reverse it.
                                         rows.sort();
@@ -502,31 +624,41 @@ impl PackedFileDBTreeView {
                                     // For each selected index...
                                     for index in 0..indexes.count(()) {
 
-                                        // Get his StandardItem.
+                                        // Get his filtered ModelIndex.
                                         let model_index = indexes.at(index);
-                                        let standard_item;
-                                        unsafe { standard_item = model.as_mut().unwrap().item_from_index(&model_index); }
 
-                                        unsafe {
+                                        // Check if the ModelIndex is valid. Otherwise this can crash.
+                                        if model_index.is_valid() {
 
-                                            // If it's checkable, we need to get a bool.
-                                            if standard_item.as_mut().unwrap().is_checkable() {
+                                            // Get the source ModelIndex for our filtered ModelIndex.
+                                            let model_index_source;
+                                            unsafe {model_index_source = filter_model.as_mut().unwrap().map_to_source(&model_index); }
 
-                                                // Turn his CheckState into a bool and add it to the copy string.
-                                                if standard_item.as_mut().unwrap().check_state() == CheckState::Checked { copy.push_str("true"); }
-                                                else {copy.push_str("false"); }
+                                            // Get his StandardItem.
+                                            let standard_item;
+                                            unsafe { standard_item = model.as_mut().unwrap().item_from_index(&model_index_source); }
+
+                                            unsafe {
+
+                                                // If it's checkable, we need to get a bool.
+                                                if standard_item.as_mut().unwrap().is_checkable() {
+
+                                                    // Turn his CheckState into a bool and add it to the copy string.
+                                                    if standard_item.as_mut().unwrap().check_state() == CheckState::Checked { copy.push_str("true"); }
+                                                    else {copy.push_str("false"); }
+                                                }
+
+                                                // Otherwise, it's a string.
+                                                else {
+
+                                                    // Get his text and push them to the copy string.
+                                                    copy.push_str(&QString::to_std_string(&standard_item.as_mut().unwrap().text()));
+                                                }
                                             }
 
-                                            // Otherwise, it's a string.
-                                            else {
-
-                                                // Get his text and push them to the copy string.
-                                                copy.push_str(&QString::to_std_string(&standard_item.as_mut().unwrap().text()));
-                                            }
+                                            // Add a \t to separate fields except if it's the last field.
+                                            if index < (indexes.count(()) - 1) { copy.push('\t'); }
                                         }
-
-                                        // Add a \t to separate fields except if it's the last field.
-                                        if index < (indexes.count(()) - 1) { copy.push('\t'); }
                                     }
 
                                     // Put the baby into the oven.
@@ -550,7 +682,7 @@ impl PackedFileDBTreeView {
                                     if has_focus {
 
                                         // If whatever it's in the Clipboard is pasteable in our selection...
-                                        if check_clipboard(&packed_file_data.table_definition, table_view, model) {
+                                        if check_clipboard(&packed_file_data.table_definition, table_view, model, filter_model) {
 
                                             // Get the clipboard.
                                             let clipboard = GuiApplication::clipboard();
@@ -573,9 +705,19 @@ impl PackedFileDBTreeView {
                                             // For each selected index...
                                             for index in 0..indexes.count(()) {
 
-                                                // Get his StandardItem and add it to the Vector.
+                                                // Get the filtered ModelIndex.
                                                 let model_index = indexes.at(index);
-                                                unsafe { items.push(model.as_mut().unwrap().item_from_index(&model_index)); }
+
+                                                // Check if the ModelIndex is valid. Otherwise this can crash.
+                                                if model_index.is_valid() {
+
+                                                    // Get the source ModelIndex for our filtered ModelIndex.
+                                                    let model_index_source;
+                                                    unsafe {model_index_source = filter_model.as_mut().unwrap().map_to_source(&model_index); }
+
+                                                    // Get his StandardItem and add it to the Vector.
+                                                    unsafe { items.push(model.as_mut().unwrap().item_from_index(&model_index_source)); }
+                                                }
                                             }
 
                                             // Zip together both vectors.
@@ -655,9 +797,7 @@ impl PackedFileDBTreeView {
                                         if file_dialog.exec() == 1 {
 
                                             // Get the path of the selected file and turn it in a Rust's PathBuf.
-                                            let mut path: PathBuf = PathBuf::new();
-                                            let path_qt = file_dialog.selected_files();
-                                            for index in 0..path_qt.size() { path.push(path_qt.at(index).to_std_string()); }
+                                            let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
 
                                             // Tell the background thread to start importing the TSV.
                                             sender_qt.send("import_tsv_packed_file_db").unwrap();
@@ -727,9 +867,7 @@ impl PackedFileDBTreeView {
                                     if file_dialog.exec() == 1 {
 
                                         // Get the path of the selected file and turn it in a Rust's PathBuf.
-                                        let mut path: PathBuf = PathBuf::new();
-                                        let path_qt = file_dialog.selected_files();
-                                        for index in 0..path_qt.size() { path.push(path_qt.at(index).to_std_string()); }
+                                        let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
 
                                         // Tell the background thread to start exporting the TSV.
                                         sender_qt.send("export_tsv_packed_file_db").unwrap();
@@ -764,6 +902,11 @@ impl PackedFileDBTreeView {
                         unsafe { context_menu_import.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_import); }
                         unsafe { context_menu_export.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_export); }
 
+                        // Trigger the filter whenever the "filtered" text changes, the "filtered" column changes or the "Case Sensitive" button changes.
+                        unsafe { row_filter_line_edit.as_mut().unwrap().signals().text_changed().connect(&slots.slot_row_filter_change_text); }
+                        unsafe { row_filter_column_selector.as_mut().unwrap().signals().current_index_changed_c_int().connect(&slots.slot_row_filter_change_column); }
+                        unsafe { row_filter_case_sensitive_button.as_mut().unwrap().signals().toggled().connect(&slots.slot_row_filter_change_case_sensitive); }
+
                         // Initial states for the Contextual Menu Actions.
                         unsafe {
                             context_menu_add.as_mut().unwrap().set_enabled(true);
@@ -784,7 +927,6 @@ impl PackedFileDBTreeView {
 
                         // Return the slots to keep them as hostages.
                         return Ok(slots)
-
                     }
 
                     // In case of error, report the error.
@@ -5359,6 +5501,7 @@ fn create_text_tags(text_view: &TextView) {
     text_tag_index.set_property_background(Some("lightblue"));
     text_buffer_tag_table.add(&text_tag_index);
 }
+*/
 
 /// This function "process" the column names of a table, so they look like they should.
 fn clean_column_names(field_name: &str) -> String {
@@ -5394,7 +5537,7 @@ fn clean_column_names(field_name: &str) -> String {
 
     new_name
 }
-*/
+
 
 /// This function is meant to be used to prepare and build the column headers, and the column-related stuff.
 /// His intended use is for just after we reload the data to the table.
@@ -5410,33 +5553,7 @@ fn build_columns(
     for (index, field) in definition.fields.iter().enumerate() {
 
         // Create the "New" processed `String`.
-        let mut new_name = String::new();
-
-        // Variable to know if the next character should be uppercase.
-        let mut should_be_uppercase = false;
-
-        // For each character...
-        for character in field.field_name.chars() {
-
-            // If it's the first character, or it should be Uppercase....
-            if new_name.is_empty() || should_be_uppercase {
-
-                // Make it Uppercase and set that flag to false.
-                new_name.push_str(&character.to_uppercase().to_string());
-                should_be_uppercase = false;
-            }
-
-            // If it's an underscore...
-            else if character == '_' {
-
-                // Replace it with a whitespace and set the "Uppercase" flag to true.
-                new_name.push(' ');
-                should_be_uppercase = true;
-            }
-
-            // Otherwise... it's a normal character.
-            else { new_name.push(character); }
-        }
+        let mut new_name = clean_column_names(&field.field_name);
 
         // Set his title.
         unsafe { model.as_mut().unwrap().set_header_data((index as i32, Orientation::Horizontal, &Variant::new0(&QString::from_std_str(&new_name)))); }
@@ -5477,7 +5594,8 @@ fn build_columns(
 fn check_clipboard(
     definition: &TableDefinition,
     table_view: *mut TableView,
-    model: *mut StandardItemModel
+    model: *mut StandardItemModel,
+    filter_model: *mut SortFilterProxyModel,
 ) -> bool {
 
     // Get the clipboard.
@@ -5504,9 +5622,19 @@ fn check_clipboard(
         // For each selected index...
         for index in 0..indexes.count(()) {
 
-            // Get his StandardItem and add it to the Vector.
+            // Get the filtered ModelIndex.
             let model_index = indexes.at(index);
-            unsafe { items.push(model.as_mut().unwrap().item_from_index(&model_index)); }
+
+            // Check if the ModelIndex is valid. Otherwise this can crash.
+            if model_index.is_valid() {
+
+                // Get the source ModelIndex for our filtered ModelIndex.
+                let model_index_source;
+                unsafe {model_index_source = filter_model.as_mut().unwrap().map_to_source(&model_index); }
+
+                // Get his StandardItem and add it to the Vector.
+                unsafe { items.push(model.as_mut().unwrap().item_from_index(&model_index_source)); }
+            }
         }
 
         // Zip together both vectors.
