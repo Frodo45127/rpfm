@@ -7,7 +7,7 @@ extern crate qt_gui;
 extern crate qt_core;
 extern crate cpp_utils;
 
-use restson::RestClient;
+use self::restson::RestClient;
 use qt_widgets::{
     widget::Widget, message_box, message_box::MessageBox
 };

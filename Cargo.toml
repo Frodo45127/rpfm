@@ -18,7 +18,6 @@ chrono = "0.4"
 failure = "0.1"
 uuid = { version = "0.6", features = ["v4"] }
 restson = "0.2"
-url = "1.7"
 futures = "0.1"
 hyper = "0.11"
 hyper-tls = "0.1"

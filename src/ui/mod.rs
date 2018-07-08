@@ -291,6 +291,133 @@ impl AddFromPackFileStuff {
     }
 }
 
+/// This function creates the entire "Rename" dialog. It returns the new name of the PackedFile, or
+/// None if the dialog is canceled or closed.
+pub fn create_rename_dialog(
+    app_ui: &AppUI,
+    name: &str,
+) -> Option<String> {
+
+    //-------------------------------------------------------------------------------------------//
+    // Creating the Rename Dialog...
+    //-------------------------------------------------------------------------------------------//
+
+    // Create the "New MyMod" Dialog.
+    let mut dialog;
+    unsafe { dialog = Dialog::new_unsafe(app_ui.window as *mut Widget); }
+
+    // Change his title.
+    dialog.set_window_title(&QString::from_std_str("Rename"));
+
+    // Set it Modal, so you can't touch the Main Window with this dialog open.
+    dialog.set_modal(true);
+
+    // Resize the Dialog.
+    dialog.resize((300, 0));
+
+    // Create the main Grid.
+    let main_grid = GridLayout::new().into_raw();
+
+    // Create the "New Name" LineEdit.
+    let mut new_name_line_edit = LineEdit::new(());
+
+    // Set the current name as default.
+    new_name_line_edit.set_text(&QString::from_std_str(name));
+
+    // Create the "Rename" button.
+    let rename_button = PushButton::new(&QString::from_std_str("Rename")).into_raw();
+
+    // Add all the widgets to the main grid.
+    unsafe { main_grid.as_mut().unwrap().add_widget((new_name_line_edit.static_cast_mut() as *mut Widget, 0, 0, 1, 1)); }
+    unsafe { main_grid.as_mut().unwrap().add_widget((rename_button as *mut Widget, 0, 1, 1, 1)); }
+
+    // And the Main Grid to the Dialog...
+    unsafe { dialog.set_layout(main_grid as *mut Layout); }
+
+    //-------------------------------------------------------------------------------------------//
+    // Actions for the Rename Dialog...
+    //-------------------------------------------------------------------------------------------//
+
+    // What happens when we hit the "Rename" button.
+    unsafe { rename_button.as_mut().unwrap().signals().released().connect(&dialog.slots().accept()); }
+
+    // Show the Dialog and, if we hit the "Rename" button...
+    if dialog.exec() == 1 {
+
+        // Get the text from the LineEdit.
+        let mod_name = QString::to_std_string(&new_name_line_edit.text());
+
+        // Return the new name.
+        Some(mod_name)
+    }
+
+    // Otherwise, return None.
+    else { None }
+}
+
+/// This function creates the entire "New Folder" dialog. It returns the new name of the Folder, or
+/// None if the dialog is canceled or closed.
+pub fn create_new_folder_dialog(
+    app_ui: &AppUI,
+) -> Option<String> {
+
+    //-------------------------------------------------------------------------------------------//
+    // Creating the New Folder Dialog...
+    //-------------------------------------------------------------------------------------------//
+
+    // Create the "New Folder" Dialog.
+    let mut dialog;
+    unsafe { dialog = Dialog::new_unsafe(app_ui.window as *mut Widget); }
+
+    // Change his title.
+    dialog.set_window_title(&QString::from_std_str("New Folder"));
+
+    // Set it Modal, so you can't touch the Main Window with this dialog open.
+    dialog.set_modal(true);
+
+    // Resize the Dialog.
+    dialog.resize((300, 0));
+
+    // Create the main Grid.
+    let main_grid = GridLayout::new().into_raw();
+
+    // Create the "New Folder" LineEdit.
+    let mut new_folder_line_edit = LineEdit::new(());
+
+    // Set the current name as default.
+    new_folder_line_edit.set_text(&QString::from_std_str("new_folder"));
+
+    // Create the "New Folder" button.
+    let new_folder_button = PushButton::new(&QString::from_std_str("New Folder")).into_raw();
+
+    // Add all the widgets to the main grid.
+    unsafe { main_grid.as_mut().unwrap().add_widget((new_folder_line_edit.static_cast_mut() as *mut Widget, 0, 0, 1, 1)); }
+    unsafe { main_grid.as_mut().unwrap().add_widget((new_folder_button as *mut Widget, 0, 1, 1, 1)); }
+
+    // And the Main Grid to the Dialog...
+    unsafe { dialog.set_layout(main_grid as *mut Layout); }
+
+    //-------------------------------------------------------------------------------------------//
+    // Actions for the New Folder Dialog...
+    //-------------------------------------------------------------------------------------------//
+
+    // What happens when we hit the "Rename" button.
+    unsafe { new_folder_button.as_mut().unwrap().signals().released().connect(&dialog.slots().accept()); }
+
+    // Show the Dialog and, if we hit the "Rename" button...
+    if dialog.exec() == 1 {
+
+        // Get the text from the LineEdit.
+        let mod_name = QString::to_std_string(&new_folder_line_edit.text());
+
+        // Return the new name.
+        Some(mod_name)
+    }
+
+    // Otherwise, return None.
+    else { None }
+}
+
 /// This function creates all the "New PackedFile" dialogs. It returns the type/name of the new file,
 /// or None if the dialog is canceled or closed.
 pub fn create_new_packed_file_dialog(
@@ -545,6 +672,54 @@ pub fn create_mass_import_tsv_dialog(app_ui: &AppUI) -> Option<(String, Vec<Path
     }
 }
 
+/*
+/// This function serves as a common function to all the "Create Prefab" buttons from "Special Stuff".
+fn create_prefab(
+    application: &Application,
+    app_ui: &AppUI,
+    game_selected: &Rc<RefCell<GameSelected>>,
+    pack_file_decoded: &Rc<RefCell<PackFile>>,
+) {
+    // Create the list of PackedFiles to "move".
+    let mut prefab_catchments: Vec<usize> = vec![];
+
+    // For each PackedFile...
+    for (index, packed_file) in pack_file_decoded.borrow().data.packed_files.iter().enumerate() {
+
+        // If it's in the exported map's folder...
+        if packed_file.path.starts_with(&["terrain".to_owned(), "tiles".to_owned(), "battle".to_owned(), "_assembly_kit".to_owned()]) {
+
+            // Get his name.
+            let packed_file_name = packed_file.path.last().unwrap();
+
+            // If it's one of the exported layers...
+            if packed_file_name.starts_with("catchment") && packed_file_name.ends_with(".bin") {
+
+                // Add it to the list.
+                prefab_catchments.push(index);
+            }
+        }
+    }
+
+    // If we found at least one catchment PackedFile...
+    if !prefab_catchments.is_empty() {
+
+        // Disable the main window, so the user can't do anything until all the prefabs are processed.
+        app_ui.window.set_sensitive(false);
+
+        // We create a "New Prefabs" window.
+        NewPrefabWindow::create_new_prefab_window(
+            &app_ui,
+            application,
+            game_selected,
+            pack_file_decoded,
+            &prefab_catchments
+        );
+    }
+
+    // If there are not suitable PackedFiles...
+    else { show_dialog(&app_ui.window, false, "There are no catchment PackedFiles in this PackFile."); }
+}*/
 
 //----------------------------------------------------------------------------//
 //              Utility functions (helpers and stuff like that)
