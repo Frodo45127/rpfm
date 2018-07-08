@@ -3771,7 +3771,7 @@ fn main() {
             receiver_qt => move |_| {
 
                 // Check first if there has been changes in the PackFile.
-                if are_you_sure(&is_modified, false) {
+                if are_you_sure(&app_ui, &is_modified, false) {
 
                     // Destroy whatever it's in the PackedFile's view, to avoid data corruption.
                     purge_them_all(&app_ui, &is_packedfile_opened);
@@ -3864,7 +3864,7 @@ fn main() {
             receiver_qt => move |_| {
 
                 // Check first if there has been changes in the PackFile.
-                if are_you_sure(&is_modified, false) {
+                if are_you_sure(&app_ui, &is_modified, false) {
 
                     // Create the FileDialog to get the PackFile to open.
                     let mut file_dialog;
@@ -4234,7 +4234,14 @@ fn main() {
         ));
 
         // What happens when we trigger the "Quit" action.
-        let slot_quit = SlotBool::new( |_| { unsafe { app_ui.window.as_mut().unwrap().close(); }});
+        let slot_quit = SlotBool::new(clone!(
+            app_ui,
+            is_modified => move |_| {
+                if are_you_sure(&app_ui, &is_modified, false) {
+                    unsafe { app_ui.window.as_mut().unwrap().close(); }
+                }
+            }
+        ));
 
         // "PackFile" Menu Actions.
         unsafe { app_ui.new_packfile.as_ref().unwrap().signals().triggered().connect(&slot_new_packfile); }
@@ -7867,7 +7874,7 @@ fn build_my_mod_menu(
             app_ui => move |_| {
 
                 // Ask before doing it, as this will permanently delete the mod from the Disk.
-                if are_you_sure(&is_modified, true) {
+                if are_you_sure(&app_ui, &is_modified, true) {
 
                     // We want to keep our "MyMod" name for the success message, so we store it here.
                     let old_mod_name: String;
@@ -8144,7 +8151,7 @@ fn build_my_mod_menu(
                                         receiver_qt => move |_| {
 
                                             // Check first if there has been changes in the PackFile.
-                                            if are_you_sure(&is_modified, false) {
+                                            if are_you_sure(&app_ui, &is_modified, false) {
 
                                                 // Open the PackFile (or die trying it!).
                                                 if let Err(error) = open_packfile(

@@ -657,6 +657,7 @@ pub fn display_help_tips(app_ui: &AppUI) {
 /// data loss. is_modified = true for when you can lose unsaved changes, is_delete_my_mod = true for
 /// the deletion warning of MyMods.
 pub fn are_you_sure(
+    app_ui: &AppUI,
     is_modified: &Rc<RefCell<bool>>,
     is_delete_my_mod: bool
 ) -> bool {
@@ -665,14 +666,16 @@ pub fn are_you_sure(
     if *is_modified.borrow() {
 
         // Create the dialog.
-        let mut dialog = MessageBox::new((
+        let mut dialog;
+        unsafe { dialog = MessageBox::new_unsafe((
             &QString::from_std_str("Rusted PackFile Manager"),
             &QString::from_std_str("There are some changes yet to be saved.\nAre you sure?"),
             Icon::Warning,
             65536, // No
             16384, // Yes
             1, // By default, select yes.)
-        ));
+            app_ui.window as *mut Widget,
+        )); }
 
         // Run the dialog and get the response. Yes => 3, No => 4.
         if dialog.exec() == 3 { true } else { false }
@@ -682,14 +685,16 @@ pub fn are_you_sure(
     else if is_delete_my_mod {
 
         // Create the dialog.
-        let mut dialog = MessageBox::new((
+        let mut dialog;
+        unsafe { dialog = MessageBox::new_unsafe((
             &QString::from_std_str("Rusted PackFile Manager"),
             &QString::from_std_str("You are about to delete this MyMod from your disk.\nThere is no way to recover it after that.\nAre you sure?"),
             Icon::Warning,
             65536, // No
             16384, // Yes
             1, // By default, select yes.)
-        ));
+            app_ui.window as *mut Widget,
+        )); }
 
         // Run the dialog and get the response. Yes => 3, No => 4.
         if dialog.exec() == 3 { true } else { false }
