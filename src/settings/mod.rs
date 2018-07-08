@@ -29,8 +29,6 @@ pub struct GameInfo {
 pub struct Settings {
     pub paths: Paths,
     pub default_game: String,
-    //pub prefer_dark_theme: bool,
-    //pub font: String,
     pub allow_editing_of_ca_packfiles: bool,
     pub check_updates_on_start: bool,
     pub check_schema_updates_on_start: bool,
@@ -129,8 +127,6 @@ impl Settings {
         Self {
             paths: Paths::new(supported_games),
             default_game: "warhammer_2".to_owned(),
-            //prefer_dark_theme: false,
-            //font: "Segoe UI 9".to_owned(),
             allow_editing_of_ca_packfiles: false,
             check_updates_on_start: true,
             check_schema_updates_on_start: true,

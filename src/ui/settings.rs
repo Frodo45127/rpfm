@@ -969,8 +969,6 @@ pub struct SettingsDialog {
     pub extra_check_updates_on_start: *mut CheckBox,
     pub extra_check_schema_updates_on_start: *mut CheckBox,
     pub extra_use_pfm_extracting_behavior: *mut CheckBox,
-    //pub theme_prefer_dark_theme: CheckButton,
-    //pub theme_font_button: FontButton,
 }
 
 /// `MyModNewWindow`: This struct holds all the relevant stuff for "My Mod"'s New Mod Window.
@@ -1054,6 +1052,10 @@ impl SettingsDialog {
             game_buttons.push(game_button);
         }
 
+        // Create the "UI Settings" frame and Grid.
+        let ui_settings_frame = GroupBox::new(&QString::from_std_str("UI Settings")).into_raw();
+        let ui_settings_grid = GridLayout::new().into_raw();
+
         // Create the "Extra Settings" frame and Grid.
         let extra_settings_frame = GroupBox::new(&QString::from_std_str("Extra Settings")).into_raw();
         let extra_settings_grid = GridLayout::new().into_raw();
@@ -1111,7 +1113,9 @@ impl SettingsDialog {
         unsafe { main_grid.as_mut().unwrap().add_widget((paths_frame as *mut Widget, 0, 0, 1, 2)); }
 
         // Add the Grid to the Frame, and the Frame to the Main Grid.
+        unsafe { ui_settings_frame.as_mut().unwrap().set_layout(ui_settings_grid as *mut Layout); }
         unsafe { extra_settings_frame.as_mut().unwrap().set_layout(extra_settings_grid as *mut Layout); }
+        unsafe { main_grid.as_mut().unwrap().add_widget((ui_settings_frame as *mut Widget, 1, 0, 1, 1)); }
         unsafe { main_grid.as_mut().unwrap().add_widget((extra_settings_frame as *mut Widget, 1, 1, 1, 1)); }
 
         // Create the bottom ButtonBox.
@@ -1268,7 +1272,7 @@ impl SettingsDialog {
         let index;
         unsafe { index = self.extra_default_game_combobox.as_mut().unwrap().current_index() as usize; }
         settings.default_game = supported_games[index].folder_name.to_owned();
-
+        
         // Get the Extra Settings.
         unsafe { settings.allow_editing_of_ca_packfiles = self.extra_allow_editing_of_ca_packfiles.as_mut().unwrap().is_checked(); }
         unsafe { settings.check_updates_on_start = self.extra_check_updates_on_start.as_mut().unwrap().is_checked(); }
