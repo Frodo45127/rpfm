@@ -199,6 +199,15 @@ impl PackedFileLocTreeView {
                         unsafe { table_view.as_mut().unwrap().add_action(context_menu_import); }
                         unsafe { table_view.as_mut().unwrap().add_action(context_menu_export); }
 
+                        // Status Tips for the actions.
+                        unsafe { context_menu_add.as_mut().unwrap().set_status_tip(&QString::from_std_str("Add an empty row at the end of the table.")); }
+                        unsafe { context_menu_insert.as_mut().unwrap().set_status_tip(&QString::from_std_str("Insert an empty row just above the one selected.")); }
+                        unsafe { context_menu_delete.as_mut().unwrap().set_status_tip(&QString::from_std_str("Delete all the selected rows.")); }
+                        unsafe { context_menu_copy.as_mut().unwrap().set_status_tip(&QString::from_std_str("Copy whatever is selected to the Clipboard.")); }
+                        unsafe { context_menu_paste.as_mut().unwrap().set_status_tip(&QString::from_std_str("Try to paste whatever is in the Clipboard. Does nothing if the data is not compatible with the cell.")); }
+                        unsafe { context_menu_import.as_mut().unwrap().set_status_tip(&QString::from_std_str("Import a TSV file into this table, replacing all the data.")); }
+                        unsafe { context_menu_export.as_mut().unwrap().set_status_tip(&QString::from_std_str("Export this table's data into a TSV file.")); }
+
                         // Insert some separators to space the menu.
                         unsafe { context_menu.insert_separator(context_menu_copy); }
                         unsafe { context_menu.insert_separator(context_menu_import); }
