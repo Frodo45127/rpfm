@@ -49,6 +49,7 @@ use qt_core::slots::SlotModelIndexRefModelIndexRef;
 use qt_widgets::file_dialog::FileMode;
 use qt_widgets::file_dialog::AcceptMode;
 use qt_gui::key_sequence::KeySequence;
+use qt_gui::font::Font;
 
 use qt_gui::desktop_services::DesktopServices;
 use qt_gui::standard_item_model::StandardItemModel;
@@ -3257,13 +3258,14 @@ pub struct AppUI {
     pub context_menu_add_folder: *mut Action,
     pub context_menu_add_from_packfile: *mut Action,
     pub context_menu_create_folder: *mut Action,
-    pub context_menu_create_loc: *mut Action,
     pub context_menu_create_db: *mut Action,
+    pub context_menu_create_loc: *mut Action,
     pub context_menu_create_text: *mut Action,
     pub context_menu_mass_import_tsv: *mut Action,
     pub context_menu_delete: *mut Action,
     pub context_menu_extract: *mut Action,
     pub context_menu_rename: *mut Action,
+    pub context_menu_open_decoder: *mut Action,
 }
 
 /// Main function.
@@ -3388,6 +3390,7 @@ fn main() {
         let mut folder_tree_view_context_menu = Menu::new(());
         let menu_add = folder_tree_view_context_menu.add_menu(&QString::from_std_str("&Add..."));
         let menu_create = folder_tree_view_context_menu.add_menu(&QString::from_std_str("&Create..."));
+        let menu_open = folder_tree_view_context_menu.add_menu(&QString::from_std_str("&Open..."));
 
         // Da monsta.
         let app_ui;
@@ -3479,6 +3482,8 @@ fn main() {
                 context_menu_delete: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Delete")),
                 context_menu_extract: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Extract")),
                 context_menu_rename: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Rename")),
+
+                context_menu_open_decoder: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open with Decoder")),
             };
         }
 
@@ -3555,6 +3560,9 @@ fn main() {
         let db_slots = Rc::new(RefCell::new(PackedFileDBTreeView::new()));
         let loc_slots = Rc::new(RefCell::new(PackedFileLocTreeView::new()));
         let text_slots = Rc::new(RefCell::new(PackedFileTextView::new()));
+        let decoder_slots = Rc::new(RefCell::new(PackedFileDBDecoder::new()));
+
+        let monospace_font = Rc::new(RefCell::new(Font::new(&QString::from_std_str("monospace [Consolas]"))));
 
         // Display the basic tips by default.
         display_help_tips(&app_ui);
@@ -3619,6 +3627,7 @@ fn main() {
         unsafe { app_ui.context_menu_delete.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+del"))); }
         unsafe { app_ui.context_menu_extract.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+e"))); }
         unsafe { app_ui.context_menu_rename.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+r"))); }
+        unsafe { app_ui.context_menu_open_decoder.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+j"))); }
 
         // Set the shortcuts to only trigger in the TreeView.
         unsafe { app_ui.context_menu_add_file.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
@@ -3632,6 +3641,7 @@ fn main() {
         unsafe { app_ui.context_menu_delete.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_extract.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_rename.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+        unsafe { app_ui.context_menu_open_decoder.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
 
         // Add the actions to the TreeView, so the shortcuts work.
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_add_file); }
@@ -3645,6 +3655,7 @@ fn main() {
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_delete); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_extract); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_rename); }
+        unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_open_decoder); }
 
         // Set the current "Operational Mode" to `Normal`.
         set_my_mod_mode(&mymod_stuff, &mode, None);
@@ -4472,7 +4483,7 @@ fn main() {
                 match item_type {
 
                     // If it's a file...
-                    TreePathType::File(_) => {
+                    TreePathType::File(data) => {
                         unsafe {
                             app_ui.context_menu_add_file.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_add_folder.as_mut().unwrap().set_enabled(false);
@@ -4485,6 +4496,11 @@ fn main() {
                             app_ui.context_menu_delete.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_extract.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_rename.as_mut().unwrap().set_enabled(true);
+                        }
+
+                        // If it's a DB, we should enable this too.
+                        if !data.0.is_empty() && data.0.starts_with(&["db".to_owned()]) {
+                            unsafe { app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(true); }
                         }
                     },
 
@@ -4502,6 +4518,7 @@ fn main() {
                             app_ui.context_menu_delete.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_extract.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_rename.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(false);
                         }
                     },
 
@@ -4519,6 +4536,7 @@ fn main() {
                             app_ui.context_menu_delete.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_extract.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_rename.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(false);
                         }
                     },
 
@@ -4536,6 +4554,7 @@ fn main() {
                             app_ui.context_menu_delete.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_extract.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_rename.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(false);
                         }
                     },
                 }
@@ -5936,6 +5955,61 @@ fn main() {
             }
         ));
 
+        // What happens when we trigger the "Open in decoder" action in the Contextual Menu.
+        let slot_contextual_menu_open_decoder = SlotBool::new(clone!(
+            supported_games,
+            sender_qt,
+            sender_qt_data,
+            receiver_qt,
+            is_modified,
+            is_packedfile_opened,
+            mode,
+            rpfm_path => move |_| {
+
+                // We only do something in case the focus is in the TreeView. This should stop
+                // problems with the accels working everywhere.
+                let has_focus;
+                unsafe { has_focus = app_ui.folder_tree_view.as_mut().unwrap().has_focus() };
+                if has_focus {
+
+                    // Get his Path, including the name of the PackFile.
+                    let path = get_path_from_selection(&app_ui, true);
+
+                    // Send the Path to the Background Thread, and get the type of the item.
+                    sender_qt.send("get_type_of_path").unwrap();
+                    sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
+                    let response = receiver_qt.borrow().recv().unwrap().unwrap();
+                    let item_type: TreePathType = serde_json::from_slice(&response).unwrap();
+
+                    // If it's a PackedFile...
+                    if let TreePathType::File((_, index)) = item_type {
+
+                        // Remove everything from the PackedFile View.
+                        purge_them_all(&app_ui, &is_packedfile_opened);
+
+                        // We try to open it in the decoder.
+                        if let Ok(result) = PackedFileDBDecoder::create_decoder_view(
+                            &rpfm_path,
+                            supported_games.to_vec(),
+                            sender_qt.clone(),
+                            &sender_qt_data,
+                            &receiver_qt,
+                            &app_ui,
+                            &index
+                        ) {
+
+                            // Save the monospace font an the slots.
+                            *decoder_slots.borrow_mut() = result.0;
+                            *monospace_font.borrow_mut() = result.1;
+                        }
+
+                        // Disable the "Change game selected" function, so we cannot change the current schema with an open table.
+                        unsafe { app_ui.game_selected_group.as_mut().unwrap().set_enabled(false); }
+                    }
+                }
+            }
+        ));
+
         // Contextual Menu Actions.
         unsafe { app_ui.context_menu_add_file.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_add_file); }
         unsafe { app_ui.context_menu_add_folder.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_add_folder); }
@@ -5947,7 +6021,7 @@ fn main() {
         unsafe { app_ui.context_menu_mass_import_tsv.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_mass_import_tsv); }
         unsafe { app_ui.context_menu_delete.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_delete); }
         unsafe { app_ui.context_menu_extract.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_extract); }
-
+        unsafe { app_ui.context_menu_open_decoder.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_open_decoder); }
 
         //-----------------------------------------------------------------------------------------//
         // Rename Action. Due to me not understanding how the edition of a TreeView works, we do it
@@ -7230,6 +7304,17 @@ fn background_loop(
                             Ok(success) => sender.send(serde_json::to_vec(&success).map_err(From::from)).unwrap(),
                             Err(error) => sender.send(Err(error)).unwrap(),
                         }
+                    }
+
+                    // When we want to get a PackedFile...
+                    "get_packed_file" => {
+
+                        // Get the index of the PackedFile.
+                        let data = receiver_data.recv().unwrap().unwrap();
+                        let index: usize = serde_json::from_slice(&data).unwrap();
+
+                        // Send back the PackedFile.
+                        sender.send(serde_json::to_vec(&pack_file_decoded.data.packed_files[index]).map_err(From::from)).unwrap()
                     }
 
                     _ => println!("Error while receiving message, \"{}\" is not a valid message.", data),

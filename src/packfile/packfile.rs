@@ -83,7 +83,7 @@ pub struct PackFileData {
 /// - size: size of the data.
 /// - path: path of the PackedFile inside the PackFile.
 /// - data: the data of the PackedFile.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PackedFile {
     pub size: u32,
     pub path: Vec<String>,
