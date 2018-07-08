@@ -575,7 +575,7 @@ impl PackedFileLocTreeView {
                                                     // If it's checkable, we need to check or uncheck the cell.
                                                     if cell.0.as_mut().unwrap().is_checkable() {
                                                         if cell.1 == "true" { cell.0.as_mut().unwrap().set_check_state(CheckState::Checked); }
-                                                        else { cell.0.as_mut().unwrap().set_check_state(CheckState::Checked); }
+                                                        else { cell.0.as_mut().unwrap().set_check_state(CheckState::Unchecked); }
                                                     }
 
                                                     // Otherwise, it's just a string.

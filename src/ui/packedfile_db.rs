@@ -843,7 +843,7 @@ impl PackedFileDBTreeView {
                                                     match packed_file_data.table_definition.fields[column as usize].field_type {
                                                         FieldType::Boolean => {
                                                             if cell.1 == "true" { cell.0.as_mut().unwrap().set_check_state(CheckState::Checked); }
-                                                            else { cell.0.as_mut().unwrap().set_check_state(CheckState::Checked); }
+                                                            else { cell.0.as_mut().unwrap().set_check_state(CheckState::Unchecked); }
                                                         }
                                                         _ => cell.0.as_mut().unwrap().set_text(&QString::from_std_str(cell.1)),
                                                     }
