@@ -28,6 +28,7 @@ use qt_widgets::dialog_button_box::DialogButtonBox;
 use qt_widgets::file_dialog::FileDialog;
 use qt_widgets::file_dialog::FileMode;
 use qt_widgets::file_dialog::Option::ShowDirsOnly;
+use qt_widgets::group_box::GroupBox;
 
 use qt_gui::standard_item_model::StandardItemModel;
 use qt_gui::standard_item::StandardItem;
@@ -1017,7 +1018,7 @@ impl SettingsDialog {
         let main_grid = GridLayout::new().into_raw();
 
         // Create the Paths Frame.
-        let paths_frame = Frame::new().into_raw();
+        let paths_frame = GroupBox::new(&QString::from_std_str("Paths")).into_raw();
         let mut paths_grid = GridLayout::new();
 
         // Create the MyMod's path stuff...
@@ -1073,7 +1074,7 @@ impl SettingsDialog {
         }
 
         // Create the "Extra Settings" frame and Grid.
-        let extra_settings_frame = Frame::new().into_raw();
+        let extra_settings_frame = GroupBox::new(&QString::from_std_str("Extra Settings")).into_raw();
         let extra_settings_grid = GridLayout::new().into_raw();
 
         // Create the "Default Game" Label and ComboBox.
@@ -1086,15 +1087,27 @@ impl SettingsDialog {
         for game in supported_games { default_game_combobox.add_item(&QString::from_std_str(&game.display_name)); }
 
         // Create the aditional CheckBoxes.
-        let allow_editing_of_ca_packfiles_label = Label::new(&QString::from_std_str("Allow Editing of CA PackFiles:"));
-        let check_updates_on_start_label = Label::new(&QString::from_std_str("Check Updates on Start:"));
-        let check_schema_updates_on_start_label = Label::new(&QString::from_std_str("Check Schema Updates on Start:"));
-        let use_pfm_extracting_behavior_label = Label::new(&QString::from_std_str("Use PFM Extracting Behavior:"));
+        let mut allow_editing_of_ca_packfiles_label = Label::new(&QString::from_std_str("Allow Editing of CA PackFiles:"));
+        let mut check_updates_on_start_label = Label::new(&QString::from_std_str("Check Updates on Start:"));
+        let mut check_schema_updates_on_start_label = Label::new(&QString::from_std_str("Check Schema Updates on Start:"));
+        let mut use_pfm_extracting_behavior_label = Label::new(&QString::from_std_str("Use PFM Extracting Behavior:"));
 
         let mut allow_editing_of_ca_packfiles_checkbox = CheckBox::new(());
         let mut check_updates_on_start_checkbox = CheckBox::new(());
         let mut check_schema_updates_on_start_checkbox = CheckBox::new(());
         let mut use_pfm_extracting_behavior_checkbox = CheckBox::new(());
+
+        // Tips for the checkboxes.
+        allow_editing_of_ca_packfiles_checkbox.set_tool_tip(&QString::from_std_str("By default, only PackFiles of Type 'Mod' and 'Movie' are editables, as are the only ones used for modding.\nIf you enable this, you'll be able to edit 'Boot', 'Release' and 'Patch' PackFiles too. Just be careful of not writing over one of the game's original PackFiles!"));
+        check_updates_on_start_checkbox.set_tool_tip(&QString::from_std_str("If you enable this, RPFM will check for updates at the start of the Program, and inform you if there is any update available.\nWhether download it or not is up to you."));
+        check_schema_updates_on_start_checkbox.set_tool_tip(&QString::from_std_str("If you enable this, RPFM will check for Schema updates at the start of the Program,\nand allow you to automatically download it if there is any update available."));
+        use_pfm_extracting_behavior_checkbox.set_tool_tip(&QString::from_std_str("By default, extracting a file/folder extracts just the file to wherever you want.\nIf you enable this, the file/folder will be extracted wherever you want UNDER HIS ENTIRE PATH.\nThat means that extracting a table go from 'myfolder/table_file' to 'myfolder/db/main_units_tables/table_file'."));
+
+        // Also, for their labels.
+        allow_editing_of_ca_packfiles_label.set_tool_tip(&QString::from_std_str("By default, only PackFiles of Type 'Mod' and 'Movie' are editables, as are the only ones used for modding.\nIf you enable this, you'll be able to edit 'Boot', 'Release' and 'Patch' PackFiles too. Just be careful of not writing over one of the game's original PackFiles!"));
+        check_updates_on_start_label.set_tool_tip(&QString::from_std_str("If you enable this, RPFM will check for updates at the start of the Program, and inform you if there is any update available.\nWhether download it or not is up to you."));
+        check_schema_updates_on_start_label.set_tool_tip(&QString::from_std_str("If you enable this, RPFM will check for Schema updates at the start of the Program,\nand allow you to automatically download it if there is any update available."));
+        use_pfm_extracting_behavior_label.set_tool_tip(&QString::from_std_str("By default, extracting a file/folder extracts just the file to wherever you want.\nIf you enable this, the file/folder will be extracted wherever you want UNDER HIS ENTIRE PATH.\nThat means that extracting a table go from 'myfolder/table_file' to 'myfolder/db/main_units_tables/table_file'."));
 
         // Add the "Default Game" stuff to the Grid.
         unsafe { extra_settings_grid.as_mut().unwrap().add_widget((default_game_label as *mut Widget, 0, 0, 1, 1)); }
@@ -1357,14 +1370,14 @@ impl NewMyModDialog {
 
         // Create the "MyMod's Name" Label and LineEdit.
         let mymod_name_label = Label::new(&QString::from_std_str("Name of the Mod:")).into_raw();
-        let mut mymod_name_line_edit = LineEdit::new(()).into_raw();
+        let mymod_name_line_edit = LineEdit::new(()).into_raw();
 
         // Configure the "MyMod's Name" LineEdit.
         unsafe { mymod_name_line_edit.as_mut().unwrap().set_placeholder_text(&QString::from_std_str("For example: one_ring_for_me")); }
 
         // Create the "MyMod's Game" Label and ComboBox.
         let mymod_game_label = Label::new(&QString::from_std_str("Game of the Mod:")).into_raw();
-        let mut mymod_game_combobox = ComboBox::new().into_raw();
+        let mymod_game_combobox = ComboBox::new().into_raw();
         let mut mymod_game_model = StandardItemModel::new(());
         unsafe { mymod_game_combobox.as_mut().unwrap().set_model(mymod_game_model.static_cast_mut()); }
 
@@ -1397,7 +1410,7 @@ impl NewMyModDialog {
         // Put all the important things together...
         //-------------------------------------------------------------------------------------------//
 
-        let mut new_mymod_dialog = Self {
+        let new_mymod_dialog = Self {
             mymod_game_combobox,
             mymod_name_line_edit,
             cancel_button,
