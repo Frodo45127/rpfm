@@ -550,8 +550,9 @@ impl PackedFileDBTreeView {
                                         unsafe { selection = table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection(); }
                                         let indexes = selection.indexes();
 
-                                        // For each selected index...
-                                        for index in (0..indexes.count(())).rev() {
+                                        // Get all the selected rows.
+                                        let mut rows: Vec<i32> = vec![];
+                                        for index in 0..indexes.size() {
 
                                             // Get the ModelIndex.
                                             let model_index = indexes.at(index);
@@ -566,26 +567,39 @@ impl PackedFileDBTreeView {
                                                 // Get the current row.
                                                 let row = model_index_source.row();
 
-                                                // Delete it.
-                                                unsafe { model.as_mut().unwrap().remove_rows((row, 1)); }
-
-                                                // Get a local copy of the data.
-                                                let mut data = packed_file_data.clone();
-
-                                                // Update the DBData with the data in the table, or report error if it fails.
-                                                if let Err(error) = Self::return_data_from_table_view(&mut data, model) {
-                                                    return show_dialog(&app_ui, false, format!("<p>Error while trying to save the DB Table:</p><p>{}</p><p>This is probably caused by one of the fields you just changed. Please, make sure the data in that field it's of the correct type.</p>", error.cause()));
-                                                };
-
-                                                // Tell the background thread to start saving the PackedFile.
-                                                sender_qt.send("encode_packed_file_db").unwrap();
-
-                                                // Send the new DBData.
-                                                sender_qt_data.send(serde_json::to_vec(&(data, packed_file_index)).map_err(From::from)).unwrap();
-
-                                                // Set the mod as "Modified".
-                                                *is_modified.borrow_mut() = set_modified(true, &app_ui);
+                                                // Add it to the list.
+                                                rows.push(row);
                                             }
+                                        }
+
+                                        // Dedup the list and reverse it.
+                                        rows.sort();
+                                        rows.dedup();
+                                        rows.reverse();
+
+                                        // Delete evey selected row. '_y' is ignorable.
+                                        let mut _y = false;
+                                        unsafe { rows.iter().for_each(|x| _y = model.as_mut().unwrap().remove_rows((*x, 1))); }
+
+                                        // If we deleted anything, save the data.
+                                        if rows.len() > 0 {
+
+                                            // Get a local copy of the data.
+                                            let mut data = packed_file_data.clone();
+
+                                            // Update the DBData with the data in the table, or report error if it fails.
+                                            if let Err(error) = Self::return_data_from_table_view(&mut data, model) {
+                                                return show_dialog(&app_ui, false, format!("<p>Error while trying to save the DB Table:</p><p>{}</p><p>This is probably caused by one of the fields you just changed. Please, make sure the data in that field it's of the correct type.</p>", error.cause()));
+                                            };
+
+                                            // Tell the background thread to start saving the PackedFile.
+                                            sender_qt.send("encode_packed_file_db").unwrap();
+
+                                            // Send the new DBData.
+                                            sender_qt_data.send(serde_json::to_vec(&(data, packed_file_index)).map_err(From::from)).unwrap();
+
+                                            // Set the mod as "Modified".
+                                            *is_modified.borrow_mut() = set_modified(true, &app_ui);
                                         }
                                     }
                                 }

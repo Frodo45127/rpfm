@@ -405,8 +405,9 @@ impl PackedFileLocTreeView {
                                         unsafe { selection = table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection(); }
                                         let indexes = selection.indexes();
 
-                                        // For each selected index...
-                                        for index in (0..indexes.count(())).rev() {
+                                        // Get all the selected rows.
+                                        let mut rows: Vec<i32> = vec![];
+                                        for index in 0..indexes.size() {
 
                                             // Get the ModelIndex.
                                             let model_index = indexes.at(index);
@@ -421,21 +422,34 @@ impl PackedFileLocTreeView {
                                                 // Get the current row.
                                                 let row = model_index_source.row();
 
-                                                // Delete it.
-                                                unsafe { model.as_mut().unwrap().remove_rows((row, 1)); }
-
-                                                // Tell the background thread to start saving the PackedFile.
-                                                sender_qt.send("encode_packed_file_loc").unwrap();
-
-                                                // Get the new LocData to send.
-                                                let new_loc_data = Self::return_data_from_tree_view(model);
-
-                                                // Send the new LocData.
-                                                sender_qt_data.send(serde_json::to_vec(&(new_loc_data, packed_file_index)).map_err(From::from)).unwrap();
-
-                                                // Set the mod as "Modified".
-                                                *is_modified.borrow_mut() = set_modified(true, &app_ui);
+                                                // Add it to the list.
+                                                rows.push(row);
                                             }
+                                        }
+
+                                        // Dedup the list and reverse it.
+                                        rows.sort();
+                                        rows.dedup();
+                                        rows.reverse();
+
+                                        // Delete evey selected row. '_y' is ignorable.
+                                        let mut _y = false;
+                                        unsafe { rows.iter().for_each(|x| _y = model.as_mut().unwrap().remove_rows((*x, 1))); }
+
+                                        // If we deleted anything, save the data.
+                                        if rows.len() > 0 {
+
+                                            // Tell the background thread to start saving the PackedFile.
+                                            sender_qt.send("encode_packed_file_loc").unwrap();
+
+                                            // Get the new LocData to send.
+                                            let new_loc_data = Self::return_data_from_tree_view(model);
+
+                                            // Send the new LocData.
+                                            sender_qt_data.send(serde_json::to_vec(&(new_loc_data, packed_file_index)).map_err(From::from)).unwrap();
+
+                                            // Set the mod as "Modified".
+                                            *is_modified.borrow_mut() = set_modified(true, &app_ui);
                                         }
                                     }
                                 }
