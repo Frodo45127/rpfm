@@ -338,8 +338,7 @@ impl PackedFileDBTreeView {
                                 is_modified,
                                 packed_file_data,
                                 sender_qt,
-                                sender_qt_data,
-                                receiver_qt => move |_,_,_| {
+                                sender_qt_data => move |_,_,_| {
 
                                     // Get a local copy of the data.
                                     let mut data = packed_file_data.clone();
@@ -536,8 +535,7 @@ impl PackedFileDBTreeView {
                                 is_modified,
                                 packed_file_data,
                                 sender_qt,
-                                sender_qt_data,
-                                receiver_qt => move |_| {
+                                sender_qt_data => move |_| {
 
                                     // We only do something in case the focus is in the TableView. This should stop problems with
                                     // the accels working everywhere.
@@ -610,8 +608,7 @@ impl PackedFileDBTreeView {
                                 is_modified,
                                 packed_file_data,
                                 sender_qt,
-                                sender_qt_data,
-                                receiver_qt => move |_| {
+                                sender_qt_data => move |_| {
 
                                     // We only do something in case the focus is in the TableView. This should stop problems with
                                     // the accels working everywhere.
@@ -784,8 +781,7 @@ impl PackedFileDBTreeView {
                                 is_modified,
                                 packed_file_data,
                                 sender_qt,
-                                sender_qt_data,
-                                receiver_qt => move |_| {
+                                sender_qt_data => move |_| {
 
                                     // We only do something in case the focus is in the TableView. This should stop problems with
                                     // the accels working everywhere.
@@ -949,9 +945,7 @@ impl PackedFileDBTreeView {
                                 }
                             )),
                             slot_context_menu_export: SlotBool::new(clone!(
-                                packed_file_index,
                                 app_ui,
-                                is_modified,
                                 sender_qt,
                                 sender_qt_data,
                                 receiver_qt => move |_| {
@@ -1841,7 +1835,6 @@ impl PackedFileDBDecoder {
                                         table_definition,
                                         schema,
                                         app_ui,
-                                        index,
                                         stuff,
                                         stuff_non_ui => move || {
 

@@ -239,8 +239,7 @@ impl PackedFileLocTreeView {
                                 app_ui,
                                 is_modified,
                                 sender_qt,
-                                sender_qt_data,
-                                receiver_qt => move |_,_,_| {
+                                sender_qt_data => move |_,_,_| {
 
                                     // Tell the background thread to start saving the PackedFile.
                                     sender_qt.send("encode_packed_file_loc").unwrap();
@@ -391,8 +390,7 @@ impl PackedFileLocTreeView {
                                 app_ui,
                                 is_modified,
                                 sender_qt,
-                                sender_qt_data,
-                                receiver_qt => move |_| {
+                                sender_qt_data => move |_| {
 
                                     // We only do something in case the focus is in the TableView. This should stop problems with
                                     // the accels working everywhere.
@@ -519,8 +517,7 @@ impl PackedFileLocTreeView {
                                 app_ui,
                                 is_modified,
                                 sender_qt,
-                                sender_qt_data,
-                                receiver_qt => move |_| {
+                                sender_qt_data => move |_| {
 
                                     // We only do something in case the focus is in the TableView. This should stop problems with
                                     // the accels working everywhere.
@@ -668,9 +665,7 @@ impl PackedFileLocTreeView {
                                 }
                             )),
                             slot_context_menu_export: SlotBool::new(clone!(
-                                packed_file_index,
                                 app_ui,
-                                is_modified,
                                 sender_qt,
                                 sender_qt_data,
                                 receiver_qt => move |_| {

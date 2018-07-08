@@ -924,7 +924,6 @@ fn main() {
         // What happens when we trigger the "Save PackFile" action.
         let slot_save_packfile = SlotBool::new(clone!(
             is_modified,
-            mode,
             sender_qt,
             receiver_qt => move |_| {
 
@@ -1169,10 +1168,7 @@ fn main() {
             sender_qt_data,
             receiver_qt,
             mymod_stuff,
-            mymod_stuff_slots,
-            mymod_menu_needs_rebuild,
-            is_modified,
-            rpfm_path => move |_| {
+            mymod_menu_needs_rebuild => move |_| {
 
                 // Request the current Settings.
                 sender_qt.send("get_settings").unwrap();
@@ -1257,8 +1253,7 @@ fn main() {
         // What happens when we trigger the "Generate Dependency Pack" action.
         let slot_generate_dependency_pack = SlotBool::new(clone!(
             receiver_qt,
-            sender_qt,
-            sender_qt_data => move |_| {
+            sender_qt => move |_| {
 
                 // Ask the background loop to create the Dependency PackFile.
                 sender_qt.send("create_dependency_database").unwrap();
@@ -1592,7 +1587,6 @@ fn main() {
             sender_qt,
             sender_qt_data,
             receiver_qt,
-            is_packedfile_opened,
             is_modified,
             mode,
             rpfm_path => move |_| {
@@ -1828,7 +1822,6 @@ fn main() {
             sender_qt,
             sender_qt_data,
             receiver_qt,
-            is_packedfile_opened,
             is_modified,
             mode,
             rpfm_path => move |_| {
@@ -2076,7 +2069,6 @@ fn main() {
             is_packedfile_opened,
             is_folder_tree_view_locked,
             is_modified,
-            mode,
             add_from_packfile_stuff,
             add_from_packfile_slots,
             rpfm_path => move |_| {
@@ -2182,7 +2174,6 @@ fn main() {
         // What happens when we trigger the "Create Folder" Action.
         let slot_contextual_menu_create_folder = SlotBool::new(clone!(
             rpfm_path,
-            is_modified,
             sender_qt,
             sender_qt_data,
             receiver_qt => move |_| {
@@ -2648,8 +2639,7 @@ fn main() {
             sender_qt,
             sender_qt_data,
             receiver_qt,
-            mode,
-            rpfm_path => move |_| {
+            mode => move |_| {
 
                 // We only do something in case the focus is in the TreeView. This should stop
                 // problems with the accels working everywhere.
@@ -2959,9 +2949,7 @@ fn main() {
             sender_qt,
             sender_qt_data,
             receiver_qt,
-            is_modified,
             is_packedfile_opened,
-            mode,
             rpfm_path => move |_| {
 
                 // We only do something in case the focus is in the TreeView. This should stop
@@ -3110,16 +3098,12 @@ fn main() {
 
         // What happens when we try to open a PackedFile...
         let slot_open_packedfile = SlotNoArgs::new(clone!(
-            mymod_stuff,
-            mymod_stuff_slots,
             sender_qt,
             sender_qt_data,
             receiver_qt,
             is_modified,
-            mode,
             is_folder_tree_view_locked,
-            is_packedfile_opened,
-            mymod_menu_needs_rebuild => move || {
+            is_packedfile_opened => move || {
 
                 // Before anything else, we need to check if the TreeView is unlocked. Otherwise we don't do anything from here.
                 if !(*is_folder_tree_view_locked.borrow()) {
@@ -3405,7 +3389,6 @@ fn background_loop(
     // These are a list of empty PackedFiles, used to store data of the open PackedFile.
     let mut packed_file_loc = Loc::new();
     let mut packed_file_db = DB::new("", 0, TableDefinition::new(0));
-    let mut packed_file_text: Vec<u8> = vec![];
 
     // We load the list of Supported Games here.
     // TODO: Move this to a const when const fn reach stable in Rust.
@@ -4548,7 +4531,7 @@ fn open_packfile(
         set_my_mod_mode(&mymod_stuff, mode, Some(pack_file_path));
 
         // Receive the return from `set_game_selected`, so it doesn't mess up the channels.
-        receiver_qt.borrow().recv().unwrap();
+        let _result = receiver_qt.borrow().recv().unwrap();
     }
 
     // If it's not a "MyMod", we choose the new Game Selected depending on what the open mod id is.
@@ -4573,7 +4556,7 @@ fn open_packfile(
                 sender_qt_data.send(serde_json::to_vec("warhammer_2").map_err(From::from)).unwrap();
 
                 // Receive the return from `set_game_selected`, so it doesn't mess up the channels.
-                receiver_qt.borrow().recv().unwrap();
+                let _result = receiver_qt.borrow().recv().unwrap();
             },
 
             // PFH4 is for Warhammer 1/Attila.
@@ -4592,7 +4575,7 @@ fn open_packfile(
                         sender_qt_data.send(serde_json::to_vec("warhammer").map_err(From::from)).unwrap();
 
                         // Receive the return from `set_game_selected`, so it doesn't mess up the channels.
-                        receiver_qt.borrow().recv().unwrap();
+                        let _result = receiver_qt.borrow().recv().unwrap();
                     }
                     "attila" | _ => {
 
@@ -4604,7 +4587,7 @@ fn open_packfile(
                         sender_qt_data.send(serde_json::to_vec("attila").map_err(From::from)).unwrap();
 
                         // Receive the return from `set_game_selected`, so it doesn't mess up the channels.
-                        receiver_qt.borrow().recv().unwrap();
+                        let _result = receiver_qt.borrow().recv().unwrap();
                     }
                 }
             },

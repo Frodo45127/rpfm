@@ -339,10 +339,10 @@ impl DBData {
             let fields_list = &data.table_definition.fields;
 
             // For each row in our list...
-            for row_number in 0..header.entry_count {
+            for _ in 0..header.entry_count {
 
                 // If we decoded it...
-                match Self::read_row(packed_file_data, &fields_list, header.entry_count, row_number + 1, &mut index, false) {
+                match Self::read_row(packed_file_data, &fields_list, &mut index) {
 
                     // If it succeed, add the row to the table, otherwise, return error.
                     Ok(decoded_row) => data.entries.push(decoded_row),
@@ -359,10 +359,7 @@ impl DBData {
     fn read_row(
         packed_file_data: &[u8],
         field_list: &[Field],
-        entry_count: u32,
-        row_number: u32,
         mut index: &mut usize,
-        is_list: bool,
     ) -> Result<Vec<DecodedData>, Error> {
 
         // First, we get the amount of columns we have.

@@ -72,8 +72,7 @@ impl PackedFileTextView {
                         app_ui,
                         is_modified,
                         sender_qt,
-                        sender_qt_data,
-                        receiver_qt => move || {
+                        sender_qt_data => move || {
 
                             // Tell the background thread to start saving the PackedFile.
                             sender_qt.send("encode_packed_file_text").unwrap();

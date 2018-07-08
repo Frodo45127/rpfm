@@ -664,7 +664,7 @@ pub fn update_packed_file_data_db(
     packed_file_data_decoded: &DB,
     pack_file: &mut packfile::PackFile,
     index: usize,
-) -> Result<(), Error> {
+) {
     let mut packed_file_data_encoded = DB::save(packed_file_data_decoded);
     let packed_file_data_encoded_size = packed_file_data_encoded.len() as u32;
 
@@ -672,7 +672,6 @@ pub fn update_packed_file_data_db(
     pack_file.data.packed_files[index].data.clear();
     pack_file.data.packed_files[index].data.append(&mut packed_file_data_encoded);
     pack_file.data.packed_files[index].size = packed_file_data_encoded_size;
-    Ok(())
 }
 
 /// This function saves the data of the edited Text PackedFile in the main PackFile after a change has
