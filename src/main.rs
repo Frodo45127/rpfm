@@ -3359,10 +3359,10 @@ fn main() {
         central_splitter.set_sizes(&clist);
 
         // MenuBar at the top of the Window.
-        let mut menu_bar = &window.menu_bar();
+        let menu_bar = &window.menu_bar();
 
         // StatusBar at the bottom of the Window.
-        let mut status_bar = window.status_bar();
+        let status_bar = window.status_bar();
 
         // Top MenuBar menus.
         let menu_bar_packfile;
@@ -3613,6 +3613,7 @@ fn main() {
             app_ui.context_menu_delete.as_mut().unwrap().set_enabled(false);
             app_ui.context_menu_extract.as_mut().unwrap().set_enabled(false);
             app_ui.context_menu_rename.as_mut().unwrap().set_enabled(false);
+            app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(false);
         }
 
         // Set the shortcuts for these actions.
