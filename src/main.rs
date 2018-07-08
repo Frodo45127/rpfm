@@ -4199,19 +4199,6 @@ fn main() {
                                 *mymod_menu_needs_rebuild.borrow_mut() = true;
                             }
 
-                            // If there is a "MyMod" path set in the settings...
-                            if let Some(ref path) = settings.paths.my_mods_base_path {
-
-                                // And it's a valid directory, enable the "New MyMod" button.
-                                if path.is_dir() { unsafe { mymod_stuff.borrow_mut().new_mymod.as_mut().unwrap().set_enabled(true); }}
-
-                                // Otherwise, disable it.
-                                else { unsafe { mymod_stuff.borrow_mut().new_mymod.as_mut().unwrap().set_enabled(false); }}
-                            }
-
-                            // Otherwise, disable it.
-                            else { unsafe { mymod_stuff.borrow_mut().new_mymod.as_mut().unwrap().set_enabled(false); }}
-
                             // If we have changed the path of any of the games, and that game is the current `GameSelected`,
                             // update the current `GameSelected`.
                             let new_game_paths = settings.paths.game_paths.clone();
@@ -8189,6 +8176,24 @@ fn build_my_mod_menu(
             }
         }
     }
+
+    // If there is a "MyMod" path set in the settings...
+    if let Some(ref path) = settings.paths.my_mods_base_path {
+
+        // And it's a valid directory, enable the "New MyMod" button.
+        if path.is_dir() { unsafe { mymod_stuff.new_mymod.as_mut().unwrap().set_enabled(true); }}
+
+        // Otherwise, disable it.
+        else { unsafe { mymod_stuff.new_mymod.as_mut().unwrap().set_enabled(false); }}
+    }
+
+    // Otherwise, disable it.
+    else { unsafe { mymod_stuff.new_mymod.as_mut().unwrap().set_enabled(false); }}
+
+    // Disable by default the rest of the actions.
+    unsafe { mymod_stuff.delete_selected_mymod.as_mut().unwrap().set_enabled(false); }
+    unsafe { mymod_stuff.install_mymod.as_mut().unwrap().set_enabled(false); }
+    unsafe { mymod_stuff.uninstall_mymod.as_mut().unwrap().set_enabled(false); }
 
     // Return the MyModStuff with all the new actions.
     (mymod_stuff, mymod_slots)
