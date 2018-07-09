@@ -1321,12 +1321,13 @@ impl PackedFileDBDecoder {
         unsafe { table_view_context_menu_delete.as_mut().unwrap().set_enabled(false); }
 
         // Create the frames for the info.
-        let decoded_fields_frame = Frame::new().into_raw();
+        let decoded_fields_frame = GroupBox::new(&QString::from_std_str("Current Field Decoded")).into_raw();
         let info_frame = GroupBox::new(&QString::from_std_str("Table Info")).into_raw();
 
         // Set their layouts.
         let decoded_fields_layout = GridLayout::new().into_raw();
         let info_layout = GridLayout::new().into_raw();
+        unsafe { decoded_fields_layout.as_mut().unwrap().set_column_stretch(1, 10); }
         unsafe { decoded_fields_frame.as_mut().unwrap().set_layout(decoded_fields_layout as *mut Layout); }
         unsafe { info_frame.as_mut().unwrap().set_layout(info_layout as *mut Layout); }
 
@@ -1464,6 +1465,7 @@ impl PackedFileDBDecoder {
         unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((info_frame as *mut Widget, 1, 2, 1, 1)); }
         unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((table_view_old_versions as *mut Widget, 2, 2, 1, 1)); }
         unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((button_box as *mut Widget, 3, 2, 1, 1)); }
+        unsafe { app_ui.packed_file_layout.as_mut().unwrap().set_column_stretch(1, 10); }
 
         //---------------------------------------------------------------------------------------//
         // Prepare the data for the Decoder View...

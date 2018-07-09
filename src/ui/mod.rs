@@ -814,6 +814,9 @@ pub fn purge_them_all(app_ui: &AppUI, is_packedfile_opened: &Rc<RefCell<bool>>) 
 
     // Just in case what was open before this was a DB Table, make sure the "Game Selected" menu is re-enabled.
     unsafe { app_ui.game_selected_group.as_mut().unwrap().set_enabled(true); }
+
+    // Fix the Column stretch caused by the DB Decoder.
+    unsafe { app_ui.packed_file_layout.as_mut().unwrap().set_column_stretch(1, 0); }
 }
 
 /// This function shows a Message in the specified Grid.
