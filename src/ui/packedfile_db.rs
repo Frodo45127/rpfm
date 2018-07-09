@@ -425,7 +425,7 @@ impl PackedFileDBTreeView {
                                         for field in &packed_file_data.table_definition.fields {
 
                                             // Create a new Item.
-                                            let item = match field.field_type {
+                                            let mut item = match field.field_type {
 
                                                 // This one needs a couple of changes before turning it into an item in the table.
                                                 FieldType::Boolean => {
@@ -446,6 +446,11 @@ impl PackedFileDBTreeView {
                                                 FieldType::OptionalStringU8 |
                                                 FieldType::OptionalStringU16 => StandardItem::new(&QString::from_std_str("")),
                                             };
+
+                                            // If the field has a description, add it as a tooltip.
+                                            if !field.field_description.is_empty() {
+                                                item.set_tool_tip(&QString::from_std_str(&field.field_description));
+                                            }
 
                                             // Add the item to the list.
                                             unsafe { qlist.append_unsafe(&item.into_raw()); }
@@ -472,7 +477,7 @@ impl PackedFileDBTreeView {
                                         for field in &packed_file_data.table_definition.fields {
 
                                             // Create a new Item.
-                                            let item = match field.field_type {
+                                            let mut item = match field.field_type {
 
                                                 // This one needs a couple of changes before turning it into an item in the table.
                                                 FieldType::Boolean => {
@@ -493,6 +498,12 @@ impl PackedFileDBTreeView {
                                                 FieldType::OptionalStringU8 |
                                                 FieldType::OptionalStringU16 => StandardItem::new(&QString::from_std_str("")),
                                             };
+
+                                            // If the field has a description, add it as a tooltip.
+                                            if !field.field_description.is_empty() {
+                                                item.set_tool_tip(&QString::from_std_str(&field.field_description));
+                                            }
+
 
                                             // Add the item to the list.
                                             unsafe { qlist.append_unsafe(&item.into_raw()); }
@@ -1063,10 +1074,10 @@ impl PackedFileDBTreeView {
             let mut qlist = ListStandardItemMutPtr::new(());
 
             // For each field we have in the definition...
-            for field in entry {
+            for (index, field) in entry.iter().enumerate() {
 
                 // Create a new Item.
-                let item = match *field {
+                let mut item = match *field {
 
                     // This one needs a couple of changes before turning it into an item in the table.
                     DecodedData::Boolean(ref data) => {
@@ -1087,6 +1098,11 @@ impl PackedFileDBTreeView {
                     DecodedData::OptionalStringU8(ref data) |
                     DecodedData::OptionalStringU16(ref data) => StandardItem::new(&QString::from_std_str(data)),
                 };
+
+                // If the field has a description, add it as a tooltip.
+                if !packed_file_data.table_definition.fields[index].field_description.is_empty() {
+                    item.set_tool_tip(&QString::from_std_str(&packed_file_data.table_definition.fields[index].field_description));
+                }
 
                 // Add the item to the list.
                 unsafe { qlist.append_unsafe(&item.into_raw()); }
