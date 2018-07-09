@@ -293,6 +293,7 @@ fn main() {
         let mut folder_tree_model = StandardItemModel::new(());
         unsafe { folder_tree_view.set_model(folder_tree_model.static_cast_mut()); }
         folder_tree_view.set_header_hidden(true);
+        folder_tree_view.set_animated(true);
 
         // Create the right-side Grid.
         let mut packed_file_view = Widget::new();
