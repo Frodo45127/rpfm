@@ -716,14 +716,15 @@ pub fn update_packed_file_data_rigid(
 
 /// This function is used to patch and clean a PackFile exported with Terry, so the SiegeAI (if there
 /// is SiegeAI implemented in the map) is patched and the extra useless .xml files are deleted.
-/// It requires a mut ref to a decoded PackFile, and returns an String (Result<Success, Error>).
+/// It requires a mut ref to a decoded PackFile, and returns an String and the list of removed PackedFiles.
 pub fn patch_siege_ai (
     pack_file: &mut packfile::PackFile
-) -> Result<String, Error> {
+) -> Result<(String, Vec<TreePathType>), Error> {
 
     let mut files_patched = 0;
     let mut files_deleted = 0;
     let mut files_to_delete: Vec<Vec<String>> = vec![];
+    let mut deleted_files_type: Vec<TreePathType> = vec![];
     let mut packfile_is_empty = true;
     let mut multiple_defensive_hill_hints = false;
 
@@ -789,8 +790,13 @@ pub fn patch_siege_ai (
             // TODO: Fix this shit.
             // Due to the rework of the "delete_from_packfile" function, we need to give it a complete
             // path to delete, so we "complete" his path before deleting.
-            let file_name = vec![pack_file.extra_data.file_name.clone()];
+            let file_name = vec![pack_file.extra_data.file_name.to_owned()];
             tree_path.splice(0..0, file_name.iter().cloned());
+
+            // Get his type before deleting it.
+            deleted_files_type.push(get_type_of_selected_path(&tree_path, &pack_file));
+
+            // Delete the PackedFile.
             delete_from_packfile(pack_file, tree_path)?;
             files_deleted += 1;
         }
@@ -805,11 +811,11 @@ pub fn patch_siege_ai (
     }
     else if files_patched >= 0 || files_deleted >= 0 {
         if files_patched == 0 {
-            Ok(format!("No file suitable for patching has been found.\n{} files deleted.", files_deleted))
+            Ok((format!("No file suitable for patching has been found.\n{} files deleted.", files_deleted), deleted_files_type))
         }
         else if multiple_defensive_hill_hints {
             if files_deleted == 0 {
-                Ok(format!("{} files patched.\nNo file suitable for deleting has been found.\
+                Ok((format!("{} files patched.\nNo file suitable for deleting has been found.\
                 \n\n\
                 WARNING: Multiple Defensive Hints have been found and we only patched the first one.\
                  If you are using SiegeAI, you should only have one Defensive Hill in the map (the \
@@ -817,10 +823,10 @@ pub fn patch_siege_ai (
                  in the map, normal Defensive Hills will not work anyways, and the only thing they do \
                  is interfere with the patching process. So, if your map doesn't work properly after \
                  patching, delete all the extra Defensive Hill Hints. They are the culprit.",
-                 files_patched))
+                 files_patched), deleted_files_type))
             }
             else {
-                Ok(format!("{} files patched.\n{} files deleted.\
+                Ok((format!("{} files patched.\n{} files deleted.\
                 \n\n\
                 WARNING: Multiple Defensive Hints have been found and we only patched the first one.\
                  If you are using SiegeAI, you should only have one Defensive Hill in the map (the \
@@ -828,14 +834,14 @@ pub fn patch_siege_ai (
                  in the map, normal Defensive Hills will not work anyways, and the only thing they do \
                  is interfere with the patching process. So, if your map doesn't work properly after \
                  patching, delete all the extra Defensive Hill Hints. They are the culprit.",
-                files_patched, files_deleted))
+                files_patched, files_deleted), deleted_files_type))
             }
         }
         else if files_deleted == 0 {
-            Ok(format!("{} files patched.\nNo file suitable for deleting has been found.", files_patched))
+            Ok((format!("{} files patched.\nNo file suitable for deleting has been found.", files_patched), deleted_files_type))
         }
         else {
-            Ok(format!("{} files patched.\n{} files deleted.", files_patched, files_deleted))
+            Ok((format!("{} files patched.\n{} files deleted.", files_patched, files_deleted), deleted_files_type))
         }
     }
     else {

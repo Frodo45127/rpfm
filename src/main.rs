@@ -1334,28 +1334,26 @@ fn main() {
                             Ok(data) => {
 
                                 // Get the success message and show it.
-                                let message: String = serde_json::from_slice(&data).unwrap();
-                                show_dialog(&app_ui, true, &message);
+                                let result: (String, Vec<TreePathType>) = serde_json::from_slice(&data).unwrap();
+                                show_dialog(&app_ui, true, &result.0);
 
                                 // Set the mod as "Not Modified", because this action includes saving the PackFile.
                                 *is_modified.borrow_mut() = set_modified(false, &app_ui);
 
-                                // Get the data we need to update the UI...
-                                let data = receiver_qt.borrow().recv().unwrap().unwrap();
+                                // For each file to delete...
+                                for item_type in result.1 {
 
-                                // Deserialize it (name of the packfile, paths of the PackedFiles).
-                                let data: (&str, Vec<Vec<String>>, u32) = serde_json::from_slice(&data).unwrap();
-
-                                // Update the TreeView.
-                                update_treeview(
-                                    &rpfm_path,
-                                    &sender_qt,
-                                    &sender_qt_data,
-                                    receiver_qt.clone(),
-                                    app_ui.folder_tree_view,
-                                    app_ui.folder_tree_model,
-                                    TreeViewOperation::Build(false),
-                                );
+                                    // Remove it from the TreeView.
+                                    update_treeview(
+                                        &rpfm_path,
+                                        &sender_qt,
+                                        &sender_qt_data,
+                                        receiver_qt.clone(),
+                                        app_ui.folder_tree_view,
+                                        app_ui.folder_tree_model,
+                                        TreeViewOperation::DeleteUnselected(item_type),
+                                    );
+                                }
                             }
 
                             // In case of error, report the error.
@@ -2608,7 +2606,7 @@ fn main() {
                                             receiver_qt.clone(),
                                             app_ui.folder_tree_view,
                                             app_ui.folder_tree_model,
-                                            TreeViewOperation::Delete(path_type),
+                                            TreeViewOperation::DeleteSelected(path_type),
                                         );
                                     }
 
@@ -3755,30 +3753,16 @@ fn background_loop(
                                 // Then we try to save the Patched PackFile.
                                 match packfile::save_packfile(&mut pack_file_decoded, None) {
 
-                                    // If we succeed...
-                                    Ok(_) => {
-
-                                        // Report it.
-                                        sender.send(serde_json::to_vec(&result).map_err(From::from)).unwrap();
-
-                                        // Get the data we must return to the UI thread and serialize it.
-                                        let data = serde_json::to_vec(&(
-                                            &pack_file_decoded.extra_data.file_name,
-                                            pack_file_decoded.data.packed_files.iter().map(|x| x.path.to_vec()).collect::<Vec<Vec<String>>>(),
-                                            pack_file_decoded.header.pack_file_type
-                                        )).map_err(From::from);
-
-                                        // Send a response to the UI thread.
-                                        sender.send(data).unwrap();
-                                    }
+                                    // If we succeed, send back the result.
+                                    Ok(_) => sender.send(serde_json::to_vec(&result).map_err(From::from)).unwrap(),
 
                                     // If there is an error, report it.
-                                    Err(error) => sender.send(Err(format_err!("Error while trying to save the PackFile:\n{}", error.cause()))).unwrap()
+                                    Err(error) => sender.send(Err(format_err!("<p>The PackFile has been patched, but there was an error while trying to save it:</p><p>{}</p>", error.cause()))).unwrap()
                                 }
                             }
 
                             // Otherwise, return an error.
-                            Err(error) => sender.send(Err(format_err!("Error while trying to patch the PackFile:\n{}", error.cause()))).unwrap()
+                            Err(error) => sender.send(Err(format_err!("<p>Error while trying to patch the PackFile:</p><p>{}</p>", error.cause()))).unwrap()
                         }
                     }
 
