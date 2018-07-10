@@ -71,18 +71,17 @@ use packedfile::loc::*;
 use packedfile::db::*;
 use packedfile::db::schemas::*;
 use packedfile::db::schemas_importer::*;
+use packedfile::rigidmodel::*;
 use settings::*;
 use updater::*;
 use ui::*;
 use ui::packedfile_db::*;
 use ui::packedfile_loc::*;
 use ui::packedfile_text::*;
+use ui::packedfile_rigidmodel::*;
 use ui::settings::*;
 use ui::updater::*;
-/*
-use ui::packedfile_image::*;
-use ui::packedfile_rigidmodel::*;
-*/
+
 /// This macro is used to clone the variables into the closures without the compiler complaining.
 /// This should be BEFORE the `mod xxx` stuff, so submodules can use it too.
 macro_rules! clone {
@@ -532,6 +531,7 @@ fn main() {
         let loc_slots = Rc::new(RefCell::new(PackedFileLocTreeView::new()));
         let text_slots = Rc::new(RefCell::new(PackedFileTextView::new()));
         let decoder_slots = Rc::new(RefCell::new(PackedFileDBDecoder::new()));
+        let rigid_model_slots = Rc::new(RefCell::new(PackedFileRigidModelDataView::new()));
 
         let monospace_font = Rc::new(RefCell::new(Font::new(&QString::from_std_str("monospace [Consolas]"))));
 
@@ -3241,6 +3241,26 @@ fn main() {
                                 }
 
                                 // If the file is a Text PackedFile...
+                                "RIGIDMODEL" => {
+
+                                    // Try to get the view build, or return error.
+                                    match PackedFileRigidModelDataView::create_data_view(
+                                        sender_qt.clone(),
+                                        &sender_qt_data,
+                                        &receiver_qt,
+                                        &is_modified,
+                                        &app_ui,
+                                        &index
+                                    ) {
+                                        Ok(new_rigid_model_slots) => *rigid_model_slots.borrow_mut() = new_rigid_model_slots,
+                                        Err(error) => return show_dialog(&app_ui, false, format!("<p>Error while opening a RigidModel PackedFile:</p> <p>{}</p>", error.cause())),
+                                    }
+
+                                    // Tell the program there is an open PackedFile.
+                                    *is_packedfile_opened.borrow_mut() = true;
+                                }
+
+                                // If the file is a Text PackedFile...
                                 "IMAGE" => {
 
                                     // Try to get the view build, or return error.
@@ -3390,6 +3410,7 @@ fn background_loop(
     // These are a list of empty PackedFiles, used to store data of the open PackedFile.
     let mut packed_file_loc = Loc::new();
     let mut packed_file_db = DB::new("", 0, TableDefinition::new(0));
+    let mut packed_file_rigid_model = RigidModel::new();
 
     // We load the list of Supported Games here.
     // TODO: Move this to a const when const fn reach stable in Rust.
@@ -4232,6 +4253,59 @@ fn background_loop(
                             &mut pack_file_decoded,
                             data.1
                         );
+                    }
+
+                    // When we want to decode a RigidModel...
+                    "decode_packed_file_rigid_model" => {
+
+                        // Get the Index of the PackedFile.
+                        let data = receiver_data.recv().unwrap().unwrap();
+                        let index: usize = serde_json::from_slice(&data).unwrap();
+
+                        // We try to decode it as a Loc PackedFile.
+                        match RigidModel::read(&pack_file_decoded.data.packed_files[index].data) {
+
+                            // If we succeed, store it and send it back.
+                            Ok(packed_file_decoded) => {
+                                packed_file_rigid_model = packed_file_decoded;
+                                sender.send(serde_json::to_vec(&packed_file_rigid_model).map_err(From::from)).unwrap();
+                            }
+
+                            // In case of error, report it.
+                            Err(error) => sender.send(Err(error)).unwrap(),
+                        }
+                    }
+
+                    // When we want to encode a RigidModel...
+                    "encode_packed_file_rigid_model" => {
+
+                        // Get the Index and the Data of the PackedFile.
+                        let data = receiver_data.recv().unwrap().unwrap();
+                        let data: (RigidModel, usize) = serde_json::from_slice(&data).unwrap();
+
+                        // Replace the old encoded data with the new one.
+                        packed_file_rigid_model = data.0;
+
+                        // Update the PackFile to reflect the changes.
+                        packfile::update_packed_file_data_rigid(
+                            &packed_file_rigid_model,
+                            &mut pack_file_decoded,
+                            data.1
+                        );
+                    }
+
+                    // When we want to patch a decoded RigidModel...
+                    "patch_rigid_model_attila_to_warhammer" => {
+
+                        // We try to patch the RigidModel.
+                        match packfile::patch_rigid_model_attila_to_warhammer(&mut packed_file_rigid_model) {
+
+                            // If we succeed, store it and send it back.
+                            Ok(_) => sender.send(serde_json::to_vec(&packed_file_rigid_model).map_err(From::from)).unwrap(),
+
+                            // In case of error, report it.
+                            Err(error) => sender.send(Err(error)).unwrap(),
+                        }
                     }
 
                     // When we want to decode an Image...

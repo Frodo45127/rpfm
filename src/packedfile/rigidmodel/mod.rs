@@ -9,7 +9,7 @@ use self::failure::Error;
 
 /// Struct "RigidModel". For more info about this, check the comment at the start of "packedfile/
 /// rigidmodel/mod.rs".
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RigidModel {
     pub packed_file_header: RigidModelHeader,
     pub packed_file_data: RigidModelData,
@@ -17,7 +17,7 @@ pub struct RigidModel {
 
 /// Struct "RigidModelHeader". For more info about this, check the comment at the start of "packedfile/
 /// rigidmodel/mod.rs".
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RigidModelHeader {
     pub packed_file_header_signature: String,
     pub packed_file_header_model_type: u32,
@@ -27,7 +27,7 @@ pub struct RigidModelHeader {
 
 /// Struct "RigidModelData". For more info about this, check the comment at the start of "packedfile/
 /// rigidmodel/mod.rs".
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RigidModelData {
     pub packed_file_data_lods_header: Vec<RigidModelLodHeader>,
     pub packed_file_data_lods_data: Vec<u8>,
@@ -35,7 +35,7 @@ pub struct RigidModelData {
 
 /// Struct "RigidModelLodHeader". For more info about this, check the comment at the start of "packedfile/
 /// rigidmodel/mod.rs".
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RigidModelLodHeader {
     pub groups_count: u32,
     pub vertices_data_length: u32,
@@ -48,6 +48,14 @@ pub struct RigidModelLodHeader {
 
 /// Implementation of "RigidModel"
 impl RigidModel {
+
+    /// This function creates a new empty RigidModel. Only for initialization.
+    pub fn new() -> Self {
+        Self{
+            packed_file_header: RigidModelHeader::new(),
+            packed_file_data: RigidModelData::new(),
+        }
+    }
 
     /// This function reads the data from a Vec<u8> and decode it into a RigidModel. This CAN FAIL,
     /// so we return Result<RigidModel, Error>.
@@ -87,6 +95,16 @@ impl RigidModel {
 
 /// Implementation of "RigidModelHeader"
 impl RigidModelHeader {
+
+    /// This function creates a new empty RigidModel. Only for initialization.
+    pub fn new() -> Self {
+        Self{
+            packed_file_header_signature: String::new(),
+            packed_file_header_model_type: 0,
+            packed_file_header_lods_count: 0,
+            packed_file_data_base_skeleton: (String::new(), 0),
+        }
+    }
 
     /// This function reads the data from a Vec<u8> and decode it into a RigidModelHeader. This CAN FAIL,
     /// so we return Result<RigidModelHeader, Error>.
@@ -147,6 +165,14 @@ impl RigidModelHeader {
 
 /// Implementation of "RigidModelData"
 impl RigidModelData {
+
+    /// This function creates a new empty RigidModel. Only for initialization.
+    pub fn new() -> Self {
+        Self{
+            packed_file_data_lods_header: vec![],
+            packed_file_data_lods_data: vec![],
+        }
+    }
 
     /// This function reads the data from a Vec<u8> and decode it into a RigidModelData. This CAN FAIL,
     /// so we return Result<RigidModelData, Error>.

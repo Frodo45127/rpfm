@@ -54,10 +54,9 @@ pub mod packedfile_db;
 pub mod packedfile_loc;
 pub mod packedfile_text;
 pub mod packedfile_image;
+pub mod packedfile_rigidmodel;
 pub mod settings;
 pub mod updater;
-
-//pub mod packedfile_rigidmodel;
 
 //----------------------------------------------------------------------------//
 //             UI Creation functions (to build the UI on start)
