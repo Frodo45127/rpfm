@@ -82,7 +82,7 @@ impl RigidModel {
     /// This function reads the data from a RigidModel and encode it into a Vec<u8>. This CAN FAIL,
     /// so we return Result<Vec<u8>, Error>.
     pub fn save(rigid_model_data: &RigidModel) -> Result<Vec<u8>, Error> {
-        let mut packed_file_data_encoded = RigidModelData::save(&rigid_model_data.packed_file_data)?;
+        let mut packed_file_data_encoded = RigidModelData::save(&rigid_model_data.packed_file_data);
         let mut packed_file_header_encoded = RigidModelHeader::save(&rigid_model_data.packed_file_header)?;
 
         let mut packed_file_encoded = vec![];
@@ -205,7 +205,7 @@ impl RigidModelData {
 
     /// This function reads the data from a RigidModelData and encode it into a Vec<u8>. This CAN FAIL,
     /// so we return Result<Vec<u8>, Error>.
-    pub fn save(rigid_model_data: &RigidModelData) -> Result<Vec<u8>, Error> {
+    pub fn save(rigid_model_data: &RigidModelData) -> Vec<u8> {
         let mut packed_file_data = vec![];
 
         // For each Lod, we save it, and add it to the "Encoded Data" vector. After that, we add to that
@@ -215,7 +215,7 @@ impl RigidModelData {
         }
 
         packed_file_data.extend_from_slice(&rigid_model_data.packed_file_data_lods_data);
-        Ok(packed_file_data)
+        packed_file_data
     }
 }
 
