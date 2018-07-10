@@ -5,34 +5,11 @@ extern crate qt_gui;
 extern crate qt_core;
 
 use qt_widgets::widget::Widget;
-use qt_widgets::table_view::TableView;
-use qt_widgets::menu::Menu;
-use qt_widgets::slots::SlotQtCorePointRef;
-use qt_widgets::file_dialog::FileDialog;
-use qt_widgets::text_edit::TextEdit;
-use qt_widgets::frame::Frame;
 use qt_widgets::group_box::GroupBox;
-use qt_widgets::header_view::ResizeMode;
-use qt_widgets::abstract_item_view::{EditTrigger, SelectionMode};
 use qt_widgets::tab_widget::TabWidget;
 
-use qt_gui::standard_item::StandardItem;
-use qt_gui::standard_item_model::StandardItemModel;
-use qt_gui::cursor::Cursor;
-use qt_gui::gui_application::GuiApplication;
-use qt_gui::list::ListStandardItemMutPtr;
-use qt_gui::key_sequence::KeySequence;
-use qt_gui::font::{Font, StyleHint };
-use qt_gui::font_metrics::FontMetrics;
-
-use qt_core::sort_filter_proxy_model::SortFilterProxyModel;
-use qt_core::abstract_item_model::AbstractItemModel;
 use qt_core::event_loop::EventLoop;
 use qt_core::connection::Signal;
-use qt_core::variant::Variant;
-use qt_core::slots::{SlotBool, SlotCInt, SlotStringRef, SlotItemSelectionRefItemSelectionRef, SlotModelIndexRefModelIndexRefVectorVectorCIntRef};
-use qt_core::reg_exp::RegExp;
-use qt_core::qt::{Orientation, CheckState, ContextMenuPolicy, ShortcutContext, SortOrder, CaseSensitivity};
 
 use failure::Error;
 use std::cell::RefCell;
@@ -43,9 +20,7 @@ use std::sync::mpsc::{Sender, Receiver};
 
 use AppUI;
 use ui::*;
-use packfile::packfile::PackedFile;
 use packedfile::rigidmodel::*;
-use settings::{GameInfo, GameSelected};
 use common::coding_helpers::*;
 
 /// Struct PackedFileRigidModelDataView: contains all the stuff we need to give to the program to
@@ -309,46 +284,38 @@ impl PackedFileRigidModelDataView {
                     save_changes: SlotNoArgs::new(clone!(
                         packed_file_index,
                         texture_paths,
+                        texture_paths_index,
                         packed_file,
                         is_modified,
                         app_ui,
                         sender_qt,
-                        sender_qt_data,
-                        receiver_qt => move || {
-
-                            // Get a copy of the data to modify it.
-                            let mut packed_file = packed_file.borrow().clone();
+                        sender_qt_data=> move || {
 
                             // Try to update the RigidModel's data from the LineEdits.
-                            match Self::return_data_from_data_view(
+                            if let Err(error) = Self::return_data_from_data_view(
                                 &texture_paths,
                                 &texture_paths_index,
-                                &mut packed_file.packed_file_data.packed_file_data_lods_data
+                                &mut packed_file.borrow_mut().packed_file_data.packed_file_data_lods_data
                             ) {
 
-                                // If it worked...
-                                Ok(_) => {
-
-                                    // Tell the background thread to start saving the PackedFile.
-                                    sender_qt.send("encode_packed_file_rigid_model").unwrap();
-
-                                    // Send the new lod data.
-                                    sender_qt_data.send(serde_json::to_vec(&(packed_file, packed_file_index)).map_err(From::from)).unwrap();
-
-                                    // Set the mod as "Modified".
-                                    *is_modified.borrow_mut() = set_modified(true, &app_ui);
-                                }
-
                                 // If there was an error, report it.
-                                Err(error) => return show_dialog(&app_ui, false, format!("<p>Error while trying to save the RigidModel:</p><p>{}</p>", error.cause())),
+                                return show_dialog(&app_ui, false, format!("<p>Error while trying to save the RigidModel:</p><p>{}</p>", error.cause()));
                             }
+
+                            // Tell the background thread to start saving the PackedFile.
+                            sender_qt.send("encode_packed_file_rigid_model").unwrap();
+
+                            // Send the new lod data.
+                            sender_qt_data.send(serde_json::to_vec(&(&*packed_file.borrow(), packed_file_index)).map_err(From::from)).unwrap();
+
+                            // Set the mod as "Modified".
+                            *is_modified.borrow_mut() = set_modified(true, &app_ui);
                         }
                     )),
 
                     // Slot to patch the RigidModel for Warhammer.
                     patch_rigid_model: SlotNoArgs::new(clone!(
                         packed_file_index,
-                        texture_paths,
                         packed_file,
                         is_modified,
                         app_ui,
@@ -358,6 +325,7 @@ impl PackedFileRigidModelDataView {
 
                             // Send the data to the background to try to patch the rigidmodel.
                             sender_qt.send("patch_rigid_model_attila_to_warhammer").unwrap();
+                            sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
 
                             // Prepare the event loop, so we don't hang the UI while the background thread is working.
                             let mut event_loop = EventLoop::new();
@@ -374,7 +342,7 @@ impl PackedFileRigidModelDataView {
                                     // Check what the result of the patching process was.
                                     match data {
 
-                                        // In case of success, we get the data and build the UI for it.
+                                        // In case of success...
                                         Ok(data) => {
 
                                             // Get the RigidModel data.
@@ -385,19 +353,20 @@ impl PackedFileRigidModelDataView {
                                             unsafe { rigid_model_compatible_decoded_label.as_mut().unwrap().set_text(&QString::from_std_str("Warhammer 1&2")); }
                                             unsafe { patch_attila_to_warhammer_button.as_mut().unwrap().set_enabled(false); }
 
-                                            // Tell the background thread to start saving the PackedFile.
-                                            sender_qt.send("encode_packed_file_rigid_model").unwrap();
-
-                                            // Send the new lod data.
-                                            sender_qt_data.send(serde_json::to_vec(&(&*packed_file.borrow(), packed_file_index)).map_err(From::from)).unwrap();
+                                            // Set the mod as "Modified".
+                                            *is_modified.borrow_mut() = set_modified(true, &app_ui);
 
                                             // Break the loop.
                                             break;
                                         }
 
-                                        // In case of error, report the error and break the loop.
+                                        // In case of error...
                                         Err(error) => {
+
+                                            // Report the error.
                                             show_dialog(&app_ui, false, format!("<p>Error while trying to patch the RigidModel:</p><p>{}</p>", error.cause()));
+
+                                            // Break the loop.
                                             break;
                                         }
                                     }

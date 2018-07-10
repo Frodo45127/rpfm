@@ -4297,11 +4297,26 @@ fn background_loop(
                     // When we want to patch a decoded RigidModel...
                     "patch_rigid_model_attila_to_warhammer" => {
 
+                        // Get the Index of the PackedFile.
+                        let data = receiver_data.recv().unwrap().unwrap();
+                        let index: usize = serde_json::from_slice(&data).unwrap();
+
                         // We try to patch the RigidModel.
                         match packfile::patch_rigid_model_attila_to_warhammer(&mut packed_file_rigid_model) {
 
-                            // If we succeed, store it and send it back.
-                            Ok(_) => sender.send(serde_json::to_vec(&packed_file_rigid_model).map_err(From::from)).unwrap(),
+                            // If we succeed...
+                            Ok(_) => {
+
+                                // Update the PackFile to reflect the changes.
+                                packfile::update_packed_file_data_rigid(
+                                    &packed_file_rigid_model,
+                                    &mut pack_file_decoded,
+                                    index
+                                );
+
+                                // Send back the patched PackedFile.
+                                sender.send(serde_json::to_vec(&packed_file_rigid_model).map_err(From::from)).unwrap()
+                            }
 
                             // In case of error, report it.
                             Err(error) => sender.send(Err(error)).unwrap(),
