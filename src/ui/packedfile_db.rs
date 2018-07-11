@@ -375,7 +375,7 @@ impl PackedFileDBTreeView {
                             )),
 
                             slot_item_changed: SlotStandardItemMutPtr::new(|item| {
-                                unsafe { item.as_mut().unwrap().set_background(&Brush::new(GlobalColor::DarkYellow)); }
+                                unsafe { item.as_mut().unwrap().set_background(&Brush::new(GlobalColor::Yellow)); }
                             }),
 
                             slot_row_filter_change_text: SlotStringRef::new(move |filter_text| {
@@ -472,7 +472,7 @@ impl PackedFileDBTreeView {
                                             }
 
                                             // Paint the cells.
-                                            item.set_background(&Brush::new(GlobalColor::DarkGreen));
+                                            item.set_background(&Brush::new(GlobalColor::Green));
 
                                             // Add the item to the list.
                                             unsafe { qlist.append_unsafe(&item.into_raw()); }
@@ -527,7 +527,7 @@ impl PackedFileDBTreeView {
                                             }
 
                                             // Paint the cells.
-                                            item.set_background(&Brush::new(GlobalColor::DarkGreen));
+                                            item.set_background(&Brush::new(GlobalColor::Green));
 
                                             // Add the item to the list.
                                             unsafe { qlist.append_unsafe(&item.into_raw()); }
@@ -725,7 +725,7 @@ impl PackedFileDBTreeView {
                                                 }
 
                                                 // Paint the cells.
-                                                unsafe { item.as_mut().unwrap().set_background(&Brush::new(GlobalColor::DarkGreen)); }
+                                                unsafe { item.as_mut().unwrap().set_background(&Brush::new(GlobalColor::Green)); }
 
                                                 // Add the item to the list.
                                                 unsafe { qlist.append_unsafe(&item); }
@@ -901,7 +901,7 @@ impl PackedFileDBTreeView {
                                                     }
 
                                                     // Paint the cells.
-                                                    cell.0.as_mut().unwrap().set_background(&Brush::new(GlobalColor::DarkYellow));
+                                                    cell.0.as_mut().unwrap().set_background(&Brush::new(GlobalColor::Yellow));
                                                 }
                                             }
 

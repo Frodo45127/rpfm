@@ -1346,9 +1346,9 @@ pub fn paint_treeview(
 
     // Get the color we need to apply.
     let color = match &status {
-        ItemVisualStatus::Added => GlobalColor::DarkGreen,
-        ItemVisualStatus::Modified => GlobalColor::DarkYellow,
-        ItemVisualStatus::AddedModified => GlobalColor::DarkCyan,
+        ItemVisualStatus::Added => GlobalColor::Green,
+        ItemVisualStatus::Modified => GlobalColor::Yellow,
+        ItemVisualStatus::AddedModified => GlobalColor::Cyan,
         ItemVisualStatus::Untouched => GlobalColor::Transparent,
     };
 
@@ -1374,9 +1374,9 @@ pub fn paint_treeview(
 
         // Get the status of the Parent depending on his color.
         let parent_status = match &*parent_color {
-            "#008000" => ItemVisualStatus::Added,
-            "#808000" => ItemVisualStatus::Modified,
-            "#800080" => ItemVisualStatus::AddedModified,
+            "#00ff00" => ItemVisualStatus::Added,
+            "#ffff00" => ItemVisualStatus::Modified,
+            "#00ffff" => ItemVisualStatus::AddedModified,
             "#000000" | _ => ItemVisualStatus::Untouched,
         };
 
@@ -1387,14 +1387,14 @@ pub fn paint_treeview(
             ItemVisualStatus::Added => {
 
                 // If the new status is "Modified", turn it into "AddedModified"
-                if status == ItemVisualStatus::Modified { unsafe { parent.as_mut().unwrap().set_background(&Brush::new(GlobalColor::DarkCyan)); } }
+                if status == ItemVisualStatus::Modified { unsafe { parent.as_mut().unwrap().set_background(&Brush::new(GlobalColor::Cyan)); } }
             },
 
             // If it's Modified...
             ItemVisualStatus::Modified => {
 
                 // If the new status is "Added", turn it into "AddedModified"
-                if status == ItemVisualStatus::Added { unsafe { parent.as_mut().unwrap().set_background(&Brush::new(GlobalColor::DarkCyan)); } }
+                if status == ItemVisualStatus::Added { unsafe { parent.as_mut().unwrap().set_background(&Brush::new(GlobalColor::Cyan)); } }
             },
 
             // If it's AddedModified, left it as is.

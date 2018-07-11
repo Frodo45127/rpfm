@@ -273,7 +273,7 @@ impl PackedFileLocTreeView {
                                 }
                             )),
                             slot_item_changed: SlotStandardItemMutPtr::new(|item| {
-                                unsafe { item.as_mut().unwrap().set_background(&Brush::new(GlobalColor::DarkYellow)); }
+                                unsafe { item.as_mut().unwrap().set_background(&Brush::new(GlobalColor::Yellow)); }
                             }),
                             slot_row_filter_change_text: SlotStringRef::new(move |filter_text| {
 
@@ -344,9 +344,9 @@ impl PackedFileLocTreeView {
                                     tooltip.set_check_state(CheckState::Checked);
 
                                     // Paint the cells.
-                                    key.set_background(&Brush::new(GlobalColor::DarkGreen));
-                                    text.set_background(&Brush::new(GlobalColor::DarkGreen));
-                                    tooltip.set_background(&Brush::new(GlobalColor::DarkGreen));
+                                    key.set_background(&Brush::new(GlobalColor::Green));
+                                    text.set_background(&Brush::new(GlobalColor::Green));
+                                    tooltip.set_background(&Brush::new(GlobalColor::Green));
 
                                     // Add an empty row to the list.
                                     unsafe { qlist.append_unsafe(&key.into_raw()); }
@@ -377,9 +377,9 @@ impl PackedFileLocTreeView {
                                     tooltip.set_check_state(CheckState::Checked);
 
                                     // Paint the cells.
-                                    key.set_background(&Brush::new(GlobalColor::DarkGreen));
-                                    text.set_background(&Brush::new(GlobalColor::DarkGreen));
-                                    tooltip.set_background(&Brush::new(GlobalColor::DarkGreen));
+                                    key.set_background(&Brush::new(GlobalColor::Green));
+                                    text.set_background(&Brush::new(GlobalColor::Green));
+                                    tooltip.set_background(&Brush::new(GlobalColor::Green));
 
                                     // Add an empty row to the list.
                                     unsafe { qlist.append_unsafe(&key.into_raw()); }
@@ -621,7 +621,7 @@ impl PackedFileLocTreeView {
                                                     else { cell.0.as_mut().unwrap().set_text(&QString::from_std_str(cell.1)); }
 
                                                     // Paint the cells.
-                                                    cell.0.as_mut().unwrap().set_background(&Brush::new(GlobalColor::DarkYellow));
+                                                    cell.0.as_mut().unwrap().set_background(&Brush::new(GlobalColor::Yellow));
                                                 }
                                             }
 
