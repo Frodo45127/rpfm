@@ -24,7 +24,7 @@ The project is being actively developed, and the latest released version can (fo
 - [x] ***Edit Localisation PackedFiles***.
 - [x] ***Edit Lua/Xml/Csv/Txt PackedFiles***.
 - [x] ***Edit RigidModel Textures***.
-- [x] ***Show Images from the PackFiles (including DDS)***.
+- [x] ***Show Images from the PackFiles***, including DDS Textures.
 
 In addition to that, it has some special features:
 - [x] ***MyMod***: A re-implementation of the "MyMod" feature from PFM. It works following the behavior specified [**here**][MyMod behavior] with some changes:
@@ -47,7 +47,7 @@ To build this project, you need:
 
 In **Linux**, you just need to install the latest ***Qt5 package*** of your distro (at least *Qt 5.8*), and the DDS Plugin from *Qt5 ImageFormats* (you'll have to compile it, as it's no longer included by default in Qt). Also, you'll need the ***Rust Toolchain*** (at least +1.26, recommended using [***Rustup***][Rustup download]).
 
-In **Windows**, first you need to install the ***Rust Toolchain*** ((at least +1.26, recommended using [***Rustup***][Rustup download]), and then install ***Qt5*** (at least *Qt 5.8*), and the DDS Plugin from *Qt5 ImageFormats* (you'll have to compile it, as it's no longer included by default in Qt). That's all.
+In **Windows**, first you need to install the ***Rust Toolchain*** (at least +1.26, recommended using [***Rustup***][Rustup download]), and then install ***Qt5*** (at least *Qt 5.8*), and the DDS Plugin from *Qt5 ImageFormats* (you'll have to compile it, as it's no longer included by default in Qt). That's all.
 
 To build, move to the repo directory and execute:
 ```bash
