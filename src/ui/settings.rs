@@ -131,14 +131,16 @@ impl SettingsDialog {
         unsafe { ui_settings_grid.as_mut().unwrap().set_row_stretch(99, 10); }
 
         // Create the UI options.
-        let adjust_columns_to_content_label = Label::new(&QString::from_std_str("Adjust Columns to Content:"));
+        let mut adjust_columns_to_content_label = Label::new(&QString::from_std_str("Adjust Columns to Content:"));
         let mut adjust_columns_to_content_checkbox = CheckBox::new(());
 
-        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((adjust_columns_to_content_label.into_raw() as *mut Widget, 0, 0, 1, 1)); }
+        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((adjust_columns_to_content_label.static_cast_mut() as *mut Widget, 0, 0, 1, 1)); }
         unsafe { ui_settings_grid.as_mut().unwrap().add_widget((adjust_columns_to_content_checkbox.static_cast_mut() as *mut Widget, 0, 1, 1, 1)); }
 
         // Tip for the checkbox.
-        adjust_columns_to_content_checkbox.set_tool_tip(&QString::from_std_str("If you enable this, when you open a table or loc, all columns will be automatically resized depending on their content's size.\nOtherwise, columns will have a predefined size. Either way, you'll be able to resize them manually after the initial resize."));
+        let adjust_columns_to_content_tip = QString::from_std_str("If you enable this, when you open a DB Table or Loc File, all columns will be automatically resized depending on their content's size.\nOtherwise, columns will have a predefined size. Either way, you'll be able to resize them manually after the initial resize.");
+        adjust_columns_to_content_label.set_tool_tip(&adjust_columns_to_content_tip);
+        adjust_columns_to_content_checkbox.set_tool_tip(&adjust_columns_to_content_tip);
 
         // Create the "Extra Settings" frame and Grid.
         let extra_settings_frame = GroupBox::new(&QString::from_std_str("Extra Settings")).into_raw();
@@ -165,17 +167,23 @@ impl SettingsDialog {
         let mut check_schema_updates_on_start_checkbox = CheckBox::new(());
         let mut use_pfm_extracting_behavior_checkbox = CheckBox::new(());
 
+        // Tips.
+        let allow_editing_of_ca_packfiles_tip = QString::from_std_str("By default, only PackFiles of Type 'Mod' and 'Movie' are editables, as those are the only ones used for modding.\nIf you enable this, you'll be able to edit 'Boot', 'Release' and 'Patch' PackFiles too. Just be careful of not writing over one of the game's original PackFiles!");
+        let check_updates_on_start_tip = QString::from_std_str("If you enable this, RPFM will check for updates at the start of the program, and inform you if there is any update available.\nWhether download it or not is up to you.");
+        let check_schema_updates_on_start_tip = QString::from_std_str("If you enable this, RPFM will check for schema updates at the start of the program,\nand allow you to automatically download it if there is any update available.");
+        let use_pfm_extracting_behavior_tip = QString::from_std_str("By default, extracting a file/folder extracts just the file to wherever you want.\nIf you enable this, the file/folder will be extracted wherever you want UNDER HIS ENTIRE PATH.\nThat means that extracting a table go from 'myfolder/table_file' to 'myfolder/db/main_units_tables/table_file'.");
+
         // Tips for the checkboxes.
-        allow_editing_of_ca_packfiles_checkbox.set_tool_tip(&QString::from_std_str("By default, only PackFiles of Type 'Mod' and 'Movie' are editables, as are the only ones used for modding.\nIf you enable this, you'll be able to edit 'Boot', 'Release' and 'Patch' PackFiles too. Just be careful of not writing over one of the game's original PackFiles!"));
-        check_updates_on_start_checkbox.set_tool_tip(&QString::from_std_str("If you enable this, RPFM will check for updates at the start of the Program, and inform you if there is any update available.\nWhether download it or not is up to you."));
-        check_schema_updates_on_start_checkbox.set_tool_tip(&QString::from_std_str("If you enable this, RPFM will check for Schema updates at the start of the Program,\nand allow you to automatically download it if there is any update available."));
-        use_pfm_extracting_behavior_checkbox.set_tool_tip(&QString::from_std_str("By default, extracting a file/folder extracts just the file to wherever you want.\nIf you enable this, the file/folder will be extracted wherever you want UNDER HIS ENTIRE PATH.\nThat means that extracting a table go from 'myfolder/table_file' to 'myfolder/db/main_units_tables/table_file'."));
+        allow_editing_of_ca_packfiles_checkbox.set_tool_tip(&allow_editing_of_ca_packfiles_tip);
+        check_updates_on_start_checkbox.set_tool_tip(&check_updates_on_start_tip);
+        check_schema_updates_on_start_checkbox.set_tool_tip(&check_schema_updates_on_start_tip);
+        use_pfm_extracting_behavior_checkbox.set_tool_tip(&use_pfm_extracting_behavior_tip);
 
         // Also, for their labels.
-        allow_editing_of_ca_packfiles_label.set_tool_tip(&QString::from_std_str("By default, only PackFiles of Type 'Mod' and 'Movie' are editables, as are the only ones used for modding.\nIf you enable this, you'll be able to edit 'Boot', 'Release' and 'Patch' PackFiles too. Just be careful of not writing over one of the game's original PackFiles!"));
-        check_updates_on_start_label.set_tool_tip(&QString::from_std_str("If you enable this, RPFM will check for updates at the start of the Program, and inform you if there is any update available.\nWhether download it or not is up to you."));
-        check_schema_updates_on_start_label.set_tool_tip(&QString::from_std_str("If you enable this, RPFM will check for Schema updates at the start of the Program,\nand allow you to automatically download it if there is any update available."));
-        use_pfm_extracting_behavior_label.set_tool_tip(&QString::from_std_str("By default, extracting a file/folder extracts just the file to wherever you want.\nIf you enable this, the file/folder will be extracted wherever you want UNDER HIS ENTIRE PATH.\nThat means that extracting a table go from 'myfolder/table_file' to 'myfolder/db/main_units_tables/table_file'."));
+        allow_editing_of_ca_packfiles_label.set_tool_tip(&allow_editing_of_ca_packfiles_tip);
+        check_updates_on_start_label.set_tool_tip(&check_updates_on_start_tip);
+        check_schema_updates_on_start_label.set_tool_tip(&check_schema_updates_on_start_tip);
+        use_pfm_extracting_behavior_label.set_tool_tip(&use_pfm_extracting_behavior_tip);
 
         // Add the "Default Game" stuff to the Grid.
         unsafe { extra_settings_grid.as_mut().unwrap().add_widget((default_game_label as *mut Widget, 0, 0, 1, 1)); }
