@@ -15,14 +15,15 @@ use qt_widgets::group_box::GroupBox;
 use qt_widgets::header_view::ResizeMode;
 use qt_widgets::abstract_item_view::{EditTrigger, SelectionMode};
 
-use qt_gui::standard_item::StandardItem;
-use qt_gui::standard_item_model::StandardItemModel;
 use qt_gui::cursor::Cursor;
-use qt_gui::gui_application::GuiApplication;
-use qt_gui::list::ListStandardItemMutPtr;
-use qt_gui::key_sequence::KeySequence;
 use qt_gui::font::{Font, StyleHint };
 use qt_gui::font_metrics::FontMetrics;
+use qt_gui::gui_application::GuiApplication;
+use qt_gui::key_sequence::KeySequence;
+use qt_gui::list::ListStandardItemMutPtr;
+use qt_gui::slots::SlotStandardItemMutPtr;
+use qt_gui::standard_item::StandardItem;
+use qt_gui::standard_item_model::StandardItemModel;
 
 use qt_core::sort_filter_proxy_model::SortFilterProxyModel;
 use qt_core::abstract_item_model::AbstractItemModel;
@@ -31,7 +32,7 @@ use qt_core::connection::Signal;
 use qt_core::variant::Variant;
 use qt_core::slots::{SlotBool, SlotCInt, SlotStringRef, SlotItemSelectionRefItemSelectionRef, SlotModelIndexRefModelIndexRefVectorVectorCIntRef};
 use qt_core::reg_exp::RegExp;
-use qt_core::qt::{Orientation, CheckState, ContextMenuPolicy, ShortcutContext, SortOrder, CaseSensitivity};
+use qt_core::qt::{Orientation, CheckState, ContextMenuPolicy, ShortcutContext, SortOrder, CaseSensitivity, GlobalColor};
 
 use failure::Error;
 use std::cell::RefCell;
@@ -51,6 +52,7 @@ pub struct PackedFileDBTreeView {
     pub slot_context_menu: SlotQtCorePointRef<'static>,
     pub slot_context_menu_enabler: SlotItemSelectionRefItemSelectionRef<'static>,
     pub save_changes: SlotModelIndexRefModelIndexRefVectorVectorCIntRef<'static>,
+    pub slot_item_changed: SlotStandardItemMutPtr<'static>,
     pub slot_row_filter_change_text: SlotStringRef<'static>,
     pub slot_row_filter_change_column: SlotCInt<'static>,
     pub slot_row_filter_change_case_sensitive: SlotBool<'static>,
@@ -155,6 +157,7 @@ impl PackedFileDBTreeView {
             slot_context_menu: SlotQtCorePointRef::new(|_| {}),
             slot_context_menu_enabler: SlotItemSelectionRefItemSelectionRef::new(|_,_| {}),
             save_changes: SlotModelIndexRefModelIndexRefVectorVectorCIntRef::new(|_,_,_| {}),
+            slot_item_changed: SlotStandardItemMutPtr::new(|_| {}),
             slot_row_filter_change_text: SlotStringRef::new(|_| {}),
             slot_row_filter_change_column: SlotCInt::new(|_| {}),
             slot_row_filter_change_case_sensitive: SlotBool::new(|_| {}),
@@ -330,7 +333,7 @@ impl PackedFileDBTreeView {
                                            context_menu_delete.as_mut().unwrap().set_enabled(false);
                                        }
                                    }
-                               }
+                                }
                             ),
                             save_changes: SlotModelIndexRefModelIndexRefVectorVectorCIntRef::new(clone!(
                                 packed_file_index,
@@ -365,6 +368,10 @@ impl PackedFileDBTreeView {
                                     *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(path));
                                 }
                             )),
+
+                            slot_item_changed: SlotStandardItemMutPtr::new(|item| {
+                                unsafe { item.as_mut().unwrap().set_background(&Brush::new(GlobalColor::DarkYellow)); }
+                            }),
 
                             slot_row_filter_change_text: SlotStringRef::new(move |filter_text| {
 
@@ -459,6 +466,9 @@ impl PackedFileDBTreeView {
                                                 item.set_tool_tip(&QString::from_std_str(&field.field_description));
                                             }
 
+                                            // Paint the cells.
+                                            item.set_background(&Brush::new(GlobalColor::DarkGreen));
+
                                             // Add the item to the list.
                                             unsafe { qlist.append_unsafe(&item.into_raw()); }
                                         }
@@ -511,6 +521,8 @@ impl PackedFileDBTreeView {
                                                 item.set_tool_tip(&QString::from_std_str(&field.field_description));
                                             }
 
+                                            // Paint the cells.
+                                            item.set_background(&Brush::new(GlobalColor::DarkGreen));
 
                                             // Add the item to the list.
                                             unsafe { qlist.append_unsafe(&item.into_raw()); }
@@ -707,6 +719,9 @@ impl PackedFileDBTreeView {
                                                     _ => unsafe { item.as_mut().unwrap().set_text(&original_item.as_mut().unwrap().text()) },
                                                 }
 
+                                                // Paint the cells.
+                                                unsafe { item.as_mut().unwrap().set_background(&Brush::new(GlobalColor::DarkGreen)); }
+
                                                 // Add the item to the list.
                                                 unsafe { qlist.append_unsafe(&item); }
                                             }
@@ -744,7 +759,6 @@ impl PackedFileDBTreeView {
                                     }
                                 }
                             )),
-
 
                             slot_context_menu_copy: SlotBool::new(move |_| {
 
@@ -880,6 +894,9 @@ impl PackedFileDBTreeView {
                                                         }
                                                         _ => cell.0.as_mut().unwrap().set_text(&QString::from_std_str(cell.1)),
                                                     }
+
+                                                    // Paint the cells.
+                                                    cell.0.as_mut().unwrap().set_background(&Brush::new(GlobalColor::DarkYellow));
                                                 }
                                             }
 
@@ -1044,6 +1061,7 @@ impl PackedFileDBTreeView {
                         // Actions for the TableView...
                         unsafe { (table_view as *mut Widget).as_ref().unwrap().signals().custom_context_menu_requested().connect(&slots.slot_context_menu); }
                         unsafe { model.as_mut().unwrap().signals().data_changed().connect(&slots.save_changes); }
+                        unsafe { model.as_mut().unwrap().signals().item_changed().connect(&slots.slot_item_changed); }
                         unsafe { context_menu_add.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_add); }
                         unsafe { context_menu_insert.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_insert); }
                         unsafe { context_menu_delete.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_delete); }

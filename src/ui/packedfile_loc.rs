@@ -12,12 +12,14 @@ use qt_widgets::file_dialog::FileDialog;
 use qt_widgets::combo_box::ComboBox;
 use qt_widgets::line_edit::LineEdit;
 
-use qt_gui::standard_item::StandardItem;
-use qt_gui::standard_item_model::StandardItemModel;
+use qt_gui::brush::Brush;
 use qt_gui::cursor::Cursor;
 use qt_gui::gui_application::GuiApplication;
-use qt_gui::list::ListStandardItemMutPtr;
 use qt_gui::key_sequence::KeySequence;
+use qt_gui::list::ListStandardItemMutPtr;
+use qt_gui::slots::SlotStandardItemMutPtr;
+use qt_gui::standard_item::StandardItem;
+use qt_gui::standard_item_model::StandardItemModel;
 
 use qt_core::sort_filter_proxy_model::SortFilterProxyModel;
 use qt_core::abstract_item_model::AbstractItemModel;
@@ -26,7 +28,7 @@ use qt_core::connection::Signal;
 use qt_core::variant::Variant;
 use qt_core::slots::{SlotBool, SlotCInt, SlotStringRef, SlotItemSelectionRefItemSelectionRef, SlotModelIndexRefModelIndexRefVectorVectorCIntRef};
 use qt_core::reg_exp::RegExp;
-use qt_core::qt::{Orientation, CheckState, ContextMenuPolicy, ShortcutContext, SortOrder, CaseSensitivity};
+use qt_core::qt::{Orientation, CheckState, ContextMenuPolicy, ShortcutContext, SortOrder, CaseSensitivity, GlobalColor};
 
 use failure::Error;
 use std::cell::RefCell;
@@ -44,6 +46,7 @@ pub struct PackedFileLocTreeView {
     pub slot_context_menu: SlotQtCorePointRef<'static>,
     pub slot_context_menu_enabler: SlotItemSelectionRefItemSelectionRef<'static>,
     pub save_changes: SlotModelIndexRefModelIndexRefVectorVectorCIntRef<'static>,
+    pub slot_item_changed: SlotStandardItemMutPtr<'static>,
     pub slot_row_filter_change_text: SlotStringRef<'static>,
     pub slot_row_filter_change_column: SlotCInt<'static>,
     pub slot_row_filter_change_case_sensitive: SlotBool<'static>,
@@ -67,6 +70,7 @@ impl PackedFileLocTreeView {
             slot_context_menu: SlotQtCorePointRef::new(|_| {}),
             slot_context_menu_enabler: SlotItemSelectionRefItemSelectionRef::new(|_,_| {}),
             save_changes: SlotModelIndexRefModelIndexRefVectorVectorCIntRef::new(|_,_,_| {}),
+            slot_item_changed: SlotStandardItemMutPtr::new(|_| {}),
             slot_row_filter_change_text: SlotStringRef::new(|_| {}),
             slot_row_filter_change_column: SlotCInt::new(|_| {}),
             slot_row_filter_change_case_sensitive: SlotBool::new(|_| {}),
@@ -261,6 +265,9 @@ impl PackedFileLocTreeView {
                                     *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(path));
                                 }
                             )),
+                            slot_item_changed: SlotStandardItemMutPtr::new(|item| {
+                                unsafe { item.as_mut().unwrap().set_background(&Brush::new(GlobalColor::DarkYellow)); }
+                            }),
                             slot_row_filter_change_text: SlotStringRef::new(move |filter_text| {
 
                                 // Get the column selected.
@@ -322,12 +329,17 @@ impl PackedFileLocTreeView {
                                     let mut qlist = ListStandardItemMutPtr::new(());
 
                                     // Create an empty row.
-                                    let key = StandardItem::new(&QString::from_std_str(""));
-                                    let text = StandardItem::new(&QString::from_std_str(""));
+                                    let mut key = StandardItem::new(&QString::from_std_str(""));
+                                    let mut text = StandardItem::new(&QString::from_std_str(""));
                                     let mut tooltip = StandardItem::new(());
                                     tooltip.set_editable(false);
                                     tooltip.set_checkable(true);
                                     tooltip.set_check_state(CheckState::Checked);
+
+                                    // Paint the cells.
+                                    key.set_background(&Brush::new(GlobalColor::DarkGreen));
+                                    text.set_background(&Brush::new(GlobalColor::DarkGreen));
+                                    tooltip.set_background(&Brush::new(GlobalColor::DarkGreen));
 
                                     // Add an empty row to the list.
                                     unsafe { qlist.append_unsafe(&key.into_raw()); }
@@ -350,12 +362,17 @@ impl PackedFileLocTreeView {
                                     let mut qlist = ListStandardItemMutPtr::new(());
 
                                     // Create an empty row.
-                                    let key = StandardItem::new(&QString::from_std_str(""));
-                                    let text = StandardItem::new(&QString::from_std_str(""));
+                                    let mut key = StandardItem::new(&QString::from_std_str(""));
+                                    let mut text = StandardItem::new(&QString::from_std_str(""));
                                     let mut tooltip = StandardItem::new(());
                                     tooltip.set_editable(false);
                                     tooltip.set_checkable(true);
                                     tooltip.set_check_state(CheckState::Checked);
+
+                                    // Paint the cells.
+                                    key.set_background(&Brush::new(GlobalColor::DarkGreen));
+                                    text.set_background(&Brush::new(GlobalColor::DarkGreen));
+                                    tooltip.set_background(&Brush::new(GlobalColor::DarkGreen));
 
                                     // Add an empty row to the list.
                                     unsafe { qlist.append_unsafe(&key.into_raw()); }
@@ -595,6 +612,9 @@ impl PackedFileLocTreeView {
 
                                                     // Otherwise, it's just a string.
                                                     else { cell.0.as_mut().unwrap().set_text(&QString::from_std_str(cell.1)); }
+
+                                                    // Paint the cells.
+                                                    cell.0.as_mut().unwrap().set_background(&Brush::new(GlobalColor::DarkYellow));
                                                 }
                                             }
 
@@ -746,6 +766,7 @@ impl PackedFileLocTreeView {
                         // Actions for the TableView...
                         unsafe { (table_view as *mut Widget).as_ref().unwrap().signals().custom_context_menu_requested().connect(&slots.slot_context_menu); }
                         unsafe { model.as_mut().unwrap().signals().data_changed().connect(&slots.save_changes); }
+                        unsafe { model.as_mut().unwrap().signals().item_changed().connect(&slots.slot_item_changed); }
                         unsafe { context_menu_add.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_add); }
                         unsafe { context_menu_insert.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_insert); }
                         unsafe { context_menu_delete.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_delete); }
