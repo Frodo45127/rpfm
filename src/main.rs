@@ -843,7 +843,7 @@ fn main() {
                     unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
 
                     // Set the new mod as "Not modified".
-                    *is_modified.borrow_mut() = set_modified(false, &app_ui);
+                    *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
 
                     // Get the Game Selected.
                     sender_qt.send("get_game_selected").unwrap();
@@ -950,7 +950,7 @@ fn main() {
 
                             // In case of success, show a dialog saying it, and set the mod as "Not Modified".
                             Ok(_) => {
-                                *is_modified.borrow_mut() = set_modified(false, &app_ui);
+                                *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
                                 show_dialog(&app_ui, true, "PackFile successfully saved.");
                             }
 
@@ -1078,7 +1078,7 @@ fn main() {
                                         Ok(_) => {
 
                                             // Set the mod as "Not Modified".
-                                            *is_modified.borrow_mut() = set_modified(false, &app_ui);
+                                            *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
 
                                             // Get the Selection Model and the Model Index of the PackFile's Cell.
                                             let selection_model;
@@ -1158,8 +1158,9 @@ fn main() {
                 sender_qt.send("set_packfile_type").unwrap();
                 sender_qt_data.send(serde_json::to_vec(&packfile_type).map_err(From::from)).unwrap();
 
+                // TODO: Make the PackFile become Yellow.
                 // Set the mod as "Modified".
-                *is_modified.borrow_mut() = set_modified(true, &app_ui);
+                *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
             }
         ));
 
@@ -1341,7 +1342,7 @@ fn main() {
                                 show_dialog(&app_ui, true, &result.0);
 
                                 // Set the mod as "Not Modified", because this action includes saving the PackFile.
-                                *is_modified.borrow_mut() = set_modified(false, &app_ui);
+                                *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
 
                                 // For each file to delete...
                                 for item_type in result.1 {
@@ -1699,8 +1700,8 @@ fn main() {
                                                 let error_message = error_list.iter().map(|x| format!("<li>{:?}</li>", x.iter().collect::<PathBuf>())).collect::<String>();
                                                 if !error_list.is_empty() { show_dialog(&app_ui, false, format!("<p>The following files failed to be imported:</p> <ul>{}</ul>", error_message)); }
 
-                                                // Set it as modified.
-                                                *is_modified.borrow_mut() = set_modified(true, &app_ui);
+                                                // Set it as modified. Exception for the Paint System.
+                                                *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
 
                                                 // Take out of the path list the ones that failed.
                                                 paths_packedfile.retain(|x| !error_list.contains(x));
@@ -1779,8 +1780,8 @@ fn main() {
                                             let error_message = error_list.iter().map(|x| format!("<li>{:?}</li>", x.iter().collect::<PathBuf>())).collect::<String>();
                                             if !error_list.is_empty() { show_dialog(&app_ui, false, format!("<p>The following files failed to be imported:</p> <ul>{}</ul>", error_message)); }
 
-                                            // Set it as modified.
-                                            *is_modified.borrow_mut() = set_modified(true, &app_ui);
+                                            // Set it as modified. Exception for the Paint System.
+                                            *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
 
                                             // Take out of the path list the ones that failed.
                                             paths_packedfile.retain(|x| !error_list.contains(x));
@@ -1939,8 +1940,8 @@ fn main() {
                                                 let error_message = error_list.iter().map(|x| format!("<li>{:?}</li>", x.iter().collect::<PathBuf>())).collect::<String>();
                                                 if !error_list.is_empty() { show_dialog(&app_ui, false, format!("<p>The following files failed to be imported:</p> <ul>{}</ul>", error_message)); }
 
-                                                // Set it as modified.
-                                                *is_modified.borrow_mut() = set_modified(true, &app_ui);
+                                                // Set it as modified. Exception for the Paint System.
+                                                *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
 
                                                 // Take out of the path list the ones that failed.
                                                 paths_packedfile.retain(|x| !error_list.contains(x));
@@ -2023,8 +2024,8 @@ fn main() {
                                             let error_message = error_list.iter().map(|x| format!("<li>{:?}</li>", x.iter().collect::<PathBuf>())).collect::<String>();
                                             if !error_list.is_empty() { show_dialog(&app_ui, false, format!("<p>The following files failed to be imported:</p> <ul>{}</ul>", error_message)); }
 
-                                            // Set it as modified.
-                                            *is_modified.borrow_mut() = set_modified(true, &app_ui);
+                                            // Set it as modified. Exception for the Paint System.
+                                            *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
 
                                             // Take out of the path list the ones that failed.
                                             paths_packedfile.retain(|x| !error_list.contains(x));
@@ -2266,8 +2267,8 @@ fn main() {
                                 let response = receiver_qt.borrow().recv().unwrap();
                                 if let Err(error) = response { return show_dialog(&app_ui, false, format_err!("<p>Error while creating the new PackedFile:</p><p>{}</p>", error.cause())) }
 
-                                // Set it as modified.
-                                *is_modified.borrow_mut() = set_modified(true, &app_ui);
+                                // Set it as modified. Exception for the Paint system.
+                                *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
 
                                 // Add the new Folder to the TreeView.
                                 update_treeview(
@@ -2341,8 +2342,8 @@ fn main() {
                                 let response = receiver_qt.borrow().recv().unwrap();
                                 if let Err(error) = response { return show_dialog(&app_ui, false, format_err!("<p>Error while creating the new PackedFile:</p><p>{}</p>", error.cause())) }
 
-                                // Set it as modified.
-                                *is_modified.borrow_mut() = set_modified(true, &app_ui);
+                                // Set it as modified. Exception for the Paint System.
+                                *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
 
                                 // Add the new Folder to the TreeView.
                                 update_treeview(
@@ -2431,8 +2432,8 @@ fn main() {
                                 let response = receiver_qt.borrow().recv().unwrap();
                                 if let Err(error) = response { return show_dialog(&app_ui, false, format_err!("<p>Error while creating the new PackedFile:</p><p>{}</p>", error.cause())) }
 
-                                // Set it as modified.
-                                *is_modified.borrow_mut() = set_modified(true, &app_ui);
+                                // Set it as modified. Exception for the Paint System.
+                                *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
 
                                 // Add the new Folder to the TreeView.
                                 update_treeview(
@@ -2505,8 +2506,8 @@ fn main() {
                                             // Get the list of paths to replace, and to add to the view.
                                             let mut paths: (Vec<Vec<String>>, Vec<Vec<String>>) = serde_json::from_slice(&response).unwrap();
 
-                                            // Set it as modified.
-                                            *is_modified.borrow_mut() = set_modified(true, &app_ui);
+                                            // Set it as modified. Exception for the paint system.
+                                            *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
 
                                             // Get the list of paths to add, removing those we "replaced".
                                             let mut paths_to_add = paths.1.to_vec();
@@ -2597,8 +2598,8 @@ fn main() {
                                     // In case of success...
                                     Ok(response) => {
 
-                                        // Set the mod as "Modified".
-                                        *is_modified.borrow_mut() = set_modified(true, &app_ui);
+                                        // Set the mod as "Modified". For now, we don't paint deletions.
+                                        *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
 
                                         // Get the type of the selection.
                                         let path_type: TreePathType = serde_json::from_slice(&response).unwrap();
@@ -3063,8 +3064,8 @@ fn main() {
                                     // If the new name was valid...
                                     Ok(_) => {
 
-                                        // Set the mod as "Modified".
-                                        *is_modified.borrow_mut() = set_modified(true, &app_ui);
+                                        // Set the mod as "Modified". This is an exception to the paint system.
+                                        *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
 
                                         // Update the TreeView.
                                         update_treeview(
@@ -3690,6 +3691,20 @@ fn background_loop(
 
                         // Send the header of the currently open PackFile.
                         sender.send(serde_json::to_vec(&pack_file_decoded.header.id).map_err(From::from)).unwrap();
+                    }
+
+                    // When we want to know the path of a PackedFile...
+                    "get_packed_file_path" => {
+
+                        // Get the Index of the PackedFile.
+                        let data = receiver_data.recv().unwrap().unwrap();
+                        let index: usize = serde_json::from_slice(&data).unwrap();
+
+                        // Build the path.
+                        let mut path = pack_file_decoded.data.packed_files[index].path.to_vec();
+
+                        // Send the header of the currently open PackFile.
+                        sender.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
                     }
 
                     // When we want to change the dependency_database for an specific PackFile...
@@ -4580,7 +4595,7 @@ fn open_packfile(
     }
 
     // Set the new mod as "Not modified".
-    *is_modified.borrow_mut() = set_modified(false, &app_ui);
+    *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
 
     // Get the Game Selected.
     sender_qt.send("get_game_selected").unwrap();
@@ -4820,7 +4835,7 @@ fn build_my_mod_menu(
                         unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
 
                         // Set the new mod as "Not modified".
-                        *is_modified.borrow_mut() = set_modified(false, &app_ui);
+                        *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
 
                         // Get the Game Selected.
                         sender_qt.send("get_game_selected").unwrap();
@@ -4999,7 +5014,7 @@ fn build_my_mod_menu(
                         sender_qt.send("reset_packfile").unwrap();
 
                         // Set the dummy mod as "Not modified".
-                        *is_modified.borrow_mut() = set_modified(false, &app_ui);
+                        *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
 
                         // Get the Game Selected.
                         sender_qt.send("get_game_selected").unwrap();

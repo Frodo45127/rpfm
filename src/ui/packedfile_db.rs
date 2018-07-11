@@ -338,7 +338,8 @@ impl PackedFileDBTreeView {
                                 is_modified,
                                 packed_file_data,
                                 sender_qt,
-                                sender_qt_data => move |_,_,_| {
+                                sender_qt_data,
+                                receiver_qt => move |_,_,_| {
 
                                     // Get a local copy of the data.
                                     let mut data = packed_file_data.clone();
@@ -354,8 +355,14 @@ impl PackedFileDBTreeView {
                                     // Send the new DBData.
                                     sender_qt_data.send(serde_json::to_vec(&(data, packed_file_index)).map_err(From::from)).unwrap();
 
+                                    // Get the incomplete path of the edited PackedFile.
+                                    sender_qt.send("get_packed_file_path").unwrap();
+                                    sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
+                                    let response = receiver_qt.borrow().recv().unwrap().unwrap();
+                                    let path: Vec<String> = serde_json::from_slice(&response).unwrap();
+
                                     // Set the mod as "Modified".
-                                    *is_modified.borrow_mut() = set_modified(true, &app_ui);
+                                    *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(path));
                                 }
                             )),
 
@@ -546,7 +553,8 @@ impl PackedFileDBTreeView {
                                 is_modified,
                                 packed_file_data,
                                 sender_qt,
-                                sender_qt_data => move |_| {
+                                sender_qt_data,
+                                receiver_qt => move |_| {
 
                                     // We only do something in case the focus is in the TableView. This should stop problems with
                                     // the accels working everywhere.
@@ -607,8 +615,14 @@ impl PackedFileDBTreeView {
                                             // Send the new DBData.
                                             sender_qt_data.send(serde_json::to_vec(&(data, packed_file_index)).map_err(From::from)).unwrap();
 
+                                            // Get the incomplete path of the edited PackedFile.
+                                            sender_qt.send("get_packed_file_path").unwrap();
+                                            sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
+                                            let response = receiver_qt.borrow().recv().unwrap().unwrap();
+                                            let path: Vec<String> = serde_json::from_slice(&response).unwrap();
+
                                             // Set the mod as "Modified".
-                                            *is_modified.borrow_mut() = set_modified(true, &app_ui);
+                                            *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(path));
                                         }
                                     }
                                 }
@@ -619,7 +633,8 @@ impl PackedFileDBTreeView {
                                 is_modified,
                                 packed_file_data,
                                 sender_qt,
-                                sender_qt_data => move |_| {
+                                sender_qt_data,
+                                receiver_qt => move |_| {
 
                                     // We only do something in case the focus is in the TableView. This should stop problems with
                                     // the accels working everywhere.
@@ -717,8 +732,14 @@ impl PackedFileDBTreeView {
                                             // Send the new DBData.
                                             sender_qt_data.send(serde_json::to_vec(&(data, packed_file_index)).map_err(From::from)).unwrap();
 
+                                            // Get the incomplete path of the edited PackedFile.
+                                            sender_qt.send("get_packed_file_path").unwrap();
+                                            sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
+                                            let response = receiver_qt.borrow().recv().unwrap().unwrap();
+                                            let path: Vec<String> = serde_json::from_slice(&response).unwrap();
+
                                             // Set the mod as "Modified".
-                                            *is_modified.borrow_mut() = set_modified(true, &app_ui);
+                                            *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(path));
                                         }
                                     }
                                 }
@@ -792,7 +813,8 @@ impl PackedFileDBTreeView {
                                 is_modified,
                                 packed_file_data,
                                 sender_qt,
-                                sender_qt_data => move |_| {
+                                sender_qt_data,
+                                receiver_qt => move |_| {
 
                                     // We only do something in case the focus is in the TableView. This should stop problems with
                                     // the accels working everywhere.
@@ -878,8 +900,14 @@ impl PackedFileDBTreeView {
                                                 // Send the new DBData.
                                                 sender_qt_data.send(serde_json::to_vec(&(data, packed_file_index)).map_err(From::from)).unwrap();
 
+                                                // Get the incomplete path of the edited PackedFile.
+                                                sender_qt.send("get_packed_file_path").unwrap();
+                                                sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
+                                                let response = receiver_qt.borrow().recv().unwrap().unwrap();
+                                                let path: Vec<String> = serde_json::from_slice(&response).unwrap();
+
                                                 // Set the mod as "Modified".
-                                                *is_modified.borrow_mut() = set_modified(true, &app_ui);
+                                                *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(path));
                                             }
                                         }
                                     }
@@ -949,8 +977,14 @@ impl PackedFileDBTreeView {
                                             // Send the new DBData.
                                             sender_qt_data.send(serde_json::to_vec(&(data, packed_file_index)).map_err(From::from)).unwrap();
 
+                                            // Get the incomplete path of the edited PackedFile.
+                                            sender_qt.send("get_packed_file_path").unwrap();
+                                            sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
+                                            let response = receiver_qt.borrow().recv().unwrap().unwrap();
+                                            let path: Vec<String> = serde_json::from_slice(&response).unwrap();
+
                                             // Set the mod as "Modified".
-                                            *is_modified.borrow_mut() = set_modified(true, &app_ui);
+                                            *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(path));
                                         }
                                     }
                                 }

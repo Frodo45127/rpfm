@@ -239,7 +239,8 @@ impl PackedFileLocTreeView {
                                 app_ui,
                                 is_modified,
                                 sender_qt,
-                                sender_qt_data => move |_,_,_| {
+                                sender_qt_data,
+                                receiver_qt => move |_,_,_| {
 
                                     // Tell the background thread to start saving the PackedFile.
                                     sender_qt.send("encode_packed_file_loc").unwrap();
@@ -250,8 +251,14 @@ impl PackedFileLocTreeView {
                                     // Send the new LocData.
                                     sender_qt_data.send(serde_json::to_vec(&(new_loc_data, packed_file_index)).map_err(From::from)).unwrap();
 
+                                    // Get the incomplete path of the edited PackedFile.
+                                    sender_qt.send("get_packed_file_path").unwrap();
+                                    sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
+                                    let response = receiver_qt.borrow().recv().unwrap().unwrap();
+                                    let path: Vec<String> = serde_json::from_slice(&response).unwrap();
+
                                     // Set the mod as "Modified".
-                                    *is_modified.borrow_mut() = set_modified(true, &app_ui);
+                                    *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(path));
                                 }
                             )),
                             slot_row_filter_change_text: SlotStringRef::new(move |filter_text| {
@@ -390,7 +397,8 @@ impl PackedFileLocTreeView {
                                 app_ui,
                                 is_modified,
                                 sender_qt,
-                                sender_qt_data => move |_| {
+                                sender_qt_data,
+                                receiver_qt => move |_| {
 
                                     // We only do something in case the focus is in the TableView. This should stop problems with
                                     // the accels working everywhere.
@@ -446,8 +454,14 @@ impl PackedFileLocTreeView {
                                             // Send the new LocData.
                                             sender_qt_data.send(serde_json::to_vec(&(new_loc_data, packed_file_index)).map_err(From::from)).unwrap();
 
+                                            // Get the incomplete path of the edited PackedFile.
+                                            sender_qt.send("get_packed_file_path").unwrap();
+                                            sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
+                                            let response = receiver_qt.borrow().recv().unwrap().unwrap();
+                                            let path: Vec<String> = serde_json::from_slice(&response).unwrap();
+
                                             // Set the mod as "Modified".
-                                            *is_modified.borrow_mut() = set_modified(true, &app_ui);
+                                            *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(path));
                                         }
                                     }
                                 }
@@ -517,7 +531,8 @@ impl PackedFileLocTreeView {
                                 app_ui,
                                 is_modified,
                                 sender_qt,
-                                sender_qt_data => move |_| {
+                                sender_qt_data,
+                                receiver_qt => move |_| {
 
                                     // We only do something in case the focus is in the TableView. This should stop problems with
                                     // the accels working everywhere.
@@ -595,8 +610,14 @@ impl PackedFileLocTreeView {
                                                 // Send the new LocData.
                                                 sender_qt_data.send(serde_json::to_vec(&(new_loc_data, packed_file_index)).map_err(From::from)).unwrap();
 
+                                                // Get the incomplete path of the edited PackedFile.
+                                                sender_qt.send("get_packed_file_path").unwrap();
+                                                sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
+                                                let response = receiver_qt.borrow().recv().unwrap().unwrap();
+                                                let path: Vec<String> = serde_json::from_slice(&response).unwrap();
+
                                                 // Set the mod as "Modified".
-                                                *is_modified.borrow_mut() = set_modified(true, &app_ui);
+                                                *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(path));
                                             }
                                         }
                                     }
@@ -658,8 +679,14 @@ impl PackedFileLocTreeView {
                                             // Send the new LocData.
                                             sender_qt_data.send(serde_json::to_vec(&(new_loc_data, packed_file_index)).map_err(From::from)).unwrap();
 
+                                            // Get the incomplete path of the edited PackedFile.
+                                            sender_qt.send("get_packed_file_path").unwrap();
+                                            sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
+                                            let response = receiver_qt.borrow().recv().unwrap().unwrap();
+                                            let path: Vec<String> = serde_json::from_slice(&response).unwrap();
+
                                             // Set the mod as "Modified".
-                                            *is_modified.borrow_mut() = set_modified(true, &app_ui);
+                                            *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(path));
                                         }
                                     }
                                 }

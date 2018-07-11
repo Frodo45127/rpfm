@@ -289,7 +289,8 @@ impl PackedFileRigidModelDataView {
                         is_modified,
                         app_ui,
                         sender_qt,
-                        sender_qt_data=> move || {
+                        sender_qt_data,
+                        receiver_qt => move || {
 
                             // Try to update the RigidModel's data from the LineEdits.
                             if let Err(error) = Self::return_data_from_data_view(
@@ -308,8 +309,14 @@ impl PackedFileRigidModelDataView {
                             // Send the new lod data.
                             sender_qt_data.send(serde_json::to_vec(&(&*packed_file.borrow(), packed_file_index)).map_err(From::from)).unwrap();
 
+                            // Get the incomplete path of the edited PackedFile.
+                            sender_qt.send("get_packed_file_path").unwrap();
+                            sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
+                            let response = receiver_qt.borrow().recv().unwrap().unwrap();
+                            let path: Vec<String> = serde_json::from_slice(&response).unwrap();
+
                             // Set the mod as "Modified".
-                            *is_modified.borrow_mut() = set_modified(true, &app_ui);
+                            *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(path));
                         }
                     )),
 
@@ -353,8 +360,14 @@ impl PackedFileRigidModelDataView {
                                             unsafe { rigid_model_compatible_decoded_label.as_mut().unwrap().set_text(&QString::from_std_str("Warhammer 1&2")); }
                                             unsafe { patch_attila_to_warhammer_button.as_mut().unwrap().set_enabled(false); }
 
+                                            // Get the incomplete path of the edited PackedFile.
+                                            sender_qt.send("get_packed_file_path").unwrap();
+                                            sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
+                                            let response = receiver_qt.borrow().recv().unwrap().unwrap();
+                                            let path: Vec<String> = serde_json::from_slice(&response).unwrap();
+
                                             // Set the mod as "Modified".
-                                            *is_modified.borrow_mut() = set_modified(true, &app_ui);
+                                            *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(path));
 
                                             // Break the loop.
                                             break;

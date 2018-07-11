@@ -20,6 +20,7 @@ use qt_widgets::size_policy::Policy;
 use qt_widgets::tree_view::TreeView;
 use qt_widgets::widget::Widget;
 
+use qt_gui::brush::Brush;
 use qt_gui::icon;
 use qt_gui::standard_item::StandardItem;
 use qt_gui::standard_item_model::StandardItemModel;
@@ -28,6 +29,7 @@ use qt_core::connection::Signal;
 use qt_core::event_loop::EventLoop;
 use qt_core::flags::Flags;
 use qt_core::item_selection::ItemSelection;
+use qt_core::qt::GlobalColor;
 use qt_core::slots::{SlotBool, SlotNoArgs, SlotItemSelectionRefItemSelectionRef};
 use qt_core::variant::Variant;
 use cpp_utils::StaticCast;
@@ -227,8 +229,8 @@ impl AddFromPackFileStuff {
                                     // Deserialize the response
                                     let paths: (Vec<String>, Vec<String>, Vec<Vec<String>>) = serde_json::from_slice(&response).unwrap();
 
-                                    // Set the mod as "Modified".
-                                    *is_modified.borrow_mut() = set_modified(true, &app_ui);
+                                    // Set the mod as "Modified". This is an exception for the path, as it'll be painted later on.
+                                    *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
 
                                     // Update the TreeView.
                                     update_treeview(
@@ -740,6 +742,132 @@ pub enum TreeViewOperation {
     Rename(TreePathType, String),
 }
 
+/// This enum represents the status of modification of an item in a TreeView.
+#[derive(PartialEq)]
+pub enum ItemVisualStatus {
+    Added,
+    Modified,
+    AddedModified,
+    Untouched,
+}
+
+/// Enum `IconType`: This enum holds all the possible Icon Types we can have in the TreeView,
+/// depending on the type of the PackedFiles.
+enum IconType {
+
+    // For normal PackFiles. True for editable, false for read-only.
+    PackFile(bool),
+
+    // For folders.
+    Folder,
+
+    // For files with no other Icon. Includes the path without the Packfile.
+    File(Vec<String>),
+}
+
+
+/// Struct `Icons`. This struct is used to hold all the Qt Icons used by the TreeView. This is generated
+/// everytime we call "update_treeview", but ideally we should move it to on start.
+struct Icons {
+    pub packfile_editable: icon::Icon,
+    pub packfile_locked: icon::Icon,
+    pub folder: icon::Icon,
+
+    // For generic files.
+    pub file: icon::Icon,
+
+    // For tables and loc files.
+    pub table: icon::Icon,
+
+    // For images.
+    pub image_generic: icon::Icon,
+    pub image_png: icon::Icon,
+    pub image_jpg: icon::Icon,
+
+    // For text files.
+    pub text_generic: icon::Icon,
+    pub text_csv: icon::Icon,
+    pub text_html: icon::Icon,
+    pub text_txt: icon::Icon,
+    pub text_xml: icon::Icon,
+
+    // For rigidmodels.
+    pub rigid_model: icon::Icon,
+}
+
+/// Implementation of "Icons".
+impl Icons {
+
+    /// This function creates a list of Icons from certain paths in disk.
+    fn new(rpfm_path: &PathBuf) -> Self {
+
+        // Get the Path as a String, so Qt can understand it.
+        let rpfm_path_string = rpfm_path.to_string_lossy().as_ref().to_string();
+
+        // Prepare the path for the icons of the TreeView.
+        let mut icon_packfile_editable_path = rpfm_path_string.to_owned();
+        let mut icon_packfile_locked_path = rpfm_path_string.to_owned();
+        let mut icon_folder_path = rpfm_path_string.to_owned();
+        let mut icon_file_path = rpfm_path_string.to_owned();
+
+        let mut icon_table_path = rpfm_path_string.to_owned();
+
+        let mut icon_image_generic_path = rpfm_path_string.to_owned();
+        let mut icon_image_png_path = rpfm_path_string.to_owned();
+        let mut icon_image_jpg_path = rpfm_path_string.to_owned();
+
+        let mut icon_text_generic_path = rpfm_path_string.to_owned();
+        let mut icon_text_csv_path = rpfm_path_string.to_owned();
+        let mut icon_text_html_path = rpfm_path_string.to_owned();
+        let mut icon_text_txt_path = rpfm_path_string.to_owned();
+        let mut icon_text_xml_path = rpfm_path_string.to_owned();
+
+        let mut icon_rigid_model_path = rpfm_path_string.to_owned();
+
+        // Get the Icons for each type of Item.
+        icon_packfile_editable_path.push_str("/img/packfile_editable.svg");
+        icon_packfile_locked_path.push_str("/img/packfile_locked.svg");
+        icon_folder_path.push_str("/img/folder.svg");
+        icon_file_path.push_str("/img/file.svg");
+
+        icon_table_path.push_str("/img/database.svg");
+
+        icon_image_generic_path.push_str("/img/generic_image.svg");
+        icon_image_png_path.push_str("/img/png.svg");
+        icon_image_jpg_path.push_str("/img/jpg.svg");
+
+        icon_text_generic_path.push_str("/img/generic_text.svg");
+        icon_text_csv_path.push_str("/img/csv.svg");
+        icon_text_html_path.push_str("/img/html.svg");
+        icon_text_txt_path.push_str("/img/txt.svg");
+        icon_text_xml_path.push_str("/img/xml.svg");
+
+        icon_rigid_model_path.push_str("/img/rigid_model.svg");
+
+        // Get the Icons in Qt Icon format.
+        Self {
+            packfile_editable: icon::Icon::new(&QString::from_std_str(icon_packfile_editable_path)),
+            packfile_locked: icon::Icon::new(&QString::from_std_str(icon_packfile_locked_path)),
+            folder: icon::Icon::new(&QString::from_std_str(icon_folder_path)),
+            file: icon::Icon::new(&QString::from_std_str(icon_file_path)),
+
+            table: icon::Icon::new(&QString::from_std_str(icon_table_path)),
+
+            image_generic: icon::Icon::new(&QString::from_std_str(icon_image_generic_path)),
+            image_png: icon::Icon::new(&QString::from_std_str(icon_image_png_path)),
+            image_jpg: icon::Icon::new(&QString::from_std_str(icon_image_jpg_path)),
+
+            text_generic: icon::Icon::new(&QString::from_std_str(icon_text_generic_path)),
+            text_csv: icon::Icon::new(&QString::from_std_str(icon_text_csv_path)),
+            text_html: icon::Icon::new(&QString::from_std_str(icon_text_html_path)),
+            text_txt: icon::Icon::new(&QString::from_std_str(icon_text_txt_path)),
+            text_xml: icon::Icon::new(&QString::from_std_str(icon_text_xml_path)),
+
+            rigid_model: icon::Icon::new(&QString::from_std_str(icon_rigid_model_path)),
+        }
+    }
+}
+
 /// This function shows a "Success" or "Error" Dialog with some text. For notification of success and
 /// high importance errors.
 /// It requires:
@@ -775,6 +903,7 @@ pub fn show_dialog<T: Display>(
 pub fn set_modified(
     is_modified: bool,
     app_ui: &AppUI,
+    path: Option<Vec<String>>
 ) -> bool {
 
     // If the PackFile is modified...
@@ -782,6 +911,16 @@ pub fn set_modified(
 
         // Change the title of the Main Window.
         unsafe { app_ui.window.as_mut().unwrap().set_window_title(&QString::from_std_str("Rusted PackFile Manager (modified)")); }
+
+        // If we have received a path to mark as "modified"...
+        if let Some(path) = path {
+
+            // Get the item of the Path.
+            let item = get_item_from_incomplete_path(app_ui.folder_tree_model, &path);
+
+            // Paint the modified item.
+            paint_treeview(item, app_ui.folder_tree_model, ItemVisualStatus::Modified);
+        }
 
         // And return true.
         true
@@ -1096,120 +1235,176 @@ pub fn get_path_from_pathbuf(
     paths
 }
 
-/// Struct `Icons`. This struct is used to hold all the Qt Icons used by the TreeView. This is generated
-/// everytime we call "update_treeview", but ideally we should move it to on start.
-struct Icons {
-    pub packfile_editable: icon::Icon,
-    pub packfile_locked: icon::Icon,
-    pub folder: icon::Icon,
+/// This function gets you the StandardItem corresponding to a certain path in a TreeView. It uses a path without PackFile.
+pub fn get_item_from_incomplete_path(
+    model: *mut StandardItemModel,
+    path: &[String],
+) -> *mut StandardItem {
 
-    // For generic files.
-    pub file: icon::Icon,
+    // Get it another time, this time to use it to hold the current item.
+    let mut item;
+    unsafe { item = model.as_ref().unwrap().item(0); }
 
-    // For tables and loc files.
-    pub table: icon::Icon,
+    // Indexes to see how deep we must go.
+    let mut index = 0;
+    let path_deep = path.len();
 
-    // For images.
-    pub image_generic: icon::Icon,
-    pub image_png: icon::Icon,
-    pub image_jpg: icon::Icon,
+    // First looping downwards.
+    loop {
 
-    // For text files.
-    pub text_generic: icon::Icon,
-    pub text_csv: icon::Icon,
-    pub text_html: icon::Icon,
-    pub text_txt: icon::Icon,
-    pub text_xml: icon::Icon,
+        // If we reached the folder of the file...
+        if index == (path_deep - 1) {
 
-    // For rigidmodels.
-    pub rigid_model: icon::Icon,
-}
+            // Get the amount of children of the current item.
+            let children_count;
+            unsafe { children_count = item.as_ref().unwrap().row_count(); }
 
-/// Implementation of "Icons".
-impl Icons {
+            // For each children we have...
+            for row in 0..children_count {
 
-    /// This function creates a list of Icons from certain paths in disk.
-    fn new(rpfm_path: &PathBuf) -> Self {
+                // Check if it has children of his own.
+                let child;
+                let has_children;
+                unsafe { child = item.as_ref().unwrap().child(row); }
+                unsafe { has_children = child.as_ref().unwrap().has_children(); }
 
-        // Get the Path as a String, so Qt can understand it.
-        let rpfm_path_string = rpfm_path.to_string_lossy().as_ref().to_string();
+                // If has children, continue with the next child.
+                if has_children { continue; }
 
-        // Prepare the path for the icons of the TreeView.
-        let mut icon_packfile_editable_path = rpfm_path_string.to_owned();
-        let mut icon_packfile_locked_path = rpfm_path_string.to_owned();
-        let mut icon_folder_path = rpfm_path_string.to_owned();
-        let mut icon_file_path = rpfm_path_string.to_owned();
+                // Get his text.
+                let text;
+                unsafe { text = child.as_ref().unwrap().text().to_std_string(); }
 
-        let mut icon_table_path = rpfm_path_string.to_owned();
+                // TODO: This can crash. Fix it properly.
+                // If it's the one we're looking for...
+                if text == path[index] {
 
-        let mut icon_image_generic_path = rpfm_path_string.to_owned();
-        let mut icon_image_png_path = rpfm_path_string.to_owned();
-        let mut icon_image_jpg_path = rpfm_path_string.to_owned();
+                    // Use it as our new item.
+                    item = child;
 
-        let mut icon_text_generic_path = rpfm_path_string.to_owned();
-        let mut icon_text_csv_path = rpfm_path_string.to_owned();
-        let mut icon_text_html_path = rpfm_path_string.to_owned();
-        let mut icon_text_txt_path = rpfm_path_string.to_owned();
-        let mut icon_text_xml_path = rpfm_path_string.to_owned();
+                    // And break the loop.
+                    break;
+                }
+            }
 
-        let mut icon_rigid_model_path = rpfm_path_string.to_owned();
+            // End the first loop.
+            break;
+        }
 
-        // Get the Icons for each type of Item.
-        icon_packfile_editable_path.push_str("/img/packfile_editable.svg");
-        icon_packfile_locked_path.push_str("/img/packfile_locked.svg");
-        icon_folder_path.push_str("/img/folder.svg");
-        icon_file_path.push_str("/img/file.svg");
+        // If we are not still in the folder of the file...
+        else {
 
-        icon_table_path.push_str("/img/database.svg");
+            // Get the amount of children of the current item.
+            let children_count;
+            unsafe { children_count = item.as_ref().unwrap().row_count(); }
 
-        icon_image_generic_path.push_str("/img/generic_image.svg");
-        icon_image_png_path.push_str("/img/png.svg");
-        icon_image_jpg_path.push_str("/img/jpg.svg");
+            // For each children we have...
+            for row in 0..children_count {
 
-        icon_text_generic_path.push_str("/img/generic_text.svg");
-        icon_text_csv_path.push_str("/img/csv.svg");
-        icon_text_html_path.push_str("/img/html.svg");
-        icon_text_txt_path.push_str("/img/txt.svg");
-        icon_text_xml_path.push_str("/img/xml.svg");
+                // Check if it has children of his own.
+                let child;
+                let has_children;
+                unsafe { child = item.as_ref().unwrap().child(row); }
+                unsafe { has_children = child.as_ref().unwrap().has_children(); }
 
-        icon_rigid_model_path.push_str("/img/rigid_model.svg");
+                // If it doesn't have children, continue with the next child.
+                if !has_children { continue; }
 
-        // Get the Icons in Qt Icon format.
-        Self {
-            packfile_editable: icon::Icon::new(&QString::from_std_str(icon_packfile_editable_path)),
-            packfile_locked: icon::Icon::new(&QString::from_std_str(icon_packfile_locked_path)),
-            folder: icon::Icon::new(&QString::from_std_str(icon_folder_path)),
-            file: icon::Icon::new(&QString::from_std_str(icon_file_path)),
+                // Get his text.
+                let text;
+                unsafe { text = child.as_ref().unwrap().text().to_std_string(); }
 
-            table: icon::Icon::new(&QString::from_std_str(icon_table_path)),
+                // If it's the one we're looking for...
+                if text == path[index] {
 
-            image_generic: icon::Icon::new(&QString::from_std_str(icon_image_generic_path)),
-            image_png: icon::Icon::new(&QString::from_std_str(icon_image_png_path)),
-            image_jpg: icon::Icon::new(&QString::from_std_str(icon_image_jpg_path)),
+                    // Use it as our new item.
+                    item = child;
 
-            text_generic: icon::Icon::new(&QString::from_std_str(icon_text_generic_path)),
-            text_csv: icon::Icon::new(&QString::from_std_str(icon_text_csv_path)),
-            text_html: icon::Icon::new(&QString::from_std_str(icon_text_html_path)),
-            text_txt: icon::Icon::new(&QString::from_std_str(icon_text_txt_path)),
-            text_xml: icon::Icon::new(&QString::from_std_str(icon_text_xml_path)),
+                    // Increase the index.
+                    index += 1;
 
-            rigid_model: icon::Icon::new(&QString::from_std_str(icon_rigid_model_path)),
+                    // Break the loop.
+                    break;
+                }
+            }
         }
     }
+
+    // Return the item.
+    item
 }
 
-/// Enum `IconType`: This enum holds all the possible Icon Types we can have in the TreeView,
-/// depending on the type of the PackedFiles.
-enum IconType {
+/// This function paints the entire path to it, depending on if it's a modification or an addition.
+/// This requires the item to be in the Model already. Otherwise it'll not work.
+pub fn paint_treeview(
+    item: *mut StandardItem,
+    model: *mut StandardItemModel,
+    status: ItemVisualStatus
+) {
 
-    // For normal PackFiles. True for editable, false for read-only.
-    PackFile(bool),
+    // Get the color we need to apply.
+    let color = match &status {
+        ItemVisualStatus::Added => GlobalColor::DarkGreen,
+        ItemVisualStatus::Modified => GlobalColor::DarkYellow,
+        ItemVisualStatus::AddedModified => GlobalColor::DarkCyan,
+        ItemVisualStatus::Untouched => GlobalColor::Transparent,
+    };
 
-    // For folders.
-    Folder,
+    // Get the full path of the item.
+    let full_path = get_path_from_item(model, item, true);
 
-    // For files with no other Icon. Includes the path without the Packfile.
-    File(Vec<String>),
+    // Get the times we must to go up until we reach the parent.
+    let cycles = if full_path.len() > 0 { full_path.len() - 1 } else { 0 };
+
+    // Paint it like one of your french girls.
+    unsafe { item.as_mut().unwrap().set_background(&Brush::new(color.clone())); }
+
+    // Get his parent.
+    let mut parent;
+    unsafe { parent = item.as_mut().unwrap().parent(); }
+
+    // Loop through his parents until we reach the PackFile
+    for _ in 0..cycles {
+
+        // Get the color of the Parent.
+        let parent_color;
+        unsafe { parent_color = parent.as_mut().unwrap().background().color().name(()).to_std_string(); }
+
+        // Get the status of the Parent depending on his color.
+        let parent_status = match &*parent_color {
+            "#008000" => ItemVisualStatus::Added,
+            "#808000" => ItemVisualStatus::Modified,
+            "#800080" => ItemVisualStatus::AddedModified,
+            "#000000" | _ => ItemVisualStatus::Untouched,
+        };
+
+        // Paint it depending on his status.
+        match parent_status {
+
+            // If it's Added...
+            ItemVisualStatus::Added => {
+
+                // If the new status is "Modified", turn it into "AddedModified"
+                if status == ItemVisualStatus::Modified { unsafe { parent.as_mut().unwrap().set_background(&Brush::new(GlobalColor::DarkCyan)); } }
+            },
+
+            // If it's Modified...
+            ItemVisualStatus::Modified => {
+
+                // If the new status is "Added", turn it into "AddedModified"
+                if status == ItemVisualStatus::Added { unsafe { parent.as_mut().unwrap().set_background(&Brush::new(GlobalColor::DarkCyan)); } }
+            },
+
+            // If it's AddedModified, left it as is.
+            ItemVisualStatus::AddedModified => {},
+
+            // If it doesn't had an state before, apply the same as the child.
+            ItemVisualStatus::Untouched => unsafe { parent.as_mut().unwrap().set_background(&Brush::new(color.clone())); }
+        }
+
+        // Set the new parent.
+        unsafe { parent = parent.as_mut().unwrap().parent(); }
+    }
 }
 
 /// This function is used to set the icon of an Item in the TreeView. It requires:
@@ -1546,6 +1741,9 @@ pub fn update_treeview(
 
                         // Otherwise, give it an icon.
                         else { set_icon_to_item(item, &icons, IconType::File(incomplete_path)); }
+
+                        // Paint it like that parrot you painted yesterday.
+                        paint_treeview(item, model, ItemVisualStatus::Added);
 
                         // Sort the TreeView.
                         sort_item_in_tree_view(
@@ -1925,6 +2123,9 @@ pub fn update_treeview(
                 // Get the item.
                 let item;
                 unsafe { item = model.as_mut().unwrap().item_from_index(selection); }
+
+                // Paint it as "modified".
+                paint_treeview(item, model, ItemVisualStatus::Modified);
 
                 // Sort it.
                 sort_item_in_tree_view(

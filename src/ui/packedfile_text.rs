@@ -72,7 +72,8 @@ impl PackedFileTextView {
                         app_ui,
                         is_modified,
                         sender_qt,
-                        sender_qt_data => move || {
+                        sender_qt_data,
+                        receiver_qt => move || {
 
                             // Tell the background thread to start saving the PackedFile.
                             sender_qt.send("encode_packed_file_text").unwrap();
@@ -84,8 +85,14 @@ impl PackedFileTextView {
                             // Send the new text.
                             sender_qt_data.send(serde_json::to_vec(&(text, packed_file_index)).map_err(From::from)).unwrap();
 
+                            // Get the incomplete path of the edited PackedFile.
+                            sender_qt.send("get_packed_file_path").unwrap();
+                            sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
+                            let response = receiver_qt.borrow().recv().unwrap().unwrap();
+                            let path: Vec<String> = serde_json::from_slice(&response).unwrap();
+
                             // Set the mod as "Modified".
-                            *is_modified.borrow_mut() = set_modified(true, &app_ui);
+                            *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(path));
                         }
                     )),
                 };
