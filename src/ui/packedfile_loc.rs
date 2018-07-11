@@ -4,13 +4,14 @@ extern crate qt_widgets;
 extern crate qt_gui;
 extern crate qt_core;
 
-use qt_widgets::widget::Widget;
-use qt_widgets::table_view::TableView;
+use qt_widgets::combo_box::ComboBox;
+use qt_widgets::header_view::ResizeMode;
+use qt_widgets::file_dialog::FileDialog;
+use qt_widgets::line_edit::LineEdit;
 use qt_widgets::menu::Menu;
 use qt_widgets::slots::SlotQtCorePointRef;
-use qt_widgets::file_dialog::FileDialog;
-use qt_widgets::combo_box::ComboBox;
-use qt_widgets::line_edit::LineEdit;
+use qt_widgets::table_view::TableView;
+use qt_widgets::widget::Widget;
 
 use qt_gui::brush::Brush;
 use qt_gui::cursor::Cursor;
@@ -39,6 +40,7 @@ use std::sync::mpsc::{Sender, Receiver};
 
 use ui::*;
 use AppUI;
+use settings::Settings;
 
 /// Struct `PackedFileLocTreeView`: contains all the stuff we need to give to the program to show a
 /// `TreeView` with the data of a Loc PackedFile, allowing us to manipulate it.
@@ -163,8 +165,13 @@ impl PackedFileLocTreeView {
                         unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((row_filter_case_sensitive_button as *mut Widget, 1, 1, 1, 1)); }
                         unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((row_filter_column_selector as *mut Widget, 1, 2, 1, 1)); }
 
+                        // Get the settings.
+                        sender_qt.send("get_settings").unwrap();
+                        let settings = receiver_qt.borrow().recv().unwrap().unwrap();
+                        let settings: Settings = serde_json::from_slice(&settings).unwrap();
+
                         // Build the columns.
-                        build_columns(table_view, model);
+                        build_columns(&settings, table_view, model);
 
                         // Create the Contextual Menu for the TableView.
                         let mut context_menu = Menu::new(());
@@ -687,8 +694,13 @@ impl PackedFileLocTreeView {
                                                 Err(error) => return show_dialog(&app_ui, false, format!("<p>Error while importing the TSV File:</p><p>{}</p>", error.cause())),
                                             }
 
+                                            // Get the settings.
+                                            sender_qt.send("get_settings").unwrap();
+                                            let settings = receiver_qt.borrow().recv().unwrap().unwrap();
+                                            let settings: Settings = serde_json::from_slice(&settings).unwrap();
+
                                             // Build the columns.
-                                            build_columns(table_view, model);
+                                            build_columns(&settings, table_view, model);
 
                                             // Tell the background thread to start saving the PackedFile.
                                             sender_qt.send("encode_packed_file_loc").unwrap();
@@ -904,6 +916,7 @@ impl PackedFileLocTreeView {
 /// This function is meant to be used to prepare and build the column headers, and the column-related stuff.
 /// His intended use is for just after we reload the data to the table.
 fn build_columns(
+    settings: &Settings,
     table_view: *mut TableView,
     model: *mut StandardItemModel
 ) {
@@ -913,10 +926,17 @@ fn build_columns(
     unsafe { model.as_mut().unwrap().set_header_data((1, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Text")))); }
     unsafe { model.as_mut().unwrap().set_header_data((2, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Tooltip")))); }
 
-    // Set the width of the columns.
-    unsafe { table_view.as_mut().unwrap().set_column_width(0, 450); }
-    unsafe { table_view.as_mut().unwrap().set_column_width(1, 450); }
-    unsafe { table_view.as_mut().unwrap().set_column_width(2, 60); }
+    // If we want to let the columns resize themselfs...
+    if settings.adjust_columns_to_content {
+        unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().resize_sections(ResizeMode::ResizeToContents); }
+    }
+
+    // Otherwise, use fixed width.
+    else {
+        unsafe { table_view.as_mut().unwrap().set_column_width(0, 450); }
+        unsafe { table_view.as_mut().unwrap().set_column_width(1, 450); }
+        unsafe { table_view.as_mut().unwrap().set_column_width(2, 60); }
+    }
 }
 
 /// This function checks if the data in the clipboard is suitable for the selected Items.

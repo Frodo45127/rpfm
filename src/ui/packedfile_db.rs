@@ -44,7 +44,7 @@ use std::sync::mpsc::{Sender, Receiver};
 use AppUI;
 use ui::*;
 use packfile::packfile::PackedFile;
-use settings::{GameInfo, GameSelected};
+use settings::{Settings, GameInfo, GameSelected};
 
 /// Struct `PackedFileDBTreeView`: contains all the stuff we need to give to the program to show a
 /// TableView with the data of a DB PackedFile, allowing us to manipulate it.
@@ -249,8 +249,13 @@ impl PackedFileDBTreeView {
                         unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((row_filter_case_sensitive_button as *mut Widget, 1, 1, 1, 1)); }
                         unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((row_filter_column_selector as *mut Widget, 1, 2, 1, 1)); }
 
+                        // Get the settings.
+                        sender_qt.send("get_settings").unwrap();
+                        let settings = receiver_qt.borrow().recv().unwrap().unwrap();
+                        let settings: Settings = serde_json::from_slice(&settings).unwrap();
+
                         // Build the Column's "Data".
-                        build_columns(&packed_file_data.table_definition, table_view, model);
+                        build_columns(&settings, &packed_file_data.table_definition, table_view, model);
 
                         // Set both headers visible.
                         unsafe { table_view.as_mut().unwrap().vertical_header().as_mut().unwrap().set_visible(true); }
@@ -976,8 +981,13 @@ impl PackedFileDBTreeView {
                                                 Err(error) => return show_dialog(&app_ui, false, format!("<p>Error while importing the TSV File:</p><p>{}</p>", error.cause())),
                                             }
 
+                                            // Get the settings.
+                                            sender_qt.send("get_settings").unwrap();
+                                            let settings = receiver_qt.borrow().recv().unwrap().unwrap();
+                                            let settings: Settings = serde_json::from_slice(&settings).unwrap();
+
                                             // Build the Column's "Data".
-                                            build_columns(&packed_file_data.table_definition, table_view, model);
+                                            build_columns(&settings, &packed_file_data.table_definition, table_view, model);
 
                                             // Get a local copy of the data.
                                             let mut data = packed_file_data.clone();
@@ -2831,6 +2841,7 @@ fn clean_column_names(field_name: &str) -> String {
 /// This function is meant to be used to prepare and build the column headers, and the column-related stuff.
 /// His intended use is for just after we reload the data to the table.
 fn build_columns(
+    settings: &Settings,
     definition: &TableDefinition,
     table_view: *mut TableView,
     model: *mut StandardItemModel
@@ -2847,16 +2858,25 @@ fn build_columns(
         // Set his title.
         unsafe { model.as_mut().unwrap().set_header_data((index as i32, Orientation::Horizontal, &Variant::new0(&QString::from_std_str(&new_name)))); }
 
-        // Depending on his type, set one width or another.
-        match field.field_type {
-            FieldType::Boolean => unsafe { table_view.as_mut().unwrap().set_column_width(index as i32, 100); }
-            FieldType::Float => unsafe { table_view.as_mut().unwrap().set_column_width(index as i32, 100); }
-            FieldType::Integer => unsafe { table_view.as_mut().unwrap().set_column_width(index as i32, 100); }
-            FieldType::LongInteger => unsafe { table_view.as_mut().unwrap().set_column_width(index as i32, 100); }
-            FieldType::StringU8 => unsafe { table_view.as_mut().unwrap().set_column_width(index as i32, 350); }
-            FieldType::StringU16 => unsafe { table_view.as_mut().unwrap().set_column_width(index as i32, 350); }
-            FieldType::OptionalStringU8 => unsafe { table_view.as_mut().unwrap().set_column_width(index as i32, 350); }
-            FieldType::OptionalStringU16 => unsafe { table_view.as_mut().unwrap().set_column_width(index as i32, 350); }
+        // If we want to let the columns resize themselfs...
+        if settings.adjust_columns_to_content {
+            unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().resize_sections(ResizeMode::ResizeToContents); }
+        }
+
+        // Otherwise...
+        else {
+
+            // Depending on his type, set one width or another.
+            match field.field_type {
+                FieldType::Boolean => unsafe { table_view.as_mut().unwrap().set_column_width(index as i32, 100); }
+                FieldType::Float => unsafe { table_view.as_mut().unwrap().set_column_width(index as i32, 100); }
+                FieldType::Integer => unsafe { table_view.as_mut().unwrap().set_column_width(index as i32, 100); }
+                FieldType::LongInteger => unsafe { table_view.as_mut().unwrap().set_column_width(index as i32, 100); }
+                FieldType::StringU8 => unsafe { table_view.as_mut().unwrap().set_column_width(index as i32, 350); }
+                FieldType::StringU16 => unsafe { table_view.as_mut().unwrap().set_column_width(index as i32, 350); }
+                FieldType::OptionalStringU8 => unsafe { table_view.as_mut().unwrap().set_column_width(index as i32, 350); }
+                FieldType::OptionalStringU16 => unsafe { table_view.as_mut().unwrap().set_column_width(index as i32, 350); }
+            }
         }
 
         // If the field is key, add that column to the "Key" list, so we can move them at the begining later.

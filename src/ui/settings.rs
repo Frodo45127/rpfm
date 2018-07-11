@@ -36,6 +36,7 @@ use super::*;
 pub struct SettingsDialog {
     pub paths_mymod_line_edit: *mut LineEdit,
     pub paths_games_line_edits: Vec<*mut LineEdit>,
+    pub ui_adjust_columns_to_content: *mut CheckBox,
     pub extra_default_game_combobox: *mut ComboBox,
     pub extra_allow_editing_of_ca_packfiles: *mut CheckBox,
     pub extra_check_updates_on_start: *mut CheckBox,
@@ -127,10 +128,22 @@ impl SettingsDialog {
         // Create the "UI Settings" frame and Grid.
         let ui_settings_frame = GroupBox::new(&QString::from_std_str("UI Settings")).into_raw();
         let ui_settings_grid = GridLayout::new().into_raw();
+        unsafe { ui_settings_grid.as_mut().unwrap().set_row_stretch(99, 10); }
+
+        // Create the UI options.
+        let adjust_columns_to_content_label = Label::new(&QString::from_std_str("Adjust Columns to Content:"));
+        let mut adjust_columns_to_content_checkbox = CheckBox::new(());
+
+        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((adjust_columns_to_content_label.into_raw() as *mut Widget, 0, 0, 1, 1)); }
+        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((adjust_columns_to_content_checkbox.static_cast_mut() as *mut Widget, 0, 1, 1, 1)); }
+
+        // Tip for the checkbox.
+        adjust_columns_to_content_checkbox.set_tool_tip(&QString::from_std_str("If you enable this, when you open a table or loc, all columns will be automatically resized depending on their content's size.\nOtherwise, columns will have a predefined size. Either way, you'll be able to resize them manually after the initial resize."));
 
         // Create the "Extra Settings" frame and Grid.
         let extra_settings_frame = GroupBox::new(&QString::from_std_str("Extra Settings")).into_raw();
         let extra_settings_grid = GridLayout::new().into_raw();
+        unsafe { extra_settings_grid.as_mut().unwrap().set_row_stretch(99, 10); }
 
         // Create the "Default Game" Label and ComboBox.
         let default_game_label = Label::new(&QString::from_std_str("Default Game:")).into_raw();
@@ -246,6 +259,7 @@ impl SettingsDialog {
         let mut settings_dialog = Self {
             paths_mymod_line_edit: mymod_line_edit,
             paths_games_line_edits: game_paths.to_vec(),
+            ui_adjust_columns_to_content: adjust_columns_to_content_checkbox.into_raw(),
             extra_default_game_combobox: default_game_combobox.into_raw(),
             extra_allow_editing_of_ca_packfiles: allow_editing_of_ca_packfiles_checkbox.into_raw(),
             extra_check_updates_on_start: check_updates_on_start_checkbox.into_raw(),
@@ -308,6 +322,9 @@ impl SettingsDialog {
             }
         }
 
+        // Load the UI Stuff.
+        unsafe { self.ui_adjust_columns_to_content.as_mut().unwrap().set_checked(settings.adjust_columns_to_content); }
+
         // Load the Extra Stuff.
         unsafe { self.extra_allow_editing_of_ca_packfiles.as_mut().unwrap().set_checked(settings.allow_editing_of_ca_packfiles); }
         unsafe { self.extra_check_updates_on_start.as_mut().unwrap().set_checked(settings.check_updates_on_start); }
@@ -344,6 +361,9 @@ impl SettingsDialog {
         let index;
         unsafe { index = self.extra_default_game_combobox.as_mut().unwrap().current_index() as usize; }
         settings.default_game = supported_games[index].folder_name.to_owned();
+
+        // Get the UI Settings.
+        unsafe { settings.adjust_columns_to_content = self.ui_adjust_columns_to_content.as_mut().unwrap().is_checked(); }
 
         // Get the Extra Settings.
         unsafe { settings.allow_editing_of_ca_packfiles = self.extra_allow_editing_of_ca_packfiles.as_mut().unwrap().is_checked(); }
