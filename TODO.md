@@ -89,3 +89,4 @@
   - [x] Rework how the entire TreeView works (including better controls to fold/expand the folders).
   - [x] Allow to open a PackFile directly by associating it with RPFM.
   - [ ] Reverse conversion for models, so modders can use Attila's Variant Editor with Warhammer models.
+  - [ ] Add a way to add custom comments to tables (parsing a file?).

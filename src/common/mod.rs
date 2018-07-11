@@ -18,7 +18,7 @@ pub mod tests;
 
 /// This enum has the different types of selected items in a TreeView. File has (tree_path without
 /// the mod's name, index in PackFile). Folder has the tree_path without the mod's name.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum TreePathType {
     File((Vec<String>, usize)),
     Folder(Vec<String>),
@@ -44,24 +44,26 @@ impl PartialEq for TreePathType {
 /// that the tree_path NEEDS TO BE COMPLETE (including PackFile's name) for the function to work
 /// properly.
 #[allow(dead_code)]
-pub fn get_type_of_selected_tree_path(
+pub fn get_type_of_selected_path(
     tree_path: &[String],
     pack_file_decoded: &PackFile
 ) -> TreePathType {
 
+    // Get a local copy of the Path.
     let mut tree_path = tree_path.to_owned();
 
-    // First, we check if we even have a TreePath to work with.
-    if tree_path.is_empty() {
-        return TreePathType::None;
-    }
-    // Then we check if the path is just the PackFile.
+    // If we don't have anything, it's an invalid path.
+    if tree_path.is_empty() { return TreePathType::None }
+
+    // If the path is just the PackFile's name, it's the PackFile.
     else if tree_path.len() == 1 && tree_path[0] == pack_file_decoded.extra_data.file_name {
         return TreePathType::PackFile
     }
 
-    // If is not a PackFile, we remove his first field, as our PackedFiles's paths don't have it.
+    // If is not a PackFile...
     else {
+
+        // We remove his first field, as our PackedFiles's paths don't have it.
         tree_path.reverse();
         tree_path.pop();
         tree_path.reverse();
@@ -78,23 +80,21 @@ pub fn get_type_of_selected_tree_path(
         }
 
         // If is a file, we return it.
-        if is_a_file {
-            return TreePathType::File((tree_path, index))
+        if is_a_file { return TreePathType::File((tree_path, index)) }
 
-        }
-
-        // If it isn't a file, we check if it's a folder.
+        // Otherwise, we assume it's a folder. This is not bulletproof so FIXME: find a way to make this more solid.
         else {
-            for i in &pack_file_decoded.data.packed_files  {
-                if i.path.starts_with(&tree_path) && i.path.len() > tree_path.len() {
-                    return TreePathType::Folder(tree_path)
-                }
-            }
+
+            // We check if the folder actually exists in our PackFile.
+            let is_a_folder = pack_file_decoded.data.folder_exists(&tree_path);
+
+            // If it exists, we return it as a folder.
+            if is_a_folder { return TreePathType::Folder(tree_path) }
+
+            // Otherwise, it's a None.
+            else { return TreePathType::None }
         }
     }
-
-    // If we reach this, the tree_path we provided does not exist in the tree_view.
-    TreePathType::None
 }
 
 /// This function takes a &Path and returns a Vec<PathBuf> with the paths of every file under the

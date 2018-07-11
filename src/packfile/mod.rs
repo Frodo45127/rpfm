@@ -173,8 +173,8 @@ pub fn add_packedfile_to_packfile(
 ) -> Result<String, Error> {
 
     // First we need to make some checks to ensure we can add the PackedFile/s to the selected destination.
-    let tree_path_source_type = get_type_of_selected_tree_path(tree_path_source, pack_file_source);
-    let tree_path_destination_type = get_type_of_selected_tree_path(tree_path_destination, pack_file_destination);
+    let tree_path_source_type = get_type_of_selected_path(tree_path_source, pack_file_source);
+    let tree_path_destination_type = get_type_of_selected_path(tree_path_destination, pack_file_destination);
 
     let is_source_tree_path_valid = match tree_path_source_type {
         TreePathType::None => false,
@@ -410,7 +410,7 @@ pub fn delete_from_packfile(
 ) -> Result<(), Error> {
 
     // Get what it's what we want to delete.
-    match get_type_of_selected_tree_path(tree_path, pack_file) {
+    match get_type_of_selected_path(tree_path, pack_file) {
 
         // If it's a file, easy job.
         TreePathType::File(packed_file_data) => pack_file.remove_packedfile(packed_file_data.1),
@@ -456,7 +456,7 @@ pub fn extract_from_packfile(
 ) -> Result<String, Error> {
 
     // Get what it's what we want to extract.
-    match get_type_of_selected_tree_path(tree_path, pack_file) {
+    match get_type_of_selected_path(tree_path, pack_file) {
 
         // If it's a file...
         TreePathType::File(packed_file_data) => {
@@ -484,9 +484,9 @@ pub fn extract_from_packfile(
                 // If it's one we need to extract...
                 if packed_file.path.starts_with(&tree_path) {
 
-                    // We remove everything from his path up to the folder we want to extract (not included).
+                    // We remove everything from his path up to the folder we want to extract (included).
                     let mut additional_path = packed_file.path.to_vec();
-                    additional_path.drain(..(tree_path.len() - 1));
+                    additional_path.drain(..(tree_path.len()));
 
                     // Remove the name of the file from the path and keep it.
                     let file_name = additional_path.pop().unwrap();
@@ -590,7 +590,7 @@ pub fn rename_packed_file(
 
     // If we reach this point, we can rename the file/folder.
     else {
-        match get_type_of_selected_tree_path(tree_path, pack_file) {
+        match get_type_of_selected_path(tree_path, pack_file) {
             TreePathType::File(packed_file_data) => {
                 // Now we create the new tree_path, while conserving the old one for checks
                 let tree_path = packed_file_data.0;
@@ -664,7 +664,7 @@ pub fn update_packed_file_data_db(
     packed_file_data_decoded: &DB,
     pack_file: &mut packfile::PackFile,
     index: usize,
-) -> Result<(), Error> {
+) {
     let mut packed_file_data_encoded = DB::save(packed_file_data_decoded);
     let packed_file_data_encoded_size = packed_file_data_encoded.len() as u32;
 
@@ -672,7 +672,6 @@ pub fn update_packed_file_data_db(
     pack_file.data.packed_files[index].data.clear();
     pack_file.data.packed_files[index].data.append(&mut packed_file_data_encoded);
     pack_file.data.packed_files[index].size = packed_file_data_encoded_size;
-    Ok(())
 }
 
 /// This function saves the data of the edited Text PackedFile in the main PackFile after a change has
@@ -717,14 +716,15 @@ pub fn update_packed_file_data_rigid(
 
 /// This function is used to patch and clean a PackFile exported with Terry, so the SiegeAI (if there
 /// is SiegeAI implemented in the map) is patched and the extra useless .xml files are deleted.
-/// It requires a mut ref to a decoded PackFile, and returns an String (Result<Success, Error>).
+/// It requires a mut ref to a decoded PackFile, and returns an String and the list of removed PackedFiles.
 pub fn patch_siege_ai (
     pack_file: &mut packfile::PackFile
-) -> Result<String, Error> {
+) -> Result<(String, Vec<TreePathType>), Error> {
 
     let mut files_patched = 0;
     let mut files_deleted = 0;
     let mut files_to_delete: Vec<Vec<String>> = vec![];
+    let mut deleted_files_type: Vec<TreePathType> = vec![];
     let mut packfile_is_empty = true;
     let mut multiple_defensive_hill_hints = false;
 
@@ -790,8 +790,13 @@ pub fn patch_siege_ai (
             // TODO: Fix this shit.
             // Due to the rework of the "delete_from_packfile" function, we need to give it a complete
             // path to delete, so we "complete" his path before deleting.
-            let file_name = vec![pack_file.extra_data.file_name.clone()];
+            let file_name = vec![pack_file.extra_data.file_name.to_owned()];
             tree_path.splice(0..0, file_name.iter().cloned());
+
+            // Get his type before deleting it.
+            deleted_files_type.push(get_type_of_selected_path(&tree_path, &pack_file));
+
+            // Delete the PackedFile.
             delete_from_packfile(pack_file, tree_path)?;
             files_deleted += 1;
         }
@@ -806,11 +811,11 @@ pub fn patch_siege_ai (
     }
     else if files_patched >= 0 || files_deleted >= 0 {
         if files_patched == 0 {
-            Ok(format!("No file suitable for patching has been found.\n{} files deleted.", files_deleted))
+            Ok((format!("No file suitable for patching has been found.\n{} files deleted.", files_deleted), deleted_files_type))
         }
         else if multiple_defensive_hill_hints {
             if files_deleted == 0 {
-                Ok(format!("{} files patched.\nNo file suitable for deleting has been found.\
+                Ok((format!("{} files patched.\nNo file suitable for deleting has been found.\
                 \n\n\
                 WARNING: Multiple Defensive Hints have been found and we only patched the first one.\
                  If you are using SiegeAI, you should only have one Defensive Hill in the map (the \
@@ -818,10 +823,10 @@ pub fn patch_siege_ai (
                  in the map, normal Defensive Hills will not work anyways, and the only thing they do \
                  is interfere with the patching process. So, if your map doesn't work properly after \
                  patching, delete all the extra Defensive Hill Hints. They are the culprit.",
-                 files_patched))
+                 files_patched), deleted_files_type))
             }
             else {
-                Ok(format!("{} files patched.\n{} files deleted.\
+                Ok((format!("{} files patched.\n{} files deleted.\
                 \n\n\
                 WARNING: Multiple Defensive Hints have been found and we only patched the first one.\
                  If you are using SiegeAI, you should only have one Defensive Hill in the map (the \
@@ -829,14 +834,14 @@ pub fn patch_siege_ai (
                  in the map, normal Defensive Hills will not work anyways, and the only thing they do \
                  is interfere with the patching process. So, if your map doesn't work properly after \
                  patching, delete all the extra Defensive Hill Hints. They are the culprit.",
-                files_patched, files_deleted))
+                files_patched, files_deleted), deleted_files_type))
             }
         }
         else if files_deleted == 0 {
-            Ok(format!("{} files patched.\nNo file suitable for deleting has been found.", files_patched))
+            Ok((format!("{} files patched.\nNo file suitable for deleting has been found.", files_patched), deleted_files_type))
         }
         else {
-            Ok(format!("{} files patched.\n{} files deleted.", files_patched, files_deleted))
+            Ok((format!("{} files patched.\n{} files deleted.", files_patched, files_deleted), deleted_files_type))
         }
     }
     else {

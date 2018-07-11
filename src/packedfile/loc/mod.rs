@@ -17,7 +17,7 @@ use super::SerializableToTSV;
 /// It stores the PackedFile divided in 2 parts:
 /// - header: header of the PackedFile, decoded.
 /// - data: data of the PackedFile, decoded.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Loc {
     pub header: LocHeader,
     pub data: LocData,
@@ -29,7 +29,7 @@ pub struct Loc {
 /// - packed_file_type: LOC (3 bytes) in our case. After this it should be a 0 byte.
 /// - packed_file_version: if this is not 1, the file is invalid, don't know why.
 /// - packed_file_entry_count: amount of entries in the file.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct LocHeader {
     pub byte_order_mark: u16,
     pub packed_file_type: String,
@@ -39,7 +39,7 @@ pub struct LocHeader {
 
 /// `LocData`: This stores the data of a decoded Localisation PackedFile in memory.
 /// It stores the PackedFile's data in a Vec<LocEntry>.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct LocData {
     pub entries: Vec<LocEntry>,
 }

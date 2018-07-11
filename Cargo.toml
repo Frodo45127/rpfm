@@ -18,19 +18,16 @@ chrono = "0.4"
 failure = "0.1"
 uuid = { version = "0.6", features = ["v4"] }
 restson = "0.2"
-url = "1.7"
 futures = "0.1"
 hyper = "0.11"
 hyper-tls = "0.1"
 tokio-core = "0.1"
 
-gtk = { version = "0.4.0", features = ["v3_22", "embed-lgpl-docs"] }
-gdk = "0.8.0"
-gdk-pixbuf = "0.4.0"
-gio = "0.4.0"
-glib = "0.5.0"
-pango = "0.4.0"
-sourceview = "0.4.0"
+qt_widgets = "0.2"
+qt_gui = "0.2"
+qt_core = "0.2"
+
+cpp_utils = "*"
 
 [target.x86_64-pc-windows-gnu.build-dependencies]
 winres = "0.1.5"

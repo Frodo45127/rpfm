@@ -34,7 +34,7 @@ pub struct PackFile {
 /// - file_name: name of the PackFile.
 /// - file_path: current full path of the PackFile in the FileSystem.
 /// - is_modified: true if we have changed the PackFile in any way.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PackFileExtraData {
     pub file_name: String,
     pub file_path: PathBuf,
@@ -71,17 +71,19 @@ pub struct PackFileHeader {
 /// `PackFileData`: This struct stores all the data from the PackFile outside the header:
 /// - pack_files: a list of PackFiles our PackFile is meant to overwrite (I guess).
 /// - packed_files: a list of the PackedFiles contained inside our PackFile.
+/// - empty_folders: a list of every empty folder we have in the PackFile.
 #[derive(Clone, Debug)]
 pub struct PackFileData {
     pub pack_files: Vec<String>,
     pub packed_files: Vec<PackedFile>,
+    pub empty_folders: Vec<Vec<String>>
 }
 
 /// `PackedFile`: This struct stores the data of a PackedFile:
 /// - size: size of the data.
 /// - path: path of the PackedFile inside the PackFile.
 /// - data: the data of the PackedFile.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PackedFile {
     pub size: u32,
     pub path: Vec<String>,
@@ -129,7 +131,7 @@ impl PackFile {
 
         // These types are always editable.
         if self.header.pack_file_type == 3 || self.header.pack_file_type == 4 { true }
-        else if self.header.pack_file_type <= 2 && settings.allow_edition_of_ca_packfiles { true }
+        else if self.header.pack_file_type <= 2 && settings.allow_editing_of_ca_packfiles { true }
         else { false }
     }
 
@@ -390,6 +392,7 @@ impl PackFileData {
         Self {
             pack_files: vec![],
             packed_files: vec![],
+            empty_folders: vec![],
         }
     }
 
@@ -411,12 +414,55 @@ impl PackFileData {
     /// - self: a PackFileData to check for the folder.
     /// - path: the path of the folder we want to check.
     pub fn folder_exists(&self, path: &[String]) -> bool {
-        for packed_file in &self.packed_files {
-            if packed_file.path.starts_with(path) && packed_file.path.len() > path.len() {
-                return true;
+
+        // If the path is empty, this triggers a false positive, so it needs to be checked here.
+        if path.is_empty() { false }
+        else {
+            for packed_file in &self.packed_files {
+                if packed_file.path.starts_with(path) && packed_file.path.len() > path.len() {
+                    return true;
+                }
+            }
+
+            for folder in &self.empty_folders {
+                if folder.starts_with(path) { return true; }
+            }
+
+            false
+        }
+    }
+
+    /// This function is used to check if any "empty folder" has been used for a PackedFile, and
+    /// remove it from the empty folder list in that case.
+    pub fn update_empty_folders(&mut self) {
+
+        // List of folders to remove from the empty list.
+        let mut folders_to_remove = vec![];
+
+        // For each empty folder...
+        for (index, folder) in self.empty_folders.iter().enumerate() {
+
+            // For each PackedFile...
+            for packed_file in &self.packed_files {
+
+                // starts_with fails if the path is empty.
+                if !folder.is_empty() {
+                    if packed_file.path.starts_with(folder) && packed_file.path.len() > folder.len() {
+                        folders_to_remove.push(index);
+                        break;
+                    }
+                }
+
+                // If the path is empty, remove it as it's an error.
+                else {
+                    folders_to_remove.push(index);
+                    break;
+                }
             }
         }
-        false
+
+        // Remove every folder in the "to remove" list.
+        folders_to_remove.iter().rev().for_each(|x| { self.empty_folders.remove(*x); });
     }
 
     /// This function reads the Data part of a PackFile, and creates a PackedFileData with it.
