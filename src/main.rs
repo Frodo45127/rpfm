@@ -60,7 +60,7 @@ use std::sync::mpsc::{channel, Sender, Receiver};
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::fs::{File, DirBuilder, copy, remove_file, remove_dir_all};
-use std::io::{BufReader, Write};
+use std::io::{BufReader, Seek, SeekFrom, Read, Write};
 
 use failure::Error;
 use common::*;
@@ -3749,14 +3749,42 @@ fn background_loop(
                                 data_pack_path.push("data.pack");
 
                                 // Try to open it...
-                                match packfile::open_packfile(data_pack_path) {
+                                match packfile::open_packfile_with_bufreader(data_pack_path) {
 
                                     // If we could open it...
-                                    Ok(ref mut data_packfile) => {
+                                    Ok(data_packfile) => {
 
-                                        // Get all the PackedFiles from the db folder (all the tables).
-                                        data_packfile.data.packed_files.retain(|packed_file| packed_file.path.starts_with(&["db".to_owned()]));
-                                        data_packfile.header.packed_file_count = data_packfile.data.packed_files.len() as u32;
+                                        // Create the DB PackFile.
+                                        let mut pack_file_db = PackFile::new();
+
+                                        // Get the PackFile and the BufReader.
+                                        let pack_file = data_packfile.0;
+                                        let mut reader = data_packfile.1;
+
+                                        // List of PackedFiles to add.
+                                        let mut packed_files = vec![];
+
+                                        // For each PackFile in the data.pack...
+                                        for (index, packed_file) in pack_file.data.packed_files.iter().enumerate() {
+
+                                            // If it's a DB file...
+                                            if packed_file.path.starts_with(&["db".to_owned()]) {
+
+                                                // Clone the PackedFile.
+                                                let mut packed_file = packed_file.clone();
+
+                                                // Read it.
+                                                packed_file.data = vec![0; packed_file.size as usize];
+                                                reader.seek(SeekFrom::Start(pack_file.packed_file_indexes[index])).unwrap();
+                                                reader.read_exact(&mut packed_file.data).unwrap();
+
+                                                // Add it to the PackedFiles List.
+                                                packed_files.push(packed_file);
+                                            }
+                                        }
+
+                                        // Add them to the new PackFile.
+                                        pack_file_db.add_packedfiles(packed_files);
 
                                         // Get the path of the Dependency PackFiles.
                                         let mut dep_packs_path = game_selected.game_dependency_packfile_path.to_path_buf();
@@ -3768,7 +3796,7 @@ fn background_loop(
                                         }
 
                                         // Try to save the new PackFile, and report the result.
-                                        match packfile::save_packfile(data_packfile, Some(game_selected.game_dependency_packfile_path.to_path_buf())) {
+                                        match packfile::save_packfile(&mut pack_file_db, Some(game_selected.game_dependency_packfile_path.to_path_buf())) {
                                             Ok(_) => sender.send(serde_json::to_vec("Dependency PackFile created. Remember to re-create it if you update the game ;).").map_err(From::from)).unwrap(),
                                             Err(error) => sender.send(Err(format_err!("Generated Dependency PackFile couldn't be saved:\n{}", error.cause()))).unwrap(),
                                         }
