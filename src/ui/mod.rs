@@ -1348,7 +1348,7 @@ pub fn paint_treeview(
     let color = match &status {
         ItemVisualStatus::Added => GlobalColor::Green,
         ItemVisualStatus::Modified => GlobalColor::Yellow,
-        ItemVisualStatus::AddedModified => GlobalColor::Cyan,
+        ItemVisualStatus::AddedModified => GlobalColor::Magenta,
         ItemVisualStatus::Untouched => GlobalColor::Transparent,
     };
 
@@ -1376,7 +1376,7 @@ pub fn paint_treeview(
         let parent_status = match &*parent_color {
             "#00ff00" => ItemVisualStatus::Added,
             "#ffff00" => ItemVisualStatus::Modified,
-            "#00ffff" => ItemVisualStatus::AddedModified,
+            "#ff00ff" => ItemVisualStatus::AddedModified,
             "#000000" | _ => ItemVisualStatus::Untouched,
         };
 
@@ -1387,14 +1387,14 @@ pub fn paint_treeview(
             ItemVisualStatus::Added => {
 
                 // If the new status is "Modified", turn it into "AddedModified"
-                if status == ItemVisualStatus::Modified { unsafe { parent.as_mut().unwrap().set_background(&Brush::new(GlobalColor::Cyan)); } }
+                if status == ItemVisualStatus::Modified { unsafe { parent.as_mut().unwrap().set_background(&Brush::new(GlobalColor::Magenta)); } }
             },
 
             // If it's Modified...
             ItemVisualStatus::Modified => {
 
                 // If the new status is "Added", turn it into "AddedModified"
-                if status == ItemVisualStatus::Added { unsafe { parent.as_mut().unwrap().set_background(&Brush::new(GlobalColor::Cyan)); } }
+                if status == ItemVisualStatus::Added { unsafe { parent.as_mut().unwrap().set_background(&Brush::new(GlobalColor::Magenta)); } }
             },
 
             // If it's AddedModified, left it as is.
