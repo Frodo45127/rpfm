@@ -2401,6 +2401,8 @@ fn main() {
                                     !name.ends_with(".inl") &&
                                     !name.ends_with(".battle_speech_camera") &&
                                     !name.ends_with(".bob") &&
+                                    !name.ends_with(".cindyscene") &&
+                                    !name.ends_with(".cindyscenemanager") &&
                                     !name.ends_with(".txt") {
                                     name.push_str(".txt");
                                 }
@@ -3160,6 +3162,8 @@ fn main() {
                                         packedfile_name.ends_with(".inl") ||
                                         packedfile_name.ends_with(".battle_speech_camera") ||
                                         packedfile_name.ends_with(".bob") ||
+                                        packedfile_name.ends_with(".cindyscene") ||
+                                        packedfile_name.ends_with(".cindyscenemanager") ||
                                         //packedfile_name.ends_with(".benchmark") || // This one needs special decoding/encoding.
                                         packedfile_name.ends_with(".txt") { "TEXT" }
 
