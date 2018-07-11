@@ -19,11 +19,17 @@ pub mod db;
 pub mod rigidmodel;
 
 /// This enum specifies the PackedFile types we can create.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum PackedFileType {
-    Loc,
-    DB,
-    Text,
+
+    // Name of the File.
+    Loc(String),
+
+    // Name of the File, Name of the table, version of the table.
+    DB(String, String, u32),
+
+    // Name of the File.
+    Text(String),
 }
 
 /*
@@ -47,116 +53,43 @@ pub trait SerializableToTSV {
 
 /// This function is used to create a PackedFile outtanowhere. It returns his new path.
 pub fn create_packed_file(
-    name: &str,
-    db_type: &str,
-    schema: &Option<Schema>,
     pack_file: &mut PackFile,
-    dependency_database: &Option<Vec<PackedFile>>,
-    packed_file_type: &PackedFileType,
-) -> Result<Vec<String>, Error> {
-
-    // Get the path of the new file.
-    let mut path = name.split('/').map(|x| x.to_owned()).collect::<Vec<String>>();
+    packed_file_type: PackedFileType,
+    path: Vec<String>,
+    schema: &Option<Schema>,
+) -> Result<(), Error> {
 
     // Depending on their type, we do different things to prepare the PackedFile and get his data.
     let data = match packed_file_type {
 
-        // If it's a Loc PackedFile...
-        PackedFileType::Loc => {
-
-            // Ensure his termination is ".loc", and fix it if it's not.
-            if let Some(name) = path.last_mut() {
-                if !name.ends_with(".loc") {
-                    name.push_str(".loc");
-                }
-            }
-
-            // Create it and generate his data.
-            Loc::new().save()
-        }
+        // If it's a Loc PackedFile, create it and generate his data.
+        PackedFileType::Loc(_) => Loc::new().save(),
 
         // If it's a DB table...
-        PackedFileType::DB => {
-
-            // Replace his path with one inside the table's directory.
-            path = vec!["db".to_owned(), db_type.to_owned(), name.to_owned()];
-
-            // If there is a dependency_database, use it to get the version of the table currently in use by the game. Otherwise, return error.
-            let version = match dependency_database {
-                Some(ref dependency_database) => {
-
-                    // Initialize version to 9999. If it fails, this'll cause the schema to not be found and properly return error.
-                    let mut version = 9999;
-
-                    // For each table in our dependency_database...
-                    for table in dependency_database.iter() {
-
-                        // If it's a table...
-                        if table.path[0] == "db" {
-
-                            // And the one we're searching for...
-                            if table.path[1] == db_type {
-
-                                // Get his version...
-                                version = DBHeader::read(&table.data, &mut 0).unwrap().version
-                            }
-                        }
-                    }
-
-                    // Return the version. If None has been found, return 0.
-                    version
-                }
-
-                // If there is None, return error.
-                None => return Err(format_err!("To be able to create a DB Table we need first a Dependency Database created for that game. Create one and try again."))
-            };
+        PackedFileType::DB(_, table, version) => {
 
             // Try to get his table definition.
             let table_definition = match schema {
-                Some(schema) => DB::get_schema(&db_type, version, &schema),
+                Some(schema) => DB::get_schema(&table, version, &schema),
                 None => return Err(format_err!("There is no schema loaded for this game."))
             };
 
             // If there is a table definition, create the new table. Otherwise, return error.
             match table_definition {
-                Some(table_definition) => DB::new(&db_type, version, table_definition).save(),
+                Some(table_definition) => DB::new(&table, version, table_definition).save(),
                 None => return Err(format_err!("We don't have a table definition for this table/version of the table, so we can neither decode it nor create it."))
             }
         }
 
-        // If it's a Text PackedFile...
-        PackedFileType::Text => {
-
-            // Ensure his termination is correct, and fix it if it's not.
-            if let Some(name) = path.last_mut() {
-                if !name.ends_with(".lua") &&
-                    !name.ends_with(".xml") &&
-                    !name.ends_with(".xml.shader") &&
-                    !name.ends_with(".xml.material") &&
-                    !name.ends_with(".variantmeshdefinition") &&
-                    !name.ends_with(".environment") &&
-                    !name.ends_with(".lighting") &&
-                    !name.ends_with(".wsmodel") &&
-                    !name.ends_with(".csv") &&
-                    !name.ends_with(".tsv") &&
-                    !name.ends_with(".inl") &&
-                    !name.ends_with(".battle_speech_camera") &&
-                    !name.ends_with(".bob") &&
-                    !name.ends_with(".txt") {
-                    name.push_str(".lua");
-                }
-            }
-
-            // Get his data.
-            encode_string_u8("")
-        }
+        // If it's a Text PackedFile, return an empty encoded string.
+        PackedFileType::Text(_) => encode_string_u8(""),
     };
 
     // Create and add the new PackedFile to the PackFile.
-    pack_file.add_packedfiles(vec![PackedFile::read(data.len() as u32, path.to_vec(), data); 1]);
+    pack_file.add_packedfiles(vec![PackedFile::read(data.len() as u32, path, data); 1]);
 
     // Return the path to update the UI.
-    Ok(path)
+    Ok(())
 }
 
 /// This function is used to Mass-Import TSV files into a PackFile. Note that this will OVERWRITE any
@@ -205,7 +138,7 @@ pub fn tsv_mass_import(
                             // Create his new path.
                             let mut path = vec!["text".to_owned(), "db".to_owned(), format!("{}.loc", name)];
 
-                            // If that path already exists in th list of PackedFiles to add, change it using the index.
+                            // If that path already exists in the list of PackedFiles to add, change it using the index.
                             for packed_file in &packed_files {
                                 if packed_file.path == path {
                                     path[2] = format!("{}_{}.loc", name, index);
@@ -253,7 +186,7 @@ pub fn tsv_mass_import(
                             // Change his path.
                             let mut path = vec!["db".to_owned(), table_type.to_owned(), name.to_owned()];
 
-                            // If that path already exists in th list of PackedFiles to add, change it using the index.
+                            // If that path already exists in the list of PackedFiles to add, change it using the index.
                             for packed_file in &packed_files {
                                 if packed_file.path == path {
                                     path[2] = format!("{}_{}", name, index);
@@ -283,7 +216,7 @@ pub fn tsv_mass_import(
 
     // If any of the files returned error, return error.
     if !error_files.is_empty() {
-        return Err(format_err!("The following files returned error when trying to import them:\n\n{:#?}", error_files))
+        return Err(format_err!("<p>The following files returned error when trying to import them:</p><p>{:#?}</p><p>No files have been imported.</p>", error_files))
     }
 
     // Get the "TreePath" of the new PackFiles to return them.

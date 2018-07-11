@@ -1,108 +1,115 @@
 // In this file are all the helper functions used by the UI when decoding RigidModel PackedFiles.
 extern crate failure;
+extern crate qt_widgets;
+extern crate qt_gui;
+extern crate qt_core;
+
+use qt_widgets::widget::Widget;
+use qt_widgets::group_box::GroupBox;
+use qt_widgets::tab_widget::TabWidget;
+
+use qt_core::event_loop::EventLoop;
+use qt_core::connection::Signal;
 
 use failure::Error;
 use std::cell::RefCell;
 use std::rc::Rc;
-use gtk::prelude::*;
-use gtk::{
-    ScrolledWindow, Button, Expander, Label, Entry, Grid
-};
+use std::thread;
+use std::time::Duration;
+use std::sync::mpsc::{Sender, Receiver};
 
-use common::coding_helpers::*;
-use packedfile::rigidmodel::*;
-use packfile::patch_rigid_model_attila_to_warhammer;
-use ui::*;
 use AppUI;
-use packfile::update_packed_file_data_rigid;
+use ui::*;
+use packedfile::rigidmodel::*;
+use common::coding_helpers::*;
 
 /// Struct PackedFileRigidModelDataView: contains all the stuff we need to give to the program to
 /// show a TreeView with the data of a RigidModel file, allowing us to manipulate it.
-#[derive(Clone)]
 pub struct PackedFileRigidModelDataView {
-    pub texture_paths_index: Vec<u32>,
-    pub texture_paths: Vec<Vec<Entry>>,
+    pub save_changes: SlotNoArgs<'static>,
+    pub patch_rigid_model: SlotNoArgs<'static>,
 }
 
 /// Implementation of "PackedFileRigidModelDataView".
 impl PackedFileRigidModelDataView {
 
-    /// This function creates a new Data View (custom layout) with "packed_file_data_display" as
-    /// father and returns a PackedFileRigidModelDataView with all his data. This can fail, so
-    /// we return a result.
+    /// This functin returns a dummy struct. Use it for initialization.
+    pub fn new() -> Self {
+
+        // Create some dummy slots and return it.
+        Self {
+            save_changes: SlotNoArgs::new(|| {}),
+            patch_rigid_model: SlotNoArgs::new(|| {}),
+        }
+    }
+
+    /// This function creates a "view" with the PackedFile's View as father and returns a
+    /// `PackedFileRigidModelDataView` with all his slots.
     pub fn create_data_view(
+        sender_qt: Sender<&'static str>,
+        sender_qt_data: &Sender<Result<Vec<u8>, Error>>,
+        receiver_qt: &Rc<RefCell<Receiver<Result<Vec<u8>, Error>>>>,
+        is_modified: &Rc<RefCell<bool>>,
         app_ui: &AppUI,
-        pack_file: &Rc<RefCell<PackFile>>,
-        packed_file_decoded_index: &usize,
-        is_packedfile_opened: &Rc<RefCell<bool>>,
-    ) -> Result<(), Error> {
+        packed_file_index: &usize,
+    ) -> Result<Self, Error> {
 
-        // We try to decode the RigidModel. If it fails, return error. Otherwise build the UI and load to it the data.
-        match RigidModel::read(&pack_file.borrow().data.packed_files[*packed_file_decoded_index].data) {
-            Ok(packed_file_decoded) => {
+        // Get the data of the PackedFile.
+        sender_qt.send("decode_packed_file_rigid_model").unwrap();
+        sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
+        let response = receiver_qt.borrow().recv().unwrap();
 
-                // Internal `ScrolledWindow`, so if there are too many lods, we can scroll through them.
-                // Inside it we put a Grid to fit all the labels and stuff properly.
-                let packed_file_data_display_scroll = ScrolledWindow::new(None, None);
-                let packed_file_data_display_grid = Grid::new();
-                packed_file_data_display_scroll.set_hexpand(true);
-                packed_file_data_display_scroll.set_vexpand(true);
-                packed_file_data_display_grid.set_border_width(6);
-                packed_file_data_display_grid.set_row_spacing(6);
-                packed_file_data_display_grid.set_column_spacing(3);
+        // Check if we could get the text or not.
+        match response {
 
-                let compatible_label = Label::new(Some("RigidModel compatible with: "));
-                let game_label = Label::new(Some(
-                    match packed_file_decoded.packed_file_header.packed_file_header_model_type {
-                        6 => "Attila",
-                        7 => "Warhammer 1&2",
-                        _ => "Don't know."
-                    }
-                ));
-                let patch_attila_to_warhammer_button = Button::new_with_label("Patch to Warhammer 1&2");
+            // In case of success...
+            Ok(response) => {
 
-                // Only enable it for Attila's RigidModels.
-                match packed_file_decoded.packed_file_header.packed_file_header_model_type {
-                    6 => patch_attila_to_warhammer_button.set_sensitive(true),
-                    _ => patch_attila_to_warhammer_button.set_sensitive(false),
-                }
+                // Get the text.
+                let packed_file: RigidModel = serde_json::from_slice(&response).unwrap();
 
-                let textures_label = Label::new(Some("Textures used by this RigidModel:"));
+                // Create the "Info" Frame.
+                let info_frame = GroupBox::new(&QString::from_std_str("RigidModel's Info")).into_raw();
+                let info_layout = GridLayout::new().into_raw();
+                unsafe { info_frame.as_mut().unwrap().set_layout(info_layout as *mut Layout); }
+                unsafe { info_layout.as_mut().unwrap().set_column_stretch(2, 10); }
 
-                compatible_label.set_xalign(0.0);
-                compatible_label.set_yalign(0.5);
-                compatible_label.set_size_request(100, 0);
-                game_label.set_xalign(0.0);
-                game_label.set_yalign(0.5);
-                game_label.set_size_request(100, 0);
-                textures_label.set_xalign(0.0);
-                textures_label.set_yalign(0.5);
-                textures_label.set_size_request(100, 0);
+                // Create the info labels.
+                let rigid_model_version_label = Label::new(&QString::from_std_str("Version:")).into_raw();
+                let rigid_model_compatible_label = Label::new(&QString::from_std_str("Compatible with:")).into_raw();
 
-                game_label.set_hexpand(true);
+                let rigid_model_version_decoded_label = Label::new(&QString::from_std_str(format!("{}", packed_file.packed_file_header.packed_file_header_model_type))).into_raw();
+                let rigid_model_compatible_decoded_label = Label::new(&QString::from_std_str(
+                    if packed_file.packed_file_header.packed_file_header_model_type == 6 { "Attila" }
+                    else if packed_file.packed_file_header.packed_file_header_model_type == 7 { "Warhammer 1&2" }
+                    else { "Unknonw"}
+                )).into_raw();
 
-                // Attach all the stuff already created to the grid.
-                packed_file_data_display_grid.attach(&compatible_label, 0, 0, 1, 1);
-                packed_file_data_display_grid.attach(&game_label, 1, 0, 1, 1);
-                packed_file_data_display_grid.attach(&patch_attila_to_warhammer_button, 2, 0, 1, 1);
-                packed_file_data_display_grid.attach(&textures_label, 0, 1, 1, 1);
+                unsafe { info_layout.as_mut().unwrap().add_widget((rigid_model_version_label as *mut Widget, 0, 0, 1, 1)); }
+                unsafe { info_layout.as_mut().unwrap().add_widget((rigid_model_version_decoded_label as *mut Widget, 0, 1, 1, 1)); }
 
-                packed_file_data_display_scroll.add(&packed_file_data_display_grid);
-                app_ui.packed_file_data_display.attach(&packed_file_data_display_scroll, 0, 0, 1, 1);
+                unsafe { info_layout.as_mut().unwrap().add_widget((rigid_model_compatible_label as *mut Widget, 1, 0, 1, 1)); }
+                unsafe { info_layout.as_mut().unwrap().add_widget((rigid_model_compatible_decoded_label as *mut Widget, 1, 1, 1, 1)); }
 
-                // The texture position should never change in the data, so we get the positions of all the
-                // textures in the RigidModel.
+                // Create the "Patch" button.
+                let patch_attila_to_warhammer_button = PushButton::new(&QString::from_std_str("Patch RigidModel")).into_raw();
+                unsafe { info_layout.as_mut().unwrap().add_widget((patch_attila_to_warhammer_button as *mut Widget, 0, 3, 1, 1)); }
+
+                // If the RigidModel is not type 6, disable the button.
+                if packed_file.packed_file_header.packed_file_header_model_type != 6 { unsafe { patch_attila_to_warhammer_button.as_mut().unwrap().set_enabled(false); } }
+
+                // The texture position should never change in the data, so we get the positions of all the textures in the RigidModel.
                 let mut texture_paths_index: Vec<u32> = vec![];
 
                 // Check if it's a building/prop/decal.
-                if packed_file_decoded.packed_file_data.packed_file_data_lods_data
+                if packed_file.packed_file_data.packed_file_data_lods_data
                     .windows(12)
                     .find(|window: &&[u8]| String::from_utf8_lossy(window) == "rigidmodels/") != None {
 
                     // If we founded that, it's a building/prop/decal, so we try to get the positions where
                     // his texture paths are.
                     let mut index = 0;
-                    while let Some(position) = packed_file_decoded.packed_file_data.packed_file_data_lods_data[index..]
+                    while let Some(position) = packed_file.packed_file_data.packed_file_data_lods_data[index..]
                         .windows(12)
                         .position(|window: &[u8]| String::from_utf8_lossy(window) == "rigidmodels/") {
 
@@ -112,14 +119,14 @@ impl PackedFileRigidModelDataView {
                 }
 
                 // If not, check if it's a unit model.
-                else if packed_file_decoded.packed_file_data.packed_file_data_lods_data
+                else if packed_file.packed_file_data.packed_file_data_lods_data
                     .windows(14)
                     .find(|window: &&[u8]| String::from_utf8_lossy(window) == "variantmeshes/") != None {
 
                     // If we founded that, it's a building/prop/decal, so we try to get the positions where
                     // his texture paths are.
                     let mut index = 0;
-                    while let Some(position) = packed_file_decoded.packed_file_data.packed_file_data_lods_data[index..]
+                    while let Some(position) = packed_file.packed_file_data.packed_file_data_lods_data[index..]
                         .windows(14)
                         .position(|window: &[u8]| String::from_utf8_lossy(window) == "variantmeshes/") {
 
@@ -129,9 +136,7 @@ impl PackedFileRigidModelDataView {
                 }
 
                 // If none of these have worked, this is not a decodeable rigidmodel.
-                else {
-                    return Err(format_err!("Error while trying to get the type of RigidModel (Texture Directories not found)."))
-                }
+                else { return Err(format_err!("Error while trying to get the type of RigidModel (Texture Directories not found).")) }
 
                 // Rules to diferentiate between decal, building/prop and units:
                 // - texture_paths_index.len() = 1 => decal.
@@ -143,47 +148,51 @@ impl PackedFileRigidModelDataView {
 
                 // If it's a decal...
                 if texture_paths_index.len() == 1 {
-                    let mut texture_paths_lod = vec![];
-                    let lod_texture_expander = Expander::new(Some(&*format!("Decal Texture Directory")));
-                    let lod_texture_expander_grid = Grid::new();
-                    lod_texture_expander.add(&lod_texture_expander_grid);
-                    lod_texture_expander_grid.set_border_width(6);
-                    lod_texture_expander_grid.set_row_spacing(6);
-                    lod_texture_expander_grid.set_column_spacing(3);
 
-                    let texture_type = Label::new(Some("Texture Directory:"));
-                    texture_type.set_xalign(0.0);
-                    texture_type.set_yalign(0.5);
-                    texture_type.set_size_request(60, 0);
+                    // Create the TabWidget.
+                    let tabs = TabWidget::new().into_raw();
 
-                    // Then we get it's path, and put it in a gtk::Entry.
-                    let texture_path = Entry::new();
+                    // Create the Widget for the Tab.
+                    let tab_widget = Widget::new().into_raw();
+                    let tab_widget_layout = GridLayout::new().into_raw();
+                    unsafe { tab_widget.as_mut().unwrap().set_layout(tab_widget_layout as *mut Layout); }
+                    unsafe { tab_widget_layout.as_mut().unwrap().set_row_stretch(6, 10); }
 
+                    // Create the LineEdit for the Texture's Directory.
+                    let texture_directory_label = Label::new(&QString::from_std_str("Texture Directory:")).into_raw();
+                    let texture_directory_line_edit = LineEdit::new(()).into_raw();
+
+                    unsafe { tab_widget_layout.as_mut().unwrap().add_widget((texture_directory_label as *mut Widget, 0, 0, 1, 1)); }
+                    unsafe { tab_widget_layout.as_mut().unwrap().add_widget((texture_directory_line_edit as *mut Widget, 0, 1, 1, 1)); }
+
+                    // Populate the LineEdit.
                     match decode_string_u8_0padded(
-                        &packed_file_decoded.packed_file_data.packed_file_data_lods_data[
+                        &packed_file.packed_file_data.packed_file_data_lods_data[
                             texture_paths_index[0] as usize..
                             (texture_paths_index[0] as u32 + 255u32) as usize
                         ]
                     ) {
-                        Ok(result) => texture_path.get_buffer().set_text(&*result.0),
+                        Ok(result) => unsafe { texture_directory_line_edit.as_mut().unwrap().set_text(&QString::from_std_str(result.0)) },
                         Err(_) =>  return Err(format_err!("Error while trying to get the Decal Texture Directory.")),
                     };
 
-                    texture_path.get_buffer().set_max_length(Some(256u16));
-                    texture_path.set_editable(true);
-                    texture_path.set_hexpand(true);
+                    // Add the Widget to the TabWidget.
+                    unsafe { tabs.as_mut().unwrap().add_tab((tab_widget, &QString::from_std_str("Decal Texture Directory"))); }
 
-                    lod_texture_expander_grid.attach(&texture_type, 0, 0, 1, 1);
-                    lod_texture_expander_grid.attach(&texture_path, 1, 0, 1, 1);
+                    // Add everything to the PackedFile's View.
+                    unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((info_frame as *mut Widget, 0, 0, 1, 1)); }
+                    unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((tabs as *mut Widget, 1, 0, 1, 1)); }
 
-                    texture_paths_lod.push(texture_path);
-                    texture_paths.push(texture_paths_lod);
-                    packed_file_data_display_grid.attach(&lod_texture_expander, 0, 3, 3, 1);
+                    // Add the LineEdit to the List.
+                    texture_paths.push(vec![texture_directory_line_edit]);
                 }
 
                 // If we can subdivide the amount of textures found in the rigidmodel, we have the first
                 // one to be the directory, and the other five to be the textures of the lod.
                 else if texture_paths_index.len() % 6 == 0 {
+
+                    // Create the TabWidget.
+                    let tabs = TabWidget::new().into_raw();
 
                     // We are going to change our lod every 6 indexes...
                     let lods = texture_paths_index.len() / 6;
@@ -191,23 +200,24 @@ impl PackedFileRigidModelDataView {
                     // For each lod...
                     for lod in 0..lods {
 
-                        let mut texture_paths_lod = vec![];
-                        let lod_texture_expander = Expander::new(Some(&*format!("Lod {}", lod + 1)));
-                        let lod_texture_expander_grid = Grid::new();
-                        lod_texture_expander.add(&lod_texture_expander_grid);
-                        lod_texture_expander_grid.set_border_width(6);
-                        lod_texture_expander_grid.set_row_spacing(6);
-                        lod_texture_expander_grid.set_column_spacing(3);
+                        // Create the Widget for the Tab.
+                        let tab_widget = Widget::new().into_raw();
+                        let tab_widget_layout = GridLayout::new().into_raw();
+                        unsafe { tab_widget.as_mut().unwrap().set_layout(tab_widget_layout as *mut Layout); }
+                        unsafe { tab_widget_layout.as_mut().unwrap().set_row_stretch(6, 10); }
+
+                        // Create the list of textures per lod.
+                        let mut textures_lod = vec![];
 
                         // For each texture found (except the first of the group, thats their dir)...
                         for index in 1..6 {
 
-                            // First, we get it's type.
-                            let texture_type = Label::new(Some(
+                            // Create the Labels for each texture in that Lod.
+                            let texture_type = Label::new(&QString::from_std_str(
 
                                 //0 (Diffuse), 1 (Normal), 11 (Specular), 12 (Gloss), 3/10 (Mask), 5(no idea).
                                 match decode_integer_u32(
-                                    &packed_file_decoded.packed_file_data.packed_file_data_lods_data[
+                                    &packed_file.packed_file_data.packed_file_data_lods_data[
                                         (texture_paths_index[index + (lod * 6)] - 4) as usize..
                                         (texture_paths_index[index + (lod * 6)] as usize)
                                         ]
@@ -225,170 +235,205 @@ impl PackedFileRigidModelDataView {
                                     }
                                     Err(error) => return Err(error)
                                 }
-                            ));
+                            )).into_raw();
 
-                            texture_type.set_xalign(0.0);
-                            texture_type.set_yalign(0.5);
+                            // Create the LineEdit for each texture.
+                            let texture_line_edit = LineEdit::new(()).into_raw();
 
-                            // Then we get it's path, and put it in a gtk::Entry.
-                            let texture_path = Entry::new();
+                            // Add them to the Widget.
+                            unsafe { tab_widget_layout.as_mut().unwrap().add_widget((texture_type as *mut Widget, index as i32, 0, 1, 1)); }
+                            unsafe { tab_widget_layout.as_mut().unwrap().add_widget((texture_line_edit as *mut Widget, index as i32, 1, 1, 1)); }
 
+                            // Populate the LineEdit.
                             match decode_string_u8_0padded(
-                                &packed_file_decoded.packed_file_data.packed_file_data_lods_data[
+                                &packed_file.packed_file_data.packed_file_data_lods_data[
                                     texture_paths_index[index + (lod * 6)] as usize..
                                     (texture_paths_index[index + (lod * 6)] as u32 + 255u32) as usize
                                 ]
                             ) {
-                                Ok(result) => texture_path.get_buffer().set_text(&*result.0),
-                                Err(_) =>  return Err(format_err!("Error while trying to get the a Texture Path.")),
+                                Ok(result) => unsafe { texture_line_edit.as_mut().unwrap().set_text(&QString::from_std_str(result.0)) },
+                                Err(_) =>  return Err(format_err!("Error while trying to get the Decal Texture Directory.")),
                             };
 
-                            texture_path.get_buffer().set_max_length(Some(256u16));
-                            texture_path.set_editable(true);
-                            texture_path.set_hexpand(true);
+                            // Add the Widget to the TabWidget.
+                            unsafe { tabs.as_mut().unwrap().add_tab((tab_widget, &QString::from_std_str(format!("Lod {}", lod + 1)))); }
 
-                            lod_texture_expander_grid.attach(&texture_type, 0, (index - 1) as i32, 1, 1);
-                            lod_texture_expander_grid.attach(&texture_path, 1, (index - 1) as i32, 1, 1);
-
-                            texture_paths_lod.push(texture_path);
+                            // Add the LineEdit to the List.
+                            textures_lod.push(texture_line_edit);
                         }
-                        texture_paths.push(texture_paths_lod);
-                        packed_file_data_display_grid.attach(&lod_texture_expander, 0, (lod + 2) as i32, 3, 1);
+
+                        // Add the Lod to the list.
+                        texture_paths.push(textures_lod);
                     }
+
+                    // Add everything to the PackedFile's View.
+                    unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((info_frame as *mut Widget, 0, 0, 1, 1)); }
+                    unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((tabs as *mut Widget, 1, 0, 1, 1)); }
                 }
 
-                // If not, return error.
-                else {
-                    return Err(format_err!("Error while trying to decode the selected RigidModel: Irregular amount of Textures per lod."))
-                }
+                //-------------------------------------------------------------------------------//
+                // Slots and actions...
+                //-------------------------------------------------------------------------------//
+                // Put the PackedFile into a Rc<RefCell> so we can move it into the closures.
+                let packed_file = Rc::new(RefCell::new(packed_file));
 
-                // If we reached this point, show it all.
-                app_ui.packed_file_data_display.show_all();
+                // Slots...
+                let slots = Self {
 
-                // Get the needed stuff into the decoded view.
-                let decoded_view = PackedFileRigidModelDataView {
-                    texture_paths_index,
-                    texture_paths,
+                    // Slot to save all the changes from the texts.
+                    save_changes: SlotNoArgs::new(clone!(
+                        packed_file_index,
+                        texture_paths,
+                        texture_paths_index,
+                        packed_file,
+                        is_modified,
+                        app_ui,
+                        sender_qt,
+                        sender_qt_data,
+                        receiver_qt => move || {
+
+                            // Try to update the RigidModel's data from the LineEdits.
+                            if let Err(error) = Self::return_data_from_data_view(
+                                &texture_paths,
+                                &texture_paths_index,
+                                &mut packed_file.borrow_mut().packed_file_data.packed_file_data_lods_data
+                            ) {
+
+                                // If there was an error, report it.
+                                return show_dialog(&app_ui, false, format!("<p>Error while trying to save the RigidModel:</p><p>{}</p>", error.cause()));
+                            }
+
+                            // Tell the background thread to start saving the PackedFile.
+                            sender_qt.send("encode_packed_file_rigid_model").unwrap();
+
+                            // Send the new lod data.
+                            sender_qt_data.send(serde_json::to_vec(&(&*packed_file.borrow(), packed_file_index)).map_err(From::from)).unwrap();
+
+                            // Get the incomplete path of the edited PackedFile.
+                            sender_qt.send("get_packed_file_path").unwrap();
+                            sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
+                            let response = receiver_qt.borrow().recv().unwrap().unwrap();
+                            let path: Vec<String> = serde_json::from_slice(&response).unwrap();
+
+                            // Set the mod as "Modified".
+                            *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(path));
+                        }
+                    )),
+
+                    // Slot to patch the RigidModel for Warhammer.
+                    patch_rigid_model: SlotNoArgs::new(clone!(
+                        packed_file_index,
+                        packed_file,
+                        is_modified,
+                        app_ui,
+                        sender_qt,
+                        sender_qt_data,
+                        receiver_qt => move || {
+
+                            // Send the data to the background to try to patch the rigidmodel.
+                            sender_qt.send("patch_rigid_model_attila_to_warhammer").unwrap();
+                            sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
+
+                            // Prepare the event loop, so we don't hang the UI while the background thread is working.
+                            let mut event_loop = EventLoop::new();
+
+                            // Disable the Main Window (so we can't do other stuff).
+                            unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+
+                            // Until we receive a response from the worker thread...
+                            loop {
+
+                                // When we finally receive a response...
+                                if let Ok(data) = receiver_qt.borrow().try_recv() {
+
+                                    // Check what the result of the patching process was.
+                                    match data {
+
+                                        // In case of success...
+                                        Ok(data) => {
+
+                                            // Get the RigidModel data.
+                                            *packed_file.borrow_mut() = serde_json::from_slice(&data).unwrap();
+
+                                            // Reflect the changes in the UI.
+                                            unsafe { rigid_model_version_decoded_label.as_mut().unwrap().set_text(&QString::from_std_str("7")); }
+                                            unsafe { rigid_model_compatible_decoded_label.as_mut().unwrap().set_text(&QString::from_std_str("Warhammer 1&2")); }
+                                            unsafe { patch_attila_to_warhammer_button.as_mut().unwrap().set_enabled(false); }
+
+                                            // Get the incomplete path of the edited PackedFile.
+                                            sender_qt.send("get_packed_file_path").unwrap();
+                                            sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
+                                            let response = receiver_qt.borrow().recv().unwrap().unwrap();
+                                            let path: Vec<String> = serde_json::from_slice(&response).unwrap();
+
+                                            // Set the mod as "Modified".
+                                            *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(path));
+
+                                            // Break the loop.
+                                            break;
+                                        }
+
+                                        // In case of error...
+                                        Err(error) => {
+
+                                            // Report the error.
+                                            show_dialog(&app_ui, false, format!("<p>Error while trying to patch the RigidModel:</p><p>{}</p>", error.cause()));
+
+                                            // Break the loop.
+                                            break;
+                                        }
+                                    }
+                                }
+
+                                // Keep the UI responsive.
+                                event_loop.process_events(());
+
+                                // Wait a bit to not saturate a CPU core.
+                                thread::sleep(Duration::from_millis(50));
+                            }
+
+                            // Re-enable the Main Window.
+                            unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
+                        }
+                    )),
                 };
 
-                // When we destroy the `ScrolledWindow`, we need to tell the program we no longer have an open PackedFile.
-                packed_file_data_display_scroll.connect_destroy(clone!(
-                    is_packedfile_opened => move |_| {
-                        *is_packedfile_opened.borrow_mut() = false;
-                    }
-                ));
-
-                // Get the decoded PackedFile into a Rc<RefCell<RigidModel>> so we can get it into closures.
-                let packed_file_decoded = Rc::new(RefCell::new(packed_file_decoded));
-
-                // When we hit the "Patch to Warhammer 1&2" button.
-                patch_attila_to_warhammer_button.connect_button_release_event(clone!(
-                    app_ui,
-                    pack_file,
-                    packed_file_decoded,
-                    packed_file_decoded_index => move |patch_button, _| {
-
-                    // Patch the RigidModel...
-                    let packed_file_data_patch_result = patch_rigid_model_attila_to_warhammer(&mut *packed_file_decoded.borrow_mut());
-                    match packed_file_data_patch_result {
-                        Ok(result) => {
-
-                            // Disable the button and change his game...
-                            patch_button.set_sensitive(false);
-                            game_label.set_text("Warhammer 1&2");
-
-                            // Save the changes to the PackFile....
-                            let mut success = false;
-                            match update_packed_file_data_rigid(
-                                &*packed_file_decoded.borrow(),
-                                &mut *pack_file.borrow_mut(),
-                                packed_file_decoded_index
-                            ) {
-                                Ok(_) => {
-                                    success = true;
-                                    show_dialog(&app_ui.window, true, result);
-                                },
-                                Err(error) => show_dialog(&app_ui.window, false, error.cause()),
-                            }
-
-                            // If it works, set it as modified.
-                            if success {
-                                set_modified(true, &app_ui.window, &mut *pack_file.borrow_mut());
-                            }
-                        },
-                        Err(error) => show_dialog(&app_ui.window, false, error.cause()),
-                    }
-                    Inhibit(false)
-                }));
-
-                // When we change any of the Paths...
-                // TODO: It's extremely slow with big models. Need to find a way to fix it.
-                for lod in &decoded_view.texture_paths {
-                    for texture_path in lod {
-                        texture_path.connect_changed(clone!(
-                            pack_file,
-                            packed_file_decoded,
-                            decoded_view,
-                            app_ui,
-                            packed_file_decoded_index => move |_| {
-
-                                // Get the data from the View...
-                                let new_data = match PackedFileRigidModelDataView::return_data_from_data_view(
-                                    &decoded_view,
-                                    &mut (*packed_file_decoded.borrow_mut()).packed_file_data.packed_file_data_lods_data.to_vec()
-                                ) {
-                                    Ok(new_data) => new_data,
-                                    Err(error) => {
-                                        let message = format_err!("Error while trying to save changes to a RigidModel: {}", error.cause());
-                                        return show_message_in_statusbar(&app_ui.status_bar, message)
-                                    }
-                                };
-
-                                // Save it encoded into the opened RigidModel...
-                                packed_file_decoded.borrow_mut().packed_file_data.packed_file_data_lods_data = new_data;
-
-                                // And then into the PackFile.
-                                let success;
-                                match update_packed_file_data_rigid(
-                                    &*packed_file_decoded.borrow(),
-                                    &mut *pack_file.borrow_mut(),
-                                    packed_file_decoded_index
-                                ) {
-                                    Ok(_) => { success = true },
-                                    Err(error) => {
-                                        let message = format_err!("Error while trying to save changes to a RigidModel: {}", error.cause());
-                                        return show_message_in_statusbar(&app_ui.status_bar, message)
-                                    }
-                                }
-
-                                // If it works, set it as modified.
-                                if success {
-                                    set_modified(true, &app_ui.window, &mut *pack_file.borrow_mut());
-                                }
-                            }
-                        ));
+                // Actions to trigger the "Save Changes" slot.
+                for lod in texture_paths {
+                    for line_edit in lod {
+                        unsafe { line_edit.as_mut().unwrap().signals().editing_finished().connect(&slots.save_changes); }
                     }
                 }
 
-                // Return success.
-                Ok(())
+                // Action to trigger the "Patch RigidModel" slot.
+                unsafe { patch_attila_to_warhammer_button.as_mut().unwrap().signals().released().connect(&slots.patch_rigid_model); }
+
+                // Return the slots.
+                Ok(slots)
             }
-            Err(error) => Err(error)
+
+            // In case of error, return it.
+            Err(error) => Err(error),
         }
     }
 
     /// This function get the texture path entries of a RigidModel from the UI and saves them into the
     /// opened RigidModel.
-    pub fn return_data_from_data_view(&self, packed_file_data_lods_data: &mut Vec<u8>) -> Result<Vec<u8>, Error> {
+    pub fn return_data_from_data_view(
+        line_edits: &[Vec<*mut LineEdit>],
+        texture_paths_index: &[u32],
+        packed_file_data_lods_data: &mut Vec<u8>
+    ) -> Result<(), Error> {
 
         // If it's a decal...
-        if self.texture_paths_index.len() == 1 {
+        if line_edits.len() == 1 && line_edits[0].len() == 1 {
 
             // We just replace the text in the position we have and return the changed vector.
-            let new_texture_path = encode_string_u8_0padded(&(self.texture_paths[0][0].get_text().unwrap(), 256))?;
+            let new_texture_path;
+            unsafe { new_texture_path = encode_string_u8_0padded(&(line_edits[0][0].as_mut().unwrap().text().to_std_string(), 256))?; }
 
             packed_file_data_lods_data.splice(
-                (self.texture_paths_index[0] as usize)..((self.texture_paths_index[0] + 256) as usize),
+                (texture_paths_index[0] as usize)..((texture_paths_index[0] + 256) as usize),
                 new_texture_path.iter().cloned());
         }
 
@@ -396,22 +441,23 @@ impl PackedFileRigidModelDataView {
         else {
 
             // Get the amount of lods...
-            let lods = self.texture_paths_index.len() / 6;
+            let lods = texture_paths_index.len() / 6;
             for lod in 0..lods {
 
                 // For each texture (we skip the texture directory)...
                 for texture in 1..6 {
 
                     // We get the new texture, and replace the old one with the new one.
-                    let new_texture_path = encode_string_u8_0padded(&(self.texture_paths[lod][texture - 1].get_text().unwrap(), 256))?;
+                    let new_texture_path;
+                    unsafe { new_texture_path = encode_string_u8_0padded(&(line_edits[lod][texture - 1].as_mut().unwrap().text().to_std_string(), 256))?; }
 
                     packed_file_data_lods_data.splice(
-                        (self.texture_paths_index[texture + (lod * 6)] as usize)..((self.texture_paths_index[texture + (lod * 6)] + 256) as usize),
+                        (texture_paths_index[texture + (lod * 6)] as usize)..((texture_paths_index[texture + (lod * 6)] + 256) as usize),
                         new_texture_path.iter().cloned());
                 }
             }
         }
 
-        Ok(packed_file_data_lods_data.to_vec())
+        Ok(())
     }
 }
