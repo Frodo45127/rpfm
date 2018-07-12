@@ -1043,38 +1043,45 @@ pub fn get_path_from_selection(
     unsafe { selection_model = app_ui.folder_tree_view.as_mut().unwrap().selection_model(); }
     unsafe { selection = selection_model.as_mut().unwrap().selected_indexes(); }
 
-    // Get the selected cell.
-    let mut item = selection.take_at(0);
-    let mut parent;
+    // If the selection has something...
+    if selection.count(()) > 0 {
 
-    // Loop until we reach the root index.
-    loop {
+        // Get the selected cell.
+        let mut item = selection.take_at(0);
+        let mut parent;
 
-        // Get his data.
-        let name;
-        unsafe { name = QString::to_std_string(&app_ui.folder_tree_model.as_mut().unwrap().data(&item).to_string()); }
+        // Loop until we reach the root index.
+        loop {
 
-        // Add it to the list
-        path.push(name);
+            // Get his data.
+            let name;
+            unsafe { name = QString::to_std_string(&app_ui.folder_tree_model.as_mut().unwrap().data(&item).to_string()); }
 
-        // Get the Parent of the item.
-        parent = item.parent();
+            // Add it to the list
+            path.push(name);
 
-        // If the parent is valid, it's the new item.
-        if parent.is_valid() { item = parent; }
+            // Get the Parent of the item.
+            parent = item.parent();
 
-        // Otherwise, we stop.
-        else { break; }
+            // If the parent is valid, it's the new item.
+            if parent.is_valid() { item = parent; }
+
+            // Otherwise, we stop.
+            else { break; }
+        }
+
+        // If we don't want to include the PackFile in the Path, remove it.
+        if !include_packfile { path.pop(); }
+
+        // Reverse it, as we want it from Parent to Children.
+        path.reverse();
+
+        // Return the Path.
+        path
     }
 
-    // If we don't want to include the PackFile in the Path, remove it.
-    if !include_packfile { path.pop(); }
-
-    // Reverse it, as we want it from Parent to Children.
-    path.reverse();
-
-    // Return the Path.
-    path
+    // Otherwise, we return an empty path.
+    else { path }
 }
 
 /// This function is used to get the complete Path of a Selected Item in the TreeView.
@@ -1095,38 +1102,45 @@ pub fn get_path_from_item_selection(
     // Get the selection of the TreeView.
     let mut selection = item.indexes();
 
-    // Get the selected cell.
-    let mut item = selection.take_at(0);
-    let mut parent;
+    // If the selection has something...
+    if selection.count(()) > 0 {
 
-    // Loop until we reach the root index.
-    loop {
+        // Get the selected cell.
+        let mut item = selection.take_at(0);
+        let mut parent;
 
-        // Get his data.
-        let name;
-        unsafe { name = QString::to_std_string(&model.as_mut().unwrap().data(&item).to_string()); }
+        // Loop until we reach the root index.
+        loop {
 
-        // Add it to the list
-        path.push(name);
+            // Get his data.
+            let name;
+            unsafe { name = QString::to_std_string(&model.as_mut().unwrap().data(&item).to_string()); }
 
-        // Get the Parent of the item.
-        parent = item.parent();
+            // Add it to the list
+            path.push(name);
 
-        // If the parent is valid, it's the new item.
-        if parent.is_valid() { item = parent; }
+            // Get the Parent of the item.
+            parent = item.parent();
 
-        // Otherwise, we stop.
-        else { break; }
+            // If the parent is valid, it's the new item.
+            if parent.is_valid() { item = parent; }
+
+            // Otherwise, we stop.
+            else { break; }
+        }
+
+        // If we don't want to include the PackFile in the Path, remove it.
+        if !include_packfile { path.pop(); }
+
+        // Reverse it, as we want it from Parent to Children.
+        path.reverse();
+
+        // Return the Path.
+        path
     }
 
-    // If we don't want to include the PackFile in the Path, remove it.
-    if !include_packfile { path.pop(); }
-
-    // Reverse it, as we want it from Parent to Children.
-    path.reverse();
-
-    // Return the Path.
-    path
+    // Otherwise, return an empty path.
+    else { path }
 }
 
 /// This function is used to get the complete Path of a Selected Item in the TreeView.
@@ -1931,18 +1945,16 @@ pub fn update_treeview(
                 // If it's a PackFile...
                 TreePathType::PackFile => {
 
-                    // Get the name of the PackFile from the TreeView.
-                    let packfile;
-                    let name;
-                    unsafe { packfile = model.as_ref().unwrap().item(0); }
-                    unsafe { name = packfile.as_mut().unwrap().text(); }
-
-                    // Clear the TreeModel.
-                    unsafe { model.as_mut().unwrap().clear(); }
-
-                    // Then we add the PackFile to it. This effectively deletes all the PackedFiles in the PackFile.
-                    let mut pack_file = StandardItem::new(&name);
-                    unsafe { model.as_mut().unwrap().append_row_unsafe(pack_file.into_raw()); }
+                    // Rebuild the TreeView.
+                    update_treeview(
+                        &rpfm_path,
+                        &sender_qt,
+                        &sender_qt_data,
+                        receiver_qt.clone(),
+                        tree_view,
+                        model,
+                        TreeViewOperation::Build(false),
+                    );
                 },
 
                 // If we don't have anything selected, we do nothing.
