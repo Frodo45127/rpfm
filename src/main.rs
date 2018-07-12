@@ -1471,103 +1471,111 @@ fn main() {
                 // Send the Path to the Background Thread, and get the type of the item.
                 sender_qt.send("get_type_of_path").unwrap();
                 sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
-                let response = receiver_qt.borrow().recv().unwrap().unwrap();
-                let item_type: TreePathType = serde_json::from_slice(&response).unwrap();
 
-                // Depending on the type of the selected item, we enable or disable different actions.
-                match item_type {
+                // If we trigger certain actions quick enough, the message system will mess up and this can be err.
+                if let Ok(response) = receiver_qt.borrow().recv().unwrap() {
 
-                    // If it's a file...
-                    TreePathType::File(data) => {
-                        unsafe {
-                            app_ui.context_menu_add_file.as_mut().unwrap().set_enabled(false);
-                            app_ui.context_menu_add_folder.as_mut().unwrap().set_enabled(false);
-                            app_ui.context_menu_add_from_packfile.as_mut().unwrap().set_enabled(false);
-                            app_ui.context_menu_create_folder.as_mut().unwrap().set_enabled(false);
-                            app_ui.context_menu_create_db.as_mut().unwrap().set_enabled(false);
-                            app_ui.context_menu_create_loc.as_mut().unwrap().set_enabled(false);
-                            app_ui.context_menu_create_text.as_mut().unwrap().set_enabled(false);
-                            app_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(false);
-                            app_ui.context_menu_delete.as_mut().unwrap().set_enabled(true);
-                            app_ui.context_menu_extract.as_mut().unwrap().set_enabled(true);
-                            app_ui.context_menu_rename.as_mut().unwrap().set_enabled(true);
-                        }
+                    // Due to syncronisation issues, this can be error. So check it properly.
+                    let item_type: TreePathType = match serde_json::from_slice(&response) {
+                        Ok(item_type) => item_type,
+                        Err(_) => return
+                    };
 
-                        // If it's a DB, we should enable this too.
-                        if !data.0.is_empty() && data.0.starts_with(&["db".to_owned()]) {
-                            unsafe { app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(true); }
-                        }
-                    },
+                    // Depending on the type of the selected item, we enable or disable different actions.
+                    match item_type {
 
-                    // If it's a folder...
-                    TreePathType::Folder(_) => {
-                        unsafe {
-                            app_ui.context_menu_add_file.as_mut().unwrap().set_enabled(true);
-                            app_ui.context_menu_add_folder.as_mut().unwrap().set_enabled(true);
-                            app_ui.context_menu_add_from_packfile.as_mut().unwrap().set_enabled(true);
-                            app_ui.context_menu_create_folder.as_mut().unwrap().set_enabled(true);
-                            app_ui.context_menu_create_db.as_mut().unwrap().set_enabled(true);
-                            app_ui.context_menu_create_loc.as_mut().unwrap().set_enabled(true);
-                            app_ui.context_menu_create_text.as_mut().unwrap().set_enabled(true);
-                            app_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(true);
-                            app_ui.context_menu_delete.as_mut().unwrap().set_enabled(true);
-                            app_ui.context_menu_extract.as_mut().unwrap().set_enabled(true);
-                            app_ui.context_menu_rename.as_mut().unwrap().set_enabled(true);
-                            app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(false);
-                        }
-                    },
+                        // If it's a file...
+                        TreePathType::File(data) => {
+                            unsafe {
+                                app_ui.context_menu_add_file.as_mut().unwrap().set_enabled(false);
+                                app_ui.context_menu_add_folder.as_mut().unwrap().set_enabled(false);
+                                app_ui.context_menu_add_from_packfile.as_mut().unwrap().set_enabled(false);
+                                app_ui.context_menu_create_folder.as_mut().unwrap().set_enabled(false);
+                                app_ui.context_menu_create_db.as_mut().unwrap().set_enabled(false);
+                                app_ui.context_menu_create_loc.as_mut().unwrap().set_enabled(false);
+                                app_ui.context_menu_create_text.as_mut().unwrap().set_enabled(false);
+                                app_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(false);
+                                app_ui.context_menu_delete.as_mut().unwrap().set_enabled(true);
+                                app_ui.context_menu_extract.as_mut().unwrap().set_enabled(true);
+                                app_ui.context_menu_rename.as_mut().unwrap().set_enabled(true);
+                            }
 
-                    // If it's the PackFile...
-                    TreePathType::PackFile => {
-                        unsafe {
-                            app_ui.context_menu_add_file.as_mut().unwrap().set_enabled(true);
-                            app_ui.context_menu_add_folder.as_mut().unwrap().set_enabled(true);
-                            app_ui.context_menu_add_from_packfile.as_mut().unwrap().set_enabled(true);
-                            app_ui.context_menu_create_folder.as_mut().unwrap().set_enabled(true);
-                            app_ui.context_menu_create_db.as_mut().unwrap().set_enabled(true);
-                            app_ui.context_menu_create_loc.as_mut().unwrap().set_enabled(true);
-                            app_ui.context_menu_create_text.as_mut().unwrap().set_enabled(true);
-                            app_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(true);
-                            app_ui.context_menu_delete.as_mut().unwrap().set_enabled(true);
-                            app_ui.context_menu_extract.as_mut().unwrap().set_enabled(true);
-                            app_ui.context_menu_rename.as_mut().unwrap().set_enabled(false);
-                            app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(false);
-                        }
-                    },
+                            // If it's a DB, we should enable this too.
+                            if !data.0.is_empty() && data.0.starts_with(&["db".to_owned()]) {
+                                unsafe { app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(true); }
+                            }
+                        },
 
-                    // If there is nothing selected...
-                    TreePathType::None => {
-                        unsafe {
-                            app_ui.context_menu_add_file.as_mut().unwrap().set_enabled(false);
-                            app_ui.context_menu_add_folder.as_mut().unwrap().set_enabled(false);
-                            app_ui.context_menu_add_from_packfile.as_mut().unwrap().set_enabled(false);
-                            app_ui.context_menu_create_folder.as_mut().unwrap().set_enabled(false);
-                            app_ui.context_menu_create_db.as_mut().unwrap().set_enabled(false);
-                            app_ui.context_menu_create_loc.as_mut().unwrap().set_enabled(false);
-                            app_ui.context_menu_create_text.as_mut().unwrap().set_enabled(false);
-                            app_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(false);
-                            app_ui.context_menu_delete.as_mut().unwrap().set_enabled(false);
-                            app_ui.context_menu_extract.as_mut().unwrap().set_enabled(false);
-                            app_ui.context_menu_rename.as_mut().unwrap().set_enabled(false);
-                            app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(false);
-                        }
-                    },
-                }
+                        // If it's a folder...
+                        TreePathType::Folder(_) => {
+                            unsafe {
+                                app_ui.context_menu_add_file.as_mut().unwrap().set_enabled(true);
+                                app_ui.context_menu_add_folder.as_mut().unwrap().set_enabled(true);
+                                app_ui.context_menu_add_from_packfile.as_mut().unwrap().set_enabled(true);
+                                app_ui.context_menu_create_folder.as_mut().unwrap().set_enabled(true);
+                                app_ui.context_menu_create_db.as_mut().unwrap().set_enabled(true);
+                                app_ui.context_menu_create_loc.as_mut().unwrap().set_enabled(true);
+                                app_ui.context_menu_create_text.as_mut().unwrap().set_enabled(true);
+                                app_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(true);
+                                app_ui.context_menu_delete.as_mut().unwrap().set_enabled(true);
+                                app_ui.context_menu_extract.as_mut().unwrap().set_enabled(true);
+                                app_ui.context_menu_rename.as_mut().unwrap().set_enabled(true);
+                                app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(false);
+                            }
+                        },
 
-                // Ask the other thread if there is a Dependency Database loaded.
-                sender_qt.send("is_there_a_dependency_database").unwrap();
-                let response = receiver_qt.borrow().recv().unwrap().unwrap();
-                let is_there_a_dependency_database: bool = serde_json::from_slice(&response).unwrap();
+                        // If it's the PackFile...
+                        TreePathType::PackFile => {
+                            unsafe {
+                                app_ui.context_menu_add_file.as_mut().unwrap().set_enabled(true);
+                                app_ui.context_menu_add_folder.as_mut().unwrap().set_enabled(true);
+                                app_ui.context_menu_add_from_packfile.as_mut().unwrap().set_enabled(true);
+                                app_ui.context_menu_create_folder.as_mut().unwrap().set_enabled(true);
+                                app_ui.context_menu_create_db.as_mut().unwrap().set_enabled(true);
+                                app_ui.context_menu_create_loc.as_mut().unwrap().set_enabled(true);
+                                app_ui.context_menu_create_text.as_mut().unwrap().set_enabled(true);
+                                app_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(true);
+                                app_ui.context_menu_delete.as_mut().unwrap().set_enabled(true);
+                                app_ui.context_menu_extract.as_mut().unwrap().set_enabled(true);
+                                app_ui.context_menu_rename.as_mut().unwrap().set_enabled(false);
+                                app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(false);
+                            }
+                        },
 
-                // Ask the other thread if there is a Schema loaded.
-                sender_qt.send("is_there_a_schema").unwrap();
-                let response = receiver_qt.borrow().recv().unwrap().unwrap();
-                let is_there_a_schema: bool = serde_json::from_slice(&response).unwrap();
+                        // If there is nothing selected...
+                        TreePathType::None => {
+                            unsafe {
+                                app_ui.context_menu_add_file.as_mut().unwrap().set_enabled(false);
+                                app_ui.context_menu_add_folder.as_mut().unwrap().set_enabled(false);
+                                app_ui.context_menu_add_from_packfile.as_mut().unwrap().set_enabled(false);
+                                app_ui.context_menu_create_folder.as_mut().unwrap().set_enabled(false);
+                                app_ui.context_menu_create_db.as_mut().unwrap().set_enabled(false);
+                                app_ui.context_menu_create_loc.as_mut().unwrap().set_enabled(false);
+                                app_ui.context_menu_create_text.as_mut().unwrap().set_enabled(false);
+                                app_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(false);
+                                app_ui.context_menu_delete.as_mut().unwrap().set_enabled(false);
+                                app_ui.context_menu_extract.as_mut().unwrap().set_enabled(false);
+                                app_ui.context_menu_rename.as_mut().unwrap().set_enabled(false);
+                                app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(false);
+                            }
+                        },
+                    }
 
-                // If there is no dependency_database or schema for our GameSelected, ALWAYS disable creating new DB Tables.
-                if !is_there_a_dependency_database || !is_there_a_schema {
-                    unsafe { app_ui.context_menu_create_db.as_mut().unwrap().set_enabled(false); }
-                    unsafe { app_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(false); }
+                    // Ask the other thread if there is a Dependency Database loaded.
+                    sender_qt.send("is_there_a_dependency_database").unwrap();
+                    let response = receiver_qt.borrow().recv().unwrap().unwrap();
+                    let is_there_a_dependency_database: bool = serde_json::from_slice(&response).unwrap();
+
+                    // Ask the other thread if there is a Schema loaded.
+                    sender_qt.send("is_there_a_schema").unwrap();
+                    let response = receiver_qt.borrow().recv().unwrap().unwrap();
+                    let is_there_a_schema: bool = serde_json::from_slice(&response).unwrap();
+
+                    // If there is no dependency_database or schema for our GameSelected, ALWAYS disable creating new DB Tables.
+                    if !is_there_a_dependency_database || !is_there_a_schema {
+                        unsafe { app_ui.context_menu_create_db.as_mut().unwrap().set_enabled(false); }
+                        unsafe { app_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(false); }
+                    }
                 }
             }
         ));
@@ -2573,9 +2581,6 @@ fn main() {
                     unsafe { has_focus = app_ui.folder_tree_view.as_mut().unwrap().has_focus() };
                     if has_focus {
 
-                        // Prepare the event loop, so we don't hang the UI while the background thread is working.
-                        let mut event_loop = EventLoop::new();
-
                         // Get his Path, including the name of the PackFile.
                         let path = get_path_from_selection(&app_ui, true);
 
@@ -2583,56 +2588,30 @@ fn main() {
                         sender_qt.send("delete_packedfile").unwrap();
                         sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
 
-                        // Disable the Main Window (so we can't do other stuff).
-                        unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+                        // When we finally receive the data...
+                        if let Ok(data) = receiver_qt.borrow().recv() {
 
-                        // Until we receive a response from the worker thread...
-                        loop {
+                            // If we had success...
+                            if let Ok(response) = data {
 
-                            // When we finally receive the data...
-                            if let Ok(data) = receiver_qt.borrow().try_recv() {
+                                // Set the mod as "Modified". For now, we don't paint deletions.
+                                *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
 
-                                // Check what the result of the deletion process was.
-                                match data {
+                                // Get the type of the selection.
+                                let path_type: TreePathType = serde_json::from_slice(&response).unwrap();
 
-                                    // In case of success...
-                                    Ok(response) => {
-
-                                        // Set the mod as "Modified". For now, we don't paint deletions.
-                                        *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
-
-                                        // Get the type of the selection.
-                                        let path_type: TreePathType = serde_json::from_slice(&response).unwrap();
-
-                                        // Update the TreeView.
-                                        update_treeview(
-                                            &rpfm_path,
-                                            &sender_qt,
-                                            &sender_qt_data,
-                                            receiver_qt.clone(),
-                                            app_ui.folder_tree_view,
-                                            app_ui.folder_tree_model,
-                                            TreeViewOperation::DeleteSelected(path_type),
-                                        );
-                                    }
-
-                                    // In case of error, show the dialog with the error.
-                                    Err(error) => show_dialog(&app_ui, false, format!("Error while deleting the PackedFile:\n\n{}", error.cause())),
-                                }
-
-                                // Stop the loop.
-                                break;
+                                // Update the TreeView.
+                                update_treeview(
+                                    &rpfm_path,
+                                    &sender_qt,
+                                    &sender_qt_data,
+                                    receiver_qt.clone(),
+                                    app_ui.folder_tree_view,
+                                    app_ui.folder_tree_model,
+                                    TreeViewOperation::DeleteSelected(path_type),
+                                );
                             }
-
-                            // Keep the UI responsive.
-                            event_loop.process_events(());
-
-                            // Wait a bit to not saturate a CPU core.
-                            thread::sleep(Duration::from_millis(50));
                         }
-
-                        // Re-enable the Main Window.
-                        unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
                     }
                 }
             }
