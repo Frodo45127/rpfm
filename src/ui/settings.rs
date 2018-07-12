@@ -138,7 +138,7 @@ impl SettingsDialog {
         unsafe { ui_settings_grid.as_mut().unwrap().add_widget((adjust_columns_to_content_checkbox.static_cast_mut() as *mut Widget, 0, 1, 1, 1)); }
 
         // Tip for the checkbox.
-        let adjust_columns_to_content_tip = QString::from_std_str("If you enable this, when you open a DB Table or Loc File, all columns will be automatically resized depending on their content's size.\nOtherwise, columns will have a predefined size. Either way, you'll be able to resize them manually after the initial resize.");
+        let adjust_columns_to_content_tip = QString::from_std_str("If you enable this, when you open a DB Table or Loc File, all columns will be automatically resized depending on their content's size.\nOtherwise, columns will have a predefined size. Either way, you'll be able to resize them manually after the initial resize.\nNOTE: This KILLS PERFORMANCE in very big tables.");
         adjust_columns_to_content_label.set_tool_tip(&adjust_columns_to_content_tip);
         adjust_columns_to_content_checkbox.set_tool_tip(&adjust_columns_to_content_tip);
 
