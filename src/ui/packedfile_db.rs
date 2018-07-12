@@ -319,25 +319,31 @@ impl PackedFileDBTreeView {
                         // Slots for the TableView...
                         let mut slots = Self {
                             slot_context_menu: SlotQtCorePointRef::new(move |_| { context_menu.exec2(&Cursor::pos()); }),
-                            slot_context_menu_enabler: SlotItemSelectionRefItemSelectionRef::new(move |selection,_| {
+                            slot_context_menu_enabler: SlotItemSelectionRefItemSelectionRef::new(move |_,_| {
 
-                                   // If we have something selected, enable these actions.
-                                   if selection.indexes().count(()) > 0 {
-                                       unsafe {
-                                           context_menu_clone.as_mut().unwrap().set_enabled(true);
-                                           context_menu_copy.as_mut().unwrap().set_enabled(true);
-                                           context_menu_delete.as_mut().unwrap().set_enabled(true);
-                                       }
-                                   }
+                                    // Turns out that this slot doesn't give the the amount of selected items, so we have to get them ourselfs.
+                                    let selection_model;
+                                    let selection;
+                                    unsafe { selection_model = table_view.as_mut().unwrap().selection_model(); }
+                                    unsafe { selection = selection_model.as_mut().unwrap().selected_indexes(); }
 
-                                   // Otherwise, disable them.
-                                   else {
-                                       unsafe {
-                                           context_menu_clone.as_mut().unwrap().set_enabled(false);
-                                           context_menu_copy.as_mut().unwrap().set_enabled(false);
-                                           context_menu_delete.as_mut().unwrap().set_enabled(false);
-                                       }
-                                   }
+                                    // If we have something selected, enable these actions.
+                                    if selection.count(()) > 0 {
+                                        unsafe {
+                                            context_menu_clone.as_mut().unwrap().set_enabled(true);
+                                            context_menu_copy.as_mut().unwrap().set_enabled(true);
+                                            context_menu_delete.as_mut().unwrap().set_enabled(true);
+                                        }
+                                    }
+
+                                    // Otherwise, disable them.
+                                    else {
+                                        unsafe {
+                                            context_menu_clone.as_mut().unwrap().set_enabled(false);
+                                            context_menu_copy.as_mut().unwrap().set_enabled(false);
+                                            context_menu_delete.as_mut().unwrap().set_enabled(false);
+                                        }
+                                    }
                                 }
                             ),
                             save_changes: SlotModelIndexRefModelIndexRefVectorVectorCIntRef::new(clone!(
