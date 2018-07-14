@@ -2906,62 +2906,55 @@ fn check_clipboard(
     let text;
     unsafe { text = QString::to_std_string(&clipboard.as_mut().unwrap().text(())); }
 
-    // If there is something in the clipboard...
-    if !text.is_empty() {
+    // Split the text into individual strings.
+    let text = text.split('\t').collect::<Vec<&str>>();
 
-        // Split the text into individual strings.
-        let text = text.split('\t').collect::<Vec<&str>>();
+    // Vector to store the selected items.
+    let mut items = vec![];
 
-        // Vector to store the selected items.
-        let mut items = vec![];
+    // For each selected index...
+    for index in 0..indexes.count(()) {
 
-        // For each selected index...
-        for index in 0..indexes.count(()) {
+        // Get the filtered ModelIndex.
+        let model_index = indexes.at(index);
 
-            // Get the filtered ModelIndex.
-            let model_index = indexes.at(index);
+        // Check if the ModelIndex is valid. Otherwise this can crash.
+        if model_index.is_valid() {
 
-            // Check if the ModelIndex is valid. Otherwise this can crash.
-            if model_index.is_valid() {
+            // Get the source ModelIndex for our filtered ModelIndex.
+            let model_index_source;
+            unsafe {model_index_source = filter_model.as_mut().unwrap().map_to_source(&model_index); }
 
-                // Get the source ModelIndex for our filtered ModelIndex.
-                let model_index_source;
-                unsafe {model_index_source = filter_model.as_mut().unwrap().map_to_source(&model_index); }
-
-                // Get his StandardItem and add it to the Vector.
-                unsafe { items.push(model.as_mut().unwrap().item_from_index(&model_index_source)); }
-            }
+            // Get his StandardItem and add it to the Vector.
+            unsafe { items.push(model.as_mut().unwrap().item_from_index(&model_index_source)); }
         }
-
-        // Zip together both vectors.
-        let data = items.iter().zip(text);
-
-        // For each cell we have...
-        for cell in data {
-
-            // Get the column of that cell.
-            let column;
-            unsafe { column = cell.0.as_mut().unwrap().index().column(); }
-
-            // Depending on the column, we try to encode the data in one format or another.
-            match definition.fields[column as usize].field_type {
-                    FieldType::Boolean => if cell.1 == "true" || cell.1 == "false" { continue } else { return false },
-                    FieldType::Float => if cell.1.parse::<f32>().is_ok() { continue } else { return false },
-                    FieldType::Integer => if cell.1.parse::<i32>().is_ok() { continue } else { return false },
-                    FieldType::LongInteger => if cell.1.parse::<i64>().is_ok() { continue } else { return false },
-
-                    // All these are Strings, so we can skip their checks....
-                    FieldType::StringU8 |
-                    FieldType::StringU16 |
-                    FieldType::OptionalStringU8 |
-                    FieldType::OptionalStringU16 => continue
-            }
-        }
-
-        // If we reach this place, it means none of the cells was incorrect, so we can paste.
-        true
     }
 
-    // Otherwise, we cannot paste anything.
-    else { false }
+    // Zip together both vectors.
+    let data = items.iter().zip(text);
+
+    // For each cell we have...
+    for cell in data {
+
+        // Get the column of that cell.
+        let column;
+        unsafe { column = cell.0.as_mut().unwrap().index().column(); }
+
+        // Depending on the column, we try to encode the data in one format or another.
+        match definition.fields[column as usize].field_type {
+                FieldType::Boolean => if cell.1 == "true" || cell.1 == "false" { continue } else { return false },
+                FieldType::Float => if cell.1.parse::<f32>().is_ok() { continue } else { return false },
+                FieldType::Integer => if cell.1.parse::<i32>().is_ok() { continue } else { return false },
+                FieldType::LongInteger => if cell.1.parse::<i64>().is_ok() { continue } else { return false },
+
+                // All these are Strings, so we can skip their checks....
+                FieldType::StringU8 |
+                FieldType::StringU16 |
+                FieldType::OptionalStringU8 |
+                FieldType::OptionalStringU16 => continue
+        }
+    }
+
+    // If we reach this place, it means none of the cells was incorrect, so we can paste.
+    true
 }
