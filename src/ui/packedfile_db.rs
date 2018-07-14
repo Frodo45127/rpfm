@@ -847,8 +847,14 @@ impl PackedFileDBTreeView {
                                         let indexes = selection.indexes();
 
                                         // Get the text from the clipboard.
-                                        let text;
+                                        let mut text;
                                         unsafe { text = QString::to_std_string(&clipboard.as_mut().unwrap().text(())); }
+
+                                        // If the text ends in \n, remove it. Excel things.
+                                        if text.ends_with('\n') { text.pop(); }
+
+                                        // We don't use newlines, so replace them with '\t'.
+                                        let text = text.replace('\n', "\t");
 
                                         // Split the text into individual strings.
                                         let text = text.split('\t').collect::<Vec<&str>>();
@@ -2903,8 +2909,14 @@ fn check_clipboard(
     let indexes = selection.indexes();
 
     // Get the text from the clipboard.
-    let text;
+    let mut text;
     unsafe { text = QString::to_std_string(&clipboard.as_mut().unwrap().text(())); }
+
+    // If the text ends in \n, remove it. Excel things.
+    if text.ends_with('\n') { text.pop(); }
+
+    // We don't use newlines, so replace them with '\t'.
+    let text = text.replace('\n', "\t");
 
     // Split the text into individual strings.
     let text = text.split('\t').collect::<Vec<&str>>();
