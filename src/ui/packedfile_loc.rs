@@ -704,22 +704,25 @@ impl PackedFileLocTreeView {
                                         // For each text we have to paste...
                                         for cell in &text {
 
+                                            // Create the item to add to the row.
+                                            let mut item = StandardItem::new(());
+
                                             // If we are adding the last column, use a bool.
                                             if column == 2 {
-                                                let mut item = StandardItem::new(());
                                                 item.set_editable(false);
                                                 item.set_checkable(true);
                                                 item.set_check_state(if *cell == "true" { CheckState::Checked } else { CheckState::Unchecked });
                                                 item.set_background(&Brush::new(GlobalColor::Green));
-                                                unsafe { qlist.append_unsafe(&item.into_raw()); }
                                             }
 
                                             // Otherwise, create a normal cell.
                                             else {
-                                                let mut item = StandardItem::new(&QString::from_std_str(cell));
+                                                item.set_text(&QString::from_std_str(cell));
                                                 item.set_background(&Brush::new(GlobalColor::Green));
-                                                unsafe { qlist.append_unsafe(&item.into_raw()); }
                                             }
+
+                                            // Add the item to the list.
+                                            unsafe { qlist.append_unsafe(&item.into_raw()); }
 
                                             // If we are in the last column...
                                             if column == 2 {
