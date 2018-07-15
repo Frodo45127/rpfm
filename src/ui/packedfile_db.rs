@@ -471,10 +471,32 @@ impl PackedFileDBTreeView {
                                             FieldType::OptionalStringU16 => StandardItem::new(&QString::from_std_str("")),
                                         };
 
-                                        // If the field has a description, add it as a tooltip.
-                                        if !field.field_description.is_empty() {
-                                            item.set_tool_tip(&QString::from_std_str(&field.field_description));
-                                        }
+                                        // Create the text for the tooltip.
+                                        let tooltip_text: String =
+
+                                            // If it's a reference, we put to what cell is referencing in the tooltip.
+                                            if let Some(ref reference) = field.field_is_reference {
+                                                if !field.field_description.is_empty() {
+                                                    format!("{}\n\nThis column is a reference to \"{}/{}\".",
+                                                        field.field_description,
+                                                        reference.0,
+                                                        reference.1
+                                                    )
+                                                }
+                                                else {
+                                                    format!("This column is a reference to \"{}/{}\".",
+                                                        reference.0,
+                                                        reference.1
+                                                    )
+                                                }
+
+                                            }
+
+                                            // Otherwise, use the text from the description of that field.
+                                            else { field.field_description.to_owned() };
+
+                                        // Set the tooltip for the item.
+                                        item.set_tool_tip(&QString::from_std_str(&tooltip_text));
 
                                         // Paint the cells.
                                         item.set_background(&Brush::new(GlobalColor::Green));
@@ -526,10 +548,32 @@ impl PackedFileDBTreeView {
                                             FieldType::OptionalStringU16 => StandardItem::new(&QString::from_std_str("")),
                                         };
 
-                                        // If the field has a description, add it as a tooltip.
-                                        if !field.field_description.is_empty() {
-                                            item.set_tool_tip(&QString::from_std_str(&field.field_description));
-                                        }
+                                        // Create the text for the tooltip.
+                                        let tooltip_text: String =
+
+                                            // If it's a reference, we put to what cell is referencing in the tooltip.
+                                            if let Some(ref reference) = field.field_is_reference {
+                                                if !field.field_description.is_empty() {
+                                                    format!("{}\n\nThis column is a reference to \"{}/{}\".",
+                                                        field.field_description,
+                                                        reference.0,
+                                                        reference.1
+                                                    )
+                                                }
+                                                else {
+                                                    format!("This column is a reference to \"{}/{}\".",
+                                                        reference.0,
+                                                        reference.1
+                                                    )
+                                                }
+
+                                            }
+
+                                            // Otherwise, use the text from the description of that field.
+                                            else { field.field_description.to_owned() };
+
+                                        // Set the tooltip for the item.
+                                        item.set_tool_tip(&QString::from_std_str(&tooltip_text));
 
                                         // Paint the cells.
                                         item.set_background(&Brush::new(GlobalColor::Green));
@@ -1014,10 +1058,32 @@ impl PackedFileDBTreeView {
                                                 }
                                             }
 
-                                            // If the field has a description, add it as a tooltip.
-                                            if !field.field_description.is_empty() {
-                                                item.set_tool_tip(&QString::from_std_str(&field.field_description));
-                                            }
+                                            // Create the text for the tooltip.
+                                            let tooltip_text: String =
+
+                                                // If it's a reference, we put to what cell is referencing in the tooltip.
+                                                if let Some(ref reference) = field.field_is_reference {
+                                                    if !field.field_description.is_empty() {
+                                                        format!("{}\n\nThis column is a reference to \"{}/{}\".",
+                                                            field.field_description,
+                                                            reference.0,
+                                                            reference.1
+                                                        )
+                                                    }
+                                                    else {
+                                                        format!("This column is a reference to \"{}/{}\".",
+                                                            reference.0,
+                                                            reference.1
+                                                        )
+                                                    }
+
+                                                }
+
+                                                // Otherwise, use the text from the description of that field.
+                                                else { field.field_description.to_owned() };
+
+                                            // Set the tooltip for the item.
+                                            item.set_tool_tip(&QString::from_std_str(&tooltip_text));
 
                                             // Add the cell to the list.
                                             unsafe { qlist.append_unsafe(&item.into_raw()); }
@@ -1071,10 +1137,32 @@ impl PackedFileDBTreeView {
                                                     FieldType::OptionalStringU16 => StandardItem::new(&QString::from_std_str("")),
                                                 };
 
-                                                // If the field has a description, add it as a tooltip.
-                                                if !field.field_description.is_empty() {
-                                                    item.set_tool_tip(&QString::from_std_str(&field.field_description));
-                                                }
+                                                // Create the text for the tooltip.
+                                                let tooltip_text: String =
+
+                                                    // If it's a reference, we put to what cell is referencing in the tooltip.
+                                                    if let Some(ref reference) = field.field_is_reference {
+                                                        if !field.field_description.is_empty() {
+                                                            format!("{}\n\nThis column is a reference to \"{}/{}\".",
+                                                                field.field_description,
+                                                                reference.0,
+                                                                reference.1
+                                                            )
+                                                        }
+                                                        else {
+                                                            format!("This column is a reference to \"{}/{}\".",
+                                                                reference.0,
+                                                                reference.1
+                                                            )
+                                                        }
+
+                                                    }
+
+                                                    // Otherwise, use the text from the description of that field.
+                                                    else { field.field_description.to_owned() };
+
+                                                // Set the tooltip for the item.
+                                                item.set_tool_tip(&QString::from_std_str(&tooltip_text));
 
                                                 // Paint the cells.
                                                 item.set_background(&Brush::new(GlobalColor::Green));
@@ -1337,10 +1425,35 @@ impl PackedFileDBTreeView {
                     DecodedData::OptionalStringU16(ref data) => StandardItem::new(&QString::from_std_str(data)),
                 };
 
-                // If the field has a description, add it as a tooltip.
-                if !packed_file_data.table_definition.fields[index].field_description.is_empty() {
-                    item.set_tool_tip(&QString::from_std_str(&packed_file_data.table_definition.fields[index].field_description));
-                }
+                // Get the new field.
+                let field = &packed_file_data.table_definition.fields[index];
+
+                // Create the text for the tooltip.
+                let tooltip_text: String =
+
+                    // If it's a reference, we put to what cell is referencing in the tooltip.
+                    if let Some(ref reference) = field.field_is_reference {
+                        if !field.field_description.is_empty() {
+                            format!("{}\n\nThis column is a reference to \"{}/{}\".",
+                                field.field_description,
+                                reference.0,
+                                reference.1
+                            )
+                        }
+                        else {
+                            format!("This column is a reference to \"{}/{}\".",
+                                reference.0,
+                                reference.1
+                            )
+                        }
+
+                    }
+
+                    // Otherwise, use the text from the description of that field.
+                    else { field.field_description.to_owned() };
+
+                // Set the tooltip for the item.
+                item.set_tool_tip(&QString::from_std_str(&tooltip_text));
 
                 // Add the item to the list.
                 unsafe { qlist.append_unsafe(&item.into_raw()); }
