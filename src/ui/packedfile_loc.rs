@@ -169,8 +169,11 @@ impl PackedFileLocTreeView {
                     let context_menu_insert = context_menu.add_action(&QString::from_std_str("&Insert Row"));
                     let context_menu_delete = context_menu.add_action(&QString::from_std_str("&Delete Row"));
                     let context_menu_copy = context_menu.add_action(&QString::from_std_str("&Copy"));
-                    let context_menu_paste = context_menu.add_action(&QString::from_std_str("&Paste"));
-                    let context_menu_paste_as_new_lines = context_menu.add_action(&QString::from_std_str("&Paste as New Rows"));
+
+                    let mut context_menu_paste_submenu = Menu::new(&QString::from_std_str("&Paste..."));
+                    let context_menu_paste = context_menu_paste_submenu.add_action(&QString::from_std_str("&Paste in Selection"));
+                    let context_menu_paste_as_new_lines = context_menu_paste_submenu.add_action(&QString::from_std_str("&Paste as New Rows"));
+
                     let context_menu_import = context_menu.add_action(&QString::from_std_str("&Import"));
                     let context_menu_export = context_menu.add_action(&QString::from_std_str("&Export"));
 
@@ -214,8 +217,9 @@ impl PackedFileLocTreeView {
                     unsafe { context_menu_import.as_mut().unwrap().set_status_tip(&QString::from_std_str("Import a TSV file into this table, replacing all the data.")); }
                     unsafe { context_menu_export.as_mut().unwrap().set_status_tip(&QString::from_std_str("Export this table's data into a TSV file.")); }
 
-                    // Insert some separators to space the menu.
+                    // Insert some separators to space the menu, and the paste submenu.
                     unsafe { context_menu.insert_separator(context_menu_copy); }
+                    unsafe { context_menu.insert_menu(context_menu_import, context_menu_paste_submenu.into_raw()); }
                     unsafe { context_menu.insert_separator(context_menu_import); }
 
                     // Slots for the TableView...

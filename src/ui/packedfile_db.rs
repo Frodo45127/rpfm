@@ -59,6 +59,7 @@ pub struct PackedFileDBTreeView {
     pub slot_context_menu_clone: SlotBool<'static>,
     pub slot_context_menu_copy: SlotBool<'static>,
     pub slot_context_menu_paste: SlotBool<'static>,
+    pub slot_context_menu_paste_as_new_lines: SlotBool<'static>,
     pub slot_context_menu_import: SlotBool<'static>,
     pub slot_context_menu_export: SlotBool<'static>,
 }
@@ -164,6 +165,7 @@ impl PackedFileDBTreeView {
             slot_context_menu_clone: SlotBool::new(|_| {}),
             slot_context_menu_copy: SlotBool::new(|_| {}),
             slot_context_menu_paste: SlotBool::new(|_| {}),
+            slot_context_menu_paste_as_new_lines: SlotBool::new(|_| {}),
             slot_context_menu_import: SlotBool::new(|_| {}),
             slot_context_menu_export: SlotBool::new(|_| {}),
         }
@@ -256,7 +258,11 @@ impl PackedFileDBTreeView {
                     let context_menu_delete = context_menu.add_action(&QString::from_std_str("&Delete Row"));
                     let context_menu_clone = context_menu.add_action(&QString::from_std_str("&Clone"));
                     let context_menu_copy = context_menu.add_action(&QString::from_std_str("&Copy"));
-                    let context_menu_paste = context_menu.add_action(&QString::from_std_str("&Paste"));
+
+                    let mut context_menu_paste_submenu = Menu::new(&QString::from_std_str("&Paste..."));
+                    let context_menu_paste = context_menu_paste_submenu.add_action(&QString::from_std_str("&Paste in Selection"));
+                    let context_menu_paste_as_new_lines = context_menu_paste_submenu.add_action(&QString::from_std_str("&Paste as New Rows"));
+
                     let context_menu_import = context_menu.add_action(&QString::from_std_str("&Import"));
                     let context_menu_export = context_menu.add_action(&QString::from_std_str("&Export"));
 
@@ -267,6 +273,7 @@ impl PackedFileDBTreeView {
                     unsafe { context_menu_clone.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+d"))); }
                     unsafe { context_menu_copy.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+c"))); }
                     unsafe { context_menu_paste.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+v"))); }
+                    unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+shift+v"))); }
                     unsafe { context_menu_import.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+w"))); }
                     unsafe { context_menu_export.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+e"))); }
 
@@ -277,6 +284,7 @@ impl PackedFileDBTreeView {
                     unsafe { context_menu_clone.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
                     unsafe { context_menu_copy.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
                     unsafe { context_menu_paste.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+                    unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
                     unsafe { context_menu_import.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
                     unsafe { context_menu_export.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
 
@@ -287,6 +295,7 @@ impl PackedFileDBTreeView {
                     unsafe { table_view.as_mut().unwrap().add_action(context_menu_clone); }
                     unsafe { table_view.as_mut().unwrap().add_action(context_menu_copy); }
                     unsafe { table_view.as_mut().unwrap().add_action(context_menu_paste); }
+                    unsafe { table_view.as_mut().unwrap().add_action(context_menu_paste_as_new_lines); }
                     unsafe { table_view.as_mut().unwrap().add_action(context_menu_import); }
                     unsafe { table_view.as_mut().unwrap().add_action(context_menu_export); }
 
@@ -297,11 +306,13 @@ impl PackedFileDBTreeView {
                     unsafe { context_menu_clone.as_mut().unwrap().set_status_tip(&QString::from_std_str("Duplicate the selected rows.")); }
                     unsafe { context_menu_copy.as_mut().unwrap().set_status_tip(&QString::from_std_str("Copy whatever is selected to the Clipboard.")); }
                     unsafe { context_menu_paste.as_mut().unwrap().set_status_tip(&QString::from_std_str("Try to paste whatever is in the Clipboard. Does nothing if the data is not compatible with the cell.")); }
+                    unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().set_status_tip(&QString::from_std_str("Try to paste whatever is in the Clipboard as new lines at the end of the table. Does nothing if the data is not compatible with the cell.")); }
                     unsafe { context_menu_import.as_mut().unwrap().set_status_tip(&QString::from_std_str("Import a TSV file into this table, replacing all the data.")); }
                     unsafe { context_menu_export.as_mut().unwrap().set_status_tip(&QString::from_std_str("Export this table's data into a TSV file.")); }
 
-                    // Insert some separators to space the menu.
+                    // Insert some separators to space the menu, and the paste submenu.
                     unsafe { context_menu.insert_separator(context_menu_clone); }
+                    unsafe { context_menu.insert_menu(context_menu_import, context_menu_paste_submenu.into_raw()); }
                     unsafe { context_menu.insert_separator(context_menu_import); }
 
                     // Slots for the TableView...
@@ -936,6 +947,177 @@ impl PackedFileDBTreeView {
                             }
                         )),
 
+                        slot_context_menu_paste_as_new_lines: SlotBool::new(clone!(
+                            packed_file_index,
+                            app_ui,
+                            is_modified,
+                            packed_file_data,
+                            sender_qt,
+                            sender_qt_data,
+                            receiver_qt => move |_| {
+
+                                // We only do something in case the focus is in the TableView. This should stop problems with
+                                // the accels working everywhere.
+                                let has_focus;
+                                unsafe { has_focus = table_view.as_mut().unwrap().has_focus() };
+                                if has_focus {
+
+                                    // If whatever it's in the Clipboard is pasteable in our selection...
+                                    if check_clipboard_append_rows(&packed_file_data.table_definition) {
+
+                                        // Get the clipboard.
+                                        let clipboard = GuiApplication::clipboard();
+
+                                        // Get the text from the clipboard.
+                                        let mut text;
+                                        unsafe { text = QString::to_std_string(&clipboard.as_mut().unwrap().text(())); }
+
+                                        // If the text ends in \n, remove it. Excel things.
+                                        if text.ends_with('\n') { text.pop(); }
+
+                                        // We don't use newlines, so replace them with '\t'.
+                                        let text = text.replace('\n', "\t");
+
+                                        // Split the text into individual strings.
+                                        let text = text.split('\t').collect::<Vec<&str>>();
+
+                                        // Get the index for the column and row.
+                                        let mut column = 0;
+
+                                        // Create a new list of StandardItem.
+                                        let mut qlist = ListStandardItemMutPtr::new(());
+
+                                        // For each text we have to paste...
+                                        for cell in &text {
+
+                                            // Get the new field.
+                                            let field = &packed_file_data.table_definition.fields[column];
+
+                                            // We create a normal cell.
+                                            let mut item = StandardItem::new(());
+
+                                            // Depending on the column, we populate the cell with one thing or another.
+                                            match &field.field_type {
+
+                                                // If its a boolean, prepare it as a boolean.
+                                                FieldType::Boolean => {
+                                                    item.set_editable(false);
+                                                    item.set_checkable(true);
+                                                    item.set_check_state(if *cell == "true" { CheckState::Checked } else { CheckState::Unchecked });
+                                                    item.set_background(&Brush::new(GlobalColor::Green));
+                                                },
+
+                                                // In any other case, we treat it as a string. Type-checking is done before this and while saving.
+                                                _ => {
+                                                    item.set_text(&QString::from_std_str(cell));
+                                                    item.set_background(&Brush::new(GlobalColor::Green));
+                                                }
+                                            }
+
+                                            // If the field has a description, add it as a tooltip.
+                                            if !field.field_description.is_empty() {
+                                                item.set_tool_tip(&QString::from_std_str(&field.field_description));
+                                            }
+
+                                            // Add the cell to the list.
+                                            unsafe { qlist.append_unsafe(&item.into_raw()); }
+
+                                            // If we are in the last column...
+                                            if column == &packed_file_data.table_definition.fields.len() - 1 {
+
+                                                // Append the list to the Table.
+                                                unsafe { model.as_mut().unwrap().append_row(&qlist); }
+
+                                                // Reset the list.
+                                                qlist = ListStandardItemMutPtr::new(());
+
+                                                // Reset the column count.
+                                                column = 0;
+                                            }
+
+                                            // Otherwise, increase the column count.
+                                            else { column += 1; }
+                                        }
+
+                                        // If the last list was incomplete...
+                                        if column != 0 {
+
+                                            // For each columns we lack...
+                                            for column in column..packed_file_data.table_definition.fields.len() {
+
+                                                // Get the new field.
+                                                let field = &packed_file_data.table_definition.fields[column];
+
+                                                // Create a new Item.
+                                                let mut item = match field.field_type {
+
+                                                    // This one needs a couple of changes before turning it into an item in the table.
+                                                    FieldType::Boolean => {
+                                                        let mut item = StandardItem::new(());
+                                                        item.set_editable(false);
+                                                        item.set_checkable(true);
+                                                        item.set_check_state(CheckState::Checked);
+                                                        item
+                                                    }
+
+                                                    FieldType::Float => StandardItem::new(&QString::from_std_str(format!("{}", 0.0))),
+                                                    FieldType::Integer => StandardItem::new(&QString::from_std_str(format!("{}", 0))),
+                                                    FieldType::LongInteger => StandardItem::new(&QString::from_std_str(format!("{}", 0))),
+
+                                                    // All these are Strings, so it can be together.
+                                                    FieldType::StringU8 |
+                                                    FieldType::StringU16 |
+                                                    FieldType::OptionalStringU8 |
+                                                    FieldType::OptionalStringU16 => StandardItem::new(&QString::from_std_str("")),
+                                                };
+
+                                                // If the field has a description, add it as a tooltip.
+                                                if !field.field_description.is_empty() {
+                                                    item.set_tool_tip(&QString::from_std_str(&field.field_description));
+                                                }
+
+                                                // Paint the cells.
+                                                item.set_background(&Brush::new(GlobalColor::Green));
+
+                                                // Add the cell to the list.
+                                                unsafe { qlist.append_unsafe(&item.into_raw()); }
+                                            }
+
+                                            // Append the list to the Table.
+                                            unsafe { model.as_mut().unwrap().append_row(&qlist); }
+                                        }
+
+                                        // If we pasted anything, save.
+                                        if !text.is_empty() {
+
+                                            // Get a local copy of the data.
+                                            let mut data = packed_file_data.clone();
+
+                                            // Update the DBData with the data in the table, or report error if it fails.
+                                            if let Err(error) = Self::return_data_from_table_view(&mut data, model) {
+                                                return show_dialog(&app_ui, false, format!("<p>Error while trying to save the DB Table:</p><p>{}</p><p>This is probably caused by one of the fields you just changed. Please, make sure the data in that field it's of the correct type.</p>", error.cause()));
+                                            };
+
+                                            // Tell the background thread to start saving the PackedFile.
+                                            sender_qt.send("encode_packed_file_db").unwrap();
+
+                                            // Send the new DBData.
+                                            sender_qt_data.send(serde_json::to_vec(&(data, packed_file_index)).map_err(From::from)).unwrap();
+
+                                            // Get the incomplete path of the edited PackedFile.
+                                            sender_qt.send("get_packed_file_path").unwrap();
+                                            sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
+                                            let response = receiver_qt.borrow().recv().unwrap().unwrap();
+                                            let path: Vec<String> = serde_json::from_slice(&response).unwrap();
+
+                                            // Set the mod as "Modified".
+                                            *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(path));
+                                        }
+                                    }
+                                }
+                            }
+                        )),
+
                         slot_context_menu_import: SlotBool::new(clone!(
                             packed_file_index,
                             app_ui,
@@ -1077,6 +1259,7 @@ impl PackedFileDBTreeView {
                     unsafe { context_menu_clone.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_clone); }
                     unsafe { context_menu_copy.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_copy); }
                     unsafe { context_menu_paste.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_paste); }
+                    unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_paste_as_new_lines); }
                     unsafe { context_menu_import.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_import); }
                     unsafe { context_menu_export.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_export); }
 
@@ -1093,6 +1276,7 @@ impl PackedFileDBTreeView {
                         context_menu_clone.as_mut().unwrap().set_enabled(false);
                         context_menu_copy.as_mut().unwrap().set_enabled(false);
                         context_menu_paste.as_mut().unwrap().set_enabled(true);
+                        context_menu_paste_as_new_lines.as_mut().unwrap().set_enabled(true);
                         context_menu_import.as_mut().unwrap().set_enabled(true);
                         context_menu_export.as_mut().unwrap().set_enabled(true);
                     }
@@ -2965,6 +3149,53 @@ fn check_clipboard(
                 FieldType::OptionalStringU8 |
                 FieldType::OptionalStringU16 => continue
         }
+    }
+
+    // If we reach this place, it means none of the cells was incorrect, so we can paste.
+    true
+}
+
+/// This function checks if the data in the clipboard is suitable to be appended as rows at the end of the Table.
+fn check_clipboard_append_rows(definition: &TableDefinition) -> bool {
+
+    // Get the clipboard.
+    let clipboard = GuiApplication::clipboard();
+
+    // Get the text from the clipboard.
+    let mut text;
+    unsafe { text = QString::to_std_string(&clipboard.as_mut().unwrap().text(())); }
+
+    // If the text ends in \n, remove it. Excel things.
+    if text.ends_with('\n') { text.pop(); }
+
+    // We don't use newlines, so replace them with '\t'.
+    let text = text.replace('\n', "\t");
+
+    // Split the text into individual strings.
+    let text = text.split('\t').collect::<Vec<&str>>();
+
+    // Get the index for the column.
+    let mut column = 0;
+
+    // For each text we have to paste...
+    for cell in text {
+
+        // Depending on the column, we try to encode the data in one format or another.
+        match definition.fields[column as usize].field_type {
+            FieldType::Boolean => if cell != "true" && cell != "false" { return false },
+            FieldType::Float => if cell.parse::<f32>().is_err() { return false },
+            FieldType::Integer => if cell.parse::<i32>().is_err() { return false },
+            FieldType::LongInteger => if cell.parse::<i64>().is_err() { return false },
+
+            // All these are Strings, so we can skip their checks....
+            FieldType::StringU8 |
+            FieldType::StringU16 |
+            FieldType::OptionalStringU8 |
+            FieldType::OptionalStringU16 => {}
+        }
+
+        // Reset or increase the column count, if needed.
+        if column == definition.fields.len() - 1 { column = 0; } else { column += 1; }
     }
 
     // If we reach this place, it means none of the cells was incorrect, so we can paste.
