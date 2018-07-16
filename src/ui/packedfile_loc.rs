@@ -54,6 +54,7 @@ pub struct PackedFileLocTreeView {
     pub slot_context_menu_delete: SlotBool<'static>,
     pub slot_context_menu_copy: SlotBool<'static>,
     pub slot_context_menu_paste: SlotBool<'static>,
+    pub slot_context_menu_paste_as_new_lines: SlotBool<'static>,
     pub slot_context_menu_import: SlotBool<'static>,
     pub slot_context_menu_export: SlotBool<'static>,
 }
@@ -78,6 +79,7 @@ impl PackedFileLocTreeView {
             slot_context_menu_delete: SlotBool::new(|_| {}),
             slot_context_menu_copy: SlotBool::new(|_| {}),
             slot_context_menu_paste: SlotBool::new(|_| {}),
+            slot_context_menu_paste_as_new_lines: SlotBool::new(|_| {}),
             slot_context_menu_import: SlotBool::new(|_| {}),
             slot_context_menu_export: SlotBool::new(|_| {}),
         }
@@ -167,7 +169,11 @@ impl PackedFileLocTreeView {
                     let context_menu_insert = context_menu.add_action(&QString::from_std_str("&Insert Row"));
                     let context_menu_delete = context_menu.add_action(&QString::from_std_str("&Delete Row"));
                     let context_menu_copy = context_menu.add_action(&QString::from_std_str("&Copy"));
-                    let context_menu_paste = context_menu.add_action(&QString::from_std_str("&Paste"));
+
+                    let mut context_menu_paste_submenu = Menu::new(&QString::from_std_str("&Paste..."));
+                    let context_menu_paste = context_menu_paste_submenu.add_action(&QString::from_std_str("&Paste in Selection"));
+                    let context_menu_paste_as_new_lines = context_menu_paste_submenu.add_action(&QString::from_std_str("&Paste as New Rows"));
+
                     let context_menu_import = context_menu.add_action(&QString::from_std_str("&Import"));
                     let context_menu_export = context_menu.add_action(&QString::from_std_str("&Export"));
 
@@ -177,6 +183,7 @@ impl PackedFileLocTreeView {
                     unsafe { context_menu_delete.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+del"))); }
                     unsafe { context_menu_copy.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+c"))); }
                     unsafe { context_menu_paste.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+v"))); }
+                    unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+shift+v"))); }
                     unsafe { context_menu_import.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+w"))); }
                     unsafe { context_menu_export.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+e"))); }
 
@@ -186,6 +193,7 @@ impl PackedFileLocTreeView {
                     unsafe { context_menu_delete.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
                     unsafe { context_menu_copy.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
                     unsafe { context_menu_paste.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+                    unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
                     unsafe { context_menu_import.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
                     unsafe { context_menu_export.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
 
@@ -195,6 +203,7 @@ impl PackedFileLocTreeView {
                     unsafe { table_view.as_mut().unwrap().add_action(context_menu_delete); }
                     unsafe { table_view.as_mut().unwrap().add_action(context_menu_copy); }
                     unsafe { table_view.as_mut().unwrap().add_action(context_menu_paste); }
+                    unsafe { table_view.as_mut().unwrap().add_action(context_menu_paste_as_new_lines); }
                     unsafe { table_view.as_mut().unwrap().add_action(context_menu_import); }
                     unsafe { table_view.as_mut().unwrap().add_action(context_menu_export); }
 
@@ -204,11 +213,13 @@ impl PackedFileLocTreeView {
                     unsafe { context_menu_delete.as_mut().unwrap().set_status_tip(&QString::from_std_str("Delete all the selected rows.")); }
                     unsafe { context_menu_copy.as_mut().unwrap().set_status_tip(&QString::from_std_str("Copy whatever is selected to the Clipboard.")); }
                     unsafe { context_menu_paste.as_mut().unwrap().set_status_tip(&QString::from_std_str("Try to paste whatever is in the Clipboard. Does nothing if the data is not compatible with the cell.")); }
+                    unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().set_status_tip(&QString::from_std_str("Try to paste whatever is in the Clipboard as new lines at the end of the table. Does nothing if the data is not compatible with the cell.")); }
                     unsafe { context_menu_import.as_mut().unwrap().set_status_tip(&QString::from_std_str("Import a TSV file into this table, replacing all the data.")); }
                     unsafe { context_menu_export.as_mut().unwrap().set_status_tip(&QString::from_std_str("Export this table's data into a TSV file.")); }
 
-                    // Insert some separators to space the menu.
+                    // Insert some separators to space the menu, and the paste submenu.
                     unsafe { context_menu.insert_separator(context_menu_copy); }
+                    unsafe { context_menu.insert_menu(context_menu_import, context_menu_paste_submenu.into_raw()); }
                     unsafe { context_menu.insert_separator(context_menu_import); }
 
                     // Slots for the TableView...
@@ -570,8 +581,14 @@ impl PackedFileLocTreeView {
                                         let indexes = selection.indexes();
 
                                         // Get the text from the clipboard.
-                                        let text;
+                                        let mut text;
                                         unsafe { text = QString::to_std_string(&clipboard.as_mut().unwrap().text(())); }
+
+                                        // If the text ends in \n, remove it. Excel things.
+                                        if text.ends_with('\n') { text.pop(); }
+
+                                        // We don't use newlines, so replace them with '\t'.
+                                        let text = text.replace('\n', "\t");
 
                                         // Split the text into individual strings.
                                         let text = text.split('\t').collect::<Vec<&str>>();
@@ -644,6 +661,148 @@ impl PackedFileLocTreeView {
                                 }
                             }
                         )),
+
+                        slot_context_menu_paste_as_new_lines: SlotBool::new(clone!(
+                            packed_file_index,
+                            app_ui,
+                            is_modified,
+                            sender_qt,
+                            sender_qt_data,
+                            receiver_qt => move |_| {
+
+                                // We only do something in case the focus is in the TableView. This should stop problems with
+                                // the accels working everywhere.
+                                let has_focus;
+                                unsafe { has_focus = table_view.as_mut().unwrap().has_focus() };
+                                if has_focus {
+
+                                    // If whatever it's in the Clipboard is pasteable i...
+                                    if check_clipboard_append_rows() {
+
+                                        // Get the clipboard.
+                                        let clipboard = GuiApplication::clipboard();
+
+                                        // Get the text from the clipboard.
+                                        let mut text;
+                                        unsafe { text = QString::to_std_string(&clipboard.as_mut().unwrap().text(())); }
+
+                                        // If the text ends in \n, remove it. Excel things.
+                                        if text.ends_with('\n') { text.pop(); }
+
+                                        // We don't use newlines, so replace them with '\t'.
+                                        let text = text.replace('\n', "\t");
+
+                                        // Split the text into individual strings.
+                                        let text = text.split('\t').collect::<Vec<&str>>();
+
+                                        // Get the index for the column and row.
+                                        let mut column = 0;
+
+                                        // Create a new list of StandardItem.
+                                        let mut qlist = ListStandardItemMutPtr::new(());
+
+                                        // For each text we have to paste...
+                                        for cell in &text {
+
+                                            // Create the item to add to the row.
+                                            let mut item = StandardItem::new(());
+
+                                            // If we are adding the last column, use a bool.
+                                            if column == 2 {
+                                                item.set_editable(false);
+                                                item.set_checkable(true);
+                                                item.set_check_state(if *cell == "true" { CheckState::Checked } else { CheckState::Unchecked });
+                                                item.set_background(&Brush::new(GlobalColor::Green));
+                                            }
+
+                                            // Otherwise, create a normal cell.
+                                            else {
+                                                item.set_text(&QString::from_std_str(cell));
+                                                item.set_background(&Brush::new(GlobalColor::Green));
+                                            }
+
+                                            // Add the item to the list.
+                                            unsafe { qlist.append_unsafe(&item.into_raw()); }
+
+                                            // If we are in the last column...
+                                            if column == 2 {
+
+                                                // Append the list to the Table.
+                                                unsafe { model.as_mut().unwrap().append_row(&qlist); }
+
+                                                // Reset the list.
+                                                qlist = ListStandardItemMutPtr::new(());
+
+                                                // Reset the column count.
+                                                column = 0;
+                                            }
+
+                                            // Otherwise, increase the column count.
+                                            else { column += 1; }
+                                        }
+
+                                        // If the last list was incomplete...
+                                        if column != 0 {
+
+                                            // If we lack Text and Tooltip.
+                                            if column == 1 {
+
+                                                // Add the text column.
+                                                let mut item = StandardItem::new(&QString::from_std_str(""));
+                                                item.set_background(&Brush::new(GlobalColor::Green));
+                                                unsafe { qlist.append_unsafe(&item.into_raw()); }
+
+                                                // Add the tooltip column.
+                                                let mut item = StandardItem::new(());
+                                                item.set_editable(false);
+                                                item.set_checkable(true);
+                                                item.set_check_state(CheckState::Checked);
+                                                item.set_background(&Brush::new(GlobalColor::Green));
+                                                unsafe { qlist.append_unsafe(&item.into_raw()); }
+                                            }
+
+                                            // Otherwise, we just lack tooltip.
+                                            else {
+
+                                                // Add the tooltip column.
+                                                let mut item = StandardItem::new(());
+                                                item.set_editable(false);
+                                                item.set_checkable(true);
+                                                item.set_check_state(CheckState::Checked);
+                                                item.set_background(&Brush::new(GlobalColor::Green));
+                                                unsafe { qlist.append_unsafe(&item.into_raw()); }
+                                            }
+
+                                            // Append the list to the Table.
+                                            unsafe { model.as_mut().unwrap().append_row(&qlist); }
+                                        }
+
+                                        // If we pasted anything, save.
+                                        if !text.is_empty() {
+
+                                            // Tell the background thread to start saving the PackedFile.
+                                            sender_qt.send("encode_packed_file_loc").unwrap();
+
+                                            // Get the new LocData to send.
+                                            let new_loc_data = Self::return_data_from_tree_view(model);
+
+                                            // Send the new LocData.
+                                            sender_qt_data.send(serde_json::to_vec(&(new_loc_data, packed_file_index)).map_err(From::from)).unwrap();
+
+                                            // Get the incomplete path of the edited PackedFile.
+                                            sender_qt.send("get_packed_file_path").unwrap();
+                                            sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
+                                            let response = receiver_qt.borrow().recv().unwrap().unwrap();
+                                            let path: Vec<String> = serde_json::from_slice(&response).unwrap();
+
+                                            // Set the mod as "Modified".
+                                            *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(path));
+                                        }
+                                    }
+                                }
+                            }
+                        )),
+
                         slot_context_menu_import: SlotBool::new(clone!(
                             packed_file_index,
                             app_ui,
@@ -778,6 +937,7 @@ impl PackedFileLocTreeView {
                     unsafe { context_menu_delete.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_delete); }
                     unsafe { context_menu_copy.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_copy); }
                     unsafe { context_menu_paste.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_paste); }
+                    unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_paste_as_new_lines); }
                     unsafe { context_menu_import.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_import); }
                     unsafe { context_menu_export.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_export); }
 
@@ -793,6 +953,7 @@ impl PackedFileLocTreeView {
                         context_menu_delete.as_mut().unwrap().set_enabled(false);
                         context_menu_copy.as_mut().unwrap().set_enabled(false);
                         context_menu_paste.as_mut().unwrap().set_enabled(true);
+                        context_menu_paste_as_new_lines.as_mut().unwrap().set_enabled(true);
                         context_menu_import.as_mut().unwrap().set_enabled(true);
                         context_menu_export.as_mut().unwrap().set_enabled(true);
                     }
@@ -942,58 +1103,95 @@ fn check_clipboard(
     let indexes = selection.indexes();
 
     // Get the text from the clipboard.
-    let text;
+    let mut text;
     unsafe { text = QString::to_std_string(&clipboard.as_mut().unwrap().text(())); }
 
-    // If there is something in the clipboard...
-    if !text.is_empty() {
+    // If the text ends in \n, remove it. Excel things.
+    if text.ends_with('\n') { text.pop(); }
 
-        // Split the text into individual strings.
-        let text = text.split('\t').collect::<Vec<&str>>();
+    // We don't use newlines, so replace them with '\t'.
+    let text = text.replace('\n', "\t");
 
-        // Vector to store the selected items.
-        let mut items = vec![];
+    // Split the text into individual strings.
+    let text = text.split('\t').collect::<Vec<&str>>();
 
-        // For each selected index...
-        for index in 0..indexes.count(()) {
+    // Vector to store the selected items.
+    let mut items = vec![];
 
-            // Get the filtered ModelIndex.
-            let model_index = indexes.at(index);
+    // For each selected index...
+    for index in 0..indexes.count(()) {
 
-            // Check if the ModelIndex is valid. Otherwise this can crash.
-            if model_index.is_valid() {
+        // Get the filtered ModelIndex.
+        let model_index = indexes.at(index);
 
-                // Get the source ModelIndex for our filtered ModelIndex.
-                let model_index_source;
-                unsafe {model_index_source = filter_model.as_mut().unwrap().map_to_source(&model_index); }
+        // Check if the ModelIndex is valid. Otherwise this can crash.
+        if model_index.is_valid() {
 
-                // Get his StandardItem and add it to the Vector.
-                unsafe { items.push(model.as_mut().unwrap().item_from_index(&model_index_source)); }
-            }
+            // Get the source ModelIndex for our filtered ModelIndex.
+            let model_index_source;
+            unsafe {model_index_source = filter_model.as_mut().unwrap().map_to_source(&model_index); }
+
+            // Get his StandardItem and add it to the Vector.
+            unsafe { items.push(model.as_mut().unwrap().item_from_index(&model_index_source)); }
         }
-
-        // Zip together both vectors.
-        let data = items.iter().zip(text);
-
-        // For each cell we have...
-        for cell in data {
-
-            unsafe {
-
-                // If it's checkable, we need to see if his text it's a bool.
-                if cell.0.as_mut().unwrap().is_checkable() {
-                    if cell.1 == "true" || cell.1 == "false" { continue } else { return false }
-                }
-
-                // Otherwise, it's just a string.
-                else { continue }
-            }
-        }
-
-        // If we reach this place, it means none of the cells was incorrect, so we can paste.
-        true
     }
 
-    // Otherwise, we cannot paste anything.
-    else { false }
+    // Zip together both vectors.
+    let data = items.iter().zip(text);
+
+    // For each cell we have...
+    for cell in data {
+
+        unsafe {
+
+            // If it's checkable, we need to see if his text it's a bool.
+            if cell.0.as_mut().unwrap().is_checkable() {
+                if cell.1 == "true" || cell.1 == "false" { continue } else { return false }
+            }
+
+            // Otherwise, it's just a string.
+            else { continue }
+        }
+    }
+
+    // If we reach this place, it means none of the cells was incorrect, so we can paste.
+    true
+}
+
+/// This function checks if the data in the clipboard is suitable to be appended as rows at the end of the Table.
+fn check_clipboard_append_rows() -> bool {
+
+    // Get the clipboard.
+    let clipboard = GuiApplication::clipboard();
+
+    // Get the text from the clipboard.
+    let mut text;
+    unsafe { text = QString::to_std_string(&clipboard.as_mut().unwrap().text(())); }
+
+    // If the text ends in \n, remove it. Excel things.
+    if text.ends_with('\n') { text.pop(); }
+
+    // We don't use newlines, so replace them with '\t'.
+    let text = text.replace('\n', "\t");
+
+    // Split the text into individual strings.
+    let text = text.split('\t').collect::<Vec<&str>>();
+
+    // Get the index for the column.
+    let mut column = 0;
+
+    // For each text we have to paste...
+    for cell in text {
+
+        // If the column is 2, ensure it's a boolean.
+        if column == 2 {
+            if cell != "true" && cell != "false" { return false }
+        }
+
+        // Reset or increase the column count, if needed.
+        if column == 2 { column = 0; } else { column += 1; }
+    }
+
+    // If we reach this place, it means none of the cells was incorrect, so we can paste.
+    true
 }

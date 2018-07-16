@@ -948,11 +948,8 @@ fn main() {
                         // Check what the result of the saving process was.
                         match data {
 
-                            // In case of success, show a dialog saying it, and set the mod as "Not Modified".
-                            Ok(_) => {
-                                *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
-                                show_dialog(&app_ui, true, "PackFile successfully saved.");
-                            }
+                            // In case of success, set the mod as "Not Modified".
+                            Ok(_) => *is_modified.borrow_mut() = set_modified(false, &app_ui, None),
 
                             // In case of error, we can have two results.
                             Err(error) => {
