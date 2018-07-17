@@ -511,8 +511,11 @@ impl PackedFileLocTreeView {
                                 unsafe { selection = table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection(); }
                                 let indexes = selection.indexes();
 
+                                // Create a variable to check the row of the model_index.
+                                let mut row = 0;
+
                                 // For each selected index...
-                                for index in 0..indexes.count(()) {
+                                for (cycle, index) in (0..indexes.count(())).enumerate() {
 
                                     // Get his filtered ModelIndex.
                                     let model_index = indexes.at(index);
@@ -527,6 +530,20 @@ impl PackedFileLocTreeView {
                                         // Get his StandardItem.
                                         let standard_item;
                                         unsafe { standard_item = model.as_mut().unwrap().item_from_index(&model_index_source); }
+
+                                        // If this is the first time we loop, get the row.
+                                        if cycle == 0 { row = model_index_source.row(); }
+
+                                        // Otherwise, if our current row is different than our last row...
+                                        else if model_index_source.row() != row {
+
+                                            // Replace the last \t with a \n
+                                            copy.pop();
+                                            copy.push('\n');
+
+                                            // Update the row.
+                                            row = model_index_source.row();
+                                        }
 
                                         unsafe {
 
