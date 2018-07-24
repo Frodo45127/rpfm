@@ -4716,7 +4716,7 @@ fn open_packfile(
 }
 
 /// This function takes care of the re-creation of the "MyMod" list in the following moments:
-/// - At the start of the program (here).
+/// - At the start of the program.
 /// - At the end of MyMod deletion.
 /// - At the end of MyMod creation.
 /// - At the end of settings update.
@@ -4763,11 +4763,14 @@ fn build_my_mod_menu(
 
     // And we create the slots.
     let mut mymod_slots = MyModSlots {
+
+        // This slot is used for the "New MyMod" action.
         new_mymod: SlotBool::new(clone!(
             rpfm_path,
             sender_qt,
             sender_qt_data,
             receiver_qt,
+            is_packedfile_opened,
             app_ui,
             mode,
             settings,
@@ -4785,69 +4788,15 @@ fn build_my_mod_menu(
                         let mod_name = data.0;
                         let mod_game = data.1;
 
-                        // Get the PackFile name.
+                        // Get the PackFile's name.
                         let full_mod_name = format!("{}.pack", mod_name);
 
-                        // Change the Game Selected.
+                        // Change the Game Selected to match the one we chose for the new "MyMod".
                         match &*mod_game {
                             "warhammer_2" => unsafe { app_ui.warhammer_2.as_mut().unwrap().trigger(); }
                             "warhammer" => unsafe { app_ui.warhammer.as_mut().unwrap().trigger(); }
                             "attila" | _ => unsafe { app_ui.attila.as_mut().unwrap().trigger(); }
                         }
-
-                        // Tell the Background Thread to create a new PackFile.
-                        sender_qt.send("new_packfile").unwrap();
-
-                        // Prepare the event loop, so we don't hang the UI while the background thread is working.
-                        let mut event_loop = EventLoop::new();
-
-                        // Disable the Main Window (so we can't do other stuff).
-                        unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
-
-                        // Until we receive a response from the worker thread...
-                        loop {
-
-                            // When we finally receive the data of the PackFile...
-                            if let Ok(_) = receiver_qt.borrow().try_recv() {
-
-                                // Update the TreeView.
-                                update_treeview(
-                                    &rpfm_path,
-                                    &sender_qt,
-                                    &sender_qt_data,
-                                    receiver_qt.clone(),
-                                    app_ui.folder_tree_view,
-                                    app_ui.folder_tree_model,
-                                    TreeViewOperation::Build(false),
-                                );
-
-                                // Mark it as "Mod" in the UI.
-                                unsafe { app_ui.change_packfile_type_mod.as_mut().unwrap().set_checked(true); }
-
-                                // Stop the loop.
-                                break;
-                            }
-
-                            // Keep the UI responsive.
-                            event_loop.process_events(());
-
-                            // Wait a bit to not saturate a CPU core.
-                            thread::sleep(Duration::from_millis(50));
-                        }
-
-                        // Re-enable the Main Window.
-                        unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
-
-                        // Set the new mod as "Not modified".
-                        *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
-
-                        // Get the Game Selected.
-                        sender_qt.send("get_game_selected").unwrap();
-                        let response = receiver_qt.borrow().recv().unwrap().unwrap();
-                        let game_selected = serde_json::from_slice(&response).unwrap();
-
-                        // Enable the actions available for the PackFile from the `MenuBar`.
-                        enable_packfile_actions(&app_ui, &game_selected, true);
 
                         // Get his new path from the base "MyMod" path + `mod_game`.
                         let mut mymod_path = settings.paths.my_mods_base_path.clone().unwrap();
@@ -4855,87 +4804,85 @@ fn build_my_mod_menu(
 
                         // Just in case the folder doesn't exist, we try to create it.
                         if let Err(_) = DirBuilder::new().recursive(true).create(&mymod_path) {
-                            return show_dialog(&app_ui, false, format!("Error while creating the folder {} to store the MyMods.", mod_game));
+                            return show_dialog(&app_ui, false, format!("Error while creating the folder \"{}\" to store the MyMods.", mod_game));
                         }
 
                         // We need to create another folder inside the game's folder with the name of the new "MyMod", to store extracted files.
                         let mut mymod_path_private = mymod_path.to_path_buf();
                         mymod_path_private.push(&mod_name);
                         if let Err(_) = DirBuilder::new().recursive(true).create(&mymod_path_private) {
-                            return show_dialog(&app_ui, false, format!("Error while creating the folder {} to store the MyMod's files.", mod_name));
+                            return show_dialog(&app_ui, false, format!("Error while creating the folder \"{}\" to store the MyMod's files.", mod_name));
                         };
 
-                        // Add the PackFile name to the full path.
+                        // Add the PackFile's name to the full path.
                         mymod_path.push(&full_mod_name);
+
+                        // Tell the Background Thread to create a new PackFile.
+                        sender_qt.send("new_packfile").unwrap();
+
+                        // We ignore the "New PackFile" returning confirmation, as we don't need it.
+                        let _confirmation = receiver_qt.borrow().recv().unwrap();
 
                         // Tell the Background Thread to create a new PackFile.
                         sender_qt.send("save_packfile_as").unwrap();
 
-                        // We ignore the returning confirmation.
+                        // We ignore the returning confirmation, as we are going to provide the saving path ourselfs.
                         let _confirmation = receiver_qt.borrow().recv().unwrap();
 
-                        // Pass it to the worker thread.
+                        // Pass the new PackFile's Path to the worker thread.
                         sender_qt_data.send(serde_json::to_vec(&mymod_path).map_err(From::from)).unwrap();
 
-                        // Disable the Main Window (so we can't do other stuff).
-                        unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+                        // When we finally receive the data...
+                        if let Ok(data) = receiver_qt.borrow().recv() {
 
-                        // Until we receive a response from the worker thread...
-                        loop {
+                            // Check what the result of the saving process was.
+                            match data {
 
-                            // When we finally receive the data...
-                            if let Ok(data) = receiver_qt.borrow().try_recv() {
+                                // In case of success...
+                                Ok(_) => {
 
-                                // Check what the result of the saving process was.
-                                match data {
+                                    // Destroy whatever it's in the PackedFile's view, to avoid data corruption.
+                                    purge_them_all(&app_ui, &is_packedfile_opened);
 
-                                    // In case of success...
-                                    Ok(_) => {
+                                    // Show the "Tips".
+                                    display_help_tips(&app_ui);
 
-                                        // Set the current "Operational Mode" to `MyMod`.
-                                        set_my_mod_mode(&Rc::new(RefCell::new(mymod_stuff.clone())), &mode, Some(mymod_path));
+                                    // Update the TreeView.
+                                    update_treeview(
+                                        &rpfm_path,
+                                        &sender_qt,
+                                        &sender_qt_data,
+                                        receiver_qt.clone(),
+                                        app_ui.folder_tree_view,
+                                        app_ui.folder_tree_model,
+                                        TreeViewOperation::Build(false),
+                                    );
 
-                                        // Set it to rebuild next time we try to open the MyMod Menu.
-                                        *needs_rebuild.borrow_mut() = true;
+                                    // Mark it as "Mod" in the UI.
+                                    unsafe { app_ui.change_packfile_type_mod.as_mut().unwrap().set_checked(true); }
 
-                                        // Get the Selection Model and the Model Index of the PackFile's Cell.
-                                        let selection_model;
-                                        let model_index;
-                                        unsafe { selection_model = app_ui.folder_tree_view.as_mut().unwrap().selection_model(); }
-                                        unsafe { model_index = app_ui.folder_tree_model.as_ref().unwrap().index((0, 0)); }
+                                    // Set the new "MyMod" as "Not modified".
+                                    *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
 
-                                        // Select the PackFile's Cell with a "Clear & Select".
-                                        unsafe { selection_model.as_mut().unwrap().select((&model_index, Flags::from_int(3))); }
+                                    // Get the Game Selected.
+                                    sender_qt.send("get_game_selected").unwrap();
+                                    let response = receiver_qt.borrow().recv().unwrap().unwrap();
+                                    let game_selected = serde_json::from_slice(&response).unwrap();
 
-                                        // Rename the Unknown PackFile to his final name.
-                                        update_treeview(
-                                            &rpfm_path,
-                                            &sender_qt,
-                                            &sender_qt_data,
-                                            receiver_qt.clone(),
-                                            app_ui.folder_tree_view,
-                                            app_ui.folder_tree_model,
-                                            TreeViewOperation::Rename(TreePathType::PackFile, full_mod_name),
-                                        );
-                                    }
+                                    // Enable the actions available for the PackFile from the `MenuBar`.
+                                    enable_packfile_actions(&app_ui, &game_selected, true);
 
-                                    // In case of error, we can have two results.
-                                    Err(error) => show_dialog(&app_ui, false, format!("Error while saving the PackFile:\n\n{}", error.cause())),
+                                    // Set the current "Operational Mode" to `MyMod`.
+                                    set_my_mod_mode(&Rc::new(RefCell::new(mymod_stuff.clone())), &mode, Some(mymod_path));
+
+                                    // Set it to rebuild next time we try to open the "MyMod" Menu.
+                                    *needs_rebuild.borrow_mut() = true;
                                 }
 
-                                // Stop the loop.
-                                break;
+                                // In case of error, report it.
+                                Err(error) => show_dialog(&app_ui, false, format!("<p>Error while saving the PackFile:</p><p>{}</p>", error.cause())),
                             }
-
-                            // Keep the UI responsive.
-                            event_loop.process_events(());
-
-                            // Wait a bit to not saturate a CPU core.
-                            thread::sleep(Duration::from_millis(50));
                         }
-
-                        // Re-enable the Main Window.
-                        unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
                     }
 
                     // If we canceled the creation of a "MyMod", just return.
