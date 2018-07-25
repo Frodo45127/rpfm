@@ -1,18 +1,18 @@
-// In this file are all the helper functions used by the code (no GTK here)
+// In this file are all the "Generic" helper functions used by RPFM (no UI code here).
 // As we may or may not use them, all functions here should have the "#[allow(dead_code)]"
 // var set, so the compiler doesn't spam us every time we try to compile.
+
 extern crate failure;
 
 use std::fs;
-use std::path::Path;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-use self::failure::Error;
+use failure::Error;
 use packfile::packfile::PackFile;
 
 pub mod coding_helpers;
 
-// This tells the compiler to only compile this mod when testing... I think.
+// This tells the compiler to only compile this mod when testing. It's just to make sure the "coders" don't break.
 #[cfg(test)]
 pub mod tests;
 
@@ -26,8 +26,8 @@ pub enum TreePathType {
     None,
 }
 
-
-/// Custom implementation of `PartialEq` for `TreePathType`.
+/// Custom implementation of "PartialEq" for "TreePathType", so we don't need to match each time while
+/// want to compare two TreePathType.
 impl PartialEq for TreePathType {
     fn eq(&self, other: &TreePathType) -> bool {
         match (self, other) {
@@ -97,51 +97,63 @@ pub fn get_type_of_selected_path(
     }
 }
 
-/// This function takes a &Path and returns a Vec<PathBuf> with the paths of every file under the
-/// original &Path.
+/// This function takes a &Path and returns a Vec<PathBuf> with the paths of every file under the &Path.
 #[allow(dead_code)]
 pub fn get_files_from_subdir(current_path: &Path) -> Result<Vec<PathBuf>, Error> {
 
+    // Create the list of files.
     let mut file_list: Vec<PathBuf> = vec![];
 
-    // For every file in this folder
+    // Get everything from the path we have.
     match fs::read_dir(current_path) {
+
+        // If we don't have any problems reading it...
         Ok(files_in_current_path) => {
+
+            // For each thing in the current path...
             for file in files_in_current_path {
 
                 // Get his path
                 let file_path = file.unwrap().path().clone();
 
                 // If it's a file, to the file_list it goes
-                if file_path.is_file() {
-                    file_list.push(file_path);
-                }
+                if file_path.is_file() { file_list.push(file_path); }
 
-                // If it's a folder, get all the files from it and his subfolders recursively
+                // If it's a folder...
                 else if file_path.is_dir() {
+
+                    // Get the list of files inside of the folder...
                     let mut subfolder_files_path = get_files_from_subdir(&file_path).unwrap();
+
+                    // ... and append it to the file list.
                     file_list.append(&mut subfolder_files_path);
                 }
             }
         }
+
+        // In case of reading error, report it.
         Err(error) => return Err(From::from(error)),
     }
 
-    // Return the list of paths
+    // Return the list of paths.
     Ok(file_list)
 }
 
-/// This function takes a &Path and returns a Vec<PathBuf> with the paths of every file under the
-/// original &Path. This is a modification of the normal "get_files_from_subdir" where we only get
-/// the files in the current folder and with a special beginning.
+/// This is a modification of the normal "get_files_from_subdir" used to get a list with the path of
+/// every table definition from the assembly kit. Well, from the folder you tell it to search.
 #[allow(dead_code)]
 pub fn get_assembly_kit_schemas(current_path: &Path) -> Result<Vec<PathBuf>, Error> {
 
+    // Create the list of files.
     let mut file_list: Vec<PathBuf> = vec![];
 
-    // For every file in this folder
+    // Get everything from the path we have.
     match fs::read_dir(current_path) {
+
+        // If we don't have any problems reading it...
         Ok(files_in_current_path) => {
+
+            // For each thing in the current path...
             for file in files_in_current_path {
 
                 // Get his path
@@ -159,9 +171,14 @@ pub fn get_assembly_kit_schemas(current_path: &Path) -> Result<Vec<PathBuf>, Err
                 }
             }
         }
+
+        // In case of reading error, report it.
         Err(error) => return Err(From::from(error)),
     }
-    // Return the list of paths ordered alphabetically
+
+    // Sort the files alphabetically.
     file_list.sort();
+
+    // Return the list of paths.
     Ok(file_list)
 }
