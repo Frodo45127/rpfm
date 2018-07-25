@@ -526,10 +526,7 @@ fn main() {
         let mode = Rc::new(RefCell::new(Mode::Normal));
 
         // Build the empty structs we need for certain features.
-        let result = AddFromPackFileStuff::new();
-        let add_from_packfile_stuff = Rc::new(RefCell::new(result.0));
-        let add_from_packfile_slots = Rc::new(RefCell::new(result.1));
-
+        let add_from_packfile_slots = Rc::new(RefCell::new(AddFromPackFileSlots::new()));
         let db_slots = Rc::new(RefCell::new(PackedFileDBTreeView::new()));
         let loc_slots = Rc::new(RefCell::new(PackedFileLocTreeView::new()));
         let text_slots = Rc::new(RefCell::new(PackedFileTextView::new()));
@@ -2079,7 +2076,6 @@ fn main() {
             is_packedfile_opened,
             is_folder_tree_view_locked,
             is_modified,
-            add_from_packfile_stuff,
             add_from_packfile_slots,
             rpfm_path => move |_| {
 
@@ -2149,8 +2145,8 @@ fn main() {
                         // Destroy whatever it's in the PackedFile's View.
                         purge_them_all(&app_ui, &is_packedfile_opened);
 
-                        // Build the TreeView to hold all the Extra PackFile's data.
-                        let ui_stuff = AddFromPackFileStuff::new_with_grid(
+                        // Build the TreeView to hold all the Extra PackFile's data and save his slots.
+                        *add_from_packfile_slots.borrow_mut() = AddFromPackFileSlots::new_with_grid(
                             rpfm_path.to_path_buf(),
                             sender_qt.clone(),
                             &sender_qt_data,
@@ -2159,19 +2155,6 @@ fn main() {
                             &is_folder_tree_view_locked,
                             &is_modified,
                             &is_packedfile_opened,
-                        );
-                        *add_from_packfile_stuff.borrow_mut() = ui_stuff.0;
-                        *add_from_packfile_slots.borrow_mut() = ui_stuff.1;
-
-                        // Update the TreeView.
-                        update_treeview(
-                            &rpfm_path,
-                            &sender_qt,
-                            &sender_qt_data,
-                            receiver_qt.clone(),
-                            add_from_packfile_stuff.borrow().tree_view,
-                            add_from_packfile_stuff.borrow().tree_model,
-                            TreeViewOperation::Build(true),
                         );
 
                         // Re-enable the Main Window.

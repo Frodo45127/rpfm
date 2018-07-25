@@ -1,4 +1,4 @@
-// In this file are all the helper functions used by the UI (mainly GTK here)
+// In this file are all the helper functions used by the UI (mainly Qt here)
 extern crate failure;
 extern crate qt_widgets;
 extern crate qt_gui;
@@ -25,6 +25,7 @@ use qt_gui::icon;
 use qt_gui::standard_item::StandardItem;
 use qt_gui::standard_item_model::StandardItemModel;
 
+use qt_core::abstract_item_model::AbstractItemModel;
 use qt_core::connection::Signal;
 use qt_core::event_loop::EventLoop;
 use qt_core::flags::Flags;
@@ -37,13 +38,12 @@ use cpp_utils::StaticCast;
 use failure::Error;
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::thread;
-use std::time::Duration;
 use std::sync::mpsc::{Sender, Receiver};
 use std::cmp::Ordering;
 use std::path::PathBuf;
 use std::fmt::Display;
 
+use THREADS_MESSAGE_ERROR;
 use QString;
 use AppUI;
 use common::*;
@@ -61,10 +61,10 @@ pub mod settings;
 pub mod updater;
 
 //----------------------------------------------------------------------------//
-//             UI Creation functions (to build the UI on start)
+//             UI Structs (to hold slots, actions and what not)
 //----------------------------------------------------------------------------//
 
-/// This struct will hold all the MyMod-related stuff we have to recreate from time to time.
+/// This struct holds all the "MyMod" actions from the Menu Bar.
 #[derive(Copy, Clone)]
 pub struct MyModStuff {
     pub new_mymod: *mut Action,
@@ -83,15 +83,6 @@ pub struct MyModSlots {
     pub open_mymod: Vec<SlotBool<'static>>,
 }
 
-/// This struct will hold all the "Add From PackFile" stuff we have to keep alive.
-#[derive(Copy, Clone)]
-pub struct AddFromPackFileStuff {
-    pub tree_view: *mut TreeView,
-    pub tree_model: *mut StandardItemModel,
-    pub exit_button: *mut PushButton,
-    pub copy_button: *mut PushButton,
-}
-
 /// This struct holds all the Slots related to the "Add from PackFile" View, as otherwise they'll
 /// die before we press their buttons and do nothing.
 pub struct AddFromPackFileSlots {
@@ -100,33 +91,23 @@ pub struct AddFromPackFileSlots {
     pub exit: SlotNoArgs<'static>,
 }
 
-/// Implementation of "AddFromPackFileStuff".
-impl AddFromPackFileStuff {
+//----------------------------------------------------------------------------//
+//             UI Creation functions (to build the UI on start)
+//----------------------------------------------------------------------------//
 
-    /// This function creates a new "Add From PackFile" struct and returns it. This is just for
+/// Implementation of "AddFromPackFileSlots".
+impl AddFromPackFileSlots {
+
+    /// This function creates a new "AddFromPackFileSlots" struct and returns it. This is just for
     /// initialization when starting the program.
-    pub fn new() -> (AddFromPackFileStuff, AddFromPackFileSlots) {
+    pub fn new() -> Self {
 
-        // Create the stuff.
-        let tree_view = TreeView::new();
-        let tree_model = StandardItemModel::new(());
-        let exit_button = PushButton::new(&QString::from_std_str("Exit 'Add from Packfile' Mode"));
-        let copy_button = PushButton::new(&QString::from_std_str("<="));
-
-        // Create some dummy slots.
-        let slots = AddFromPackFileSlots {
+        // Create some dummy slots and return them.
+        Self {
             copy_check: SlotItemSelectionRefItemSelectionRef::new(|_,_| {}),
             copy: SlotNoArgs::new(|| {}),
             exit: SlotNoArgs::new(|| {}),
-        };
-
-        // Create the new struct and return it.
-        (AddFromPackFileStuff {
-            tree_view: tree_view.into_raw(),
-            tree_model: tree_model.into_raw(),
-            exit_button: exit_button.into_raw(),
-            copy_button: copy_button.into_raw(),
-        }, slots)
+        }
     }
 
     /// This function creates a new "Add From PackFile" struct and returns it.
@@ -139,34 +120,28 @@ impl AddFromPackFileStuff {
         is_folder_tree_view_locked: &Rc<RefCell<bool>>,
         is_modified: &Rc<RefCell<bool>>,
         is_packedfile_opened: &Rc<RefCell<bool>>
-    ) -> (AddFromPackFileStuff, AddFromPackFileSlots) {
+    ) -> Self {
 
         // Create the stuff.
-        let mut tree_view = TreeView::new();
-        let mut tree_model = StandardItemModel::new(());
-        let mut exit_button = PushButton::new(&QString::from_std_str("Exit 'Add from Packfile' Mode"));
-        let mut copy_button = PushButton::new(&QString::from_std_str("<="));
+        let tree_view = TreeView::new().into_raw();
+        let tree_model = StandardItemModel::new(()).into_raw();
+        let exit_button = PushButton::new(&QString::from_std_str("Exit 'Add from Packfile' Mode")).into_raw();
+        let copy_button = PushButton::new(&QString::from_std_str("<=")).into_raw();
 
         // Configure it.
-        unsafe { tree_view.set_model(tree_model.static_cast_mut()); }
-        tree_view.set_header_hidden(true);
-        copy_button.set_size_policy((Policy::Maximum, Policy::Expanding));
+        unsafe { tree_view.as_mut().unwrap().set_model(tree_model as *mut AbstractItemModel); }
+        unsafe { tree_view.as_mut().unwrap().set_header_hidden(true); }
+        unsafe { copy_button.as_mut().unwrap().set_size_policy((Policy::Maximum, Policy::Expanding)); }
 
         // Add all the stuff to the Grid.
-        unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((exit_button.static_cast_mut() as *mut Widget, 0, 0, 1, 2)); }
-        unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((copy_button.static_cast_mut() as *mut Widget, 1, 0, 1, 1)); }
-        unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((tree_view.static_cast_mut() as *mut Widget, 1, 1, 1, 1)); }
-
-        // Create the new struct with the widgets.
-        let stuff = AddFromPackFileStuff {
-            tree_view: tree_view.into_raw(),
-            tree_model: tree_model.into_raw(),
-            exit_button: exit_button.into_raw(),
-            copy_button: copy_button.into_raw(),
-        };
+        unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((exit_button as *mut Widget, 0, 0, 1, 2)); }
+        unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((copy_button as *mut Widget, 1, 0, 1, 1)); }
+        unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((tree_view as *mut Widget, 1, 1, 1, 1)); }
 
         // Create the slots for the stuff we need.
-        let slots = AddFromPackFileSlots {
+        let slots = Self {
+
+            // This slot is used to check if the selection can be moved or not.
             copy_check: SlotItemSelectionRefItemSelectionRef::new(clone!(
                 sender_qt,
                 sender_qt_data,
@@ -175,20 +150,39 @@ impl AddFromPackFileStuff {
                     // Get the path of the selected item in the main TreeView.
                     let path = get_path_from_item_selection(app_ui.folder_tree_model, &selection, true);
 
-                    // Send the Path to the Background Thread, and get the type of the item.
+                    // Send the Path to the Background Thread to get the Item's Type.
                     sender_qt.send("get_type_of_path").unwrap();
                     sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
-                    let response = receiver_qt.borrow().recv().unwrap().unwrap();
-                    let item_type: TreePathType = serde_json::from_slice(&response).unwrap();
 
-                    // Depending on the type of the selected item, we enable or disable the copy button.
-                    match item_type {
-                        TreePathType::File(_) | TreePathType::None => unsafe { stuff.copy_button.as_mut().unwrap().set_enabled(false) }
-                        _ => unsafe { stuff.copy_button.as_mut().unwrap().set_enabled(true) },
+                    // Wait until you get something from the UI.
+                    if let Ok(item_type) = receiver_qt.borrow().recv().unwrap() {
+
+                        // Try to deserialize it.
+                        match serde_json::from_slice(&item_type) {
+
+                            // If it can be deserialized as a TreePathType...
+                            Ok(item_type) => {
+
+                                // Redundant, but needed for the deserializer to know the type.
+                                let item_type: TreePathType = item_type;
+
+                                // Depending on the type of the selected item, we enable or disable the copy button.
+                                match item_type {
+                                    TreePathType::File(_) | TreePathType::None => unsafe { copy_button.as_mut().unwrap().set_enabled(false) }
+                                    _ => unsafe { copy_button.as_mut().unwrap().set_enabled(true) },
+                                }
+                            },
+
+                            // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                            Err(_) => show_dialog(&app_ui, false, THREADS_MESSAGE_ERROR),
+                        }
                     }
                 }
             )),
+
+            // This slot is used to copy something from one PackFile to the other when pressing the "<=" button.
             copy: SlotNoArgs::new(clone!(
+                rpfm_path,
                 is_modified,
                 sender_qt,
                 sender_qt_data,
@@ -197,11 +191,11 @@ impl AddFromPackFileStuff {
                     // Get the selections of both TreeViews.
                     let selection_source;
                     let selection_destination;
-                    unsafe { selection_source = stuff.tree_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection(); }
+                    unsafe { selection_source = tree_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection(); }
                     unsafe { selection_destination = app_ui.folder_tree_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection(); }
 
                     // Get his source & destination paths.
-                    let path_source = get_path_from_item_selection(stuff.tree_model, &selection_source, true);
+                    let path_source = get_path_from_item_selection(tree_model, &selection_source, true);
                     let path_destination = get_path_from_item_selection(app_ui.folder_tree_model, &selection_destination, true);
 
                     // Ask the Background Thread to move the files, and send him the paths.
@@ -226,26 +220,54 @@ impl AddFromPackFileStuff {
                                 // In case of success...
                                 Ok(response) => {
 
-                                    // Deserialize the response
-                                    let paths: (Vec<String>, Vec<String>, Vec<Vec<String>>) = serde_json::from_slice(&response).unwrap();
+                                    // Try to deserialize it.
+                                    match serde_json::from_slice(&response) {
 
-                                    // Set the mod as "Modified". This is an exception for the path, as it'll be painted later on.
-                                    *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
+                                        // If it can be deserialized as a (Vec<String>, Vec<String>, Vec<Vec<String>>)...
+                                        Ok(paths) => {
 
-                                    // Update the TreeView.
-                                    update_treeview(
-                                        &rpfm_path,
-                                        &sender_qt,
-                                        &sender_qt_data,
-                                        receiver_qt.clone(),
-                                        app_ui.folder_tree_view,
-                                        app_ui.folder_tree_model,
-                                        TreeViewOperation::AddFromPackFile(paths.0, paths.1, paths.2),
-                                    );
+                                            // Redundant, but needed for the deserializer to know the type.
+                                            let paths: (Vec<String>, Vec<String>, Vec<Vec<String>>) = paths;
+
+                                            // Set the mod as "Modified". This is an exception for the path, as it'll be painted later on.
+                                            *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
+
+                                            // Update the TreeView.
+                                            update_treeview(
+                                                &rpfm_path,
+                                                &sender_qt,
+                                                &sender_qt_data,
+                                                receiver_qt.clone(),
+                                                app_ui.folder_tree_view,
+                                                app_ui.folder_tree_model,
+                                                TreeViewOperation::AddFromPackFile(paths.0, paths.1, paths.2),
+                                            );
+
+                                            // Re-enable the Main Window.
+                                            unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
+                                        },
+
+                                        // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                                        Err(_) => {
+
+                                            // Re-enable the Main Window.
+                                            unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
+
+                                            // Show the error dialog.
+                                            show_dialog(&app_ui, false, THREADS_MESSAGE_ERROR);
+                                        }
+                                    }
                                 }
 
-                                // In case of error, show the dialog with the error.
-                                Err(error) => show_dialog(&app_ui, false, format!("Error while trying to add a PackedFile:\n\n{}", error.cause())),
+                                // In case of error...
+                                Err(error) => {
+
+                                    // Re-enable the Main Window.
+                                    unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
+
+                                    // Show the error dialog.
+                                    show_dialog(&app_ui, false, format!("<p>Error while trying to add a PackedFile:</p><p>{}</p>", error.cause()));
+                                }
                             }
 
                             // Stop the loop.
@@ -254,16 +276,13 @@ impl AddFromPackFileStuff {
 
                         // Keep the UI responsive.
                         event_loop.process_events(());
-
-                        // Wait a bit to not saturate a CPU core.
-                        thread::sleep(Duration::from_millis(50));
                     }
-
-                    // Re-enable the Main Window.
-                    unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
                 }
             )),
+
+            // This slot is used to exit the "Add from PackFile" view, returning to the normal state of the program.
             exit: SlotNoArgs::new(clone!(
+                sender_qt,
                 is_packedfile_opened,
                 is_folder_tree_view_locked => move || {
 
@@ -284,11 +303,22 @@ impl AddFromPackFileStuff {
 
         // Actions for the slots...
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().selection_model().as_ref().unwrap().signals().selection_changed().connect(&slots.copy_check); }
-        unsafe { stuff.copy_button.as_ref().unwrap().signals().released().connect(&slots.copy); }
-        unsafe { stuff.exit_button.as_ref().unwrap().signals().released().connect(&slots.exit); }
+        unsafe { copy_button.as_ref().unwrap().signals().released().connect(&slots.copy); }
+        unsafe { exit_button.as_ref().unwrap().signals().released().connect(&slots.exit); }
 
-        // Return the stuff and slots needed for it to work.
-        (stuff, slots)
+        // Update the new TreeView.
+        update_treeview(
+            &rpfm_path,
+            &sender_qt,
+            &sender_qt_data,
+            receiver_qt.clone(),
+            tree_view,
+            tree_model,
+            TreeViewOperation::Build(true),
+        );
+
+        // Return the slots, to be kept alive.
+        slots
     }
 }
 
