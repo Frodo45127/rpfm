@@ -112,6 +112,9 @@ mod updater;
 /// in two different places in every update.
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+/// This const is the standard message in case of message deserializing error.
+const THREADS_MESSAGE_ERROR: &str = "<p>Error in thread communication system. If you see this, it's a bug. Please report it (so it can be fixed), including what you did just before this message pop up.</p>";
+
 /// This constant is used to enable or disable the generation of a new Schema file in compile time.
 /// If you don't want to explicity create a new Schema for a game, leave this disabled.
 const GENERATE_NEW_SCHEMA: bool = false;
@@ -958,7 +961,7 @@ fn main() {
                                 if error.cause().to_string().is_empty() { unsafe { Action::trigger(app_ui.save_packfile_as.as_mut().unwrap()); } }
 
                                 // Otherwise, it's an error, so we report it.
-                                else { show_dialog(&app_ui, false, format!("Error while saving the PackFile:\n\n{}", error.cause())); }
+                                else { show_dialog(&app_ui, false, format!("<p>Error while saving the PackFile:</p><p>{}</p>", error.cause())); }
                             }
                         }
 
@@ -3363,10 +3366,10 @@ fn main() {
     })
 }
 
-/// This is the background loop that's going to be executed in a parallel thread to the UI. No UI stuff here.
-/// The sender is to send stuff back (Result with something encoded or error) to the UI.
+/// This is the background loop that's going to be executed in a parallel thread to the UI. No UI or "Unsafe" stuff here.
+/// The sender is to send stuff back (Result with something encoded with serde_json or error) to the UI.
 /// The receiver is to receive orders to execute from the loop.
-/// The receiver_data is to receive data (whatever data is needed) encoded with serde from the UI Thread.
+/// The receiver_data is to receive data (whatever data is needed) encoded with serde_json from the UI Thread.
 fn background_loop(
     rpfm_path: &PathBuf,
     sender: Sender<Result<Vec<u8>, Error>>,
@@ -3384,7 +3387,7 @@ fn background_loop(
     let mut pack_file_decoded = PackFile::new();
     let mut pack_file_decoded_extra = PackFile::new();
 
-    // TODO: Fix this shit.
+    // TODO: This crashes if LICENSE get's deleted. Fix this shit.
     // The extra PackFile needs to keep a BufReader to not destroy the Ram.
     let mut pack_file_decoded_extra_buffer = BufReader::new(File::open(rpfm_path.join(PathBuf::from("LICENSE"))).unwrap());
 
@@ -3397,7 +3400,7 @@ fn background_loop(
     // TODO: Move this to a const when const fn reach stable in Rust.
     let supported_games = GameInfo::new();
 
-    // We load the settings here, and in case they doesn't exist, we create them.
+    // We load the settings here, and in case they doesn't exist or they are not valid, we create them.
     let mut settings = Settings::load(&rpfm_path, &supported_games).unwrap_or_else(|_|Settings::new(&supported_games));
 
     // We prepare the schema object to hold an Schema, leaving it as `None` by default.
@@ -3419,7 +3422,8 @@ fn background_loop(
     // Start the main loop.
     loop {
 
-        // Wait until you get something through the channel.
+        // Wait until you get something through the channel. This hangs the thread until we got something,
+        // so it doesn't use processing power until we send it a message.
         match receiver.recv() {
 
             // If you got a message...
@@ -3454,14 +3458,14 @@ fn background_loop(
                         // Try to load the Schema for this PackFile's game.
                         schema = Schema::load(&rpfm_path, &supported_games.iter().filter(|x| x.folder_name == *game_selected.game).map(|x| x.schema.to_owned()).collect::<String>()).ok();
 
-                        // Get the data we must return to the UI thread and serialize it.
+                        // Get the PackFile's Type we must return to the UI thread and serialize it.
                         let data = serde_json::to_vec(&pack_file_decoded.header.pack_file_type).map_err(From::from);
 
                         // Send a response to the UI thread.
                         sender.send(data).unwrap();
                     }
 
-                    // In case we want to create a "New PackFile"...
+                    // In case we want to "Open a PackFile"...
                     "open_packfile" => {
 
                         // Get the path to the PackFile.
@@ -3472,6 +3476,8 @@ fn background_loop(
 
                         // Open the PackFile (Or die trying it).
                         match packfile::open_packfile(path) {
+
+                            // If we succeed at opening the PackFile...
                             Ok(pack_file) => {
 
                                 // Get the decoded PackFile.
@@ -3480,13 +3486,15 @@ fn background_loop(
                                 // Try to load the Schema for this PackFile's game.
                                 schema = Schema::load(&rpfm_path, &supported_games.iter().filter(|x| x.folder_name == *game_selected.game).map(|x| x.schema.to_owned()).collect::<String>()).ok();
 
-                                // Get the data we must return to the UI thread and serialize it.
+                                // Get the PackFile's Type we must return to the UI thread and serialize it.
                                 let data = serde_json::to_vec(&pack_file_decoded.header.pack_file_type).map_err(From::from);
 
                                 // Send a response to the UI thread.
                                 sender.send(data).unwrap();
 
-                                //Test to see if every DB Table can be decoded.
+                                // Test to see if every DB Table can be decoded. This is slow and only useful when
+                                // a new patch lands and you want to know what tables you need to decode. So, unless that,
+                                // leave this code commented.
                                 // let mut counter = 0;
                                 // for i in pack_file_decoded.data.packed_files.iter() {
                                 //     if i.path.starts_with(&["db".to_owned()]) {
@@ -3512,7 +3520,7 @@ fn background_loop(
                         }
                     }
 
-                    // In case we want to Add Files from another PAckFile...
+                    // In case we want to "Open an Extra PackFile" (for "Add from PackFile")...
                     "open_packfile_extra" => {
 
                         // Get the path to the PackFile.
@@ -3521,15 +3529,17 @@ fn background_loop(
                         // Try to deserialize it as a path.
                         let path = serde_json::from_slice(&path).unwrap();
 
-                        // Open the PackFile (Or die trying it).
+                        // Open the PackFile as Read-Only (Or die trying it).
                         match packfile::open_packfile_with_bufreader(path) {
+
+                            // If we managed to open it...
                             Ok(result) => {
 
-                                // Get the PackFile and the Buffer in an easier way to use.
+                                // Get the PackFile and the Buffer.
                                 pack_file_decoded_extra = result.0;
                                 pack_file_decoded_extra_buffer = result.1;
 
-                                // Send success, so we can continue with the loading.
+                                // Encode a success to send it to the UI thread.
                                 let data = serde_json::to_vec(&()).map_err(From::from);
 
                                 // Send a response to the UI thread.
@@ -3541,10 +3551,10 @@ fn background_loop(
                         }
                     }
 
-                    // When we want to "Save a PackFile"...
+                    // In case we want to "Save a PackFile"...
                     "save_packfile" => {
 
-                        // Check if it's editable.
+                        // If it's of a type we can edit...
                         if pack_file_decoded.is_editable(&settings) {
 
                             // Check if it already exist in the disk.
@@ -3553,7 +3563,7 @@ fn background_loop(
                                 // If it passed all the checks, then try to save it and return the result.
                                 match packfile::save_packfile(&mut pack_file_decoded, None) {
                                     Ok(_) => sender.send(serde_json::to_vec(&()).map_err(From::from)).unwrap(),
-                                    Err(error) => sender.send(Err(format_err!("Error while trying to save the PackFile:\n\n{}", error.cause()))).unwrap(),
+                                    Err(error) => sender.send(Err(format_err!("<p>Error while trying to save the PackFile:</p><p>{}</p>", error.cause()))).unwrap(),
                                 }
                             }
 
@@ -3562,128 +3572,214 @@ fn background_loop(
                         }
 
                         // Otherwise, return an error.
-                        else { sender.send(Err(format_err!("This type of PackFile is supported in Read-Only mode.\n\nThis can happen due to:\n - The PackFile's type is 'Boot', 'Release' or 'Patch' and you have 'Allow edition of CA PackFiles' disabled in the settings.\n - The PackFile's type is 'Other'.\n\n If you really want to save it, go to 'PackFile/Change PackFile Type' and change his type to 'Mod' or 'Movie'."))).unwrap(); }
+                        else {
+                            sender.send(Err(format_err!("
+                                <p>This type of PackFile is supported in Read-Only mode.</p>
+                                <p>This can happen due to:</p>
+                                <ul>
+                                    <li>The PackFile's type is <i>'Boot'</i>, <i>'Release'</i> or <i>'Patch'</i> and you have <i>'Allow edition of CA PackFiles'</i> disabled in the settings.</li>
+                                    <li>The PackFile's type is <i>'Other'</i>.</li>
+                                </ul>
+                                <p>If you really want to save it, go to <i>'PackFile/Change PackFile Type'</i> and change his type to 'Mod' or 'Movie'.</p>"
+                            ))).unwrap();
+                        }
                     }
 
-                    // When we want to "Save a PackFile As"...
+                    // In case we want to "Save a PackFile As"...
                     "save_packfile_as" => {
 
-                        // Check if it's editable.
+                        // If it's of a type we can edit...
                         if pack_file_decoded.is_editable(&settings) {
 
-                            // If it's editable, we tell the UI to ask for a Path to save it and pass it the extra data.
+                            // If it's editable, we send the UI the "Extra data" of the PackFile, as the UI needs it for some stuff.
                             sender.send(serde_json::to_vec(&pack_file_decoded.extra_data).map_err(From::from)).unwrap();
 
-                            // Wait until you get a path to save it, or an error to cancel the save operation.
-                            let path = receiver_data.recv().unwrap();
+                            // Wait until you get a path from the UI.
+                            if let Ok(path) = receiver_data.recv().unwrap() {
 
-                            // If it's a path...
-                            if let Ok(path) = path {
+                                // Try to deserialize it.
+                                match serde_json::from_slice(&path) {
 
-                                // Deserialize it.
-                                let path: PathBuf = serde_json::from_slice(&path).unwrap();
+                                    // If it can be deserialized as a PathBuf...
+                                    Ok(path) => {
 
-                                // Try to save the PackFile and return the results.
-                                match packfile::save_packfile(&mut pack_file_decoded, Some(path.to_path_buf())) {
-                                    Ok(_) => sender.send(serde_json::to_vec(&()).map_err(From::from)).unwrap(),
-                                    Err(error) => sender.send(Err(format_err!("Error while trying to save the PackFile:\n\n{}", error.cause()))).unwrap(),
+                                        // Redundant, but needed for the deserializer to know the type.
+                                        let path: PathBuf = path;
+
+                                        // Try to save the PackFile and return the results.
+                                        match packfile::save_packfile(&mut pack_file_decoded, Some(path.to_path_buf())) {
+                                            Ok(_) => sender.send(serde_json::to_vec(&()).map_err(From::from)).unwrap(),
+                                            Err(error) => sender.send(Err(format_err!("<p>Error while trying to save the PackFile:</p><p>{}</p>", error.cause()))).unwrap(),
+                                        }
+                                    },
+
+                                    // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                                    Err(_) => sender.send(Err(format_err!("{}", THREADS_MESSAGE_ERROR))).unwrap(),
                                 }
                             }
                         }
 
                         // Otherwise, return an error.
-                        else { sender.send(Err(format_err!("This type of PackFile is supported in Read-Only mode.\n\nThis can happen due to:\n - The PackFile's type is 'Boot', 'Release' or 'Patch' and you have 'Allow edition of CA PackFiles' disabled in the settings.\n - The PackFile's type is 'Other'.\n\n If you really want to save it, go to 'PackFile/Change PackFile Type' and change his type to 'Mod' or 'Movie'."))).unwrap(); }
-                    }
-
-                    // When we change the PackFile's Type...
-                    "set_packfile_type" => {
-
-                        // Get the new Type.
-                        let new_type = receiver_data.recv().unwrap().unwrap();
-                        let new_type = serde_json::from_slice(&new_type).unwrap();
-
-                        // Change it.
-                        pack_file_decoded.header.pack_file_type = new_type;
-                    }
-
-                    // When we want to get the currently loaded schema...
-                    "get_schema" => {
-
-                        // Send the current Game Selected back to the UI thread.
-                        sender.send(serde_json::to_vec(&schema).map_err(From::from)).unwrap();
-                    }
-
-                    // When we want to know what game is selected...
-                    "get_settings" => {
-
-                        // Send the current Game Selected back to the UI thread.
-                        sender.send(serde_json::to_vec(&settings).map_err(From::from)).unwrap();
-                    }
-
-                    // When we change the Settings...
-                    "set_settings" => {
-
-                        // Get the new Settings, and set it.
-                        let new_settings = receiver_data.recv().unwrap().unwrap();
-                        settings = serde_json::from_slice(&new_settings).unwrap();
-
-                        // Save our new `Settings` to a settings file, and report in case of error.
-                        match settings.save(&rpfm_path) {
-                            Ok(()) => sender.send(serde_json::to_vec(&()).map_err(From::from)).unwrap(),
-                            Err(error) => sender.send(Err(error)).unwrap(),
+                        else {
+                            sender.send(Err(format_err!("
+                                <p>This type of PackFile is supported in Read-Only mode.</p>
+                                <p>This can happen due to:</p>
+                                <ul>
+                                    <li>The PackFile's type is <i>'Boot'</i>, <i>'Release'</i> or <i>'Patch'</i> and you have <i>'Allow edition of CA PackFiles'</i> disabled in the settings.</li>
+                                    <li>The PackFile's type is <i>'Other'</i>.</li>
+                                </ul>
+                                <p>If you really want to save it, go to <i>'PackFile/Change PackFile Type'</i> and change his type to 'Mod' or 'Movie'.</p>"
+                            ))).unwrap();
                         }
                     }
 
-                    // When we want to know what game is selected...
+                    // In case we want to change the PackFile's Type...
+                    "set_packfile_type" => {
+
+                        // Wait until you get something from the UI.
+                        if let Ok(new_type) = receiver_data.recv().unwrap() {
+
+                            // Try to deserialize it.
+                            match serde_json::from_slice(&new_type) {
+
+                                // If it can be deserialized as a U32...
+                                Ok(new_type) => {
+
+                                    // Redundant, but needed for the deserializer to know the type.
+                                    let new_type: u32 = new_type;
+
+                                    // Change the type of the PackFile.
+                                    pack_file_decoded.header.pack_file_type = new_type;
+                                },
+
+                                // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                                Err(_) => sender.send(Err(format_err!("{}", THREADS_MESSAGE_ERROR))).unwrap(),
+                            }
+                        }
+                    }
+
+                    // In case we want to get the currently loaded Schema...
+                    "get_schema" => {
+
+                        // Send the schema back to the UI thread.
+                        sender.send(serde_json::to_vec(&schema).map_err(From::from)).unwrap();
+                    }
+
+                    // In case we want to get the current settings...
+                    "get_settings" => {
+
+                        // Send the current settings back to the UI thread.
+                        sender.send(serde_json::to_vec(&settings).map_err(From::from)).unwrap();
+                    }
+
+                    // In case we want to change the current settings...
+                    "set_settings" => {
+
+                        // Wait until you get something from the UI.
+                        if let Ok(new_settings) = receiver_data.recv().unwrap() {
+
+                            // Try to deserialize it.
+                            match serde_json::from_slice(&new_settings) {
+
+                                // If it can be deserialized as a Settings struct...
+                                Ok(new_settings) => {
+
+                                    // Update our current settings with the ones we received from the UI.
+                                    settings = new_settings;
+
+                                    // Save our Settings to a settings file, and report in case of error.
+                                    match settings.save(&rpfm_path) {
+                                        Ok(()) => sender.send(serde_json::to_vec(&()).map_err(From::from)).unwrap(),
+                                        Err(error) => sender.send(Err(error)).unwrap(),
+                                    }
+                                },
+
+                                // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                                Err(_) => sender.send(Err(format_err!("{}", THREADS_MESSAGE_ERROR))).unwrap(),
+                            }
+                        }
+                    }
+
+                    // In case we want get our current Game Selected...
                     "get_game_selected" => {
 
                         // Send the current Game Selected back to the UI thread.
                         sender.send(serde_json::to_vec(&game_selected).map_err(From::from)).unwrap();
                     }
 
-                    // When we change the Game Selected...
+                    // In case we want to change the current Game Selected...
                     "set_game_selected" => {
 
-                        // Get the new Game Selected, and set it.
-                        let game_name = receiver_data.recv().unwrap().unwrap();
-                        let game_name: &str = serde_json::from_slice(&game_name).unwrap();
-                        game_selected.change_game_selected(&game_name, &settings.paths.game_paths.iter().filter(|x| x.game == game_name).map(|x| x.path.clone()).collect::<Option<PathBuf>>(), &supported_games);
+                        // Wait until you get something from the UI.
+                        if let Ok(game_name) = receiver_data.recv().unwrap() {
 
-                        // Try to load the Schema for this game.
-                        schema = Schema::load(&rpfm_path, &supported_games.iter().filter(|x| x.folder_name == *game_selected.game).map(|x| x.schema.to_owned()).collect::<String>()).ok();
+                            // Try to deserialize it.
+                            match serde_json::from_slice(&game_name) {
 
-                        // Change the `dependency_database` for that game.
-                        dependency_database = match packfile::open_packfile(game_selected.game_dependency_packfile_path.to_path_buf()) {
-                            Ok(data) => Some(data.data.packed_files),
-                            Err(_) => None,
-                        };
+                                // If it can be deserialized as a &str...
+                                Ok(game_name) => {
 
-                        // Send back the new Game Selected, and a bool indicating if there is a PackFile open.
-                        sender.send(serde_json::to_vec(&(game_selected.clone(), pack_file_decoded.extra_data.file_name.is_empty())).map_err(From::from)).unwrap();
+                                    // Redundant, but needed for the deserializer to know the type.
+                                    let game_name: &str = game_name;
+
+                                    // Get the new Game Selected, and set it.
+                                    game_selected.change_game_selected(&game_name, &settings.paths.game_paths.iter().filter(|x| x.game == game_name).map(|x| x.path.clone()).collect::<Option<PathBuf>>(), &supported_games);
+
+                                    // Try to load the Schema for this game.
+                                    schema = Schema::load(&rpfm_path, &supported_games.iter().filter(|x| x.folder_name == *game_selected.game).map(|x| x.schema.to_owned()).collect::<String>()).ok();
+
+                                    // Change the `dependency_database` for that game.
+                                    dependency_database = match packfile::open_packfile(game_selected.game_dependency_packfile_path.to_path_buf()) {
+                                        Ok(data) => Some(data.data.packed_files),
+                                        Err(_) => None,
+                                    };
+
+                                    // Send back the new Game Selected, and a bool indicating if there is a PackFile open.
+                                    sender.send(serde_json::to_vec(&(game_selected.clone(), pack_file_decoded.extra_data.file_name.is_empty())).map_err(From::from)).unwrap();
+                                },
+
+                                // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                                Err(_) => sender.send(Err(format_err!("{}", THREADS_MESSAGE_ERROR))).unwrap(),
+                            }
+                        }
                     }
 
-                    // When we want to know what the PackFile's header is...
+                    // In case we want to get the current PackFile's Id...
                     "get_packfile_id" => {
 
                         // Send the header of the currently open PackFile.
                         sender.send(serde_json::to_vec(&pack_file_decoded.header.id).map_err(From::from)).unwrap();
                     }
 
-                    // When we want to know the path of a PackedFile...
+                    // In case we want to get the path of a PackedFile...
                     "get_packed_file_path" => {
 
-                        // Get the Index of the PackedFile.
-                        let data = receiver_data.recv().unwrap().unwrap();
-                        let index: usize = serde_json::from_slice(&data).unwrap();
+                        // Wait until you get something from the UI.
+                        if let Ok(index) = receiver_data.recv().unwrap() {
 
-                        // Build the path.
-                        let mut path = pack_file_decoded.data.packed_files[index].path.to_vec();
+                            // Try to deserialize it.
+                            match serde_json::from_slice(&index) {
 
-                        // Send the header of the currently open PackFile.
-                        sender.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
+                                // If it can be deserialized as an usize...
+                                Ok(index) => {
+
+                                    // Redundant, but needed for the deserializer to know the type.
+                                    let index: usize = index;
+
+                                    // Get a reference to the path of the PackedFile.
+                                    let path = &pack_file_decoded.data.packed_files[index].path;
+
+                                    // Serialize and send the path of the PackedFile.
+                                    sender.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
+                                },
+
+                                // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                                Err(_) => sender.send(Err(format_err!("{}", THREADS_MESSAGE_ERROR))).unwrap(),
+                            }
+                        }
                     }
 
-                    // When we want to change the dependency_database for an specific PackFile...
+                    // In case we want to change the current Dependency Database...
                     "set_dependency_database" => {
 
                         // Change the `dependency_database` for that game.
@@ -3693,25 +3789,24 @@ fn background_loop(
                         };
                     }
 
-                    // When we want to check if we have a Dependency Database PackFile loaded...
+                    // In case we want to check if there is a current Dependency Database loaded...
                     "is_there_a_dependency_database" => {
-
                         match dependency_database {
                             Some(_) => sender.send(serde_json::to_vec(&true).map_err(From::from)).unwrap(),
                             None => sender.send(serde_json::to_vec(&false).map_err(From::from)).unwrap(),
                         }
                     }
 
-                    // When we want to check if we have a Schema loaded...
+                    // In case we want to check if there is an Schema loaded...
                     "is_there_a_schema" => {
-
                         match schema {
                             Some(_) => sender.send(serde_json::to_vec(&true).map_err(From::from)).unwrap(),
                             None => sender.send(serde_json::to_vec(&false).map_err(From::from)).unwrap(),
                         }
                     }
 
-                    // When we want to create a new Dependency Database PackFile...
+                    // TODO: This is not revised, because it's going to be deleted.
+                    // In case we want to create a new Dependency Database...
                     "create_dependency_database" => {
 
                         // Get the data folder of game_selected.
@@ -3788,7 +3883,7 @@ fn background_loop(
                         }
                     }
 
-                    // When we want to patch a PackFile...
+                    // In case we want to Patch the SiegeAI of a PackFile...
                     "patch_siege_ai" => {
 
                         // First, we try to patch the PackFile.
@@ -3813,595 +3908,1012 @@ fn background_loop(
                         }
                     }
 
-                    // When we want to update our Schemas...
+                    // In case we want to update our Schemas...
                     "update_schemas" => {
 
-                        // Get the extra data needed to update the schemas.
-                        let data = receiver_data.recv().unwrap().unwrap();
-                        let data: (Versions, Versions) = serde_json::from_slice(&data).unwrap();
+                        // Wait until you get something from the UI.
+                        if let Ok(data) = receiver_data.recv().unwrap() {
 
-                        // Try to update the schemas...
-                        match update_schemas(data.0, data.1, rpfm_path) {
+                            // Try to deserialize it.
+                            match serde_json::from_slice(&data) {
 
-                            // If there is success...
-                            Ok(_) => {
+                                // If it can be deserialized as a tuple of Versions...
+                                Ok(data) => {
 
-                                // Reload the currently loaded schema, just in case it was updated.
-                                schema = Schema::load(rpfm_path, &supported_games.iter().filter(|x| x.folder_name == game_selected.game).map(|x| x.schema.to_owned()).collect::<String>()).ok();
+                                    // Redundant, but needed for the deserializer to know the type.
+                                    let data: (Versions, Versions) = data;
 
-                                // Return success.
-                                sender.send(serde_json::to_vec(&()).map_err(From::from)).unwrap();
+                                    // Try to update the schemas...
+                                    match update_schemas(data.0, data.1, rpfm_path) {
+
+                                        // If there is success...
+                                        Ok(_) => {
+
+                                            // Reload the currently loaded schema, just in case it was updated.
+                                            schema = Schema::load(rpfm_path, &supported_games.iter().filter(|x| x.folder_name == game_selected.game).map(|x| x.schema.to_owned()).collect::<String>()).ok();
+
+                                            // Return success.
+                                            sender.send(serde_json::to_vec(&()).map_err(From::from)).unwrap();
+                                        }
+
+                                        // If there is an error while updating, report it.
+                                        Err(error) => sender.send(Err(error)).unwrap(),
+                                    }
+                                },
+
+                                // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                                Err(_) => sender.send(Err(format_err!("{}", THREADS_MESSAGE_ERROR))).unwrap(),
                             }
-
-                            // If there is an error while updating, report it.
-                            Err(error) => sender.send(Err(error)).unwrap(),
                         }
                     }
 
-                    // When we want to add the PackedFiles in a Path...
+                    // In case we want to add PackedFiles into a PackFile...
                     "add_packedfile" => {
 
-                        // Get the Paths of the PackedFiles we want to add.
-                        let data = receiver_data.recv().unwrap().unwrap();
-                        let paths: Vec<PathBuf> = serde_json::from_slice(&data).unwrap();
+                        // Wait until you get something from the UI.
+                        if let Ok(paths) = receiver_data.recv().unwrap() {
 
-                        // Get the Paths in the PackFile of the PackedFiles we want to add.
-                        let data = receiver_data.recv().unwrap().unwrap();
-                        let paths_packedfile: Vec<Vec<String>> = serde_json::from_slice(&data).unwrap();
+                            // Try to deserialize it.
+                            match serde_json::from_slice(&paths) {
 
-                        // Get a list of the PackedFiles that failed to be added, for one reason or another.
-                        let mut errors = vec![];
+                                // If it can be deserialized as a Vector of PathBufs...
+                                Ok(paths) => {
 
-                        // For each file...
-                        for index in 0..paths.len() {
+                                    // Wait until you get something from the UI.
+                                    if let Ok(paths_packedfile) = receiver_data.recv().unwrap() {
 
-                            // Try to add it to the PackFile. If it fails, add it to the error list.
-                            if let Err(_) = packfile::add_file_to_packfile(&mut pack_file_decoded, &paths[index], paths_packedfile[index].to_vec()) {
-                                errors.push(paths_packedfile[index].to_vec());
+                                        // Try to deserialize it.
+                                        match serde_json::from_slice(&paths_packedfile) {
+
+                                            // If it can be deserialized as a Vector of Vectors of Strings...
+                                            Ok(paths_packedfile) => {
+
+                                                // Redundant, but needed for the deserializer to know the types.
+                                                let paths: Vec<PathBuf> = paths;
+                                                let paths_packedfile: Vec<Vec<String>> = paths_packedfile;
+
+                                                // Get a list of the PackedFiles that failed to be added, for one reason or another.
+                                                let mut errors = vec![];
+
+                                                // For each file...
+                                                for index in 0..paths.len() {
+
+                                                    // Try to add it to the PackFile. If it fails, add it to the error list.
+                                                    if let Err(_) = packfile::add_file_to_packfile(&mut pack_file_decoded, &paths[index], paths_packedfile[index].to_vec()) {
+                                                        errors.push(paths_packedfile[index].to_vec());
+                                                    }
+                                                }
+
+                                                // Send back the list of files that failed.
+                                                sender.send(serde_json::to_vec(&errors).map_err(From::from)).unwrap();
+                                            },
+
+                                            // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                                            Err(_) => sender.send(Err(format_err!("{}", THREADS_MESSAGE_ERROR))).unwrap(),
+                                        }
+                                    }
+                                },
+
+                                // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                                Err(_) => sender.send(Err(format_err!("{}", THREADS_MESSAGE_ERROR))).unwrap(),
                             }
                         }
-
-                        // Send back the list of files that failed.
-                        sender.send(serde_json::to_vec(&errors).map_err(From::from)).unwrap();
                     }
 
-                    // When we want to delete the PackedFiles in a Path...
+                    // In case we want to delete PackedFiles from a PackFile...
                     "delete_packedfile" => {
 
-                        // Get the Path of the PackedFiles we want to remove.
-                        let data = receiver_data.recv().unwrap().unwrap();
-                        let path: Vec<String> = serde_json::from_slice(&data).unwrap();
+                        // Wait until you get something from the UI.
+                        if let Ok(path) = receiver_data.recv().unwrap() {
 
-                        // Get the type of the Path we want to delete.
-                        let path_type = get_type_of_selected_path(&path, &pack_file_decoded);
+                            // Try to deserialize it.
+                            match serde_json::from_slice(&path) {
 
-                        // Try to delete the PackedFiles from the PackFile, changing his return in case of success.
-                        match packfile::delete_from_packfile(&mut pack_file_decoded, &path) {
+                                // If it can be deserialized as a Vector of Strings...
+                                Ok(path) => {
 
-                            // In case of success...
-                            Ok(_) => sender.send(serde_json::to_vec(&path_type).map_err(From::from)).unwrap(),
+                                    // Redundant, but needed for the deserializer to know the type.
+                                    let path: Vec<String> = path;
 
-                            // In case of error, send the error back.
-                            Err(error) => sender.send(Err(error)).unwrap()
-                        };
+                                    // Get the type of the Path we want to delete.
+                                    let path_type = get_type_of_selected_path(&path, &pack_file_decoded);
+
+                                    // Try to delete the PackedFiles from the PackFile, changing his return in case of success.
+                                    match packfile::delete_from_packfile(&mut pack_file_decoded, &path) {
+
+                                        // In case of success...
+                                        Ok(_) => sender.send(serde_json::to_vec(&path_type).map_err(From::from)).unwrap(),
+
+                                        // In case of error, send the error back.
+                                        Err(error) => sender.send(Err(error)).unwrap()
+                                    };
+                                },
+
+                                // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                                Err(_) => sender.send(Err(format_err!("{}", THREADS_MESSAGE_ERROR))).unwrap(),
+                            }
+                        }
                     }
 
-                    // When we want to extract the PackedFiles in a Path...
+                    // In case we want to extract PackedFiles from a PackFile...
                     "extract_packedfile" => {
 
-                        // Get the Path of the PackedFiles we want to extract.
-                        let data = receiver_data.recv().unwrap().unwrap();
-                        let path: Vec<String> = serde_json::from_slice(&data).unwrap();
+                        // Wait until you get something from the UI.
+                        if let Ok(path) = receiver_data.recv().unwrap() {
 
-                        // Get the Path where we want to extract the files.
-                        let data = receiver_data.recv().unwrap().unwrap();
-                        let extraction_path: PathBuf = serde_json::from_slice(&data).unwrap();
+                            // Try to deserialize it.
+                            match serde_json::from_slice(&path) {
 
-                        // Try to extract the PackFile.
-                        match packfile::extract_from_packfile(
-                            &pack_file_decoded,
-                            &path,
-                            &extraction_path
-                        ) {
-                            Ok(result) => sender.send(serde_json::to_vec(&result).map_err(From::from)).unwrap(),
-                            Err(error) => sender.send(Err(error)).unwrap(),
+                                // If it can be deserialized as a Vector of Strings...
+                                Ok(path) => {
+
+                                    // Wait until you get something from the UI.
+                                    if let Ok(extraction_path) = receiver_data.recv().unwrap() {
+
+                                        // Try to deserialize it.
+                                        match serde_json::from_slice(&extraction_path) {
+
+                                            // If it can be deserialized as a PathBuf...
+                                            Ok(extraction_path) => {
+
+                                                // Redundant, but needed for the deserializer to know the type.
+                                                let path: Vec<String> = path;
+                                                let extraction_path: PathBuf = extraction_path;
+
+                                                // Try to extract the PackFile.
+                                                match packfile::extract_from_packfile(
+                                                    &pack_file_decoded,
+                                                    &path,
+                                                    &extraction_path
+                                                ) {
+                                                    Ok(result) => sender.send(serde_json::to_vec(&result).map_err(From::from)).unwrap(),
+                                                    Err(error) => sender.send(Err(error)).unwrap(),
+                                                }
+                                            },
+
+                                            // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                                            Err(_) => sender.send(Err(format_err!("{}", THREADS_MESSAGE_ERROR))).unwrap(),
+                                        }
+                                    }
+                                },
+
+                                // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                                Err(_) => sender.send(Err(format_err!("{}", THREADS_MESSAGE_ERROR))).unwrap(),
+                            }
                         }
                     }
 
-                    // When we want to get the type of an item...
+                    // In case we want to get the type of an item in the TreeView, from his path...
                     "get_type_of_path" => {
 
-                        // Get the path to check.
-                        let path = receiver_data.recv().unwrap().unwrap();
-                        let path: Vec<String> = serde_json::from_slice(&path).unwrap();
+                        // Wait until you get something from the UI.
+                        if let Ok(path) = receiver_data.recv().unwrap() {
 
-                        // Get the type of the selected item.
-                        let selection_type = get_type_of_selected_path(&path, &pack_file_decoded);
+                            // Try to deserialize it.
+                            match serde_json::from_slice(&path) {
 
-                        // Send the type back.
-                        sender.send(serde_json::to_vec(&selection_type).map_err(From::from)).unwrap();
-                    }
+                                // If it can be deserialized as a Vector of Strings...
+                                Ok(path) => {
 
-                    // When we want to know if a PackedFile exists...
-                    "packed_file_exists" => {
+                                    // Redundant, but needed for the deserializer to know the type.
+                                    let path: Vec<String> = path;
 
-                        // Get the path to check.
-                        let path = receiver_data.recv().unwrap().unwrap();
-                        let path: Vec<String> = serde_json::from_slice(&path).unwrap();
+                                    // Get the type of the selected item.
+                                    let path_type = get_type_of_selected_path(&path, &pack_file_decoded);
 
-                        // Check if the path exists as a folder.
-                        let exists = pack_file_decoded.data.packedfile_exists(&path);
+                                    // Send the type back.
+                                    sender.send(serde_json::to_vec(&path_type).map_err(From::from)).unwrap();
+                                },
 
-                        // Send the result back.
-                        sender.send(serde_json::to_vec(&exists).map_err(From::from)).unwrap();
-                    }
-
-                    // When we want to know if a folder exists...
-                    "folder_exists" => {
-
-                        // Get the path to check.
-                        let path = receiver_data.recv().unwrap().unwrap();
-                        let path: Vec<String> = serde_json::from_slice(&path).unwrap();
-
-                        // Check if the path exists as a folder.
-                        let exists = pack_file_decoded.data.folder_exists(&path);
-
-                        // Send the result back.
-                        sender.send(serde_json::to_vec(&exists).map_err(From::from)).unwrap();
-                    }
-
-                    // When we want to create a new PackedFile...
-                    "create_packed_file" => {
-
-                        // Get the path to check.
-                        let path = receiver_data.recv().unwrap().unwrap();
-                        let path: Vec<String> = serde_json::from_slice(&path).unwrap();
-
-                        // Get the data of the new PackedFile.
-                        let data = receiver_data.recv().unwrap().unwrap();
-                        let data: PackedFileType = serde_json::from_slice(&data).unwrap();
-
-                        // Create the PackedFile.
-                        match create_packed_file(
-                            &mut pack_file_decoded,
-                            data,
-                            path,
-                            &schema,
-                        ) {
-                            // Send the result back.
-                            Ok(_) => sender.send(serde_json::to_vec(&()).map_err(From::from)).unwrap(),
-                            Err(error) => sender.send(Err(error)).unwrap(),
+                                // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                                Err(_) => sender.send(Err(format_err!("{}", THREADS_MESSAGE_ERROR))).unwrap(),
+                            }
                         }
                     }
 
-                    // When we want to create a new folder...
-                    "create_folder" => {
+                    // In case we want to know if a PackedFile exists, knowing his path...
+                    "packed_file_exists" => {
 
-                        // Get the path to check.
-                        let path = receiver_data.recv().unwrap().unwrap();
-                        let path: Vec<String> = serde_json::from_slice(&path).unwrap();
+                        // Wait until you get something from the UI.
+                        if let Ok(path) = receiver_data.recv().unwrap() {
 
-                        // Check if the path exists as a folder.
-                        pack_file_decoded.data.empty_folders.push(path);
+                            // Try to deserialize it.
+                            match serde_json::from_slice(&path) {
+
+                                // If it can be deserialized as a Vector of Strings...
+                                Ok(path) => {
+
+                                    // Redundant, but needed for the deserializer to know the type.
+                                    let path: Vec<String> = path;
+
+                                    // Check if the path exists as a PackedFile.
+                                    let exists = pack_file_decoded.data.packedfile_exists(&path);
+
+                                    // Send the result back.
+                                    sender.send(serde_json::to_vec(&exists).map_err(From::from)).unwrap();
+                                },
+
+                                // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                                Err(_) => sender.send(Err(format_err!("{}", THREADS_MESSAGE_ERROR))).unwrap(),
+                            }
+                        }
                     }
 
-                    // When we want to update the empty folder list...
+                    // In case we want to know if a Folder exists, knowing his path...
+                    "folder_exists" => {
+
+                        // Wait until you get something from the UI.
+                        if let Ok(path) = receiver_data.recv().unwrap() {
+
+                            // Try to deserialize it.
+                            match serde_json::from_slice(&path) {
+
+                                // If it can be deserialized as a Vector of Strings...
+                                Ok(path) => {
+
+                                    // Redundant, but needed for the deserializer to know the type.
+                                    let path: Vec<String> = path;
+
+                                    // Check if the path exists as a folder.
+                                    let exists = pack_file_decoded.data.folder_exists(&path);
+
+                                    // Send the result back.
+                                    sender.send(serde_json::to_vec(&exists).map_err(From::from)).unwrap();
+                                },
+
+                                // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                                Err(_) => sender.send(Err(format_err!("{}", THREADS_MESSAGE_ERROR))).unwrap(),
+                            }
+                        }
+                    }
+
+                    // In case we want to create a PackedFile from scratch...
+                    "create_packed_file" => {
+
+                        // Wait until you get something from the UI.
+                        if let Ok(path) = receiver_data.recv().unwrap() {
+
+                            // Try to deserialize it.
+                            match serde_json::from_slice(&path) {
+
+                                // If it can be deserialized as a Vector of Strings...
+                                Ok(path) => {
+
+                                    // Wait until you get something from the UI.
+                                    if let Ok(packed_file_type) = receiver_data.recv().unwrap() {
+
+                                        // Try to deserialize it.
+                                        match serde_json::from_slice(&packed_file_type) {
+
+                                            // If it can be deserialized as a PackedFileType...
+                                            Ok(packed_file_type) => {
+
+                                                // Redundant, but needed for the deserializer to know the types.
+                                                let path: Vec<String> = path;
+                                                let packed_file_type: PackedFileType = packed_file_type;
+
+                                                // Create the PackedFile.
+                                                match create_packed_file(
+                                                    &mut pack_file_decoded,
+                                                    packed_file_type,
+                                                    path,
+                                                    &schema,
+                                                ) {
+                                                    // Send the result back.
+                                                    Ok(_) => sender.send(serde_json::to_vec(&()).map_err(From::from)).unwrap(),
+                                                    Err(error) => sender.send(Err(error)).unwrap(),
+                                                }
+                                            },
+
+                                            // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                                            Err(_) => sender.send(Err(format_err!("{}", THREADS_MESSAGE_ERROR))).unwrap(),
+                                        }
+                                    }
+                                },
+
+                                // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                                Err(_) => sender.send(Err(format_err!("{}", THREADS_MESSAGE_ERROR))).unwrap(),
+                            }
+                        }
+                    }
+
+                    // TODO: Move checkings here, from the UI.
+                    // In case we want to create an empty folder...
+                    "create_folder" => {
+
+                        // Wait until you get something from the UI.
+                        if let Ok(path) = receiver_data.recv().unwrap() {
+
+                            // Try to deserialize it.
+                            match serde_json::from_slice(&path) {
+
+                                // If it can be deserialized as a Vector of Strings...
+                                Ok(path) => {
+
+                                    // Redundant, but needed for the deserializer to know the type.
+                                    let path: Vec<String> = path;
+
+                                    // Check if the path exists as a folder.
+                                    pack_file_decoded.data.empty_folders.push(path);
+                                },
+
+                                // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                                Err(_) => sender.send(Err(format_err!("{}", THREADS_MESSAGE_ERROR))).unwrap(),
+                            }
+                        }
+                    }
+
+                    // In case we want to update the empty folder list...
                     "update_empty_folders" => {
 
                         // Update the empty folder list, if needed.
                         pack_file_decoded.data.update_empty_folders();
                     }
 
-                    // When we want to get the "data" of a PackFile needed for the TreeView...
+                    // In case we want to get the data of a PackFile needed to form the TreeView...
                     "get_packfile_data_for_treeview" => {
 
-                        // Get the data we must return to the UI thread and serialize it.
+                        // Get the name and the PackedFile list, and serialize it.
                         let data = serde_json::to_vec(&(
                             &pack_file_decoded.extra_data.file_name,
                             pack_file_decoded.data.packed_files.iter().map(|x| x.path.to_vec()).collect::<Vec<Vec<String>>>(),
                         )).map_err(From::from);
 
-                        // Send a response to the UI thread.
+                        // Send the data to the UI thread.
                         sender.send(data).unwrap();
                     }
 
-                    // When we want to get the "data" of a Secondary PackFile needed for the TreeView...
+                    // In case we want to get the data of a Secondary PackFile needed to form the TreeView...
                     "get_packfile_extra_data_for_treeview" => {
 
-                        // Get the data we must return to the UI thread and serialize it.
+                        // Get the name and the PackedFile list, and serialize it.
                         let data = serde_json::to_vec(&(
                             &pack_file_decoded_extra.extra_data.file_name,
                             pack_file_decoded_extra.data.packed_files.iter().map(|x| x.path.to_vec()).collect::<Vec<Vec<String>>>(),
                         )).map_err(From::from);
 
-                        // Send a response to the UI thread.
+                        // Send the data to the UI thread.
                         sender.send(data).unwrap();
                     }
 
-                    // When we want to move stuff from one PackFile to another...
+                    // In case we want to move stuff from one PackFile to another...
                     "add_packedfile_from_packfile" => {
 
-                        // Get the Paths.
-                        let data = receiver_data.recv().unwrap().unwrap();
-                        let paths: (Vec<String>, Vec<String>) = serde_json::from_slice(&data).unwrap();
+                        // Wait until you get something from the UI.
+                        if let Ok(paths) = receiver_data.recv().unwrap() {
 
-                        // Try to add the PackedFile to the main PackFile.
-                        match packfile::add_packedfile_to_packfile(
-                            &mut pack_file_decoded_extra_buffer,
-                            &pack_file_decoded_extra,
-                            &mut pack_file_decoded,
-                            &paths.0,
-                            &paths.1,
-                        ) {
+                            // Try to deserialize it.
+                            match serde_json::from_slice(&paths) {
 
-                            // In case of success, get the list of copied PackedFiles and send it back.
-                            Ok(_) => {
+                                // If it can be deserialized as a tuple of Vectors of Strings...
+                                Ok(paths) => {
 
-                                // Get the new "Prefix" for the PackedFiles.
-                                let mut source_prefix = paths.0;
+                                    // Redundant, but needed for the deserializer to know the type.
+                                    let paths: (Vec<String>, Vec<String>) = paths;
 
-                                // Remove the PackFile's name from it.
-                                source_prefix.reverse();
-                                source_prefix.pop();
-                                source_prefix.reverse();
+                                    // Try to add the PackedFile to the main PackFile.
+                                    match packfile::add_packedfile_to_packfile(
+                                        &mut pack_file_decoded_extra_buffer,
+                                        &pack_file_decoded_extra,
+                                        &mut pack_file_decoded,
+                                        &paths.0,
+                                        &paths.1,
+                                    ) {
 
-                                // Get the new "Prefix" for the Destination PackedFiles.
-                                let mut destination_prefix = paths.1;
+                                        // In case of success, get the list of copied PackedFiles and send it back.
+                                        Ok(_) => {
 
-                                // Remove the PackFile's name from it.
-                                destination_prefix.reverse();
-                                destination_prefix.pop();
-                                destination_prefix.reverse();
+                                            // Get the new "Prefix" for the PackedFiles.
+                                            let mut source_prefix = paths.0;
 
-                                // Get all the PackedFiles to copy.
-                                let path_list: Vec<Vec<String>> = pack_file_decoded_extra
-                                    .data.packed_files
-                                    .iter()
-                                    .filter(|x| x.path.starts_with(&source_prefix))
-                                    .map(|x| x.path.to_vec())
-                                    .collect();
+                                            // Remove the PackFile's name from it.
+                                            source_prefix.reverse();
+                                            source_prefix.pop();
+                                            source_prefix.reverse();
 
-                                // Send all of it back.
-                                sender.send(serde_json::to_vec(&(source_prefix, destination_prefix, path_list)).map_err(From::from)).unwrap();
+                                            // Get the new "Prefix" for the Destination PackedFiles.
+                                            let mut destination_prefix = paths.1;
+
+                                            // Remove the PackFile's name from it.
+                                            destination_prefix.reverse();
+                                            destination_prefix.pop();
+                                            destination_prefix.reverse();
+
+                                            // Get all the PackedFiles to copy.
+                                            let path_list: Vec<Vec<String>> = pack_file_decoded_extra
+                                                .data.packed_files
+                                                .iter()
+                                                .filter(|x| x.path.starts_with(&source_prefix))
+                                                .map(|x| x.path.to_vec())
+                                                .collect();
+
+                                            // Send all of it back.
+                                            sender.send(serde_json::to_vec(&(source_prefix, destination_prefix, path_list)).map_err(From::from)).unwrap();
+                                        }
+
+                                        // In case of error, report it.
+                                        Err(error) => sender.send(Err(error)).unwrap(),
+                                    }
+                                },
+
+                                // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                                Err(_) => sender.send(Err(format_err!("{}", THREADS_MESSAGE_ERROR))).unwrap(),
                             }
-
-                            // In case of error, report it.
-                            Err(error) => sender.send(Err(error)).unwrap(),
                         }
                     }
 
-                    // When we want to mass-import Tsv Files...
+                    // In case we want to Mass-Import TSV Files...
                     "mass_import_tsv" => {
 
-                        // Get the data needed for importing the files.
-                        let data = receiver_data.recv().unwrap().unwrap();
-                        let data: (String, Vec<PathBuf>) = serde_json::from_slice(&data).unwrap();
+                        // Wait until you get something from the UI.
+                        if let Ok(data) = receiver_data.recv().unwrap() {
 
-                        // Try to import the files.
-                        match packedfile::tsv_mass_import(&data.1, &data.0, &schema, &mut pack_file_decoded) {
-                            Ok(result) => sender.send(serde_json::to_vec(&result).map_err(From::from)).unwrap(),
-                            Err(error) => sender.send(Err(error)).unwrap(),
+                            // Try to deserialize it.
+                            match serde_json::from_slice(&data) {
+
+                                // If it can be deserialized as a tuple with a String and a Vector of PathBufs...
+                                Ok(data) => {
+
+                                    // Redundant, but needed for the deserializer to know the type.
+                                    let data: (String, Vec<PathBuf>) = data;
+
+                                    // Try to import the files.
+                                    match packedfile::tsv_mass_import(&data.1, &data.0, &schema, &mut pack_file_decoded) {
+                                        Ok(result) => sender.send(serde_json::to_vec(&result).map_err(From::from)).unwrap(),
+                                        Err(error) => sender.send(Err(error)).unwrap(),
+                                    }
+                                },
+
+                                // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                                Err(_) => sender.send(Err(format_err!("{}", THREADS_MESSAGE_ERROR))).unwrap(),
+                            }
                         }
                     }
 
-                    // When we want to decode a Loc PackedFile...
+                    // In case we want to decode a Loc PackedFile...
                     "decode_packed_file_loc" => {
 
-                        // Get the Index of the PackedFile.
-                        let data = receiver_data.recv().unwrap().unwrap();
-                        let index: usize = serde_json::from_slice(&data).unwrap();
+                        // Wait until you get something from the UI.
+                        if let Ok(index) = receiver_data.recv().unwrap() {
 
-                        // We try to decode it as a Loc PackedFile.
-                        match Loc::read(&pack_file_decoded.data.packed_files[index].data) {
+                            // Try to deserialize it.
+                            match serde_json::from_slice(&index) {
 
-                            // If we succeed, store it and send it back.
-                            Ok(packed_file_decoded) => {
-                                packed_file_loc = packed_file_decoded;
-                                sender.send(serde_json::to_vec(&packed_file_loc.data).map_err(From::from)).unwrap();
+                                // If it can be deserialized as an usize...
+                                Ok(index) => {
+
+                                    // Redundant, but needed for the deserializer to know the type.
+                                    let index: usize = index;
+
+                                    // We try to decode it as a Loc PackedFile.
+                                    match Loc::read(&pack_file_decoded.data.packed_files[index].data) {
+
+                                        // If we succeed, store it and send it back.
+                                        Ok(packed_file_decoded) => {
+                                            packed_file_loc = packed_file_decoded;
+                                            sender.send(serde_json::to_vec(&packed_file_loc.data).map_err(From::from)).unwrap();
+                                        }
+
+                                        // In case of error, report it.
+                                        Err(error) => sender.send(Err(error)).unwrap(),
+                                    }
+                                },
+
+                                // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                                Err(_) => sender.send(Err(format_err!("{}", THREADS_MESSAGE_ERROR))).unwrap(),
                             }
-
-                            // In case of error, report it.
-                            Err(error) => sender.send(Err(error)).unwrap(),
                         }
                     }
 
-                    // When we want to decode a Loc PackedFile...
+                    // In case we want to encode a Loc PackedFile...
                     "encode_packed_file_loc" => {
 
-                        // Get the Index and the Data of the PackedFile.
-                        let data = receiver_data.recv().unwrap().unwrap();
-                        let data: (LocData, usize) = serde_json::from_slice(&data).unwrap();
+                        // Wait until you get something from the UI.
+                        if let Ok(data) = receiver_data.recv().unwrap() {
 
-                        // Replace the old encoded data with the new one.
-                        packed_file_loc.data = data.0;
+                            // Try to deserialize it.
+                            match serde_json::from_slice(&data) {
 
-                        // Update the PackFile to reflect the changes.
-                        packfile::update_packed_file_data_loc(
-                            &packed_file_loc,
-                            &mut pack_file_decoded,
-                            data.1
-                        );
+                                // If it can be deserialized as a tuple with a LocData and an index...
+                                Ok(data) => {
+
+                                    // Redundant, but needed for the deserializer to know the type.
+                                    let data: (LocData, usize) = data;
+
+                                    // Replace the old encoded data with the new one.
+                                    packed_file_loc.data = data.0;
+
+                                    // Update the PackFile to reflect the changes.
+                                    packfile::update_packed_file_data_loc(
+                                        &packed_file_loc,
+                                        &mut pack_file_decoded,
+                                        data.1
+                                    );
+                                },
+
+                                // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                                Err(_) => sender.send(Err(format_err!("{}", THREADS_MESSAGE_ERROR))).unwrap(),
+                            }
+                        }
                     }
 
-                    // When we want to import a TSV file into a Loc PackedFile...
+                    // In case we want to import a TSV file into a Loc PackedFile...
                     "import_tsv_packed_file_loc" => {
 
-                        // Get the Path of the TSV File.
-                        let data = receiver_data.recv().unwrap().unwrap();
-                        let path: PathBuf = serde_json::from_slice(&data).unwrap();
+                        // Wait until you get something from the UI.
+                        if let Ok(path) = receiver_data.recv().unwrap() {
 
-                        // Try to import the TSV into the open Loc PackedFile, or die trying.
-                        match packed_file_loc.data.import_tsv(&path, "Loc PackedFile") {
-                            Ok(_) => sender.send(serde_json::to_vec(&packed_file_loc.data).map_err(From::from)).unwrap(),
-                            Err(error) => sender.send(Err(error)).unwrap(),
+                            // Try to deserialize it.
+                            match serde_json::from_slice(&path) {
+
+                                // If it can be deserialized as a PathBuf...
+                                Ok(path) => {
+
+                                    // Redundant, but needed for the deserializer to know the type.
+                                    let path: PathBuf = path;
+
+                                    // Try to import the TSV into the open Loc PackedFile, or die trying.
+                                    match packed_file_loc.data.import_tsv(&path, "Loc PackedFile") {
+                                        Ok(_) => sender.send(serde_json::to_vec(&packed_file_loc.data).map_err(From::from)).unwrap(),
+                                        Err(error) => sender.send(Err(error)).unwrap(),
+                                    }
+                                },
+
+                                // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                                Err(_) => sender.send(Err(format_err!("{}", THREADS_MESSAGE_ERROR))).unwrap(),
+                            }
                         }
                     }
 
-                    // When we want to export a Loc PackedFile into a TSV file...
+                    // In case we want to export a Loc PackedFile into a TSV file...
                     "export_tsv_packed_file_loc" => {
 
-                        // Get the Path of the TSV File.
-                        let data = receiver_data.recv().unwrap().unwrap();
-                        let path: PathBuf = serde_json::from_slice(&data).unwrap();
+                        // Wait until you get something from the UI.
+                        if let Ok(path) = receiver_data.recv().unwrap() {
 
-                        // Try to import the TSV into the open Loc PackedFile, or die trying.
-                        match packed_file_loc.data.export_tsv(&path, ("Loc PackedFile", 9001)) {
-                            Ok(success) => sender.send(serde_json::to_vec(&success).map_err(From::from)).unwrap(),
-                            Err(error) => sender.send(Err(error)).unwrap(),
+                            // Try to deserialize it.
+                            match serde_json::from_slice(&path) {
+
+                                // If it can be deserialized as a PathBuf...
+                                Ok(path) => {
+
+                                    // Redundant, but needed for the deserializer to know the type.
+                                    let path: PathBuf = path;
+
+                                    // Try to export the TSV from the open Loc PackedFile, or die trying.
+                                    match packed_file_loc.data.export_tsv(&path, ("Loc PackedFile", 9001)) {
+                                        Ok(success) => sender.send(serde_json::to_vec(&success).map_err(From::from)).unwrap(),
+                                        Err(error) => sender.send(Err(error)).unwrap(),
+                                    }
+                                },
+
+                                // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                                Err(_) => sender.send(Err(format_err!("{}", THREADS_MESSAGE_ERROR))).unwrap(),
+                            }
                         }
                     }
 
-                    // When we want to decode a DB PackedFile...
+                    // In case we want to decode a DB PackedFile...
                     "decode_packed_file_db" => {
 
-                        // Get the Index of the PackedFile.
-                        let data = receiver_data.recv().unwrap().unwrap();
-                        let index: usize = serde_json::from_slice(&data).unwrap();
+                        // Wait until you get something from the UI.
+                        if let Ok(index) = receiver_data.recv().unwrap() {
 
-                        // Depending if there is an Schema for this game or not...
-                        match schema {
+                            // Try to deserialize it.
+                            match serde_json::from_slice(&index) {
 
-                            // If there is an Schema loaded for this game...
-                            Some(ref schema) => {
+                                // If it can be deserialized as an usize...
+                                Ok(index) => {
 
-                                // We try to decode it as a DB PackedFile.
-                                match DB::read(
-                                    &pack_file_decoded.data.packed_files[index].data,
-                                    &pack_file_decoded.data.packed_files[index].path[1],
-                                    schema,
-                                ) {
+                                    // Redundant, but needed for the deserializer to know the type.
+                                    let index: usize = index;
 
-                                    // If we succeed, store it and send it back.
-                                    Ok(packed_file_decoded) => {
-                                        packed_file_db = packed_file_decoded;
-                                        sender.send(serde_json::to_vec(&packed_file_db.data).map_err(From::from)).unwrap();
+                                    // Depending if there is an Schema for this game or not...
+                                    match schema {
+
+                                        // If there is an Schema loaded for this game...
+                                        Some(ref schema) => {
+
+                                            // We try to decode it as a DB PackedFile.
+                                            match DB::read(
+                                                &pack_file_decoded.data.packed_files[index].data,
+                                                &pack_file_decoded.data.packed_files[index].path[1],
+                                                schema,
+                                            ) {
+
+                                                // If we succeed, store it and send it back.
+                                                Ok(packed_file_decoded) => {
+                                                    packed_file_db = packed_file_decoded;
+                                                    sender.send(serde_json::to_vec(&packed_file_db.data).map_err(From::from)).unwrap();
+                                                }
+
+                                                // In case of error, report it.
+                                                Err(error) => sender.send(Err(error)).unwrap(),
+                                            }
+                                        }
+
+                                        // If there is no schema, return an error.
+                                        None => sender.send(Err(format_err!("<p>Error while trying to open a DB Table:</p><p>There is no Schema loaded for this Game.</p>"))).unwrap(),
                                     }
+                                },
 
-                                    // In case of error, report it.
-                                    Err(error) => sender.send(Err(error)).unwrap(),
-                                }
+                                // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                                Err(_) => sender.send(Err(format_err!("{}", THREADS_MESSAGE_ERROR))).unwrap(),
                             }
-
-                            // If there is no schema, return an error.
-                            None => sender.send(Err(format_err!("<p>Error while trying to open a DB Table:</p><p>There is no Schema loaded for this Game.</p>"))).unwrap(),
                         }
                     }
 
-                    // When we want to decode a DB PackedFile...
+                    // In case we want to encode a DB PackedFile...
                     "encode_packed_file_db" => {
 
-                        // Get the Index and the Data of the PackedFile.
-                        let data = receiver_data.recv().unwrap().unwrap();
-                        let data: (DBData, usize) = serde_json::from_slice(&data).unwrap();
+                        // Wait until you get something from the UI.
+                        if let Ok(data) = receiver_data.recv().unwrap() {
 
-                        // Replace the old encoded data with the new one.
-                        packed_file_db.data = data.0;
+                            // Try to deserialize it.
+                            match serde_json::from_slice(&data) {
 
-                        // Update the PackFile to reflect the changes.
-                        packfile::update_packed_file_data_db(
-                            &packed_file_db,
-                            &mut pack_file_decoded,
-                            data.1
-                        );
+                                // If it can be deserialized as a tuple with a DBData and an index...
+                                Ok(data) => {
+
+                                    // Redundant, but needed for the deserializer to know the type.
+                                    let data: (DBData, usize) = data;
+
+                                    // Replace the old encoded data with the new one.
+                                    packed_file_db.data = data.0;
+
+                                    // Update the PackFile to reflect the changes.
+                                    packfile::update_packed_file_data_db(
+                                        &packed_file_db,
+                                        &mut pack_file_decoded,
+                                        data.1
+                                    );
+                                },
+
+                                // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                                Err(_) => sender.send(Err(format_err!("{}", THREADS_MESSAGE_ERROR))).unwrap(),
+                            }
+                        }
                     }
 
-                    // When we want to import a TSV file into a DB PackedFile...
+                    // In case we want to import a TSV file into a DB PackedFile...
                     "import_tsv_packed_file_db" => {
 
-                        // Get the Path of the TSV File.
-                        let data = receiver_data.recv().unwrap().unwrap();
-                        let path: PathBuf = serde_json::from_slice(&data).unwrap();
+                        // Wait until you get something from the UI.
+                        if let Ok(path) = receiver_data.recv().unwrap() {
 
-                        // Get his name.
-                        let name = &packed_file_db.db_type;
+                            // Try to deserialize it.
+                            match serde_json::from_slice(&path) {
 
-                        // Try to import the TSV into the open DB PackedFile, or die trying.
-                        match packed_file_db.data.import_tsv(&path, name) {
-                            Ok(_) => sender.send(serde_json::to_vec(&packed_file_db.data).map_err(From::from)).unwrap(),
-                            Err(error) => sender.send(Err(error)).unwrap(),
+                                // If it can be deserialized as a PathBuf...
+                                Ok(path) => {
+
+                                    // Redundant, but needed for the deserializer to know the type.
+                                    let path: PathBuf = path;
+
+                                    // Get his name.
+                                    let name = &packed_file_db.db_type;
+
+                                    // Try to import the TSV into the open DB PackedFile, or die trying.
+                                    match packed_file_db.data.import_tsv(&path, name) {
+                                        Ok(_) => sender.send(serde_json::to_vec(&packed_file_db.data).map_err(From::from)).unwrap(),
+                                        Err(error) => sender.send(Err(error)).unwrap(),
+                                    }
+                                },
+
+                                // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                                Err(_) => sender.send(Err(format_err!("{}", THREADS_MESSAGE_ERROR))).unwrap(),
+                            }
                         }
                     }
 
-                    // When we want to export a DB PackedFile into a TSV file...
+                    // In case we want to export a DB PackedFile into a TSV file...
                     "export_tsv_packed_file_db" => {
 
-                        // Get the Path of the TSV File.
-                        let data = receiver_data.recv().unwrap().unwrap();
-                        let path: PathBuf = serde_json::from_slice(&data).unwrap();
+                        // Wait until you get something from the UI.
+                        if let Ok(path) = receiver_data.recv().unwrap() {
 
-                        // Try to import the TSV into the open DB PackedFile, or die trying.
-                        match packed_file_db.data.export_tsv(&path, (&packed_file_db.db_type, packed_file_db.header.version)) {
-                            Ok(success) => sender.send(serde_json::to_vec(&success).map_err(From::from)).unwrap(),
-                            Err(error) => sender.send(Err(error)).unwrap(),
+                            // Try to deserialize it.
+                            match serde_json::from_slice(&path) {
+
+                                // If it can be deserialized as a PathBuf...
+                                Ok(path) => {
+
+                                    // Redundant, but needed for the deserializer to know the type.
+                                    let path: PathBuf = path;
+
+                                    // Try to export the TSV into the open DB PackedFile, or die trying.
+                                    match packed_file_db.data.export_tsv(&path, (&packed_file_db.db_type, packed_file_db.header.version)) {
+                                        Ok(success) => sender.send(serde_json::to_vec(&success).map_err(From::from)).unwrap(),
+                                        Err(error) => sender.send(Err(error)).unwrap(),
+                                    }
+                                },
+
+                                // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                                Err(_) => sender.send(Err(format_err!("{}", THREADS_MESSAGE_ERROR))).unwrap(),
+                            }
                         }
                     }
 
-                    // When we want to decode the text from a text file...
+                    // In case we want to decode a Plain Text PackedFile...
                     "decode_packed_file_text" => {
 
-                        // Get the Index of the PackedFile.
-                        let data = receiver_data.recv().unwrap().unwrap();
-                        let index: usize = serde_json::from_slice(&data).unwrap();
+                        // Wait until you get something from the UI.
+                        if let Ok(index) = receiver_data.recv().unwrap() {
 
-                        // Try to decode the PackedFile as a normal UTF-8 string.
-                        let mut decoded_string = decode_string_u8(&pack_file_decoded.data.packed_files[index].data);
+                            // Try to deserialize it.
+                            match serde_json::from_slice(&index) {
 
-                        // If there is an error, try again as ISO_8859_1, as there are some text files using that encoding.
-                        if decoded_string.is_err() {
-                            if let Ok(string) = decode_string_u8_iso_8859_1(&pack_file_decoded.data.packed_files[index].data) {
-                                decoded_string = Ok(string);
+                                // If it can be deserialized as an usize...
+                                Ok(index) => {
+
+                                    // Redundant, but needed for the deserializer to know the type.
+                                    let index: usize = index;
+
+                                    // NOTE: This only works for UTF-8 and ISO_8859_1 encoded files. Check their encoding before adding them here to be decoded.
+                                    // Try to decode the PackedFile as a normal UTF-8 string.
+                                    let mut decoded_string = decode_string_u8(&pack_file_decoded.data.packed_files[index].data);
+
+                                    // If there is an error, try again as ISO_8859_1, as there are some text files using that encoding.
+                                    if decoded_string.is_err() {
+                                        if let Ok(string) = decode_string_u8_iso_8859_1(&pack_file_decoded.data.packed_files[index].data) {
+                                            decoded_string = Ok(string);
+                                        }
+                                    }
+
+                                    // Depending if the decoding worked or not, send back the text file or an error.
+                                    match decoded_string {
+                                        Ok(text) => sender.send(serde_json::to_vec(&text).map_err(From::from)).unwrap(),
+                                        Err(error) => sender.send(Err(error)).unwrap(),
+                                    }
+                                },
+
+                                // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                                Err(_) => sender.send(Err(format_err!("{}", THREADS_MESSAGE_ERROR))).unwrap(),
                             }
-                        }
-
-                        // NOTE: This only works for UTF-8 and ISO_8859_1 encoded files. Check their encoding before adding them here to be decoded.
-                        match decoded_string {
-                            Ok(text) => sender.send(serde_json::to_vec(&text).map_err(From::from)).unwrap(),
-                            Err(error) => sender.send(Err(error)).unwrap(),
                         }
                     }
 
-                    // When we want to encode a Text PackedFile...
+                    // In case we want to encode a Text PackedFile...
                     "encode_packed_file_text" => {
 
-                        // Get the Index and the Data of the PackedFile.
-                        let data = receiver_data.recv().unwrap().unwrap();
-                        let data: (String, usize) = serde_json::from_slice(&data).unwrap();
+                        // Wait until you get something from the UI.
+                        if let Ok(data) = receiver_data.recv().unwrap() {
 
-                        // Encode the text.
-                        let encoded_text = encode_string_u8(&data.0);
+                            // Try to deserialize it.
+                            match serde_json::from_slice(&data) {
 
-                        // Update the PackFile to reflect the changes.
-                        packfile::update_packed_file_data_text(
-                            &encoded_text,
-                            &mut pack_file_decoded,
-                            data.1
-                        );
+                                // If it can be deserialized as a tuple with a String and an index...
+                                Ok(data) => {
+
+                                    // Redundant, but needed for the deserializer to know the type.
+                                    let data: (String, usize) = data;
+
+                                    // Encode the text.
+                                    let encoded_text = encode_string_u8(&data.0);
+
+                                    // Update the PackFile to reflect the changes.
+                                    packfile::update_packed_file_data_text(
+                                        &encoded_text,
+                                        &mut pack_file_decoded,
+                                        data.1
+                                    );
+                                },
+
+                                // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                                Err(_) => sender.send(Err(format_err!("{}", THREADS_MESSAGE_ERROR))).unwrap(),
+                            }
+                        }
                     }
 
-                    // When we want to decode a RigidModel...
+                    // In case we want to decode a RigidModel...
                     "decode_packed_file_rigid_model" => {
 
-                        // Get the Index of the PackedFile.
-                        let data = receiver_data.recv().unwrap().unwrap();
-                        let index: usize = serde_json::from_slice(&data).unwrap();
+                        // Wait until you get something from the UI.
+                        if let Ok(index) = receiver_data.recv().unwrap() {
 
-                        // We try to decode it as a Loc PackedFile.
-                        match RigidModel::read(&pack_file_decoded.data.packed_files[index].data) {
+                            // Try to deserialize it.
+                            match serde_json::from_slice(&index) {
 
-                            // If we succeed, store it and send it back.
-                            Ok(packed_file_decoded) => {
-                                packed_file_rigid_model = packed_file_decoded;
-                                sender.send(serde_json::to_vec(&packed_file_rigid_model).map_err(From::from)).unwrap();
+                                // If it can be deserialized as an usize...
+                                Ok(index) => {
+
+                                    // Redundant, but needed for the deserializer to know the type.
+                                    let index: usize = index;
+
+                                    // We try to decode it as a RigidModel.
+                                    match RigidModel::read(&pack_file_decoded.data.packed_files[index].data) {
+
+                                        // If we succeed, store it and send it back.
+                                        Ok(packed_file_decoded) => {
+                                            packed_file_rigid_model = packed_file_decoded;
+                                            sender.send(serde_json::to_vec(&packed_file_rigid_model).map_err(From::from)).unwrap();
+                                        }
+
+                                        // In case of error, report it.
+                                        Err(error) => sender.send(Err(error)).unwrap(),
+                                    }
+                                },
+
+                                // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                                Err(_) => sender.send(Err(format_err!("{}", THREADS_MESSAGE_ERROR))).unwrap(),
                             }
-
-                            // In case of error, report it.
-                            Err(error) => sender.send(Err(error)).unwrap(),
                         }
                     }
 
-                    // When we want to encode a RigidModel...
+                    // In case we want to encode a RigidModel...
                     "encode_packed_file_rigid_model" => {
 
-                        // Get the Index and the Data of the PackedFile.
-                        let data = receiver_data.recv().unwrap().unwrap();
-                        let data: (RigidModel, usize) = serde_json::from_slice(&data).unwrap();
+                        // Wait until you get something from the UI.
+                        if let Ok(data) = receiver_data.recv().unwrap() {
 
-                        // Replace the old encoded data with the new one.
-                        packed_file_rigid_model = data.0;
+                            // Try to deserialize it.
+                            match serde_json::from_slice(&data) {
 
-                        // Update the PackFile to reflect the changes.
-                        packfile::update_packed_file_data_rigid(
-                            &packed_file_rigid_model,
-                            &mut pack_file_decoded,
-                            data.1
-                        );
+                                // If it can be deserialized as a tuple with a RigidModel and an index...
+                                Ok(data) => {
+
+                                    // Redundant, but needed for the deserializer to know the type.
+                                    let data: (RigidModel, usize) = data;
+
+                                    // Replace the old encoded data with the new one.
+                                    packed_file_rigid_model = data.0;
+
+                                    // Update the PackFile to reflect the changes.
+                                    packfile::update_packed_file_data_rigid(
+                                        &packed_file_rigid_model,
+                                        &mut pack_file_decoded,
+                                        data.1
+                                    );
+                                },
+
+                                // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                                Err(_) => sender.send(Err(format_err!("{}", THREADS_MESSAGE_ERROR))).unwrap(),
+                            }
+                        }
                     }
 
-                    // When we want to patch a decoded RigidModel...
+                    // In case we want to patch a decoded RigidModel from Attila to Warhammer...
                     "patch_rigid_model_attila_to_warhammer" => {
 
-                        // Get the Index of the PackedFile.
-                        let data = receiver_data.recv().unwrap().unwrap();
-                        let index: usize = serde_json::from_slice(&data).unwrap();
+                        // Wait until you get something from the UI.
+                        if let Ok(index) = receiver_data.recv().unwrap() {
 
-                        // We try to patch the RigidModel.
-                        match packfile::patch_rigid_model_attila_to_warhammer(&mut packed_file_rigid_model) {
+                            // Try to deserialize it.
+                            match serde_json::from_slice(&index) {
 
-                            // If we succeed...
-                            Ok(_) => {
+                                // If it can be deserialized as an usize...
+                                Ok(index) => {
 
-                                // Update the PackFile to reflect the changes.
-                                packfile::update_packed_file_data_rigid(
-                                    &packed_file_rigid_model,
-                                    &mut pack_file_decoded,
-                                    index
-                                );
+                                    // Redundant, but needed for the deserializer to know the type.
+                                    let index: usize = index;
 
-                                // Send back the patched PackedFile.
-                                sender.send(serde_json::to_vec(&packed_file_rigid_model).map_err(From::from)).unwrap()
+                                    // We try to patch the RigidModel.
+                                    match packfile::patch_rigid_model_attila_to_warhammer(&mut packed_file_rigid_model) {
+
+                                        // If we succeed...
+                                        Ok(_) => {
+
+                                            // Update the PackFile to reflect the changes.
+                                            packfile::update_packed_file_data_rigid(
+                                                &packed_file_rigid_model,
+                                                &mut pack_file_decoded,
+                                                index
+                                            );
+
+                                            // Send back the patched PackedFile.
+                                            sender.send(serde_json::to_vec(&packed_file_rigid_model).map_err(From::from)).unwrap()
+                                        }
+
+                                        // In case of error, report it.
+                                        Err(error) => sender.send(Err(error)).unwrap(),
+                                    }
+                                },
+
+                                // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                                Err(_) => sender.send(Err(format_err!("{}", THREADS_MESSAGE_ERROR))).unwrap(),
                             }
-
-                            // In case of error, report it.
-                            Err(error) => sender.send(Err(error)).unwrap(),
                         }
                     }
 
-                    // When we want to decode an Image...
+                    // In case we want to decode an Image...
                     "decode_packed_file_image" => {
 
-                        // Get the Index of the PackedFile.
-                        let data = receiver_data.recv().unwrap().unwrap();
-                        let index: usize = serde_json::from_slice(&data).unwrap();
+                        // Wait until you get something from the UI.
+                        if let Ok(index) = receiver_data.recv().unwrap() {
 
-                        // Get the data of the image we want to open, and his name.
-                        let image_data = &pack_file_decoded.data.packed_files[index].data;
-                        let image_name = &pack_file_decoded.data.packed_files[index].path.last().unwrap().to_owned();
+                            // Try to deserialize it.
+                            match serde_json::from_slice(&index) {
 
-                        // Create a temporal file for the image in the TEMP directory of the filesystem.
-                        let mut temporal_file_path = temp_dir();
-                        temporal_file_path.push(image_name);
-                        match File::create(&temporal_file_path) {
-                            Ok(mut temporal_file) => {
+                                // If it can be deserialized as an usize...
+                                Ok(index) => {
 
-                                // If there is an error while trying to write the image to the TEMP folder, report it.
-                                if temporal_file.write_all(image_data).is_err() {
-                                    sender.send(Err(format_err!("<p>Error while trying to open the following image:\"{}\".</p>", image_name))).unwrap();
-                                }
+                                    // Redundant, but needed for the deserializer to know the type.
+                                    let index: usize = index;
 
-                                // If it worked, create an Image with the new file and show it inside a ScrolledWindow.
-                                else { sender.send(serde_json::to_vec(&temporal_file_path).map_err(From::from)).unwrap(); }
+                                    // Get the data of the image we want to open, and his name.
+                                    let image_data = &pack_file_decoded.data.packed_files[index].data;
+                                    let image_name = &pack_file_decoded.data.packed_files[index].path.last().unwrap().to_owned();
+
+                                    // Create a temporal file for the image in the TEMP directory of the filesystem.
+                                    let mut temporal_file_path = temp_dir();
+                                    temporal_file_path.push(image_name);
+                                    match File::create(&temporal_file_path) {
+                                        Ok(mut temporal_file) => {
+
+                                            // If there is an error while trying to write the image to the TEMP folder, report it.
+                                            if temporal_file.write_all(image_data).is_err() {
+                                                sender.send(Err(format_err!("<p>Error while trying to open the following image:\"{}\".</p>", image_name))).unwrap();
+                                            }
+
+                                            // If it worked, create an Image with the new file and show it inside a ScrolledWindow.
+                                            else { sender.send(serde_json::to_vec(&temporal_file_path).map_err(From::from)).unwrap(); }
+                                        }
+
+                                        // If there is an error when trying to create the file into the TEMP folder, report it.
+                                        Err(_) => sender.send(Err(format_err!("<p>Error while trying to create a file in the TEMP folder for the following image:\"{}\".</p>", image_name))).unwrap(),
+                                    }
+                                },
+
+                                // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                                Err(_) => sender.send(Err(format_err!("{}", THREADS_MESSAGE_ERROR))).unwrap(),
                             }
-
-                            // If there is an error when trying to create the file into the TEMP folder, report it.
-                            Err(_) => sender.send(Err(format_err!("<p>Error while trying to open the following image:\"{}\".</p>", image_name))).unwrap(),
                         }
                     }
 
-                    // When we want to "Rename a PackedFile"...
+                    // In case we want to "Rename a PackedFile"...
                     "rename_packed_file" => {
 
-                        // Get the current Path and the New Name of the File/Folders.
-                        let data = receiver_data.recv().unwrap().unwrap();
-                        let data: (Vec<String>, &str) = serde_json::from_slice(&data).unwrap();
+                        // Wait until you get something from the UI.
+                        if let Ok(data) = receiver_data.recv().unwrap() {
 
-                        // Try to rename it and report the result.
-                        match packfile::rename_packed_file(&mut pack_file_decoded, &data.0, data.1) {
-                            Ok(success) => sender.send(serde_json::to_vec(&success).map_err(From::from)).unwrap(),
-                            Err(error) => sender.send(Err(error)).unwrap(),
+                            // Try to deserialize it.
+                            match serde_json::from_slice(&data) {
+
+                                // If it can be deserialized as a tuple of a Vector of Strings and a &str...
+                                Ok(data) => {
+
+                                    // Redundant, but needed for the deserializer to know the type.
+                                    let data: (Vec<String>, &str) = data;
+
+                                    // Try to rename it and report the result.
+                                    match packfile::rename_packed_file(&mut pack_file_decoded, &data.0, data.1) {
+                                        Ok(success) => sender.send(serde_json::to_vec(&success).map_err(From::from)).unwrap(),
+                                        Err(error) => sender.send(Err(error)).unwrap(),
+                                    }
+                                },
+
+                                // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                                Err(_) => sender.send(Err(format_err!("{}", THREADS_MESSAGE_ERROR))).unwrap(),
+                            }
                         }
                     }
 
-                    // When we want to get a PackedFile...
+                    // In case we want to get a PackedFile's data...
                     "get_packed_file" => {
 
-                        // Get the index of the PackedFile.
-                        let data = receiver_data.recv().unwrap().unwrap();
-                        let index: usize = serde_json::from_slice(&data).unwrap();
+                        // Wait until you get something from the UI.
+                        if let Ok(index) = receiver_data.recv().unwrap() {
 
-                        // Send back the PackedFile.
-                        sender.send(serde_json::to_vec(&pack_file_decoded.data.packed_files[index]).map_err(From::from)).unwrap()
+                            // Try to deserialize it.
+                            match serde_json::from_slice(&index) {
+
+                                // If it can be deserialized as an usize...
+                                Ok(index) => {
+
+                                    // Redundant, but needed for the deserializer to know the type.
+                                    let index: usize = index;
+
+                                    // Send back the PackedFile.
+                                    sender.send(serde_json::to_vec(&pack_file_decoded.data.packed_files[index]).map_err(From::from)).unwrap();
+                                },
+
+                                // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                                Err(_) => sender.send(Err(format_err!("{}", THREADS_MESSAGE_ERROR))).unwrap(),
+                            }
+                        }
                     }
 
+                    // In case the message received doesn't exists, show it in the terminal.
                     _ => println!("Error while receiving message, \"{}\" is not a valid message.", data),
                 }
             }
@@ -4456,6 +4968,7 @@ fn enable_packfile_actions(
 
     // If we are disabling...
     else {
+
         // Disable Warhammer 2 actions...
         unsafe { app_ui.wh2_generate_dependency_pack.as_mut().unwrap().set_enabled(false); }
         unsafe { app_ui.wh2_patch_siege_ai.as_mut().unwrap().set_enabled(false); }
@@ -4497,7 +5010,7 @@ fn set_my_mod_mode(
                 mod_name,
             };
 
-            // Enable the controls for "MyMod".
+            // Enable all the "MyMod" related actions.
             unsafe { mymod_stuff.borrow_mut().delete_selected_mymod.as_mut().unwrap().set_enabled(true); }
             unsafe { mymod_stuff.borrow_mut().install_mymod.as_mut().unwrap().set_enabled(true); }
             unsafe { mymod_stuff.borrow_mut().uninstall_mymod.as_mut().unwrap().set_enabled(true); }
@@ -4519,7 +5032,8 @@ fn set_my_mod_mode(
 
 /// This function opens the PackFile at the provided Path, and sets all the stuff needed, depending
 /// on the situation.
-/// NOTE: The `game_folder` &str is for when using this function with "MyMods".
+/// NOTE: The `game_folder` &str is for when using this function with "MyMods". If you're opening a
+/// normal mod, pass an empty &str there.
 fn open_packfile(
     rpfm_path: &PathBuf,
     sender_qt: &Sender<&str>,
@@ -4586,8 +5100,15 @@ fn open_packfile(
                     break;
                 }
 
-                // Otherwise, return an error.
-                Err(error) => return Err(error)
+                // Otherwise...
+                Err(error) => {
+
+                    // Re-enable the Main Window.
+                    unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
+
+                    // Return an error.
+                    return Err(error)
+                }
             }
         }
 
@@ -4595,7 +5116,7 @@ fn open_packfile(
         event_loop.process_events(());
 
         // Wait a bit to not saturate a CPU core.
-        thread::sleep(Duration::from_millis(50));
+        thread::sleep(Duration::from_millis(10));
     }
 
     // Set the new mod as "Not modified".
@@ -4606,11 +5127,8 @@ fn open_packfile(
     let response = receiver_qt.borrow().recv().unwrap().unwrap();
     let game_selected = serde_json::from_slice(&response).unwrap();
 
-    // Enable the actions available for the PackFile from the `MenuBar`.
+    // Disable the actions available for the PackFile from the `MenuBar`.
     enable_packfile_actions(&app_ui, &game_selected, false);
-
-    // Set the current "Operational Mode" to Normal, as this is a "New" mod.
-    set_my_mod_mode(&mymod_stuff, &mode, None);
 
     // If it's a "MyMod" (game_folder_name is not empty), we choose the Game selected Depending on it.
     if !game_folder.is_empty() {
@@ -4626,17 +5144,17 @@ fn open_packfile(
         sender_qt.send("set_game_selected").unwrap();
         sender_qt_data.send(serde_json::to_vec(game_folder).map_err(From::from)).unwrap();
 
+        // Ignore the return from `set_game_selected`, as we don't really need it, but we need to keep the channels clean.
+        let _result = receiver_qt.borrow().recv().unwrap();
+
         // Set the current "Operational Mode" to `MyMod`.
         set_my_mod_mode(&mymod_stuff, mode, Some(pack_file_path));
-
-        // Receive the return from `set_game_selected`, so it doesn't mess up the channels.
-        let _result = receiver_qt.borrow().recv().unwrap();
     }
 
     // If it's not a "MyMod", we choose the new Game Selected depending on what the open mod id is.
     else {
 
-        // Get the PackFile Header.
+        // Get the PackFile's Id.
         sender_qt.send("get_packfile_id").unwrap();
         let response = receiver_qt.borrow().recv().unwrap().unwrap();
         let id: &str = serde_json::from_slice(&response).unwrap();
@@ -4654,7 +5172,7 @@ fn open_packfile(
                 sender_qt.send("set_game_selected").unwrap();
                 sender_qt_data.send(serde_json::to_vec("warhammer_2").map_err(From::from)).unwrap();
 
-                // Receive the return from `set_game_selected`, so it doesn't mess up the channels.
+                // Ignore the return from `set_game_selected`, as we don't really need it, but we need to keep the channels clean.
                 let _result = receiver_qt.borrow().recv().unwrap();
             },
 
@@ -4673,7 +5191,7 @@ fn open_packfile(
                         sender_qt.send("set_game_selected").unwrap();
                         sender_qt_data.send(serde_json::to_vec("warhammer").map_err(From::from)).unwrap();
 
-                        // Receive the return from `set_game_selected`, so it doesn't mess up the channels.
+                        // Ignore the return from `set_game_selected`, as we don't really need it, but we need to keep the channels clean.
                         let _result = receiver_qt.borrow().recv().unwrap();
                     }
                     "attila" | _ => {
@@ -4685,7 +5203,7 @@ fn open_packfile(
                         sender_qt.send("set_game_selected").unwrap();
                         sender_qt_data.send(serde_json::to_vec("attila").map_err(From::from)).unwrap();
 
-                        // Receive the return from `set_game_selected`, so it doesn't mess up the channels.
+                        // Ignore the return from `set_game_selected`, as we don't really need it, but we need to keep the channels clean.
                         let _result = receiver_qt.borrow().recv().unwrap();
                     }
                 }
@@ -4720,7 +5238,7 @@ fn open_packfile(
 /// - At the end of MyMod deletion.
 /// - At the end of MyMod creation.
 /// - At the end of settings update.
-/// We need to return the struct for further manipulation of his actions.
+/// We need to return a tuple with the actions (for further manipulation) and the slots (to keep them alive).
 fn build_my_mod_menu(
     rpfm_path: PathBuf,
     sender_qt: Sender<&'static str>,
@@ -4735,7 +5253,7 @@ fn build_my_mod_menu(
     is_packedfile_opened: &Rc<RefCell<bool>>
 ) -> (MyModStuff, MyModSlots) {
 
-    // Get the current Settings.
+    // Get the current Settings, as we are going to need them later.
     sender_qt.send("get_settings").unwrap();
     let settings_encoded = receiver_qt.borrow().recv().unwrap().unwrap();
     let settings: Settings = serde_json::from_slice(&settings_encoded).unwrap();
@@ -4890,6 +5408,8 @@ fn build_my_mod_menu(
                 }
             }
         )),
+
+        // This slot is used for the "Delete Selected MyMod" action.
         delete_selected_mymod: SlotBool::new(clone!(
             sender_qt,
             receiver_qt,
@@ -4904,8 +5424,10 @@ fn build_my_mod_menu(
                     // We want to keep our "MyMod" name for the success message, so we store it here.
                     let old_mod_name: String;
 
-                    // If we have a "MyMod" selected...
+                    // Try to delete the "MyMod" and his folder.
                     let mod_deleted = match *mode.borrow() {
+
+                        // If we have a "MyMod" selected...
                         Mode::MyMod {ref game_folder_name, ref mod_name} => {
 
                             // We save the name of the PackFile for later use.
@@ -4922,9 +5444,9 @@ fn build_my_mod_menu(
                                 // If the mod doesn't exist, return error.
                                 if !mymod_path.is_file() { return show_dialog(&app_ui, false, "Error: PackFile doesn't exist, so it can't be deleted."); }
 
-                                // And we delete that PackFile.
+                                // And we try to delete his PackFile. If it fails, return error.
                                 if let Err(error) = remove_file(&mymod_path).map_err(Error::from) {
-                                    return show_dialog(&app_ui, false, format!("Error while deleting the PackFile from disk:\n{}", error.cause()));
+                                    return show_dialog(&app_ui, false, format!("<p>Error while deleting the PackFile from disk:</p><p>{}</p>", error.cause()));
                                 }
 
                                 // Now we get his assets folder.
@@ -4938,9 +5460,9 @@ fn build_my_mod_menu(
                                     show_dialog(&app_ui, false, "Mod deleted, but his assets folder haven't been found.");
                                 }
 
-                                // If the assets folder exists, we try to delete it.
+                                // If the assets folder exists, we try to delete it. Again, this is optional, so it should not stop the deleting process.
                                 else if let Err(error) = remove_dir_all(&mymod_assets_path).map_err(Error::from) {
-                                    return show_dialog(&app_ui, false, format!("Error while deleting the Assets Folder of the MyMod from disk:\n{}", error.cause()));
+                                    show_dialog(&app_ui, false, format!("<p>Error while deleting the Assets Folder of the MyMod from disk:</p><p>{}</p>", error.cause()));
                                 }
 
                                 // We return true, as we have delete the files of the "MyMod".
@@ -4972,7 +5494,7 @@ fn build_my_mod_menu(
                         let response = receiver_qt.borrow().recv().unwrap().unwrap();
                         let game_selected = serde_json::from_slice(&response).unwrap();
 
-                        // Enable the actions available for the PackFile from the `MenuBar`.
+                        // Disable the actions available for the PackFile from the `MenuBar`.
                         enable_packfile_actions(&app_ui, &game_selected, false);
 
                         // Clear the TreeView.
@@ -4987,6 +5509,8 @@ fn build_my_mod_menu(
                 }
             }
         )),
+
+        // This slot is used for the "Install MyMod" action.
         install_mymod: SlotBool::new(clone!(
             sender_qt,
             receiver_qt,
@@ -5027,29 +5551,31 @@ fn build_my_mod_menu(
                                     return show_dialog(&app_ui, false, "Destination folder (..xxx/data) doesn't exist. You sure you configured the right folder for the game?");
                                 }
 
-                                // Get the destination path for the PackFile with the PackFile included.
+                                // Get the destination path for the PackFile with the PackFile name included.
                                 game_data_path.push(&mod_name);
 
                                 // And copy the PackFile to his destination. If the copy fails, return an error.
                                 if let Err(error) = copy(mymod_path, game_data_path).map_err(Error::from) {
-                                    return show_dialog(&app_ui, false, format!("Error while copying the PackFile to the Data folder:\n{}", error.cause()));
+                                    return show_dialog(&app_ui, false, format!("<p>Error while copying the PackFile to the Data folder:</p><p>{}</p>", error.cause()));
                                 }
                             }
 
                             // If we don't have a `game_data_path` configured for the current `GameSelected`...
-                            else { return show_dialog(&app_ui, false, "Game Path not configured. Go to 'PackFile/Preferences' and configure it."); }
+                            else { return show_dialog(&app_ui, false, "Game Path not configured. Go to <i>'PackFile/Preferences'</i> and configure it."); }
                         }
 
                         // If the "MyMod" path is not configured, return an error.
                         else { show_dialog(&app_ui, false, "MyMod base path not configured, so the MyMod couldn't be installed."); }
                     }
 
-                    // If we have no MyMod selected, return an error.
+                    // If we have no "MyMod" selected, return an error.
                     Mode::Normal => show_dialog(&app_ui, false, "You can't install the selected MyMod if there is no MyMod selected."),
                 }
 
             }
         )),
+
+        // This slot is used for the "Uninstall MyMod" action.
         uninstall_mymod: SlotBool::new(clone!(
             sender_qt,
             receiver_qt,
@@ -5077,20 +5603,16 @@ fn build_my_mod_menu(
                             game_data_path.push(&mod_name);
 
                             // We check that the "MyMod" is actually installed in the provided path.
-                            if !game_data_path.is_file() {
-                                return show_dialog(&app_ui, false, "The currently selected MyMod is not installed.");
-                            }
+                            if !game_data_path.is_file() { return show_dialog(&app_ui, false, "The currently selected MyMod is not installed."); }
 
                             // If the "MyMod" is installed, we remove it. If there is a problem deleting it, return an error dialog.
                             else if let Err(error) = remove_file(game_data_path).map_err(Error::from) {
-                                return show_dialog(&app_ui, false, format!("Error uninstalling the MyMod:\n{}", error.cause()));
+                                return show_dialog(&app_ui, false, format!("<p>Error uninstalling the MyMod:</p><p>{}</p>", error.cause()));
                             }
                         }
 
                         // If we don't have a `game_data_path` configured for the current `GameSelected`...
-                        else {
-                            show_dialog(&app_ui, false, "Game Path not configured. Go to 'PackFile/Preferences' and configure it.");
-                        }
+                        else { show_dialog(&app_ui, false, "Game Path not configured. Go to <i>'PackFile/Preferences'</i> and configure it."); }
                     }
 
                     // If we have no MyMod selected, return an error.
@@ -5098,6 +5620,8 @@ fn build_my_mod_menu(
                 }
             }
         )),
+
+        // This is an empty list to populate later with the slots used to open every "MyMod" we have.
         open_mymod: vec![],
     };
 
@@ -5137,8 +5661,10 @@ fn build_my_mod_menu(
                 // If the file/folder is valid...
                 if let Ok(game_folder) = game_folder {
 
-                    // If it's a valid folder, and it's in our supported games list...
+                    // Get the list of supported games folders.
                     let supported_folders = supported_games.iter().map(|x| x.folder_name.to_owned()).collect::<Vec<String>>();
+
+                    // If it's a valid folder, and it's in our supported games list...
                     if game_folder.path().is_dir() && supported_folders.contains(&game_folder.file_name().to_string_lossy().as_ref().to_owned()) {
 
                         // We create that game's menu here.
@@ -5165,7 +5691,7 @@ fn build_my_mod_menu(
                                     // Create the action for it.
                                     let open_mod_action = game_submenu.add_action(&QString::from_std_str(mod_name));
 
-                                    // Get this into an Rc so we can pass it to the Open closure.
+                                    // Get this into an Rc so we can pass it to the "Open PackFile" closure.
                                     let mymod_stuff = Rc::new(RefCell::new(mymod_stuff.clone()));
 
                                     // Create the slot for that action.
@@ -5197,7 +5723,7 @@ fn build_my_mod_menu(
                                                     &mode,
                                                     &game_folder_name,
                                                     &is_packedfile_opened,
-                                                ) { show_dialog(&app_ui, false, format!("Error while opening the PackFile:\n\n{}", error.cause())) }
+                                                ) { show_dialog(&app_ui, false, format!("<p>Error while opening the PackFile:</p><p>{}</p>", error.cause())) }
                                             }
                                         }
                                     ));
