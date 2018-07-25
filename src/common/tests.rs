@@ -1,7 +1,6 @@
 // This module contain tests to make sure we don't break any of the encoding/decoding functions in
 // a update, as these are used all over the program and if one of them breaks, half of the program
-// will break with it. Also, this is the only place where ".unwrap()" will be allowed, as a fail in
-// an unwrap means something got broken in the original function.
+// will break with it.
 
 use coding_helpers::*;
 
