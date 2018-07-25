@@ -92,7 +92,7 @@ pub struct AddFromPackFileSlots {
 }
 
 //----------------------------------------------------------------------------//
-//             UI Creation functions (to build the UI on start)
+//           UI Struct Implementations (impl of the structs above)
 //----------------------------------------------------------------------------//
 
 /// Implementation of "AddFromPackFileSlots".
@@ -322,18 +322,19 @@ impl AddFromPackFileSlots {
     }
 }
 
-/// This function creates the entire "Rename" dialog. It returns the new name of the PackedFile, or
+//----------------------------------------------------------------------------//
+//             UI Creation functions (to build the UI on start)
+//----------------------------------------------------------------------------//
+
+/// This function creates the entire "Rename" dialog. It returns the new name of the Item, or
 /// None if the dialog is canceled or closed.
-pub fn create_rename_dialog(
-    app_ui: &AppUI,
-    name: &str,
-) -> Option<String> {
+pub fn create_rename_dialog(app_ui: &AppUI, name: &str) -> Option<String> {
 
     //-------------------------------------------------------------------------------------------//
     // Creating the Rename Dialog...
     //-------------------------------------------------------------------------------------------//
 
-    // Create the "New MyMod" Dialog.
+    // Create the "Rename" Dialog.
     let mut dialog;
     unsafe { dialog = Dialog::new_unsafe(app_ui.window as *mut Widget); }
 
@@ -376,10 +377,10 @@ pub fn create_rename_dialog(
     if dialog.exec() == 1 {
 
         // Get the text from the LineEdit.
-        let mod_name = QString::to_std_string(&new_name_line_edit.text());
+        let new_name = new_name_line_edit.text().to_std_string();
 
         // Return the new name.
-        Some(mod_name)
+        Some(new_name)
     }
 
     // Otherwise, return None.
@@ -388,9 +389,7 @@ pub fn create_rename_dialog(
 
 /// This function creates the entire "New Folder" dialog. It returns the new name of the Folder, or
 /// None if the dialog is canceled or closed.
-pub fn create_new_folder_dialog(
-    app_ui: &AppUI,
-) -> Option<String> {
+pub fn create_new_folder_dialog(app_ui: &AppUI) -> Option<String> {
 
     //-------------------------------------------------------------------------------------------//
     // Creating the New Folder Dialog...
@@ -432,17 +431,17 @@ pub fn create_new_folder_dialog(
     // Actions for the New Folder Dialog...
     //-------------------------------------------------------------------------------------------//
 
-    // What happens when we hit the "Rename" button.
+    // What happens when we hit the "New Folder" button.
     unsafe { new_folder_button.as_mut().unwrap().signals().released().connect(&dialog.slots().accept()); }
 
-    // Show the Dialog and, if we hit the "Rename" button...
+    // Show the Dialog and, if we hit the "New Folder" button...
     if dialog.exec() == 1 {
 
         // Get the text from the LineEdit.
-        let mod_name = QString::to_std_string(&new_folder_line_edit.text());
+        let new_name = new_folder_line_edit.text().to_std_string();
 
         // Return the new name.
-        Some(mod_name)
+        Some(new_name)
     }
 
     // Otherwise, return None.
@@ -627,7 +626,7 @@ pub fn create_mass_import_tsv_dialog(app_ui: &AppUI) -> Option<(String, Vec<Path
     // Create the "Imported File's Name" LineEdit.
     let mut imported_files_name_line_edit = LineEdit::new(());
 
-    // Set the current name as default.
+    // Set a dummy name as default.
     imported_files_name_line_edit.set_text(&QString::from_std_str("new_imported_file"));
 
     // Create the "Import" button.
@@ -753,15 +752,16 @@ fn create_prefab(
 }*/
 
 //----------------------------------------------------------------------------//
-//              Utility functions (helpers and stuff like that)
+//                    Enums & Structs needed for the UI
 //----------------------------------------------------------------------------//
 
-/// This enum has the different possible operations we want to do over a `TreeView`. The options are:
-/// - Build: Build the entire `TreeView` from nothing.
-/// - Add: Add a File/Folder to the `TreeView`. Requires the path in the `TreeView`, without the mod's name.
-/// - AddFromPackFile: Add a File/Folder from another `TreeView`. Requires `source_path`, `destination_path`, the extra `TreeStore` and the extra `TreeSelection`.
-/// - Delete: Remove a File/Folder from the `TreeView`.
-/// - Rename: Change the name of a File/Folder from the TreeView. Requires the new name.
+/// Enum `TreeViewOperation`: This enum has the different possible operations we want to do over a TreeView. The options are:
+/// - `Build`: Build the entire TreeView from nothing. Requires a bool, depending if the PackFile is editable or not.
+/// - `Add`: Add a File/Folder to the TreeView. Requires the path in the TreeView, without the mod's name.
+/// - `AddFromPackFile`: Add a File/Folder from another TreeView. Requires the source path, destination path, and list of new paths (new files to add).
+/// - `DeleteSelected`: Removes whatever is selected from the TreeView. It requires the TreePathType of whatever you want to delete.
+/// - `DeleteUnselected`: Remove the File/Folder corresponding to the TreePathType we provide from the TreeView. It requires the TreePathType of whatever you want to delete.
+/// - `Rename`: Change the name of a File/Folder from the TreeView. Requires the TreePathType of whatever you want to rename and the new name.
 #[derive(Clone, Debug)]
 pub enum TreeViewOperation {
     Build(bool),
@@ -772,7 +772,7 @@ pub enum TreeViewOperation {
     Rename(TreePathType, String),
 }
 
-/// This enum represents the status of modification of an item in a TreeView.
+/// Enum `ItemVisualStatus`: This enum represents the status of modification of an item in a TreeView.
 #[derive(PartialEq)]
 pub enum ItemVisualStatus {
     Added,
@@ -791,10 +791,9 @@ enum IconType {
     // For folders.
     Folder,
 
-    // For files with no other Icon. Includes the path without the Packfile.
+    // For files. Includes the path without the Packfile.
     File(Vec<String>),
 }
-
 
 /// Struct `Icons`. This struct is used to hold all the Qt Icons used by the TreeView. This is generated
 /// everytime we call "update_treeview", but ideally we should move it to on start.
@@ -898,10 +897,13 @@ impl Icons {
     }
 }
 
-/// This function shows a "Success" or "Error" Dialog with some text. For notification of success and
-/// high importance errors.
+//----------------------------------------------------------------------------//
+//              Utility functions (helpers and stuff like that)
+//----------------------------------------------------------------------------//
+
+/// This function shows a "Success" or "Error" Dialog with some text. For notification of success and errors.
 /// It requires:
-/// - parent_window: a reference to the `Window` that'll act as "parent" of the dialog.
+/// - app_ui: a reference to the main AppUI object.
 /// - is_success: true for "Success" Dialog, false for "Error" Dialog.
 /// - text: something that implements the trait "Display", so we want to put in the dialog window.
 pub fn show_dialog<T: Display>(
@@ -929,7 +931,8 @@ pub fn show_dialog<T: Display>(
 }
 
 /// This function sets the currently open PackFile as "modified" or unmodified, both in the PackFile
-/// and in the title bar, depending on the value of the "is_modified" boolean.
+/// and in the title bar, depending on the value of the "is_modified" boolean. If provided with a path,
+/// It also gets that path from the main TreeView and paints it as modified.
 pub fn set_modified(
     is_modified: bool,
     app_ui: &AppUI,
@@ -959,6 +962,8 @@ pub fn set_modified(
     // If it's not modified...
     else {
 
+        // TODO: when this triggers, clean the main TreeView from painting.
+
         // Change the title of the Main Window.
         unsafe { app_ui.window.as_mut().unwrap().set_window_title(&QString::from_std_str("Rusted PackFile Manager")); }
 
@@ -967,8 +972,11 @@ pub fn set_modified(
     }
 }
 
-/// This function delete whatever it's in the right side of the screen.
+/// This function deletes whatever it's in the right side of the screen, leaving it empty.
+/// Also, each time this triggers we consider there is no PackedFile open.
 pub fn purge_them_all(app_ui: &AppUI, is_packedfile_opened: &Rc<RefCell<bool>>) {
+
+    // Black magic.
     unsafe {
         for _ in 0..app_ui.packed_file_layout.as_mut().unwrap().count() {
             let child = app_ui.packed_file_layout.as_mut().unwrap().take_at(0);
@@ -987,7 +995,7 @@ pub fn purge_them_all(app_ui: &AppUI, is_packedfile_opened: &Rc<RefCell<bool>>) 
     unsafe { app_ui.packed_file_layout.as_mut().unwrap().set_column_stretch(1, 0); }
 }
 
-/// This function shows a Message in the specified Grid.
+/// This function shows the tips in the PackedFile View. Remember to call "purge_them_all" before this!
 pub fn display_help_tips(app_ui: &AppUI) {
 
     let label = Label::new(&QString::from_std_str("Welcome to Rusted PackFile Manager! Here you have some tips on how to use it:
@@ -1018,11 +1026,11 @@ pub fn are_you_sure(
         let mut dialog;
         unsafe { dialog = MessageBox::new_unsafe((
             &QString::from_std_str("Rusted PackFile Manager"),
-            &QString::from_std_str("There are some changes yet to be saved.\nAre you sure?"),
+            &QString::from_std_str("<p>There are some changes yet to be saved.</p><p>Are you sure?</p>"),
             Icon::Warning,
             65536, // No
             16384, // Yes
-            1, // By default, select yes.)
+            1, // By default, select yes.
             app_ui.window as *mut Widget,
         )); }
 
@@ -1037,7 +1045,7 @@ pub fn are_you_sure(
         let mut dialog;
         unsafe { dialog = MessageBox::new_unsafe((
             &QString::from_std_str("Rusted PackFile Manager"),
-            &QString::from_std_str("You are about to delete this MyMod from your disk.\nThere is no way to recover it after that.\nAre you sure?"),
+            &QString::from_std_str("<p>You are about to delete this <i>'MyMod'</i> from your disk.</p><p>There is no way to recover it after that.</p><p>Are you sure?</p>"),
             Icon::Warning,
             65536, // No
             16384, // Yes
@@ -1054,15 +1062,12 @@ pub fn are_you_sure(
 }
 
 /// This function is used to get the complete Path of a Selected Item in the TreeView.
-/// I'm sure there are other ways to do it, but the TreeView has proven to be a mystery
-/// BEYOND MY COMPREHENSION, so we use this for now.
-/// It requires:
-/// - folder_tree_selection: &TreeSelection of the place of the TreeView we want to know his TreePath.
-/// - include_packfile: bool. True if we want the TreePath to include the PackFile's name.
+/// Set include_bool to true to include the PackFile in the path (like it's in the TreeView).
+/// If you want to use your own model and selection, use "get_path_from_item_selection" instead.
 pub fn get_path_from_selection(
     app_ui: &AppUI,
     include_packfile: bool
-) -> Vec<String>{
+) -> Vec<String> {
 
     // Create the vector to hold the Path.
     let mut path: Vec<String> = vec![];
@@ -1085,7 +1090,7 @@ pub fn get_path_from_selection(
 
             // Get his data.
             let name;
-            unsafe { name = QString::to_std_string(&app_ui.folder_tree_model.as_mut().unwrap().data(&item).to_string()); }
+            unsafe { name = app_ui.folder_tree_model.as_mut().unwrap().data(&item).to_string().to_std_string(); }
 
             // Add it to the list
             path.push(name);
@@ -1114,12 +1119,9 @@ pub fn get_path_from_selection(
     else { path }
 }
 
-/// This function is used to get the complete Path of a Selected Item in the TreeView.
-/// I'm sure there are other ways to do it, but the TreeView has proven to be a mystery
-/// BEYOND MY COMPREHENSION, so we use this for now.
-/// It requires:
-/// - folder_tree_selection: &TreeSelection of the place of the TreeView we want to know his TreePath.
-/// - include_packfile: bool. True if we want the TreePath to include the PackFile's name.
+/// This function is used to get the complete Path of a Selected Item in a StandardItemModel.
+/// Set include_bool to true to include the PackFile in the path (like it's in the TreeView).
+/// If you want to get the selection from the Main TreeView, use "get_path_from_selection" instead.
 pub fn get_path_from_item_selection(
     model: *mut StandardItemModel,
     item: &ItemSelection,
@@ -1144,7 +1146,7 @@ pub fn get_path_from_item_selection(
 
             // Get his data.
             let name;
-            unsafe { name = QString::to_std_string(&model.as_mut().unwrap().data(&item).to_string()); }
+            unsafe { name = model.as_mut().unwrap().data(&item).to_string().to_std_string(); }
 
             // Add it to the list
             path.push(name);
@@ -1173,12 +1175,8 @@ pub fn get_path_from_item_selection(
     else { path }
 }
 
-/// This function is used to get the complete Path of a Selected Item in the TreeView.
-/// I'm sure there are other ways to do it, but the TreeView has proven to be a mystery
-/// BEYOND MY COMPREHENSION, so we use this for now.
-/// It requires:
-/// - folder_tree_selection: &TreeSelection of the place of the TreeView we want to know his TreePath.
-/// - include_packfile: bool. True if we want the TreePath to include the PackFile's name.
+/// This function is used to get the complete Path of a specific Item in a StandardItemModel.
+/// Set include_bool to true to include the PackFile in the path (like it's in the TreeView).
 pub fn get_path_from_item(
     model: *mut StandardItemModel,
     item_raw: *mut StandardItem,
@@ -1198,7 +1196,7 @@ pub fn get_path_from_item(
 
         // Get his data.
         let name;
-        unsafe { name = QString::to_std_string(&model.as_mut().unwrap().data(&item).to_string()); }
+        unsafe { name = model.as_mut().unwrap().data(&item).to_string().to_std_string(); }
 
         // Add it to the list
         path.push(name);
@@ -1223,13 +1221,9 @@ pub fn get_path_from_item(
     path
 }
 
-/// This function is used to get the complete TreePath (path in a GTKTreeView) of an external file
-/// or folder in a Vec<String> format. Needed to get the path for the TreeView and for encoding
-/// the file in a PackFile.
-/// It requires:
-/// - file_path: &PathBuf of the external file.
-/// - folder_tree_selection: &TreeSelection of the place of the TreeView where we want to add the file.
-/// - is_file: bool. True if the &PathBuf is from a file, false if it's a folder.
+/// This function is used to get the path it'll have in the TreeView an File/Folder from the FileSystem.
+/// is_file = true should be set in case we want to know the path of a file. Otherwise, the function will
+/// treat the Item from the FileSystem as a folder.
 pub fn get_path_from_pathbuf(
     app_ui: &AppUI,
     file_path: &PathBuf,
@@ -1239,7 +1233,7 @@ pub fn get_path_from_pathbuf(
     // Create the vector to hold the Path.
     let mut paths: Vec<Vec<String>> = vec![];
 
-    // If it's a single file, we get his name and push it to the tree_path vector.
+    // If it's a single file, we get his name and push it to the paths vector.
     if is_file { paths.push(vec![file_path.file_name().unwrap().to_string_lossy().as_ref().to_owned()]); }
 
     // Otherwise, it's a folder, so we have to filter it first.
@@ -1277,7 +1271,7 @@ pub fn get_path_from_pathbuf(
         path.reverse();
     }
 
-    // Return the paths (from parent to children)
+    // Return the paths (sorted from parent to children)
     paths
 }
 
@@ -1522,13 +1516,8 @@ fn set_icon_to_item(
     }
 }
 
-/// This function updates the provided `TreeView`, depending on the operation we want to do.
-/// It requires:
-/// - folder_tree_store: `&TreeStore` that the `TreeView` uses.
-/// - mut pack_file_decoded: `&mut PackFile` we have opened, to get the data for the `TreeView`.
-/// - folder_tree_selection: `&TreeSelection`, if there is something selected when we run this.
-/// - operation: the `TreeViewOperation` we want to realise.
-/// - type: the type of whatever is selected.
+/// This function takes care of EVERY operation that manipulates the provided TreeView.
+/// It does one thing or another, depending on the operation we provide it.
 pub fn update_treeview(
     rpfm_path: &PathBuf,
     sender_qt: &Sender<&str>,
@@ -1548,7 +1537,7 @@ pub fn update_treeview(
         // If we want to build a new TreeView...
         TreeViewOperation::Build(is_extra_packfile) => {
 
-            // Depending on what PackFile we want to build the TreeView on, we ask for his data.
+            // Depending on what PackFile we want to build the TreeView with, we ask for his data.
             if is_extra_packfile { sender_qt.send("get_packfile_extra_data_for_treeview").unwrap(); }
             else { sender_qt.send("get_packfile_data_for_treeview").unwrap(); }
 
