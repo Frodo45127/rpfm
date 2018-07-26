@@ -300,7 +300,7 @@ impl PackedFileRigidModelDataView {
                             ) {
 
                                 // If there was an error, report it.
-                                return show_dialog(&app_ui, false, format!("<p>Error while trying to save the RigidModel:</p><p>{}</p>", error.cause()));
+                                return show_dialog(app_ui.window, false, format!("<p>Error while trying to save the RigidModel:</p><p>{}</p>", error.cause()));
                             }
 
                             // Tell the background thread to start saving the PackedFile.
@@ -377,7 +377,7 @@ impl PackedFileRigidModelDataView {
                                         Err(error) => {
 
                                             // Report the error.
-                                            show_dialog(&app_ui, false, format!("<p>Error while trying to patch the RigidModel:</p><p>{}</p>", error.cause()));
+                                            show_dialog(app_ui.window, false, format!("<p>Error while trying to patch the RigidModel:</p><p>{}</p>", error.cause()));
 
                                             // Break the loop.
                                             break;

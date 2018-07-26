@@ -485,8 +485,8 @@ fn main() {
             let assembly_kit_schemas_path: PathBuf = PathBuf::from("/home/frodo45127/schema_stuff/db_schemas/");
             let testing_tables_path: PathBuf = PathBuf::from("/home/frodo45127/schema_stuff/db_tables/");
             match import_schema(&assembly_kit_schemas_path, &testing_tables_path, &rpfm_path) {
-                Ok(_) => show_dialog(&app_ui, true, "Schema successfully created."),
-                Err(error) => show_dialog(&app_ui, false, format!("Error while creating a new DB Schema file:\n{}", error.cause())),
+                Ok(_) => show_dialog(app_ui.window, true, "Schema successfully created."),
+                Err(error) => show_dialog(app_ui.window, false, format!("Error while creating a new DB Schema file:\n{}", error.cause())),
             }
 
             // Close the program with code 69
@@ -823,6 +823,7 @@ fn main() {
                                 &sender_qt,
                                 &sender_qt_data,
                                 receiver_qt.clone(),
+                                app_ui.window,
                                 app_ui.folder_tree_view,
                                 app_ui.folder_tree_model,
                                 TreeViewOperation::Build(false),
@@ -917,7 +918,7 @@ fn main() {
                             "",
                             &is_packedfile_opened
                         ) {
-                            show_dialog(&app_ui, false, format!("Error while opening the PackFile:\n\n{}", error.cause()));
+                            show_dialog(app_ui.window, false, format!("Error while opening the PackFile:\n\n{}", error.cause()));
                         }
                     }
                 }
@@ -958,7 +959,7 @@ fn main() {
                                 if error.cause().to_string().is_empty() { unsafe { Action::trigger(app_ui.save_packfile_as.as_mut().unwrap()); } }
 
                                 // Otherwise, it's an error, so we report it.
-                                else { show_dialog(&app_ui, false, format!("<p>Error while saving the PackFile:</p><p>{}</p>", error.cause())); }
+                                else { show_dialog(app_ui.window, false, format!("<p>Error while saving the PackFile:</p><p>{}</p>", error.cause())); }
                             }
                         }
 
@@ -1092,6 +1093,7 @@ fn main() {
                                                 &sender_qt,
                                                 &sender_qt_data,
                                                 receiver_qt.clone(),
+                                                app_ui.window,
                                                 app_ui.folder_tree_view,
                                                 app_ui.folder_tree_model,
                                                 TreeViewOperation::Rename(TreePathType::PackFile, path.file_name().unwrap().to_string_lossy().as_ref().to_owned()),
@@ -1101,11 +1103,11 @@ fn main() {
                                             set_my_mod_mode(&mymod_stuff, &mode, None);
 
                                             // Report success.
-                                            show_dialog(&app_ui, true, "PackFile successfully saved.");
+                                            show_dialog(app_ui.window, true, "PackFile successfully saved.");
                                         }
 
                                         // In case of error, we report it.
-                                        Err(error) => show_dialog(&app_ui, false, format!("Error while saving the PackFile:\n\n{}", error.cause())),
+                                        Err(error) => show_dialog(app_ui.window, false, format!("Error while saving the PackFile:\n\n{}", error.cause())),
                                     }
 
                                     // Stop the loop.
@@ -1129,7 +1131,7 @@ fn main() {
                     }
 
                     // If we got an error, this is not an editable file, so we report it.
-                    Err(error) => show_dialog(&app_ui, false, error.cause()),
+                    Err(error) => show_dialog(app_ui.window, false, error.cause()),
                 }
             }
         ));
@@ -1215,7 +1217,7 @@ fn main() {
                         }
 
                         // If there was an error while saving them, report it.
-                        Err(error) => show_dialog(&app_ui, false, format!("Error while saving the Settings:\n\n{}", error.cause())),
+                        Err(error) => show_dialog(app_ui.window, false, format!("Error while saving the Settings:\n\n{}", error.cause())),
                     }
                 }
             }
@@ -1279,14 +1281,14 @@ fn main() {
 
                                 // Get the success message and show it.
                                 let message: &str = serde_json::from_slice(&data).unwrap();
-                                show_dialog(&app_ui, true, message);
+                                show_dialog(app_ui.window, true, message);
 
                                 // Reload the Dependency PackFile for our Game Selected.
                                 sender_qt.send("set_dependency_database").unwrap();
                             }
 
                             // In case of error, report the error.
-                            Err(error) => show_dialog(&app_ui, false, error.cause()),
+                            Err(error) => show_dialog(app_ui.window, false, error.cause()),
                         }
 
                         // Stop the loop.
@@ -1336,7 +1338,7 @@ fn main() {
 
                                 // Get the success message and show it.
                                 let result: (String, Vec<TreePathType>) = serde_json::from_slice(&data).unwrap();
-                                show_dialog(&app_ui, true, &result.0);
+                                show_dialog(app_ui.window, true, &result.0);
 
                                 // Set the mod as "Not Modified", because this action includes saving the PackFile.
                                 *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
@@ -1350,6 +1352,7 @@ fn main() {
                                         &sender_qt,
                                         &sender_qt_data,
                                         receiver_qt.clone(),
+                                        app_ui.window,
                                         app_ui.folder_tree_view,
                                         app_ui.folder_tree_model,
                                         TreeViewOperation::DeleteUnselected(item_type),
@@ -1358,7 +1361,7 @@ fn main() {
                             }
 
                             // In case of error, report the error.
-                            Err(error) => show_dialog(&app_ui, false, error.cause()),
+                            Err(error) => show_dialog(app_ui.window, false, error.cause()),
                         }
 
                         // Stop the loop.
@@ -1636,7 +1639,7 @@ fn main() {
                                 // We check that path exists, and create it if it doesn't.
                                 if !assets_folder.is_dir() {
                                     if let Err(_) = DirBuilder::new().recursive(true).create(&assets_folder) {
-                                        return show_dialog(&app_ui, false, "Error while adding files:\n The MyMod's asset folder does not exists and it cannot be created.");
+                                        return show_dialog(app_ui.window, false, "Error while adding files:\n The MyMod's asset folder does not exists and it cannot be created.");
                                     }
                                 }
 
@@ -1703,7 +1706,7 @@ fn main() {
 
                                                 // If there is any error, report it. Otherwise, it's a success.
                                                 let error_message = error_list.iter().map(|x| format!("<li>{:?}</li>", x.iter().collect::<PathBuf>())).collect::<String>();
-                                                if !error_list.is_empty() { show_dialog(&app_ui, false, format!("<p>The following files failed to be imported:</p> <ul>{}</ul>", error_message)); }
+                                                if !error_list.is_empty() { show_dialog(app_ui.window, false, format!("<p>The following files failed to be imported:</p> <ul>{}</ul>", error_message)); }
 
                                                 // Set it as modified. Exception for the Paint System.
                                                 *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
@@ -1717,6 +1720,7 @@ fn main() {
                                                     &sender_qt,
                                                     &sender_qt_data,
                                                     receiver_qt.clone(),
+                                                    app_ui.window,
                                                     app_ui.folder_tree_view,
                                                     app_ui.folder_tree_model,
                                                     TreeViewOperation::Add(paths_packedfile),
@@ -1740,7 +1744,7 @@ fn main() {
                             }
 
                             // If there is no "MyMod" path configured, report it.
-                            else { return show_dialog(&app_ui, false, "Error while adding files:\n MyMod Path not configured."); }
+                            else { return show_dialog(app_ui.window, false, "Error while adding files:\n MyMod Path not configured."); }
                         }
 
                         // If it's in "Normal" mode...
@@ -1783,7 +1787,7 @@ fn main() {
 
                                             // If there is any error, report it. Otherwise, it's a success.
                                             let error_message = error_list.iter().map(|x| format!("<li>{:?}</li>", x.iter().collect::<PathBuf>())).collect::<String>();
-                                            if !error_list.is_empty() { show_dialog(&app_ui, false, format!("<p>The following files failed to be imported:</p> <ul>{}</ul>", error_message)); }
+                                            if !error_list.is_empty() { show_dialog(app_ui.window, false, format!("<p>The following files failed to be imported:</p> <ul>{}</ul>", error_message)); }
 
                                             // Set it as modified. Exception for the Paint System.
                                             *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
@@ -1797,6 +1801,7 @@ fn main() {
                                                 &sender_qt,
                                                 &sender_qt_data,
                                                 receiver_qt.clone(),
+                                                app_ui.window,
                                                 app_ui.folder_tree_view,
                                                 app_ui.folder_tree_model,
                                                 TreeViewOperation::Add(paths_packedfile),
@@ -1872,7 +1877,7 @@ fn main() {
                                 // We check that path exists, and create it if it doesn't.
                                 if !assets_folder.is_dir() {
                                     if let Err(_) = DirBuilder::new().recursive(true).create(&assets_folder) {
-                                        return show_dialog(&app_ui, false, "Error while adding files:\n The MyMod's asset folder does not exists and it cannot be created.");
+                                        return show_dialog(app_ui.window, false, "Error while adding files:\n The MyMod's asset folder does not exists and it cannot be created.");
                                     }
                                 }
 
@@ -1943,7 +1948,7 @@ fn main() {
 
                                                 // If there is any error, report it. Otherwise, it's a success.
                                                 let error_message = error_list.iter().map(|x| format!("<li>{:?}</li>", x.iter().collect::<PathBuf>())).collect::<String>();
-                                                if !error_list.is_empty() { show_dialog(&app_ui, false, format!("<p>The following files failed to be imported:</p> <ul>{}</ul>", error_message)); }
+                                                if !error_list.is_empty() { show_dialog(app_ui.window, false, format!("<p>The following files failed to be imported:</p> <ul>{}</ul>", error_message)); }
 
                                                 // Set it as modified. Exception for the Paint System.
                                                 *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
@@ -1957,6 +1962,7 @@ fn main() {
                                                     &sender_qt,
                                                     &sender_qt_data,
                                                     receiver_qt.clone(),
+                                                    app_ui.window,
                                                     app_ui.folder_tree_view,
                                                     app_ui.folder_tree_model,
                                                     TreeViewOperation::Add(paths_packedfile),
@@ -1980,7 +1986,7 @@ fn main() {
                             }
 
                             // If there is no "MyMod" path configured, report it.
-                            else { return show_dialog(&app_ui, false, "Error while adding files:\n MyMod Path not configured."); }
+                            else { return show_dialog(app_ui.window, false, "Error while adding files:\n MyMod Path not configured."); }
                         }
 
                         // If it's in "Normal" mode, we just get the paths of the files inside them and add those files.
@@ -2027,7 +2033,7 @@ fn main() {
 
                                             // If there is any error, report it. Otherwise, it's a success.
                                             let error_message = error_list.iter().map(|x| format!("<li>{:?}</li>", x.iter().collect::<PathBuf>())).collect::<String>();
-                                            if !error_list.is_empty() { show_dialog(&app_ui, false, format!("<p>The following files failed to be imported:</p> <ul>{}</ul>", error_message)); }
+                                            if !error_list.is_empty() { show_dialog(app_ui.window, false, format!("<p>The following files failed to be imported:</p> <ul>{}</ul>", error_message)); }
 
                                             // Set it as modified. Exception for the Paint System.
                                             *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
@@ -2041,6 +2047,7 @@ fn main() {
                                                 &sender_qt,
                                                 &sender_qt_data,
                                                 receiver_qt.clone(),
+                                                app_ui.window,
                                                 app_ui.folder_tree_view,
                                                 app_ui.folder_tree_model,
                                                 TreeViewOperation::Add(paths_packedfile),
@@ -2128,7 +2135,7 @@ fn main() {
                                     Ok(_) => break,
 
                                     // Otherwise, return an error.
-                                    Err(error) => return show_dialog(&app_ui, false, format!("<p>Error while opening the secondary PackFile:</p> <p>{}</p>", error)),
+                                    Err(error) => return show_dialog(app_ui.window, false, format!("<p>Error while opening the secondary PackFile:</p> <p>{}</p>", error)),
                                 }
                             }
 
@@ -2193,7 +2200,7 @@ fn main() {
                         let folder_exists: bool = serde_json::from_slice(&response).unwrap();
 
                         // If the folder already exists, return an error.
-                        if folder_exists { return show_dialog(&app_ui, false, "Error: this folder already exists in this Path.")}
+                        if folder_exists { return show_dialog(app_ui.window, false, "Error: this folder already exists in this Path.")}
 
                         // Add it to the PackFile.
                         sender_qt.send("create_folder").unwrap();
@@ -2205,6 +2212,7 @@ fn main() {
                             &sender_qt,
                             &sender_qt_data,
                             receiver_qt.clone(),
+                            app_ui.window,
                             app_ui.folder_tree_view,
                             app_ui.folder_tree_model,
                             TreeViewOperation::Add(vec![complete_path; 1]),
@@ -2247,7 +2255,7 @@ fn main() {
                                 let exists: bool = serde_json::from_slice(&response).unwrap();
 
                                 // If the folder already exists, return an error.
-                                if exists { return show_dialog(&app_ui, false, "Error: there is already a File with this name in this Path.")}
+                                if exists { return show_dialog(app_ui.window, false, "Error: there is already a File with this name in this Path.")}
 
                                 // Add it to the PackFile.
                                 sender_qt.send("create_packed_file").unwrap();
@@ -2256,7 +2264,7 @@ fn main() {
 
                                 // Get the response, just in case it failed.
                                 let response = receiver_qt.borrow().recv().unwrap();
-                                if let Err(error) = response { return show_dialog(&app_ui, false, format_err!("<p>Error while creating the new PackedFile:</p><p>{}</p>", error.cause())) }
+                                if let Err(error) = response { return show_dialog(app_ui.window, false, format_err!("<p>Error while creating the new PackedFile:</p><p>{}</p>", error.cause())) }
 
                                 // Set it as modified. Exception for the Paint system.
                                 *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
@@ -2267,6 +2275,7 @@ fn main() {
                                     &sender_qt,
                                     &sender_qt_data,
                                     receiver_qt.clone(),
+                                    app_ui.window,
                                     app_ui.folder_tree_view,
                                     app_ui.folder_tree_model,
                                     TreeViewOperation::Add(vec![complete_path; 1]),
@@ -2274,7 +2283,7 @@ fn main() {
                             }
 
                             // Otherwise, the name is invalid.
-                            else { return show_dialog(&app_ui, false, "Error: only my heart can be empty.") }
+                            else { return show_dialog(app_ui.window, false, "Error: only my heart can be empty.") }
                         }
                     }
                 }
@@ -2322,7 +2331,7 @@ fn main() {
                                 let exists: bool = serde_json::from_slice(&response).unwrap();
 
                                 // If the folder already exists, return an error.
-                                if exists { return show_dialog(&app_ui, false, "Error: there is already a File with this name in this Path.")}
+                                if exists { return show_dialog(app_ui.window, false, "Error: there is already a File with this name in this Path.")}
 
                                 // Add it to the PackFile.
                                 sender_qt.send("create_packed_file").unwrap();
@@ -2331,7 +2340,7 @@ fn main() {
 
                                 // Get the response, just in case it failed.
                                 let response = receiver_qt.borrow().recv().unwrap();
-                                if let Err(error) = response { return show_dialog(&app_ui, false, format_err!("<p>Error while creating the new PackedFile:</p><p>{}</p>", error.cause())) }
+                                if let Err(error) = response { return show_dialog(app_ui.window, false, format_err!("<p>Error while creating the new PackedFile:</p><p>{}</p>", error.cause())) }
 
                                 // Set it as modified. Exception for the Paint System.
                                 *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
@@ -2342,6 +2351,7 @@ fn main() {
                                     &sender_qt,
                                     &sender_qt_data,
                                     receiver_qt.clone(),
+                                    app_ui.window,
                                     app_ui.folder_tree_view,
                                     app_ui.folder_tree_model,
                                     TreeViewOperation::Add(vec![complete_path; 1]),
@@ -2349,7 +2359,7 @@ fn main() {
                             }
 
                             // Otherwise, the name is invalid.
-                            else { return show_dialog(&app_ui, false, "Error: only my heart can be empty.") }
+                            else { return show_dialog(app_ui.window, false, "Error: only my heart can be empty.") }
                         }
                     }
                 }
@@ -2412,7 +2422,7 @@ fn main() {
                                 let exists: bool = serde_json::from_slice(&response).unwrap();
 
                                 // If the folder already exists, return an error.
-                                if exists { return show_dialog(&app_ui, false, "Error: there is already a File with this name in this Path.")}
+                                if exists { return show_dialog(app_ui.window, false, "Error: there is already a File with this name in this Path.")}
 
                                 // Add it to the PackFile.
                                 sender_qt.send("create_packed_file").unwrap();
@@ -2421,7 +2431,7 @@ fn main() {
 
                                 // Get the response, just in case it failed.
                                 let response = receiver_qt.borrow().recv().unwrap();
-                                if let Err(error) = response { return show_dialog(&app_ui, false, format_err!("<p>Error while creating the new PackedFile:</p><p>{}</p>", error.cause())) }
+                                if let Err(error) = response { return show_dialog(app_ui.window, false, format_err!("<p>Error while creating the new PackedFile:</p><p>{}</p>", error.cause())) }
 
                                 // Set it as modified. Exception for the Paint System.
                                 *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
@@ -2432,6 +2442,7 @@ fn main() {
                                     &sender_qt,
                                     &sender_qt_data,
                                     receiver_qt.clone(),
+                                    app_ui.window,
                                     app_ui.folder_tree_view,
                                     app_ui.folder_tree_model,
                                     TreeViewOperation::Add(vec![complete_path; 1]),
@@ -2439,7 +2450,7 @@ fn main() {
                             }
 
                             // Otherwise, the name is invalid.
-                            else { return show_dialog(&app_ui, false, "Error: only my heart can be empty.") }
+                            else { return show_dialog(app_ui.window, false, "Error: only my heart can be empty.") }
                         }
                     }
                 }
@@ -2464,10 +2475,10 @@ fn main() {
                     if let Some(data) = create_mass_import_tsv_dialog(&app_ui) {
 
                         // If there is no name...
-                        if data.0.is_empty() { return show_dialog(&app_ui, false, "Error: You need a name in order to import the files.") }
+                        if data.0.is_empty() { return show_dialog(app_ui.window, false, "Error: You need a name in order to import the files.") }
 
                         // If there is no file selected...
-                        else if data.1.is_empty() { return show_dialog(&app_ui, false, "Error: You didn't selected any file to import.") }
+                        else if data.1.is_empty() { return show_dialog(app_ui.window, false, "Error: You didn't selected any file to import.") }
 
                         // Otherwise...
                         else {
@@ -2510,6 +2521,7 @@ fn main() {
                                                 &sender_qt,
                                                 &sender_qt_data,
                                                 receiver_qt.clone(),
+                                                app_ui.window,
                                                 app_ui.folder_tree_view,
                                                 app_ui.folder_tree_model,
                                                 TreeViewOperation::Add(paths_to_add),
@@ -2517,7 +2529,7 @@ fn main() {
                                         }
 
                                         // In case of error, show the dialog with the error.
-                                        Err(error) => show_dialog(&app_ui, false, format!("<p>Error while importing TSV Files:</p><p>{}</p>", error.cause())),
+                                        Err(error) => show_dialog(app_ui.window, false, format!("<p>Error while importing TSV Files:</p><p>{}</p>", error.cause())),
                                     }
 
                                     // Stop the loop.
@@ -2552,7 +2564,7 @@ fn main() {
                 // If there is a PackedFile opened, we show a message with the explanation of why
                 // we can't delete the selected file/folder.
                 if *is_packedfile_opened.borrow() {
-                    show_dialog(&app_ui, false, "You can't delete a PackedFile/Folder while there is a PackedFile opened in the right side. Pls, close it by clicking in a Folder/PackFile before trying to delete it again.")
+                    show_dialog(app_ui.window, false, "You can't delete a PackedFile/Folder while there is a PackedFile opened in the right side. Pls, close it by clicking in a Folder/PackFile before trying to delete it again.")
                 }
 
                 // Otherwise, we continue the deletion process.
@@ -2589,6 +2601,7 @@ fn main() {
                                     &sender_qt,
                                     &sender_qt_data,
                                     receiver_qt.clone(),
+                                    app_ui.window,
                                     app_ui.folder_tree_view,
                                     app_ui.folder_tree_model,
                                     TreeViewOperation::DeleteSelected(path_type),
@@ -2647,7 +2660,7 @@ fn main() {
                                 // We check that path exists, and create it if it doesn't.
                                 if !assets_folder.is_dir() {
                                     if let Err(_) = DirBuilder::new().recursive(true).create(&assets_folder) {
-                                        return show_dialog(&app_ui, false, "Error while extracting files:\n The MyMod's asset folder does not exists and it cannot be created.");
+                                        return show_dialog(app_ui.window, false, "Error while extracting files:\n The MyMod's asset folder does not exists and it cannot be created.");
                                     }
                                 }
 
@@ -2669,7 +2682,7 @@ fn main() {
                                         // The last thing in the path is the new file, so we don't have to create a folder for it.
                                         if index < (path_without_packfile.len() - 1) {
                                             if let Err(_) = DirBuilder::new().recursive(true).create(&assets_folder) {
-                                                return show_dialog(&app_ui, false, "Error while extracting files:\n The extracted folder couldn't be created.");
+                                                return show_dialog(app_ui.window, false, "Error while extracting files:\n The extracted folder couldn't be created.");
                                             }
                                         }
                                     }
@@ -2697,11 +2710,11 @@ fn main() {
 
                                                 // Get the result, and show it.
                                                 let result: String = serde_json::from_slice(&response).unwrap();
-                                                show_dialog(&app_ui, true, result);
+                                                show_dialog(app_ui.window, true, result);
                                             },
 
                                             // In case of error, show the dialog with the error.
-                                            Err(error) => show_dialog(&app_ui, false, error.cause()),
+                                            Err(error) => show_dialog(app_ui.window, false, error.cause()),
                                         }
 
                                         // Stop the loop.
@@ -2720,7 +2733,7 @@ fn main() {
                             }
 
                             // If there is no "MyMod" path configured, report it.
-                            else { return show_dialog(&app_ui, false, "Error while extracting files:\n MyMod Path not configured."); }
+                            else { return show_dialog(app_ui.window, false, "Error while extracting files:\n MyMod Path not configured."); }
                         }
 
                         // If we are in "Normal" Mode....
@@ -2797,11 +2810,11 @@ fn main() {
 
                                                     // Get the result, and show it.
                                                     let result: String = serde_json::from_slice(&response).unwrap();
-                                                    show_dialog(&app_ui, true, result);
+                                                    show_dialog(app_ui.window, true, result);
                                                 },
 
                                                 // In case of error, show the dialog with the error.
-                                                Err(error) => show_dialog(&app_ui, false, error.cause()),
+                                                Err(error) => show_dialog(app_ui.window, false, error.cause()),
                                             }
 
                                             // Stop the loop.
@@ -2881,11 +2894,11 @@ fn main() {
 
                                                     // Get the result, and show it.
                                                     let result: String = serde_json::from_slice(&response).unwrap();
-                                                    show_dialog(&app_ui, true, result);
+                                                    show_dialog(app_ui.window, true, result);
                                                 },
 
                                                 // In case of error, show the dialog with the error.
-                                                Err(error) => show_dialog(&app_ui, false, error.cause()),
+                                                Err(error) => show_dialog(app_ui.window, false, error.cause()),
                                             }
 
                                             // Stop the loop.
@@ -3035,6 +3048,7 @@ fn main() {
                                             &sender_qt,
                                             &sender_qt_data,
                                             receiver_qt.clone(),
+                                            app_ui.window,
                                             app_ui.folder_tree_view,
                                             app_ui.folder_tree_model,
                                             TreeViewOperation::Rename(item_type, new_name),
@@ -3042,7 +3056,7 @@ fn main() {
                                     }
 
                                     // If the new name was invalid...
-                                    Err(error) => show_dialog(&app_ui, false, error.cause()),
+                                    Err(error) => show_dialog(app_ui.window, false, error.cause()),
                                 }
                             }
                         }
@@ -3157,7 +3171,7 @@ fn main() {
                                         &index
                                     ) {
                                         Ok(new_loc_slots) => *loc_slots.borrow_mut() = new_loc_slots,
-                                        Err(error) => return show_dialog(&app_ui, false, format!("<p>Error while opening a Loc PackedFile:</p> <p>{}</p>", error.cause())),
+                                        Err(error) => return show_dialog(app_ui.window, false, format!("<p>Error while opening a Loc PackedFile:</p> <p>{}</p>", error.cause())),
                                     }
 
                                     // Tell the program there is an open PackedFile.
@@ -3177,7 +3191,7 @@ fn main() {
                                         &index
                                     ) {
                                         Ok(new_db_slots) => *db_slots.borrow_mut() = new_db_slots,
-                                        Err(error) => return show_dialog(&app_ui, false, format!("<p>Error while opening a DB PackedFile:</p> <p>{}</p>", error.cause())),
+                                        Err(error) => return show_dialog(app_ui.window, false, format!("<p>Error while opening a DB PackedFile:</p> <p>{}</p>", error.cause())),
                                     }
 
                                     // Tell the program there is an open PackedFile.
@@ -3200,7 +3214,7 @@ fn main() {
                                         &index
                                     ) {
                                         Ok(new_text_slots) => *text_slots.borrow_mut() = new_text_slots,
-                                        Err(error) => return show_dialog(&app_ui, false, format!("<p>Error while opening a Text PackedFile:</p> <p>{}</p>", error.cause())),
+                                        Err(error) => return show_dialog(app_ui.window, false, format!("<p>Error while opening a Text PackedFile:</p> <p>{}</p>", error.cause())),
                                     }
 
                                     // Tell the program there is an open PackedFile.
@@ -3220,7 +3234,7 @@ fn main() {
                                         &index
                                     ) {
                                         Ok(new_rigid_model_slots) => *rigid_model_slots.borrow_mut() = new_rigid_model_slots,
-                                        Err(error) => return show_dialog(&app_ui, false, format!("<p>Error while opening a RigidModel PackedFile:</p> <p>{}</p>", error.cause())),
+                                        Err(error) => return show_dialog(app_ui.window, false, format!("<p>Error while opening a RigidModel PackedFile:</p> <p>{}</p>", error.cause())),
                                     }
 
                                     // Tell the program there is an open PackedFile.
@@ -3237,7 +3251,7 @@ fn main() {
                                         &receiver_qt,
                                         &app_ui,
                                         &index
-                                    ) { return show_dialog(&app_ui, false, error.cause()); }
+                                    ) { return show_dialog(app_ui.window, false, error.cause()); }
                                 }
 
                                 // For any other PackedFile, just restore the display tips.
@@ -3340,7 +3354,7 @@ fn main() {
                     &mode,
                     "",
                     &is_packedfile_opened
-                ) { show_dialog(&app_ui, false, format!("<p>Error while opening the PackFile:</p><p>{}</p>", error.cause())) }
+                ) { show_dialog(app_ui.window, false, format!("<p>Error while opening the PackFile:</p><p>{}</p>", error.cause())) }
             }
         }
 
@@ -5074,6 +5088,7 @@ fn open_packfile(
                         sender_qt,
                         sender_qt_data,
                         receiver_qt.clone(),
+                        app_ui.window,
                         app_ui.folder_tree_view,
                         app_ui.folder_tree_model,
                         TreeViewOperation::Build(false),
@@ -5305,14 +5320,14 @@ fn build_my_mod_menu(
 
                         // Just in case the folder doesn't exist, we try to create it.
                         if let Err(_) = DirBuilder::new().recursive(true).create(&mymod_path) {
-                            return show_dialog(&app_ui, false, format!("Error while creating the folder \"{}\" to store the MyMods.", mod_game));
+                            return show_dialog(app_ui.window, false, format!("Error while creating the folder \"{}\" to store the MyMods.", mod_game));
                         }
 
                         // We need to create another folder inside the game's folder with the name of the new "MyMod", to store extracted files.
                         let mut mymod_path_private = mymod_path.to_path_buf();
                         mymod_path_private.push(&mod_name);
                         if let Err(_) = DirBuilder::new().recursive(true).create(&mymod_path_private) {
-                            return show_dialog(&app_ui, false, format!("Error while creating the folder \"{}\" to store the MyMod's files.", mod_name));
+                            return show_dialog(app_ui.window, false, format!("Error while creating the folder \"{}\" to store the MyMod's files.", mod_name));
                         };
 
                         // Add the PackFile's name to the full path.
@@ -5354,6 +5369,7 @@ fn build_my_mod_menu(
                                         &sender_qt,
                                         &sender_qt_data,
                                         receiver_qt.clone(),
+                                        app_ui.window,
                                         app_ui.folder_tree_view,
                                         app_ui.folder_tree_model,
                                         TreeViewOperation::Build(false),
@@ -5381,7 +5397,7 @@ fn build_my_mod_menu(
                                 }
 
                                 // In case of error, report it.
-                                Err(error) => show_dialog(&app_ui, false, format!("<p>Error while saving the PackFile:</p><p>{}</p>", error.cause())),
+                                Err(error) => show_dialog(app_ui.window, false, format!("<p>Error while saving the PackFile:</p><p>{}</p>", error.cause())),
                             }
                         }
                     }
@@ -5425,11 +5441,11 @@ fn build_my_mod_menu(
                                 mymod_path.push(&mod_name);
 
                                 // If the mod doesn't exist, return error.
-                                if !mymod_path.is_file() { return show_dialog(&app_ui, false, "Error: PackFile doesn't exist, so it can't be deleted."); }
+                                if !mymod_path.is_file() { return show_dialog(app_ui.window, false, "Error: PackFile doesn't exist, so it can't be deleted."); }
 
                                 // And we try to delete his PackFile. If it fails, return error.
                                 if let Err(error) = remove_file(&mymod_path).map_err(Error::from) {
-                                    return show_dialog(&app_ui, false, format!("<p>Error while deleting the PackFile from disk:</p><p>{}</p>", error.cause()));
+                                    return show_dialog(app_ui.window, false, format!("<p>Error while deleting the PackFile from disk:</p><p>{}</p>", error.cause()));
                                 }
 
                                 // Now we get his assets folder.
@@ -5440,12 +5456,12 @@ fn build_my_mod_menu(
                                 // We check that path exists. This is optional, so it should allow the deletion
                                 // process to continue with a warning.
                                 if !mymod_assets_path.is_dir() {
-                                    show_dialog(&app_ui, false, "Mod deleted, but his assets folder haven't been found.");
+                                    show_dialog(app_ui.window, false, "Mod deleted, but his assets folder haven't been found.");
                                 }
 
                                 // If the assets folder exists, we try to delete it. Again, this is optional, so it should not stop the deleting process.
                                 else if let Err(error) = remove_dir_all(&mymod_assets_path).map_err(Error::from) {
-                                    show_dialog(&app_ui, false, format!("<p>Error while deleting the Assets Folder of the MyMod from disk:</p><p>{}</p>", error.cause()));
+                                    show_dialog(app_ui.window, false, format!("<p>Error while deleting the Assets Folder of the MyMod from disk:</p><p>{}</p>", error.cause()));
                                 }
 
                                 // We return true, as we have delete the files of the "MyMod".
@@ -5453,11 +5469,11 @@ fn build_my_mod_menu(
                             }
 
                             // If the "MyMod" path is not configured, return an error.
-                            else { return show_dialog(&app_ui, false, "MyMod base path not configured, so the MyMod couldn't be deleted."); }
+                            else { return show_dialog(app_ui.window, false, "MyMod base path not configured, so the MyMod couldn't be deleted."); }
                         }
 
                         // If we don't have a "MyMod" selected, return an error.
-                        Mode::Normal => return show_dialog(&app_ui, false, "You can't delete the selected MyMod if there is no MyMod selected."),
+                        Mode::Normal => return show_dialog(app_ui.window, false, "You can't delete the selected MyMod if there is no MyMod selected."),
                     };
 
                     // If we deleted the "MyMod", we allow chaos to form below.
@@ -5487,7 +5503,7 @@ fn build_my_mod_menu(
                         *needs_rebuild.borrow_mut() = true;
 
                         // Show the "MyMod" deleted Dialog.
-                        show_dialog(&app_ui, true, format!("MyMod successfully deleted: \"{}\".", old_mod_name));
+                        show_dialog(app_ui.window, true, format!("MyMod successfully deleted: \"{}\".", old_mod_name));
                     }
                 }
             }
@@ -5527,11 +5543,11 @@ fn build_my_mod_menu(
                                 mymod_path.push(&mod_name);
 
                                 // We check that the "MyMod"s PackFile exists.
-                                if !mymod_path.is_file() { return show_dialog(&app_ui, false, "Error: PackFile doesn't exist, so it can't be deleted."); }
+                                if !mymod_path.is_file() { return show_dialog(app_ui.window, false, "Error: PackFile doesn't exist, so it can't be deleted."); }
 
                                 // We check that the destination path exists.
                                 if !game_data_path.is_dir() {
-                                    return show_dialog(&app_ui, false, "Destination folder (..xxx/data) doesn't exist. You sure you configured the right folder for the game?");
+                                    return show_dialog(app_ui.window, false, "Destination folder (..xxx/data) doesn't exist. You sure you configured the right folder for the game?");
                                 }
 
                                 // Get the destination path for the PackFile with the PackFile name included.
@@ -5539,20 +5555,20 @@ fn build_my_mod_menu(
 
                                 // And copy the PackFile to his destination. If the copy fails, return an error.
                                 if let Err(error) = copy(mymod_path, game_data_path).map_err(Error::from) {
-                                    return show_dialog(&app_ui, false, format!("<p>Error while copying the PackFile to the Data folder:</p><p>{}</p>", error.cause()));
+                                    return show_dialog(app_ui.window, false, format!("<p>Error while copying the PackFile to the Data folder:</p><p>{}</p>", error.cause()));
                                 }
                             }
 
                             // If we don't have a `game_data_path` configured for the current `GameSelected`...
-                            else { return show_dialog(&app_ui, false, "Game Path not configured. Go to <i>'PackFile/Preferences'</i> and configure it."); }
+                            else { return show_dialog(app_ui.window, false, "Game Path not configured. Go to <i>'PackFile/Preferences'</i> and configure it."); }
                         }
 
                         // If the "MyMod" path is not configured, return an error.
-                        else { show_dialog(&app_ui, false, "MyMod base path not configured, so the MyMod couldn't be installed."); }
+                        else { show_dialog(app_ui.window, false, "MyMod base path not configured, so the MyMod couldn't be installed."); }
                     }
 
                     // If we have no "MyMod" selected, return an error.
-                    Mode::Normal => show_dialog(&app_ui, false, "You can't install the selected MyMod if there is no MyMod selected."),
+                    Mode::Normal => show_dialog(app_ui.window, false, "You can't install the selected MyMod if there is no MyMod selected."),
                 }
 
             }
@@ -5586,20 +5602,20 @@ fn build_my_mod_menu(
                             game_data_path.push(&mod_name);
 
                             // We check that the "MyMod" is actually installed in the provided path.
-                            if !game_data_path.is_file() { return show_dialog(&app_ui, false, "The currently selected MyMod is not installed."); }
+                            if !game_data_path.is_file() { return show_dialog(app_ui.window, false, "The currently selected MyMod is not installed."); }
 
                             // If the "MyMod" is installed, we remove it. If there is a problem deleting it, return an error dialog.
                             else if let Err(error) = remove_file(game_data_path).map_err(Error::from) {
-                                return show_dialog(&app_ui, false, format!("<p>Error uninstalling the MyMod:</p><p>{}</p>", error.cause()));
+                                return show_dialog(app_ui.window, false, format!("<p>Error uninstalling the MyMod:</p><p>{}</p>", error.cause()));
                             }
                         }
 
                         // If we don't have a `game_data_path` configured for the current `GameSelected`...
-                        else { show_dialog(&app_ui, false, "Game Path not configured. Go to <i>'PackFile/Preferences'</i> and configure it."); }
+                        else { show_dialog(app_ui.window, false, "Game Path not configured. Go to <i>'PackFile/Preferences'</i> and configure it."); }
                     }
 
                     // If we have no MyMod selected, return an error.
-                    Mode::Normal => show_dialog(&app_ui, false, "You can't uninstall the selected MyMod if there is no MyMod selected."),
+                    Mode::Normal => show_dialog(app_ui.window, false, "You can't uninstall the selected MyMod if there is no MyMod selected."),
                 }
             }
         )),
@@ -5706,7 +5722,7 @@ fn build_my_mod_menu(
                                                     &mode,
                                                     &game_folder_name,
                                                     &is_packedfile_opened,
-                                                ) { show_dialog(&app_ui, false, format!("<p>Error while opening the PackFile:</p><p>{}</p>", error.cause())) }
+                                                ) { show_dialog(app_ui.window, false, format!("<p>Error while opening the PackFile:</p><p>{}</p>", error.cause())) }
                                             }
                                         }
                                     ));

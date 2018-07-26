@@ -311,10 +311,10 @@ pub fn check_schema_updates(
                         match data {
 
                             // If it was a success...
-                            Ok(_) => show_dialog(&app_ui, true, "<h4>Schemas updated and reloaded</h4><p>You can continue using RPFM now.</p>"),
+                            Ok(_) => show_dialog(app_ui.window, true, "<h4>Schemas updated and reloaded</h4><p>You can continue using RPFM now.</p>"),
 
                             // If it was an error...
-                            Err(error) => show_dialog(&app_ui, false, format!("<h4>Error while updating schemas</h4><p>{}</p>", error)),
+                            Err(error) => show_dialog(app_ui.window, false, format!("<h4>Error while updating schemas</h4><p>{}</p>", error)),
                         }
 
                         // Stop the loop.
@@ -431,10 +431,10 @@ pub fn check_schema_updates(
                                 match data {
 
                                     // If it was a success...
-                                    Ok(_) => show_dialog(&app_ui, true, "<h4>Schemas updated and reloaded</h4><p>You can continue using RPFM now.</p>"),
+                                    Ok(_) => show_dialog(app_ui.window, true, "<h4>Schemas updated and reloaded</h4><p>You can continue using RPFM now.</p>"),
 
                                     // If it was an error...
-                                    Err(error) => show_dialog(&app_ui, false, format!("<h4>Error while updating schemas</h4><p>{}</p>", error)),
+                                    Err(error) => show_dialog(app_ui.window, false, format!("<h4>Error while updating schemas</h4><p>{}</p>", error)),
                                 }
 
                                 // Stop the loop.

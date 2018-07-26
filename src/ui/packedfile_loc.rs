@@ -861,7 +861,7 @@ impl PackedFileLocTreeView {
                                             Ok(new_loc_data) => Self::load_data_to_tree_view(&serde_json::from_slice(&new_loc_data).unwrap(), model),
 
                                             // If there was an error, report it.
-                                            Err(error) => return show_dialog(&app_ui, false, format!("<p>Error while importing the TSV File:</p><p>{}</p>", error.cause())),
+                                            Err(error) => return show_dialog(app_ui.window, false, format!("<p>Error while importing the TSV File:</p><p>{}</p>", error.cause())),
                                         }
 
                                         // Get the settings.
@@ -934,11 +934,11 @@ impl PackedFileLocTreeView {
                                         // If the exporting was succesful, report it.
                                         Ok(success) => {
                                             let message: String = serde_json::from_slice(&success).unwrap();
-                                            return show_dialog(&app_ui, true, message);
+                                            return show_dialog(app_ui.window, true, message);
                                         }
 
                                         // If there was an error, report it.
-                                        Err(error) => return show_dialog(&app_ui, false, format!("<p>Error while exporting the TSV File:</p><p>{}</p>", error.cause())),
+                                        Err(error) => return show_dialog(app_ui.window, false, format!("<p>Error while exporting the TSV File:</p><p>{}</p>", error.cause())),
                                     }
                                 }
                             }

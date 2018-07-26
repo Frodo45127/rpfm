@@ -14,6 +14,7 @@ use qt_widgets::file_dialog::{FileDialog, FileMode};
 use qt_widgets::label::Label;
 use qt_widgets::layout::Layout;
 use qt_widgets::line_edit::LineEdit;
+use qt_widgets::main_window::MainWindow;
 use qt_widgets::message_box::{MessageBox, Icon};
 use qt_widgets::push_button::PushButton;
 use qt_widgets::size_policy::Policy;
@@ -154,7 +155,7 @@ impl AddFromPackFileSlots {
                     sender_qt.send("get_type_of_path").unwrap();
                     sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
 
-                    // Wait until you get something from the UI.
+                    // Wait until you get something from the background thread.
                     if let Ok(item_type) = receiver_qt.borrow().recv().unwrap() {
 
                         // Try to deserialize it.
@@ -174,7 +175,7 @@ impl AddFromPackFileSlots {
                             },
 
                             // If error, there are problems with the messages between threads. Give a warning and ask for a report.
-                            Err(_) => show_dialog(&app_ui, false, THREADS_MESSAGE_ERROR),
+                            Err(_) => show_dialog(app_ui.window, false, THREADS_MESSAGE_ERROR),
                         }
                     }
                 }
@@ -238,6 +239,7 @@ impl AddFromPackFileSlots {
                                                 &sender_qt,
                                                 &sender_qt_data,
                                                 receiver_qt.clone(),
+                                                app_ui.window,
                                                 app_ui.folder_tree_view,
                                                 app_ui.folder_tree_model,
                                                 TreeViewOperation::AddFromPackFile(paths.0, paths.1, paths.2),
@@ -254,7 +256,7 @@ impl AddFromPackFileSlots {
                                             unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
 
                                             // Show the error dialog.
-                                            show_dialog(&app_ui, false, THREADS_MESSAGE_ERROR);
+                                            show_dialog(app_ui.window, false, THREADS_MESSAGE_ERROR);
                                         }
                                     }
                                 }
@@ -266,7 +268,7 @@ impl AddFromPackFileSlots {
                                     unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
 
                                     // Show the error dialog.
-                                    show_dialog(&app_ui, false, format!("<p>Error while trying to add a PackedFile:</p><p>{}</p>", error.cause()));
+                                    show_dialog(app_ui.window, false, format!("<p>Error while trying to add a PackedFile:</p><p>{}</p>", error.cause()));
                                 }
                             }
 
@@ -312,6 +314,7 @@ impl AddFromPackFileSlots {
             &sender_qt,
             &sender_qt_data,
             receiver_qt.clone(),
+            app_ui.window,
             tree_view,
             tree_model,
             TreeViewOperation::Build(true),
@@ -527,7 +530,7 @@ pub fn create_new_packed_file_dialog(
             None => {
 
                 // Show an error.
-                show_dialog(&app_ui, false, "Error: There is no schema for the Game Selected.");
+                show_dialog(app_ui.window, false, "Error: There is no schema for the Game Selected.");
 
                 // Return None.
                 return None
@@ -578,7 +581,7 @@ pub fn create_new_packed_file_dialog(
                     None => {
 
                         // Show an error.
-                        show_dialog(&app_ui, false, "Error: There is no schema for the Game Selected.");
+                        show_dialog(app_ui.window, false, "Error: There is no schema for the Game Selected.");
 
                         // Return None.
                         return None
@@ -748,7 +751,7 @@ fn create_prefab(
     }
 
     // If there are not suitable PackedFiles...
-    else { show_dialog(&app_ui.window, false, "There are no catchment PackedFiles in this PackFile."); }
+    else { show_dialog(app_ui.window, false, "There are no catchment PackedFiles in this PackFile."); }
 }*/
 
 //----------------------------------------------------------------------------//
@@ -903,11 +906,11 @@ impl Icons {
 
 /// This function shows a "Success" or "Error" Dialog with some text. For notification of success and errors.
 /// It requires:
-/// - app_ui: a reference to the main AppUI object.
+/// - window: a pointer to the main window of the program, to set it as a parent..
 /// - is_success: true for "Success" Dialog, false for "Error" Dialog.
 /// - text: something that implements the trait "Display", so we want to put in the dialog window.
 pub fn show_dialog<T: Display>(
-    app_ui: &AppUI,
+    window: *mut MainWindow,
     is_success: bool,
     text: T
 ) {
@@ -923,7 +926,7 @@ pub fn show_dialog<T: Display>(
         &QString::from_std_str(title),
         &QString::from_std_str(&text.to_string()),
         Flags::from_int(1024), // Ok button.
-        app_ui.window as *mut Widget,
+        window as *mut Widget,
     )); }
 
     // Run the dialog.
@@ -1523,12 +1526,14 @@ pub fn update_treeview(
     sender_qt: &Sender<&str>,
     sender_qt_data: &Sender<Result<Vec<u8>, Error>>,
     receiver_qt: Rc<RefCell<Receiver<Result<Vec<u8>, Error>>>>,
+    window: *mut MainWindow,
     tree_view: *mut TreeView,
     model: *mut StandardItemModel,
     operation: TreeViewOperation,
 ) {
 
     // Get the Icons for the TreeView.
+    // TODO: Move this to const fn when it reaches stable in rust.
     let icons = Icons::new(&rpfm_path);
 
     // We act depending on the operation requested.
@@ -1537,194 +1542,208 @@ pub fn update_treeview(
         // If we want to build a new TreeView...
         TreeViewOperation::Build(is_extra_packfile) => {
 
-            // Depending on what PackFile we want to build the TreeView with, we ask for his data.
+            // Depending on the PackFile we want to build the TreeView with, we ask for his data.
             if is_extra_packfile { sender_qt.send("get_packfile_extra_data_for_treeview").unwrap(); }
             else { sender_qt.send("get_packfile_data_for_treeview").unwrap(); }
 
-            // Get the data of the PackFile (PackFile's name + List of files).
-            let response = receiver_qt.borrow().recv().unwrap().unwrap();
-            let pack_file_data: (&str, Vec<Vec<String>>) = serde_json::from_slice(&response).unwrap();
+            // Wait until you get something from the background thread.
+            if let Ok(pack_file_data) = receiver_qt.borrow().recv().unwrap() {
 
-            // First, we clean the TreeStore and whatever was created in the TreeView.
-            unsafe { model.as_mut().unwrap().clear(); }
+                // Try to deserialize it.
+                match serde_json::from_slice(&pack_file_data) {
 
-            // Second, we set as the big_parent, the base for the folders of the TreeView, a fake folder
-            // with the name of the PackFile. All big things start with a lie.
-            let mut big_parent = StandardItem::new(&QString::from_std_str(pack_file_data.0)).into_raw();
+                    // If it can be deserialized as a (&str, Vec<Vec<String>>)...
+                    Ok(pack_file_data) => {
 
-            // Also, set it as not editable by the user. Otherwise will cause problems when renaming.
-            unsafe { big_parent.as_mut().unwrap().set_editable(false); }
+                        // Redundant, but needed for the deserializer to know the type.
+                        let pack_file_data: (&str, Vec<Vec<String>>) = pack_file_data;
 
-            // Add the Big Parent to the Model.
-            unsafe { model.as_mut().unwrap().append_row_unsafe(big_parent); }
+                        // First, we clean the TreeStore and whatever was created in the TreeView.
+                        unsafe { model.as_mut().unwrap().clear(); }
 
-            // Give it an Icon.
-            set_icon_to_item(big_parent, &icons, IconType::PackFile(is_extra_packfile));
-
-            // Third, we get all the paths of the PackedFiles inside the Packfile in a Vector.
-            let mut sorted_path_list = pack_file_data.1;
-
-            // Fourth, we sort that vector using this horrific monster I don't want to touch again, using
-            // the following format:
-            // - FolderA
-            // - FolderB
-            // - FileA
-            // - FileB
-            sorted_path_list.sort_unstable_by(|a, b| {
-                let mut index = 0;
-                loop {
-
-                    // If both options have the same name.
-                    if a[index] == b[index] {
-
-                        // If A doesn't have more children, but B has them, A is a file and B a folder.
-                        if index == (a.len() - 1) && index < (b.len() - 1) {
-                            return Ordering::Greater
-                        }
-
-                        // If B doesn't have more children, but A has them, B is a file and A a folder.
-                        else if index < (a.len() - 1) && index == (b.len() - 1) {
-                            return Ordering::Less
-                        }
-
-                        // If both options still has children, continue the loop.
-                        else if index < (a.len() - 1) && index < (b.len() - 1) {
-                            index += 1;
-                            continue;
-                        }
-                    }
-                    // If both options have different name,...
-                    // If both are the same type (both have children, or none have them), doesn't matter if
-                    // they are files or folder. Just compare them to see what one it's first.
-                    else if (index == (a.len() - 1) && index == (b.len() - 1)) ||
-                        (index < (a.len() - 1) && index < (b.len() - 1)) {
-                        return a.cmp(b)
-                    }
-
-                    // If A doesn't have more children, but B has them, A is a file and B a folder.
-                    else if index == (a.len() - 1) && index < (b.len() - 1) {
-                        return Ordering::Greater
-
-                    }
-                    // If B doesn't have more children, but A has them, B is a file and A a folder.
-                    else if index < (a.len() - 1) && index == (b.len() - 1) {
-                        return Ordering::Less
-                    }
-                }
-            });
-
-            // Once we get the entire path list sorted, we add the paths to the TreeStore one by one,
-            // skipping duplicate entries.
-            for path in &sorted_path_list {
-
-                // First, we reset the parent to the big_parent (the PackFile).
-                let mut parent;
-                unsafe { parent = model.as_ref().unwrap().item(0); }
-
-                // Then, we form the path ("parent -> child" style path) to add to the TreeStore.
-                for name in path.iter() {
-
-                    // If it's the last string in the file path, it's a file, so we add it to the TreeStore.
-                    if name == path.last().unwrap() {
-
-                        // Add the file to the TreeView.
-                        let mut file = StandardItem::new(&QString::from_std_str(name)).into_raw();
+                        // Second, we set as the big_parent, the base for the folders of the TreeView, a fake folder
+                        // with the name of the PackFile. All big things start with a lie.
+                        let mut big_parent = StandardItem::new(&QString::from_std_str(pack_file_data.0)).into_raw();
 
                         // Also, set it as not editable by the user. Otherwise will cause problems when renaming.
-                        unsafe { file.as_mut().unwrap().set_editable(false); }
+                        unsafe { big_parent.as_mut().unwrap().set_editable(false); }
 
-                        // Add it to the TreeView.
-                        unsafe { parent.as_mut().unwrap().append_row_unsafe(file); }
+                        // Add the Big Parent to the Model.
+                        unsafe { model.as_mut().unwrap().append_row_unsafe(big_parent); }
 
-                        // Get the Path of the File.
-                        let path = get_path_from_item(model, file, false);
+                        // Give it an Icon.
+                        set_icon_to_item(big_parent, &icons, IconType::PackFile(is_extra_packfile));
 
-                        // Give it an icon.
-                        set_icon_to_item(file, &icons, IconType::File(path));
-                    }
+                        // We get all the paths of the PackedFiles inside the Packfile in a Vector.
+                        let mut sorted_path_list = pack_file_data.1;
 
-                    // If it's a folder, we check first if it's already in the TreeStore using the following
-                    // logic:
-                    // If the current parent has a child, it should be a folder already in the TreeStore,
-                    // so we check all his children. If any of them is equal to the current folder we are
-                    // trying to add and it has at least one child, it's a folder exactly like the one we are
-                    // trying to add, so that one becomes our new parent. If there is no equal folder to
-                    // the one we are trying to add, we add it, turn it into the new parent, and repeat.
-                    else {
+                        // We sort that vector using this horrific monster I don't want to touch again, using
+                        // the following format:
+                        // - FolderA
+                        // - FolderB
+                        // - FileA
+                        // - FileB
+                        sorted_path_list.sort_unstable_by(|a, b| {
+                            let mut index = 0;
+                            loop {
 
-                        // There are many unsafe things in this code...
-                        unsafe {
+                                // If both options have the same name.
+                                if a[index] == b[index] {
 
-                            // Variable to check if the current folder is already in the TreeView.
-                            let mut duplicate_found = false;
+                                    // If A doesn't have more children, but B has them, A is a file and B a folder.
+                                    if index == (a.len() - 1) && index < (b.len() - 1) {
+                                        return Ordering::Greater
+                                    }
 
-                            // If the current parent has at least one child...
-                            if parent.as_ref().unwrap().has_children() {
+                                    // If B doesn't have more children, but A has them, B is a file and A a folder.
+                                    else if index < (a.len() - 1) && index == (b.len() - 1) {
+                                        return Ordering::Less
+                                    }
 
-                                // It's a folder, so we check his children.
-                                for index in 0..parent.as_ref().unwrap().row_count() {
-
-                                    // Get the child.
-                                    let mut child = parent.as_mut().unwrap().child((index, 0));
-
-                                    // Get his text.
-                                    let child_text = child.as_ref().unwrap().text().to_std_string();
-
-                                    // If it's the same folder we are trying to add...
-                                    if child_text == *name {
-
-                                        // This is our parent now.
-                                        parent = parent.as_mut().unwrap().child(index);
-                                        duplicate_found = true;
-                                        break;
+                                    // If both options still has children, continue the loop.
+                                    else if index < (a.len() - 1) && index < (b.len() - 1) {
+                                        index += 1;
+                                        continue;
                                     }
                                 }
+                                // If both options have different name,...
+                                // If both are the same type (both have children, or none have them), doesn't matter if
+                                // they are files or folder. Just compare them to see what one it's first.
+                                else if (index == (a.len() - 1) && index == (b.len() - 1)) ||
+                                    (index < (a.len() - 1) && index < (b.len() - 1)) {
+                                    return a.cmp(b)
+                                }
 
-                                // If we found a duplicate, skip to the next file/folder.
-                                if duplicate_found { continue; }
+                                // If A doesn't have more children, but B has them, A is a file and B a folder.
+                                else if index == (a.len() - 1) && index < (b.len() - 1) {
+                                    return Ordering::Greater
 
-                                // Otherwise, add it to the parent, and turn it into the new parent.
-                                else {
-
-                                    // Add the folder to the TreeView.
-                                    let mut folder = StandardItem::new(&QString::from_std_str(name)).into_raw();
-
-                                    // Also, set it as not editable by the user. Otherwise will cause problems when renaming.
-                                    folder.as_mut().unwrap().set_editable(false);
-
-                                    // Add it to the model.
-                                    parent.as_mut().unwrap().append_row_unsafe(folder);
-
-                                    // Give it an Icon.
-                                    set_icon_to_item(folder, &icons, IconType::Folder);
-
-                                    // This is our parent now.
-                                    let index = parent.as_ref().unwrap().row_count() - 1;
-                                    parent = parent.as_mut().unwrap().child(index);
+                                }
+                                // If B doesn't have more children, but A has them, B is a file and A a folder.
+                                else if index < (a.len() - 1) && index == (b.len() - 1) {
+                                    return Ordering::Less
                                 }
                             }
+                        });
 
-                            // If our current parent doesn't have anything, just add it.
-                            else {
+                        // Once we get the entire path list sorted, we add the paths to the model one by one,
+                        // skipping duplicate entries.
+                        for path in &sorted_path_list {
 
-                                // Add the folder to the TreeView.
-                                let mut folder = StandardItem::new(&QString::from_std_str(name)).into_raw();
+                            // First, we reset the parent to the big_parent (the PackFile).
+                            let mut parent;
+                            unsafe { parent = model.as_ref().unwrap().item(0); }
 
-                                // Also, set it as not editable by the user. Otherwise will cause problems when renaming.
-                                folder.as_mut().unwrap().set_editable(false);
+                            // Then, we form the path ("parent -> child" style path) to add to the model.
+                            for name in path.iter() {
 
-                                // Add it to the model.
-                                parent.as_mut().unwrap().append_row_unsafe(folder);
+                                // If it's the last string in the file path, it's a file, so we add it to the model.
+                                if name == path.last().unwrap() {
 
-                                // Give it an Icon.
-                                set_icon_to_item(folder, &icons, IconType::Folder);
+                                    // Create the item.
+                                    let mut file = StandardItem::new(&QString::from_std_str(name)).into_raw();
 
-                                // This is our parent now.
-                                let index = parent.as_ref().unwrap().row_count() - 1;
-                                parent = parent.as_mut().unwrap().child(index);
+                                    // Set it as not editable by the user. Otherwise will cause problems when renaming.
+                                    unsafe { file.as_mut().unwrap().set_editable(false); }
+
+                                    // Add it to the TreeView.
+                                    unsafe { parent.as_mut().unwrap().append_row_unsafe(file); }
+
+                                    // Get the Path of the File.
+                                    let path = get_path_from_item(model, file, false);
+
+                                    // Give it an icon.
+                                    set_icon_to_item(file, &icons, IconType::File(path));
+                                }
+
+                                // If it's a folder, we check first if it's already in the TreeStore using the following
+                                // logic:
+                                // If the current parent has a child, it should be a folder already in the TreeStore,
+                                // so we check all his children. If any of them is equal to the current folder we are
+                                // trying to add and it has at least one child, it's a folder exactly like the one we are
+                                // trying to add, so that one becomes our new parent. If there is no equal folder to
+                                // the one we are trying to add, we add it, turn it into the new parent, and repeat.
+                                else {
+
+                                    // There are many unsafe things in this code...
+                                    unsafe {
+
+                                        // Variable to check if the current folder is already in the TreeView.
+                                        let mut duplicate_found = false;
+
+                                        // If the current parent has at least one child...
+                                        if parent.as_ref().unwrap().has_children() {
+
+                                            // It's a folder, so we check his children.
+                                            for index in 0..parent.as_ref().unwrap().row_count() {
+
+                                                // Get the child.
+                                                let mut child = parent.as_mut().unwrap().child((index, 0));
+
+                                                // Get his text.
+                                                let child_text = child.as_ref().unwrap().text().to_std_string();
+
+                                                // If it's the same folder we are trying to add...
+                                                if child_text == *name {
+
+                                                    // This is our parent now.
+                                                    parent = parent.as_mut().unwrap().child(index);
+                                                    duplicate_found = true;
+                                                    break;
+                                                }
+                                            }
+
+                                            // If we found a duplicate, skip to the next file/folder.
+                                            if duplicate_found { continue; }
+
+                                            // Otherwise, add it to the parent, and turn it into the new parent.
+                                            else {
+
+                                                // Create the item.
+                                                let mut folder = StandardItem::new(&QString::from_std_str(name)).into_raw();
+
+                                                // Set it as not editable by the user. Otherwise will cause problems when renaming.
+                                                folder.as_mut().unwrap().set_editable(false);
+
+                                                // Add it to the model.
+                                                parent.as_mut().unwrap().append_row_unsafe(folder);
+
+                                                // Give it an Icon.
+                                                set_icon_to_item(folder, &icons, IconType::Folder);
+
+                                                // This is our parent now.
+                                                let index = parent.as_ref().unwrap().row_count() - 1;
+                                                parent = parent.as_mut().unwrap().child(index);
+                                            }
+                                        }
+
+                                        // If our current parent doesn't have anything, just add it.
+                                        else {
+
+                                            // Create the item.
+                                            let mut folder = StandardItem::new(&QString::from_std_str(name)).into_raw();
+
+                                            // Set it as not editable by the user. Otherwise will cause problems when renaming.
+                                            folder.as_mut().unwrap().set_editable(false);
+
+                                            // Add it to the model.
+                                            parent.as_mut().unwrap().append_row_unsafe(folder);
+
+                                            // Give it an Icon.
+                                            set_icon_to_item(folder, &icons, IconType::Folder);
+
+                                            // This is our parent now.
+                                            let index = parent.as_ref().unwrap().row_count() - 1;
+                                            parent = parent.as_mut().unwrap().child(index);
+                                        }
+                                    }
+                                }
                             }
                         }
-                    }
+                    },
+
+                    // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                    Err(_) => show_dialog(window, false, THREADS_MESSAGE_ERROR),
                 }
             }
         },
@@ -1755,40 +1774,57 @@ pub fn update_treeview(
                         // Get the Path of the File.
                         let path = get_path_from_item(model, item, true);
 
-                        // Send the Path to the Background Thread, and get the type of the item.
+                        // Send the Path to the Background Thread to get the Item's Type.
                         sender_qt.send("get_type_of_path").unwrap();
                         sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
-                        let response = receiver_qt.borrow().recv().unwrap().unwrap();
-                        let item_type: TreePathType = serde_json::from_slice(&response).unwrap();
 
-                        // Get the incomplete Path.
-                        let mut incomplete_path = path.to_vec();
-                        incomplete_path.reverse();
-                        incomplete_path.pop();
-                        incomplete_path.reverse();
+                        // Wait until you get something from the background thread.
+                        if let Ok(item_type) = receiver_qt.borrow().recv().unwrap() {
 
-                        // If it's a Folder...
-                        if item_type == TreePathType::Folder(vec![String::new()]) {
+                            // Try to deserialize it.
+                            match serde_json::from_slice(&item_type) {
 
-                            // Give it a folder icon.
-                            set_icon_to_item(item, &icons, IconType::Folder);
+                                // If it can be deserialized as a TreePathType...
+                                Ok(item_type) => {
+
+                                    // Redundant, but needed for the deserializer to know the type.
+                                    let item_type: TreePathType = item_type;
+
+                                    // Get the incomplete Path.
+                                    let mut incomplete_path = path.to_vec();
+                                    incomplete_path.reverse();
+                                    incomplete_path.pop();
+                                    incomplete_path.reverse();
+
+                                    // If it's a Folder...
+                                    if item_type == TreePathType::Folder(vec![String::new()]) {
+
+                                        // Give it a folder icon.
+                                        set_icon_to_item(item, &icons, IconType::Folder);
+                                    }
+
+                                    // Otherwise, give it an icon.
+                                    else { set_icon_to_item(item, &icons, IconType::File(incomplete_path)); }
+
+                                    // Paint it like that parrot you painted yesterday.
+                                    paint_treeview(item, model, ItemVisualStatus::Added);
+
+                                    // Sort the TreeView.
+                                    sort_item_in_tree_view(
+                                        sender_qt,
+                                        sender_qt_data,
+                                        receiver_qt.clone(),
+                                        window,
+                                        model,
+                                        item,
+                                        item_type
+                                    );
+                                },
+
+                                // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                                Err(_) => show_dialog(window, false, THREADS_MESSAGE_ERROR),
+                            }
                         }
-
-                        // Otherwise, give it an icon.
-                        else { set_icon_to_item(item, &icons, IconType::File(incomplete_path)); }
-
-                        // Paint it like that parrot you painted yesterday.
-                        paint_treeview(item, model, ItemVisualStatus::Added);
-
-                        // Sort the TreeView.
-                        sort_item_in_tree_view(
-                            sender_qt,
-                            sender_qt_data,
-                            receiver_qt.clone(),
-                            model,
-                            item,
-                            item_type
-                        );
                     }
 
                     // Otherwise, it's a folder.
@@ -1827,10 +1863,10 @@ pub fn update_treeview(
                                 // Otherwise, add it to the parent, and turn it into the new parent.
                                 else {
 
-                                    // Add the file to the TreeView.
+                                    // Create the item.
                                     let mut folder = StandardItem::new(&QString::from_std_str(field)).into_raw();
 
-                                    // Also, set it as not editable by the user. Otherwise will cause problems when renaming.
+                                    // Set it as not editable by the user. Otherwise will cause problems when renaming.
                                     folder.as_mut().unwrap().set_editable(false);
                                     parent.as_mut().unwrap().append_row_unsafe(folder);
 
@@ -1846,6 +1882,7 @@ pub fn update_treeview(
                                         sender_qt,
                                         sender_qt_data,
                                         receiver_qt.clone(),
+                                        window,
                                         model,
                                         folder,
                                         TreePathType::Folder(vec![String::new()])
@@ -1856,10 +1893,10 @@ pub fn update_treeview(
                             // If our current parent doesn't have anything, just add it.
                             else {
 
-                                // Add the file to the TreeView.
+                                // Create the Item.
                                 let mut folder = StandardItem::new(&QString::from_std_str(field)).into_raw();
 
-                                // Also, set it as not editable by the user. Otherwise will cause problems when renaming.
+                                // Set it as not editable by the user. Otherwise will cause problems when renaming.
                                 folder.as_mut().unwrap().set_editable(false);
                                 parent.as_mut().unwrap().append_row_unsafe(folder);
 
@@ -1875,6 +1912,7 @@ pub fn update_treeview(
                                     sender_qt,
                                     sender_qt_data,
                                     receiver_qt.clone(),
+                                    window,
                                     model,
                                     folder,
                                     TreePathType::Folder(vec![String::new()])
@@ -1886,7 +1924,7 @@ pub fn update_treeview(
             }
         },
 
-        // If we want to add a file/folder from another `TreeView`...
+        // If we want to add a file/folder from another TreeView...
         TreeViewOperation::AddFromPackFile(mut source_prefix, destination_prefix, new_files_list) => {
 
             // If his path is something, take our the last folder.
@@ -1913,6 +1951,7 @@ pub fn update_treeview(
                 &sender_qt,
                 &sender_qt_data,
                 receiver_qt.clone(),
+                window,
                 tree_view,
                 model,
                 TreeViewOperation::Add(final_paths_list),
@@ -1970,6 +2009,7 @@ pub fn update_treeview(
                         &sender_qt,
                         &sender_qt_data,
                         receiver_qt.clone(),
+                        window,
                         tree_view,
                         model,
                         TreeViewOperation::Build(false),
@@ -1981,7 +2021,7 @@ pub fn update_treeview(
             }
         },
 
-        // If we want to delete something from the `TreeView`, independant of his selection...
+        // If we want to delete something from the TreeView, independant of his selection...
         TreeViewOperation::DeleteUnselected(path_type) => {
 
             // Then we see what type the selected thing is.
@@ -2165,6 +2205,7 @@ pub fn update_treeview(
                     sender_qt,
                     sender_qt_data,
                     receiver_qt.clone(),
+                    window,
                     model,
                     item,
                     path_type
@@ -2192,6 +2233,7 @@ fn sort_item_in_tree_view(
     sender_qt: &Sender<&str>,
     sender_qt_data: &Sender<Result<Vec<u8>, Error>>,
     receiver_qt: Rc<RefCell<Receiver<Result<Vec<u8>, Error>>>>,
+    window: *mut MainWindow,
     model: *mut StandardItemModel,
     mut item: *mut StandardItem,
     item_type: TreePathType,
@@ -2226,8 +2268,23 @@ fn sort_item_in_tree_view(
         // Send the Path to the Background Thread, and get the type of the item.
         sender_qt.send("get_type_of_path").unwrap();
         sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
-        let response = receiver_qt.borrow().recv().unwrap().unwrap();
-        serde_json::from_slice(&response).unwrap()
+
+        // Wait until you get something from the background thread.
+        if let Ok(item_type) = receiver_qt.borrow().recv().unwrap() {
+
+            // Try to deserialize it.
+            match serde_json::from_slice(&item_type) {
+
+                // If it can be deserialized as a TreePathType, return it.
+                Ok(item_type) => item_type,
+
+                // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                Err(_) => return show_dialog(window, false, THREADS_MESSAGE_ERROR),
+            }
+        }
+
+        // Otherwise, there was an error. This should never happen, but... Give a warning and ask for a report.
+        else { return show_dialog(window, false, THREADS_MESSAGE_ERROR); }
     }
 
     // Otherwise, return the type as `None`.
@@ -2246,8 +2303,23 @@ fn sort_item_in_tree_view(
         // Send the Path to the Background Thread, and get the type of the item.
         sender_qt.send("get_type_of_path").unwrap();
         sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
-        let response = receiver_qt.borrow().recv().unwrap().unwrap();
-        serde_json::from_slice(&response).unwrap()
+
+        // Wait until you get something from the background thread.
+        if let Ok(item_type) = receiver_qt.borrow().recv().unwrap() {
+
+            // Try to deserialize it.
+            match serde_json::from_slice(&item_type) {
+
+                // If it can be deserialized as a TreePathType, return it.
+                Ok(item_type) => item_type,
+
+                // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                Err(_) => return show_dialog(window, false, THREADS_MESSAGE_ERROR),
+            }
+        }
+
+        // Otherwise, there was an error. This should never happen, but... Give a warning and ask for a report.
+        else { return show_dialog(window, false, THREADS_MESSAGE_ERROR); }
     }
 
     // Otherwise, return the type as `None`.
@@ -2326,75 +2398,91 @@ fn sort_item_in_tree_view(
             // Send the Path to the Background Thread, and get the type of the item.
             sender_qt.send("get_type_of_path").unwrap();
             sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
-            let response = receiver_qt.borrow().recv().unwrap().unwrap();
-            let item_sibling_type: TreePathType = serde_json::from_slice(&response).unwrap();
 
-            // If both are of the same type...
-            if item_type == item_sibling_type {
+            // Wait until you get something from the background thread.
+            if let Ok(item_sibling_type) = receiver_qt.borrow().recv().unwrap() {
 
-                // Get both texts.
-                let item_name: String;
-                let sibling_name: String;
-                unsafe { item_name = QString::to_std_string(&item.as_mut().unwrap().text()); }
-                unsafe { sibling_name = QString::to_std_string(&item_sibling.as_mut().unwrap().text()); }
+                // Try to deserialize it.
+                match serde_json::from_slice(&item_sibling_type) {
 
-                // Depending on our direction, we sort one way or another
-                if direction {
+                    // If it can be deserialized as a TreePathType, return it.
+                    Ok(item_sibling_type) => {
 
-                    // For the previous item...
-                    let name_list = vec![sibling_name.to_owned(), item_name.to_owned()];
-                    let mut name_list_sorted = vec![sibling_name.to_owned(), item_name.to_owned()];
-                    name_list_sorted.sort();
+                        // Redundant, but needed for the deserializer to know the type.
+                        let item_sibling_type: TreePathType = item_sibling_type;
 
-                    // If the order hasn't changed, we're done.
-                    if name_list == name_list_sorted { break; }
+                        // If both are of the same type...
+                        if item_type == item_sibling_type {
 
-                    // If they have changed positions...
-                    else {
+                            // Get both texts.
+                            let item_name: String;
+                            let sibling_name: String;
+                            unsafe { item_name = QString::to_std_string(&item.as_mut().unwrap().text()); }
+                            unsafe { sibling_name = QString::to_std_string(&item_sibling.as_mut().unwrap().text()); }
 
-                        // Move the item one position above.
-                        let item_x;
-                        unsafe { item_x = parent.as_mut().unwrap().take_row(item_index.row()); }
-                        unsafe { parent.as_mut().unwrap().insert_row(item_sibling_index.row(), &item_x); }
-                        unsafe { item = parent.as_mut().unwrap().child(item_sibling_index.row()); }
-                        unsafe { item_index = item.as_mut().unwrap().index(); }
-                    }
-                } else {
+                            // Depending on our direction, we sort one way or another
+                            if direction {
 
-                    // For the next item...
-                    let name_list = vec![item_name.to_owned(), sibling_name.to_owned()];
-                    let mut name_list_sorted = vec![item_name.to_owned(), sibling_name.to_owned()];
-                    name_list_sorted.sort();
+                                // For the previous item...
+                                let name_list = vec![sibling_name.to_owned(), item_name.to_owned()];
+                                let mut name_list_sorted = vec![sibling_name.to_owned(), item_name.to_owned()];
+                                name_list_sorted.sort();
 
-                    // If the order hasn't changed, we're done.
-                    if name_list == name_list_sorted { break; }
+                                // If the order hasn't changed, we're done.
+                                if name_list == name_list_sorted { break; }
 
-                    // If they have changed positions...
-                    else {
+                                // If they have changed positions...
+                                else {
 
-                        // Move the item one position below.
-                        let item_x;
-                        unsafe { item_x = parent.as_mut().unwrap().take_row(item_index.row()); }
-                        unsafe { parent.as_mut().unwrap().insert_row(item_sibling_index.row(), &item_x); }
-                        unsafe { item = parent.as_mut().unwrap().child(item_sibling_index.row()); }
-                        unsafe { item_index = item.as_mut().unwrap().index(); }
-                    }
+                                    // Move the item one position above.
+                                    let item_x;
+                                    unsafe { item_x = parent.as_mut().unwrap().take_row(item_index.row()); }
+                                    unsafe { parent.as_mut().unwrap().insert_row(item_sibling_index.row(), &item_x); }
+                                    unsafe { item = parent.as_mut().unwrap().child(item_sibling_index.row()); }
+                                    unsafe { item_index = item.as_mut().unwrap().index(); }
+                                }
+                            } else {
+
+                                // For the next item...
+                                let name_list = vec![item_name.to_owned(), sibling_name.to_owned()];
+                                let mut name_list_sorted = vec![item_name.to_owned(), sibling_name.to_owned()];
+                                name_list_sorted.sort();
+
+                                // If the order hasn't changed, we're done.
+                                if name_list == name_list_sorted { break; }
+
+                                // If they have changed positions...
+                                else {
+
+                                    // Move the item one position below.
+                                    let item_x;
+                                    unsafe { item_x = parent.as_mut().unwrap().take_row(item_index.row()); }
+                                    unsafe { parent.as_mut().unwrap().insert_row(item_sibling_index.row(), &item_x); }
+                                    unsafe { item = parent.as_mut().unwrap().child(item_sibling_index.row()); }
+                                    unsafe { item_index = item.as_mut().unwrap().index(); }
+                                }
+                            }
+                        }
+
+                        // If the top one is a File and the bottom one a Folder, it's an special situation. Just swap them.
+                        else if item_type == TreePathType::Folder(vec![String::new()]) && item_sibling_type == TreePathType::File((vec![String::new()], 1)) {
+
+                            // We swap them, and update them for the next loop.
+                            let item_x;
+                            unsafe { item_x = parent.as_mut().unwrap().take_row(item_index.row()); }
+                            unsafe { parent.as_mut().unwrap().insert_row(item_sibling_index.row(), &item_x); }
+                            unsafe { item = parent.as_mut().unwrap().child(item_sibling_index.row()); }
+                            unsafe { item_index = item.as_mut().unwrap().index(); }
+                        }
+
+                        // If the type is different and it's not an special situation, we can't move anymore.
+                        else { break; }
+                    },
+
+                    // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                    Err(_) => return show_dialog(window, false, THREADS_MESSAGE_ERROR),
                 }
             }
-
-            // If the top one is a File and the bottom one a Folder, it's an special situation. Just swap them.
-            else if item_type == TreePathType::Folder(vec![String::new()]) && item_sibling_type == TreePathType::File((vec![String::new()], 1)) {
-
-                // We swap them, and update them for the next loop.
-                let item_x;
-                unsafe { item_x = parent.as_mut().unwrap().take_row(item_index.row()); }
-                unsafe { parent.as_mut().unwrap().insert_row(item_sibling_index.row(), &item_x); }
-                unsafe { item = parent.as_mut().unwrap().child(item_sibling_index.row()); }
-                unsafe { item_index = item.as_mut().unwrap().index(); }
-            }
-
-            // If the type is different and it's not an special situation, we can't move anymore.
-            else { break; }
         }
 
         // If the Item is invalid, we can't move anymore.

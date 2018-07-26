@@ -359,7 +359,7 @@ impl PackedFileDBTreeView {
 
                                 // Update the DBData with the data in the table, or report error if it fails.
                                 if let Err(error) = Self::return_data_from_table_view(&mut data, model) {
-                                    return show_dialog(&app_ui, false, format!("<p>Error while trying to save the DB Table:</p><p>{}</p><p>This is probably caused by one of the fields you just changed. Please, make sure the data in that field it's of the correct type.</p>", error.cause()));
+                                    return show_dialog(app_ui.window, false, format!("<p>Error while trying to save the DB Table:</p><p>{}</p><p>This is probably caused by one of the fields you just changed. Please, make sure the data in that field it's of the correct type.</p>", error.cause()));
                                 };
 
                                 // Tell the background thread to start saving the PackedFile.
@@ -672,7 +672,7 @@ impl PackedFileDBTreeView {
 
                                         // Update the DBData with the data in the table, or report error if it fails.
                                         if let Err(error) = Self::return_data_from_table_view(&mut data, model) {
-                                            return show_dialog(&app_ui, false, format!("<p>Error while trying to save the DB Table:</p><p>{}</p><p>This is probably caused by one of the fields you just changed. Please, make sure the data in that field it's of the correct type.</p>", error.cause()));
+                                            return show_dialog(app_ui.window, false, format!("<p>Error while trying to save the DB Table:</p><p>{}</p><p>This is probably caused by one of the fields you just changed. Please, make sure the data in that field it's of the correct type.</p>", error.cause()));
                                         };
 
                                         // Tell the background thread to start saving the PackedFile.
@@ -792,7 +792,7 @@ impl PackedFileDBTreeView {
 
                                         // Update the DBData with the data in the table, or report error if it fails.
                                         if let Err(error) = Self::return_data_from_table_view(&mut data, model) {
-                                            return show_dialog(&app_ui, false, format!("<p>Error while trying to save the DB Table:</p><p>{}</p><p>This is probably caused by one of the fields you just changed. Please, make sure the data in that field it's of the correct type.</p>", error.cause()));
+                                            return show_dialog(app_ui.window, false, format!("<p>Error while trying to save the DB Table:</p><p>{}</p><p>This is probably caused by one of the fields you just changed. Please, make sure the data in that field it's of the correct type.</p>", error.cause()));
                                         };
 
                                         // Tell the background thread to start saving the PackedFile.
@@ -985,7 +985,7 @@ impl PackedFileDBTreeView {
 
                                             // Update the DBData with the data in the table, or report error if it fails.
                                             if let Err(error) = Self::return_data_from_table_view(&mut data, model) {
-                                                return show_dialog(&app_ui, false, format!("<p>Error while trying to save the DB Table:</p><p>{}</p><p>This is probably caused by one of the fields you just changed. Please, make sure the data in that field it's of the correct type.</p>", error.cause()));
+                                                return show_dialog(app_ui.window, false, format!("<p>Error while trying to save the DB Table:</p><p>{}</p><p>This is probably caused by one of the fields you just changed. Please, make sure the data in that field it's of the correct type.</p>", error.cause()));
                                             };
 
                                             // Tell the background thread to start saving the PackedFile.
@@ -1200,7 +1200,7 @@ impl PackedFileDBTreeView {
 
                                             // Update the DBData with the data in the table, or report error if it fails.
                                             if let Err(error) = Self::return_data_from_table_view(&mut data, model) {
-                                                return show_dialog(&app_ui, false, format!("<p>Error while trying to save the DB Table:</p><p>{}</p><p>This is probably caused by one of the fields you just changed. Please, make sure the data in that field it's of the correct type.</p>", error.cause()));
+                                                return show_dialog(app_ui.window, false, format!("<p>Error while trying to save the DB Table:</p><p>{}</p><p>This is probably caused by one of the fields you just changed. Please, make sure the data in that field it's of the correct type.</p>", error.cause()));
                                             };
 
                                             // Tell the background thread to start saving the PackedFile.
@@ -1265,7 +1265,7 @@ impl PackedFileDBTreeView {
                                             Ok(new_data) => Self::load_data_to_table_view(&serde_json::from_slice(&new_data).unwrap(), model),
 
                                             // If there was an error, report it.
-                                            Err(error) => return show_dialog(&app_ui, false, format!("<p>Error while importing the TSV File:</p><p>{}</p>", error.cause())),
+                                            Err(error) => return show_dialog(app_ui.window, false, format!("<p>Error while importing the TSV File:</p><p>{}</p>", error.cause())),
                                         }
 
                                         // Get the settings.
@@ -1281,7 +1281,7 @@ impl PackedFileDBTreeView {
 
                                         // Update the DBData with the data in the table, or report error if it fails.
                                         if let Err(error) = Self::return_data_from_table_view(&mut data, model) {
-                                            return show_dialog(&app_ui, false, format!("<p>Error while trying to save the DB Table:</p><p>{}</p><p>This is probably caused by one of the fields you just changed. Please, make sure the data in that field it's of the correct type.</p>", error.cause()));
+                                            return show_dialog(app_ui.window, false, format!("<p>Error while trying to save the DB Table:</p><p>{}</p><p>This is probably caused by one of the fields you just changed. Please, make sure the data in that field it's of the correct type.</p>", error.cause()));
                                         };
 
                                         // Tell the background thread to start saving the PackedFile.
@@ -1343,11 +1343,11 @@ impl PackedFileDBTreeView {
                                         // If the exporting was succesful, report it.
                                         Ok(success) => {
                                             let message: String = serde_json::from_slice(&success).unwrap();
-                                            return show_dialog(&app_ui, true, message);
+                                            return show_dialog(app_ui.window, true, message);
                                         }
 
                                         // If there was an error, report it.
-                                        Err(error) => return show_dialog(&app_ui, false, format!("<p>Error while exporting the TSV File:</p><p>{}</p>", error.cause())),
+                                        Err(error) => return show_dialog(app_ui.window, false, format!("<p>Error while exporting the TSV File:</p><p>{}</p>", error.cause())),
                                     }
                                 }
                             }
@@ -2255,8 +2255,8 @@ impl PackedFileDBDecoder {
 
                                             // And try to save the main `Schema`.
                                             match Schema::save(&schema.borrow(), &rpfm_path, &supported_games.iter().filter(|x| x.folder_name == game_selected.game).map(|x| x.schema.to_owned()).collect::<String>()) {
-                                                Ok(_) => show_dialog(&app_ui, true, "Schema successfully saved."),
-                                                Err(error) => show_dialog(&app_ui, false, error.cause()),
+                                                Ok(_) => show_dialog(app_ui.window, true, "Schema successfully saved."),
+                                                Err(error) => show_dialog(app_ui.window, false, error.cause()),
                                             }
 
                                             // After all that, we need to update the version list, as this may have created a new version.
@@ -2349,7 +2349,7 @@ impl PackedFileDBDecoder {
 
                                                 // Try to remove that version form the schema.
                                                 if let Err(error) = DB::remove_table_version(&stuff_non_ui.packed_file.path[1], version, &mut schema.borrow_mut()) {
-                                                    return show_dialog(&app_ui, false, format!("<p>Error while removing a version of this table's definitions:</p> <p>{}</p>", error.cause()));
+                                                    return show_dialog(app_ui.window, false, format!("<p>Error while removing a version of this table's definitions:</p> <p>{}</p>", error.cause()));
                                                 }
 
                                                 // If it worked, update the list.

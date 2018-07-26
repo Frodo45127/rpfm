@@ -843,13 +843,13 @@ impl NewPrefabWindow {
                             &catchment_indexes,
                             &pack_file_decoded,
                         ) {
-                            Ok(result) => show_dialog(&app_ui.window, true, result),
-                            Err(error) => show_dialog(&app_ui.window, false, error),
+                            Ok(result) => show_dialog(app_ui.window, true, result),
+                            Err(error) => show_dialog(app_ui.window, false, error),
                         };
                     }
 
                     // If there is no game_path, stop and report error.
-                    None => show_dialog(&app_ui.window, false, "The selected Game Selected doesn't have a path specified in the Settings."),
+                    None => show_dialog(app_ui.window, false, "The selected Game Selected doesn't have a path specified in the Settings."),
                 }
 
                 // Destroy the "New Prefab" window,
