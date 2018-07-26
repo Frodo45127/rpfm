@@ -33,12 +33,10 @@ pub struct PackFile {
 /// `PackFileExtraData`: This struct stores some extra data we need to manipulate the PackFiles:
 /// - file_name: name of the PackFile.
 /// - file_path: current full path of the PackFile in the FileSystem.
-/// - is_modified: true if we have changed the PackFile in any way.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PackFileExtraData {
     pub file_name: String,
     pub file_path: PathBuf,
-    pub is_modified: bool,
 }
 
 /// `PackFileHeader`: This struct stores all the info we can get from the header of the PackFile:
@@ -266,7 +264,6 @@ impl PackFileExtraData {
         Self {
             file_name: String::new(),
             file_path: PathBuf::new(),
-            is_modified: false,
         }
     }
 
@@ -275,7 +272,6 @@ impl PackFileExtraData {
         Self {
             file_name,
             file_path: PathBuf::new(),
-            is_modified: false,
         }
     }
 
@@ -284,7 +280,6 @@ impl PackFileExtraData {
         Self {
             file_name,
             file_path,
-            is_modified: false,
         }
     }
 }
