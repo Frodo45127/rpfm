@@ -453,7 +453,7 @@ impl NewMyModDialog {
         unsafe { mymod_game_combobox.as_mut().unwrap().set_model(mymod_game_model.static_cast_mut()); }
 
         // Add the games to the ComboBox.
-        unsafe { for game in supported_games { mymod_game_combobox.as_mut().unwrap().add_item(&QString::from_std_str(&game.display_name)); } }
+        unsafe { for game in supported_games { if game.display_name != "Arena" { mymod_game_combobox.as_mut().unwrap().add_item(&QString::from_std_str(&game.display_name)); }} }
 
         // Add all the widgets to the main grid.
         unsafe { main_grid.as_mut().unwrap().add_widget((mymod_name_label as *mut Widget, 1, 0, 1, 1)); }

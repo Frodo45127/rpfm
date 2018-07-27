@@ -1,10 +1,11 @@
 // In this file are all the Structs and Impls required to decode and encode the PackFiles.
+// NOTE: Arena support was implemented thanks to the work of "Trolldemorted" here: https://github.com/TotalWarArena-Modding/twa_pack_lib
+
 extern crate chrono;
 extern crate failure;
 
-use self::chrono::{
-    NaiveDateTime, Utc
-};
+use self::chrono::Utc;
+
 use std::path::PathBuf;
 use std::io::prelude::*;
 use std::io::{ BufReader, BufWriter, Read, Write, SeekFrom };
@@ -33,12 +34,10 @@ pub struct PackFile {
 /// `PackFileExtraData`: This struct stores some extra data we need to manipulate the PackFiles:
 /// - file_name: name of the PackFile.
 /// - file_path: current full path of the PackFile in the FileSystem.
-/// - is_modified: true if we have changed the PackFile in any way.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PackFileExtraData {
     pub file_name: String,
     pub file_path: PathBuf,
-    pub is_modified: bool,
 }
 
 /// `PackFileHeader`: This struct stores all the info we can get from the header of the PackFile:
@@ -48,16 +47,28 @@ pub struct PackFileExtraData {
 /// - pack_file_index_size: size in bytes of the PackFile Index of the file (the first part of the data, if exists).
 /// - packed_file_count: amount of PackedFiles stored inside the PackFile.
 /// - packed_file_index_size: size in bytes of the PackedFile Index of the file (the first part of the data).
-/// - creation_time: turns out this is the epoch date of the creation of the PackFile.
+/// - creation_time: turns out this is the epoch date of the creation of the PackFile. We just get it encoded in u32.
 ///
-/// NOTE: to understand the "pack_file_type":
+/// There three variables are not directly related to the header, but are decoded from it:
+/// - index_has_extra_u32: true if the PackedFile index has 4 bytes after the size of the PackedFiles.
+/// - index_is_encrypted: true if the PackedFile index is encrypted.
+/// - mysterious_mask: mysterious value found in Arena PackFiles. Can be usefull to identify them.
+///
+/// NOTE: to understand the "pack_file_type", because it's quite complex:
 /// - 0 => "Boot",
 /// - 1 => "Release",
 /// - 2 => "Patch",
 /// - 3 => "Mod",
 /// - 4 => "Movie",
+/// - 17 => "Music" (don't know his "official" name, but it's used for Music PackFiles),
 /// - Any other type => Special types we don't want to edit, only to read.
-#[derive(Clone, Debug)]
+/// Also, a bitmask can be applied to this number:
+/// - 64 => PackedFile index has 4 empty bytes after the size of each PackedFile.
+/// - 128 => PackedFile index is encrypted (Only in Arena).
+/// - 256 => No idea, but it's in every Arena PackFile (Only in Arena).
+/// So, when getting the type, we first have to check his bitmasks and see what does it have.
+/// NOTE: Currently we don't support saving ANY Packfile that have bitmasks.
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PackFileHeader {
     pub id: String,
     pub pack_file_type: u32,
@@ -65,7 +76,11 @@ pub struct PackFileHeader {
     pub pack_file_index_size: u32,
     pub packed_file_count: u32,
     pub packed_file_index_size: u32,
-    pub creation_time: NaiveDateTime,
+    pub creation_time: u32,
+
+    pub index_has_extra_u32: bool,
+    pub index_is_encrypted: bool,
+    pub mysterious_mask: bool,
 }
 
 /// `PackFileData`: This struct stores all the data from the PackFile outside the header:
@@ -123,15 +138,22 @@ impl PackFile {
     }
 
     /// This function returns if the PackFile is editable or not, depending on the type of the PackFile.
-    /// Basically, if the PackFile is not one of the 5 know types, this'll return false. Use it to disable
-    /// saving functions for PackFiles we can read but not save. Like the "boot.pack" from Attila.
-    /// Also, if the "Allow edition of CA PackFiles" setting is disabled, return false for everything
+    /// Basically, if the PackFile is not one of the known types OR it has any of the three header bitmasks
+    /// as true, this'll return false. Use it to disable saving functions for PackFiles we can read but not
+    /// save. Also, if the "Allow edition of CA PackFiles" setting is disabled, return false for everything
     /// except types "Mod" and "Movie".
     pub fn is_editable(&self, settings: &Settings) -> bool {
 
+        // If ANY of these bitmask is detected in the PackFile, disable all saving.
+        if self.header.index_has_extra_u32 || self.header.index_is_encrypted || self.header.mysterious_mask { false }
+
         // These types are always editable.
-        if self.header.pack_file_type == 3 || self.header.pack_file_type == 4 { true }
-        else if self.header.pack_file_type <= 2 && settings.allow_editing_of_ca_packfiles { true }
+        else if self.header.pack_file_type == 3 || self.header.pack_file_type == 4 { true }
+
+        // If the "Allow Editing of CA PackFiles" is enabled, these types are also enabled.
+        else if settings.allow_editing_of_ca_packfiles && (self.header.pack_file_type <= 2 || self.header.pack_file_type == 17) { true }
+
+        // Otherwise, always return false.
         else { false }
     }
 
@@ -266,7 +288,6 @@ impl PackFileExtraData {
         Self {
             file_name: String::new(),
             file_path: PathBuf::new(),
-            is_modified: false,
         }
     }
 
@@ -275,7 +296,6 @@ impl PackFileExtraData {
         Self {
             file_name,
             file_path: PathBuf::new(),
-            is_modified: false,
         }
     }
 
@@ -284,7 +304,6 @@ impl PackFileExtraData {
         Self {
             file_name,
             file_path,
-            is_modified: false,
         }
     }
 }
@@ -301,7 +320,11 @@ impl PackFileHeader {
             pack_file_index_size: 0,
             packed_file_count: 0,
             packed_file_index_size: 0,
-            creation_time: Utc::now().naive_utc(),
+            creation_time: 0,
+
+            index_has_extra_u32: false,
+            index_is_encrypted: false,
+            mysterious_mask: false,
         }
     }
 
@@ -326,14 +349,18 @@ impl PackFileHeader {
                         Ok(id) => {
 
                             // If the header's first 4 bytes are "PFH5" or "PFH4", it's a valid file, so we read it.
-                            if id == "PFH5" || id == "PFH4" {
-                                pack_file_header.id = id;
-                            }
+                            if id == "PFH5" || id == "PFH4" { pack_file_header.id = id; }
 
                             // If we reach this point, the file is not valid.
-                            else {
-                                return Err(format_err!("The file is not a supported PackFile.\n\nFor now, we only support:\n - Warhammer 2.\n - Warhammer.\n - Attila."))
-                            }
+                            else { return Err(format_err!("
+                            <p>The file is not a supported PackFile.</p>
+                            <p>For now, we only support:</p>
+                            <ul>
+                                <li>- Warhammer 2.</li>
+                                <li>- Warhammer.</li>
+                                <li>- Attila.</li>
+                                <li>- Arena.</li>
+                            </ul>")) }
                         }
 
                         // If we reach this point, there has been a decoding error.
@@ -349,13 +376,29 @@ impl PackFileHeader {
             Err(_) => return Err(format_err!("Error while trying to read the header of the PackFile from the disk.")),
         }
 
-        // Fill the default header with the current PackFile values.
+        // Get the "base" PackFile Type.
         pack_file_header.pack_file_type = decode_integer_u32(&buffer[4..8])?;
+
+        // Get the bitmasks from the PackFile's Type.
+        pack_file_header.index_has_extra_u32 = if pack_file_header.pack_file_type & 64 != 0 { true } else { false };
+        pack_file_header.index_is_encrypted = if pack_file_header.pack_file_type & 128 != 0 { true } else { false };
+        pack_file_header.mysterious_mask = if pack_file_header.pack_file_type & 256 != 0 { true } else { false };
+
+        // Disable the masks, so we can get the true Type.
+        pack_file_header.pack_file_type = pack_file_header.pack_file_type & 63;
+        pack_file_header.pack_file_type = pack_file_header.pack_file_type & 127;
+        pack_file_header.pack_file_type = pack_file_header.pack_file_type & 255;
+
+        // Fill the default header with the current PackFile values.
         pack_file_header.pack_file_count = decode_integer_u32(&buffer[8..12])?;
         pack_file_header.pack_file_index_size = decode_integer_u32(&buffer[12..16])?;
         pack_file_header.packed_file_count = decode_integer_u32(&buffer[16..20])?;
         pack_file_header.packed_file_index_size = decode_integer_u32(&buffer[20..24])?;
-        pack_file_header.creation_time = NaiveDateTime::from_timestamp(i64::from(decode_integer_u32(&buffer[24..28])?), 0);
+
+        // The creation time is an asshole. We need to get his u32 version.
+        // To get the full timestamp we need to use:
+        // let naive_date_time: NaiveDateTime = NaiveDateTime::from_timestamp(i64::from(decode_integer_u32(&buffer[24..28])?), 0);
+        pack_file_header.creation_time = decode_integer_u32(&buffer[24..28])?;
 
         // Return the header.
         Ok(pack_file_header)
@@ -365,8 +408,15 @@ impl PackFileHeader {
     /// We need the final size of both indexes for this.
     fn save(&self, file: &mut BufWriter<File>, pack_file_index_size: u32, packed_file_index_size: u32) -> Result<(), Error> {
 
+        // Complete the PackFile Type using the bitmasks.
+        let mut final_type = self.pack_file_type;
+        if self.index_has_extra_u32 { final_type = final_type | 64; }
+        if self.index_is_encrypted { final_type = final_type | 128; }
+        if self.mysterious_mask { final_type = final_type | 256; }
+
+        // Write the entire header.
         file.write(&encode_string_u8(&self.id))?;
-        file.write(&encode_integer_u32(self.pack_file_type))?;
+        file.write(&encode_integer_u32(final_type))?;
         file.write(&encode_integer_u32(self.pack_file_count))?;
         file.write(&encode_integer_u32(pack_file_index_size))?;
         file.write(&encode_integer_u32(self.packed_file_count))?;
@@ -481,123 +531,159 @@ impl PackFileData {
         let mut pack_file_index = vec![0; header.pack_file_index_size as usize];
         let mut packed_file_index = vec![0; header.packed_file_index_size as usize];
 
+        // If it's an Arena PackFile, skip the next 20 bytes, as it's stuff we don't need to decode the PackFile.
+        if header.id == "PFH5" && header.mysterious_mask { data.read_exact(&mut vec![0; 20])?; }
+
         // Get the data from both indexes to their buffers.
         data.read_exact(&mut pack_file_index)?;
         data.read_exact(&mut packed_file_index)?;
 
-        // Offset for the loop to get the PackFiles from the PackFile index.
-        let mut pack_file_index_offset: usize = 0;
+        // If it's an Arena PackFile with the index encrypted, we need to decode it in a different way.
+        if header.id == "PFH5" && header.index_is_encrypted {
 
-        // First, we decode every entry in the PackFile index and store it. The process is simple:
-        // we get his name char by char until hitting 0u8, then save it and start getting the next
-        // PackFile's name.
-        for _ in 0..header.pack_file_count {
+            // NOTE: Code from here is based in the twa_pack_lib made by "Trolldemorted" here: https://github.com/TotalWarArena-Modding/twa_pack_lib
+            // It's here because it's better (for me) to have all the PackFile's decoding logic together, integrated in RPFM,
+            // instead of using a lib to load the data for only one game.
+            // Feel free to correct anything if it's wrong, because this for me is almost black magic.
 
-            // Store his name.
-            let mut pack_file_name = String::new();
+            // Offset for the loop to get the PackFiles from the PackFile index.
+            let mut packed_file_index_offset: usize = 0;
 
-            // For each byte...
-            loop {
+            // For each PackedFile in the index...
+            for packed_files_after_this_one in (0..header.packed_file_count).rev() {
 
-                // Get it.
-                let character = pack_file_index[pack_file_index_offset];
+                // We create an empty PackedFile.
+                let mut packed_file = PackedFile::new();
 
-                // If the byte is 0...
-                if character == 0 {
+                // Get his encrypted size.
+                let mut encrypted_size = decode_integer_u32(&packed_file_index[packed_file_index_offset..(packed_file_index_offset + 4)])?;
 
-                    // Add the PackFile to the list, reset the `pack_file_name` and break the loop.
-                    pack_file_data.pack_files.push(pack_file_name);
-                    pack_file_index_offset += 1;
-                    break;
+                // Get the decrypted size.
+                packed_file.size = decrypt_index_item_file_length(encrypted_size, packed_files_after_this_one as u32, &mut packed_file_index_offset);
 
-                // If it's not 0, then we add the character to the current PackFile name.
-                } else {
+                // If we got an extra u32, skip 4 bytes.
+                if header.index_has_extra_u32 { packed_file_index_offset += 4; }
 
-                    // Get his char value and add it to the String.
-                    pack_file_name.push(character as char);
-                    pack_file_index_offset += 1;
-                }
+                // Get the decrypted path.
+                let decrypted_path = decrypt_index_item_filename(&packed_file_index[packed_file_index_offset..], packed_file.size as u8, &mut packed_file_index_offset);
+
+                // Split it and save it.
+                packed_file.path = decrypted_path.split('\\').map(|x| x.to_owned()).collect::<Vec<String>>();
+
+                // Once we are done, we add the PackedFile to the PackFileData.
+                pack_file_data.packed_files.push(packed_file);
             }
         }
 
-        // Offsets for the loop to get the file corresponding to the index entry.
-        let mut packed_file_index_offset: usize = 0;
+        // Otherwise, we use the normal decoding method.
+        else {
 
-        // PFH5 PackFiles (Warhammer 2) have a 0 separating size and name of the file in the index.
-        let packed_file_index_path_offset: usize =
+            // Offset for the loop to get the PackFiles from the PackFile index.
+            let mut pack_file_index_offset: usize = 0;
 
-            // If it's a common PFH5 PackFile (Warhammer 2).
-            if header.id == "PFH5" && header.pack_file_type <= 4 { 5 }
+            // First, we decode every entry in the PackFile index and store it. The process is simple:
+            // we get his name char by char until hitting 0u8, then save it and start getting the next
+            // PackFile's name.
+            for _ in 0..header.pack_file_count {
 
-            // If it's a common PFH4 PackFile (Warhammer & most of Attila).
-            else if header.id == "PFH4" && header.pack_file_type <= 4 { 4 }
+                // Store his name.
+                let mut pack_file_name = String::new();
 
-            // If it's Attila's BootX.
-            else if header.id == "PFH4" && header.pack_file_type > 4 { 8 }
+                // For each byte...
+                loop {
 
-            // As default, we use 4 (Attila).
-            else { 4 };
+                    // Get it.
+                    let character = pack_file_index[pack_file_index_offset];
 
-        // For each PackedFile in our PackFile...
-        for _ in 0..header.packed_file_count {
+                    // If the byte is 0...
+                    if character == 0 {
 
-            // We create an empty PackedFile.
-            let mut packed_file = PackedFile::new();
+                        // Add the PackFile to the list, reset the `pack_file_name` and break the loop.
+                        pack_file_data.pack_files.push(pack_file_name);
+                        pack_file_index_offset += 1;
+                        break;
 
-            // Get his size.
-            packed_file.size = decode_integer_u32(&packed_file_index[
-                packed_file_index_offset..packed_file_index_offset + 4
-            ])?;
+                    // If it's not 0, then we add the character to the current PackFile name.
+                    } else {
 
-            // Update the index.
-            packed_file_index_offset += packed_file_index_path_offset;
-
-            // Create a little buffer to hold the characters until we get a complete name.
-            let mut character_buffer = String::new();
-
-            // For each byte...
-            loop {
-
-                // Get it.
-                let character = packed_file_index[packed_file_index_offset];
-
-                // If the byte is 0...
-                if character == 0 {
-
-                    // Add the PackFile to the list and break the loop.
-                    packed_file.path.push(character_buffer);
-
-                    // We move the index to the begining of the next entry.
-                    packed_file_index_offset += 1;
-
-                    // And break the loop.
-                    break;
-                }
-
-                // If the byte is 92 (\ or 5C), we got a folder.
-                else if character == 92 {
-
-                    // We add it to the PackedFile's path.
-                    packed_file.path.push(character_buffer);
-
-                    // Reset the character buffer.
-                    character_buffer = String::new();
-
-                    // We move the index to the begining of the next name.
-                    packed_file_index_offset += 1;
-                }
-
-                // If it's not 0 nor 92, it's a character from our current file.
-                else {
-
-                    // Get his char value and add it to the buffer.
-                    character_buffer.push(character as char);
-                    packed_file_index_offset += 1;
+                        // Get his char value and add it to the String.
+                        pack_file_name.push(character as char);
+                        pack_file_index_offset += 1;
+                    }
                 }
             }
 
-            // Once we are done, we add the PackedFile to the PackFileData.
-            pack_file_data.packed_files.push(packed_file);
+            // Offsets for the loop to get the file corresponding to the index entry.
+            let mut packed_file_index_offset: usize = 0;
+
+            // We choose the offset. This depends on a lot of conditions.
+            let packed_file_index_path_offset: usize =
+
+                // If it's a common PFH5 PackFile (Warhammer 2 & Arena)...
+                if header.id == "PFH5" {
+
+                    // If it has an extra u32, we default to 8 (Arena).
+                    if header.index_has_extra_u32 { 8 }
+
+                    // If still is an Arena PackFile, we default to 4 (no space between size and path of PackedFiles)
+                    else if header.mysterious_mask { 4 }
+
+                    // Otherwise, we default to 5 (0 between size and path, Warhammer 2).
+                    else { 5 }
+                }
+
+                // If it's a common PFH4 PackFile (Warhammer & Attila).
+                else if header.id == "PFH4" {
+
+                    // If it has an extra u32, we default to 8 (boot.pack of Attila).
+                    if header.index_has_extra_u32 { 8 }
+
+                    // Otherwise, we default to 4 (no space between size and path of PackedFiles).
+                    else { 4 }
+                }
+
+                // As default, we use 4 (Attila).
+                else { 4 };
+
+            // For each PackedFile in our PackFile...
+            for _ in 0..header.packed_file_count {
+
+                // We create an empty PackedFile.
+                let mut packed_file = PackedFile::new();
+
+                // Get his size.
+                packed_file.size = decode_integer_u32(&packed_file_index[
+                    packed_file_index_offset..packed_file_index_offset + 4
+                ])?;
+
+                // Update the index.
+                packed_file_index_offset += packed_file_index_path_offset;
+
+                // Create a little buffer to hold the characters until we get a complete name.
+                let mut path = String::new();
+
+                // Loop through all the characters in the path...
+                loop {
+
+                    // Get the character new character.
+                    let character = packed_file_index[packed_file_index_offset];
+
+                    // Increase the index for the next cycle.
+                    packed_file_index_offset += 1;
+
+                    // If the character is 0, we reached the end of the entry, so break the loop.
+                    if character == 0 { break; }
+
+                    // If the character is valid, push it to the path.
+                    path.push(character as char);
+                }
+
+                // Split it and save it.
+                packed_file.path = path.split('\\').map(|x| x.to_owned()).collect::<Vec<String>>();
+
+                // Once we are done, we add the PackedFile to the PackFileData.
+                pack_file_data.packed_files.push(packed_file);
+            }
         }
 
         // If we reach this point, we managed to get the entire PackFile decoded, so we return it.
@@ -648,8 +734,25 @@ impl PackFileData {
             // Encode his size.
             packed_file_index.extend_from_slice(&encode_integer_u32(packed_file.size));
 
-            // If it's a PFH5 (Warhammer 2), put a 0 between size and path.
-            if header.id == "PFH5" { packed_file_index.push(0) };
+            // If it's a common PFH5 PackFile (Warhammer 2 & Arena)...
+            if header.id == "PFH5" {
+
+                // If it has an extra u32, we add 4 zeroes (Arena).
+                if header.index_has_extra_u32 { packed_file_index.append(&mut vec![0;4]); }
+
+                // If still is an Arena PackFile, don't add anything.
+                else if header.mysterious_mask {}
+
+                // Otherwise, we default to one zero (Warhammer 2).
+                else { packed_file_index.push(0); }
+            }
+
+            // If it's a common PFH4 PackFile (Warhammer & Attila).
+            else if header.id == "PFH4" {
+
+                // If it has an extra u32, we add 4 zeroes (boot.pack of Attila).
+                if header.index_has_extra_u32 { packed_file_index.append(&mut vec![0;4]); }
+            }
 
             // For each field in the path...
             for position in 0..packed_file.path.len() {
@@ -706,4 +809,67 @@ impl PackedFile {
             data,
         }
     }
+}
+
+//-----------------------------------------------------------------------------------------------//
+//                Decryption Functions (for Arena), copied from twa_pack_lib
+//-----------------------------------------------------------------------------------------------//
+
+// Decryption key.
+static KEY: &str = "L2{B3dPL7L*v&+Q3ZsusUhy[BGQn(Uq$f>JQdnvdlf{-K:>OssVDr#TlYU|13B}r";
+
+/// Function to get the byte we want from the key above. I guess...
+fn get_key_at(pos: usize) -> u8 {
+    KEY.as_bytes()[pos % KEY.len()]
+}
+
+/// This function decrypts the size of a PackedFile. Requires:
+/// - 'ciphertext': the encrypted size of the PackedFile, read directly as LittleEndian::u32.
+/// - 'packed_files_after_this_one': the amount of items after this one in the Index.
+/// - 'offset': offset to know in what position of the index we should continue decoding the next entry.
+fn decrypt_index_item_file_length(ciphertext: u32, packed_files_after_this_one: u32, offset: &mut usize) -> u32 {
+
+    // Decrypt the size of the PackedFile by xoring it. No idea where the 0x15091984 came from.
+    let decrypted_size = packed_files_after_this_one ^ ciphertext ^ 0x15091984;
+
+    // Increase the offset.
+    *offset += 4;
+
+    // Return the decrypted value.
+    decrypted_size
+}
+
+/// This function decrypts the path of a PackedFile. Requires:
+/// - 'ciphertext': the encrypted data of the PackedFile, read from the begining of the encrypted path.
+/// - 'decrypted_size': the decrypted size of the PackedFile.
+/// - 'offset': offset to know in what position of the index we should continue decoding the next entry.
+fn decrypt_index_item_filename(ciphertext: &[u8], decrypted_size: u8, offset: &mut usize) -> String {
+
+    // Create a string to hold the decrypted path.
+    let mut path: String = String::new();
+
+    // Create the index for the loop.
+    let mut index = 0;
+
+    // Loop through all the characters in the path...
+    loop {
+
+        // Get the character by xoring it.
+        let character = ciphertext[index] ^ decrypted_size ^ get_key_at(index);
+
+        // Increase the index for the next cycle.
+        index += 1;
+
+        // If the character is 0, we reached the end of the entry, so break the loop.
+        if character == 0 { break; }
+
+        // If the character is valid, push it to the path.
+        path.push(character as char);
+    }
+
+    // Increase the offset.
+    *offset += index;
+
+    // Once we finish, return the path
+    path
 }
