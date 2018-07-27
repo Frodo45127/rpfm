@@ -5215,31 +5215,16 @@ fn open_packfile(
     // Set the new mod as "Not modified".
     *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
 
-    // Get the Game Selected.
-    sender_qt.send("get_game_selected").unwrap();
-    let response = receiver_qt.borrow().recv().unwrap().unwrap();
-    let game_selected = serde_json::from_slice(&response).unwrap();
-
-    // Disable the actions available for the PackFile from the `MenuBar`.
-    enable_packfile_actions(&app_ui, &game_selected, false);
-
     // If it's a "MyMod" (game_folder_name is not empty), we choose the Game selected Depending on it.
     if !game_folder.is_empty() {
 
+        // NOTE: Arena should never be here.
         // Change the Game Selected in the UI.
         match game_folder {
-            "warhammer_2" => unsafe { app_ui.warhammer_2.as_mut().unwrap().set_checked(true); }
-            "warhammer" => unsafe { app_ui.warhammer.as_mut().unwrap().set_checked(true); }
-            "arena" => unsafe { app_ui.arena.as_mut().unwrap().set_checked(true); }
-            "attila" | _ => unsafe { app_ui.attila.as_mut().unwrap().set_checked(true); }
+            "warhammer_2" => unsafe { app_ui.warhammer_2.as_mut().unwrap().trigger(); }
+            "warhammer" => unsafe { app_ui.warhammer.as_mut().unwrap().trigger(); }
+            "attila" | _ => unsafe { app_ui.attila.as_mut().unwrap().trigger(); }
         }
-
-        // Change the Game Selected in the other Thread.
-        sender_qt.send("set_game_selected").unwrap();
-        sender_qt_data.send(serde_json::to_vec(game_folder).map_err(From::from)).unwrap();
-
-        // Ignore the return from `set_game_selected`, as we don't really need it, but we need to keep the channels clean.
-        let _result = receiver_qt.borrow().recv().unwrap();
 
         // Set the current "Operational Mode" to `MyMod`.
         set_my_mod_mode(&mymod_stuff, mode, Some(pack_file_path));
@@ -5278,6 +5263,11 @@ fn open_packfile(
 
                         // PFH4 is for Warhammer 1/Attila.
                         "PFH4" | _ => {
+
+                            // Get the Game Selected.
+                            sender_qt.send("get_game_selected").unwrap();
+                            let response = receiver_qt.borrow().recv().unwrap().unwrap();
+                            let game_selected: GameSelected = serde_json::from_slice(&response).unwrap();
 
                             // If we have Warhammer selected, we keep Warhammer. If we have Attila, we keep Attila.
                             // In any other case, we select Attila by default.
