@@ -684,7 +684,7 @@ fn main() {
         unsafe { app_ui.preferences.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the Preferences/Settings dialog.")); }
         unsafe { app_ui.quit.as_mut().unwrap().set_status_tip(&QString::from_std_str("Exit the Program.")); }
 
-        unsafe { app_ui.change_packfile_type_index_has_extra_u32.as_mut().unwrap().set_status_tip(&QString::from_std_str("If checked, the PackedFile Index of this PackFile has an 4 random bytes before each PackedFile's Path. For now, saving this kind of PackFiles is NOT SUPPORTED.")); }
+        unsafe { app_ui.change_packfile_type_index_has_extra_u32.as_mut().unwrap().set_status_tip(&QString::from_std_str("If checked, the PackedFile Index of this PackFile has four random bytes before each PackedFile's Path. For now, saving this kind of PackFiles is NOT SUPPORTED.")); }
         unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_status_tip(&QString::from_std_str("If checked, the PackedFile Index of this PackFile is encrypted. Saving this kind of PackFiles is NOT SUPPORTED.")); }
         unsafe { app_ui.change_packfile_type_mysterious_byte.as_mut().unwrap().set_status_tip(&QString::from_std_str("If checked, this PackFile has a mysterious byte in the header. Only seen in Arena PackFiles. Saving this kind of PackFiles is NOT SUPPORTED.")); }
 
@@ -1508,6 +1508,7 @@ fn main() {
                             <li>Icon by: <b>Maruka</b>.</li>
                             <li>RigidModel research by: <b>Mr.Jox</b>, <b>Der Spaten</b>, <b>Maruka</b> and <b>Frodo45127</b>.</li>
                             <li>LUA functions by: <b>Aexrael Dex</b>.</li>
+                            <li>TW: Arena research and coding: <b>Trolldemorted</b>.</li>
                             <li>TreeView Icons made by <a href=\"https://www.flaticon.com/authors/smashicons\" title=\"Smashicons\">Smashicons</a> from <a href=\"https://www.flaticon.com/\" title=\"Flaticon\">www.flaticon.com</a>. Licensed under <a href=\"http://creativecommons.org/licenses/by/3.0/\" title=\"Creative Commons BY 3.0\" target=\"_blank\">CC 3.0 BY</a>
                         </ul>
 
