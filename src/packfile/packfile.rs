@@ -4,7 +4,7 @@
 extern crate chrono;
 extern crate failure;
 
-use self::chrono::{NaiveDateTime, Utc};
+use self::chrono::Utc;
 
 use std::path::PathBuf;
 use std::io::prelude::*;
@@ -47,7 +47,7 @@ pub struct PackFileExtraData {
 /// - pack_file_index_size: size in bytes of the PackFile Index of the file (the first part of the data, if exists).
 /// - packed_file_count: amount of PackedFiles stored inside the PackFile.
 /// - packed_file_index_size: size in bytes of the PackedFile Index of the file (the first part of the data).
-/// - creation_time: turns out this is the epoch date of the creation of the PackFile.
+/// - creation_time: turns out this is the epoch date of the creation of the PackFile. We just get it encoded in u32.
 ///
 /// There three variables are not directly related to the header, but are decoded from it:
 /// - index_has_extra_u32: true if the PackedFile index has 4 bytes after the size of the PackedFiles.
@@ -60,7 +60,7 @@ pub struct PackFileExtraData {
 /// - 2 => "Patch",
 /// - 3 => "Mod",
 /// - 4 => "Movie",
-/// - 17 => "Sound" (don't know his "official" name, but it's used for sound PackFiles),
+/// - 17 => "Music" (don't know his "official" name, but it's used for Music PackFiles),
 /// - Any other type => Special types we don't want to edit, only to read.
 /// Also, a bitmask can be applied to this number:
 /// - 64 => PackedFile index has 4 empty bytes after the size of each PackedFile.
@@ -68,7 +68,7 @@ pub struct PackFileExtraData {
 /// - 256 => No idea, but it's in every Arena PackFile (Only in Arena).
 /// So, when getting the type, we first have to check his bitmasks and see what does it have.
 /// NOTE: Currently we don't support saving ANY Packfile that have bitmasks.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PackFileHeader {
     pub id: String,
     pub pack_file_type: u32,
@@ -76,7 +76,7 @@ pub struct PackFileHeader {
     pub pack_file_index_size: u32,
     pub packed_file_count: u32,
     pub packed_file_index_size: u32,
-    pub creation_time: NaiveDateTime,
+    pub creation_time: u32,
 
     pub index_has_extra_u32: bool,
     pub index_is_encrypted: bool,
@@ -138,15 +138,22 @@ impl PackFile {
     }
 
     /// This function returns if the PackFile is editable or not, depending on the type of the PackFile.
-    /// Basically, if the PackFile is not one of the 5 know types, this'll return false. Use it to disable
-    /// saving functions for PackFiles we can read but not save. Like the "boot.pack" from Attila.
-    /// Also, if the "Allow edition of CA PackFiles" setting is disabled, return false for everything
+    /// Basically, if the PackFile is not one of the known types OR it has any of the three header bitmasks
+    /// as true, this'll return false. Use it to disable saving functions for PackFiles we can read but not
+    /// save. Also, if the "Allow edition of CA PackFiles" setting is disabled, return false for everything
     /// except types "Mod" and "Movie".
     pub fn is_editable(&self, settings: &Settings) -> bool {
 
+        // If ANY of these bitmask is detected in the PackFile, disable all saving.
+        if self.header.index_has_extra_u32 || self.header.index_is_encrypted || self.header.mysterious_mask { false }
+
         // These types are always editable.
-        if self.header.pack_file_type == 3 || self.header.pack_file_type == 4 { true }
-        else if self.header.pack_file_type <= 2 && settings.allow_editing_of_ca_packfiles { true }
+        else if self.header.pack_file_type == 3 || self.header.pack_file_type == 4 { true }
+
+        // If the "Allow Editing of CA PackFiles" is enabled, these types are also enabled.
+        else if settings.allow_editing_of_ca_packfiles && (self.header.pack_file_type <= 2 || self.header.pack_file_type == 17) { true }
+
+        // Otherwise, always return false.
         else { false }
     }
 
@@ -313,7 +320,7 @@ impl PackFileHeader {
             pack_file_index_size: 0,
             packed_file_count: 0,
             packed_file_index_size: 0,
-            creation_time: Utc::now().naive_utc(),
+            creation_time: 0,
 
             index_has_extra_u32: false,
             index_is_encrypted: false,
@@ -387,7 +394,11 @@ impl PackFileHeader {
         pack_file_header.pack_file_index_size = decode_integer_u32(&buffer[12..16])?;
         pack_file_header.packed_file_count = decode_integer_u32(&buffer[16..20])?;
         pack_file_header.packed_file_index_size = decode_integer_u32(&buffer[20..24])?;
-        pack_file_header.creation_time = NaiveDateTime::from_timestamp(i64::from(decode_integer_u32(&buffer[24..28])?), 0);
+
+        // The creation time is an asshole. We need to get his u32 version.
+        // To get the full timestamp we need to use:
+        // let naive_date_time: NaiveDateTime = NaiveDateTime::from_timestamp(i64::from(decode_integer_u32(&buffer[24..28])?), 0);
+        pack_file_header.creation_time = decode_integer_u32(&buffer[24..28])?;
 
         // Return the header.
         Ok(pack_file_header)

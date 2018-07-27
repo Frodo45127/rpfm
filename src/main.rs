@@ -65,7 +65,7 @@ use std::io::{BufReader, Seek, SeekFrom, Read, Write};
 use failure::Error;
 use common::*;
 use common::coding_helpers::*;
-use packfile::packfile::{PackFile, PackFileExtraData};
+use packfile::packfile::{PackFile, PackFileExtraData, PackFileHeader};
 use packedfile::*;
 use packedfile::loc::*;
 use packedfile::db::*;
@@ -164,7 +164,12 @@ pub struct AppUI {
     pub change_packfile_type_patch: *mut Action,
     pub change_packfile_type_mod: *mut Action,
     pub change_packfile_type_movie: *mut Action,
+    pub change_packfile_type_music: *mut Action,
     pub change_packfile_type_other: *mut Action,
+
+    pub change_packfile_type_index_has_extra_u32: *mut Action,
+    pub change_packfile_type_index_is_encrypted: *mut Action,
+    pub change_packfile_type_mysterious_byte: *mut Action,
 
     // Action Group for the submenu.
     pub change_packfile_type_group: *mut ActionGroup,
@@ -380,7 +385,12 @@ fn main() {
                 change_packfile_type_patch: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Patch")),
                 change_packfile_type_mod: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Mod")),
                 change_packfile_type_movie: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("Mo&vie")),
+                change_packfile_type_music: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("M&usic")),
                 change_packfile_type_other: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Other")),
+
+                change_packfile_type_index_has_extra_u32: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Index Has Extra U32")),
+                change_packfile_type_index_is_encrypted: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("Index Is &Encrypted")),
+                change_packfile_type_mysterious_byte: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Has Mysterious Byte")),
 
                 // Action Group for the submenu.
                 change_packfile_type_group: ActionGroup::new(menu_change_packfile_type.as_mut().unwrap().static_cast_mut()).into_raw(),
@@ -450,13 +460,28 @@ fn main() {
         unsafe { app_ui.change_packfile_type_group.as_mut().unwrap().add_action_unsafe(app_ui.change_packfile_type_patch); }
         unsafe { app_ui.change_packfile_type_group.as_mut().unwrap().add_action_unsafe(app_ui.change_packfile_type_mod); }
         unsafe { app_ui.change_packfile_type_group.as_mut().unwrap().add_action_unsafe(app_ui.change_packfile_type_movie); }
+        unsafe { app_ui.change_packfile_type_group.as_mut().unwrap().add_action_unsafe(app_ui.change_packfile_type_music); }
         unsafe { app_ui.change_packfile_type_group.as_mut().unwrap().add_action_unsafe(app_ui.change_packfile_type_other); }
         unsafe { app_ui.change_packfile_type_boot.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.change_packfile_type_release.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.change_packfile_type_patch.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.change_packfile_type_mod.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.change_packfile_type_movie.as_mut().unwrap().set_checkable(true); }
+        unsafe { app_ui.change_packfile_type_music.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.change_packfile_type_other.as_mut().unwrap().set_checkable(true); }
+
+        // These ones are individual, but they need to be checkable and not editable.
+        unsafe { app_ui.change_packfile_type_index_has_extra_u32.as_mut().unwrap().set_checkable(true); }
+        unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_checkable(true); }
+        unsafe { app_ui.change_packfile_type_mysterious_byte.as_mut().unwrap().set_checkable(true); }
+
+        unsafe { app_ui.change_packfile_type_index_has_extra_u32.as_mut().unwrap().set_enabled(false); }
+        unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_enabled(false); }
+        unsafe { app_ui.change_packfile_type_mysterious_byte.as_mut().unwrap().set_enabled(false); }
+
+        // Put separators in the SubMenu.
+        unsafe { menu_change_packfile_type.as_mut().unwrap().insert_separator(app_ui.change_packfile_type_other); }
+        unsafe { menu_change_packfile_type.as_mut().unwrap().insert_separator(app_ui.change_packfile_type_index_has_extra_u32); }
 
         // The "Game Selected" Menu should be an ActionGroup.
         unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.warhammer_2); }
@@ -646,9 +671,14 @@ fn main() {
         unsafe { app_ui.change_packfile_type_patch.as_mut().unwrap().set_status_tip(&QString::from_std_str("Changes the PackFile's Type to Patch. You should never use it.")); }
         unsafe { app_ui.change_packfile_type_mod.as_mut().unwrap().set_status_tip(&QString::from_std_str("Changes the PackFile's Type to Mod. You should use this for mods that should show up in the Mod Manager.")); }
         unsafe { app_ui.change_packfile_type_movie.as_mut().unwrap().set_status_tip(&QString::from_std_str("Changes the PackFile's Type to Movie. You should use this for mods that'll always be active, and will not show up in the Mod Manager.")); }
+        unsafe { app_ui.change_packfile_type_music.as_mut().unwrap().set_status_tip(&QString::from_std_str("Changes the PackFile's Type to Music. Don't know much about this type, other than it's used in Attila and Arena for Music PackFiles.")); }
         unsafe { app_ui.change_packfile_type_other.as_mut().unwrap().set_status_tip(&QString::from_std_str("Changes the PackFile's Type to Other. This is for PackFiles without write support, so you should never use it.")); }
         unsafe { app_ui.preferences.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the Preferences/Settings dialog.")); }
         unsafe { app_ui.quit.as_mut().unwrap().set_status_tip(&QString::from_std_str("Exit the Program.")); }
+
+        unsafe { app_ui.change_packfile_type_index_has_extra_u32.as_mut().unwrap().set_status_tip(&QString::from_std_str("If checked, the PackedFile Index of this PackFile has an 4 random bytes before each PackedFile's Path. For now, saving this kind of PackFiles is NOT SUPPORTED.")); }
+        unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_status_tip(&QString::from_std_str("If checked, the PackedFile Index of this PackFile is encrypted. Saving this kind of PackFiles is NOT SUPPORTED.")); }
+        unsafe { app_ui.change_packfile_type_mysterious_byte.as_mut().unwrap().set_status_tip(&QString::from_std_str("If checked, this PackFile has a mysterious byte in the header. Only seen in Arena PackFiles. Saving this kind of PackFiles is NOT SUPPORTED.")); }
 
         // Menu bar, Game Selected.
         unsafe { app_ui.warhammer_2.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Warhammer 2' as 'Game Selected'.")); }
@@ -814,8 +844,14 @@ fn main() {
                                 2 => unsafe { app_ui.change_packfile_type_patch.as_mut().unwrap().set_checked(true); }
                                 3 => unsafe { app_ui.change_packfile_type_mod.as_mut().unwrap().set_checked(true); }
                                 4 => unsafe { app_ui.change_packfile_type_movie.as_mut().unwrap().set_checked(true); }
+                                17 => unsafe { app_ui.change_packfile_type_music.as_mut().unwrap().set_checked(true); }
                                 _ => unsafe { app_ui.change_packfile_type_other.as_mut().unwrap().set_checked(true); }
                             }
+
+                            // By default, the three bitmask should be false.
+                            unsafe { app_ui.change_packfile_type_index_has_extra_u32.as_mut().unwrap().set_checked(false); }
+                            unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_checked(false); }
+                            unsafe { app_ui.change_packfile_type_mysterious_byte.as_mut().unwrap().set_checked(false); }
 
                             // Update the TreeView.
                             update_treeview(
@@ -1150,6 +1186,7 @@ fn main() {
                     "&Patch" => 2,
                     "&Mod" => 3,
                     "Mo&vie" => 4,
+                    "M&usic" => 17,
                     _ => 99,
                 }; }
 
@@ -1244,6 +1281,7 @@ fn main() {
         unsafe { app_ui.change_packfile_type_patch.as_ref().unwrap().signals().triggered().connect(&slot_change_packfile_type); }
         unsafe { app_ui.change_packfile_type_mod.as_ref().unwrap().signals().triggered().connect(&slot_change_packfile_type); }
         unsafe { app_ui.change_packfile_type_movie.as_ref().unwrap().signals().triggered().connect(&slot_change_packfile_type); }
+        unsafe { app_ui.change_packfile_type_music.as_ref().unwrap().signals().triggered().connect(&slot_change_packfile_type); }
         unsafe { app_ui.change_packfile_type_other.as_ref().unwrap().signals().triggered().connect(&slot_change_packfile_type); }
 
         unsafe { app_ui.preferences.as_ref().unwrap().signals().triggered().connect(&slot_preferences); }
@@ -3483,8 +3521,8 @@ fn background_loop(
                                 // Try to load the Schema for this PackFile's game.
                                 schema = Schema::load(&rpfm_path, &supported_games.iter().filter(|x| x.folder_name == *game_selected.game).map(|x| x.schema.to_owned()).collect::<String>()).ok();
 
-                                // Get the PackFile's Type we must return to the UI thread and serialize it.
-                                let data = serde_json::to_vec(&pack_file_decoded.header.pack_file_type).map_err(From::from);
+                                // Get the PackFile's Header we must return to the UI thread and serialize it.
+                                let data = serde_json::to_vec(&pack_file_decoded.header).map_err(From::from);
 
                                 // Send a response to the UI thread.
                                 sender.send(data).unwrap();
@@ -3574,10 +3612,11 @@ fn background_loop(
                                 <p>This type of PackFile is supported in Read-Only mode.</p>
                                 <p>This can happen due to:</p>
                                 <ul>
-                                    <li>The PackFile's type is <i>'Boot'</i>, <i>'Release'</i> or <i>'Patch'</i> and you have <i>'Allow edition of CA PackFiles'</i> disabled in the settings.</li>
+                                    <li>The PackFile's type is <i>'Boot'</i>, <i>'Release'</i>, <i>'Patch'</i> or <i>'Music'</i> and you have <i>'Allow edition of CA PackFiles'</i> disabled in the settings.</li>
                                     <li>The PackFile's type is <i>'Other'</i>.</li>
+                                    <li>One of the checkboxes under <i>'PackFile/Change PackFile Type'</i> is checked.</li>
                                 </ul>
-                                <p>If you really want to save it, go to <i>'PackFile/Change PackFile Type'</i> and change his type to 'Mod' or 'Movie'.</p>"
+                                <p>If you really want to save it, go to <i>'PackFile/Change PackFile Type'</i> and change his type to 'Mod' or 'Movie'. Note that if the cause it's the third on the list, there is no way to save the PackFile, yet.</p>"
                             ))).unwrap();
                         }
                     }
@@ -3622,10 +3661,11 @@ fn background_loop(
                                 <p>This type of PackFile is supported in Read-Only mode.</p>
                                 <p>This can happen due to:</p>
                                 <ul>
-                                    <li>The PackFile's type is <i>'Boot'</i>, <i>'Release'</i> or <i>'Patch'</i> and you have <i>'Allow edition of CA PackFiles'</i> disabled in the settings.</li>
+                                    <li>The PackFile's type is <i>'Boot'</i>, <i>'Release'</i>, <i>'Patch'</i> or <i>'Music'</i> and you have <i>'Allow edition of CA PackFiles'</i> disabled in the settings.</li>
                                     <li>The PackFile's type is <i>'Other'</i>.</li>
+                                    <li>One of the checkboxes under <i>'PackFile/Change PackFile Type'</i> is checked.</li>
                                 </ul>
-                                <p>If you really want to save it, go to <i>'PackFile/Change PackFile Type'</i> and change his type to 'Mod' or 'Movie'.</p>"
+                                <p>If you really want to save it, go to <i>'PackFile/Change PackFile Type'</i> and change his type to 'Mod' or 'Movie'. Note that if the cause it's the third on the list, there is no way to save the PackFile, yet.</p>"
                             ))).unwrap();
                         }
                     }
@@ -5070,17 +5110,23 @@ fn open_packfile(
                 Ok(data) => {
 
                     // Deserialize it (name of the packfile, paths of the PackedFiles, type of the PackFile).
-                    let pack_file_type: u32 = serde_json::from_slice(&data).unwrap();
+                    let header: PackFileHeader = serde_json::from_slice(&data).unwrap();
 
                     // We choose the right option, depending on our PackFile.
-                    match pack_file_type {
+                    match header.pack_file_type {
                         0 => unsafe { app_ui.change_packfile_type_boot.as_mut().unwrap().set_checked(true); }
                         1 => unsafe { app_ui.change_packfile_type_release.as_mut().unwrap().set_checked(true); }
                         2 => unsafe { app_ui.change_packfile_type_patch.as_mut().unwrap().set_checked(true); }
                         3 => unsafe { app_ui.change_packfile_type_mod.as_mut().unwrap().set_checked(true); }
                         4 => unsafe { app_ui.change_packfile_type_movie.as_mut().unwrap().set_checked(true); }
+                        17 => unsafe { app_ui.change_packfile_type_music.as_mut().unwrap().set_checked(true); }
                         _ => unsafe { app_ui.change_packfile_type_other.as_mut().unwrap().set_checked(true); }
                     }
+
+                    // Enable or disable these, depending on what data we have in the header.
+                    unsafe { app_ui.change_packfile_type_index_has_extra_u32.as_mut().unwrap().set_checked(header.index_has_extra_u32); }
+                    unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_checked(header.index_is_encrypted); }
+                    unsafe { app_ui.change_packfile_type_mysterious_byte.as_mut().unwrap().set_checked(header.mysterious_mask); }
 
                     // Update the TreeView.
                     update_treeview(
@@ -5377,6 +5423,11 @@ fn build_my_mod_menu(
 
                                     // Mark it as "Mod" in the UI.
                                     unsafe { app_ui.change_packfile_type_mod.as_mut().unwrap().set_checked(true); }
+
+                                    // By default, the three bitmask should be false.
+                                    unsafe { app_ui.change_packfile_type_index_has_extra_u32.as_mut().unwrap().set_checked(false); }
+                                    unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_checked(false); }
+                                    unsafe { app_ui.change_packfile_type_mysterious_byte.as_mut().unwrap().set_checked(false); }
 
                                     // Set the new "MyMod" as "Not modified".
                                     *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
