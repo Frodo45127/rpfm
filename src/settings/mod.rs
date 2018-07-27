@@ -104,6 +104,8 @@ impl GameInfo {
 
         supported_games.push(game_info);
 
+        // NOTE: There are things that depend on the order of this list, and this game must ALWAYS be the last one.
+        // Otherwise, stuff that uses this list will probably break.
         // Arena
         let game_info = GameInfo {
             display_name: "Arena".to_owned(),

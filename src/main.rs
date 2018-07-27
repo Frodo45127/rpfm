@@ -753,46 +753,85 @@ fn main() {
                 sender_qt.send("set_game_selected").unwrap();
                 sender_qt_data.send(serde_json::to_vec(&new_game_selected_folder_name).map_err(From::from)).unwrap();
 
-                // Prepare the event loop, so we don't hang the UI while the background thread is working.
-                let mut event_loop = EventLoop::new();
+                // When we finally receive the data...
+                if let Ok(response) = receiver_qt.borrow().recv().unwrap() {
 
-                // Disable the Main Window (so we can't do other stuff).
-                unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+                    // Try to deserialize it.
+                    match serde_json::from_slice(&response) {
 
-                // Until we receive a response from the worker thread...
-                loop {
+                        // If it can be deserialized as a (GameSelected, bool)...
+                        Ok(response) => {
 
-                    // When we finally receive the data...
-                    if let Ok(data) = receiver_qt.borrow().try_recv() {
+                            // Redundant, but needed for the deserializer to know the type.
+                            let response: (GameSelected, bool) = response;
 
-                        // Get the (GameSelected, isthereapackfileopen) from the other thread.
-                        let response = data.unwrap();
-                        let response: (GameSelected, bool) = serde_json::from_slice(&response).unwrap();
+                            // If the Game Selected is Arena, block any attempt of creating or saving a PackFile.
+                            if response.0.game == "arena" {
 
-                        // If we have a PackFile opened....
-                        if !response.1 {
+                                // Disable the actions that allow to create and save PackFiles.
+                                unsafe { app_ui.new_packfile.as_mut().unwrap().set_enabled(false); }
+                                unsafe { app_ui.save_packfile.as_mut().unwrap().set_enabled(false); }
+                                unsafe { app_ui.save_packfile_as.as_mut().unwrap().set_enabled(false); }
 
-                            // Re-enable the "PackFile Management" actions, so the "Special Stuff" menu gets updated properly.
-                            enable_packfile_actions(&app_ui, &response.0, false);
-                            enable_packfile_actions(&app_ui, &response.0, true);
+                                // This one too, though we had to deal with it specially later on.
+                                unsafe { mymod_stuff.borrow().new_mymod.as_mut().unwrap().set_enabled(false); }
+                            }
+
+                            // Otherwise, enable them.
+                            else {
+
+                                // Disable the actions that allow to create and save PackFiles.
+                                unsafe { app_ui.new_packfile.as_mut().unwrap().set_enabled(true); }
+
+                                // Disable the "PackFile Management" actions.
+                                enable_packfile_actions(&app_ui, &response.0, false);
+
+                                // If we have a PackFile opened, re-enable the "PackFile Management" actions, so the "Special Stuff" menu gets updated properly.
+                                if !response.1 { enable_packfile_actions(&app_ui, &response.0, true); }
+
+                                // Get the current settings.
+                                sender_qt.send("get_settings").unwrap();
+
+                                // Wait until you get something from the background thread.
+                                if let Ok(settings) = receiver_qt.borrow().recv().unwrap() {
+
+                                    // Try to deserialize it.
+                                    match serde_json::from_slice(&settings) {
+
+                                        // If it can be deserialized as a GameSelected...
+                                        Ok(settings) => {
+
+                                            // Redundant, but needed for the deserializer to know the type.
+                                            let settings: Settings = settings;
+
+                                            // If there is a "MyMod" path set in the settings...
+                                            if let Some(ref path) = settings.paths.my_mods_base_path {
+
+                                                // And it's a valid directory, enable the "New MyMod" button.
+                                                if path.is_dir() { unsafe { mymod_stuff.borrow().new_mymod.as_mut().unwrap().set_enabled(true); }}
+
+                                                // Otherwise, disable it.
+                                                else { unsafe { mymod_stuff.borrow().new_mymod.as_mut().unwrap().set_enabled(false); }}
+                                            }
+
+                                            // Otherwise, disable it.
+                                            else { unsafe { mymod_stuff.borrow().new_mymod.as_mut().unwrap().set_enabled(false); }}
+                                        },
+
+                                        // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                                        Err(_) => return show_dialog(app_ui.window, false, THREADS_MESSAGE_ERROR),
+                                    }
+                                }
+                            }
 
                             // Set the current "Operational Mode" to `Normal` (In case we were in `MyMod` mode).
                             set_my_mod_mode(&mymod_stuff, &mode, None);
-                        }
+                        },
 
-                        // Stop the loop.
-                        break;
+                        // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                        Err(_) => return show_dialog(app_ui.window, false, THREADS_MESSAGE_ERROR),
                     }
-
-                    // Keep the UI responsive.
-                    event_loop.process_events(());
-
-                    // Wait a bit to not saturate a CPU core.
-                    thread::sleep(Duration::from_millis(50));
                 }
-
-                // Re-enable the Main Window.
-                unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
             }
         ));
 
@@ -980,7 +1019,7 @@ fn main() {
                 // Prepare the event loop, so we don't hang the UI while the background thread is working.
                 let mut event_loop = EventLoop::new();
 
-                // Tell the Background Thread to create a new PackFile.
+                // Tell the Background Thread to save the PackFile.
                 sender_qt.send("save_packfile").unwrap();
 
                 // Disable the Main Window (so we can't do other stuff).
@@ -5231,32 +5270,10 @@ fn open_packfile(
                         "PFH5" => {
 
                             // If the PackFile has the mysterious byte enabled, it's from Arena.
-                            if header.mysterious_mask {
-
-                                // Change the Game Selected in the UI.
-                                unsafe { app_ui.arena.as_mut().unwrap().set_checked(true); }
-
-                                // Change the Game Selected in the other Thread.
-                                sender_qt.send("set_game_selected").unwrap();
-                                sender_qt_data.send(serde_json::to_vec("arena").map_err(From::from)).unwrap();
-
-                                // Ignore the return from `set_game_selected`, as we don't really need it, but we need to keep the channels clean.
-                                let _result = receiver_qt.borrow().recv().unwrap();
-                            }
+                            if header.mysterious_mask { unsafe { app_ui.arena.as_mut().unwrap().trigger(); } }
 
                             // Otherwise, it's from Warhammer 2.
-                            else {
-
-                                // Change the Game Selected in the UI.
-                                unsafe { app_ui.warhammer_2.as_mut().unwrap().set_checked(true); }
-
-                                // Change the Game Selected in the other Thread.
-                                sender_qt.send("set_game_selected").unwrap();
-                                sender_qt_data.send(serde_json::to_vec("warhammer_2").map_err(From::from)).unwrap();
-
-                                // Ignore the return from `set_game_selected`, as we don't really need it, but we need to keep the channels clean.
-                                let _result = receiver_qt.borrow().recv().unwrap();
-                            }
+                            else { unsafe { app_ui.warhammer_2.as_mut().unwrap().trigger(); } }
                         },
 
                         // PFH4 is for Warhammer 1/Attila.
@@ -5265,30 +5282,8 @@ fn open_packfile(
                             // If we have Warhammer selected, we keep Warhammer. If we have Attila, we keep Attila.
                             // In any other case, we select Attila by default.
                             match &*game_selected.game {
-                                "warhammer" => {
-
-                                    // Change the Game Selected in the UI.
-                                    unsafe { app_ui.warhammer.as_mut().unwrap().set_checked(true); }
-
-                                    // Change the Game Selected in the other Thread.
-                                    sender_qt.send("set_game_selected").unwrap();
-                                    sender_qt_data.send(serde_json::to_vec("warhammer").map_err(From::from)).unwrap();
-
-                                    // Ignore the return from `set_game_selected`, as we don't really need it, but we need to keep the channels clean.
-                                    let _result = receiver_qt.borrow().recv().unwrap();
-                                }
-                                "attila" | _ => {
-
-                                    // Change the Game Selected in the UI.
-                                    unsafe { app_ui.attila.as_mut().unwrap().set_checked(true); }
-
-                                    // Change the Game Selected in the other Thread.
-                                    sender_qt.send("set_game_selected").unwrap();
-                                    sender_qt_data.send(serde_json::to_vec("attila").map_err(From::from)).unwrap();
-
-                                    // Ignore the return from `set_game_selected`, as we don't really need it, but we need to keep the channels clean.
-                                    let _result = receiver_qt.borrow().recv().unwrap();
-                                }
+                                "warhammer" => unsafe { app_ui.warhammer.as_mut().unwrap().trigger(); },
+                                "attila" | _ => unsafe { app_ui.attila.as_mut().unwrap().trigger(); }
                             }
                         },
                     }
@@ -5308,9 +5303,6 @@ fn open_packfile(
 
     // Change the Dependency Database used for our PackFile in the other Thread.
     sender_qt.send("set_dependency_database").unwrap();
-
-    // Enable the actions available for the PackFile from the `MenuBar`.
-    enable_packfile_actions(&app_ui, &game_selected, true);
 
     // Destroy whatever it's in the PackedFile's view, to avoid data corruption.
     purge_them_all(&app_ui, &is_packedfile_opened);
@@ -5399,10 +5391,10 @@ fn build_my_mod_menu(
                         let full_mod_name = format!("{}.pack", mod_name);
 
                         // Change the Game Selected to match the one we chose for the new "MyMod".
+                        // NOTE: Arena should not be on this list.
                         match &*mod_game {
                             "warhammer_2" => unsafe { app_ui.warhammer_2.as_mut().unwrap().trigger(); }
                             "warhammer" => unsafe { app_ui.warhammer.as_mut().unwrap().trigger(); }
-                            "arena" => unsafe { app_ui.arena.as_mut().unwrap().trigger(); }
                             "attila" | _ => unsafe { app_ui.attila.as_mut().unwrap().trigger(); }
                         }
 
