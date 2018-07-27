@@ -531,134 +531,159 @@ impl PackFileData {
         let mut pack_file_index = vec![0; header.pack_file_index_size as usize];
         let mut packed_file_index = vec![0; header.packed_file_index_size as usize];
 
+        // If it's an Arena PackFile, skip the next 20 bytes, as it's stuff we don't need to decode the PackFile.
+        if header.id == "PFH5" && header.mysterious_mask { data.read_exact(&mut vec![0; 20])?; }
+
         // Get the data from both indexes to their buffers.
         data.read_exact(&mut pack_file_index)?;
         data.read_exact(&mut packed_file_index)?;
 
-        // Offset for the loop to get the PackFiles from the PackFile index.
-        let mut pack_file_index_offset: usize = 0;
+        // If it's an Arena PackFile with the index encrypted, we need to decode it in a different way.
+        if header.id == "PFH5" && header.index_is_encrypted {
 
-        // First, we decode every entry in the PackFile index and store it. The process is simple:
-        // we get his name char by char until hitting 0u8, then save it and start getting the next
-        // PackFile's name.
-        for _ in 0..header.pack_file_count {
+            // NOTE: Code from here is based in the twa_pack_lib made by "Trolldemorted" here: https://github.com/TotalWarArena-Modding/twa_pack_lib
+            // It's here because it's better (for me) to have all the PackFile's decoding logic together, integrated in RPFM,
+            // instead of using a lib to load the data for only one game.
+            // Feel free to correct anything if it's wrong, because this for me is almost black magic.
 
-            // Store his name.
-            let mut pack_file_name = String::new();
+            // Offset for the loop to get the PackFiles from the PackFile index.
+            let mut packed_file_index_offset: usize = 0;
 
-            // For each byte...
-            loop {
+            // For each PackedFile in the index...
+            for packed_files_after_this_one in (0..header.packed_file_count).rev() {
 
-                // Get it.
-                let character = pack_file_index[pack_file_index_offset];
+                // We create an empty PackedFile.
+                let mut packed_file = PackedFile::new();
 
-                // If the byte is 0...
-                if character == 0 {
+                // Get his encrypted size.
+                let mut encrypted_size = decode_integer_u32(&packed_file_index[packed_file_index_offset..(packed_file_index_offset + 4)])?;
 
-                    // Add the PackFile to the list, reset the `pack_file_name` and break the loop.
-                    pack_file_data.pack_files.push(pack_file_name);
-                    pack_file_index_offset += 1;
-                    break;
+                // Get the decrypted size.
+                packed_file.size = decrypt_index_item_file_length(encrypted_size, packed_files_after_this_one as u32, &mut packed_file_index_offset);
 
-                // If it's not 0, then we add the character to the current PackFile name.
-                } else {
+                // If we got an extra u32, skip 4 bytes.
+                if header.index_has_extra_u32 { packed_file_index_offset += 4; }
 
-                    // Get his char value and add it to the String.
-                    pack_file_name.push(character as char);
-                    pack_file_index_offset += 1;
-                }
+                // Get the decrypted path.
+                let decrypted_path = decrypt_index_item_filename(&packed_file_index[packed_file_index_offset..], packed_file.size as u8, &mut packed_file_index_offset);
+
+                // Split it and save it.
+                packed_file.path = decrypted_path.split('\\').map(|x| x.to_owned()).collect::<Vec<String>>();
+
+                // Once we are done, we add the PackedFile to the PackFileData.
+                pack_file_data.packed_files.push(packed_file);
             }
         }
 
-        // Offsets for the loop to get the file corresponding to the index entry.
-        let mut packed_file_index_offset: usize = 0;
+        // Otherwise, we use the normal decoding method.
+        else {
 
-        // We choose the offset. This depends on a lot of conditions.
-        let packed_file_index_path_offset: usize =
+            // Offset for the loop to get the PackFiles from the PackFile index.
+            let mut pack_file_index_offset: usize = 0;
 
-            // If it's a common PFH5 PackFile (Warhammer 2 & Arena)...
-            if header.id == "PFH5" {
+            // First, we decode every entry in the PackFile index and store it. The process is simple:
+            // we get his name char by char until hitting 0u8, then save it and start getting the next
+            // PackFile's name.
+            for _ in 0..header.pack_file_count {
 
-                // If it has an extra u32, we default to 8 (Arena).
-                if header.index_has_extra_u32 { 8 }
+                // Store his name.
+                let mut pack_file_name = String::new();
 
-                // Otherwise, we default to 5 (0 between size and path, Warhammer 2).
-                else { 5 }
-            }
+                // For each byte...
+                loop {
 
-            // If it's a common PFH4 PackFile (Warhammer & Attila).
-            else if header.id == "PFH4" {
+                    // Get it.
+                    let character = pack_file_index[pack_file_index_offset];
 
-                // If it has an extra u32, we default to 8 (boot.pack of Attila).
-                if header.index_has_extra_u32 { 8 }
+                    // If the byte is 0...
+                    if character == 0 {
 
-                // Otherwise, we default to 4 (no space between size and path of PackedFiles).
-                else { 4 }
-            }
+                        // Add the PackFile to the list, reset the `pack_file_name` and break the loop.
+                        pack_file_data.pack_files.push(pack_file_name);
+                        pack_file_index_offset += 1;
+                        break;
 
-            // As default, we use 4 (Attila).
-            else { 4 };
+                    // If it's not 0, then we add the character to the current PackFile name.
+                    } else {
 
-        // For each PackedFile in our PackFile...
-        for _ in 0..header.packed_file_count {
-
-            // We create an empty PackedFile.
-            let mut packed_file = PackedFile::new();
-
-            // Get his size.
-            packed_file.size = decode_integer_u32(&packed_file_index[
-                packed_file_index_offset..packed_file_index_offset + 4
-            ])?;
-
-            // Update the index.
-            packed_file_index_offset += packed_file_index_path_offset;
-
-            // Create a little buffer to hold the characters until we get a complete name.
-            let mut character_buffer = String::new();
-
-            // For each byte...
-            loop {
-
-                // Get it.
-                let character = packed_file_index[packed_file_index_offset];
-
-                // If the byte is 0...
-                if character == 0 {
-
-                    // Add the PackFile to the list and break the loop.
-                    packed_file.path.push(character_buffer);
-
-                    // We move the index to the begining of the next entry.
-                    packed_file_index_offset += 1;
-
-                    // And break the loop.
-                    break;
-                }
-
-                // If the byte is 92 (\ or 5C), we got a folder.
-                else if character == 92 {
-
-                    // We add it to the PackedFile's path.
-                    packed_file.path.push(character_buffer);
-
-                    // Reset the character buffer.
-                    character_buffer = String::new();
-
-                    // We move the index to the begining of the next name.
-                    packed_file_index_offset += 1;
-                }
-
-                // If it's not 0 nor 92, it's a character from our current file.
-                else {
-
-                    // Get his char value and add it to the buffer.
-                    character_buffer.push(character as char);
-                    packed_file_index_offset += 1;
+                        // Get his char value and add it to the String.
+                        pack_file_name.push(character as char);
+                        pack_file_index_offset += 1;
+                    }
                 }
             }
 
-            // Once we are done, we add the PackedFile to the PackFileData.
-            pack_file_data.packed_files.push(packed_file);
+            // Offsets for the loop to get the file corresponding to the index entry.
+            let mut packed_file_index_offset: usize = 0;
+
+            // We choose the offset. This depends on a lot of conditions.
+            let packed_file_index_path_offset: usize =
+
+                // If it's a common PFH5 PackFile (Warhammer 2 & Arena)...
+                if header.id == "PFH5" {
+
+                    // If it has an extra u32, we default to 8 (Arena).
+                    if header.index_has_extra_u32 { 8 }
+
+                    // If still is an Arena PackFile, we default to 4 (no space between size and path of PackedFiles)
+                    else if header.mysterious_mask { 4 }
+
+                    // Otherwise, we default to 5 (0 between size and path, Warhammer 2).
+                    else { 5 }
+                }
+
+                // If it's a common PFH4 PackFile (Warhammer & Attila).
+                else if header.id == "PFH4" {
+
+                    // If it has an extra u32, we default to 8 (boot.pack of Attila).
+                    if header.index_has_extra_u32 { 8 }
+
+                    // Otherwise, we default to 4 (no space between size and path of PackedFiles).
+                    else { 4 }
+                }
+
+                // As default, we use 4 (Attila).
+                else { 4 };
+
+            // For each PackedFile in our PackFile...
+            for _ in 0..header.packed_file_count {
+
+                // We create an empty PackedFile.
+                let mut packed_file = PackedFile::new();
+
+                // Get his size.
+                packed_file.size = decode_integer_u32(&packed_file_index[
+                    packed_file_index_offset..packed_file_index_offset + 4
+                ])?;
+
+                // Update the index.
+                packed_file_index_offset += packed_file_index_path_offset;
+
+                // Create a little buffer to hold the characters until we get a complete name.
+                let mut path = String::new();
+
+                // Loop through all the characters in the path...
+                loop {
+
+                    // Get the character new character.
+                    let character = packed_file_index[packed_file_index_offset];
+
+                    // Increase the index for the next cycle.
+                    packed_file_index_offset += 1;
+
+                    // If the character is 0, we reached the end of the entry, so break the loop.
+                    if character == 0 { break; }
+
+                    // If the character is valid, push it to the path.
+                    path.push(character as char);
+                }
+
+                // Split it and save it.
+                packed_file.path = path.split('\\').map(|x| x.to_owned()).collect::<Vec<String>>();
+
+                // Once we are done, we add the PackedFile to the PackFileData.
+                pack_file_data.packed_files.push(packed_file);
+            }
         }
 
         // If we reach this point, we managed to get the entire PackFile decoded, so we return it.
@@ -714,6 +739,9 @@ impl PackFileData {
 
                 // If it has an extra u32, we add 4 zeroes (Arena).
                 if header.index_has_extra_u32 { packed_file_index.append(&mut vec![0;4]); }
+
+                // If still is an Arena PackFile, don't add anything.
+                else if header.mysterious_mask {}
 
                 // Otherwise, we default to one zero (Warhammer 2).
                 else { packed_file_index.push(0); }
@@ -781,4 +809,67 @@ impl PackedFile {
             data,
         }
     }
+}
+
+//-----------------------------------------------------------------------------------------------//
+//                Decryption Functions (for Arena), copied from twa_pack_lib
+//-----------------------------------------------------------------------------------------------//
+
+// Decryption key.
+static KEY: &str = "L2{B3dPL7L*v&+Q3ZsusUhy[BGQn(Uq$f>JQdnvdlf{-K:>OssVDr#TlYU|13B}r";
+
+/// Function to get the byte we want from the key above. I guess...
+fn get_key_at(pos: usize) -> u8 {
+    KEY.as_bytes()[pos % KEY.len()]
+}
+
+/// This function decrypts the size of a PackedFile. Requires:
+/// - 'ciphertext': the encrypted size of the PackedFile, read directly as LittleEndian::u32.
+/// - 'packed_files_after_this_one': the amount of items after this one in the Index.
+/// - 'offset': offset to know in what position of the index we should continue decoding the next entry.
+fn decrypt_index_item_file_length(ciphertext: u32, packed_files_after_this_one: u32, offset: &mut usize) -> u32 {
+
+    // Decrypt the size of the PackedFile by xoring it. No idea where the 0x15091984 came from.
+    let decrypted_size = packed_files_after_this_one ^ ciphertext ^ 0x15091984;
+
+    // Increase the offset.
+    *offset += 4;
+
+    // Return the decrypted value.
+    decrypted_size
+}
+
+/// This function decrypts the path of a PackedFile. Requires:
+/// - 'ciphertext': the encrypted data of the PackedFile, read from the begining of the encrypted path.
+/// - 'decrypted_size': the decrypted size of the PackedFile.
+/// - 'offset': offset to know in what position of the index we should continue decoding the next entry.
+fn decrypt_index_item_filename(ciphertext: &[u8], decrypted_size: u8, offset: &mut usize) -> String {
+
+    // Create a string to hold the decrypted path.
+    let mut path: String = String::new();
+
+    // Create the index for the loop.
+    let mut index = 0;
+
+    // Loop through all the characters in the path...
+    loop {
+
+        // Get the character by xoring it.
+        let character = ciphertext[index] ^ decrypted_size ^ get_key_at(index);
+
+        // Increase the index for the next cycle.
+        index += 1;
+
+        // If the character is 0, we reached the end of the entry, so break the loop.
+        if character == 0 { break; }
+
+        // If the character is valid, push it to the path.
+        path.push(character as char);
+    }
+
+    // Increase the offset.
+    *offset += index;
+
+    // Once we finish, return the path
+    path
 }

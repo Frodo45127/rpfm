@@ -181,6 +181,7 @@ pub struct AppUI {
     pub warhammer_2: *mut Action,
     pub warhammer: *mut Action,
     pub attila: *mut Action,
+    pub arena: *mut Action,
 
     pub game_selected_group: *mut ActionGroup,
 
@@ -400,8 +401,9 @@ fn main() {
                 //-------------------------------------------------------------------------------//
 
                 warhammer_2: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("&Warhammer 2")),
-                warhammer: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("&Warhammer")),
+                warhammer: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("War&hammer")),
                 attila: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("&Attila")),
+                arena: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("A&rena")),
 
                 game_selected_group: ActionGroup::new(menu_bar_game_seleted.as_mut().unwrap().static_cast_mut()).into_raw(),
 
@@ -487,9 +489,14 @@ fn main() {
         unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.warhammer_2); }
         unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.warhammer); }
         unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.attila); }
+        unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.arena); }
         unsafe { app_ui.warhammer_2.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.warhammer.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.attila.as_mut().unwrap().set_checkable(true); }
+        unsafe { app_ui.arena.as_mut().unwrap().set_checkable(true); }
+
+        // Arena is special, so separate it from the rest.
+        unsafe { menu_bar_game_seleted.as_mut().unwrap().insert_separator(app_ui.arena); }
 
         // Put the Submenus and separators in place.
         unsafe { menu_bar_packfile.as_mut().unwrap().insert_separator(app_ui.preferences); }
@@ -572,6 +579,7 @@ fn main() {
         match &*game_selected.game {
             "warhammer_2" => unsafe { app_ui.warhammer_2.as_mut().unwrap().set_checked(true); }
             "warhammer" => unsafe { app_ui.warhammer.as_mut().unwrap().set_checked(true); }
+            "arena" => unsafe { app_ui.arena.as_mut().unwrap().set_checked(true); }
             "attila" | _ => unsafe { app_ui.attila.as_mut().unwrap().set_checked(true); }
         }
 
@@ -684,6 +692,7 @@ fn main() {
         unsafe { app_ui.warhammer_2.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Warhammer 2' as 'Game Selected'.")); }
         unsafe { app_ui.warhammer.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Warhammer' as 'Game Selected'.")); }
         unsafe { app_ui.attila.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Attila' as 'Game Selected'.")); }
+        unsafe { app_ui.arena.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Arena' as 'Game Selected'.")); }
 
         // Menu bar, Special Stuff.
         unsafe { app_ui.wh2_generate_dependency_pack.as_mut().unwrap().set_status_tip(&QString::from_std_str("Generate a 'Dependency' PackFile for 'TW:Warhammer 2'. Needed for some features. You have to do this again after every game's patch! Remember it!")); }
@@ -791,6 +800,7 @@ fn main() {
         unsafe { app_ui.warhammer_2.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
         unsafe { app_ui.warhammer.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
         unsafe { app_ui.attila.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
+        unsafe { app_ui.arena.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
 
         //-----------------------------------------------------//
         // "PackFile" Menu...
@@ -3781,11 +3791,11 @@ fn background_loop(
                         }
                     }
 
-                    // In case we want to get the current PackFile's Id...
-                    "get_packfile_id" => {
+                    // In case we want to get the current PackFile's Header...
+                    "get_packfile_header" => {
 
                         // Send the header of the currently open PackFile.
-                        sender.send(serde_json::to_vec(&pack_file_decoded.header.id).map_err(From::from)).unwrap();
+                        sender.send(serde_json::to_vec(&pack_file_decoded.header).map_err(From::from)).unwrap();
                     }
 
                     // In case we want to get the path of a PackedFile...
@@ -5181,6 +5191,7 @@ fn open_packfile(
         match game_folder {
             "warhammer_2" => unsafe { app_ui.warhammer_2.as_mut().unwrap().set_checked(true); }
             "warhammer" => unsafe { app_ui.warhammer.as_mut().unwrap().set_checked(true); }
+            "arena" => unsafe { app_ui.arena.as_mut().unwrap().set_checked(true); }
             "attila" | _ => unsafe { app_ui.attila.as_mut().unwrap().set_checked(true); }
         }
 
@@ -5198,60 +5209,94 @@ fn open_packfile(
     // If it's not a "MyMod", we choose the new Game Selected depending on what the open mod id is.
     else {
 
-        // Get the PackFile's Id.
-        sender_qt.send("get_packfile_id").unwrap();
-        let response = receiver_qt.borrow().recv().unwrap().unwrap();
-        let id: &str = serde_json::from_slice(&response).unwrap();
+        // Get the PackFile's Header.
+        sender_qt.send("get_packfile_header").unwrap();
 
-        // Depending on the Id, choose one game or another.
-        match &*id {
+        // Wait until you get something from the background thread.
+        if let Ok(header) = receiver_qt.borrow().recv().unwrap() {
 
-            // PFH5 is for Warhammer 2/Arena, but Arena is not yet supported.
-            "PFH5" => {
+            // Try to deserialize it.
+            match serde_json::from_slice(&header) {
 
-                // Change the Game Selected in the UI.
-                unsafe { app_ui.warhammer_2.as_mut().unwrap().set_checked(true); }
+                // If it can be deserialized as an PackFileHeader...
+                Ok(header) => {
 
-                // Change the Game Selected in the other Thread.
-                sender_qt.send("set_game_selected").unwrap();
-                sender_qt_data.send(serde_json::to_vec("warhammer_2").map_err(From::from)).unwrap();
+                    // Redundant, but needed for the deserializer to know the type.
+                    let header: PackFileHeader = header;
 
-                // Ignore the return from `set_game_selected`, as we don't really need it, but we need to keep the channels clean.
-                let _result = receiver_qt.borrow().recv().unwrap();
-            },
+                    // Depending on the Id, choose one game or another.
+                    match &*header.id {
 
-            // PFH4 is for Warhammer 1/Attila.
-            "PFH4" | _ => {
+                        // PFH5 is for Warhammer 2/Arena.
+                        "PFH5" => {
 
-                // If we have Warhammer selected, we keep Warhammer. If we have Attila, we keep Attila.
-                // In any other case, we select Attila by default.
-                match &*game_selected.game {
-                    "warhammer" => {
+                            // If the PackFile has the mysterious byte enabled, it's from Arena.
+                            if header.mysterious_mask {
 
-                        // Change the Game Selected in the UI.
-                        unsafe { app_ui.warhammer.as_mut().unwrap().set_checked(true); }
+                                // Change the Game Selected in the UI.
+                                unsafe { app_ui.arena.as_mut().unwrap().set_checked(true); }
 
-                        // Change the Game Selected in the other Thread.
-                        sender_qt.send("set_game_selected").unwrap();
-                        sender_qt_data.send(serde_json::to_vec("warhammer").map_err(From::from)).unwrap();
+                                // Change the Game Selected in the other Thread.
+                                sender_qt.send("set_game_selected").unwrap();
+                                sender_qt_data.send(serde_json::to_vec("arena").map_err(From::from)).unwrap();
 
-                        // Ignore the return from `set_game_selected`, as we don't really need it, but we need to keep the channels clean.
-                        let _result = receiver_qt.borrow().recv().unwrap();
+                                // Ignore the return from `set_game_selected`, as we don't really need it, but we need to keep the channels clean.
+                                let _result = receiver_qt.borrow().recv().unwrap();
+                            }
+
+                            // Otherwise, it's from Warhammer 2.
+                            else {
+
+                                // Change the Game Selected in the UI.
+                                unsafe { app_ui.warhammer_2.as_mut().unwrap().set_checked(true); }
+
+                                // Change the Game Selected in the other Thread.
+                                sender_qt.send("set_game_selected").unwrap();
+                                sender_qt_data.send(serde_json::to_vec("warhammer_2").map_err(From::from)).unwrap();
+
+                                // Ignore the return from `set_game_selected`, as we don't really need it, but we need to keep the channels clean.
+                                let _result = receiver_qt.borrow().recv().unwrap();
+                            }
+                        },
+
+                        // PFH4 is for Warhammer 1/Attila.
+                        "PFH4" | _ => {
+
+                            // If we have Warhammer selected, we keep Warhammer. If we have Attila, we keep Attila.
+                            // In any other case, we select Attila by default.
+                            match &*game_selected.game {
+                                "warhammer" => {
+
+                                    // Change the Game Selected in the UI.
+                                    unsafe { app_ui.warhammer.as_mut().unwrap().set_checked(true); }
+
+                                    // Change the Game Selected in the other Thread.
+                                    sender_qt.send("set_game_selected").unwrap();
+                                    sender_qt_data.send(serde_json::to_vec("warhammer").map_err(From::from)).unwrap();
+
+                                    // Ignore the return from `set_game_selected`, as we don't really need it, but we need to keep the channels clean.
+                                    let _result = receiver_qt.borrow().recv().unwrap();
+                                }
+                                "attila" | _ => {
+
+                                    // Change the Game Selected in the UI.
+                                    unsafe { app_ui.attila.as_mut().unwrap().set_checked(true); }
+
+                                    // Change the Game Selected in the other Thread.
+                                    sender_qt.send("set_game_selected").unwrap();
+                                    sender_qt_data.send(serde_json::to_vec("attila").map_err(From::from)).unwrap();
+
+                                    // Ignore the return from `set_game_selected`, as we don't really need it, but we need to keep the channels clean.
+                                    let _result = receiver_qt.borrow().recv().unwrap();
+                                }
+                            }
+                        },
                     }
-                    "attila" | _ => {
+                },
 
-                        // Change the Game Selected in the UI.
-                        unsafe { app_ui.attila.as_mut().unwrap().set_checked(true); }
-
-                        // Change the Game Selected in the other Thread.
-                        sender_qt.send("set_game_selected").unwrap();
-                        sender_qt_data.send(serde_json::to_vec("attila").map_err(From::from)).unwrap();
-
-                        // Ignore the return from `set_game_selected`, as we don't really need it, but we need to keep the channels clean.
-                        let _result = receiver_qt.borrow().recv().unwrap();
-                    }
-                }
-            },
+                // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                Err(_) => show_dialog(app_ui.window, false, THREADS_MESSAGE_ERROR),
+            }
         }
 
         // Set the current "Operational Mode" to `Normal`.
@@ -5357,6 +5402,7 @@ fn build_my_mod_menu(
                         match &*mod_game {
                             "warhammer_2" => unsafe { app_ui.warhammer_2.as_mut().unwrap().trigger(); }
                             "warhammer" => unsafe { app_ui.warhammer.as_mut().unwrap().trigger(); }
+                            "arena" => unsafe { app_ui.arena.as_mut().unwrap().trigger(); }
                             "attila" | _ => unsafe { app_ui.attila.as_mut().unwrap().trigger(); }
                         }
 

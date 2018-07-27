@@ -103,6 +103,17 @@ impl GameInfo {
         };
 
         supported_games.push(game_info);
+
+        // Arena
+        let game_info = GameInfo {
+            display_name: "Arena".to_owned(),
+            folder_name: "arena".to_owned(),
+            id: "PFH5".to_owned(),
+            dependency_pack: "are.pack".to_owned(),
+            schema: "schema_are.json".to_owned(),
+        };
+
+        supported_games.push(game_info);
         /*
 
         // Rome 2
