@@ -1,10 +1,11 @@
 // In this file are all the Structs and Impls required to decode and encode the PackFiles.
+// NOTE: Arena support was implemented thanks to the work of "Trolldemorted" here: https://github.com/TotalWarArena-Modding/twa_pack_lib
+
 extern crate chrono;
 extern crate failure;
 
-use self::chrono::{
-    NaiveDateTime, Utc
-};
+use self::chrono::{NaiveDateTime, Utc};
+
 use std::path::PathBuf;
 use std::io::prelude::*;
 use std::io::{ BufReader, BufWriter, Read, Write, SeekFrom };
@@ -48,13 +49,25 @@ pub struct PackFileExtraData {
 /// - packed_file_index_size: size in bytes of the PackedFile Index of the file (the first part of the data).
 /// - creation_time: turns out this is the epoch date of the creation of the PackFile.
 ///
-/// NOTE: to understand the "pack_file_type":
+/// There three variables are not directly related to the header, but are decoded from it:
+/// - index_has_extra_u32: true if the PackedFile index has 4 bytes after the size of the PackedFiles.
+/// - index_is_encrypted: true if the PackedFile index is encrypted.
+/// - mysterious_mask: mysterious value found in Arena PackFiles. Can be usefull to identify them.
+///
+/// NOTE: to understand the "pack_file_type", because it's quite complex:
 /// - 0 => "Boot",
 /// - 1 => "Release",
 /// - 2 => "Patch",
 /// - 3 => "Mod",
 /// - 4 => "Movie",
+/// - 17 => "Sound" (don't know his "official" name, but it's used for sound PackFiles),
 /// - Any other type => Special types we don't want to edit, only to read.
+/// Also, a bitmask can be applied to this number:
+/// - 64 => PackedFile index has 4 empty bytes after the size of each PackedFile.
+/// - 128 => PackedFile index is encrypted (Only in Arena).
+/// - 256 => No idea, but it's in every Arena PackFile (Only in Arena).
+/// So, when getting the type, we first have to check his bitmasks and see what does it have.
+/// NOTE: Currently we don't support saving ANY Packfile that have bitmasks.
 #[derive(Clone, Debug)]
 pub struct PackFileHeader {
     pub id: String,
@@ -64,6 +77,10 @@ pub struct PackFileHeader {
     pub packed_file_count: u32,
     pub packed_file_index_size: u32,
     pub creation_time: NaiveDateTime,
+
+    pub index_has_extra_u32: bool,
+    pub index_is_encrypted: bool,
+    pub mysterious_mask: bool,
 }
 
 /// `PackFileData`: This struct stores all the data from the PackFile outside the header:
@@ -297,6 +314,10 @@ impl PackFileHeader {
             packed_file_count: 0,
             packed_file_index_size: 0,
             creation_time: Utc::now().naive_utc(),
+
+            index_has_extra_u32: false,
+            index_is_encrypted: false,
+            mysterious_mask: false,
         }
     }
 
@@ -321,14 +342,18 @@ impl PackFileHeader {
                         Ok(id) => {
 
                             // If the header's first 4 bytes are "PFH5" or "PFH4", it's a valid file, so we read it.
-                            if id == "PFH5" || id == "PFH4" {
-                                pack_file_header.id = id;
-                            }
+                            if id == "PFH5" || id == "PFH4" { pack_file_header.id = id; }
 
                             // If we reach this point, the file is not valid.
-                            else {
-                                return Err(format_err!("The file is not a supported PackFile.\n\nFor now, we only support:\n - Warhammer 2.\n - Warhammer.\n - Attila."))
-                            }
+                            else { return Err(format_err!("
+                            <p>The file is not a supported PackFile.</p>
+                            <p>For now, we only support:</p>
+                            <ul>
+                                <li>- Warhammer 2.</li>
+                                <li>- Warhammer.</li>
+                                <li>- Attila.</li>
+                                <li>- Arena.</li>
+                            </ul>")) }
                         }
 
                         // If we reach this point, there has been a decoding error.
@@ -344,8 +369,20 @@ impl PackFileHeader {
             Err(_) => return Err(format_err!("Error while trying to read the header of the PackFile from the disk.")),
         }
 
-        // Fill the default header with the current PackFile values.
+        // Get the "base" PackFile Type.
         pack_file_header.pack_file_type = decode_integer_u32(&buffer[4..8])?;
+
+        // Get the bitmasks from the PackFile's Type.
+        pack_file_header.index_has_extra_u32 = if pack_file_header.pack_file_type & 64 != 0 { true } else { false };
+        pack_file_header.index_is_encrypted = if pack_file_header.pack_file_type & 128 != 0 { true } else { false };
+        pack_file_header.mysterious_mask = if pack_file_header.pack_file_type & 256 != 0 { true } else { false };
+
+        // Disable the masks, so we can get the true Type.
+        pack_file_header.pack_file_type = pack_file_header.pack_file_type & 63;
+        pack_file_header.pack_file_type = pack_file_header.pack_file_type & 127;
+        pack_file_header.pack_file_type = pack_file_header.pack_file_type & 255;
+
+        // Fill the default header with the current PackFile values.
         pack_file_header.pack_file_count = decode_integer_u32(&buffer[8..12])?;
         pack_file_header.pack_file_index_size = decode_integer_u32(&buffer[12..16])?;
         pack_file_header.packed_file_count = decode_integer_u32(&buffer[16..20])?;
@@ -360,8 +397,15 @@ impl PackFileHeader {
     /// We need the final size of both indexes for this.
     fn save(&self, file: &mut BufWriter<File>, pack_file_index_size: u32, packed_file_index_size: u32) -> Result<(), Error> {
 
+        // Complete the PackFile Type using the bitmasks.
+        let mut final_type = self.pack_file_type;
+        if self.index_has_extra_u32 { final_type = final_type | 64; }
+        if self.index_is_encrypted { final_type = final_type | 128; }
+        if self.mysterious_mask { final_type = final_type | 256; }
+
+        // Write the entire header.
         file.write(&encode_string_u8(&self.id))?;
-        file.write(&encode_integer_u32(self.pack_file_type))?;
+        file.write(&encode_integer_u32(final_type))?;
         file.write(&encode_integer_u32(self.pack_file_count))?;
         file.write(&encode_integer_u32(pack_file_index_size))?;
         file.write(&encode_integer_u32(self.packed_file_count))?;
@@ -518,17 +562,28 @@ impl PackFileData {
         // Offsets for the loop to get the file corresponding to the index entry.
         let mut packed_file_index_offset: usize = 0;
 
-        // PFH5 PackFiles (Warhammer 2) have a 0 separating size and name of the file in the index.
+        // We choose the offset. This depends on a lot of conditions.
         let packed_file_index_path_offset: usize =
 
-            // If it's a common PFH5 PackFile (Warhammer 2).
-            if header.id == "PFH5" && header.pack_file_type <= 4 { 5 }
+            // If it's a common PFH5 PackFile (Warhammer 2 & Arena)...
+            if header.id == "PFH5" {
 
-            // If it's a common PFH4 PackFile (Warhammer & most of Attila).
-            else if header.id == "PFH4" && header.pack_file_type <= 4 { 4 }
+                // If it has an extra u32, we default to 8 (Arena).
+                if header.index_has_extra_u32 { 8 }
 
-            // If it's Attila's BootX.
-            else if header.id == "PFH4" && header.pack_file_type > 4 { 8 }
+                // Otherwise, we default to 5 (0 between size and path, Warhammer 2).
+                else { 5 }
+            }
+
+            // If it's a common PFH4 PackFile (Warhammer & Attila).
+            else if header.id == "PFH4" {
+
+                // If it has an extra u32, we default to 8 (boot.pack of Attila).
+                if header.index_has_extra_u32 { 8 }
+
+                // Otherwise, we default to 4 (no space between size and path of PackedFiles).
+                else { 4 }
+            }
 
             // As default, we use 4 (Attila).
             else { 4 };
@@ -643,8 +698,22 @@ impl PackFileData {
             // Encode his size.
             packed_file_index.extend_from_slice(&encode_integer_u32(packed_file.size));
 
-            // If it's a PFH5 (Warhammer 2), put a 0 between size and path.
-            if header.id == "PFH5" { packed_file_index.push(0) };
+            // If it's a common PFH5 PackFile (Warhammer 2 & Arena)...
+            if header.id == "PFH5" {
+
+                // If it has an extra u32, we add 4 zeroes (Arena).
+                if header.index_has_extra_u32 { packed_file_index.append(&mut vec![0;4]); }
+
+                // Otherwise, we default to one zero (Warhammer 2).
+                else { packed_file_index.push(0); }
+            }
+
+            // If it's a common PFH4 PackFile (Warhammer & Attila).
+            else if header.id == "PFH4" {
+
+                // If it has an extra u32, we add 4 zeroes (boot.pack of Attila).
+                if header.index_has_extra_u32 { packed_file_index.append(&mut vec![0;4]); }
+            }
 
             // For each field in the path...
             for position in 0..packed_file.path.len() {
