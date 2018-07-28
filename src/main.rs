@@ -164,9 +164,9 @@ pub struct AppUI {
     pub change_packfile_type_patch: *mut Action,
     pub change_packfile_type_mod: *mut Action,
     pub change_packfile_type_movie: *mut Action,
-    pub change_packfile_type_music: *mut Action,
     pub change_packfile_type_other: *mut Action,
 
+    pub change_packfile_type_mysterious_byte_music: *mut Action,
     pub change_packfile_type_index_has_extra_u32: *mut Action,
     pub change_packfile_type_index_is_encrypted: *mut Action,
     pub change_packfile_type_mysterious_byte: *mut Action,
@@ -380,9 +380,9 @@ fn main() {
                 change_packfile_type_patch: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Patch")),
                 change_packfile_type_mod: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Mod")),
                 change_packfile_type_movie: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("Mo&vie")),
-                change_packfile_type_music: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("M&usic")),
                 change_packfile_type_other: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Other")),
 
+                change_packfile_type_mysterious_byte_music: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("Has Musical Byte")),
                 change_packfile_type_index_has_extra_u32: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Index Has Extra U32")),
                 change_packfile_type_index_is_encrypted: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("Index Is &Encrypted")),
                 change_packfile_type_mysterious_byte: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Has Mysterious Byte")),
@@ -452,28 +452,28 @@ fn main() {
         unsafe { app_ui.change_packfile_type_group.as_mut().unwrap().add_action_unsafe(app_ui.change_packfile_type_patch); }
         unsafe { app_ui.change_packfile_type_group.as_mut().unwrap().add_action_unsafe(app_ui.change_packfile_type_mod); }
         unsafe { app_ui.change_packfile_type_group.as_mut().unwrap().add_action_unsafe(app_ui.change_packfile_type_movie); }
-        unsafe { app_ui.change_packfile_type_group.as_mut().unwrap().add_action_unsafe(app_ui.change_packfile_type_music); }
         unsafe { app_ui.change_packfile_type_group.as_mut().unwrap().add_action_unsafe(app_ui.change_packfile_type_other); }
         unsafe { app_ui.change_packfile_type_boot.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.change_packfile_type_release.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.change_packfile_type_patch.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.change_packfile_type_mod.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.change_packfile_type_movie.as_mut().unwrap().set_checkable(true); }
-        unsafe { app_ui.change_packfile_type_music.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.change_packfile_type_other.as_mut().unwrap().set_checkable(true); }
 
         // These ones are individual, but they need to be checkable and not editable.
+        unsafe { app_ui.change_packfile_type_mysterious_byte_music.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.change_packfile_type_index_has_extra_u32.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.change_packfile_type_mysterious_byte.as_mut().unwrap().set_checkable(true); }
 
+        unsafe { app_ui.change_packfile_type_mysterious_byte_music.as_mut().unwrap().set_enabled(false); }
         unsafe { app_ui.change_packfile_type_index_has_extra_u32.as_mut().unwrap().set_enabled(false); }
         unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_enabled(false); }
         unsafe { app_ui.change_packfile_type_mysterious_byte.as_mut().unwrap().set_enabled(false); }
 
         // Put separators in the SubMenu.
         unsafe { menu_change_packfile_type.as_mut().unwrap().insert_separator(app_ui.change_packfile_type_other); }
-        unsafe { menu_change_packfile_type.as_mut().unwrap().insert_separator(app_ui.change_packfile_type_index_has_extra_u32); }
+        unsafe { menu_change_packfile_type.as_mut().unwrap().insert_separator(app_ui.change_packfile_type_mysterious_byte_music); }
 
         // The "Game Selected" Menu should be an ActionGroup.
         unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.warhammer_2); }
@@ -655,11 +655,11 @@ fn main() {
         unsafe { app_ui.change_packfile_type_patch.as_mut().unwrap().set_status_tip(&QString::from_std_str("Changes the PackFile's Type to Patch. You should never use it.")); }
         unsafe { app_ui.change_packfile_type_mod.as_mut().unwrap().set_status_tip(&QString::from_std_str("Changes the PackFile's Type to Mod. You should use this for mods that should show up in the Mod Manager.")); }
         unsafe { app_ui.change_packfile_type_movie.as_mut().unwrap().set_status_tip(&QString::from_std_str("Changes the PackFile's Type to Movie. You should use this for mods that'll always be active, and will not show up in the Mod Manager.")); }
-        unsafe { app_ui.change_packfile_type_music.as_mut().unwrap().set_status_tip(&QString::from_std_str("Changes the PackFile's Type to Music. Don't know much about this type, other than it's used in Attila and Arena for Music PackFiles.")); }
         unsafe { app_ui.change_packfile_type_other.as_mut().unwrap().set_status_tip(&QString::from_std_str("Changes the PackFile's Type to Other. This is for PackFiles without write support, so you should never use it.")); }
         unsafe { app_ui.preferences.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the Preferences/Settings dialog.")); }
         unsafe { app_ui.quit.as_mut().unwrap().set_status_tip(&QString::from_std_str("Exit the Program.")); }
 
+        unsafe { app_ui.change_packfile_type_mysterious_byte_music.as_mut().unwrap().set_status_tip(&QString::from_std_str("If checked, this PackFile has a mysterious byte in the header. Only seen in music PackFiles. Saving this kind of PackFiles is NOT SUPPORTED.")); }
         unsafe { app_ui.change_packfile_type_index_has_extra_u32.as_mut().unwrap().set_status_tip(&QString::from_std_str("If checked, the PackedFile Index of this PackFile has four random bytes before each PackedFile's Path. For now, saving this kind of PackFiles is NOT SUPPORTED.")); }
         unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_status_tip(&QString::from_std_str("If checked, the PackedFile Index of this PackFile is encrypted. Saving this kind of PackFiles is NOT SUPPORTED.")); }
         unsafe { app_ui.change_packfile_type_mysterious_byte.as_mut().unwrap().set_status_tip(&QString::from_std_str("If checked, this PackFile has a mysterious byte in the header. Only seen in Arena PackFiles. Saving this kind of PackFiles is NOT SUPPORTED.")); }
@@ -901,11 +901,11 @@ fn main() {
                                 2 => unsafe { app_ui.change_packfile_type_patch.as_mut().unwrap().set_checked(true); }
                                 3 => unsafe { app_ui.change_packfile_type_mod.as_mut().unwrap().set_checked(true); }
                                 4 => unsafe { app_ui.change_packfile_type_movie.as_mut().unwrap().set_checked(true); }
-                                17 => unsafe { app_ui.change_packfile_type_music.as_mut().unwrap().set_checked(true); }
                                 _ => unsafe { app_ui.change_packfile_type_other.as_mut().unwrap().set_checked(true); }
                             }
 
                             // By default, the three bitmask should be false.
+                            unsafe { app_ui.change_packfile_type_mysterious_byte_music.as_mut().unwrap().set_checked(false); }
                             unsafe { app_ui.change_packfile_type_index_has_extra_u32.as_mut().unwrap().set_checked(false); }
                             unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_checked(false); }
                             unsafe { app_ui.change_packfile_type_mysterious_byte.as_mut().unwrap().set_checked(false); }
@@ -1243,7 +1243,6 @@ fn main() {
                     "&Patch" => 2,
                     "&Mod" => 3,
                     "Mo&vie" => 4,
-                    "M&usic" => 17,
                     _ => 99,
                 }; }
 
@@ -1338,7 +1337,6 @@ fn main() {
         unsafe { app_ui.change_packfile_type_patch.as_ref().unwrap().signals().triggered().connect(&slot_change_packfile_type); }
         unsafe { app_ui.change_packfile_type_mod.as_ref().unwrap().signals().triggered().connect(&slot_change_packfile_type); }
         unsafe { app_ui.change_packfile_type_movie.as_ref().unwrap().signals().triggered().connect(&slot_change_packfile_type); }
-        unsafe { app_ui.change_packfile_type_music.as_ref().unwrap().signals().triggered().connect(&slot_change_packfile_type); }
         unsafe { app_ui.change_packfile_type_other.as_ref().unwrap().signals().triggered().connect(&slot_change_packfile_type); }
 
         unsafe { app_ui.preferences.as_ref().unwrap().signals().triggered().connect(&slot_preferences); }
@@ -5013,11 +5011,11 @@ fn open_packfile(
                         2 => unsafe { app_ui.change_packfile_type_patch.as_mut().unwrap().set_checked(true); }
                         3 => unsafe { app_ui.change_packfile_type_mod.as_mut().unwrap().set_checked(true); }
                         4 => unsafe { app_ui.change_packfile_type_movie.as_mut().unwrap().set_checked(true); }
-                        17 => unsafe { app_ui.change_packfile_type_music.as_mut().unwrap().set_checked(true); }
                         _ => unsafe { app_ui.change_packfile_type_other.as_mut().unwrap().set_checked(true); }
                     }
 
                     // Enable or disable these, depending on what data we have in the header.
+                    unsafe { app_ui.change_packfile_type_mysterious_byte_music.as_mut().unwrap().set_checked(header.mysterious_mask_music); }
                     unsafe { app_ui.change_packfile_type_index_has_extra_u32.as_mut().unwrap().set_checked(header.index_has_extra_u32); }
                     unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_checked(header.index_is_encrypted); }
                     unsafe { app_ui.change_packfile_type_mysterious_byte.as_mut().unwrap().set_checked(header.mysterious_mask); }
@@ -5298,6 +5296,7 @@ fn build_my_mod_menu(
                                     unsafe { app_ui.change_packfile_type_mod.as_mut().unwrap().set_checked(true); }
 
                                     // By default, the three bitmask should be false.
+                                    unsafe { app_ui.change_packfile_type_mysterious_byte_music.as_mut().unwrap().set_checked(false); }
                                     unsafe { app_ui.change_packfile_type_index_has_extra_u32.as_mut().unwrap().set_checked(false); }
                                     unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_checked(false); }
                                     unsafe { app_ui.change_packfile_type_mysterious_byte.as_mut().unwrap().set_checked(false); }
