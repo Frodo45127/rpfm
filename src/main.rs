@@ -3513,36 +3513,11 @@ fn background_loop(
                                 // Get the decoded PackFile.
                                 pack_file_decoded = pack_file;
 
-                                // Try to load the Schema for this PackFile's game.
-                                schema = Schema::load(&rpfm_path, &supported_games.iter().filter(|x| x.folder_name == *game_selected.game).map(|x| x.schema.to_owned()).collect::<String>()).ok();
-
                                 // Get the PackFile's Header we must return to the UI thread and serialize it.
                                 let data = serde_json::to_vec(&pack_file_decoded.header).map_err(From::from);
 
                                 // Send a response to the UI thread.
                                 sender.send(data).unwrap();
-
-                                // Test to see if every DB Table can be decoded. This is slow and only useful when
-                                // a new patch lands and you want to know what tables you need to decode. So, unless that,
-                                // leave this code commented.
-                                // let mut counter = 0;
-                                // for i in pack_file_decoded.data.packed_files.iter() {
-                                //     if i.path.starts_with(&["db".to_owned()]) {
-                                //         if let Some(ref schema) = schema {
-                                //             if let Err(_) = packedfile::db::DB::read(&i.data, &i.path[1], &schema) {
-                                //                 match packedfile::db::DBHeader::read(&i.data, &mut 0) {
-                                //                     Ok(db_header) => {
-                                //                         if db_header.entry_count > 0 {
-                                //                             counter += 1;
-                                //                             println!("{}, {:?}", counter, i.path);
-                                //                         }
-                                //                     }
-                                //                     Err(_) => println!("Error in {:?}", i.path),
-                                //                 }
-                                //             }
-                                //         }
-                                //     }
-                                // }
                             }
 
                             // If there is an error, send it back to the UI.
@@ -3765,6 +3740,28 @@ fn background_loop(
 
                                     // Send back the new Game Selected, and a bool indicating if there is a PackFile open.
                                     sender.send(serde_json::to_vec(&(game_selected.clone(), pack_file_decoded.extra_data.file_name.is_empty())).map_err(From::from)).unwrap();
+
+                                    // Test to see if every DB Table can be decoded. This is slow and only useful when
+                                    // a new patch lands and you want to know what tables you need to decode. So, unless that,
+                                    // leave this code commented.
+                                    // let mut counter = 0;
+                                    // for i in pack_file_decoded.data.packed_files.iter() {
+                                    //     if i.path.starts_with(&["db".to_owned()]) {
+                                    //         if let Some(ref schema) = schema {
+                                    //             if let Err(_) = packedfile::db::DB::read(&i.data, &i.path[1], &schema) {
+                                    //                 match packedfile::db::DBHeader::read(&i.data, &mut 0) {
+                                    //                     Ok(db_header) => {
+                                    //                         if db_header.entry_count > 0 {
+                                    //                             counter += 1;
+                                    //                             println!("{}, {:?}", counter, i.path);
+                                    //                         }
+                                    //                     }
+                                    //                     Err(_) => println!("Error in {:?}", i.path),
+                                    //                 }
+                                    //             }
+                                    //         }
+                                    //     }
+                                    // }
                                 },
 
                                 // If error, there are problems with the messages between threads. Give a warning and ask for a report.
@@ -5001,39 +4998,120 @@ fn open_packfile(
                 // If it was it...
                 Ok(data) => {
 
-                    // Deserialize it (name of the packfile, paths of the PackedFiles, type of the PackFile).
-                    let header: PackFileHeader = serde_json::from_slice(&data).unwrap();
+                    // Try to deserialize the result as a PackFileHeader...
+                    match serde_json::from_slice(&data) {
 
-                    // We choose the right option, depending on our PackFile.
-                    match header.pack_file_type {
-                        0 => unsafe { app_ui.change_packfile_type_boot.as_mut().unwrap().set_checked(true); }
-                        1 => unsafe { app_ui.change_packfile_type_release.as_mut().unwrap().set_checked(true); }
-                        2 => unsafe { app_ui.change_packfile_type_patch.as_mut().unwrap().set_checked(true); }
-                        3 => unsafe { app_ui.change_packfile_type_mod.as_mut().unwrap().set_checked(true); }
-                        4 => unsafe { app_ui.change_packfile_type_movie.as_mut().unwrap().set_checked(true); }
-                        _ => unsafe { app_ui.change_packfile_type_other.as_mut().unwrap().set_checked(true); }
+                        // If it works...
+                        Ok(header) => {
+
+                            // Redundant, but needed.
+                            let header: PackFileHeader = header;
+
+                            // We choose the right option, depending on our PackFile.
+                            match header.pack_file_type {
+                                0 => unsafe { app_ui.change_packfile_type_boot.as_mut().unwrap().set_checked(true); }
+                                1 => unsafe { app_ui.change_packfile_type_release.as_mut().unwrap().set_checked(true); }
+                                2 => unsafe { app_ui.change_packfile_type_patch.as_mut().unwrap().set_checked(true); }
+                                3 => unsafe { app_ui.change_packfile_type_mod.as_mut().unwrap().set_checked(true); }
+                                4 => unsafe { app_ui.change_packfile_type_movie.as_mut().unwrap().set_checked(true); }
+                                _ => unsafe { app_ui.change_packfile_type_other.as_mut().unwrap().set_checked(true); }
+                            }
+
+                            // Enable or disable these, depending on what data we have in the header.
+                            unsafe { app_ui.change_packfile_type_mysterious_byte_music.as_mut().unwrap().set_checked(header.mysterious_mask_music); }
+                            unsafe { app_ui.change_packfile_type_index_has_extra_u32.as_mut().unwrap().set_checked(header.index_has_extra_u32); }
+                            unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_checked(header.index_is_encrypted); }
+                            unsafe { app_ui.change_packfile_type_mysterious_byte.as_mut().unwrap().set_checked(header.mysterious_mask); }
+
+                            // Set the new mod as "Not modified".
+                            *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
+
+                            // Update the TreeView.
+                            update_treeview(
+                                &rpfm_path,
+                                sender_qt,
+                                sender_qt_data,
+                                receiver_qt.clone(),
+                                app_ui.window,
+                                app_ui.folder_tree_view,
+                                app_ui.folder_tree_model,
+                                TreeViewOperation::Build(false),
+                            );
+
+                            // If it's a "MyMod" (game_folder_name is not empty), we choose the Game selected Depending on it.
+                            if !game_folder.is_empty() {
+
+                                // NOTE: Arena should never be here.
+                                // Change the Game Selected in the UI.
+                                match game_folder {
+                                    "warhammer_2" => unsafe { app_ui.warhammer_2.as_mut().unwrap().trigger(); }
+                                    "warhammer" => unsafe { app_ui.warhammer.as_mut().unwrap().trigger(); }
+                                    "attila" => unsafe { app_ui.attila.as_mut().unwrap().trigger(); }
+                                    "rome_2" | _ => unsafe { app_ui.rome_2.as_mut().unwrap().trigger(); }
+                                }
+
+                                // Set the current "Operational Mode" to `MyMod`.
+                                set_my_mod_mode(&mymod_stuff, mode, Some(pack_file_path));
+                            }
+
+                            // If it's not a "MyMod", we choose the new Game Selected depending on what the open mod id is.
+                            else {
+
+                                // Depending on the Id, choose one game or another.
+                                match &*header.id {
+
+                                    // PFH5 is for Warhammer 2/Arena.
+                                    "PFH5" => {
+
+                                        // If the PackFile has the mysterious byte enabled, it's from Arena.
+                                        if header.mysterious_mask { unsafe { app_ui.arena.as_mut().unwrap().trigger(); } }
+
+                                        // Otherwise, it's from Warhammer 2.
+                                        else { unsafe { app_ui.warhammer_2.as_mut().unwrap().trigger(); } }
+                                    },
+
+                                    // PFH4 is for Warhammer 1/Attila.
+                                    "PFH4" | _ => {
+
+                                        // Get the Game Selected.
+                                        sender_qt.send("get_game_selected").unwrap();
+                                        let response = receiver_qt.borrow().recv().unwrap().unwrap();
+                                        let game_selected: GameSelected = serde_json::from_slice(&response).unwrap();
+
+                                        // If we have Warhammer selected, we keep Warhammer. If we have Attila, we keep Attila.
+                                        // In any other case, we select Rome 2 by default.
+                                        match &*game_selected.game {
+                                            "warhammer" => unsafe { app_ui.warhammer.as_mut().unwrap().trigger(); },
+                                            "attila" => unsafe { app_ui.attila.as_mut().unwrap().trigger(); }
+                                            "rome_2" | _ => unsafe { app_ui.rome_2.as_mut().unwrap().trigger(); }
+                                        }
+                                    },
+                                }
+
+                                // Set the current "Operational Mode" to `Normal`.
+                                set_my_mod_mode(&mymod_stuff, mode, None);
+                            }
+
+                            // Destroy whatever it's in the PackedFile's view, to avoid data corruption.
+                            purge_them_all(&app_ui, &is_packedfile_opened);
+
+                            // Show the "Tips".
+                            display_help_tips(&app_ui);
+
+                            // Stop the loop.
+                            break;
+                        }
+
+                        // If error...
+                        Err(_) => {
+
+                            // Re-enable the Main Window.
+                            unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
+
+                            // Return an error.
+                            return Err(format_err!("{}", THREADS_MESSAGE_ERROR))
+                        }
                     }
-
-                    // Enable or disable these, depending on what data we have in the header.
-                    unsafe { app_ui.change_packfile_type_mysterious_byte_music.as_mut().unwrap().set_checked(header.mysterious_mask_music); }
-                    unsafe { app_ui.change_packfile_type_index_has_extra_u32.as_mut().unwrap().set_checked(header.index_has_extra_u32); }
-                    unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_checked(header.index_is_encrypted); }
-                    unsafe { app_ui.change_packfile_type_mysterious_byte.as_mut().unwrap().set_checked(header.mysterious_mask); }
-
-                    // Update the TreeView.
-                    update_treeview(
-                        &rpfm_path,
-                        sender_qt,
-                        sender_qt_data,
-                        receiver_qt.clone(),
-                        app_ui.window,
-                        app_ui.folder_tree_view,
-                        app_ui.folder_tree_model,
-                        TreeViewOperation::Build(false),
-                    );
-
-                    // Stop the loop.
-                    break;
                 }
 
                 // Otherwise...
@@ -5055,92 +5133,8 @@ fn open_packfile(
         thread::sleep(Duration::from_millis(10));
     }
 
-    // Set the new mod as "Not modified".
-    *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
-
-    // If it's a "MyMod" (game_folder_name is not empty), we choose the Game selected Depending on it.
-    if !game_folder.is_empty() {
-
-        // NOTE: Arena should never be here.
-        // Change the Game Selected in the UI.
-        match game_folder {
-            "warhammer_2" => unsafe { app_ui.warhammer_2.as_mut().unwrap().trigger(); }
-            "warhammer" => unsafe { app_ui.warhammer.as_mut().unwrap().trigger(); }
-            "attila" => unsafe { app_ui.attila.as_mut().unwrap().trigger(); }
-            "rome_2" | _ => unsafe { app_ui.rome_2.as_mut().unwrap().trigger(); }
-        }
-
-        // Set the current "Operational Mode" to `MyMod`.
-        set_my_mod_mode(&mymod_stuff, mode, Some(pack_file_path));
-    }
-
-    // If it's not a "MyMod", we choose the new Game Selected depending on what the open mod id is.
-    else {
-
-        // Get the PackFile's Header.
-        sender_qt.send("get_packfile_header").unwrap();
-
-        // Wait until you get something from the background thread.
-        if let Ok(header) = receiver_qt.borrow().recv().unwrap() {
-
-            // Try to deserialize it.
-            match serde_json::from_slice(&header) {
-
-                // If it can be deserialized as an PackFileHeader...
-                Ok(header) => {
-
-                    // Redundant, but needed for the deserializer to know the type.
-                    let header: PackFileHeader = header;
-
-                    // Depending on the Id, choose one game or another.
-                    match &*header.id {
-
-                        // PFH5 is for Warhammer 2/Arena.
-                        "PFH5" => {
-
-                            // If the PackFile has the mysterious byte enabled, it's from Arena.
-                            if header.mysterious_mask { unsafe { app_ui.arena.as_mut().unwrap().trigger(); } }
-
-                            // Otherwise, it's from Warhammer 2.
-                            else { unsafe { app_ui.warhammer_2.as_mut().unwrap().trigger(); } }
-                        },
-
-                        // PFH4 is for Warhammer 1/Attila.
-                        "PFH4" | _ => {
-
-                            // Get the Game Selected.
-                            sender_qt.send("get_game_selected").unwrap();
-                            let response = receiver_qt.borrow().recv().unwrap().unwrap();
-                            let game_selected: GameSelected = serde_json::from_slice(&response).unwrap();
-
-                            // If we have Warhammer selected, we keep Warhammer. If we have Attila, we keep Attila.
-                            // In any other case, we select Rome 2 by default.
-                            match &*game_selected.game {
-                                "warhammer" => unsafe { app_ui.warhammer.as_mut().unwrap().trigger(); },
-                                "attila" => unsafe { app_ui.attila.as_mut().unwrap().trigger(); }
-                                "rome_2" | _ => unsafe { app_ui.rome_2.as_mut().unwrap().trigger(); }
-                            }
-                        },
-                    }
-                },
-
-                // If error, there are problems with the messages between threads. Give a warning and ask for a report.
-                Err(_) => show_dialog(app_ui.window, false, THREADS_MESSAGE_ERROR),
-            }
-        }
-
-        // Set the current "Operational Mode" to `Normal`.
-        set_my_mod_mode(&mymod_stuff, mode, None);
-    }
-
     // Re-enable the Main Window.
     unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
-
-    // Destroy whatever it's in the PackedFile's view, to avoid data corruption.
-    purge_them_all(&app_ui, &is_packedfile_opened);
-
-    // Show the "Tips".
-    display_help_tips(&app_ui);
 
     // Return success.
     Ok(())
