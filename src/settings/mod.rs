@@ -11,10 +11,11 @@ use failure::Error;
 
 /// `GameInfo`: This struct holds all the info needed for a game to be "supported" by RPFM features.
 /// It's stores the following data:
-/// - `display_name`: This is the name it'll show up in the UI. For example, in a dropdown.
-/// - `folder_name`: This name is the name used for any internal operation. For example, for the MyMod stuff.
-/// - `id`: This is the ID used at the start of every PackFile for that game.
-/// - `dependency_pack`: The name of the "Dependency" PackFile for that game.
+/// - `display_name`: This is the name it'll show up in the UI. For example, in a dropdown (Warhammer 2).
+/// - `folder_name`: This name is the name used for any internal operation. For example, for the MyMod stuff. (warhammer_2)
+/// - `id`: This is the ID used at the start of every PackFile for that game. (PFH5)
+/// - `dependency_pack`: This is packfile from were we load the data for db references. Since 1.0, we use data.pack for this.
+/// - `schema`: This is the name of the schema file used for the game. (wh2.json)
 #[derive(Clone, Debug)]
 pub struct GameInfo {
     pub display_name: String,
@@ -57,7 +58,7 @@ pub struct GameSelected {
     pub game: String,
     pub game_path: Option<PathBuf>,
     pub game_data_path: Option<PathBuf>,
-    pub game_dependency_packfile_path: PathBuf,
+    pub game_dependency_packfile_path: Option<PathBuf>,
 }
 
 /// Implementation of `GameInfo`.
@@ -76,7 +77,7 @@ impl GameInfo {
             display_name: "Warhammer 2".to_owned(),
             folder_name: "warhammer_2".to_owned(),
             id: "PFH5".to_owned(),
-            dependency_pack: "wh2.pack".to_owned(),
+            dependency_pack: "data.pack".to_owned(),
             schema: "schema_wh.json".to_owned(),
         };
 
@@ -87,7 +88,7 @@ impl GameInfo {
             display_name: "Warhammer".to_owned(),
             folder_name: "warhammer".to_owned(),
             id: "PFH4".to_owned(),
-            dependency_pack: "wh.pack".to_owned(),
+            dependency_pack: "data.pack".to_owned(),
             schema: "schema_wh.json".to_owned(),
         };
 
@@ -98,7 +99,7 @@ impl GameInfo {
             display_name: "Attila".to_owned(),
             folder_name: "attila".to_owned(),
             id: "PFH4".to_owned(),
-            dependency_pack: "att.pack".to_owned(),
+            dependency_pack: "data.pack".to_owned(),
             schema: "schema_att.json".to_owned(),
         };
 
@@ -111,7 +112,7 @@ impl GameInfo {
             display_name: "Arena".to_owned(),
             folder_name: "arena".to_owned(),
             id: "PFH5".to_owned(),
-            dependency_pack: "are.pack".to_owned(),
+            dependency_pack: "wad.pack".to_owned(),
             schema: "schema_are.json".to_owned(),
         };
 
@@ -235,23 +236,33 @@ impl GamePath {
 impl GameSelected {
 
     /// This functions returns a `GameSelected` populated with his default values.
-    pub fn new(settings: &Settings, rpfm_path: &PathBuf, supported_games: &[GameInfo]) -> Self {
+    pub fn new(settings: &Settings, supported_games: &[GameInfo]) -> Self {
 
+        // Get the stuff we need from the settings and the supported games list.
         let game = settings.default_game.to_owned();
         let game_path = settings.paths.game_paths.iter().filter(|x| x.game == game).map(|x| x.path.clone()).collect::<Option<PathBuf>>();
+
+        // The data path may be not configured, so we check if it exists in the settings, or not.
         let game_data_path = match game_path {
             Some(ref game_path) => {
-                let mut game_data_path = game_path.clone();
+                let mut game_data_path = game_path.to_path_buf();
                 game_data_path.push("data");
                 Some(game_data_path)
             },
             None => None,
         };
 
-        let mut game_dependency_packfile_path = rpfm_path.to_path_buf();
-        game_dependency_packfile_path.push("dependency_packs");
-        game_dependency_packfile_path.push(supported_games.iter().filter(|x| x.folder_name == game).map(|x| x.dependency_pack.clone()).collect::<String>());
+        // Same with the data.pack.
+        let game_dependency_packfile_path = match game_data_path {
+            Some(ref game_data_path) => {
+                let mut game_dependency_packfile_path = game_data_path.to_path_buf();
+                game_dependency_packfile_path.push(supported_games.iter().filter(|x| x.folder_name == game).map(|x| x.dependency_pack.clone()).collect::<String>());
+                Some(game_dependency_packfile_path)
+            },
+            None => None,
+        };
 
+        // Return the final GameSelected.
         Self {
             game,
             game_path,
@@ -265,13 +276,24 @@ impl GameSelected {
         self.game = game.to_owned();
         self.game_path = game_path.clone();
 
+        // Get the data path, if exists.
         if let Some(ref game_path) = self.game_path {
-            let mut data_path = game_path.clone();
+            let mut data_path = game_path.to_path_buf();
             data_path.push("data");
             self.game_data_path = Some(data_path);
         }
 
-        self.game_dependency_packfile_path.pop();
-        self.game_dependency_packfile_path.push(supported_games.iter().filter(|x| x.folder_name == game).map(|x| x.dependency_pack.clone()).collect::<String>());
+        // Otherwise, set it as None.
+        else { self.game_data_path = None }
+
+        // Get the data.pack PackFile's path, if exists.
+        if let Some(ref game_data_path) = self.game_data_path {
+            let mut data_path = game_data_path.to_path_buf();
+            data_path.push(supported_games.iter().filter(|x| x.folder_name == self.game).map(|x| x.dependency_pack.clone()).collect::<String>());
+            self.game_dependency_packfile_path = Some(data_path);
+        }
+
+        // Otherwise, set it as None.
+        else { self.game_dependency_packfile_path = None }
     }
 }

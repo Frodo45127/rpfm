@@ -65,7 +65,7 @@ use std::io::{BufReader, Seek, SeekFrom, Read, Write};
 use failure::Error;
 use common::*;
 use common::coding_helpers::*;
-use packfile::packfile::{PackFile, PackFileExtraData, PackFileHeader};
+use packfile::packfile::{PackFile, PackFileExtraData, PackFileHeader, PackedFile};
 use packedfile::*;
 use packedfile::loc::*;
 use packedfile::db::*;
@@ -190,17 +190,12 @@ pub struct AppUI {
     //-------------------------------------------------------------------------------//
 
     // Warhammer 2's actions.
-    pub wh2_generate_dependency_pack: *mut Action,
     pub wh2_patch_siege_ai: *mut Action,
     pub wh2_create_prefab: *mut Action,
 
     // Warhammer's actions.
-    pub wh_generate_dependency_pack: *mut Action,
     pub wh_patch_siege_ai: *mut Action,
     pub wh_create_prefab: *mut Action,
-
-    // Attila's actions.
-    pub att_generate_dependency_pack: *mut Action,
 
     //-------------------------------------------------------------------------------//
     // "About" menu.
@@ -344,10 +339,8 @@ fn main() {
 
         let menu_warhammer_2;
         let menu_warhammer;
-        let menu_attila;
         unsafe { menu_warhammer_2 = menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("&Warhammer 2")); }
         unsafe { menu_warhammer = menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("&Warhammer")); }
-        unsafe { menu_attila = menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("&Attila")); }
 
         // Contextual Menu for the TreeView.
         let mut folder_tree_view_context_menu = Menu::new(());
@@ -412,17 +405,12 @@ fn main() {
                 //-------------------------------------------------------------------------------//
 
                 // Warhammer 2's actions.
-                wh2_generate_dependency_pack: menu_warhammer_2.as_mut().unwrap().add_action(&QString::from_std_str("&Generate Dependency Pack")),
                 wh2_patch_siege_ai: menu_warhammer_2.as_mut().unwrap().add_action(&QString::from_std_str("&Patch Siege AI")),
                 wh2_create_prefab: menu_warhammer_2.as_mut().unwrap().add_action(&QString::from_std_str("&Create Prefab")),
 
                 // Warhammer's actions.
-                wh_generate_dependency_pack: menu_warhammer.as_mut().unwrap().add_action(&QString::from_std_str("&Generate Dependency Pack")),
                 wh_patch_siege_ai: menu_warhammer.as_mut().unwrap().add_action(&QString::from_std_str("&Patch Siege AI")),
                 wh_create_prefab: menu_warhammer.as_mut().unwrap().add_action(&QString::from_std_str("&Create Prefab")),
-
-                // Attila's actions.
-                att_generate_dependency_pack: menu_attila.as_mut().unwrap().add_action(&QString::from_std_str("&Generate Dependency Pack")),
 
                 //-------------------------------------------------------------------------------//
                 // "About" menu.
@@ -695,13 +683,10 @@ fn main() {
         unsafe { app_ui.arena.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Arena' as 'Game Selected'.")); }
 
         // Menu bar, Special Stuff.
-        unsafe { app_ui.wh2_generate_dependency_pack.as_mut().unwrap().set_status_tip(&QString::from_std_str("Generate a 'Dependency' PackFile for 'TW:Warhammer 2'. Needed for some features. You have to do this again after every game's patch! Remember it!")); }
         unsafe { app_ui.wh2_patch_siege_ai.as_mut().unwrap().set_status_tip(&QString::from_std_str("Patch & Clean an exported map's PackFile. It fixes the Siege AI (if it has it) and remove useless xml files that bloat the PackFile, reducing his size.")); }
         unsafe { app_ui.wh2_create_prefab.as_mut().unwrap().set_status_tip(&QString::from_std_str("Create prefabs from exported maps. Currently bugged, so don't use it.")); }
-        unsafe { app_ui.wh_generate_dependency_pack.as_mut().unwrap().set_status_tip(&QString::from_std_str("Generate a 'Dependency' PackFile for 'TW:Warhammer'. Needed for some features. You have to do this again after every game's patch! Remember it!")); }
         unsafe { app_ui.wh_patch_siege_ai.as_mut().unwrap().set_status_tip(&QString::from_std_str("Patch & Clean an exported map's PackFile. It fixes the Siege AI (if it has it) and remove useless xml files that bloat the PackFile, reducing his size.")); }
         unsafe { app_ui.wh_create_prefab.as_mut().unwrap().set_status_tip(&QString::from_std_str("Create prefabs from exported maps. Currently bugged, so don't use it.")); }
-        unsafe { app_ui.att_generate_dependency_pack.as_mut().unwrap().set_status_tip(&QString::from_std_str("Generate a 'Dependency' PackFile for 'TW:Attila'. Needed for some features. You have to do this again after every game's patch! Remember it!")); }
 
         // Menu bar, About.
         unsafe { app_ui.about_qt.as_mut().unwrap().set_status_tip(&QString::from_std_str("Info about Qt, the UI Toolkit used to make this program.")); }
@@ -1340,60 +1325,6 @@ fn main() {
         // "Special Stuff" Menu...
         //-----------------------------------------------------//
 
-        // What happens when we trigger the "Generate Dependency Pack" action.
-        let slot_generate_dependency_pack = SlotBool::new(clone!(
-            receiver_qt,
-            sender_qt => move |_| {
-
-                // Ask the background loop to create the Dependency PackFile.
-                sender_qt.send("create_dependency_database").unwrap();
-
-                // Prepare the event loop, so we don't hang the UI while the background thread is working.
-                let mut event_loop = EventLoop::new();
-
-                // Disable the Main Window (so we can't do other stuff).
-                unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
-
-                // Until we receive a response from the worker thread...
-                loop {
-
-                    // When we finally receive a response...
-                    if let Ok(data) = receiver_qt.borrow().try_recv() {
-
-                        // Check what the result of the creation process was.
-                        match data {
-
-                            // In case of success.....
-                            Ok(data) => {
-
-                                // Get the success message and show it.
-                                let message: &str = serde_json::from_slice(&data).unwrap();
-                                show_dialog(app_ui.window, true, message);
-
-                                // Reload the Dependency PackFile for our Game Selected.
-                                sender_qt.send("set_dependency_database").unwrap();
-                            }
-
-                            // In case of error, report the error.
-                            Err(error) => show_dialog(app_ui.window, false, error.cause()),
-                        }
-
-                        // Stop the loop.
-                        break;
-                    }
-
-                    // Keep the UI responsive.
-                    event_loop.process_events(());
-
-                    // Wait a bit to not saturate a CPU core.
-                    thread::sleep(Duration::from_millis(50));
-                }
-
-                // Re-enable the Main Window.
-                unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
-            }
-        ));
-
         // What happens when we trigger the "Patch Siege AI" action.
         let slot_patch_siege_ai = SlotBool::new(clone!(
             rpfm_path,
@@ -1468,10 +1399,6 @@ fn main() {
         ));
 
         // "Special Stuff" Menu Actions.
-        unsafe { app_ui.wh2_generate_dependency_pack.as_ref().unwrap().signals().triggered().connect(&slot_generate_dependency_pack); }
-        unsafe { app_ui.wh_generate_dependency_pack.as_ref().unwrap().signals().triggered().connect(&slot_generate_dependency_pack); }
-        unsafe { app_ui.att_generate_dependency_pack.as_ref().unwrap().signals().triggered().connect(&slot_generate_dependency_pack); }
-
         unsafe { app_ui.wh2_patch_siege_ai.as_ref().unwrap().signals().triggered().connect(&slot_patch_siege_ai); }
         unsafe { app_ui.wh_patch_siege_ai.as_ref().unwrap().signals().triggered().connect(&slot_patch_siege_ai); }
 
@@ -3492,13 +3419,10 @@ fn background_loop(
     let mut schema: Option<Schema> = None;
 
     // And we prepare the stuff for the default game (paths, and those things).
-    let mut game_selected = GameSelected::new(&settings, &rpfm_path, &supported_games);
+    let mut game_selected = GameSelected::new(&settings, &supported_games);
 
     // Try to open the dependency PackFile of our `game_selected`.
-    let mut dependency_database = match packfile::open_packfile(game_selected.game_dependency_packfile_path.to_path_buf()) {
-        Ok(pack_file) => Some(pack_file.data.packed_files),
-        Err(_) => None,
-    };
+    let mut dependency_database = open_dependency_packfile(&game_selected.game_dependency_packfile_path);
 
     //---------------------------------------------------------------------------------------//
     // Looping forever and ever...
@@ -3816,10 +3740,7 @@ fn background_loop(
                                     schema = Schema::load(&rpfm_path, &supported_games.iter().filter(|x| x.folder_name == *game_selected.game).map(|x| x.schema.to_owned()).collect::<String>()).ok();
 
                                     // Change the `dependency_database` for that game.
-                                    dependency_database = match packfile::open_packfile(game_selected.game_dependency_packfile_path.to_path_buf()) {
-                                        Ok(data) => Some(data.data.packed_files),
-                                        Err(_) => None,
-                                    };
+                                    dependency_database = open_dependency_packfile(&game_selected.game_dependency_packfile_path);
 
                                     // Send back the new Game Selected, and a bool indicating if there is a PackFile open.
                                     sender.send(serde_json::to_vec(&(game_selected.clone(), pack_file_decoded.extra_data.file_name.is_empty())).map_err(From::from)).unwrap();
@@ -3866,22 +3787,10 @@ fn background_loop(
                         }
                     }
 
-                    // In case we want to change the current Dependency Database...
-                    "set_dependency_database" => {
-
-                        // Change the `dependency_database` for that game.
-                        dependency_database = match packfile::open_packfile(game_selected.game_dependency_packfile_path.to_path_buf()) {
-                            Ok(data) => Some(data.data.packed_files),
-                            Err(_) => None,
-                        };
-                    }
-
                     // In case we want to check if there is a current Dependency Database loaded...
                     "is_there_a_dependency_database" => {
-                        match dependency_database {
-                            Some(_) => sender.send(serde_json::to_vec(&true).map_err(From::from)).unwrap(),
-                            None => sender.send(serde_json::to_vec(&false).map_err(From::from)).unwrap(),
-                        }
+                        if !dependency_database.is_empty() { sender.send(serde_json::to_vec(&true).map_err(From::from)).unwrap(); }
+                        else { sender.send(serde_json::to_vec(&false).map_err(From::from)).unwrap(); }
                     }
 
                     // In case we want to check if there is an Schema loaded...
@@ -3889,84 +3798,6 @@ fn background_loop(
                         match schema {
                             Some(_) => sender.send(serde_json::to_vec(&true).map_err(From::from)).unwrap(),
                             None => sender.send(serde_json::to_vec(&false).map_err(From::from)).unwrap(),
-                        }
-                    }
-
-                    // TODO: This is not revised, because it's going to be deleted.
-                    // In case we want to create a new Dependency Database...
-                    "create_dependency_database" => {
-
-                        // Get the data folder of game_selected.
-                        match game_selected.game_data_path {
-
-                            // If we got it...
-                            Some(ref path) => {
-
-                                // Get the path of the data.pack PackFile.
-                                let mut data_pack_path = path.to_path_buf();
-                                data_pack_path.push("data.pack");
-
-                                // Try to open it...
-                                match packfile::open_packfile_with_bufreader(data_pack_path) {
-
-                                    // If we could open it...
-                                    Ok(data_packfile) => {
-
-                                        // Create the DB PackFile.
-                                        let mut pack_file_db = PackFile::new();
-
-                                        // Get the PackFile and the BufReader.
-                                        let pack_file = data_packfile.0;
-                                        let mut reader = data_packfile.1;
-
-                                        // List of PackedFiles to add.
-                                        let mut packed_files = vec![];
-
-                                        // For each PackFile in the data.pack...
-                                        for (index, packed_file) in pack_file.data.packed_files.iter().enumerate() {
-
-                                            // If it's a DB file...
-                                            if packed_file.path.starts_with(&["db".to_owned()]) {
-
-                                                // Clone the PackedFile.
-                                                let mut packed_file = packed_file.clone();
-
-                                                // Read it.
-                                                packed_file.data = vec![0; packed_file.size as usize];
-                                                reader.seek(SeekFrom::Start(pack_file.packed_file_indexes[index])).unwrap();
-                                                reader.read_exact(&mut packed_file.data).unwrap();
-
-                                                // Add it to the PackedFiles List.
-                                                packed_files.push(packed_file);
-                                            }
-                                        }
-
-                                        // Add them to the new PackFile.
-                                        pack_file_db.add_packedfiles(packed_files);
-
-                                        // Get the path of the Dependency PackFiles.
-                                        let mut dep_packs_path = game_selected.game_dependency_packfile_path.to_path_buf();
-                                        dep_packs_path.pop();
-
-                                        // Create it if it doesn't exist yet (or report error if you can't).
-                                        if let Err(error) = DirBuilder::new().recursive(true).create(&dep_packs_path) {
-                                            return sender.send(Err(format_err!("Error while trying to create the dependency folder:\n{}", Error::from(error).cause()))).unwrap();
-                                        }
-
-                                        // Try to save the new PackFile, and report the result.
-                                        match packfile::save_packfile(&mut pack_file_db, Some(game_selected.game_dependency_packfile_path.to_path_buf())) {
-                                            Ok(_) => sender.send(serde_json::to_vec("Dependency PackFile created. Remember to re-create it if you update the game ;).").map_err(From::from)).unwrap(),
-                                            Err(error) => sender.send(Err(format_err!("Generated Dependency PackFile couldn't be saved:\n{}", error.cause()))).unwrap(),
-                                        }
-                                    }
-
-                                    // If we couldn't open it, report the error.
-                                    Err(_) => sender.send(Err(format_err!("Error: data.pack couldn't be open."))).unwrap()
-                                }
-                            },
-
-                            // If we couldn't found the data folder, report it.
-                            None => sender.send(Err(format_err!("Error: data folder of the game not found."))).unwrap()
                         }
                     }
 
@@ -5037,17 +4868,12 @@ fn enable_packfile_actions(
         // Check the Game Selected and enable the actions corresponding to out game.
         match &*game_selected.game {
             "warhammer_2" => {
-                unsafe { app_ui.wh2_generate_dependency_pack.as_mut().unwrap().set_enabled(true); }
                 unsafe { app_ui.wh2_patch_siege_ai.as_mut().unwrap().set_enabled(true); }
                 unsafe { app_ui.wh2_create_prefab.as_mut().unwrap().set_enabled(true); }
             },
             "warhammer" => {
-                unsafe { app_ui.wh_generate_dependency_pack.as_mut().unwrap().set_enabled(true); }
                 unsafe { app_ui.wh_patch_siege_ai.as_mut().unwrap().set_enabled(true); }
                 unsafe { app_ui.wh_create_prefab.as_mut().unwrap().set_enabled(true); }
-            },
-            "attila" => {
-                unsafe { app_ui.att_generate_dependency_pack.as_mut().unwrap().set_enabled(true); }
             },
             _ => {},
         }
@@ -5057,17 +4883,12 @@ fn enable_packfile_actions(
     else {
 
         // Disable Warhammer 2 actions...
-        unsafe { app_ui.wh2_generate_dependency_pack.as_mut().unwrap().set_enabled(false); }
         unsafe { app_ui.wh2_patch_siege_ai.as_mut().unwrap().set_enabled(false); }
         unsafe { app_ui.wh2_create_prefab.as_mut().unwrap().set_enabled(false); }
 
         // Disable Warhammer actions...
-        unsafe { app_ui.wh_generate_dependency_pack.as_mut().unwrap().set_enabled(false); }
         unsafe { app_ui.wh_patch_siege_ai.as_mut().unwrap().set_enabled(false); }
         unsafe { app_ui.wh_create_prefab.as_mut().unwrap().set_enabled(false); }
-
-        // Disable Attila actions...
-        unsafe { app_ui.att_generate_dependency_pack.as_mut().unwrap().set_enabled(false); }
     }
 }
 
@@ -5291,9 +5112,6 @@ fn open_packfile(
 
     // Re-enable the Main Window.
     unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
-
-    // Change the Dependency Database used for our PackFile in the other Thread.
-    sender_qt.send("set_dependency_database").unwrap();
 
     // Destroy whatever it's in the PackedFile's view, to avoid data corruption.
     purge_them_all(&app_ui, &is_packedfile_opened);
@@ -5846,4 +5664,46 @@ fn build_my_mod_menu(
 
     // Return the MyModStuff with all the new actions.
     (mymod_stuff, mymod_slots)
+}
+
+/// This function is a special open function, to open ONLY the dependency PackFile when we change the
+/// current Game Selected.
+fn open_dependency_packfile(data_packfile_path: &Option<PathBuf>) -> Vec<PackedFile> {
+
+    // Create the empty list.
+    let mut packed_files = vec![];
+
+    // Check if we have a data.pack for the GameSelected.
+    if let Some(data_packfile_path) = data_packfile_path {
+
+        // Try to open it...
+        if let Ok(data_packfile) = packfile::open_packfile_with_bufreader(data_packfile_path.to_path_buf()) {
+
+            // Get the PackFile and the BufReader.
+            let pack_file = data_packfile.0;
+            let mut reader = data_packfile.1;
+
+            // For each PackFile in the data.pack...
+            for (index, packed_file) in pack_file.data.packed_files.iter().enumerate() {
+
+                // If it's a DB file...
+                if packed_file.path.starts_with(&["db".to_owned()]) {
+
+                    // Clone the PackedFile.
+                    let mut packed_file = packed_file.clone();
+
+                    // Read it.
+                    packed_file.data = vec![0; packed_file.size as usize];
+                    reader.seek(SeekFrom::Start(pack_file.packed_file_indexes[index])).unwrap();
+                    reader.read_exact(&mut packed_file.data).unwrap();
+
+                    // Add it to the PackedFiles List.
+                    packed_files.push(packed_file);
+                }
+            }
+        }
+    }
+
+    // Return the new PackedFiles list.
+    packed_files
 }
