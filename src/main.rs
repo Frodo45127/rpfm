@@ -722,85 +722,104 @@ fn main() {
                 sender_qt.send("set_game_selected").unwrap();
                 sender_qt_data.send(serde_json::to_vec(&new_game_selected_folder_name).map_err(From::from)).unwrap();
 
-                // When we finally receive the data...
-                if let Ok(response) = receiver_qt.borrow().recv().unwrap() {
+                // Disable the Main Window (so we can't do other stuff).
+                unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
 
-                    // Try to deserialize it.
-                    match serde_json::from_slice(&response) {
+                // Prepare the event loop, so we don't hang the UI while the background thread is working.
+                let mut event_loop = EventLoop::new();
 
-                        // If it can be deserialized as a (GameSelected, bool)...
-                        Ok(response) => {
+                // Until we receive a response from the worker thread...
+                loop {
 
-                            // Redundant, but needed for the deserializer to know the type.
-                            let response: (GameSelected, bool) = response;
+                    // When we finally receive the data...
+                    if let Ok(response) = receiver_qt.borrow().try_recv() {
 
-                            // If the Game Selected is Arena, block any attempt of creating or saving a PackFile.
-                            if response.0.game == "arena" {
+                        // Try to deserialize it.
+                        match serde_json::from_slice(&response.unwrap()) {
 
-                                // Disable the actions that allow to create and save PackFiles.
-                                unsafe { app_ui.new_packfile.as_mut().unwrap().set_enabled(false); }
-                                unsafe { app_ui.save_packfile.as_mut().unwrap().set_enabled(false); }
-                                unsafe { app_ui.save_packfile_as.as_mut().unwrap().set_enabled(false); }
+                            // If it can be deserialized as a (GameSelected, bool)...
+                            Ok(response) => {
 
-                                // This one too, though we had to deal with it specially later on.
-                                unsafe { mymod_stuff.borrow().new_mymod.as_mut().unwrap().set_enabled(false); }
-                            }
+                                // Redundant, but needed for the deserializer to know the type.
+                                let response: (GameSelected, bool) = response;
 
-                            // Otherwise, enable them.
-                            else {
+                                // If the Game Selected is Arena, block any attempt of creating or saving a PackFile.
+                                if response.0.game == "arena" {
 
-                                // Disable the actions that allow to create and save PackFiles.
-                                unsafe { app_ui.new_packfile.as_mut().unwrap().set_enabled(true); }
+                                    // Disable the actions that allow to create and save PackFiles.
+                                    unsafe { app_ui.new_packfile.as_mut().unwrap().set_enabled(false); }
+                                    unsafe { app_ui.save_packfile.as_mut().unwrap().set_enabled(false); }
+                                    unsafe { app_ui.save_packfile_as.as_mut().unwrap().set_enabled(false); }
 
-                                // Disable the "PackFile Management" actions.
-                                enable_packfile_actions(&app_ui, &response.0, false);
+                                    // This one too, though we had to deal with it specially later on.
+                                    unsafe { mymod_stuff.borrow().new_mymod.as_mut().unwrap().set_enabled(false); }
+                                }
 
-                                // If we have a PackFile opened, re-enable the "PackFile Management" actions, so the "Special Stuff" menu gets updated properly.
-                                if !response.1 { enable_packfile_actions(&app_ui, &response.0, true); }
+                                // Otherwise, enable them.
+                                else {
 
-                                // Get the current settings.
-                                sender_qt.send("get_settings").unwrap();
+                                    // Disable the actions that allow to create and save PackFiles.
+                                    unsafe { app_ui.new_packfile.as_mut().unwrap().set_enabled(true); }
 
-                                // Wait until you get something from the background thread.
-                                if let Ok(settings) = receiver_qt.borrow().recv().unwrap() {
+                                    // Disable the "PackFile Management" actions.
+                                    enable_packfile_actions(&app_ui, &response.0, false);
 
-                                    // Try to deserialize it.
-                                    match serde_json::from_slice(&settings) {
+                                    // If we have a PackFile opened, re-enable the "PackFile Management" actions, so the "Special Stuff" menu gets updated properly.
+                                    if !response.1 { enable_packfile_actions(&app_ui, &response.0, true); }
 
-                                        // If it can be deserialized as a GameSelected...
-                                        Ok(settings) => {
+                                    // Get the current settings.
+                                    sender_qt.send("get_settings").unwrap();
 
-                                            // Redundant, but needed for the deserializer to know the type.
-                                            let settings: Settings = settings;
+                                    // Wait until you get something from the background thread.
+                                    if let Ok(settings) = receiver_qt.borrow().recv().unwrap() {
 
-                                            // If there is a "MyMod" path set in the settings...
-                                            if let Some(ref path) = settings.paths.my_mods_base_path {
+                                        // Try to deserialize it.
+                                        match serde_json::from_slice(&settings) {
 
-                                                // And it's a valid directory, enable the "New MyMod" button.
-                                                if path.is_dir() { unsafe { mymod_stuff.borrow().new_mymod.as_mut().unwrap().set_enabled(true); }}
+                                            // If it can be deserialized as a GameSelected...
+                                            Ok(settings) => {
+
+                                                // Redundant, but needed for the deserializer to know the type.
+                                                let settings: Settings = settings;
+
+                                                // If there is a "MyMod" path set in the settings...
+                                                if let Some(ref path) = settings.paths.my_mods_base_path {
+
+                                                    // And it's a valid directory, enable the "New MyMod" button.
+                                                    if path.is_dir() { unsafe { mymod_stuff.borrow().new_mymod.as_mut().unwrap().set_enabled(true); }}
+
+                                                    // Otherwise, disable it.
+                                                    else { unsafe { mymod_stuff.borrow().new_mymod.as_mut().unwrap().set_enabled(false); }}
+                                                }
 
                                                 // Otherwise, disable it.
                                                 else { unsafe { mymod_stuff.borrow().new_mymod.as_mut().unwrap().set_enabled(false); }}
-                                            }
+                                            },
 
-                                            // Otherwise, disable it.
-                                            else { unsafe { mymod_stuff.borrow().new_mymod.as_mut().unwrap().set_enabled(false); }}
-                                        },
-
-                                        // If error, there are problems with the messages between threads. Give a warning and ask for a report.
-                                        Err(_) => return show_dialog(app_ui.window, false, THREADS_MESSAGE_ERROR),
+                                            // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                                            Err(_) => return show_dialog(app_ui.window, false, THREADS_MESSAGE_ERROR),
+                                        }
                                     }
                                 }
-                            }
 
-                            // Set the current "Operational Mode" to `Normal` (In case we were in `MyMod` mode).
-                            set_my_mod_mode(&mymod_stuff, &mode, None);
-                        },
+                                // Set the current "Operational Mode" to `Normal` (In case we were in `MyMod` mode).
+                                set_my_mod_mode(&mymod_stuff, &mode, None);
+                            },
 
-                        // If error, there are problems with the messages between threads. Give a warning and ask for a report.
-                        Err(_) => return show_dialog(app_ui.window, false, THREADS_MESSAGE_ERROR),
+                            // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                            Err(_) => return show_dialog(app_ui.window, false, THREADS_MESSAGE_ERROR),
+                        }
+
+                        // Stop the loop.
+                        break;
                     }
+
+                    // Keep the UI responsive.
+                    event_loop.process_events(());
                 }
+
+                // Re-enable the Main Window.
+                unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
             }
         ));
 
