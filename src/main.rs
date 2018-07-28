@@ -181,6 +181,7 @@ pub struct AppUI {
     pub warhammer_2: *mut Action,
     pub warhammer: *mut Action,
     pub attila: *mut Action,
+    pub rome_2: *mut Action,
     pub arena: *mut Action,
 
     pub game_selected_group: *mut ActionGroup,
@@ -396,6 +397,7 @@ fn main() {
                 warhammer_2: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("&Warhammer 2")),
                 warhammer: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("War&hammer")),
                 attila: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("&Attila")),
+                rome_2: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("R&ome 2")),
                 arena: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("A&rena")),
 
                 game_selected_group: ActionGroup::new(menu_bar_game_seleted.as_mut().unwrap().static_cast_mut()).into_raw(),
@@ -477,10 +479,12 @@ fn main() {
         unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.warhammer_2); }
         unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.warhammer); }
         unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.attila); }
+        unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.rome_2); }
         unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.arena); }
         unsafe { app_ui.warhammer_2.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.warhammer.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.attila.as_mut().unwrap().set_checkable(true); }
+        unsafe { app_ui.rome_2.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.arena.as_mut().unwrap().set_checkable(true); }
 
         // Arena is special, so separate it from the rest.
@@ -664,6 +668,7 @@ fn main() {
         unsafe { app_ui.warhammer_2.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Warhammer 2' as 'Game Selected'.")); }
         unsafe { app_ui.warhammer.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Warhammer' as 'Game Selected'.")); }
         unsafe { app_ui.attila.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Attila' as 'Game Selected'.")); }
+        unsafe { app_ui.rome_2.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Rome 2' as 'Game Selected'.")); }
         unsafe { app_ui.arena.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Arena' as 'Game Selected'.")); }
 
         // Menu bar, Special Stuff.
@@ -827,6 +832,7 @@ fn main() {
         unsafe { app_ui.warhammer_2.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
         unsafe { app_ui.warhammer.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
         unsafe { app_ui.attila.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
+        unsafe { app_ui.rome_2.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
         unsafe { app_ui.arena.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
 
         // Get the Game Selected.
@@ -838,8 +844,9 @@ fn main() {
         match &*game_selected.game {
             "warhammer_2" => unsafe { app_ui.warhammer_2.as_mut().unwrap().trigger(); }
             "warhammer" => unsafe { app_ui.warhammer.as_mut().unwrap().trigger(); }
+            "attila" => unsafe { app_ui.attila.as_mut().unwrap().trigger(); }
             "arena" => unsafe { app_ui.arena.as_mut().unwrap().trigger(); }
-            "attila" | _ => unsafe { app_ui.attila.as_mut().unwrap().trigger(); }
+            "rome_2" | _ => unsafe { app_ui.rome_2.as_mut().unwrap().trigger(); }
         }
 
         //-----------------------------------------------------//
@@ -5061,7 +5068,8 @@ fn open_packfile(
         match game_folder {
             "warhammer_2" => unsafe { app_ui.warhammer_2.as_mut().unwrap().trigger(); }
             "warhammer" => unsafe { app_ui.warhammer.as_mut().unwrap().trigger(); }
-            "attila" | _ => unsafe { app_ui.attila.as_mut().unwrap().trigger(); }
+            "attila" => unsafe { app_ui.attila.as_mut().unwrap().trigger(); }
+            "rome_2" | _ => unsafe { app_ui.rome_2.as_mut().unwrap().trigger(); }
         }
 
         // Set the current "Operational Mode" to `MyMod`.
@@ -5108,10 +5116,11 @@ fn open_packfile(
                             let game_selected: GameSelected = serde_json::from_slice(&response).unwrap();
 
                             // If we have Warhammer selected, we keep Warhammer. If we have Attila, we keep Attila.
-                            // In any other case, we select Attila by default.
+                            // In any other case, we select Rome 2 by default.
                             match &*game_selected.game {
                                 "warhammer" => unsafe { app_ui.warhammer.as_mut().unwrap().trigger(); },
-                                "attila" | _ => unsafe { app_ui.attila.as_mut().unwrap().trigger(); }
+                                "attila" => unsafe { app_ui.attila.as_mut().unwrap().trigger(); }
+                                "rome_2" | _ => unsafe { app_ui.rome_2.as_mut().unwrap().trigger(); }
                             }
                         },
                     }
@@ -5220,7 +5229,8 @@ fn build_my_mod_menu(
                         match &*mod_game {
                             "warhammer_2" => unsafe { app_ui.warhammer_2.as_mut().unwrap().trigger(); }
                             "warhammer" => unsafe { app_ui.warhammer.as_mut().unwrap().trigger(); }
-                            "attila" | _ => unsafe { app_ui.attila.as_mut().unwrap().trigger(); }
+                            "attila" => unsafe { app_ui.attila.as_mut().unwrap().trigger(); }
+                            "rome_2" | _ => unsafe { app_ui.rome_2.as_mut().unwrap().trigger(); }
                         }
 
                         // Get his new path from the base "MyMod" path + `mod_game`.
