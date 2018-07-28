@@ -558,19 +558,6 @@ fn main() {
         // Display the basic tips by default.
         display_help_tips(&app_ui);
 
-        // Get the Game Selected.
-        sender_qt.send("get_game_selected").unwrap();
-        let response = receiver_qt.borrow().recv().unwrap().unwrap();
-        let game_selected: GameSelected = serde_json::from_slice(&response).unwrap();
-
-        // Change the Game Selected in the UI.
-        match &*game_selected.game {
-            "warhammer_2" => unsafe { app_ui.warhammer_2.as_mut().unwrap().set_checked(true); }
-            "warhammer" => unsafe { app_ui.warhammer.as_mut().unwrap().set_checked(true); }
-            "arena" => unsafe { app_ui.arena.as_mut().unwrap().set_checked(true); }
-            "attila" | _ => unsafe { app_ui.attila.as_mut().unwrap().set_checked(true); }
-        }
-
         // Build the entire "MyMod" Menu.
         let result = build_my_mod_menu(
             rpfm_path.to_path_buf(),
@@ -588,9 +575,6 @@ fn main() {
 
         let mymod_stuff = Rc::new(RefCell::new(result.0));
         let mymod_stuff_slots = Rc::new(RefCell::new(result.1));
-
-        // Disable the actions available for the PackFile from the `MenuBar`.
-        enable_packfile_actions(&app_ui, &game_selected, false);
 
         // Disable all the Contextual Menu actions by default.
         unsafe {
@@ -825,6 +809,19 @@ fn main() {
         unsafe { app_ui.warhammer.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
         unsafe { app_ui.attila.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
         unsafe { app_ui.arena.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
+
+        // Get the Game Selected.
+        sender_qt.send("get_game_selected").unwrap();
+        let response = receiver_qt.borrow().recv().unwrap().unwrap();
+        let game_selected: GameSelected = serde_json::from_slice(&response).unwrap();
+
+        // Update the "Game Selected" here, so we can skip some steps when initializing.
+        match &*game_selected.game {
+            "warhammer_2" => unsafe { app_ui.warhammer_2.as_mut().unwrap().trigger(); }
+            "warhammer" => unsafe { app_ui.warhammer.as_mut().unwrap().trigger(); }
+            "arena" => unsafe { app_ui.arena.as_mut().unwrap().trigger(); }
+            "attila" | _ => unsafe { app_ui.attila.as_mut().unwrap().trigger(); }
+        }
 
         //-----------------------------------------------------//
         // "PackFile" Menu...
