@@ -110,7 +110,7 @@ impl GameInfo {
             display_name: "Rome 2".to_owned(),
             folder_name: "rome_2".to_owned(),
             id: "PFH4".to_owned(),
-            dependency_pack: "data.pack".to_owned(),
+            dependency_pack: "data_rome2.pack".to_owned(),
             schema: "schema_rom2.json".to_owned(),
         };
 

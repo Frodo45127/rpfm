@@ -361,6 +361,7 @@ impl PackFileHeader {
                                 <li>- Warhammer 2.</li>
                                 <li>- Warhammer.</li>
                                 <li>- Attila.</li>
+                                <li>- Rome 2.</li>
                                 <li>- Arena.</li>
                             </ul>")) }
                         }
