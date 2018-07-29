@@ -3136,8 +3136,11 @@ impl PackedFileDBDecoder {
             field_is_key_item.set_check_state(if field_is_key { CheckState::Checked } else { CheckState::Unchecked });
             let reference_table = StandardItem::new(&QString::from_std_str(&reference.0));
             let reference_field = StandardItem::new(&QString::from_std_str(&reference.1));
-            let decoded_data = StandardItem::new(&QString::from_std_str(&decoded_data));
+            let mut decoded_data = StandardItem::new(&QString::from_std_str(&decoded_data));
             let field_description = StandardItem::new(&QString::from_std_str(field_description));
+
+            // The "Decoded First Row" column should not be editable.
+            decoded_data.set_editable(false);
 
             // Add the items to the list.
             unsafe { qlist.append_unsafe(&field_name.into_raw()); }
@@ -3167,8 +3170,11 @@ impl PackedFileDBDecoder {
             field_is_key_item.set_check_state(if field_is_key { CheckState::Checked } else { CheckState::Unchecked });
             let reference_table = StandardItem::new(&QString::from_std_str(""));
             let reference_field = StandardItem::new(&QString::from_std_str(""));
-            let decoded_data = StandardItem::new(&QString::from_std_str(&decoded_data));
+            let mut decoded_data = StandardItem::new(&QString::from_std_str(&decoded_data));
             let field_description = StandardItem::new(&QString::from_std_str(field_description));
+
+            // The "Decoded First Row" column should not be editable.
+            decoded_data.set_editable(false);
 
             // Add the items to the list.
             unsafe { qlist.append_unsafe(&field_name.into_raw()); }
@@ -3184,7 +3190,8 @@ impl PackedFileDBDecoder {
         }
 
         // Set the title of the columns and extend them, just in case is needed.
-        unsafe { stuff.table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_section_resize_mode(ResizeMode::Stretch); }
+        unsafe { stuff.table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().resize_sections(ResizeMode::ResizeToContents); }
+        unsafe { stuff.table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_stretch_last_section(true); }
         unsafe { stuff.table_model.as_mut().unwrap().set_header_data((0, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Field Name")))); }
         unsafe { stuff.table_model.as_mut().unwrap().set_header_data((1, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Field Type")))); }
         unsafe { stuff.table_model.as_mut().unwrap().set_header_data((2, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Is key?")))); }
