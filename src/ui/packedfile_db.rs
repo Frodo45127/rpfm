@@ -2059,7 +2059,7 @@ impl PackedFileDBDecoder {
 
                                             // Translate those limits to fit the other HexView.
                                             selection_start = ((selection_start + 1) / 3) + (selection_start / 48);
-                                            selection_end = ((selection_end + 1) / 3) + (selection_end / 48);
+                                            selection_end = ((selection_end + 2) / 3) + (selection_end / 48);
 
                                             // If we got something selected, always select something in the other HexView.
                                             unsafe { if selection_start == selection_end && cursor.as_mut().unwrap().selection_start() != cursor.as_mut().unwrap().selection_end() { selection_end += 1; } }
@@ -3069,7 +3069,7 @@ impl PackedFileDBDecoder {
 
             // Create the "Selection" for the decoded row.
             cursor.move_position((MoveOperation::NextCharacter, MoveMode::Keep, 1));
-            
+
             // Block the signals during this, so we don't mess things up.
             let mut blocker;
             unsafe { blocker = SignalBlocker::new(stuff.hex_view_decoded.as_mut().unwrap().static_cast_mut() as &mut Object); }
