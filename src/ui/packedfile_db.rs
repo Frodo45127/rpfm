@@ -14,6 +14,7 @@ use qt_widgets::frame::Frame;
 use qt_widgets::group_box::GroupBox;
 use qt_widgets::header_view::ResizeMode;
 use qt_widgets::abstract_item_view::{EditTrigger, SelectionMode};
+use qt_widgets::splitter::Splitter;
 
 use qt_gui::cursor::Cursor;
 use qt_gui::font::{Font, StyleHint };
@@ -27,10 +28,12 @@ use qt_gui::standard_item_model::StandardItemModel;
 use qt_gui::text_char_format::TextCharFormat;
 use qt_gui::text_cursor::{MoveOperation, MoveMode};
 
+use qt_core::signal_blocker::SignalBlocker;
 use qt_core::sort_filter_proxy_model::SortFilterProxyModel;
 use qt_core::abstract_item_model::AbstractItemModel;
 use qt_core::connection::Signal;
 use qt_core::variant::Variant;
+use qt_core::object::Object;
 use qt_core::slots::{SlotBool, SlotCInt, SlotStringRef, SlotItemSelectionRefItemSelectionRef, SlotModelIndexRefModelIndexRefVectorVectorCIntRef};
 use qt_core::reg_exp::RegExp;
 use qt_core::qt::{Orientation, CheckState, ContextMenuPolicy, ShortcutContext, SortOrder, CaseSensitivity, GlobalColor};
@@ -69,6 +72,10 @@ pub struct PackedFileDBTreeView {
 /// Struct PackedFileDBDecoder: contains all the stuff we need to return to be able to decode DB PackedFiles.
 pub struct PackedFileDBDecoder {
     pub slot_hex_view_scroll_sync: SlotCInt<'static>,
+    pub slot_hex_view_raw_selection_sync: SlotNoArgs<'static>,
+    pub slot_hex_view_decoded_selection_sync: SlotNoArgs<'static>,
+    pub slot_hex_view_raw_selection_decoding: SlotNoArgs<'static>,
+    pub slot_hex_view_decoded_selection_decoding: SlotNoArgs<'static>,
     pub slot_use_this_bool: SlotNoArgs<'static>,
     pub slot_use_this_float: SlotNoArgs<'static>,
     pub slot_use_this_integer: SlotNoArgs<'static>,
@@ -99,6 +106,15 @@ pub struct PackedFileDBDecoderStuff {
     pub hex_view_decoded: *mut TextEdit,
     pub table_view: *mut TableView,
     pub table_model: *mut StandardItemModel,
+
+    pub selection_bool_line_edit: *mut LineEdit,
+    pub selection_float_line_edit: *mut LineEdit,
+    pub selection_integer_line_edit: *mut LineEdit,
+    pub selection_long_integer_line_edit: *mut LineEdit,
+    pub selection_string_u8_line_edit: *mut LineEdit,
+    pub selection_string_u16_line_edit: *mut LineEdit,
+    pub selection_optional_string_u8_line_edit: *mut LineEdit,
+    pub selection_optional_string_u16_line_edit: *mut LineEdit,
 
     pub bool_line_edit: *mut LineEdit,
     pub float_line_edit: *mut LineEdit,
@@ -1593,6 +1609,10 @@ impl PackedFileDBDecoder {
         // Create some dummy slots and return it.
         Self {
             slot_hex_view_scroll_sync: SlotCInt::new(|_| {}),
+            slot_hex_view_raw_selection_sync: SlotNoArgs::new(|| {}),
+            slot_hex_view_decoded_selection_sync: SlotNoArgs::new(|| {}),
+            slot_hex_view_raw_selection_decoding: SlotNoArgs::new(|| {}),
+            slot_hex_view_decoded_selection_decoding: SlotNoArgs::new(|| {}),
             slot_use_this_bool: SlotNoArgs::new(|| {}),
             slot_use_this_float: SlotNoArgs::new(|| {}),
             slot_use_this_integer: SlotNoArgs::new(|| {}),
@@ -1690,15 +1710,28 @@ impl PackedFileDBDecoder {
         unsafe { table_view_context_menu_move_down.as_mut().unwrap().set_enabled(false); }
         unsafe { table_view_context_menu_delete.as_mut().unwrap().set_enabled(false); }
 
+        // Create the fields splitter.
+        let fields_splitter = Splitter::new(Orientation::Vertical).into_raw();
+        unsafe { fields_splitter.as_mut().unwrap().set_collapsible(0, false); }
+        unsafe { fields_splitter.as_mut().unwrap().set_collapsible(1, false); }
+
         // Create the frames for the info.
         let decoded_fields_frame = GroupBox::new(&QString::from_std_str("Current Field Decoded")).into_raw();
+        let selected_fields_frame = GroupBox::new(&QString::from_std_str("Selected Field Decoded")).into_raw();
         let info_frame = GroupBox::new(&QString::from_std_str("Table Info")).into_raw();
+
+        // Add the stuff to the splitter.
+        unsafe { fields_splitter.as_mut().unwrap().add_widget(decoded_fields_frame as *mut Widget); }
+        unsafe { fields_splitter.as_mut().unwrap().add_widget(selected_fields_frame as *mut Widget); }
 
         // Set their layouts.
         let decoded_fields_layout = GridLayout::new().into_raw();
+        let selected_fields_layout = GridLayout::new().into_raw();
         let info_layout = GridLayout::new().into_raw();
         unsafe { decoded_fields_layout.as_mut().unwrap().set_column_stretch(1, 10); }
+        unsafe { selected_fields_layout.as_mut().unwrap().set_column_stretch(1, 10); }
         unsafe { decoded_fields_frame.as_mut().unwrap().set_layout(decoded_fields_layout as *mut Layout); }
+        unsafe { selected_fields_frame.as_mut().unwrap().set_layout(selected_fields_layout as *mut Layout); }
         unsafe { info_frame.as_mut().unwrap().set_layout(info_layout as *mut Layout); }
 
         // Create the stuff for the decoded fields.
@@ -1755,6 +1788,43 @@ impl PackedFileDBDecoder {
         unsafe { decoded_fields_layout.as_mut().unwrap().add_widget((string_u16_button as *mut Widget, 5, 2, 1, 1)); }
         unsafe { decoded_fields_layout.as_mut().unwrap().add_widget((optional_string_u8_button as *mut Widget, 6, 2, 1, 1)); }
         unsafe { decoded_fields_layout.as_mut().unwrap().add_widget((optional_string_u16_button as *mut Widget, 7, 2, 1, 1)); }
+
+        // Create the stuff for the "Selection" live decoding.
+        let selection_bool_label = Label::new(&QString::from_std_str("Decoded as \"Bool\":")).into_raw();
+        let selection_float_label = Label::new(&QString::from_std_str("Decoded as \"Float\":")).into_raw();
+        let selection_integer_label = Label::new(&QString::from_std_str("Decoded as \"Integer\":")).into_raw();
+        let selection_long_integer_label = Label::new(&QString::from_std_str("Decoded as \"Long Integer\":")).into_raw();
+        let selection_string_u8_label = Label::new(&QString::from_std_str("Decoded as \"String U8\":")).into_raw();
+        let selection_string_u16_label = Label::new(&QString::from_std_str("Decoded as \"String U16\":")).into_raw();
+        let selection_optional_string_u8_label = Label::new(&QString::from_std_str("Decoded as \"Optional String U8\":")).into_raw();
+        let selection_optional_string_u16_label = Label::new(&QString::from_std_str("Decoded as \"Optional String U16\":")).into_raw();
+
+        let selection_bool_line_edit = LineEdit::new(()).into_raw();
+        let selection_float_line_edit = LineEdit::new(()).into_raw();
+        let selection_integer_line_edit = LineEdit::new(()).into_raw();
+        let selection_long_integer_line_edit = LineEdit::new(()).into_raw();
+        let selection_string_u8_line_edit = LineEdit::new(()).into_raw();
+        let selection_string_u16_line_edit = LineEdit::new(()).into_raw();
+        let selection_optional_string_u8_line_edit = LineEdit::new(()).into_raw();
+        let selection_optional_string_u16_line_edit = LineEdit::new(()).into_raw();
+
+        unsafe { selected_fields_layout.as_mut().unwrap().add_widget((selection_bool_label as *mut Widget, 0, 0, 1, 1)); }
+        unsafe { selected_fields_layout.as_mut().unwrap().add_widget((selection_float_label as *mut Widget, 1, 0, 1, 1)); }
+        unsafe { selected_fields_layout.as_mut().unwrap().add_widget((selection_integer_label as *mut Widget, 2, 0, 1, 1)); }
+        unsafe { selected_fields_layout.as_mut().unwrap().add_widget((selection_long_integer_label as *mut Widget, 3, 0, 1, 1)); }
+        unsafe { selected_fields_layout.as_mut().unwrap().add_widget((selection_string_u8_label as *mut Widget, 4, 0, 1, 1)); }
+        unsafe { selected_fields_layout.as_mut().unwrap().add_widget((selection_string_u16_label as *mut Widget, 5, 0, 1, 1)); }
+        unsafe { selected_fields_layout.as_mut().unwrap().add_widget((selection_optional_string_u8_label as *mut Widget, 6, 0, 1, 1)); }
+        unsafe { selected_fields_layout.as_mut().unwrap().add_widget((selection_optional_string_u16_label as *mut Widget, 7, 0, 1, 1)); }
+
+        unsafe { selected_fields_layout.as_mut().unwrap().add_widget((selection_bool_line_edit as *mut Widget, 0, 1, 1, 1)); }
+        unsafe { selected_fields_layout.as_mut().unwrap().add_widget((selection_float_line_edit as *mut Widget, 1, 1, 1, 1)); }
+        unsafe { selected_fields_layout.as_mut().unwrap().add_widget((selection_integer_line_edit as *mut Widget, 2, 1, 1, 1)); }
+        unsafe { selected_fields_layout.as_mut().unwrap().add_widget((selection_long_integer_line_edit as *mut Widget, 3, 1, 1, 1)); }
+        unsafe { selected_fields_layout.as_mut().unwrap().add_widget((selection_string_u8_line_edit as *mut Widget, 4, 1, 1, 1)); }
+        unsafe { selected_fields_layout.as_mut().unwrap().add_widget((selection_string_u16_line_edit as *mut Widget, 5, 1, 1, 1)); }
+        unsafe { selected_fields_layout.as_mut().unwrap().add_widget((selection_optional_string_u8_line_edit as *mut Widget, 6, 1, 1, 1)); }
+        unsafe { selected_fields_layout.as_mut().unwrap().add_widget((selection_optional_string_u16_line_edit as *mut Widget, 7, 1, 1, 1)); }
 
         // Create stuff for the info frame.
         let table_info_type_label = Label::new(&QString::from_std_str("Table type:")).into_raw();
@@ -1829,13 +1899,15 @@ impl PackedFileDBDecoder {
         unsafe { button_box_layout.as_mut().unwrap().add_widget((save_button as *mut Widget, 0, 1, 1, 1)); }
 
         // Add everything to the main grid.
-        unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((hex_view_group as *mut Widget, 0, 0, 4, 1)); }
+        unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((hex_view_group as *mut Widget, 0, 0, 5, 1)); }
         unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((table_view as *mut Widget, 0, 1, 1, 2)); }
-        unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((decoded_fields_frame as *mut Widget, 1, 1, 3, 1)); }
+        unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((fields_splitter as *mut Widget, 1, 1, 4, 1)); }
         unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((info_frame as *mut Widget, 1, 2, 1, 1)); }
-        unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((table_view_old_versions as *mut Widget, 2, 2, 1, 1)); }
-        unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((button_box as *mut Widget, 3, 2, 1, 1)); }
+        unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((table_view_old_versions as *mut Widget, 2, 2, 2, 1)); }
+        unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((button_box as *mut Widget, 4, 2, 1, 1)); }
         unsafe { app_ui.packed_file_layout.as_mut().unwrap().set_column_stretch(1, 10); }
+        unsafe { app_ui.packed_file_layout.as_mut().unwrap().set_row_stretch(0, 10); }
+        unsafe { app_ui.packed_file_layout.as_mut().unwrap().set_row_stretch(2, 5); }
 
         //---------------------------------------------------------------------------------------//
         // Prepare the data for the Decoder View...
@@ -1863,6 +1935,14 @@ impl PackedFileDBDecoder {
                     hex_view_decoded,
                     table_view,
                     table_model,
+                    selection_bool_line_edit,
+                    selection_float_line_edit,
+                    selection_integer_line_edit,
+                    selection_long_integer_line_edit,
+                    selection_string_u8_line_edit,
+                    selection_string_u16_line_edit,
+                    selection_optional_string_u8_line_edit,
+                    selection_optional_string_u16_line_edit,
                     bool_line_edit,
                     float_line_edit,
                     integer_line_edit,
@@ -1960,6 +2040,108 @@ impl PackedFileDBDecoder {
                                             unsafe { stuff.hex_view_index.as_mut().unwrap().vertical_scroll_bar().as_mut().unwrap().set_value(value); }
                                             unsafe { stuff.hex_view_raw.as_mut().unwrap().vertical_scroll_bar().as_mut().unwrap().set_value(value); }
                                             unsafe { stuff.hex_view_decoded.as_mut().unwrap().vertical_scroll_bar().as_mut().unwrap().set_value(value); }
+                                        }
+                                    )),
+
+                                    // Slot to sync the selection of both HexViews (Raw => Decoded).
+                                    slot_hex_view_raw_selection_sync: SlotNoArgs::new(clone!(
+                                        stuff => move || {
+
+                                            // Get the cursor of the TextEdit.
+                                            let cursor;
+                                            let cursor_dest;
+                                            unsafe { cursor = stuff.hex_view_raw.as_mut().unwrap().text_cursor().into_raw(); }
+                                            unsafe { cursor_dest = stuff.hex_view_decoded.as_mut().unwrap().text_cursor().into_raw(); }
+
+                                            // Get the limits of the selection.
+                                            let mut selection_start;
+                                            let mut selection_end;
+                                            unsafe { selection_start = cursor.as_mut().unwrap().selection_start(); }
+                                            unsafe { selection_end = cursor.as_mut().unwrap().selection_end(); }
+
+                                            // Translate those limits to fit the other HexView.
+                                            selection_start = ((selection_start + 1) / 3) + (selection_start / 48);
+                                            selection_end = ((selection_end + 1) / 3) + (selection_end / 48);
+
+                                            // Select the corresponding lines in the other HexView.
+                                            unsafe { cursor_dest.as_mut().unwrap().move_position(MoveOperation::Start); }
+                                            unsafe { cursor_dest.as_mut().unwrap().move_position((MoveOperation::NextCharacter, MoveMode::Move, selection_start as i32)); }
+                                            unsafe { cursor_dest.as_mut().unwrap().move_position((MoveOperation::NextCharacter, MoveMode::Keep, (selection_end - selection_start) as i32)); }
+
+                                            // Block the signals during this, so we don't trigger an infinite loop.
+                                            let mut blocker;
+                                            unsafe { blocker = SignalBlocker::new(stuff.hex_view_decoded.as_mut().unwrap().static_cast_mut() as &mut Object); }
+                                            unsafe { stuff.hex_view_decoded.as_mut().unwrap().set_text_cursor(&cursor_dest.as_ref().unwrap()); }
+                                            blocker.unblock();
+                                        }
+                                    )),
+
+                                    // Slot to sync the selection of both HexViews (Decoded => Raw).
+                                    slot_hex_view_decoded_selection_sync: SlotNoArgs::new(clone!(
+                                        stuff => move || {
+
+                                            // Get the cursor of the TextEdit.
+                                            let cursor;
+                                            let cursor_dest;
+                                            unsafe { cursor = stuff.hex_view_decoded.as_mut().unwrap().text_cursor().into_raw(); }
+                                            unsafe { cursor_dest = stuff.hex_view_raw.as_mut().unwrap().text_cursor().into_raw(); }
+
+                                            // Get the limits of the selection.
+                                            let mut selection_start;
+                                            let mut selection_end;
+                                            unsafe { selection_start = cursor.as_mut().unwrap().selection_start(); }
+                                            unsafe { selection_end = cursor.as_mut().unwrap().selection_end(); }
+
+                                            // Translate those limits to fit the other HexView.
+                                            selection_start = (selection_start - (selection_start / 17)) * 3;
+                                            selection_end = (selection_end - (selection_end / 17)) * 3;
+
+                                            // Select the corresponding lines in the other HexView.
+                                            unsafe { cursor_dest.as_mut().unwrap().move_position(MoveOperation::Start); }
+                                            unsafe { cursor_dest.as_mut().unwrap().move_position((MoveOperation::NextCharacter, MoveMode::Move, selection_start as i32)); }
+                                            unsafe { cursor_dest.as_mut().unwrap().move_position((MoveOperation::NextCharacter, MoveMode::Keep, (selection_end - selection_start) as i32)); }
+
+                                            // Block the signals during this, so we don't trigger an infinite loop.
+                                            let mut blocker;
+                                            unsafe { blocker = SignalBlocker::new(stuff.hex_view_raw.as_mut().unwrap().static_cast_mut() as &mut Object); }
+                                            unsafe { stuff.hex_view_raw.as_mut().unwrap().set_text_cursor(&cursor_dest.as_ref().unwrap()); }
+                                            blocker.unblock();
+                                        }
+                                    )),
+
+                                    // Slot to get the selected text and decode it on-the-fly from the HexView (Raw).
+                                    slot_hex_view_raw_selection_decoding: SlotNoArgs::new(clone!(
+                                        stuff_non_ui,
+                                        stuff => move || {
+
+                                            // Get the cursor of the TextEdit.
+                                            let cursor;
+                                            unsafe { cursor = stuff.hex_view_raw.as_mut().unwrap().text_cursor().into_raw(); }
+
+                                            // Get the limits of the selection.
+                                            let selection_start;
+                                            unsafe { selection_start = ((cursor.as_mut().unwrap().selection_start()) / 3) as usize; }
+
+                                            // Update the LineEdits.
+                                            Self::update_selection_decoded_fields(&stuff, &stuff_non_ui, selection_start);
+                                        }
+                                    )),
+
+                                    // Slot to get the selected text and decode it on-the-fly from the HexView (Decoded).
+                                    slot_hex_view_decoded_selection_decoding: SlotNoArgs::new(clone!(
+                                        stuff_non_ui,
+                                        stuff => move || {
+
+                                            // Get the cursor of the TextEdit.
+                                            let cursor;
+                                            unsafe { cursor = stuff.hex_view_decoded.as_mut().unwrap().text_cursor().into_raw(); }
+
+                                            // Get the limits of the selection.
+                                            let selection_start;
+                                            unsafe { selection_start = (cursor.as_mut().unwrap().selection_start() - (cursor.as_mut().unwrap().selection_start() / 17)) as usize; }
+
+                                            // Update the LineEdits.
+                                            Self::update_selection_decoded_fields(&stuff, &stuff_non_ui, selection_start);
                                         }
                                     )),
 
@@ -2365,6 +2547,14 @@ impl PackedFileDBDecoder {
                                 unsafe { stuff.hex_view_index.as_mut().unwrap().vertical_scroll_bar().as_mut().unwrap().signals().value_changed().connect(&slots.slot_hex_view_scroll_sync); }
                                 unsafe { stuff.hex_view_raw.as_mut().unwrap().vertical_scroll_bar().as_mut().unwrap().signals().value_changed().connect(&slots.slot_hex_view_scroll_sync); }
                                 unsafe { stuff.hex_view_decoded.as_mut().unwrap().vertical_scroll_bar().as_mut().unwrap().signals().value_changed().connect(&slots.slot_hex_view_scroll_sync); }
+
+                                // Decode on-the-fly whatever is selected in the HexView.
+                                unsafe { stuff.hex_view_raw.as_mut().unwrap().signals().selection_changed().connect(&slots.slot_hex_view_raw_selection_decoding); }
+                                unsafe { stuff.hex_view_decoded.as_mut().unwrap().signals().selection_changed().connect(&slots.slot_hex_view_decoded_selection_decoding); }
+
+                                // Signal to sync the selection between both HexViews.
+                                unsafe { stuff.hex_view_raw.as_mut().unwrap().signals().selection_changed().connect(&slots.slot_hex_view_raw_selection_sync); }
+                                unsafe { stuff.hex_view_decoded.as_mut().unwrap().signals().selection_changed().connect(&slots.slot_hex_view_decoded_selection_sync); }
 
                                 // Actions for the "Use this" buttons.
                                 unsafe { stuff.bool_button.as_mut().unwrap().signals().released().connect(&slots.slot_use_this_bool); }
@@ -3189,6 +3379,100 @@ impl PackedFileDBDecoder {
 
         // Return the fields.
         fields
+    }
+
+    /// This function updates the "selection" fields when the selection of a HexView is changed.
+    fn update_selection_decoded_fields(
+        stuff: &PackedFileDBDecoderStuff,
+        stuff_non_ui: &PackedFileDBDecoderStuffNonUI,
+        selection_start: usize
+    ) {
+
+        // Create the variables to hold the values we'll pass to the LineEdits.
+        let decoded_bool;
+        let decoded_float;
+        let decoded_integer;
+        let decoded_long_integer;
+        let decoded_string_u8;
+        let decoded_string_u16;
+        let decoded_optional_string_u8;
+        let decoded_optional_string_u16;
+
+        // Check if the index does even exist, to avoid crashes.
+        if stuff_non_ui.packed_file.data.get(selection_start).is_some() {
+            decoded_bool = match coding_helpers::decode_packedfile_bool(stuff_non_ui.packed_file.data[selection_start], &mut selection_start.clone()) {
+                Ok(data) => if data { "True" } else { "False" },
+                Err(_) => "Error"
+            };
+
+            decoded_optional_string_u8 = match coding_helpers::decode_packedfile_optional_string_u8(&stuff_non_ui.packed_file.data[selection_start..], &mut selection_start.clone()) {
+                Ok(data) => data,
+                Err(_) => "Error".to_owned()
+            };
+
+            decoded_optional_string_u16 = match coding_helpers::decode_packedfile_optional_string_u16(&stuff_non_ui.packed_file.data[selection_start..], &mut selection_start.clone()) {
+                Ok(data) => data,
+                Err(_) => "Error".to_owned()
+            };
+        }
+        else {
+            decoded_bool = "Error";
+            decoded_optional_string_u8 = "Error".to_owned();
+            decoded_optional_string_u16 = "Error".to_owned();
+        };
+
+        // Check if the index does even exist, to avoid crashes.
+        if stuff_non_ui.packed_file.data.get(selection_start + 3).is_some() {
+            decoded_float = match coding_helpers::decode_packedfile_float_f32(&stuff_non_ui.packed_file.data[selection_start..(selection_start + 4)], &mut selection_start.clone()) {
+                Ok(data) => data.to_string(),
+                Err(_) => "Error".to_owned(),
+            };
+
+            decoded_integer = match coding_helpers::decode_packedfile_integer_i32(&stuff_non_ui.packed_file.data[selection_start..(selection_start + 4)], &mut selection_start.clone()) {
+                Ok(data) => data.to_string(),
+                Err(_) => "Error".to_owned()
+            };
+        }
+        else {
+            decoded_float = "Error".to_owned();
+            decoded_integer = "Error".to_owned();
+        }
+
+        // Check if the index does even exist, to avoid crashes.
+        decoded_long_integer = if stuff_non_ui.packed_file.data.get(selection_start + 7).is_some() {
+            match coding_helpers::decode_packedfile_integer_i64(&stuff_non_ui.packed_file.data[selection_start..(selection_start + 8)], &mut selection_start.clone()) {
+                Ok(data) => data.to_string(),
+                Err(_) => "Error".to_owned()
+            }
+        }
+        else { "Error".to_owned() };
+
+        // Check that the index exist, to avoid crashes.
+        if stuff_non_ui.packed_file.data.get(selection_start + 1).is_some() {
+            decoded_string_u8 = match coding_helpers::decode_packedfile_string_u8(&stuff_non_ui.packed_file.data[selection_start..], &mut selection_start.clone()) {
+                Ok(data) => data,
+                Err(_) => "Error".to_owned()
+            };
+
+            decoded_string_u16 = match coding_helpers::decode_packedfile_string_u16(&stuff_non_ui.packed_file.data[selection_start..], &mut selection_start.clone()) {
+                Ok(data) => data,
+                Err(_) => "Error".to_owned()
+            };
+        }
+        else {
+            decoded_string_u8 = "Error".to_owned();
+            decoded_string_u16 = "Error".to_owned();
+        }
+
+        // We update all the decoded entries here.
+        unsafe { stuff.selection_bool_line_edit.as_mut().unwrap().set_text(&QString::from_std_str(decoded_bool)); }
+        unsafe { stuff.selection_float_line_edit.as_mut().unwrap().set_text(&QString::from_std_str(decoded_float)); }
+        unsafe { stuff.selection_integer_line_edit.as_mut().unwrap().set_text(&QString::from_std_str(decoded_integer)); }
+        unsafe { stuff.selection_long_integer_line_edit.as_mut().unwrap().set_text(&QString::from_std_str(decoded_long_integer)); }
+        unsafe { stuff.selection_string_u8_line_edit.as_mut().unwrap().set_text(&QString::from_std_str(&format!("{:?}", decoded_string_u8))); }
+        unsafe { stuff.selection_string_u16_line_edit.as_mut().unwrap().set_text(&QString::from_std_str(&format!("{:?}", decoded_string_u16))); }
+        unsafe { stuff.selection_optional_string_u8_line_edit.as_mut().unwrap().set_text(&QString::from_std_str(&format!("{:?}", decoded_optional_string_u8))); }
+        unsafe { stuff.selection_optional_string_u16_line_edit.as_mut().unwrap().set_text(&QString::from_std_str(&format!("{:?}", decoded_optional_string_u16))); }
     }
 }
 
