@@ -24,6 +24,8 @@ use qt_gui::list::ListStandardItemMutPtr;
 use qt_gui::slots::SlotStandardItemMutPtr;
 use qt_gui::standard_item::StandardItem;
 use qt_gui::standard_item_model::StandardItemModel;
+use qt_gui::text_char_format::TextCharFormat;
+use qt_gui::text_cursor::{MoveOperation, MoveMode};
 
 use qt_core::sort_filter_proxy_model::SortFilterProxyModel;
 use qt_core::abstract_item_model::AbstractItemModel;
@@ -2480,17 +2482,25 @@ impl PackedFileDBDecoder {
             let text_size = font_metrics.size((0, &QString::from_std_str(hex_view_raw_string)));
             unsafe { stuff.hex_view_raw.as_mut().unwrap().set_fixed_width(text_size.width() + 34); }
 
-            /*
-            // In theory, this should give us the equivalent byte to our index_data.
-            // In practice, I'm bad at maths.
-            let header_line = (stuff_non_ui.initial_index * 3 / 48) as i32;
-            let header_char = (stuff_non_ui.initial_index * 3 % 48) as i32;
+            // Prepare the format for the header.
+            let mut header_format = TextCharFormat::new();
+            header_format.set_background(&Brush::new(GlobalColor::Red));
 
-            raw_data_hex_buffer.apply_tag_by_name(
-                "header",
-                &raw_data_hex_buffer.get_start_iter(),
-                &raw_data_hex_buffer.get_iter_at_line_offset(header_line, header_char)
-            );*/
+            // Get the cursor.
+            let mut cursor;
+            unsafe { cursor = stuff.hex_view_raw.as_mut().unwrap().text_cursor(); }
+
+            // Create the "Selection" for the header.
+            cursor.move_position(MoveOperation::Start);
+            cursor.move_position((MoveOperation::NextWord, MoveMode::Keep, stuff_non_ui.initial_index as i32));
+
+            // Set the cursor and his format.
+            unsafe { stuff.hex_view_raw.as_mut().unwrap().set_text_cursor(&cursor); }
+            unsafe { stuff.hex_view_raw.as_mut().unwrap().set_current_char_format(&header_format); }
+
+            // Clear the selection.
+            cursor.clear_selection();
+            unsafe { stuff.hex_view_decoded.as_mut().unwrap().set_text_cursor(&cursor); }
         }
 
         // `hex_view_decoded` TextView.
@@ -2514,17 +2524,26 @@ impl PackedFileDBDecoder {
             // Resize the TextEdit.
             let text_size = font_metrics.size((0, &QString::from_std_str(hex_view_decoded_string)));
             unsafe { stuff.hex_view_decoded.as_mut().unwrap().set_fixed_width(text_size.width() + 34); }
-            /*
-            let header_line = (self.data_initial_index / 16) as i32;
-            let header_char = (self.data_initial_index % 16) as i32;
 
-            let raw_data_decoded_buffer = self.raw_data_decoded.get_buffer().unwrap();
-            raw_data_decoded_buffer.set_text(&hex_raw_data_decoded);
-            raw_data_decoded_buffer.apply_tag_by_name(
-                "header",
-                &raw_data_decoded_buffer.get_start_iter(),
-                &raw_data_decoded_buffer.get_iter_at_line_offset(header_line, header_char)
-            );*/
+            // Prepare the format for the header.
+            let mut header_format = TextCharFormat::new();
+            header_format.set_background(&Brush::new(GlobalColor::Red));
+
+            // Get the cursor.
+            let mut cursor;
+            unsafe { cursor = stuff.hex_view_decoded.as_mut().unwrap().text_cursor(); }
+
+            // Create the "Selection" for the header. We need to add 1 char per line to this.
+            cursor.move_position(MoveOperation::Start);
+            cursor.move_position((MoveOperation::NextCharacter, MoveMode::Keep, (stuff_non_ui.initial_index + (stuff_non_ui.initial_index / 16)) as i32));
+
+            // Set the cursor and his format.
+            unsafe { stuff.hex_view_decoded.as_mut().unwrap().set_text_cursor(&cursor); }
+            unsafe { stuff.hex_view_decoded.as_mut().unwrap().set_current_char_format(&header_format); }
+
+            // Clear the selection.
+            cursor.clear_selection();
+            unsafe { stuff.hex_view_decoded.as_mut().unwrap().set_text_cursor(&cursor); }
         }
 
         // Load the "Info" data to the view.
@@ -2670,64 +2689,128 @@ impl PackedFileDBDecoder {
         unsafe { stuff.optional_string_u8_line_edit.as_mut().unwrap().set_text(&QString::from_std_str(&format!("{:?}", decoded_optional_string_u8))); }
         unsafe { stuff.optional_string_u16_line_edit.as_mut().unwrap().set_text(&QString::from_std_str(&format!("{:?}", decoded_optional_string_u16))); }
 
-        /*
-        // Then we set the TextTags to paint the hex_data.
-        let raw_data_hex_text_buffer = self.raw_data.get_buffer().unwrap();
+        // Prepare the format for the cleaning.
+        let mut neutral_format = TextCharFormat::new();
+        neutral_format.set_background(&Brush::new(GlobalColor::Transparent));
 
-        // Clear the current index tag.
-        raw_data_hex_text_buffer.remove_tag_by_name("index", &raw_data_hex_text_buffer.get_start_iter(), &raw_data_hex_text_buffer.get_end_iter());
-        raw_data_hex_text_buffer.remove_tag_by_name("entry", &raw_data_hex_text_buffer.get_start_iter(), &raw_data_hex_text_buffer.get_end_iter());
+        // Prepare the format for the decoded row.
+        let mut decoded_format = TextCharFormat::new();
+        decoded_format.set_background(&Brush::new(GlobalColor::Yellow));
 
-        // Set a new index tag.
-        let index_line_start = (*index_data * 3 / 48) as i32;
-        let index_line_end = (((*index_data * 3) + 2) / 48) as i32;
-        let index_char_start = ((*index_data * 3) % 48) as i32;
-        let index_char_end = (((*index_data * 3) + 2) % 48) as i32;
-        raw_data_hex_text_buffer.apply_tag_by_name(
-            "index",
-            &raw_data_hex_text_buffer.get_iter_at_line_offset(index_line_start, index_char_start),
-            &raw_data_hex_text_buffer.get_iter_at_line_offset(index_line_end, index_char_end)
-        );
+        // Prepare the format for the current index.
+        let mut index_format = TextCharFormat::new();
+        index_format.set_background(&Brush::new(GlobalColor::Green));
 
-        // Then, we paint the currently decoded entry. Just to look cool.
-        let header_line = ((self.data_initial_index * 3) / 48) as i32;
-        let header_char = ((self.data_initial_index * 3) % 48) as i32;
-        let index_line_end = ((*index_data * 3) / 48) as i32;
-        let index_char_end = ((*index_data * 3) % 48) as i32;
-        raw_data_hex_text_buffer.apply_tag_by_name(
-            "entry",
-            &raw_data_hex_text_buffer.get_iter_at_line_offset(header_line, header_char),
-            &raw_data_hex_text_buffer.get_iter_at_line_offset(index_line_end, index_char_end)
-        );
+        // Clean both TextEdits.
+        {
 
-        // And then, we do the same for `raw_decoded_data`.
-        let raw_data_decoded_text_buffer = self.raw_data_decoded.get_buffer().unwrap();
+            // Get the cursor.
+            let mut cursor;
+            unsafe { cursor = stuff.hex_view_raw.as_mut().unwrap().text_cursor(); }
 
-        // Clear the current index and entry tags.
-        raw_data_decoded_text_buffer.remove_tag_by_name("index", &raw_data_decoded_text_buffer.get_start_iter(), &raw_data_decoded_text_buffer.get_end_iter());
-        raw_data_decoded_text_buffer.remove_tag_by_name("entry", &raw_data_decoded_text_buffer.get_start_iter(), &raw_data_decoded_text_buffer.get_end_iter());
+            // Create the "Selection" for the rest of the data.
+            cursor.move_position(MoveOperation::Start);
+            cursor.move_position((MoveOperation::NextWord, MoveMode::Move, stuff_non_ui.initial_index as i32));
+            cursor.move_position((MoveOperation::End, MoveMode::Keep));
 
-        // Set a new index tag.
-        let index_line_start = (*index_data / 16) as i32;
-        let index_line_end = ((*index_data + 1) / 16) as i32;
-        let index_char_start = (*index_data % 16) as i32;
-        let index_char_end = ((*index_data + 1) % 16) as i32;
-        raw_data_decoded_text_buffer.apply_tag_by_name(
-            "index",
-            &raw_data_decoded_text_buffer.get_iter_at_line_offset(index_line_start, index_char_start),
-            &raw_data_decoded_text_buffer.get_iter_at_line_offset(index_line_end, index_char_end)
-        );
+            // Set the cursor and his format.
+            unsafe { stuff.hex_view_raw.as_mut().unwrap().set_text_cursor(&cursor); }
+            unsafe { stuff.hex_view_raw.as_mut().unwrap().set_current_char_format(&neutral_format); }
 
-        // Then, we paint the currently decoded entry. Just to look cool.
-        let header_line = (self.data_initial_index / 16) as i32;
-        let header_char = (self.data_initial_index % 16) as i32;
-        let index_line_end = (*index_data / 16) as i32;
-        let index_char_end = (*index_data % 16) as i32;
-        raw_data_decoded_text_buffer.apply_tag_by_name(
-            "entry",
-            &raw_data_decoded_text_buffer.get_iter_at_line_offset(header_line, header_char),
-            &raw_data_decoded_text_buffer.get_iter_at_line_offset(index_line_end, index_char_end)
-        );*/
+            // Clear the selection.
+            cursor.clear_selection();
+            unsafe { stuff.hex_view_raw.as_mut().unwrap().set_text_cursor(&cursor); }
+
+            // Get the cursor.
+            let mut cursor;
+            unsafe { cursor = stuff.hex_view_decoded.as_mut().unwrap().text_cursor(); }
+
+            // Create the "Selection" for the rest of the data.
+            cursor.move_position(MoveOperation::Start);
+            cursor.move_position((MoveOperation::NextCharacter, MoveMode::Move, (stuff_non_ui.initial_index + (stuff_non_ui.initial_index / 16)) as i32));
+            cursor.move_position((MoveOperation::End, MoveMode::Keep));
+
+            // Set the cursor and his format.
+            unsafe { stuff.hex_view_decoded.as_mut().unwrap().set_text_cursor(&cursor); }
+            unsafe { stuff.hex_view_decoded.as_mut().unwrap().set_current_char_format(&neutral_format); }
+
+            // Clear the selection.
+            cursor.clear_selection();
+            unsafe { stuff.hex_view_decoded.as_mut().unwrap().set_text_cursor(&cursor); }
+        }
+
+        // Paint both decoded rows.
+        {
+
+            // Get the cursor.
+            let mut cursor;
+            unsafe { cursor = stuff.hex_view_raw.as_mut().unwrap().text_cursor(); }
+
+            // Create the "Selection" for the decoded row.
+            cursor.move_position(MoveOperation::Start);
+            cursor.move_position((MoveOperation::NextWord, MoveMode::Move, stuff_non_ui.initial_index as i32));
+            cursor.move_position((MoveOperation::NextWord, MoveMode::Keep, (*index_data - stuff_non_ui.initial_index) as i32));
+
+            // Set the cursor and his format.
+            unsafe { stuff.hex_view_raw.as_mut().unwrap().set_text_cursor(&cursor); }
+            unsafe { stuff.hex_view_raw.as_mut().unwrap().set_current_char_format(&decoded_format); }
+
+            // Clear the selection.
+            cursor.clear_selection();
+            unsafe { stuff.hex_view_raw.as_mut().unwrap().set_text_cursor(&cursor); }
+
+            // Get the cursor.
+            let mut cursor;
+            unsafe { cursor = stuff.hex_view_decoded.as_mut().unwrap().text_cursor(); }
+
+            // Create the "Selection" for the decoded row.
+            cursor.move_position(MoveOperation::Start);
+            cursor.move_position((MoveOperation::NextCharacter, MoveMode::Move, (stuff_non_ui.initial_index + (stuff_non_ui.initial_index / 16)) as i32));
+            cursor.move_position((MoveOperation::NextCharacter, MoveMode::Keep, ((*index_data / 16) - (stuff_non_ui.initial_index / 16) + (*index_data - stuff_non_ui.initial_index)) as i32));
+
+            // Set the cursor and his format.
+            unsafe { stuff.hex_view_decoded.as_mut().unwrap().set_text_cursor(&cursor); }
+            unsafe { stuff.hex_view_decoded.as_mut().unwrap().set_current_char_format(&decoded_format); }
+
+            // Clear the selection.
+            cursor.clear_selection();
+            unsafe { stuff.hex_view_decoded.as_mut().unwrap().set_text_cursor(&cursor); }
+        }
+
+        // Paint both current index.
+        {
+
+            // Get the cursor.
+            let mut cursor;
+            unsafe { cursor = stuff.hex_view_raw.as_mut().unwrap().text_cursor(); }
+
+            // Create the "Selection" for the decoded row.
+            cursor.move_position((MoveOperation::NextWord, MoveMode::Keep, 1));
+
+            // Set the cursor and his format.
+            unsafe { stuff.hex_view_raw.as_mut().unwrap().set_text_cursor(&cursor); }
+            unsafe { stuff.hex_view_raw.as_mut().unwrap().set_current_char_format(&index_format); }
+
+            // Clear the selection.
+            cursor.clear_selection();
+            unsafe { stuff.hex_view_raw.as_mut().unwrap().set_text_cursor(&cursor); }
+
+            // Get the cursor.
+            let mut cursor;
+            unsafe { cursor = stuff.hex_view_decoded.as_mut().unwrap().text_cursor(); }
+
+            // Create the "Selection" for the decoded row.
+            let chars_to_move = if (*index_data / 16) != ((*index_data + 1) / 16) { 2 } else { 1 };
+            cursor.move_position((MoveOperation::NextCharacter, MoveMode::Keep, chars_to_move));
+
+            // Set the cursor and his format.
+            unsafe { stuff.hex_view_decoded.as_mut().unwrap().set_text_cursor(&cursor); }
+            unsafe { stuff.hex_view_decoded.as_mut().unwrap().set_current_char_format(&index_format); }
+
+            // Clear the selection.
+            cursor.clear_selection();
+            unsafe { stuff.hex_view_decoded.as_mut().unwrap().set_text_cursor(&cursor); }
+        }
     }
 
     /// This function adds fields to the decoder's table, so we can do this without depending on the
