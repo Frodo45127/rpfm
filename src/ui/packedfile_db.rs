@@ -46,7 +46,7 @@ use std::sync::mpsc::{Sender, Receiver};
 use AppUI;
 use ui::*;
 use packfile::packfile::PackedFile;
-use settings::{Settings, GameInfo, GameSelected};
+use settings::Settings;
 
 /// Struct `PackedFileDBTreeView`: contains all the stuff we need to give to the program to show a
 /// TableView with the data of a DB PackedFile, allowing us to manipulate it.
@@ -1639,8 +1639,6 @@ impl PackedFileDBDecoder {
     /// This function creates the "Decoder View" with all the stuff needed to decode a table, and it
     /// returns it if it succeed. It can fail if the provided PackedFile is not a DB Table.
     pub fn create_decoder_view(
-        rpfm_path: &PathBuf,
-        supported_games: Vec<GameInfo>,
         sender_qt: Sender<&'static str>,
         sender_qt_data: &Sender<Result<Vec<u8>, Error>>,
         receiver_qt: &Rc<RefCell<Receiver<Result<Vec<u8>, Error>>>>,
@@ -2401,9 +2399,8 @@ impl PackedFileDBDecoder {
 
                                     // Slot for the "Finish it!" button.
                                     slot_save_definition: SlotNoArgs::new(clone!(
-                                        rpfm_path,
-                                        supported_games,
                                         sender_qt,
+                                        sender_qt_data,
                                         receiver_qt,
                                         table_definition,
                                         schema,
@@ -2435,14 +2432,35 @@ impl PackedFileDBDecoder {
                                             // We add our `TableDefinition` to the main `Schema`.
                                             schema.borrow_mut().tables_definitions[table_definitions_index as usize].add_table_definition(table_definition.borrow().clone());
 
-                                            // Get the Game Selected.
-                                            sender_qt.send("get_game_selected").unwrap();
-                                            let response = receiver_qt.borrow().recv().unwrap().unwrap();
-                                            let game_selected: GameSelected = serde_json::from_slice(&response).unwrap();
+                                            // Send it back to the background thread for saving it.
+                                            sender_qt.send("save_schema").unwrap();
+                                            sender_qt_data.send(serde_json::to_vec(&*schema.borrow()).map_err(From::from)).unwrap();
 
-                                            // And try to save the main `Schema`.
-                                            match Schema::save(&schema.borrow(), &rpfm_path, &supported_games.iter().filter(|x| x.folder_name == game_selected.game).map(|x| x.schema.to_owned()).collect::<String>()) {
-                                                Ok(_) => show_dialog(app_ui.window, true, "Schema successfully saved."),
+                                            // Wait until you get something from the UI.
+                                            match receiver_qt.borrow().recv().unwrap() {
+
+                                                // If we receive a confirmation...
+                                                Ok(confirmation) => {
+
+                                                    // Try to deserialize it.
+                                                    match serde_json::from_slice(&confirmation) {
+
+                                                        // If it can be deserialized as a ()...
+                                                        Ok(confirmation) => {
+
+                                                            // Redundant stuff.
+                                                            let _confirmation: () = confirmation;
+
+                                                            // Show the success dialog.
+                                                            show_dialog(app_ui.window, true, "Schema successfully saved.");
+                                                        },
+
+                                                        // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                                                        Err(_) => show_dialog(app_ui.window, false, THREADS_MESSAGE_ERROR),
+                                                    }
+                                                }
+
+                                                // If error, report it.
                                                 Err(error) => show_dialog(app_ui.window, false, error.cause()),
                                             }
 

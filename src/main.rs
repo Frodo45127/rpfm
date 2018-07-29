@@ -2960,12 +2960,10 @@ fn main() {
 
         // What happens when we trigger the "Open in decoder" action in the Contextual Menu.
         let slot_contextual_menu_open_decoder = SlotBool::new(clone!(
-            supported_games,
             sender_qt,
             sender_qt_data,
             receiver_qt,
-            is_packedfile_opened,
-            rpfm_path => move |_| {
+            is_packedfile_opened => move |_| {
 
                 // We only do something in case the focus is in the TreeView. This should stop
                 // problems with the accels working everywhere.
@@ -2990,8 +2988,6 @@ fn main() {
 
                         // We try to open it in the decoder.
                         if let Ok(result) = PackedFileDBDecoder::create_decoder_view(
-                            &rpfm_path,
-                            supported_games.to_vec(),
                             sender_qt.clone(),
                             &sender_qt_data,
                             &receiver_qt,
@@ -3670,6 +3666,42 @@ fn background_loop(
 
                         // Send the schema back to the UI thread.
                         sender.send(serde_json::to_vec(&schema).map_err(From::from)).unwrap();
+                    }
+
+                    // In case we want to save an schema...
+                    "save_schema" => {
+
+                        // Wait until you get something from the UI.
+                        if let Ok(new_schema) = receiver_data.recv().unwrap() {
+
+                            // Try to deserialize it.
+                            match serde_json::from_slice(&new_schema) {
+
+                                // If it can be deserialized as a Schema...
+                                Ok(new_schema) => {
+
+                                    // Try to save it to disk.
+                                    match Schema::save(&new_schema, &rpfm_path, &supported_games.iter().filter(|x| x.folder_name == game_selected.game).map(|x| x.schema.to_owned()).collect::<String>()) {
+
+                                        // If we managed to save it...
+                                        Ok(_) => {
+
+                                            // Update the current schema.
+                                            schema = Some(new_schema);
+
+                                            // Send success back.
+                                            sender.send(serde_json::to_vec(&()).map_err(From::from)).unwrap();
+                                        },
+
+                                        // If there was an error, report it.
+                                        Err(error) => sender.send(Err(error)).unwrap()
+                                    }
+                                },
+
+                                // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                                Err(_) => sender.send(Err(format_err!("{}", THREADS_MESSAGE_ERROR))).unwrap(),
+                            }
+                        }
                     }
 
                     // In case we want to get the current settings...
