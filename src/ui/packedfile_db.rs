@@ -2060,8 +2060,11 @@ impl PackedFileDBDecoder {
                                             unsafe { selection_end = cursor.as_mut().unwrap().selection_end(); }
 
                                             // Translate those limits to fit the other HexView.
-                                            selection_start = ((selection_start + 1) / 3) + (selection_start / 48);
-                                            selection_end = ((selection_end + 1) / 3) + (selection_end / 48);
+                                            selection_start = ((selection_start + 2) / 3) + (selection_start / 48);
+                                            selection_end = ((selection_end + 2) / 3) + (selection_end / 48);
+
+                                            // If we got something selected, always select something in the other HexView.
+                                            unsafe { if selection_start == selection_end && cursor.as_mut().unwrap().selection_start() != cursor.as_mut().unwrap().selection_end() { selection_end += 1; } }
 
                                             // Select the corresponding lines in the other HexView.
                                             unsafe { cursor_dest.as_mut().unwrap().move_position(MoveOperation::Start); }
@@ -2661,12 +2664,14 @@ impl PackedFileDBDecoder {
 
             // This pushes a newline after 48 characters (2 for every byte + 1 whitespace).
             for (j, i) in hex_raw_data.chars().enumerate() {
-                if j % 48 == 0 && j != 0 { hex_view_raw_string.push_str("\n"); }
+
+                // Also. replace the last whitespace of each line with a \n.
+                if j % 48 == 0 && j != 0 { hex_view_raw_string.pop(); hex_view_raw_string.push_str("\n"); }
                 hex_view_raw_string.push(i);
             }
 
             // Add all the "Raw" lines to the TextEdit.
-            unsafe { stuff.hex_view_raw.as_mut().unwrap().set_html(&QString::from_std_str(&hex_view_raw_string)); }
+            unsafe { stuff.hex_view_raw.as_mut().unwrap().set_text(&QString::from_std_str(&hex_view_raw_string)); }
 
             // Resize the TextEdit.
             let text_size = font_metrics.size((0, &QString::from_std_str(hex_view_raw_string)));
@@ -2682,7 +2687,11 @@ impl PackedFileDBDecoder {
 
             // Create the "Selection" for the header.
             cursor.move_position(MoveOperation::Start);
-            cursor.move_position((MoveOperation::NextWord, MoveMode::Keep, stuff_non_ui.initial_index as i32));
+            cursor.move_position((MoveOperation::NextCharacter, MoveMode::Keep, (stuff_non_ui.initial_index * 3) as i32));
+
+            // Block the signals during this, so we don't mess things up.
+            let mut blocker;
+            unsafe { blocker = SignalBlocker::new(stuff.hex_view_raw.as_mut().unwrap().static_cast_mut() as &mut Object); }
 
             // Set the cursor and his format.
             unsafe { stuff.hex_view_raw.as_mut().unwrap().set_text_cursor(&cursor); }
@@ -2690,7 +2699,10 @@ impl PackedFileDBDecoder {
 
             // Clear the selection.
             cursor.clear_selection();
-            unsafe { stuff.hex_view_decoded.as_mut().unwrap().set_text_cursor(&cursor); }
+            unsafe { stuff.hex_view_raw.as_mut().unwrap().set_text_cursor(&cursor); }
+
+            // Unblock the signals.
+            blocker.unblock();
         }
 
         // `hex_view_decoded` TextView.
@@ -2725,7 +2737,11 @@ impl PackedFileDBDecoder {
 
             // Create the "Selection" for the header. We need to add 1 char per line to this.
             cursor.move_position(MoveOperation::Start);
-            cursor.move_position((MoveOperation::NextCharacter, MoveMode::Keep, (stuff_non_ui.initial_index + (stuff_non_ui.initial_index / 16)) as i32));
+            cursor.move_position((MoveOperation::NextCharacter, MoveMode::Keep, (stuff_non_ui.initial_index + (stuff_non_ui.initial_index / 17)) as i32));
+
+            // Block the signals during this, so we don't mess things up.
+            let mut blocker;
+            unsafe { blocker = SignalBlocker::new(stuff.hex_view_decoded.as_mut().unwrap().static_cast_mut() as &mut Object); }
 
             // Set the cursor and his format.
             unsafe { stuff.hex_view_decoded.as_mut().unwrap().set_text_cursor(&cursor); }
@@ -2734,6 +2750,9 @@ impl PackedFileDBDecoder {
             // Clear the selection.
             cursor.clear_selection();
             unsafe { stuff.hex_view_decoded.as_mut().unwrap().set_text_cursor(&cursor); }
+
+            // Unblock the signals.
+            blocker.unblock();
         }
 
         // Load the "Info" data to the view.
@@ -2900,7 +2919,7 @@ impl PackedFileDBDecoder {
 
             // Create the "Selection" for the rest of the data.
             cursor.move_position(MoveOperation::Start);
-            cursor.move_position((MoveOperation::NextWord, MoveMode::Move, stuff_non_ui.initial_index as i32));
+            cursor.move_position((MoveOperation::NextCharacter, MoveMode::Move, (stuff_non_ui.initial_index * 3) as i32));
             cursor.move_position((MoveOperation::End, MoveMode::Keep));
 
             // Set the cursor and his format.
@@ -2917,7 +2936,7 @@ impl PackedFileDBDecoder {
 
             // Create the "Selection" for the rest of the data.
             cursor.move_position(MoveOperation::Start);
-            cursor.move_position((MoveOperation::NextCharacter, MoveMode::Move, (stuff_non_ui.initial_index + (stuff_non_ui.initial_index / 16)) as i32));
+            cursor.move_position((MoveOperation::NextCharacter, MoveMode::Move, (stuff_non_ui.initial_index + (stuff_non_ui.initial_index / 17)) as i32));
             cursor.move_position((MoveOperation::End, MoveMode::Keep));
 
             // Set the cursor and his format.
@@ -2938,8 +2957,8 @@ impl PackedFileDBDecoder {
 
             // Create the "Selection" for the decoded row.
             cursor.move_position(MoveOperation::Start);
-            cursor.move_position((MoveOperation::NextWord, MoveMode::Move, stuff_non_ui.initial_index as i32));
-            cursor.move_position((MoveOperation::NextWord, MoveMode::Keep, (*index_data - stuff_non_ui.initial_index) as i32));
+            cursor.move_position((MoveOperation::NextCharacter, MoveMode::Move, (stuff_non_ui.initial_index * 3) as i32));
+            cursor.move_position((MoveOperation::NextCharacter, MoveMode::Keep, ((*index_data - stuff_non_ui.initial_index) * 3) as i32));
 
             // Set the cursor and his format.
             unsafe { stuff.hex_view_raw.as_mut().unwrap().set_text_cursor(&cursor); }
@@ -2955,8 +2974,8 @@ impl PackedFileDBDecoder {
 
             // Create the "Selection" for the decoded row.
             cursor.move_position(MoveOperation::Start);
-            cursor.move_position((MoveOperation::NextCharacter, MoveMode::Move, (stuff_non_ui.initial_index + (stuff_non_ui.initial_index / 16)) as i32));
-            cursor.move_position((MoveOperation::NextCharacter, MoveMode::Keep, ((*index_data / 16) - (stuff_non_ui.initial_index / 16) + (*index_data - stuff_non_ui.initial_index)) as i32));
+            cursor.move_position((MoveOperation::NextCharacter, MoveMode::Move, (stuff_non_ui.initial_index + (stuff_non_ui.initial_index / 17)) as i32));
+            cursor.move_position((MoveOperation::NextCharacter, MoveMode::Keep, ((*index_data - stuff_non_ui.initial_index) + ((*index_data - stuff_non_ui.initial_index) / 17)) as i32));
 
             // Set the cursor and his format.
             unsafe { stuff.hex_view_decoded.as_mut().unwrap().set_text_cursor(&cursor); }
