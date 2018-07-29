@@ -2058,8 +2058,8 @@ impl PackedFileDBDecoder {
                                             unsafe { selection_end = cursor.as_mut().unwrap().selection_end(); }
 
                                             // Translate those limits to fit the other HexView.
-                                            selection_start = ((selection_start + 2) / 3) + (selection_start / 48);
-                                            selection_end = ((selection_end + 2) / 3) + (selection_end / 48);
+                                            selection_start = ((selection_start + 1) / 3) + (selection_start / 48);
+                                            selection_end = ((selection_end + 1) / 3) + (selection_end / 48);
 
                                             // If we got something selected, always select something in the other HexView.
                                             unsafe { if selection_start == selection_end && cursor.as_mut().unwrap().selection_start() != cursor.as_mut().unwrap().selection_end() { selection_end += 1; } }
@@ -2926,7 +2926,7 @@ impl PackedFileDBDecoder {
 
         // Prepare the format for the current index.
         let mut index_format = TextCharFormat::new();
-        index_format.set_background(&Brush::new(GlobalColor::Green));
+        index_format.set_background(&Brush::new(GlobalColor::Magenta));
 
         // Clean both TextEdits.
         {
@@ -2940,6 +2940,10 @@ impl PackedFileDBDecoder {
             cursor.move_position((MoveOperation::NextCharacter, MoveMode::Move, (stuff_non_ui.initial_index * 3) as i32));
             cursor.move_position((MoveOperation::End, MoveMode::Keep));
 
+            // Block the signals during this, so we don't mess things up.
+            let mut blocker;
+            unsafe { blocker = SignalBlocker::new(stuff.hex_view_raw.as_mut().unwrap().static_cast_mut() as &mut Object); }
+
             // Set the cursor and his format.
             unsafe { stuff.hex_view_raw.as_mut().unwrap().set_text_cursor(&cursor); }
             unsafe { stuff.hex_view_raw.as_mut().unwrap().set_current_char_format(&neutral_format); }
@@ -2947,6 +2951,9 @@ impl PackedFileDBDecoder {
             // Clear the selection.
             cursor.clear_selection();
             unsafe { stuff.hex_view_raw.as_mut().unwrap().set_text_cursor(&cursor); }
+
+            // Unblock the signals.
+            blocker.unblock();
 
             // Get the cursor.
             let mut cursor;
@@ -2957,6 +2964,10 @@ impl PackedFileDBDecoder {
             cursor.move_position((MoveOperation::NextCharacter, MoveMode::Move, (stuff_non_ui.initial_index + (stuff_non_ui.initial_index / 17)) as i32));
             cursor.move_position((MoveOperation::End, MoveMode::Keep));
 
+            // Block the signals during this, so we don't mess things up.
+            let mut blocker;
+            unsafe { blocker = SignalBlocker::new(stuff.hex_view_decoded.as_mut().unwrap().static_cast_mut() as &mut Object); }
+
             // Set the cursor and his format.
             unsafe { stuff.hex_view_decoded.as_mut().unwrap().set_text_cursor(&cursor); }
             unsafe { stuff.hex_view_decoded.as_mut().unwrap().set_current_char_format(&neutral_format); }
@@ -2964,6 +2975,9 @@ impl PackedFileDBDecoder {
             // Clear the selection.
             cursor.clear_selection();
             unsafe { stuff.hex_view_decoded.as_mut().unwrap().set_text_cursor(&cursor); }
+
+            // Unblock the signals.
+            blocker.unblock();
         }
 
         // Paint both decoded rows.
@@ -2978,6 +2992,10 @@ impl PackedFileDBDecoder {
             cursor.move_position((MoveOperation::NextCharacter, MoveMode::Move, (stuff_non_ui.initial_index * 3) as i32));
             cursor.move_position((MoveOperation::NextCharacter, MoveMode::Keep, ((*index_data - stuff_non_ui.initial_index) * 3) as i32));
 
+            // Block the signals during this, so we don't mess things up.
+            let mut blocker;
+            unsafe { blocker = SignalBlocker::new(stuff.hex_view_raw.as_mut().unwrap().static_cast_mut() as &mut Object); }
+
             // Set the cursor and his format.
             unsafe { stuff.hex_view_raw.as_mut().unwrap().set_text_cursor(&cursor); }
             unsafe { stuff.hex_view_raw.as_mut().unwrap().set_current_char_format(&decoded_format); }
@@ -2986,14 +3004,27 @@ impl PackedFileDBDecoder {
             cursor.clear_selection();
             unsafe { stuff.hex_view_raw.as_mut().unwrap().set_text_cursor(&cursor); }
 
+            // Unblock the signals.
+            blocker.unblock();
+
             // Get the cursor.
             let mut cursor;
             unsafe { cursor = stuff.hex_view_decoded.as_mut().unwrap().text_cursor(); }
 
             // Create the "Selection" for the decoded row.
+            let positions_to_move_end = *index_data / 16;
+            let positions_to_move_start = stuff_non_ui.initial_index / 16;
+            let positions_to_move_vertical = positions_to_move_end - positions_to_move_start;
+            let positions_to_move_horizontal = *index_data - stuff_non_ui.initial_index;
+            let positions_to_move = positions_to_move_horizontal + positions_to_move_vertical;
+
             cursor.move_position(MoveOperation::Start);
             cursor.move_position((MoveOperation::NextCharacter, MoveMode::Move, (stuff_non_ui.initial_index + (stuff_non_ui.initial_index / 17)) as i32));
-            cursor.move_position((MoveOperation::NextCharacter, MoveMode::Keep, ((*index_data - stuff_non_ui.initial_index) + ((*index_data - stuff_non_ui.initial_index) / 17)) as i32));
+            cursor.move_position((MoveOperation::NextCharacter, MoveMode::Keep, positions_to_move as i32));
+
+            // Block the signals during this, so we don't mess things up.
+            let mut blocker;
+            unsafe { blocker = SignalBlocker::new(stuff.hex_view_decoded.as_mut().unwrap().static_cast_mut() as &mut Object); }
 
             // Set the cursor and his format.
             unsafe { stuff.hex_view_decoded.as_mut().unwrap().set_text_cursor(&cursor); }
@@ -3002,6 +3033,9 @@ impl PackedFileDBDecoder {
             // Clear the selection.
             cursor.clear_selection();
             unsafe { stuff.hex_view_decoded.as_mut().unwrap().set_text_cursor(&cursor); }
+
+            // Unblock the signals.
+            blocker.unblock();
         }
 
         // Paint both current index.
@@ -3012,7 +3046,11 @@ impl PackedFileDBDecoder {
             unsafe { cursor = stuff.hex_view_raw.as_mut().unwrap().text_cursor(); }
 
             // Create the "Selection" for the decoded row.
-            cursor.move_position((MoveOperation::NextWord, MoveMode::Keep, 1));
+            cursor.move_position((MoveOperation::NextCharacter, MoveMode::Keep, 3));
+
+            // Block the signals during this, so we don't mess things up.
+            let mut blocker;
+            unsafe { blocker = SignalBlocker::new(stuff.hex_view_raw.as_mut().unwrap().static_cast_mut() as &mut Object); }
 
             // Set the cursor and his format.
             unsafe { stuff.hex_view_raw.as_mut().unwrap().set_text_cursor(&cursor); }
@@ -3022,13 +3060,19 @@ impl PackedFileDBDecoder {
             cursor.clear_selection();
             unsafe { stuff.hex_view_raw.as_mut().unwrap().set_text_cursor(&cursor); }
 
+            // Unblock the signals.
+            blocker.unblock();
+
             // Get the cursor.
             let mut cursor;
             unsafe { cursor = stuff.hex_view_decoded.as_mut().unwrap().text_cursor(); }
 
             // Create the "Selection" for the decoded row.
-            let chars_to_move = if (*index_data / 16) != ((*index_data + 1) / 16) { 2 } else { 1 };
-            cursor.move_position((MoveOperation::NextCharacter, MoveMode::Keep, chars_to_move));
+            cursor.move_position((MoveOperation::NextCharacter, MoveMode::Keep, 1));
+            
+            // Block the signals during this, so we don't mess things up.
+            let mut blocker;
+            unsafe { blocker = SignalBlocker::new(stuff.hex_view_decoded.as_mut().unwrap().static_cast_mut() as &mut Object); }
 
             // Set the cursor and his format.
             unsafe { stuff.hex_view_decoded.as_mut().unwrap().set_text_cursor(&cursor); }
@@ -3037,6 +3081,9 @@ impl PackedFileDBDecoder {
             // Clear the selection.
             cursor.clear_selection();
             unsafe { stuff.hex_view_decoded.as_mut().unwrap().set_text_cursor(&cursor); }
+
+            // Unblock the signals.
+            blocker.unblock();
         }
     }
 
