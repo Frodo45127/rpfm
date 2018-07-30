@@ -60,9 +60,9 @@ pub struct PackFileExtraData {
 /// - 2 => "Patch",
 /// - 3 => "Mod",
 /// - 4 => "Movie",
-/// - 17 => "Music" (don't know his "official" name, but it's used for Music PackFiles),
 /// - Any other type => Special types we don't want to edit, only to read.
 /// Also, a bitmask can be applied to this number:
+/// - 16 => No idea. Used in "Music" PackFiles.
 /// - 64 => PackedFile index has 4 empty bytes after the size of each PackedFile.
 /// - 128 => PackedFile index is encrypted (Only in Arena).
 /// - 256 => No idea, but it's in every Arena PackFile (Only in Arena).
@@ -78,6 +78,7 @@ pub struct PackFileHeader {
     pub packed_file_index_size: u32,
     pub creation_time: u32,
 
+    pub mysterious_mask_music: bool,
     pub index_has_extra_u32: bool,
     pub index_is_encrypted: bool,
     pub mysterious_mask: bool,
@@ -145,7 +146,7 @@ impl PackFile {
     pub fn is_editable(&self, settings: &Settings) -> bool {
 
         // If ANY of these bitmask is detected in the PackFile, disable all saving.
-        if self.header.index_has_extra_u32 || self.header.index_is_encrypted || self.header.mysterious_mask { false }
+        if self.header.mysterious_mask_music || self.header.index_has_extra_u32 || self.header.index_is_encrypted || self.header.mysterious_mask { false }
 
         // These types are always editable.
         else if self.header.pack_file_type == 3 || self.header.pack_file_type == 4 { true }
@@ -322,6 +323,7 @@ impl PackFileHeader {
             packed_file_index_size: 0,
             creation_time: 0,
 
+            mysterious_mask_music: false,
             index_has_extra_u32: false,
             index_is_encrypted: false,
             mysterious_mask: false,
@@ -359,6 +361,7 @@ impl PackFileHeader {
                                 <li>- Warhammer 2.</li>
                                 <li>- Warhammer.</li>
                                 <li>- Attila.</li>
+                                <li>- Rome 2.</li>
                                 <li>- Arena.</li>
                             </ul>")) }
                         }
@@ -380,11 +383,13 @@ impl PackFileHeader {
         pack_file_header.pack_file_type = decode_integer_u32(&buffer[4..8])?;
 
         // Get the bitmasks from the PackFile's Type.
+        pack_file_header.mysterious_mask_music = if pack_file_header.pack_file_type & 16 != 0 { true } else { false };
         pack_file_header.index_has_extra_u32 = if pack_file_header.pack_file_type & 64 != 0 { true } else { false };
         pack_file_header.index_is_encrypted = if pack_file_header.pack_file_type & 128 != 0 { true } else { false };
         pack_file_header.mysterious_mask = if pack_file_header.pack_file_type & 256 != 0 { true } else { false };
 
         // Disable the masks, so we can get the true Type.
+        pack_file_header.pack_file_type = pack_file_header.pack_file_type & 15;
         pack_file_header.pack_file_type = pack_file_header.pack_file_type & 63;
         pack_file_header.pack_file_type = pack_file_header.pack_file_type & 127;
         pack_file_header.pack_file_type = pack_file_header.pack_file_type & 255;
@@ -410,6 +415,7 @@ impl PackFileHeader {
 
         // Complete the PackFile Type using the bitmasks.
         let mut final_type = self.pack_file_type;
+        if self.mysterious_mask_music { final_type = final_type | 16; }
         if self.index_has_extra_u32 { final_type = final_type | 64; }
         if self.index_is_encrypted { final_type = final_type | 128; }
         if self.mysterious_mask { final_type = final_type | 256; }
@@ -622,14 +628,25 @@ impl PackFileData {
                 // If it's a common PFH5 PackFile (Warhammer 2 & Arena)...
                 if header.id == "PFH5" {
 
-                    // If it has an extra u32, we default to 8 (Arena).
-                    if header.index_has_extra_u32 { 8 }
+                    // If it has the mysterious mask, is an Arena PackFile.
+                    if header.mysterious_mask {
 
-                    // If still is an Arena PackFile, we default to 4 (no space between size and path of PackedFiles)
-                    else if header.mysterious_mask { 4 }
+                        // If it has an extra u32, we default to 8 (Arena).
+                        if header.index_has_extra_u32 { 8 }
 
-                    // Otherwise, we default to 5 (0 between size and path, Warhammer 2).
-                    else { 5 }
+                        // Otherwise, we default to 4.
+                        else { 4 }
+                    }
+
+                    // Otherwise, it's a Warhammer 2 PackFile.
+                    else {
+
+                        // If it has an extra u32, we default to 9 (extra and separation byte).
+                        if header.index_has_extra_u32 { 9 }
+
+                        // Otherwise, we default to 5 (0 between size and path, Warhammer 2).
+                        else { 5 }
+                    }
                 }
 
                 // If it's a common PFH4 PackFile (Warhammer & Attila).

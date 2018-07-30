@@ -164,9 +164,9 @@ pub struct AppUI {
     pub change_packfile_type_patch: *mut Action,
     pub change_packfile_type_mod: *mut Action,
     pub change_packfile_type_movie: *mut Action,
-    pub change_packfile_type_music: *mut Action,
     pub change_packfile_type_other: *mut Action,
 
+    pub change_packfile_type_mysterious_byte_music: *mut Action,
     pub change_packfile_type_index_has_extra_u32: *mut Action,
     pub change_packfile_type_index_is_encrypted: *mut Action,
     pub change_packfile_type_mysterious_byte: *mut Action,
@@ -181,6 +181,7 @@ pub struct AppUI {
     pub warhammer_2: *mut Action,
     pub warhammer: *mut Action,
     pub attila: *mut Action,
+    pub rome_2: *mut Action,
     pub arena: *mut Action,
 
     pub game_selected_group: *mut ActionGroup,
@@ -379,9 +380,9 @@ fn main() {
                 change_packfile_type_patch: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Patch")),
                 change_packfile_type_mod: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Mod")),
                 change_packfile_type_movie: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("Mo&vie")),
-                change_packfile_type_music: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("M&usic")),
                 change_packfile_type_other: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Other")),
 
+                change_packfile_type_mysterious_byte_music: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("Has Musical Byte")),
                 change_packfile_type_index_has_extra_u32: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Index Has Extra U32")),
                 change_packfile_type_index_is_encrypted: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("Index Is &Encrypted")),
                 change_packfile_type_mysterious_byte: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Has Mysterious Byte")),
@@ -396,6 +397,7 @@ fn main() {
                 warhammer_2: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("&Warhammer 2")),
                 warhammer: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("War&hammer")),
                 attila: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("&Attila")),
+                rome_2: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("R&ome 2")),
                 arena: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("A&rena")),
 
                 game_selected_group: ActionGroup::new(menu_bar_game_seleted.as_mut().unwrap().static_cast_mut()).into_raw(),
@@ -450,37 +452,39 @@ fn main() {
         unsafe { app_ui.change_packfile_type_group.as_mut().unwrap().add_action_unsafe(app_ui.change_packfile_type_patch); }
         unsafe { app_ui.change_packfile_type_group.as_mut().unwrap().add_action_unsafe(app_ui.change_packfile_type_mod); }
         unsafe { app_ui.change_packfile_type_group.as_mut().unwrap().add_action_unsafe(app_ui.change_packfile_type_movie); }
-        unsafe { app_ui.change_packfile_type_group.as_mut().unwrap().add_action_unsafe(app_ui.change_packfile_type_music); }
         unsafe { app_ui.change_packfile_type_group.as_mut().unwrap().add_action_unsafe(app_ui.change_packfile_type_other); }
         unsafe { app_ui.change_packfile_type_boot.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.change_packfile_type_release.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.change_packfile_type_patch.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.change_packfile_type_mod.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.change_packfile_type_movie.as_mut().unwrap().set_checkable(true); }
-        unsafe { app_ui.change_packfile_type_music.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.change_packfile_type_other.as_mut().unwrap().set_checkable(true); }
 
         // These ones are individual, but they need to be checkable and not editable.
+        unsafe { app_ui.change_packfile_type_mysterious_byte_music.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.change_packfile_type_index_has_extra_u32.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.change_packfile_type_mysterious_byte.as_mut().unwrap().set_checkable(true); }
 
+        unsafe { app_ui.change_packfile_type_mysterious_byte_music.as_mut().unwrap().set_enabled(false); }
         unsafe { app_ui.change_packfile_type_index_has_extra_u32.as_mut().unwrap().set_enabled(false); }
         unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_enabled(false); }
         unsafe { app_ui.change_packfile_type_mysterious_byte.as_mut().unwrap().set_enabled(false); }
 
         // Put separators in the SubMenu.
         unsafe { menu_change_packfile_type.as_mut().unwrap().insert_separator(app_ui.change_packfile_type_other); }
-        unsafe { menu_change_packfile_type.as_mut().unwrap().insert_separator(app_ui.change_packfile_type_index_has_extra_u32); }
+        unsafe { menu_change_packfile_type.as_mut().unwrap().insert_separator(app_ui.change_packfile_type_mysterious_byte_music); }
 
         // The "Game Selected" Menu should be an ActionGroup.
         unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.warhammer_2); }
         unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.warhammer); }
         unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.attila); }
+        unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.rome_2); }
         unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.arena); }
         unsafe { app_ui.warhammer_2.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.warhammer.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.attila.as_mut().unwrap().set_checkable(true); }
+        unsafe { app_ui.rome_2.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.arena.as_mut().unwrap().set_checkable(true); }
 
         // Arena is special, so separate it from the rest.
@@ -651,11 +655,11 @@ fn main() {
         unsafe { app_ui.change_packfile_type_patch.as_mut().unwrap().set_status_tip(&QString::from_std_str("Changes the PackFile's Type to Patch. You should never use it.")); }
         unsafe { app_ui.change_packfile_type_mod.as_mut().unwrap().set_status_tip(&QString::from_std_str("Changes the PackFile's Type to Mod. You should use this for mods that should show up in the Mod Manager.")); }
         unsafe { app_ui.change_packfile_type_movie.as_mut().unwrap().set_status_tip(&QString::from_std_str("Changes the PackFile's Type to Movie. You should use this for mods that'll always be active, and will not show up in the Mod Manager.")); }
-        unsafe { app_ui.change_packfile_type_music.as_mut().unwrap().set_status_tip(&QString::from_std_str("Changes the PackFile's Type to Music. Don't know much about this type, other than it's used in Attila and Arena for Music PackFiles.")); }
         unsafe { app_ui.change_packfile_type_other.as_mut().unwrap().set_status_tip(&QString::from_std_str("Changes the PackFile's Type to Other. This is for PackFiles without write support, so you should never use it.")); }
         unsafe { app_ui.preferences.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the Preferences/Settings dialog.")); }
         unsafe { app_ui.quit.as_mut().unwrap().set_status_tip(&QString::from_std_str("Exit the Program.")); }
 
+        unsafe { app_ui.change_packfile_type_mysterious_byte_music.as_mut().unwrap().set_status_tip(&QString::from_std_str("If checked, this PackFile has a mysterious byte in the header. Only seen in music PackFiles. Saving this kind of PackFiles is NOT SUPPORTED.")); }
         unsafe { app_ui.change_packfile_type_index_has_extra_u32.as_mut().unwrap().set_status_tip(&QString::from_std_str("If checked, the PackedFile Index of this PackFile has four random bytes before each PackedFile's Path. For now, saving this kind of PackFiles is NOT SUPPORTED.")); }
         unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_status_tip(&QString::from_std_str("If checked, the PackedFile Index of this PackFile is encrypted. Saving this kind of PackFiles is NOT SUPPORTED.")); }
         unsafe { app_ui.change_packfile_type_mysterious_byte.as_mut().unwrap().set_status_tip(&QString::from_std_str("If checked, this PackFile has a mysterious byte in the header. Only seen in Arena PackFiles. Saving this kind of PackFiles is NOT SUPPORTED.")); }
@@ -664,6 +668,7 @@ fn main() {
         unsafe { app_ui.warhammer_2.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Warhammer 2' as 'Game Selected'.")); }
         unsafe { app_ui.warhammer.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Warhammer' as 'Game Selected'.")); }
         unsafe { app_ui.attila.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Attila' as 'Game Selected'.")); }
+        unsafe { app_ui.rome_2.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Rome 2' as 'Game Selected'.")); }
         unsafe { app_ui.arena.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Arena' as 'Game Selected'.")); }
 
         // Menu bar, Special Stuff.
@@ -827,6 +832,7 @@ fn main() {
         unsafe { app_ui.warhammer_2.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
         unsafe { app_ui.warhammer.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
         unsafe { app_ui.attila.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
+        unsafe { app_ui.rome_2.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
         unsafe { app_ui.arena.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
 
         // Get the Game Selected.
@@ -838,8 +844,9 @@ fn main() {
         match &*game_selected.game {
             "warhammer_2" => unsafe { app_ui.warhammer_2.as_mut().unwrap().trigger(); }
             "warhammer" => unsafe { app_ui.warhammer.as_mut().unwrap().trigger(); }
+            "attila" => unsafe { app_ui.attila.as_mut().unwrap().trigger(); }
             "arena" => unsafe { app_ui.arena.as_mut().unwrap().trigger(); }
-            "attila" | _ => unsafe { app_ui.attila.as_mut().unwrap().trigger(); }
+            "rome_2" | _ => unsafe { app_ui.rome_2.as_mut().unwrap().trigger(); }
         }
 
         //-----------------------------------------------------//
@@ -894,11 +901,11 @@ fn main() {
                                 2 => unsafe { app_ui.change_packfile_type_patch.as_mut().unwrap().set_checked(true); }
                                 3 => unsafe { app_ui.change_packfile_type_mod.as_mut().unwrap().set_checked(true); }
                                 4 => unsafe { app_ui.change_packfile_type_movie.as_mut().unwrap().set_checked(true); }
-                                17 => unsafe { app_ui.change_packfile_type_music.as_mut().unwrap().set_checked(true); }
                                 _ => unsafe { app_ui.change_packfile_type_other.as_mut().unwrap().set_checked(true); }
                             }
 
                             // By default, the three bitmask should be false.
+                            unsafe { app_ui.change_packfile_type_mysterious_byte_music.as_mut().unwrap().set_checked(false); }
                             unsafe { app_ui.change_packfile_type_index_has_extra_u32.as_mut().unwrap().set_checked(false); }
                             unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_checked(false); }
                             unsafe { app_ui.change_packfile_type_mysterious_byte.as_mut().unwrap().set_checked(false); }
@@ -1236,7 +1243,6 @@ fn main() {
                     "&Patch" => 2,
                     "&Mod" => 3,
                     "Mo&vie" => 4,
-                    "M&usic" => 17,
                     _ => 99,
                 }; }
 
@@ -1331,7 +1337,6 @@ fn main() {
         unsafe { app_ui.change_packfile_type_patch.as_ref().unwrap().signals().triggered().connect(&slot_change_packfile_type); }
         unsafe { app_ui.change_packfile_type_mod.as_ref().unwrap().signals().triggered().connect(&slot_change_packfile_type); }
         unsafe { app_ui.change_packfile_type_movie.as_ref().unwrap().signals().triggered().connect(&slot_change_packfile_type); }
-        unsafe { app_ui.change_packfile_type_music.as_ref().unwrap().signals().triggered().connect(&slot_change_packfile_type); }
         unsafe { app_ui.change_packfile_type_other.as_ref().unwrap().signals().triggered().connect(&slot_change_packfile_type); }
 
         unsafe { app_ui.preferences.as_ref().unwrap().signals().triggered().connect(&slot_preferences); }
@@ -2955,12 +2960,10 @@ fn main() {
 
         // What happens when we trigger the "Open in decoder" action in the Contextual Menu.
         let slot_contextual_menu_open_decoder = SlotBool::new(clone!(
-            supported_games,
             sender_qt,
             sender_qt_data,
             receiver_qt,
-            is_packedfile_opened,
-            rpfm_path => move |_| {
+            is_packedfile_opened => move |_| {
 
                 // We only do something in case the focus is in the TreeView. This should stop
                 // problems with the accels working everywhere.
@@ -2985,8 +2988,6 @@ fn main() {
 
                         // We try to open it in the decoder.
                         if let Ok(result) = PackedFileDBDecoder::create_decoder_view(
-                            &rpfm_path,
-                            supported_games.to_vec(),
                             sender_qt.clone(),
                             &sender_qt_data,
                             &receiver_qt,
@@ -3508,36 +3509,11 @@ fn background_loop(
                                 // Get the decoded PackFile.
                                 pack_file_decoded = pack_file;
 
-                                // Try to load the Schema for this PackFile's game.
-                                schema = Schema::load(&rpfm_path, &supported_games.iter().filter(|x| x.folder_name == *game_selected.game).map(|x| x.schema.to_owned()).collect::<String>()).ok();
-
                                 // Get the PackFile's Header we must return to the UI thread and serialize it.
                                 let data = serde_json::to_vec(&pack_file_decoded.header).map_err(From::from);
 
                                 // Send a response to the UI thread.
                                 sender.send(data).unwrap();
-
-                                // Test to see if every DB Table can be decoded. This is slow and only useful when
-                                // a new patch lands and you want to know what tables you need to decode. So, unless that,
-                                // leave this code commented.
-                                // let mut counter = 0;
-                                // for i in pack_file_decoded.data.packed_files.iter() {
-                                //     if i.path.starts_with(&["db".to_owned()]) {
-                                //         if let Some(ref schema) = schema {
-                                //             if let Err(_) = packedfile::db::DB::read(&i.data, &i.path[1], &schema) {
-                                //                 match packedfile::db::DBHeader::read(&i.data, &mut 0) {
-                                //                     Ok(db_header) => {
-                                //                         if db_header.entry_count > 0 {
-                                //                             counter += 1;
-                                //                             println!("{}, {:?}", counter, i.path);
-                                //                         }
-                                //                     }
-                                //                     Err(_) => println!("Error in {:?}", i.path),
-                                //                 }
-                                //             }
-                                //         }
-                                //     }
-                                // }
                             }
 
                             // If there is an error, send it back to the UI.
@@ -3692,6 +3668,42 @@ fn background_loop(
                         sender.send(serde_json::to_vec(&schema).map_err(From::from)).unwrap();
                     }
 
+                    // In case we want to save an schema...
+                    "save_schema" => {
+
+                        // Wait until you get something from the UI.
+                        if let Ok(new_schema) = receiver_data.recv().unwrap() {
+
+                            // Try to deserialize it.
+                            match serde_json::from_slice(&new_schema) {
+
+                                // If it can be deserialized as a Schema...
+                                Ok(new_schema) => {
+
+                                    // Try to save it to disk.
+                                    match Schema::save(&new_schema, &rpfm_path, &supported_games.iter().filter(|x| x.folder_name == game_selected.game).map(|x| x.schema.to_owned()).collect::<String>()) {
+
+                                        // If we managed to save it...
+                                        Ok(_) => {
+
+                                            // Update the current schema.
+                                            schema = Some(new_schema);
+
+                                            // Send success back.
+                                            sender.send(serde_json::to_vec(&()).map_err(From::from)).unwrap();
+                                        },
+
+                                        // If there was an error, report it.
+                                        Err(error) => sender.send(Err(error)).unwrap()
+                                    }
+                                },
+
+                                // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                                Err(_) => sender.send(Err(format_err!("{}", THREADS_MESSAGE_ERROR))).unwrap(),
+                            }
+                        }
+                    }
+
                     // In case we want to get the current settings...
                     "get_settings" => {
 
@@ -3760,6 +3772,28 @@ fn background_loop(
 
                                     // Send back the new Game Selected, and a bool indicating if there is a PackFile open.
                                     sender.send(serde_json::to_vec(&(game_selected.clone(), pack_file_decoded.extra_data.file_name.is_empty())).map_err(From::from)).unwrap();
+
+                                    // Test to see if every DB Table can be decoded. This is slow and only useful when
+                                    // a new patch lands and you want to know what tables you need to decode. So, unless that,
+                                    // leave this code commented.
+                                    // let mut counter = 0;
+                                    // for i in pack_file_decoded.data.packed_files.iter() {
+                                    //     if i.path.starts_with(&["db".to_owned()]) {
+                                    //         if let Some(ref schema) = schema {
+                                    //             if let Err(_) = packedfile::db::DB::read(&i.data, &i.path[1], &schema) {
+                                    //                 match packedfile::db::DBHeader::read(&i.data, &mut 0) {
+                                    //                     Ok(db_header) => {
+                                    //                         if db_header.entry_count > 0 {
+                                    //                             counter += 1;
+                                    //                             println!("{}, {:?}", counter, i.path);
+                                    //                         }
+                                    //                     }
+                                    //                     Err(_) => println!("Error in {:?}", i.path),
+                                    //                 }
+                                    //             }
+                                    //         }
+                                    //     }
+                                    // }
                                 },
 
                                 // If error, there are problems with the messages between threads. Give a warning and ask for a report.
@@ -4996,39 +5030,120 @@ fn open_packfile(
                 // If it was it...
                 Ok(data) => {
 
-                    // Deserialize it (name of the packfile, paths of the PackedFiles, type of the PackFile).
-                    let header: PackFileHeader = serde_json::from_slice(&data).unwrap();
+                    // Try to deserialize the result as a PackFileHeader...
+                    match serde_json::from_slice(&data) {
 
-                    // We choose the right option, depending on our PackFile.
-                    match header.pack_file_type {
-                        0 => unsafe { app_ui.change_packfile_type_boot.as_mut().unwrap().set_checked(true); }
-                        1 => unsafe { app_ui.change_packfile_type_release.as_mut().unwrap().set_checked(true); }
-                        2 => unsafe { app_ui.change_packfile_type_patch.as_mut().unwrap().set_checked(true); }
-                        3 => unsafe { app_ui.change_packfile_type_mod.as_mut().unwrap().set_checked(true); }
-                        4 => unsafe { app_ui.change_packfile_type_movie.as_mut().unwrap().set_checked(true); }
-                        17 => unsafe { app_ui.change_packfile_type_music.as_mut().unwrap().set_checked(true); }
-                        _ => unsafe { app_ui.change_packfile_type_other.as_mut().unwrap().set_checked(true); }
+                        // If it works...
+                        Ok(header) => {
+
+                            // Redundant, but needed.
+                            let header: PackFileHeader = header;
+
+                            // We choose the right option, depending on our PackFile.
+                            match header.pack_file_type {
+                                0 => unsafe { app_ui.change_packfile_type_boot.as_mut().unwrap().set_checked(true); }
+                                1 => unsafe { app_ui.change_packfile_type_release.as_mut().unwrap().set_checked(true); }
+                                2 => unsafe { app_ui.change_packfile_type_patch.as_mut().unwrap().set_checked(true); }
+                                3 => unsafe { app_ui.change_packfile_type_mod.as_mut().unwrap().set_checked(true); }
+                                4 => unsafe { app_ui.change_packfile_type_movie.as_mut().unwrap().set_checked(true); }
+                                _ => unsafe { app_ui.change_packfile_type_other.as_mut().unwrap().set_checked(true); }
+                            }
+
+                            // Enable or disable these, depending on what data we have in the header.
+                            unsafe { app_ui.change_packfile_type_mysterious_byte_music.as_mut().unwrap().set_checked(header.mysterious_mask_music); }
+                            unsafe { app_ui.change_packfile_type_index_has_extra_u32.as_mut().unwrap().set_checked(header.index_has_extra_u32); }
+                            unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_checked(header.index_is_encrypted); }
+                            unsafe { app_ui.change_packfile_type_mysterious_byte.as_mut().unwrap().set_checked(header.mysterious_mask); }
+
+                            // Set the new mod as "Not modified".
+                            *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
+
+                            // Update the TreeView.
+                            update_treeview(
+                                &rpfm_path,
+                                sender_qt,
+                                sender_qt_data,
+                                receiver_qt.clone(),
+                                app_ui.window,
+                                app_ui.folder_tree_view,
+                                app_ui.folder_tree_model,
+                                TreeViewOperation::Build(false),
+                            );
+
+                            // If it's a "MyMod" (game_folder_name is not empty), we choose the Game selected Depending on it.
+                            if !game_folder.is_empty() {
+
+                                // NOTE: Arena should never be here.
+                                // Change the Game Selected in the UI.
+                                match game_folder {
+                                    "warhammer_2" => unsafe { app_ui.warhammer_2.as_mut().unwrap().trigger(); }
+                                    "warhammer" => unsafe { app_ui.warhammer.as_mut().unwrap().trigger(); }
+                                    "attila" => unsafe { app_ui.attila.as_mut().unwrap().trigger(); }
+                                    "rome_2" | _ => unsafe { app_ui.rome_2.as_mut().unwrap().trigger(); }
+                                }
+
+                                // Set the current "Operational Mode" to `MyMod`.
+                                set_my_mod_mode(&mymod_stuff, mode, Some(pack_file_path));
+                            }
+
+                            // If it's not a "MyMod", we choose the new Game Selected depending on what the open mod id is.
+                            else {
+
+                                // Depending on the Id, choose one game or another.
+                                match &*header.id {
+
+                                    // PFH5 is for Warhammer 2/Arena.
+                                    "PFH5" => {
+
+                                        // If the PackFile has the mysterious byte enabled, it's from Arena.
+                                        if header.mysterious_mask { unsafe { app_ui.arena.as_mut().unwrap().trigger(); } }
+
+                                        // Otherwise, it's from Warhammer 2.
+                                        else { unsafe { app_ui.warhammer_2.as_mut().unwrap().trigger(); } }
+                                    },
+
+                                    // PFH4 is for Warhammer 1/Attila.
+                                    "PFH4" | _ => {
+
+                                        // Get the Game Selected.
+                                        sender_qt.send("get_game_selected").unwrap();
+                                        let response = receiver_qt.borrow().recv().unwrap().unwrap();
+                                        let game_selected: GameSelected = serde_json::from_slice(&response).unwrap();
+
+                                        // If we have Warhammer selected, we keep Warhammer. If we have Attila, we keep Attila.
+                                        // In any other case, we select Rome 2 by default.
+                                        match &*game_selected.game {
+                                            "warhammer" => unsafe { app_ui.warhammer.as_mut().unwrap().trigger(); },
+                                            "attila" => unsafe { app_ui.attila.as_mut().unwrap().trigger(); }
+                                            "rome_2" | _ => unsafe { app_ui.rome_2.as_mut().unwrap().trigger(); }
+                                        }
+                                    },
+                                }
+
+                                // Set the current "Operational Mode" to `Normal`.
+                                set_my_mod_mode(&mymod_stuff, mode, None);
+                            }
+
+                            // Destroy whatever it's in the PackedFile's view, to avoid data corruption.
+                            purge_them_all(&app_ui, &is_packedfile_opened);
+
+                            // Show the "Tips".
+                            display_help_tips(&app_ui);
+
+                            // Stop the loop.
+                            break;
+                        }
+
+                        // If error...
+                        Err(_) => {
+
+                            // Re-enable the Main Window.
+                            unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
+
+                            // Return an error.
+                            return Err(format_err!("{}", THREADS_MESSAGE_ERROR))
+                        }
                     }
-
-                    // Enable or disable these, depending on what data we have in the header.
-                    unsafe { app_ui.change_packfile_type_index_has_extra_u32.as_mut().unwrap().set_checked(header.index_has_extra_u32); }
-                    unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_checked(header.index_is_encrypted); }
-                    unsafe { app_ui.change_packfile_type_mysterious_byte.as_mut().unwrap().set_checked(header.mysterious_mask); }
-
-                    // Update the TreeView.
-                    update_treeview(
-                        &rpfm_path,
-                        sender_qt,
-                        sender_qt_data,
-                        receiver_qt.clone(),
-                        app_ui.window,
-                        app_ui.folder_tree_view,
-                        app_ui.folder_tree_model,
-                        TreeViewOperation::Build(false),
-                    );
-
-                    // Stop the loop.
-                    break;
                 }
 
                 // Otherwise...
@@ -5050,90 +5165,8 @@ fn open_packfile(
         thread::sleep(Duration::from_millis(10));
     }
 
-    // Set the new mod as "Not modified".
-    *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
-
-    // If it's a "MyMod" (game_folder_name is not empty), we choose the Game selected Depending on it.
-    if !game_folder.is_empty() {
-
-        // NOTE: Arena should never be here.
-        // Change the Game Selected in the UI.
-        match game_folder {
-            "warhammer_2" => unsafe { app_ui.warhammer_2.as_mut().unwrap().trigger(); }
-            "warhammer" => unsafe { app_ui.warhammer.as_mut().unwrap().trigger(); }
-            "attila" | _ => unsafe { app_ui.attila.as_mut().unwrap().trigger(); }
-        }
-
-        // Set the current "Operational Mode" to `MyMod`.
-        set_my_mod_mode(&mymod_stuff, mode, Some(pack_file_path));
-    }
-
-    // If it's not a "MyMod", we choose the new Game Selected depending on what the open mod id is.
-    else {
-
-        // Get the PackFile's Header.
-        sender_qt.send("get_packfile_header").unwrap();
-
-        // Wait until you get something from the background thread.
-        if let Ok(header) = receiver_qt.borrow().recv().unwrap() {
-
-            // Try to deserialize it.
-            match serde_json::from_slice(&header) {
-
-                // If it can be deserialized as an PackFileHeader...
-                Ok(header) => {
-
-                    // Redundant, but needed for the deserializer to know the type.
-                    let header: PackFileHeader = header;
-
-                    // Depending on the Id, choose one game or another.
-                    match &*header.id {
-
-                        // PFH5 is for Warhammer 2/Arena.
-                        "PFH5" => {
-
-                            // If the PackFile has the mysterious byte enabled, it's from Arena.
-                            if header.mysterious_mask { unsafe { app_ui.arena.as_mut().unwrap().trigger(); } }
-
-                            // Otherwise, it's from Warhammer 2.
-                            else { unsafe { app_ui.warhammer_2.as_mut().unwrap().trigger(); } }
-                        },
-
-                        // PFH4 is for Warhammer 1/Attila.
-                        "PFH4" | _ => {
-
-                            // Get the Game Selected.
-                            sender_qt.send("get_game_selected").unwrap();
-                            let response = receiver_qt.borrow().recv().unwrap().unwrap();
-                            let game_selected: GameSelected = serde_json::from_slice(&response).unwrap();
-
-                            // If we have Warhammer selected, we keep Warhammer. If we have Attila, we keep Attila.
-                            // In any other case, we select Attila by default.
-                            match &*game_selected.game {
-                                "warhammer" => unsafe { app_ui.warhammer.as_mut().unwrap().trigger(); },
-                                "attila" | _ => unsafe { app_ui.attila.as_mut().unwrap().trigger(); }
-                            }
-                        },
-                    }
-                },
-
-                // If error, there are problems with the messages between threads. Give a warning and ask for a report.
-                Err(_) => show_dialog(app_ui.window, false, THREADS_MESSAGE_ERROR),
-            }
-        }
-
-        // Set the current "Operational Mode" to `Normal`.
-        set_my_mod_mode(&mymod_stuff, mode, None);
-    }
-
     // Re-enable the Main Window.
     unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
-
-    // Destroy whatever it's in the PackedFile's view, to avoid data corruption.
-    purge_them_all(&app_ui, &is_packedfile_opened);
-
-    // Show the "Tips".
-    display_help_tips(&app_ui);
 
     // Return success.
     Ok(())
@@ -5220,7 +5253,8 @@ fn build_my_mod_menu(
                         match &*mod_game {
                             "warhammer_2" => unsafe { app_ui.warhammer_2.as_mut().unwrap().trigger(); }
                             "warhammer" => unsafe { app_ui.warhammer.as_mut().unwrap().trigger(); }
-                            "attila" | _ => unsafe { app_ui.attila.as_mut().unwrap().trigger(); }
+                            "attila" => unsafe { app_ui.attila.as_mut().unwrap().trigger(); }
+                            "rome_2" | _ => unsafe { app_ui.rome_2.as_mut().unwrap().trigger(); }
                         }
 
                         // Get his new path from the base "MyMod" path + `mod_game`.
@@ -5288,6 +5322,7 @@ fn build_my_mod_menu(
                                     unsafe { app_ui.change_packfile_type_mod.as_mut().unwrap().set_checked(true); }
 
                                     // By default, the three bitmask should be false.
+                                    unsafe { app_ui.change_packfile_type_mysterious_byte_music.as_mut().unwrap().set_checked(false); }
                                     unsafe { app_ui.change_packfile_type_index_has_extra_u32.as_mut().unwrap().set_checked(false); }
                                     unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_checked(false); }
                                     unsafe { app_ui.change_packfile_type_mysterious_byte.as_mut().unwrap().set_checked(false); }

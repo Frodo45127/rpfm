@@ -105,6 +105,17 @@ impl GameInfo {
 
         supported_games.push(game_info);
 
+        // Rome 2
+        let game_info = GameInfo {
+            display_name: "Rome 2".to_owned(),
+            folder_name: "rome_2".to_owned(),
+            id: "PFH4".to_owned(),
+            dependency_pack: "data_rome2.pack".to_owned(),
+            schema: "schema_rom2.json".to_owned(),
+        };
+
+        supported_games.push(game_info);
+
         // NOTE: There are things that depend on the order of this list, and this game must ALWAYS be the last one.
         // Otherwise, stuff that uses this list will probably break.
         // Arena
@@ -117,16 +128,7 @@ impl GameInfo {
         };
 
         supported_games.push(game_info);
-        /*
 
-        // Rome 2
-        let game_info = GameInfo {
-            display_name: "Rome 2".to_owned(),
-            folder_name: "rome_2".to_owned(),
-        };
-
-        supported_games.push(game_info);
-*/
         // Return the list.
         supported_games
     }
