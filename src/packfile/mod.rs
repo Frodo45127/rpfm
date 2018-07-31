@@ -81,7 +81,7 @@ pub fn open_packfile_with_bufreader(pack_file_path: PathBuf) -> Result<(packfile
 /// - new_path: an Option<PathBuf> with the path were we are going to save the PackFile. None if we
 ///   are saving it in the same path it's when we opened it.
 pub fn save_packfile(
-    pack_file: &mut packfile::PackFile,
+    mut pack_file: &mut packfile::PackFile,
     new_path: Option<PathBuf>
 ) -> Result<(), Error> {
 
@@ -95,7 +95,7 @@ pub fn save_packfile(
             // Update the data of the PackFile's path.
             pack_file.extra_data.file_name = new_path.file_name().unwrap().to_string_lossy().as_ref().to_owned();
             pack_file.extra_data.file_path = new_path;
-            &pack_file.extra_data.file_path
+            pack_file.extra_data.file_path.to_path_buf()
         },
 
         // If we haven't received a new path...
@@ -103,7 +103,7 @@ pub fn save_packfile(
 
             // If the current path exists, use it.
             if pack_file.extra_data.file_path.exists() {
-                &pack_file.extra_data.file_path
+                pack_file.extra_data.file_path.to_path_buf()
             }
 
             // Otherwise, return error.
@@ -115,7 +115,7 @@ pub fn save_packfile(
     let mut file = BufWriter::new(File::create(&pack_file_path)?);
 
     // And we try to save it.
-    packfile::PackFile::save(&pack_file, &mut file)
+    packfile::PackFile::save(&mut pack_file, &mut file)
 }
 
 

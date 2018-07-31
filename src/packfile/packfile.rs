@@ -1,10 +1,6 @@
 // In this file are all the Structs and Impls required to decode and encode the PackFiles.
 // NOTE: Arena support was implemented thanks to the work of "Trolldemorted" here: https://github.com/TotalWarArena-Modding/twa_pack_lib
-
-extern crate chrono;
 extern crate failure;
-
-use self::chrono::Utc;
 
 use std::path::PathBuf;
 use std::io::prelude::*;
@@ -266,7 +262,7 @@ impl PackFile {
     }
 
     /// This function takes a decoded &mut PackFile, and tries to encode it and write it on disk.
-    pub fn save(&self, mut file: &mut BufWriter<File>) -> Result<(), Error> {
+    pub fn save(&mut self, mut file: &mut BufWriter<File>) -> Result<(), Error> {
 
         // First, we encode the indexes, as we need their final size to encode complete the header.
         let indexes = self.data.save_indexes(&self.header);
@@ -418,7 +414,7 @@ impl PackFileHeader {
 
     /// This function takes a decoded Header and encode it, so it can be saved in a PackFile file.
     /// We need the final size of both indexes for this.
-    fn save(&self, file: &mut BufWriter<File>, pack_file_index_size: u32, packed_file_index_size: u32) -> Result<(), Error> {
+    fn save(&mut self, file: &mut BufWriter<File>, pack_file_index_size: u32, packed_file_index_size: u32) -> Result<(), Error> {
 
         // Complete the PackFile Type using the bitmasks.
         let mut final_type = self.pack_file_type;
@@ -435,11 +431,9 @@ impl PackFileHeader {
         file.write(&encode_integer_u32(self.packed_file_count))?;
         file.write(&encode_integer_u32(packed_file_index_size))?;
 
-        // For some reason this returns a reversed i64. We need to truncate it and reverse it before
-        // writing it to the data.
-        let mut creation_time = encode_integer_i64(Utc::now().naive_utc().timestamp());
-        creation_time.truncate(4);
-        file.write(&creation_time)?;
+        // Update the creation time, then save it.
+        self.creation_time = get_current_time();
+        file.write(&encode_integer_u32(self.creation_time))?;
 
         // Return success.
         Ok(())

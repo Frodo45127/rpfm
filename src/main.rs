@@ -19,6 +19,7 @@ extern crate serde_json;
 #[macro_use]
 extern crate failure;
 extern crate num;
+extern crate chrono;
 extern crate qt_widgets;
 extern crate qt_gui;
 extern crate qt_core;
@@ -63,6 +64,8 @@ use std::fs::{File, DirBuilder, copy, remove_file, remove_dir_all};
 use std::io::{BufReader, Seek, SeekFrom, Read, Write};
 
 use failure::Error;
+use chrono::NaiveDateTime;
+
 use common::*;
 use common::coding_helpers::*;
 use packfile::packfile::{PackFile, PackFileExtraData, PackFileHeader, PackedFile};
@@ -659,7 +662,7 @@ fn main() {
         unsafe { app_ui.quit.as_mut().unwrap().set_status_tip(&QString::from_std_str("Exit the Program.")); }
 
         unsafe { app_ui.change_packfile_type_mysterious_byte_music.as_mut().unwrap().set_status_tip(&QString::from_std_str("If checked, this PackFile has a mysterious byte in the header. Only seen in music PackFiles. Saving this kind of PackFiles is NOT SUPPORTED.")); }
-        unsafe { app_ui.change_packfile_type_index_includes_last_modified_date.as_mut().unwrap().set_status_tip(&QString::from_std_str("If checked, the PackedFile Index of this PackFile includes the 'Last Modified' date of every PackedFile. If this was disabled, all PackedFiles will have '1/1/1970' as last modified time until edited.")); }
+        unsafe { app_ui.change_packfile_type_index_includes_last_modified_date.as_mut().unwrap().set_status_tip(&QString::from_std_str("If checked, the PackedFile Index of this PackFile includes the 'Last Modified' date of every PackedFile. Note that PackFiles with this enabled WILL NOT SHOW UP in the official launcher.")); }
         unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_status_tip(&QString::from_std_str("If checked, the PackedFile Index of this PackFile is encrypted. Saving this kind of PackFiles is NOT SUPPORTED.")); }
         unsafe { app_ui.change_packfile_type_mysterious_byte.as_mut().unwrap().set_status_tip(&QString::from_std_str("If checked, this PackFile has a mysterious byte in the header. Only seen in Arena PackFiles. Saving this kind of PackFiles is NOT SUPPORTED.")); }
 
@@ -1041,8 +1044,29 @@ fn main() {
                         // Check what the result of the saving process was.
                         match data {
 
-                            // In case of success, set the mod as "Not Modified".
-                            Ok(_) => *is_modified.borrow_mut() = set_modified(false, &app_ui, None),
+                            // In case of success...
+                            Ok(date) => {
+
+                                // Try to get the new date.
+                                match serde_json::from_slice(&date) {
+
+                                    // In case of success...
+                                    Ok(date) => {
+
+                                        // Redundant stuff.
+                                        let date: u32 = date;
+
+                                        // Set the mod as "Not Modified".
+                                        *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
+
+                                        // Update the "Last Modified Date" of the PackFile in the TreeView.
+                                        unsafe { app_ui.folder_tree_model.as_mut().unwrap().item(0).as_mut().unwrap().set_tool_tip(&QString::from_std_str(format!("Last Modified: {:?}", NaiveDateTime::from_timestamp(i64::from(date), 0)))); }
+                                    }
+
+                                    // In case of error, is a thread error.
+                                    Err(_) => show_dialog(app_ui.window, false, THREADS_MESSAGE_ERROR),
+                                }
+                            }
 
                             // In case of error, we can have two results.
                             Err(error) => {
@@ -1165,41 +1189,65 @@ fn main() {
                                     match data {
 
                                         // In case of success...
-                                        Ok(_) => {
+                                        Ok(date) => {
 
-                                            // Set the mod as "Not Modified".
-                                            *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
+                                            // Try to get the new date.
+                                            match serde_json::from_slice(&date) {
 
-                                            // Get the Selection Model and the Model Index of the PackFile's Cell.
-                                            let selection_model;
-                                            let model_index;
-                                            unsafe { selection_model = app_ui.folder_tree_view.as_mut().unwrap().selection_model(); }
-                                            unsafe { model_index = app_ui.folder_tree_model.as_ref().unwrap().index((0, 0)); }
+                                                // In case of success...
+                                                Ok(date) => {
 
-                                            // Select the PackFile's Cell with a "Clear & Select".
-                                            unsafe { selection_model.as_mut().unwrap().select((&model_index, Flags::from_int(3))); }
+                                                    // Redundant stuff.
+                                                    let date: u32 = date;
 
-                                            // Rename it with the new name.
-                                            update_treeview(
-                                                &rpfm_path,
-                                                &sender_qt,
-                                                &sender_qt_data,
-                                                receiver_qt.clone(),
-                                                app_ui.window,
-                                                app_ui.folder_tree_view,
-                                                app_ui.folder_tree_model,
-                                                TreeViewOperation::Rename(TreePathType::PackFile, path.file_name().unwrap().to_string_lossy().as_ref().to_owned()),
-                                            );
+                                                    // Set the mod as "Not Modified".
+                                                    *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
 
-                                            // Set the current "Operational Mode" to Normal, as this is a "New" mod.
-                                            set_my_mod_mode(&mymod_stuff, &mode, None);
+                                                    // Update the "Last Modified Date" of the PackFile in the TreeView.
+                                                    unsafe { app_ui.folder_tree_model.as_mut().unwrap().item(0).as_mut().unwrap().set_tool_tip(&QString::from_std_str(format!("Last Modified: {:?}", NaiveDateTime::from_timestamp(i64::from(date), 0)))); }
 
-                                            // Report success.
-                                            show_dialog(app_ui.window, true, "PackFile successfully saved.");
+                                                    // Get the Selection Model and the Model Index of the PackFile's Cell.
+                                                    let selection_model;
+                                                    let model_index;
+                                                    unsafe { selection_model = app_ui.folder_tree_view.as_mut().unwrap().selection_model(); }
+                                                    unsafe { model_index = app_ui.folder_tree_model.as_ref().unwrap().index((0, 0)); }
+
+                                                    // Select the PackFile's Cell with a "Clear & Select".
+                                                    unsafe { selection_model.as_mut().unwrap().select((&model_index, Flags::from_int(3))); }
+
+                                                    // Rename it with the new name.
+                                                    update_treeview(
+                                                        &rpfm_path,
+                                                        &sender_qt,
+                                                        &sender_qt_data,
+                                                        receiver_qt.clone(),
+                                                        app_ui.window,
+                                                        app_ui.folder_tree_view,
+                                                        app_ui.folder_tree_model,
+                                                        TreeViewOperation::Rename(TreePathType::PackFile, path.file_name().unwrap().to_string_lossy().as_ref().to_owned()),
+                                                    );
+
+                                                    // Set the current "Operational Mode" to Normal, as this is a "New" mod.
+                                                    set_my_mod_mode(&mymod_stuff, &mode, None);
+
+                                                    // Report success.
+                                                    show_dialog(app_ui.window, true, "PackFile successfully saved.");
+                                                }
+
+                                                // In case of error, is a thread error.
+                                                Err(_) => show_dialog(app_ui.window, false, THREADS_MESSAGE_ERROR),
+                                            }
                                         }
 
-                                        // In case of error, we report it.
-                                        Err(error) => show_dialog(app_ui.window, false, format!("Error while saving the PackFile:\n\n{}", error.cause())),
+                                        // In case of error, we can have two results.
+                                        Err(error) => {
+
+                                            // If the error message is empty, we have no original file, so we trigger a "Save PackFile As" action.
+                                            if error.cause().to_string().is_empty() { unsafe { Action::trigger(app_ui.save_packfile_as.as_mut().unwrap()); } }
+
+                                            // Otherwise, it's an error, so we report it.
+                                            else { show_dialog(app_ui.window, false, format!("<p>Error while saving the PackFile:</p><p>{}</p>", error.cause())); }
+                                        }
                                     }
 
                                     // Stop the loop.
@@ -3578,7 +3626,7 @@ fn background_loop(
 
                                 // If it passed all the checks, then try to save it and return the result.
                                 match packfile::save_packfile(&mut pack_file_decoded, None) {
-                                    Ok(_) => sender.send(serde_json::to_vec(&()).map_err(From::from)).unwrap(),
+                                    Ok(_) => sender.send(serde_json::to_vec(&pack_file_decoded.header.creation_time).map_err(From::from)).unwrap(),
                                     Err(error) => sender.send(Err(format_err!("<p>Error while trying to save the PackFile:</p><p>{}</p>", error.cause()))).unwrap(),
                                 }
                             }
@@ -3625,7 +3673,7 @@ fn background_loop(
 
                                         // Try to save the PackFile and return the results.
                                         match packfile::save_packfile(&mut pack_file_decoded, Some(path.to_path_buf())) {
-                                            Ok(_) => sender.send(serde_json::to_vec(&()).map_err(From::from)).unwrap(),
+                                            Ok(_) => sender.send(serde_json::to_vec(&pack_file_decoded.header.creation_time).map_err(From::from)).unwrap(),
                                             Err(error) => sender.send(Err(format_err!("<p>Error while trying to save the PackFile:</p><p>{}</p>", error.cause()))).unwrap(),
                                         }
                                     },
@@ -4257,6 +4305,7 @@ fn background_loop(
                         // Get the name and the PackedFile list, and serialize it.
                         let data = serde_json::to_vec(&(
                             &pack_file_decoded.extra_data.file_name,
+                            &pack_file_decoded.header.creation_time,
                             pack_file_decoded.data.packed_files.iter().map(|x| x.path.to_vec()).collect::<Vec<Vec<String>>>(),
                         )).map_err(From::from);
 
@@ -4270,6 +4319,7 @@ fn background_loop(
                         // Get the name and the PackedFile list, and serialize it.
                         let data = serde_json::to_vec(&(
                             &pack_file_decoded_extra.extra_data.file_name,
+                            &pack_file_decoded_extra.header.creation_time,
                             pack_file_decoded_extra.data.packed_files.iter().map(|x| x.path.to_vec()).collect::<Vec<Vec<String>>>(),
                         )).map_err(From::from);
 

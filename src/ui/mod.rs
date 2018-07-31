@@ -1,4 +1,5 @@
 // In this file are all the helper functions used by the UI (mainly Qt here)
+extern crate chrono;
 extern crate failure;
 extern crate qt_widgets;
 extern crate qt_gui;
@@ -36,6 +37,7 @@ use qt_core::slots::{SlotBool, SlotNoArgs, SlotItemSelectionRefItemSelectionRef}
 use qt_core::variant::Variant;
 use cpp_utils::StaticCast;
 
+use self::chrono::NaiveDateTime;
 use failure::Error;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -1554,11 +1556,11 @@ pub fn update_treeview(
                 // Try to deserialize it.
                 match serde_json::from_slice(&pack_file_data) {
 
-                    // If it can be deserialized as a (&str, Vec<Vec<String>>)...
+                    // If it can be deserialized as a (&str, u32, Vec<Vec<String>>)...
                     Ok(pack_file_data) => {
 
                         // Redundant, but needed for the deserializer to know the type.
-                        let pack_file_data: (&str, Vec<Vec<String>>) = pack_file_data;
+                        let pack_file_data: (&str, u32, Vec<Vec<String>>) = pack_file_data;
 
                         // First, we clean the TreeStore and whatever was created in the TreeView.
                         unsafe { model.as_mut().unwrap().clear(); }
@@ -1566,6 +1568,9 @@ pub fn update_treeview(
                         // Second, we set as the big_parent, the base for the folders of the TreeView, a fake folder
                         // with the name of the PackFile. All big things start with a lie.
                         let mut big_parent = StandardItem::new(&QString::from_std_str(pack_file_data.0)).into_raw();
+
+                        // Get his last modified date and show it in a tooltip.
+                        unsafe { big_parent.as_mut().unwrap().set_tool_tip(&QString::from_std_str(format!("Last Modified: {:?}", NaiveDateTime::from_timestamp(i64::from(pack_file_data.1), 0)))); }
 
                         // Also, set it as not editable by the user. Otherwise will cause problems when renaming.
                         unsafe { big_parent.as_mut().unwrap().set_editable(false); }
@@ -1577,7 +1582,7 @@ pub fn update_treeview(
                         set_icon_to_item(big_parent, &icons, IconType::PackFile(is_extra_packfile));
 
                         // We get all the paths of the PackedFiles inside the Packfile in a Vector.
-                        let mut sorted_path_list = pack_file_data.1;
+                        let mut sorted_path_list = pack_file_data.2;
 
                         // We sort that vector using this horrific monster I don't want to touch again, using
                         // the following format:
@@ -1789,24 +1794,18 @@ pub fn update_treeview(
                                 // If it can be deserialized as a TreePathType...
                                 Ok(item_type) => {
 
-                                    // Redundant, but needed for the deserializer to know the type.
-                                    let item_type: TreePathType = item_type;
+                                    // Act depending on the Type of the Path.
+                                    match item_type {
 
-                                    // Get the incomplete Path.
-                                    let mut incomplete_path = path.to_vec();
-                                    incomplete_path.reverse();
-                                    incomplete_path.pop();
-                                    incomplete_path.reverse();
+                                        // If it's a folder, give it an Icon.
+                                        TreePathType::Folder(_) => set_icon_to_item(item, &icons, IconType::Folder),
 
-                                    // If it's a Folder...
-                                    if item_type == TreePathType::Folder(vec![String::new()]) {
+                                        // If it's a folder, give it an Icon.
+                                        TreePathType::File((ref path,_)) => set_icon_to_item(item, &icons, IconType::File(path.to_vec())),
 
-                                        // Give it a folder icon.
-                                        set_icon_to_item(item, &icons, IconType::Folder);
+                                        // Any other type, ignore it.
+                                        _ => {},
                                     }
-
-                                    // Otherwise, give it an icon.
-                                    else { set_icon_to_item(item, &icons, IconType::File(incomplete_path)); }
 
                                     // Paint it like that parrot you painted yesterday.
                                     paint_treeview(item, model, ItemVisualStatus::Added);
@@ -2192,26 +2191,33 @@ pub fn update_treeview(
             // Change the old data with the new one.
             unsafe { model.as_mut().unwrap().set_data((selection, &variant)); }
 
-            // If what we are renaming is not the PackFile, sort the item in the TreeView.
-            if path_type != TreePathType::PackFile {
+            // Act depending on the Type of the Path.
+            match path_type {
 
-                // Get the item.
-                let item;
-                unsafe { item = model.as_mut().unwrap().item_from_index(selection); }
+                // If it's a folder or a File, give it an Icon.
+                TreePathType::Folder(_) | TreePathType::File((_,_)) => {
 
-                // Paint it as "modified".
-                paint_treeview(item, model, ItemVisualStatus::Modified);
+                    // Get the item.
+                    let item;
+                    unsafe { item = model.as_mut().unwrap().item_from_index(selection); }
 
-                // Sort it.
-                sort_item_in_tree_view(
-                    sender_qt,
-                    sender_qt_data,
-                    receiver_qt.clone(),
-                    window,
-                    model,
-                    item,
-                    path_type
-                );
+                    // Paint it as "modified".
+                    paint_treeview(item, model, ItemVisualStatus::Modified);
+
+                    // Sort it.
+                    sort_item_in_tree_view(
+                        sender_qt,
+                        sender_qt_data,
+                        receiver_qt.clone(),
+                        window,
+                        model,
+                        item,
+                        path_type
+                    );
+                }
+
+                // In any other case, don't do anything.
+                _ => {},
             }
         },
     }
