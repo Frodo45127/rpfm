@@ -147,7 +147,7 @@ impl PackFile {
 
         // If ANY of these bitmask is detected in the PackFile, disable all saving.
         // if self.header.mysterious_mask_music || self.header.index_has_extra_u32 || self.header.index_is_encrypted || self.header.mysterious_mask { false }
-        if self.header.mysterious_mask_music || self.header.index_is_encrypted || self.header.mysterious_mask { false }
+        if self.header.index_is_encrypted || self.header.mysterious_mask { false }
 
         // These types are always editable.
         else if self.header.pack_file_type == 3 || self.header.pack_file_type == 4 { true }
