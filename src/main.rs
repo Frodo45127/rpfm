@@ -221,6 +221,7 @@ pub struct AppUI {
     pub context_menu_create_loc: *mut Action,
     pub context_menu_create_text: *mut Action,
     pub context_menu_mass_import_tsv: *mut Action,
+    pub context_menu_mass_export_tsv: *mut Action,
     pub context_menu_delete: *mut Action,
     pub context_menu_extract: *mut Action,
     pub context_menu_rename: *mut Action,
@@ -440,6 +441,7 @@ fn main() {
                 context_menu_create_text: menu_create.as_mut().unwrap().add_action(&QString::from_std_str("Create &Text")),
 
                 context_menu_mass_import_tsv: menu_create.as_mut().unwrap().add_action(&QString::from_std_str("Mass-Import TSV")),
+                context_menu_mass_export_tsv: menu_create.as_mut().unwrap().add_action(&QString::from_std_str("Mass-Export TSV")),
 
                 context_menu_delete: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Delete")),
                 context_menu_extract: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Extract")),
@@ -591,6 +593,7 @@ fn main() {
             app_ui.context_menu_create_loc.as_mut().unwrap().set_enabled(false);
             app_ui.context_menu_create_text.as_mut().unwrap().set_enabled(false);
             app_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(false);
+            app_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_enabled(false);
             app_ui.context_menu_delete.as_mut().unwrap().set_enabled(false);
             app_ui.context_menu_extract.as_mut().unwrap().set_enabled(false);
             app_ui.context_menu_rename.as_mut().unwrap().set_enabled(false);
@@ -606,6 +609,7 @@ fn main() {
         unsafe { app_ui.context_menu_create_loc.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+n"))); }
         unsafe { app_ui.context_menu_create_text.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+m"))); }
         unsafe { app_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+."))); }
+        unsafe { app_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+,"))); }
         unsafe { app_ui.context_menu_delete.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+del"))); }
         unsafe { app_ui.context_menu_extract.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+e"))); }
         unsafe { app_ui.context_menu_rename.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+r"))); }
@@ -620,6 +624,7 @@ fn main() {
         unsafe { app_ui.context_menu_create_loc.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_create_text.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+        unsafe { app_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_delete.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_extract.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_rename.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
@@ -634,6 +639,7 @@ fn main() {
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_create_loc); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_create_text); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_mass_import_tsv); }
+        unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_mass_export_tsv); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_delete); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_extract); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_rename); }
@@ -693,7 +699,8 @@ fn main() {
         unsafe { app_ui.context_menu_create_loc.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the dialog to create a Loc File (used by the game to store the texts you see ingame) in the selected folder.")); }
         unsafe { app_ui.context_menu_create_db.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the dialog to create a DB Table (used by the game for... most of the things).")); }
         unsafe { app_ui.context_menu_create_text.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the dialog to create a Plain Text File. It accepts different extensions, like '.xml', '.lua', '.txt',....")); }
-        unsafe { app_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_status_tip(&QString::from_std_str("Import a bunch of TSV files at the same time. It automatically checks if they are DB Tables, Locs or invalid TSVs, and imports them all at once. Existing files are overwriten!")); }
+        unsafe { app_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_status_tip(&QString::from_std_str("Import a bunch of TSV files at the same time. It automatically checks if they are DB Tables, Locs or invalid TSVs, and imports them all at once. Existing files will be overwritten!")); }
+        unsafe { app_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_status_tip(&QString::from_std_str("Export every DB Table and Loc PackedFile from this PackFile as TSV files at the same time. Existing files will be overwritten!")); }
         unsafe { app_ui.context_menu_delete.as_mut().unwrap().set_status_tip(&QString::from_std_str("Delete the selected File/Folder.")); }
         unsafe { app_ui.context_menu_extract.as_mut().unwrap().set_status_tip(&QString::from_std_str("Extract the selected File/Folder from the PackFile.")); }
         unsafe { app_ui.context_menu_rename.as_mut().unwrap().set_status_tip(&QString::from_std_str("Rename a File/Folder. Remember, whitespaces are NOT ALLOWED.")); }
@@ -1608,7 +1615,8 @@ fn main() {
                                 app_ui.context_menu_create_db.as_mut().unwrap().set_enabled(false);
                                 app_ui.context_menu_create_loc.as_mut().unwrap().set_enabled(false);
                                 app_ui.context_menu_create_text.as_mut().unwrap().set_enabled(false);
-                                app_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(false);
+                                app_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(true);
+                                app_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_enabled(true);
                                 app_ui.context_menu_delete.as_mut().unwrap().set_enabled(true);
                                 app_ui.context_menu_extract.as_mut().unwrap().set_enabled(true);
                                 app_ui.context_menu_rename.as_mut().unwrap().set_enabled(true);
@@ -1631,6 +1639,7 @@ fn main() {
                                 app_ui.context_menu_create_loc.as_mut().unwrap().set_enabled(true);
                                 app_ui.context_menu_create_text.as_mut().unwrap().set_enabled(true);
                                 app_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(true);
+                                app_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_enabled(true);
                                 app_ui.context_menu_delete.as_mut().unwrap().set_enabled(true);
                                 app_ui.context_menu_extract.as_mut().unwrap().set_enabled(true);
                                 app_ui.context_menu_rename.as_mut().unwrap().set_enabled(true);
@@ -1649,6 +1658,7 @@ fn main() {
                                 app_ui.context_menu_create_loc.as_mut().unwrap().set_enabled(true);
                                 app_ui.context_menu_create_text.as_mut().unwrap().set_enabled(true);
                                 app_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(true);
+                                app_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_enabled(true);
                                 app_ui.context_menu_delete.as_mut().unwrap().set_enabled(true);
                                 app_ui.context_menu_extract.as_mut().unwrap().set_enabled(true);
                                 app_ui.context_menu_rename.as_mut().unwrap().set_enabled(false);
@@ -1667,6 +1677,7 @@ fn main() {
                                 app_ui.context_menu_create_loc.as_mut().unwrap().set_enabled(false);
                                 app_ui.context_menu_create_text.as_mut().unwrap().set_enabled(false);
                                 app_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(false);
+                                app_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_enabled(false);
                                 app_ui.context_menu_delete.as_mut().unwrap().set_enabled(false);
                                 app_ui.context_menu_extract.as_mut().unwrap().set_enabled(false);
                                 app_ui.context_menu_rename.as_mut().unwrap().set_enabled(false);
@@ -1685,10 +1696,11 @@ fn main() {
                     let response = receiver_qt.borrow().recv().unwrap().unwrap();
                     let is_there_a_schema: bool = serde_json::from_slice(&response).unwrap();
 
-                    // If there is no dependency_database or schema for our GameSelected, ALWAYS disable creating new DB Tables.
+                    // If there is no dependency_database or schema for our GameSelected, ALWAYS disable creating new DB Tables and exporting them.
                     if !is_there_a_dependency_database || !is_there_a_schema {
                         unsafe { app_ui.context_menu_create_db.as_mut().unwrap().set_enabled(false); }
                         unsafe { app_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(false); }
+                        unsafe { app_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_enabled(false); }
                     }
                 }
             }
@@ -2665,6 +2677,95 @@ fn main() {
             }
         ));
 
+        // What happens when we trigger the "Mass-Export TSV" Action.
+        let slot_contextual_menu_mass_export_tsv = SlotBool::new(clone!(
+            sender_qt,
+            sender_qt_data,
+            receiver_qt => move |_| {
+
+                // We only do something in case the focus is in the TreeView. This should stop
+                // problems with the accels working everywhere.
+                let has_focus;
+                unsafe { has_focus = app_ui.folder_tree_view.as_mut().unwrap().has_focus() };
+                if has_focus {
+
+                    // Get a "Folder-only" FileDialog.
+                    let export_path;
+                    unsafe {export_path = FileDialog::get_existing_directory_unsafe((
+                        app_ui.window as *mut Widget,
+                        &QString::from_std_str("Extract File/Folder")
+                    )); }
+
+                    // If we got an export path and it's not empty...
+                    if !export_path.is_empty() {
+
+                        // Get the Path we choose to export the TSV files in a readable format.
+                        let export_path = PathBuf::from(export_path.to_std_string());
+
+                        // If the folder is a valid folder...
+                        if export_path.is_dir() {
+
+                            // Tell the Background Thread to export all the tables and loc files there.
+                            sender_qt.send("mass_export_tsv").unwrap();
+                            sender_qt_data.send(serde_json::to_vec(&export_path).map_err(From::from)).unwrap();
+
+                            // Prepare the event loop, so we don't hang the UI while the background thread is working.
+                            let mut event_loop = EventLoop::new();
+
+                            // Disable the Main Window (so we can't do other stuff).
+                            unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+
+                            // Until we receive a response from the worker thread...
+                            loop {
+
+                                // When we finally receive the data...
+                                if let Ok(data) = receiver_qt.borrow().try_recv() {
+
+                                    // Check what the result of the deletion process was.
+                                    match data {
+
+                                        // In case of success...
+                                        Ok(response) => {
+
+                                            // Try to deserialize the response as (String, Vec<Vec<String>>)....
+                                            match serde_json::from_slice(&response) {
+
+                                                // In case of success...
+                                                Ok(response) => {
+
+                                                    // Redundant stuff...
+                                                    let response: (String, Vec<Vec<String>>) = response;
+
+                                                    // Check if there have been any errors and show a message or another.
+                                                    if response.1.is_empty() { show_dialog(app_ui.window, true, response.0); }
+                                                    else { show_dialog(app_ui.window, true, format!("<p>{}</p><p>{:#?}</p>", response.0, response.1)); }
+                                                }
+
+                                                // In case of error, is a thread problem. Report it.
+                                                Err(_) => show_dialog(app_ui.window, false, THREADS_MESSAGE_ERROR),
+                                            }
+                                        },
+
+                                        // In case of error, show the dialog with the error.
+                                        Err(error) => show_dialog(app_ui.window, false, error.cause()),
+                                    }
+
+                                    // Stop the loop.
+                                    break;
+                                }
+
+                                // Keep the UI responsive.
+                                event_loop.process_events(());
+                            }
+
+                            // Re-enable the Main Window.
+                            unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
+                        }
+                    }
+                }
+            }
+        ));
+
         // What happens when we trigger the "Delete" action in the Contextual Menu.
         let slot_contextual_menu_delete = SlotBool::new(clone!(
             rpfm_path,
@@ -3094,6 +3195,7 @@ fn main() {
         unsafe { app_ui.context_menu_create_loc.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_create_packed_file_loc); }
         unsafe { app_ui.context_menu_create_text.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_create_packed_file_text); }
         unsafe { app_ui.context_menu_mass_import_tsv.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_mass_import_tsv); }
+        unsafe { app_ui.context_menu_mass_export_tsv.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_mass_export_tsv); }
         unsafe { app_ui.context_menu_delete.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_delete); }
         unsafe { app_ui.context_menu_extract.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_extract); }
         unsafe { app_ui.context_menu_open_decoder.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_open_decoder); }
@@ -4443,6 +4545,34 @@ fn background_loop(
 
                                     // Try to import the files.
                                     match packedfile::tsv_mass_import(&data.1, &data.0, &schema, &mut pack_file_decoded) {
+                                        Ok(result) => sender.send(serde_json::to_vec(&result).map_err(From::from)).unwrap(),
+                                        Err(error) => sender.send(Err(error)).unwrap(),
+                                    }
+                                },
+
+                                // If error, there are problems with the messages between threads. Give a warning and ask for a report.
+                                Err(_) => sender.send(Err(format_err!("{}", THREADS_MESSAGE_ERROR))).unwrap(),
+                            }
+                        }
+                    }
+
+                    // In case we want to Mass-Export TSV Files...
+                    "mass_export_tsv" => {
+
+                        // Wait until you get something from the UI.
+                        if let Ok(data) = receiver_data.recv().unwrap() {
+
+                            // Try to deserialize it.
+                            match serde_json::from_slice(&data) {
+
+                                // If it can be deserialized as a PathBuf...
+                                Ok(data) => {
+
+                                    // Redundant, but needed for the deserializer to know the type.
+                                    let data: PathBuf = data;
+
+                                    // Try to import the files.
+                                    match packedfile::tsv_mass_export(&data, &schema, &pack_file_decoded) {
                                         Ok(result) => sender.send(serde_json::to_vec(&result).map_err(From::from)).unwrap(),
                                         Err(error) => sender.send(Err(error)).unwrap(),
                                     }

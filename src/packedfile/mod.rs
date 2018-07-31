@@ -247,3 +247,144 @@ pub fn tsv_mass_import(
     // And return success.
     Ok((packed_files_to_remove, tree_path))
 }
+
+/// This function is used to Mass-Export TSV files from a PackFile. Note that this will OVERWRITE any
+/// existing file that has a name conflict with the TSV files provided.
+pub fn tsv_mass_export(
+    export_path: &PathBuf,
+    schema: &Option<Schema>,
+    pack_file: &PackFile
+) -> Result<(String, Vec<Vec<String>>), Error> {
+
+    // List of PackedFiles that couldn't be exported for one thing or another.
+    let mut error_list = vec![];
+
+    // List of exported file's names, so we don't overwrite them one with another.
+    let mut exported_files = vec![];
+
+    // For each PackedFile we have...
+    for packed_file in &pack_file.data.packed_files {
+
+        // Check if it's "valid for exportation". We check if his path is empty first to avoid false
+        // positives related with "starts_with" function.
+        if !packed_file.path.is_empty() {
+
+            // If the PackedFile is a DB Table...
+            if packed_file.path.starts_with(&["db".to_owned()]) && packed_file.path.len() == 3 {
+
+                // Check if we have an schema for the game.
+                match schema {
+
+                    // If we have it...
+                    Some(schema) => {
+
+                        // Try to decode the data of the PackedFile.
+                        match DB::read(&packed_file.data, &packed_file.path[1], &schema) {
+
+                            // In case of success...
+                            Ok(db) => {
+
+                                // Get his name to add it to the path.
+                                let mut name = format!("{}_{}.tsv", packed_file.path[1], packed_file.path.last().unwrap().to_owned());
+
+                                // Get the final exported path.
+                                let mut export_path = export_path.to_path_buf();
+
+                                // Create the index for the duplicate checks.
+                                let mut index = 1;
+
+                                // Checks to avoid overwriting exported files go here, in an infinite loop of life and death.
+                                loop {
+
+                                    // If the name is not in the exported list, is valid.
+                                    if !exported_files.contains(&name) { break; }
+
+                                    // If the name was invalid, add to it the index.
+                                    else { name = format!("{}_{}_{}.tsv", packed_file.path[1], packed_file.path.last().unwrap().to_owned(), index); }
+
+                                    // Increase the index.
+                                    index += 1;
+                                }
+
+                                // Add whatever name we got to the path.
+                                export_path.push(name.to_owned());
+
+                                // Try to export it to the provided path.
+                                match db.data.export_tsv(&export_path, (&packed_file.path[1], db.header.version)) {
+
+                                    // If success, add it to the exported files list.
+                                    Ok(_) => exported_files.push(name.to_owned()),
+
+                                    // In case of error, add it to the error list.
+                                    Err(_) => error_list.push(packed_file.path.to_vec()),
+                                }
+                            }
+
+                            // In case of error, add it to the error list.
+                            Err(_) => error_list.push(packed_file.path.to_vec()),
+                        }
+                    }
+
+                    // If we don't have it, add the PackedFile to the error list.
+                    None => error_list.push(packed_file.path.to_vec()),
+                }
+            }
+
+            // Otherwise, we check if it's a Loc PackedFile.
+            else if packed_file.path.last().unwrap().ends_with(".loc") {
+
+                // Try to decode the data of the PackedFile.
+                match Loc::read(&packed_file.data) {
+
+                    // In case of success...
+                    Ok(loc) => {
+
+                        // Get his name to add it to the path.
+                        let mut name = format!("{}.tsv", packed_file.path.last().unwrap().to_owned());
+
+                        // Get the final exported path.
+                        let mut export_path = export_path.to_path_buf();
+
+                        // Create the index for the duplicate checks.
+                        let mut index = 1;
+
+                        // Checks to avoid overwriting exported files go here, in an infinite loop of life and death.
+                        loop {
+
+                            // If the name is not in the exported list, is valid.
+                            if !exported_files.contains(&name) { break; }
+
+                            // If the name was invalid, add to it the index.
+                            else { name = format!("{}_{}.tsv", packed_file.path.last().unwrap().to_owned(), index); }
+
+                            // Increase the index.
+                            index += 1;
+                        }
+
+                        // Add whatever name we got to the path.
+                        export_path.push(name.to_owned());
+
+                        // Try to export it to the provided path.
+                        match loc.data.export_tsv(&export_path, ("Loc PackedFile", 9001)) {
+
+                            // If success, add it to the exported files list.
+                            Ok(_) => exported_files.push(name.to_owned()),
+
+                            // In case of error, add it to the error list.
+                            Err(_) => error_list.push(packed_file.path.to_vec()),
+                        }
+                    }
+
+                    // In case of error, add it to the error list.
+                    Err(_) => error_list.push(packed_file.path.to_vec()),
+                }
+            }
+        }
+    }
+
+    // If there has been errors, return ok with the list of errors.
+    if !error_list.is_empty() { Ok(("All exportable files have been exported, except the following ones:".to_owned(), error_list)) }
+
+    // Otherwise, just return success and an empty error list.
+    else { Ok(("All exportable files have been exported.".to_owned(), error_list)) }
+}
