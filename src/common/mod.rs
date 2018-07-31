@@ -1,13 +1,15 @@
 // In this file are all the "Generic" helper functions used by RPFM (no UI code here).
 // As we may or may not use them, all functions here should have the "#[allow(dead_code)]"
 // var set, so the compiler doesn't spam us every time we try to compile.
-
+extern crate chrono;
 extern crate failure;
 
-use std::fs;
+use self::chrono::{Utc, DateTime};
+use failure::Error;
+
+use std::fs::{File, read_dir};
 use std::path::{Path, PathBuf};
 
-use failure::Error;
 use packfile::packfile::PackFile;
 
 pub mod coding_helpers;
@@ -105,7 +107,7 @@ pub fn get_files_from_subdir(current_path: &Path) -> Result<Vec<PathBuf>, Error>
     let mut file_list: Vec<PathBuf> = vec![];
 
     // Get everything from the path we have.
-    match fs::read_dir(current_path) {
+    match read_dir(current_path) {
 
         // If we don't have any problems reading it...
         Ok(files_in_current_path) => {
@@ -148,7 +150,7 @@ pub fn get_assembly_kit_schemas(current_path: &Path) -> Result<Vec<PathBuf>, Err
     let mut file_list: Vec<PathBuf> = vec![];
 
     // Get everything from the path we have.
-    match fs::read_dir(current_path) {
+    match read_dir(current_path) {
 
         // If we don't have any problems reading it...
         Ok(files_in_current_path) => {
@@ -181,4 +183,35 @@ pub fn get_assembly_kit_schemas(current_path: &Path) -> Result<Vec<PathBuf>, Err
 
     // Return the list of paths.
     Ok(file_list)
+}
+
+/// Get the current date and return it, as a decoded u32.
+#[allow(dead_code)]
+pub fn get_current_time() -> u32 {
+
+    // Get the current time as an encoded i64.
+    let mut creation_time = coding_helpers::encode_integer_i64(Utc::now().naive_utc().timestamp());
+
+    // Truncate it, so we got just the four bytes we need.
+    creation_time.truncate(4);
+
+    // Decode it as an u32.
+    coding_helpers::decode_integer_u32(&creation_time).unwrap()
+}
+
+/// Get the last modified date from a file and return it, as a decoded u32.
+#[allow(dead_code)]
+pub fn get_last_modified_time_from_file(file: &File) -> u32 {
+
+    // Translate the SystemTime to DateTime<Utc>, so we can use it.
+    let last_modified_time: DateTime<Utc> = DateTime::from(file.metadata().unwrap().modified().unwrap());
+
+    // Get the current time as an encoded i64.
+    let mut last_modified_time = coding_helpers::encode_integer_i64(last_modified_time.naive_utc().timestamp());
+
+    // Truncate it, so we got just the four bytes we need.
+    last_modified_time.truncate(4);
+
+    // Decode it as an u32.
+    coding_helpers::decode_integer_u32(&last_modified_time).unwrap()
 }

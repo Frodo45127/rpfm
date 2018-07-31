@@ -12,6 +12,7 @@ use std::io::{ BufReader, BufWriter, Read, Write, SeekFrom };
 use std::fs::File;
 use failure::Error;
 
+use common::*;
 use common::coding_helpers::*;
 use settings::*;
 
@@ -49,8 +50,9 @@ pub struct PackFileExtraData {
 /// - packed_file_index_size: size in bytes of the PackedFile Index of the file (the first part of the data).
 /// - creation_time: turns out this is the epoch date of the creation of the PackFile. We just get it encoded in u32.
 ///
-/// There three variables are not directly related to the header, but are decoded from it:
-/// - index_has_extra_u32: true if the PackedFile index has 4 bytes after the size of the PackedFiles.
+/// These four variables are not directly related to the header, but are decoded from it:
+/// - mysterious_mask_music: value only found in music PackFiles.
+/// - index_includes_last_modified_date: true if the last modified date of each PackedFile is included in the index.
 /// - index_is_encrypted: true if the PackedFile index is encrypted.
 /// - mysterious_mask: mysterious value found in Arena PackFiles. Can be usefull to identify them.
 ///
@@ -63,11 +65,11 @@ pub struct PackFileExtraData {
 /// - Any other type => Special types we don't want to edit, only to read.
 /// Also, a bitmask can be applied to this number:
 /// - 16 => No idea. Used in "Music" PackFiles.
-/// - 64 => PackedFile index has 4 empty bytes after the size of each PackedFile.
+/// - 64 => PackedFile index has the epoch date of the last modification of each PackedFile just after his size.
 /// - 128 => PackedFile index is encrypted (Only in Arena).
 /// - 256 => No idea, but it's in every Arena PackFile (Only in Arena).
 /// So, when getting the type, we first have to check his bitmasks and see what does it have.
-/// NOTE: Currently we don't support saving ANY Packfile that have bitmasks.
+/// NOTE: Currently we don't support saving ANY Packfile that some of these bitmasks.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PackFileHeader {
     pub id: String,
@@ -79,7 +81,7 @@ pub struct PackFileHeader {
     pub creation_time: u32,
 
     pub mysterious_mask_music: bool,
-    pub index_has_extra_u32: bool,
+    pub index_includes_last_modified_date: bool,
     pub index_is_encrypted: bool,
     pub mysterious_mask: bool,
 }
@@ -97,11 +99,13 @@ pub struct PackFileData {
 
 /// `PackedFile`: This struct stores the data of a PackedFile:
 /// - size: size of the data.
+/// - last_modified_date: the 'Last Modified Date' of the PackedFile.
 /// - path: path of the PackedFile inside the PackFile.
 /// - data: the data of the PackedFile.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PackedFile {
     pub size: u32,
+    pub last_modified_date: u32,
     pub path: Vec<String>,
     pub data: Vec<u8>,
 }
@@ -146,7 +150,8 @@ impl PackFile {
     pub fn is_editable(&self, settings: &Settings) -> bool {
 
         // If ANY of these bitmask is detected in the PackFile, disable all saving.
-        if self.header.mysterious_mask_music || self.header.index_has_extra_u32 || self.header.index_is_encrypted || self.header.mysterious_mask { false }
+        // if self.header.mysterious_mask_music || self.header.index_has_extra_u32 || self.header.index_is_encrypted || self.header.mysterious_mask { false }
+        if self.header.mysterious_mask_music || self.header.index_is_encrypted || self.header.mysterious_mask { false }
 
         // These types are always editable.
         else if self.header.pack_file_type == 3 || self.header.pack_file_type == 4 { true }
@@ -314,6 +319,8 @@ impl PackFileHeader {
 
     /// This function creates a new PackFileHeader for an empty PackFile, requiring only an ID.
     pub fn new(packfile_id: &str) -> Self {
+
+        // Create and return the Header.
         Self {
             id: packfile_id.to_owned(),
             pack_file_type: 3,
@@ -321,10 +328,10 @@ impl PackFileHeader {
             pack_file_index_size: 0,
             packed_file_count: 0,
             packed_file_index_size: 0,
-            creation_time: 0,
+            creation_time: get_current_time(),
 
             mysterious_mask_music: false,
-            index_has_extra_u32: false,
+            index_includes_last_modified_date: false,
             index_is_encrypted: false,
             mysterious_mask: false,
         }
@@ -384,7 +391,7 @@ impl PackFileHeader {
 
         // Get the bitmasks from the PackFile's Type.
         pack_file_header.mysterious_mask_music = if pack_file_header.pack_file_type & 16 != 0 { true } else { false };
-        pack_file_header.index_has_extra_u32 = if pack_file_header.pack_file_type & 64 != 0 { true } else { false };
+        pack_file_header.index_includes_last_modified_date = if pack_file_header.pack_file_type & 64 != 0 { true } else { false };
         pack_file_header.index_is_encrypted = if pack_file_header.pack_file_type & 128 != 0 { true } else { false };
         pack_file_header.mysterious_mask = if pack_file_header.pack_file_type & 256 != 0 { true } else { false };
 
@@ -416,7 +423,7 @@ impl PackFileHeader {
         // Complete the PackFile Type using the bitmasks.
         let mut final_type = self.pack_file_type;
         if self.mysterious_mask_music { final_type = final_type | 16; }
-        if self.index_has_extra_u32 { final_type = final_type | 64; }
+        if self.index_includes_last_modified_date { final_type = final_type | 64; }
         if self.index_is_encrypted { final_type = final_type | 128; }
         if self.mysterious_mask { final_type = final_type | 256; }
 
@@ -432,7 +439,6 @@ impl PackFileHeader {
         // writing it to the data.
         let mut creation_time = encode_integer_i64(Utc::now().naive_utc().timestamp());
         creation_time.truncate(4);
-        creation_time.reverse();
         file.write(&creation_time)?;
 
         // Return success.
@@ -567,8 +573,8 @@ impl PackFileData {
                 // Get the decrypted size.
                 packed_file.size = decrypt_index_item_file_length(encrypted_size, packed_files_after_this_one as u32, &mut packed_file_index_offset);
 
-                // If we got an extra u32, skip 4 bytes.
-                if header.index_has_extra_u32 { packed_file_index_offset += 4; }
+                // If we have the last modified date of the PackedFiles, get it.
+                if header.index_includes_last_modified_date { packed_file.last_modified_date = decode_integer_u32(&packed_file_index[packed_file_index_offset..(packed_file_index_offset + 4)])?; }
 
                 // Get the decrypted path.
                 let decrypted_path = decrypt_index_item_filename(&packed_file_index[packed_file_index_offset..], packed_file.size as u8, &mut packed_file_index_offset);
@@ -631,8 +637,8 @@ impl PackFileData {
                     // If it has the mysterious mask, is an Arena PackFile.
                     if header.mysterious_mask {
 
-                        // If it has an extra u32, we default to 8 (Arena).
-                        if header.index_has_extra_u32 { 8 }
+                        // If it has the last modified date of the PackedFiles, we default to 8 (Arena).
+                        if header.index_includes_last_modified_date { 8 }
 
                         // Otherwise, we default to 4.
                         else { 4 }
@@ -641,8 +647,8 @@ impl PackFileData {
                     // Otherwise, it's a Warhammer 2 PackFile.
                     else {
 
-                        // If it has an extra u32, we default to 9 (extra and separation byte).
-                        if header.index_has_extra_u32 { 9 }
+                        // If it has the last modified date of the PackedFiles, we default to 9 (extra and separation byte).
+                        if header.index_includes_last_modified_date { 9 }
 
                         // Otherwise, we default to 5 (0 between size and path, Warhammer 2).
                         else { 5 }
@@ -652,8 +658,8 @@ impl PackFileData {
                 // If it's a common PFH4 PackFile (Warhammer & Attila).
                 else if header.id == "PFH4" {
 
-                    // If it has an extra u32, we default to 8 (boot.pack of Attila).
-                    if header.index_has_extra_u32 { 8 }
+                    // If it has the last modified date of the PackedFiles, we default to 8 (boot.pack of Attila).
+                    if header.index_includes_last_modified_date { 8 }
 
                     // Otherwise, we default to 4 (no space between size and path of PackedFiles).
                     else { 4 }
@@ -672,6 +678,15 @@ impl PackFileData {
                 packed_file.size = decode_integer_u32(&packed_file_index[
                     packed_file_index_offset..packed_file_index_offset + 4
                 ])?;
+
+                // If we have the last modified date of the PackedFiles in the Index, get it.
+                if header.index_includes_last_modified_date {
+
+                    // Get his 'Last Modified Date'.
+                    packed_file.last_modified_date = decode_integer_u32(&packed_file_index[
+                        (packed_file_index_offset + 4)..(packed_file_index_offset + 8)
+                    ])?;
+                }
 
                 // Update the index.
                 packed_file_index_offset += packed_file_index_path_offset;
@@ -754,21 +769,31 @@ impl PackFileData {
             // If it's a common PFH5 PackFile (Warhammer 2 & Arena)...
             if header.id == "PFH5" {
 
-                // If it has an extra u32, we add 4 zeroes (Arena).
-                if header.index_has_extra_u32 { packed_file_index.append(&mut vec![0;4]); }
+                // If it has the mysterious mask, is an Arena PackFile.
+                if header.mysterious_mask {
 
-                // If still is an Arena PackFile, don't add anything.
-                else if header.mysterious_mask {}
+                    // If it has the last modified date of the PackedFiles, we add it to the Index (Arena).
+                    if header.index_includes_last_modified_date { packed_file_index.extend_from_slice(&encode_integer_u32(packed_file.last_modified_date)); }
+                }
 
-                // Otherwise, we default to one zero (Warhammer 2).
-                else { packed_file_index.push(0); }
+                // Otherwise, it's a Warhammer 2 PackFile.
+                else {
+
+                    // If it has the last modified date of the PackedFiles, we add it to the Index (Warhammer 2).
+                    if header.index_includes_last_modified_date {
+                        packed_file_index.extend_from_slice(&encode_integer_u32(packed_file.last_modified_date));
+                    }
+
+                    // Then, we add the zero separating numbers from the path (Warhammer 2).
+                    packed_file_index.push(0);
+                }
             }
 
             // If it's a common PFH4 PackFile (Warhammer & Attila).
             else if header.id == "PFH4" {
 
-                // If it has an extra u32, we add 4 zeroes (boot.pack of Attila).
-                if header.index_has_extra_u32 { packed_file_index.append(&mut vec![0;4]); }
+                // If it has the last modified date of the PackedFiles, we add it to the Index (boot.pack of Attila).
+                if header.index_includes_last_modified_date { packed_file_index.extend_from_slice(&encode_integer_u32(packed_file.last_modified_date)); }
             }
 
             // For each field in the path...
@@ -811,17 +836,21 @@ impl PackedFile {
 
     /// This function creates an empty PackedFile.
     pub fn new() -> Self {
+
+        // Create and return the PackedFile.
         Self {
             size: 0,
+            last_modified_date: 0,
             path: vec![],
             data: vec![],
         }
     }
 
     /// This function receive all the info of a PackedFile and creates a PackedFile with it.
-    pub fn read(size: u32, path: Vec<String>, data: Vec<u8>) -> Self {
+    pub fn read(size: u32, last_modified_date: u32, path: Vec<String>, data: Vec<u8>) -> Self {
         Self {
             size,
+            last_modified_date,
             path,
             data,
         }

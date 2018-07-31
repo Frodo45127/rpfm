@@ -1,15 +1,11 @@
 // In this file are all the functions that the UI needs to interact with the PackFile logic.
-// As a rule, there should be no GTK-related stuff in this module or his childrens.
-
+// As a rule, there should be no UI-related stuff in this module or his childrens.
 extern crate failure;
 
-use std::fs::{
-    File, DirBuilder, copy,
-};
-use std::io::{
-    Read, Write
-};
+use failure::Error;
 
+use std::fs::{File, DirBuilder, copy};
+use std::io::{Read, Write};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::path::PathBuf;
@@ -17,8 +13,6 @@ use std::io::BufReader;
 use std::io::BufWriter;
 use std::io::prelude::*;
 use std::io::SeekFrom;
-
-use failure::Error;
 
 use common::*;
 use packedfile::loc::Loc;
@@ -37,7 +31,6 @@ pub mod packfile;
 pub fn new_packfile(file_name: String, packfile_id: &str) -> packfile::PackFile {
     packfile::PackFile::new_with_name(file_name, packfile_id)
 }
-
 
 /// This function is used to open the PackFiles. It requires the path of the PackFile to open, and
 /// it returns the PackFile decoded (if success) or an error message (if error).
@@ -148,7 +141,7 @@ pub fn add_file_to_packfile(
         let file_size = file_data.len() as u32;
 
         // And then we make a PackedFile with it and save it.
-        let packed_files = vec![packfile::PackedFile::read(file_size, tree_path, file_data); 1];
+        let packed_files = vec![packfile::PackedFile::read(file_size, get_last_modified_time_from_file(&file.get_ref()), tree_path, file_data); 1];
         pack_file.add_packedfiles(packed_files);
         Ok(format!("File added."))
     }

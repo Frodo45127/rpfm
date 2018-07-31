@@ -7,6 +7,7 @@ use std::io::{ BufReader, Read };
 use std::fs::File;
 use std::path::PathBuf;
 
+use common::*;
 use common::coding_helpers::*;
 use packfile::packfile::PackFile;
 use packfile::packfile::PackedFile;
@@ -51,6 +52,12 @@ pub trait SerializableToTSV {
     fn export_tsv(&self, tsv_file_path: &PathBuf, extra_data: (&str, u32)) -> Result<String, Error>;
 }
 
+/*
+--------------------------------------------------
+           Functions for PackedFiles
+--------------------------------------------------
+*/
+
 /// This function is used to create a PackedFile outtanowhere. It returns his new path.
 pub fn create_packed_file(
     pack_file: &mut PackFile,
@@ -86,7 +93,7 @@ pub fn create_packed_file(
     };
 
     // Create and add the new PackedFile to the PackFile.
-    pack_file.add_packedfiles(vec![PackedFile::read(data.len() as u32, path, data); 1]);
+    pack_file.add_packedfiles(vec![PackedFile::read(data.len() as u32, get_current_time(), path, data); 1]);
 
     // Return the path to update the UI.
     Ok(())
@@ -149,7 +156,7 @@ pub fn tsv_mass_import(
                             if pack_file.data.packedfile_exists(&path) { packed_files_to_remove.push(path.to_vec()) }
 
                             // Create and add the new PackedFile to the PackFile.
-                            packed_files.push(PackedFile::read(data.len() as u32, path, data));
+                            packed_files.push(PackedFile::read(data.len() as u32, get_current_time(), path, data));
                         }
 
                         // In case of error, add it to the error list.
@@ -197,7 +204,7 @@ pub fn tsv_mass_import(
                             if pack_file.data.packedfile_exists(&path) { packed_files_to_remove.push(path.to_vec()) }
 
                             // Create and add the new PackedFile to the PackFile.
-                            packed_files.push(PackedFile::read(data.len() as u32, path, data));
+                            packed_files.push(PackedFile::read(data.len() as u32, get_current_time(), path, data));
                         }
 
                         // In case of error, add it to the error list.
