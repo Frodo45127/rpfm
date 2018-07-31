@@ -2693,7 +2693,7 @@ fn main() {
                     let export_path;
                     unsafe {export_path = FileDialog::get_existing_directory_unsafe((
                         app_ui.window as *mut Widget,
-                        &QString::from_std_str("Extract File/Folder")
+                        &QString::from_std_str("Select destination folder")
                     )); }
 
                     // If we got an export path and it's not empty...
@@ -2738,7 +2738,31 @@ fn main() {
 
                                                     // Check if there have been any errors and show a message or another.
                                                     if response.1.is_empty() { show_dialog(app_ui.window, true, response.0); }
-                                                    else { show_dialog(app_ui.window, true, format!("<p>{}</p><p>{:#?}</p>", response.0, response.1)); }
+                                                    else {
+
+                                                        // Prepare the list of clean paths.
+                                                        let mut paths_clean = String::new();
+
+                                                        // For each path we have...
+                                                        for path in response.1 {
+
+                                                            // Create the new clean path.
+                                                            let mut clean_path = String::new();
+                                                            clean_path.push_str("<li>");
+                                                            for item in path {
+                                                                clean_path.push_str(&item);
+                                                                clean_path.push('/');
+                                                            }
+                                                            clean_path.pop();
+                                                            clean_path.push_str("</li>");
+
+                                                            // Add it to the list of clean paths.
+                                                            paths_clean.push_str(&clean_path);
+                                                        }
+
+                                                        // Show the warning.
+                                                        show_dialog(app_ui.window, true, format!("<p>{}</p><ul>{}</ul>", response.0, paths_clean));
+                                                    }
                                                 }
 
                                                 // In case of error, is a thread problem. Report it.
