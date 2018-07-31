@@ -4010,6 +4010,9 @@ fn background_loop(
                                     // Change the `dependency_database` for that game.
                                     dependency_database = open_dependency_packfile(&game_selected.game_dependency_packfile_path);
 
+                                    // If there is a PackFile open, change his id to match the one of the new GameSelected.
+                                    if !pack_file_decoded.extra_data.file_name.is_empty() { pack_file_decoded.header.id = supported_games.iter().filter(|x| x.folder_name == *game_selected.game).map(|x| x.id.to_owned()).collect::<String>(); }
+
                                     // Send back the new Game Selected, and a bool indicating if there is a PackFile open.
                                     sender.send(serde_json::to_vec(&(game_selected.clone(), pack_file_decoded.extra_data.file_name.is_empty())).map_err(From::from)).unwrap();
 
