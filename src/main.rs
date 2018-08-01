@@ -282,7 +282,6 @@ fn main() {
 
         // Create the main window of the program.
         let mut window = MainWindow::new();
-        window.set_window_title(&QString::from_std_str("Rusted PackFile Manager"));
         window.resize((1100, 400));
 
         // Create a Central Widget and populate it.
@@ -546,7 +545,7 @@ fn main() {
 
         // Put the stuff we need to move to the slots in Rc<Refcell<>>, so we can clone it without issues.
         let receiver_qt = Rc::new(RefCell::new(receiver_qt));
-        let is_modified = Rc::new(RefCell::new(false));
+        let is_modified = Rc::new(RefCell::new(set_modified(false, &app_ui, None)));
         let is_packedfile_opened = Rc::new(RefCell::new(false));
         let is_folder_tree_view_locked = Rc::new(RefCell::new(false));
         let mymod_menu_needs_rebuild = Rc::new(RefCell::new(false));
@@ -1206,9 +1205,6 @@ fn main() {
                                                     // Redundant stuff.
                                                     let date: u32 = date;
 
-                                                    // Set the mod as "Not Modified".
-                                                    *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
-
                                                     // Update the "Last Modified Date" of the PackFile in the TreeView.
                                                     unsafe { app_ui.folder_tree_model.as_mut().unwrap().item(0).as_mut().unwrap().set_tool_tip(&QString::from_std_str(format!("Last Modified: {:?}", NaiveDateTime::from_timestamp(i64::from(date), 0)))); }
 
@@ -1232,6 +1228,9 @@ fn main() {
                                                         app_ui.folder_tree_model,
                                                         TreeViewOperation::Rename(TreePathType::PackFile, path.file_name().unwrap().to_string_lossy().as_ref().to_owned()),
                                                     );
+
+                                                    // Set the mod as "Not Modified".
+                                                    *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
 
                                                     // Set the current "Operational Mode" to Normal, as this is a "New" mod.
                                                     set_my_mod_mode(&mymod_stuff, &mode, None);
@@ -1464,9 +1463,6 @@ fn main() {
                                 let result: (String, Vec<TreePathType>) = serde_json::from_slice(&data).unwrap();
                                 show_dialog(app_ui.window, true, &result.0);
 
-                                // Set the mod as "Not Modified", because this action includes saving the PackFile.
-                                *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
-
                                 // For each file to delete...
                                 for item_type in result.1 {
 
@@ -1482,6 +1478,9 @@ fn main() {
                                         TreeViewOperation::DeleteUnselected(item_type),
                                     );
                                 }
+
+                                // Set the mod as "Not Modified", because this action includes saving the PackFile.
+                                *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
                             }
 
                             // In case of error, report the error.
@@ -1834,9 +1833,6 @@ fn main() {
                                                 let error_message = error_list.iter().map(|x| format!("<li>{:?}</li>", x.iter().collect::<PathBuf>())).collect::<String>();
                                                 if !error_list.is_empty() { show_dialog(app_ui.window, false, format!("<p>The following files failed to be imported:</p> <ul>{}</ul>", error_message)); }
 
-                                                // Set it as modified. Exception for the Paint System.
-                                                *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
-
                                                 // Take out of the path list the ones that failed.
                                                 paths_packedfile.retain(|x| !error_list.contains(x));
 
@@ -1851,6 +1847,9 @@ fn main() {
                                                     app_ui.folder_tree_model,
                                                     TreeViewOperation::Add(paths_packedfile),
                                                 );
+
+                                                // Set it as modified. Exception for the Paint System.
+                                                *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
                                             }
 
                                             // Stop the loop.
@@ -1915,9 +1914,6 @@ fn main() {
                                             let error_message = error_list.iter().map(|x| format!("<li>{:?}</li>", x.iter().collect::<PathBuf>())).collect::<String>();
                                             if !error_list.is_empty() { show_dialog(app_ui.window, false, format!("<p>The following files failed to be imported:</p> <ul>{}</ul>", error_message)); }
 
-                                            // Set it as modified. Exception for the Paint System.
-                                            *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
-
                                             // Take out of the path list the ones that failed.
                                             paths_packedfile.retain(|x| !error_list.contains(x));
 
@@ -1932,6 +1928,9 @@ fn main() {
                                                 app_ui.folder_tree_model,
                                                 TreeViewOperation::Add(paths_packedfile),
                                             );
+
+                                            // Set it as modified. Exception for the Paint System.
+                                            *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
                                         }
 
                                         // Stop the loop.
@@ -2076,9 +2075,6 @@ fn main() {
                                                 let error_message = error_list.iter().map(|x| format!("<li>{:?}</li>", x.iter().collect::<PathBuf>())).collect::<String>();
                                                 if !error_list.is_empty() { show_dialog(app_ui.window, false, format!("<p>The following files failed to be imported:</p> <ul>{}</ul>", error_message)); }
 
-                                                // Set it as modified. Exception for the Paint System.
-                                                *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
-
                                                 // Take out of the path list the ones that failed.
                                                 paths_packedfile.retain(|x| !error_list.contains(x));
 
@@ -2093,6 +2089,9 @@ fn main() {
                                                     app_ui.folder_tree_model,
                                                     TreeViewOperation::Add(paths_packedfile),
                                                 );
+
+                                                // Set it as modified. Exception for the Paint System.
+                                                *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
                                             }
 
                                             // Stop the loop.
@@ -2161,9 +2160,6 @@ fn main() {
                                             let error_message = error_list.iter().map(|x| format!("<li>{:?}</li>", x.iter().collect::<PathBuf>())).collect::<String>();
                                             if !error_list.is_empty() { show_dialog(app_ui.window, false, format!("<p>The following files failed to be imported:</p> <ul>{}</ul>", error_message)); }
 
-                                            // Set it as modified. Exception for the Paint System.
-                                            *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
-
                                             // Take out of the path list the ones that failed.
                                             paths_packedfile.retain(|x| !error_list.contains(x));
 
@@ -2178,6 +2174,9 @@ fn main() {
                                                 app_ui.folder_tree_model,
                                                 TreeViewOperation::Add(paths_packedfile),
                                             );
+
+                                            // Set it as modified. Exception for the Paint System.
+                                            *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
                                         }
 
                                         // Stop the loop.
@@ -2392,9 +2391,6 @@ fn main() {
                                 let response = receiver_qt.borrow().recv().unwrap();
                                 if let Err(error) = response { return show_dialog(app_ui.window, false, format_err!("<p>Error while creating the new PackedFile:</p><p>{}</p>", error.cause())) }
 
-                                // Set it as modified. Exception for the Paint system.
-                                *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
-
                                 // Add the new Folder to the TreeView.
                                 update_treeview(
                                     &rpfm_path,
@@ -2406,6 +2402,9 @@ fn main() {
                                     app_ui.folder_tree_model,
                                     TreeViewOperation::Add(vec![complete_path; 1]),
                                 );
+
+                                // Set it as modified. Exception for the Paint system.
+                                *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
                             }
 
                             // Otherwise, the name is invalid.
@@ -2468,9 +2467,6 @@ fn main() {
                                 let response = receiver_qt.borrow().recv().unwrap();
                                 if let Err(error) = response { return show_dialog(app_ui.window, false, format_err!("<p>Error while creating the new PackedFile:</p><p>{}</p>", error.cause())) }
 
-                                // Set it as modified. Exception for the Paint System.
-                                *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
-
                                 // Add the new Folder to the TreeView.
                                 update_treeview(
                                     &rpfm_path,
@@ -2482,6 +2478,9 @@ fn main() {
                                     app_ui.folder_tree_model,
                                     TreeViewOperation::Add(vec![complete_path; 1]),
                                 );
+
+                                // Set it as modified. Exception for the Paint System.
+                                *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
                             }
 
                             // Otherwise, the name is invalid.
@@ -2559,9 +2558,6 @@ fn main() {
                                 let response = receiver_qt.borrow().recv().unwrap();
                                 if let Err(error) = response { return show_dialog(app_ui.window, false, format_err!("<p>Error while creating the new PackedFile:</p><p>{}</p>", error.cause())) }
 
-                                // Set it as modified. Exception for the Paint System.
-                                *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
-
                                 // Add the new Folder to the TreeView.
                                 update_treeview(
                                     &rpfm_path,
@@ -2573,6 +2569,9 @@ fn main() {
                                     app_ui.folder_tree_model,
                                     TreeViewOperation::Add(vec![complete_path; 1]),
                                 );
+
+                                // Set it as modified. Exception for the Paint System.
+                                *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
                             }
 
                             // Otherwise, the name is invalid.
@@ -2634,9 +2633,6 @@ fn main() {
                                             // Get the list of paths to replace, and to add to the view.
                                             let mut paths: (Vec<Vec<String>>, Vec<Vec<String>>) = serde_json::from_slice(&response).unwrap();
 
-                                            // Set it as modified. Exception for the paint system.
-                                            *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
-
                                             // Get the list of paths to add, removing those we "replaced".
                                             let mut paths_to_add = paths.1.to_vec();
                                             paths_to_add.retain(|x| !paths.0.contains(&x));
@@ -2652,6 +2648,9 @@ fn main() {
                                                 app_ui.folder_tree_model,
                                                 TreeViewOperation::Add(paths_to_add),
                                             );
+
+                                            // Set it as modified. Exception for the paint system.
+                                            *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
                                         }
 
                                         // In case of error, show the dialog with the error.
@@ -2828,9 +2827,6 @@ fn main() {
                             // If we had success...
                             if let Ok(response) = data {
 
-                                // Set the mod as "Modified". For now, we don't paint deletions.
-                                *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
-
                                 // Get the type of the selection.
                                 let path_type: TreePathType = serde_json::from_slice(&response).unwrap();
 
@@ -2845,6 +2841,9 @@ fn main() {
                                     app_ui.folder_tree_model,
                                     TreeViewOperation::DeleteSelected(path_type),
                                 );
+
+                                // Set the mod as "Modified". For now, we don't paint deletions.
+                                *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
                             }
                         }
                     }
@@ -3275,9 +3274,6 @@ fn main() {
                                     // If the new name was valid...
                                     Ok(_) => {
 
-                                        // Set the mod as "Modified". This is an exception to the paint system.
-                                        *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
-
                                         // Update the TreeView.
                                         update_treeview(
                                             &rpfm_path,
@@ -3289,6 +3285,9 @@ fn main() {
                                             app_ui.folder_tree_model,
                                             TreeViewOperation::Rename(item_type, new_name),
                                         );
+
+                                        // Set the mod as "Modified". This is an exception to the paint system.
+                                        *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
                                     }
 
                                     // If the new name was invalid...
@@ -5330,9 +5329,6 @@ fn open_packfile(
                             unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_checked(header.index_is_encrypted); }
                             unsafe { app_ui.change_packfile_type_mysterious_byte.as_mut().unwrap().set_checked(header.mysterious_mask); }
 
-                            // Set the new mod as "Not modified".
-                            *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
-
                             // Update the TreeView.
                             update_treeview(
                                 &rpfm_path,
@@ -5344,6 +5340,9 @@ fn open_packfile(
                                 app_ui.folder_tree_model,
                                 TreeViewOperation::Build(false),
                             );
+
+                            // Set the new mod as "Not modified".
+                            *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
 
                             // If it's a "MyMod" (game_folder_name is not empty), we choose the Game selected Depending on it.
                             if !game_folder.is_empty() {
@@ -5709,9 +5708,6 @@ fn build_my_mod_menu(
                         // Create a "dummy" PackFile, effectively closing the currently open PackFile.
                         sender_qt.send("reset_packfile").unwrap();
 
-                        // Set the dummy mod as "Not modified".
-                        *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
-
                         // Get the Game Selected.
                         sender_qt.send("get_game_selected").unwrap();
                         let response = receiver_qt.borrow().recv().unwrap().unwrap();
@@ -5722,6 +5718,9 @@ fn build_my_mod_menu(
 
                         // Clear the TreeView.
                         unsafe { app_ui.folder_tree_model.as_mut().unwrap().clear(); }
+                        
+                        // Set the dummy mod as "Not modified".
+                        *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
 
                         // Set it to rebuild next time we try to open the MyMod Menu.
                         *needs_rebuild.borrow_mut() = true;

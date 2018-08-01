@@ -947,8 +947,12 @@ pub fn set_modified(
     // If the PackFile is modified...
     if is_modified {
 
+        // Get the name of the mod.
+        let pack_file_name;
+        unsafe { pack_file_name = app_ui.folder_tree_model.as_mut().unwrap().item(0).as_mut().unwrap().text().to_std_string(); }
+
         // Change the title of the Main Window.
-        unsafe { app_ui.window.as_mut().unwrap().set_window_title(&QString::from_std_str("Rusted PackFile Manager (modified)")); }
+        unsafe { app_ui.window.as_mut().unwrap().set_window_title(&QString::from_std_str(format!("{} - Modified", pack_file_name))); }
 
         // If we have received a path to mark as "modified"...
         if let Some(path) = path {
@@ -969,8 +973,27 @@ pub fn set_modified(
 
         // TODO: when this triggers, clean the main TreeView from painting.
 
-        // Change the title of the Main Window.
-        unsafe { app_ui.window.as_mut().unwrap().set_window_title(&QString::from_std_str("Rusted PackFile Manager")); }
+        // Check if there is a PackFile open.
+        let is_pack_file_open;
+        unsafe { is_pack_file_open = if app_ui.folder_tree_model.as_mut().unwrap().row_count(()) > 0 { true } else { false }; }
+
+        // If there is no PackFile open...
+        if !is_pack_file_open {
+
+            // Change the title of the Main Window.
+            unsafe { app_ui.window.as_mut().unwrap().set_window_title(&QString::from_std_str("Rusted PackFile Manager")); }
+        }
+
+        // Otherwise...
+        else {
+
+            // Get the name of the mod.
+            let pack_file_name;
+            unsafe { pack_file_name = app_ui.folder_tree_model.as_mut().unwrap().item(0).as_mut().unwrap().text().to_std_string(); }
+
+            // Change the title of the Main Window.
+            unsafe { app_ui.window.as_mut().unwrap().set_window_title(&QString::from_std_str(format!("{} - Not Modified", pack_file_name))); }
+        }
 
         // And return false.
         false
