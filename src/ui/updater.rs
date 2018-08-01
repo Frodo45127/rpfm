@@ -596,6 +596,9 @@ fn network_thread(
                     // If both versions are equal, we have no updates.
                     if current_versions == local_versions { APIResponseSchema::SuccessNoUpdate }
 
+                    // If the local version have more schemas, it has a local indev schema, so don't consider it as "Updates available."
+                    else if current_versions.schemas.len() < local_versions.schemas.len() { APIResponseSchema::SuccessNoUpdate }
+
                     // In any other sisuation, there is an update (or I broke something).
                     else { APIResponseSchema::SuccessNewUpdate(local_versions, current_versions) }
                 }
