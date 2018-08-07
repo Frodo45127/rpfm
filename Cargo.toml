@@ -17,10 +17,10 @@ serde-xml-rs = "0.2"
 chrono = "0.4"
 failure = "0.1"
 uuid = { version = "0.6", features = ["v4"] }
-restson = "0.3"
+restson = "0.2"
 futures = "0.1"
 hyper = "0.11"
-hyper-tls = "0.1"
+hyper-tls = "0.1.4"
 tokio-core = "0.1"
 
 sentry = "0.7"
