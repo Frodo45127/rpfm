@@ -1,20 +1,19 @@
 // This file contains all the stuff needed for the "Update Checker" and for the future "Autoupdater".
 extern crate restson;
 extern crate serde_json;
-extern crate failure;
 extern crate futures;
 extern crate hyper;
 extern crate hyper_tls;
 extern crate tokio_core;
 
 use std::path::PathBuf;
-use failure::Error;
 use std::fs::File;
 use std::io::{Write, BufWriter};
 use self::futures::{Future, Stream};
 use self::hyper::Client;
 use self::tokio_core::reactor::Core;
 
+use error;
 use self::restson::RestPath;
 
 #[derive(Serialize,Deserialize,Debug)]
@@ -54,7 +53,7 @@ pub fn update_schemas(
     local_versions: Versions,
     current_versions: Versions,
     rpfm_path: &PathBuf
-) -> Result<(), Error> {
+) -> error::Result<()> {
 
     // For each schema in the repo...
     for (index, schema) in current_versions.schemas.iter().enumerate() {
@@ -79,7 +78,7 @@ pub fn update_schemas(
                     .connector(hyper_tls::HttpsConnector::new(4, &handle)?)
                     .build(&handle);
 
-                let uri = format!("https://raw.githubusercontent.com/Frodo45127/rpfm/master/schemas/{}", schema.schema_file).parse()?;
+                let uri = format!("https://raw.githubusercontent.com/Frodo45127/rpfm/master/schemas/{}", schema.schema_file).parse().unwrap();
                 let work = client.get(uri).and_then(|res| {
 
                     // Write all to our schema file.
@@ -105,7 +104,7 @@ pub fn update_schemas(
                 .connector(hyper_tls::HttpsConnector::new(4, &handle)?)
                 .build(&handle);
 
-            let uri = format!("https://raw.githubusercontent.com/Frodo45127/rpfm/master/schemas/{}", schema.schema_file).parse()?;
+            let uri = format!("https://raw.githubusercontent.com/Frodo45127/rpfm/master/schemas/{}", schema.schema_file).parse().unwrap();
             let work = client.get(uri).and_then(|res| {
 
                 // Write all to our schema file.

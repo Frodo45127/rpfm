@@ -23,6 +23,8 @@ hyper = "0.11"
 hyper-tls = "0.1"
 tokio-core = "0.1"
 
+sentry = "0.6.0"
+
 qt_widgets = "0.2"
 qt_gui = "0.2"
 qt_core = "0.2"
@@ -34,3 +36,4 @@ winres = "0.1.5"
 
 [profile.release]
 lto = true
+debug = true

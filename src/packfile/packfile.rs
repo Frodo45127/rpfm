@@ -1,15 +1,14 @@
 // In this file are all the Structs and Impls required to decode and encode the PackFiles.
 // NOTE: Arena support was implemented thanks to the work of "Trolldemorted" here: https://github.com/TotalWarArena-Modding/twa_pack_lib
-extern crate failure;
 
 use std::path::PathBuf;
 use std::io::prelude::*;
 use std::io::{ BufReader, BufWriter, Read, Write, SeekFrom };
 use std::fs::File;
-use failure::Error;
 
 use common::*;
 use common::coding_helpers::*;
+use error::{ErrorKind, Result};
 use settings::*;
 
 /// `PackFile`: This stores the data of the entire PackFile in memory ('cause fuck lazy-loading),
@@ -188,7 +187,7 @@ impl PackFile {
         file_name: String,
         file_path: PathBuf,
         is_read_only: bool
-    ) -> Result<Self, Error> {
+    ) -> Result<Self> {
 
         // We try to decode the header of the PackFile.
         match PackFileHeader::read(pack_file) {
@@ -262,7 +261,7 @@ impl PackFile {
     }
 
     /// This function takes a decoded &mut PackFile, and tries to encode it and write it on disk.
-    pub fn save(&mut self, mut file: &mut BufWriter<File>) -> Result<(), Error> {
+    pub fn save(&mut self, mut file: &mut BufWriter<File>) -> Result<()> {
 
         // First, we encode the indexes, as we need their final size to encode complete the header.
         let indexes = self.data.save_indexes(&self.header);
@@ -334,7 +333,7 @@ impl PackFileHeader {
     }
 
     /// This function reads the Header of a PackFile and decode it into a PackFileHeader.
-    fn read(header: &mut BufReader<File>) -> Result<Self, Error> {
+    fn read(header: &mut BufReader<File>) -> Result<Self> {
 
         // Create a new default header.
         let mut pack_file_header = Self::new("PFH5");
@@ -357,16 +356,7 @@ impl PackFileHeader {
                             if id == "PFH5" || id == "PFH4" { pack_file_header.id = id; }
 
                             // If we reach this point, the file is not valid.
-                            else { return Err(format_err!("
-                            <p>The file is not a supported PackFile.</p>
-                            <p>For now, we only support:</p>
-                            <ul>
-                                <li>- Warhammer 2.</li>
-                                <li>- Warhammer.</li>
-                                <li>- Attila.</li>
-                                <li>- Rome 2.</li>
-                                <li>- Arena.</li>
-                            </ul>")) }
+                            else { return Err(ErrorKind::PackFileNotSupported)? }
                         }
 
                         // If we reach this point, there has been a decoding error.
@@ -375,11 +365,11 @@ impl PackFileHeader {
                 }
 
                 // Otherwise, return an error.
-                else { return Err(format_err!("The file doesn't even have a full header.")) }
+                else { return Err(ErrorKind::PackFileHeaderNotComplete)? }
             }
 
             // If we couldn't read the header, return the error.
-            Err(_) => return Err(format_err!("Error while trying to read the header of the PackFile from the disk.")),
+            Err(error) => return Err(From::from(error)),
         }
 
         // Get the "base" PackFile Type.
@@ -414,7 +404,7 @@ impl PackFileHeader {
 
     /// This function takes a decoded Header and encode it, so it can be saved in a PackFile file.
     /// We need the final size of both indexes for this.
-    fn save(&mut self, file: &mut BufWriter<File>, pack_file_index_size: u32, packed_file_index_size: u32) -> Result<(), Error> {
+    fn save(&mut self, file: &mut BufWriter<File>, pack_file_index_size: u32, packed_file_index_size: u32) -> Result<()> {
 
         // Complete the PackFile Type using the bitmasks.
         let mut final_type = self.pack_file_type;
@@ -528,7 +518,7 @@ impl PackFileData {
     fn read_indexes(
         data: &mut BufReader<File>,
         header: &PackFileHeader,
-    ) -> Result<Self, Error> {
+    ) -> Result<Self> {
 
         // Create our PackedFileData.
         let mut pack_file_data = Self::new();
@@ -723,7 +713,7 @@ impl PackFileData {
     fn read_data(
         &mut self,
         data: &mut BufReader<File>,
-    ) -> Result<(), Error> {
+    ) -> Result<()> {
 
         // Now, we get the raw data from the PackedFiles, and get it into the corresponding PackedFile.
         for packed_file in &mut self.packed_files {
@@ -813,7 +803,7 @@ impl PackFileData {
     }
 
     /// This function writes all the PackedFile's data at the end of the provided file.
-    fn save_data(&self, file: &mut BufWriter<File>) -> Result<(), Error> {
+    fn save_data(&self, file: &mut BufWriter<File>) -> Result<()> {
 
         // For each PackedFile, just try to write his data to the disk.
         for packed_file in &self.packed_files {

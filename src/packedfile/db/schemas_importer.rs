@@ -1,18 +1,16 @@
 // This is just a helper to get the schemas from the assembly kit. This is NOT INTENDED to work in
 // runtime, so we just wired up when we need to create a new schema from scratch.
-
 extern crate serde_xml_rs;
-extern crate failure;
 
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
 
-use self::failure::Error;
+use error::Result;
 use self::serde_xml_rs::deserialize;
 use super::DBHeader;
 use super::schemas::*;
-use ::common;
+use common::*;
 
 /// This is the base "table" file. From here we just want to save the field vector.
 #[allow(non_camel_case_types)]
@@ -45,13 +43,13 @@ pub fn import_schema(
     assembly_kit_schemas_path: &PathBuf,
     testing_tables_path: &PathBuf,
     rpfm_path: &PathBuf,
-) -> Result<(), Error> {
+) -> Result<()> {
 
     // We get the new schema.
     let mut schema = Schema::new();
 
     // Then we get all the schema files. We unwrap it, as we want it to crash oon error.
-    let assembly_kit_schemas = common::get_assembly_kit_schemas(assembly_kit_schemas_path).unwrap();
+    let assembly_kit_schemas = get_assembly_kit_schemas(assembly_kit_schemas_path).unwrap();
 
     // For each file...
     for path in &assembly_kit_schemas {
@@ -70,7 +68,7 @@ pub fn import_schema(
         // We need it's version too, so... We only add it if his table actually exists.
         let mut testing_tables_path = testing_tables_path.clone();
         testing_tables_path.push(table_name.to_owned());
-        match common::get_files_from_subdir(&testing_tables_path) {
+        match get_files_from_subdir(&testing_tables_path) {
             Ok(db_file_path) => {
 
                 // If we found something...

@@ -1,13 +1,9 @@
 // In this file are all the functions that the UI needs to interact with the PackFile logic.
 // As a rule, there should be no UI-related stuff in this module or his childrens.
-extern crate failure;
 
-use failure::Error;
-
-use std::fs::{File, DirBuilder, copy};
+// use std::fs::{File, DirBuilder, copy};
+use std::fs::{File, DirBuilder};
 use std::io::{Read, Write};
-use std::cell::RefCell;
-use std::rc::Rc;
 use std::path::PathBuf;
 use std::io::BufReader;
 use std::io::BufWriter;
@@ -15,6 +11,7 @@ use std::io::prelude::*;
 use std::io::SeekFrom;
 
 use common::*;
+use error::{ErrorKind, Result};
 use packedfile::loc::Loc;
 use packedfile::db::DB;
 use packedfile::rigidmodel::RigidModel;
@@ -34,7 +31,7 @@ pub fn new_packfile(file_name: String, packfile_id: &str) -> packfile::PackFile 
 
 /// This function is used to open the PackFiles. It requires the path of the PackFile to open, and
 /// it returns the PackFile decoded (if success) or an error message (if error).
-pub fn open_packfile(pack_file_path: PathBuf) -> Result<packfile::PackFile, Error> {
+pub fn open_packfile(pack_file_path: PathBuf) -> Result<packfile::PackFile> {
 
     // First, we get his name.
     let pack_file_name = pack_file_path.file_name().unwrap().to_str().unwrap().to_string();
@@ -50,12 +47,12 @@ pub fn open_packfile(pack_file_path: PathBuf) -> Result<packfile::PackFile, Erro
     }
 
     // Otherwise, return an error.
-    else { Err(format_err!("A valid PackFile name needs to end in \".pack\". Otherwise, RPFM will not open it.")) }
+    else { Err(ErrorKind::OpenPackFileInvalidExtension)? }
 }
 
 /// This function is used to open the PackFiles. It requires the path of the PackFile to open, and
 /// it returns the PackFile decoded (if success) or an error message (if error).
-pub fn open_packfile_with_bufreader(pack_file_path: PathBuf) -> Result<(packfile::PackFile, BufReader<File>), Error> {
+pub fn open_packfile_with_bufreader(pack_file_path: PathBuf) -> Result<(packfile::PackFile, BufReader<File>)> {
 
     // First, we get his name.
     let pack_file_name = pack_file_path.file_name().unwrap().to_str().unwrap().to_string();
@@ -71,7 +68,7 @@ pub fn open_packfile_with_bufreader(pack_file_path: PathBuf) -> Result<(packfile
     }
 
     // Otherwise, return an error.
-    else { Err(format_err!("A valid PackFile name needs to end in \".pack\". Otherwise, RPFM will not open it.")) }
+    else { Err(ErrorKind::OpenPackFileInvalidExtension)? }
 }
 
 /// This function is used to take an open PackFile, encode it and save it into the disk. We return
@@ -83,7 +80,7 @@ pub fn open_packfile_with_bufreader(pack_file_path: PathBuf) -> Result<(packfile
 pub fn save_packfile(
     mut pack_file: &mut packfile::PackFile,
     new_path: Option<PathBuf>
-) -> Result<(), Error> {
+) -> Result<()> {
 
     // If we haven't received a new_path, we assume the path is the original path of the file.
     // If that one is empty too (should never happen), we panic and cry.
@@ -106,19 +103,19 @@ pub fn save_packfile(
                 pack_file.extra_data.file_path.to_path_buf()
             }
 
-            // Otherwise, return error.
-            else { return Err( format_err!("Saving a PackFile with an empty path is almost as bad as dividing by 0. Almost.")) }
+            // Unless I fuck up the code in an impressive way, this is unreachable.
+            else { unreachable!() }
         }
     };
 
     // We try to create the File.
-    let mut file = BufWriter::new(File::create(&pack_file_path)?);
+    let mut file = BufWriter::new(File::create(pack_file_path)?);
 
     // And we try to save it.
     packfile::PackFile::save(&mut pack_file, &mut file)
 }
 
-
+// TODO: Make this and the update_treeview function deal with duplicates by overwriting.
 /// This function is used to add a file to a PackFile, processing it and turning it into a PackedFile.
 /// It returns a success or error message, depending on whether the file has been added, or not.
 /// It requires:
@@ -129,7 +126,7 @@ pub fn add_file_to_packfile(
     pack_file: &mut packfile::PackFile,
     file_path: &PathBuf,
     tree_path: Vec<String>
-) -> Result<String, Error> {
+) -> Result<String> {
 
     // Before anything, check for duplicates.
     if !pack_file.data.packedfile_exists(&tree_path) {
@@ -145,10 +142,10 @@ pub fn add_file_to_packfile(
         pack_file.add_packedfiles(packed_files);
         Ok(format!("File added."))
     }
-    else { Err(format_err!("The PackedFile \"{}\" already exist. Ignored.", tree_path.last().unwrap())) }
+    else { Err(ErrorKind::FileAlreadyInPackFile)? }
 }
 
-
+// TODO: Make this and the update_treeview function deal with duplicates by overwriting.
 /// This function is used to add one or many PackedFiles to a PackFile (from another PackFile).
 /// It returns a success or error message, depending on whether the PackedFile has been added, or not.
 /// It requires:
@@ -163,7 +160,7 @@ pub fn add_packedfile_to_packfile(
     pack_file_destination: &mut packfile::PackFile,
     tree_path_source: &[String],
     tree_path_destination: &[String],
-) -> Result<String, Error> {
+) -> Result<String> {
 
     // First we need to make some checks to ensure we can add the PackedFile/s to the selected destination.
     let tree_path_source_type = get_type_of_selected_path(tree_path_source, pack_file_source);
@@ -205,7 +202,7 @@ pub fn add_packedfile_to_packfile(
                         // Here we check for duplicates before adding the files
                         for packed_file in &new_packed_files {
                             if pack_file_destination.data.packedfile_exists(&packed_file.path) {
-                                return Err(format_err!("One or more of the files we want to add already exists in the Destination PackFile. Aborted."))
+                                return Err(ErrorKind::PackedFileAlreadyInPackFile)?
                             }
                         }
 
@@ -231,7 +228,7 @@ pub fn add_packedfile_to_packfile(
 
                         // Here we check for duplicates before adding the file.
                         if pack_file_destination.data.packedfile_exists(&new_packed_file.path) {
-                            return Err(format_err!("A PackedFile with the same name already exist in the destination. Aborted."))
+                            return Err(ErrorKind::PackedFileAlreadyInPackFile)?
                         }
 
                         // If they passed the checks, add them and return success.
@@ -270,7 +267,7 @@ pub fn add_packedfile_to_packfile(
                         // Here we check for duplicates before adding the files
                         for packed_file in &new_packed_files {
                             if pack_file_destination.data.packedfile_exists(&packed_file.path) {
-                                return Err(format_err!("One or more of the files we want to add already exists in the Destination PackFile. Aborted."))
+                                return Err(ErrorKind::PackedFileAlreadyInPackFile)?
                             }
                         }
 
@@ -280,7 +277,7 @@ pub fn add_packedfile_to_packfile(
                     },
 
                     // If the source is not selected (this should really never happen).
-                    _ => Err(format_err!("This situation shouldn't happen, but the compiler will complain otherwise.")),
+                    _ => unreachable!()
                 }
             }
 
@@ -306,7 +303,7 @@ pub fn add_packedfile_to_packfile(
                         // Here we check for duplicates before adding the files
                         for packed_file in &new_packed_files {
                             if pack_file_destination.data.packedfile_exists(&packed_file.path) {
-                                return Err(format_err!("One or more of the files we want to add already exists in the Destination PackFile. Aborted."))
+                                return Err(ErrorKind::PackedFileAlreadyInPackFile)?
                             }
                         }
 
@@ -347,7 +344,7 @@ pub fn add_packedfile_to_packfile(
                         // Here we check for duplicates before adding the files
                         for packed_file in &new_packed_files {
                             if pack_file_destination.data.packedfile_exists(&packed_file.path) {
-                                return Err(format_err!("One or more of the files we want to add already exists in the Destination PackFile. Aborted."))
+                                return Err(ErrorKind::PackedFileAlreadyInPackFile)?
                             }
                         }
 
@@ -374,7 +371,7 @@ pub fn add_packedfile_to_packfile(
 
                         // Here we check for duplicates before adding the file.
                         if pack_file_destination.data.packedfile_exists(&new_packed_file.path) {
-                            return Err(format_err!("A PackedFile with the same name already exist in the destination. Aborted."))
+                            return Err(ErrorKind::PackedFileAlreadyInPackFile)?
                         }
 
                         // If they passed the checks, add them and return success.
@@ -383,24 +380,23 @@ pub fn add_packedfile_to_packfile(
                     }
 
                     // If the source is not selected (this should really never happen).
-                    _ => Err(format_err!("This situation shouldn't happen, but the compiler will complain otherwise.")),
+                    _ => unreachable!()
 
                 }
             }
             // If the destination is not selected, or it's a file (this should really never happen).
-            _ => Err(format_err!("This situation shouldn't happen, but the compiler will complain otherwise.")),
+            _ => unreachable!()
         }
     }
-    else { Err(format_err!("You need to select what and where you want to import BEFORE pressing the button.")) }
+    else { Err(ErrorKind::AddFromPackFileSelection)? }
 }
-
 
 /// This function is used to delete a PackedFile or a group of PackedFiles under the same tree_path
 /// from the PackFile. We just need the open PackFile and the tree_path of the file/folder to delete.
 pub fn delete_from_packfile(
     pack_file: &mut packfile::PackFile,
     tree_path: &[String]
-) -> Result<(), Error> {
+) {
 
     // Get what it's what we want to delete.
     match get_type_of_selected_path(tree_path, pack_file) {
@@ -431,11 +427,9 @@ pub fn delete_from_packfile(
 
         // If it's a PackFile, easy job. For non-existant files, return an error.
         TreePathType::PackFile => pack_file.remove_all_packedfiles(),
-        TreePathType::None => return Err(format_err!("How the hell did you managed to try to delete a non-existent file?")),
+        TreePathType::None => unreachable!(),
     }
-    Ok(())
 }
-
 
 /// This function is used to extract a PackedFile or a folder from the PackFile.
 /// It requires:
@@ -446,7 +440,7 @@ pub fn extract_from_packfile(
     pack_file: &packfile::PackFile,
     tree_path: &[String],
     extracted_path: &PathBuf
-) -> Result<String, Error> {
+) -> Result<String> {
 
     // Get what it's what we want to extract.
     match get_type_of_selected_path(tree_path, pack_file) {
@@ -460,7 +454,7 @@ pub fn extract_from_packfile(
             // And try to write it.
             match file.write_all(&pack_file.data.packed_files[packed_file_data.1].data){
                 Ok(_) => Ok(format!("File extracted successfully:\n{}", extracted_path.display())),
-                Err(_) => Err(format_err!("Error while writing the following file to disk:\n{}", extracted_path.display()))
+                Err(_) => Err(ErrorKind::ExtractError(vec![format!("<li>{}</li>", extracted_path.display().to_string());1]))?
             }
         },
 
@@ -497,7 +491,7 @@ pub fn extract_from_packfile(
                     let mut file = BufWriter::new(File::create(&current_path)?);
 
                     // And try to write it. If any of the files throws an error, add it to the list and continue.
-                    match file.write_all(&packed_file.data){
+                    match file.write_all(&packed_file.data) {
                         Ok(_) => files_extracted += 1,
                         Err(_) => error_files.push(format!("{:?}", current_path)),
                     }
@@ -505,7 +499,10 @@ pub fn extract_from_packfile(
             }
 
             // If there is any error in the list, report it.
-            if !error_files.is_empty() { return Err(format_err!("There has been a problem extracting the following files: {:#?}", error_files)) }
+            if !error_files.is_empty() {
+                let error_files_string = error_files.iter().map(|x| format!("<li>{}</li>", x)).collect::<Vec<String>>();
+                return Err(ErrorKind::ExtractError(error_files_string))?
+            }
 
             // If we reach this, return success.
             Ok(format!("{} files extracted. No errors detected.", files_extracted))
@@ -547,17 +544,19 @@ pub fn extract_from_packfile(
             }
 
             // If there is any error in the list, report it.
-            if !error_files.is_empty() { return Err(format_err!("There has been a problem extracting the following files: {:#?}", error_files)) }
+            if !error_files.is_empty() {
+                let error_files_string = error_files.iter().map(|x| format!("<li>{}</li>", x)).collect::<Vec<String>>();
+                return Err(ErrorKind::ExtractError(error_files_string))?
+            }
 
             // If we reach this, return success.
             Ok(format!("{} files extracted. No errors detected.", files_extracted))
         }
 
         // If it doesn't exist, there has been a bug somewhere else. Otherwise, this situation will never happen.
-        TreePathType::None => Err(format_err!("How the hell did you managed to try to delete a non-existant file?")),
+        TreePathType::None => unreachable!(),
     }
 }
-
 
 /// This function is used to rename anything in the TreeView (yes, PackFile included).
 /// It requires:
@@ -568,17 +567,17 @@ pub fn rename_packed_file(
     pack_file: &mut packfile::PackFile,
     tree_path: &[String],
     new_name: &str
-) -> Result<(), Error> {
+) -> Result<()> {
 
     // First we check if the name is valid, and return an error if the new name is invalid.
     if new_name == tree_path.last().unwrap() {
-        Err(format_err!("New name is the same as old name."))
+        Err(ErrorKind::UnchangedInput)?
     }
     else if new_name.is_empty() {
-        Err(format_err!("Only my hearth can be empty."))
+        Err(ErrorKind::EmptyInput)?
     }
     else if new_name.contains(' ') {
-        Err(format_err!("Spaces are not valid characters."))
+        Err(ErrorKind::InvalidInput)?
     }
 
     // If we reach this point, we can rename the file/folder.
@@ -598,7 +597,7 @@ pub fn rename_packed_file(
                     Ok(())
                 }
                 else {
-                    Err(format_err!("This name is already being used by another file in this path."))
+                    Err(ErrorKind::NameAlreadyInUseInThisPath)?
                 }
             }
             TreePathType::Folder(tree_path) => {
@@ -619,11 +618,11 @@ pub fn rename_packed_file(
                     Ok(())
                 }
                 else {
-                    Err(format_err!("This name is already being used by another folder in this path."))
+                    Err(ErrorKind::NameAlreadyInUseInThisPath)?
                 }
             }
             TreePathType::PackFile |
-            TreePathType::None => Err(format_err!("This should never happen.")),
+            TreePathType::None => unreachable!(),
         }
     }
 }
@@ -649,7 +648,6 @@ pub fn update_packed_file_data_loc(
     pack_file.data.packed_files[index].data.append(&mut packed_file_data_encoded);
     pack_file.data.packed_files[index].size = packed_file_data_encoded_size;
 }
-
 
 /// This function saves the data of the edited DB PackedFile in the main PackFile after a change has
 /// been done by the user. Checking for valid characters is done before this, so be careful to not break it.
@@ -690,7 +688,7 @@ pub fn update_packed_file_data_rigid(
     packed_file_data_decoded: &RigidModel,
     pack_file: &mut packfile::PackFile,
     index: usize,
-) -> Result<String, Error> {
+) -> Result<String> {
     let mut packed_file_data_encoded = RigidModel::save(packed_file_data_decoded)?.to_vec();
     let packed_file_data_encoded_size = packed_file_data_encoded.len() as u32;
 
@@ -712,7 +710,7 @@ pub fn update_packed_file_data_rigid(
 /// It requires a mut ref to a decoded PackFile, and returns an String and the list of removed PackedFiles.
 pub fn patch_siege_ai (
     pack_file: &mut packfile::PackFile
-) -> Result<(String, Vec<TreePathType>), Error> {
+) -> Result<(String, Vec<TreePathType>)> {
 
     let mut files_patched = 0;
     let mut files_deleted = 0;
@@ -780,7 +778,6 @@ pub fn patch_siege_ai (
     if !files_to_delete.is_empty() {
         for tree_path in &mut files_to_delete {
 
-            // TODO: Fix this shit.
             // Due to the rework of the "delete_from_packfile" function, we need to give it a complete
             // path to delete, so we "complete" his path before deleting.
             let file_name = vec![pack_file.extra_data.file_name.to_owned()];
@@ -790,17 +787,17 @@ pub fn patch_siege_ai (
             deleted_files_type.push(get_type_of_selected_path(&tree_path, &pack_file));
 
             // Delete the PackedFile.
-            delete_from_packfile(pack_file, tree_path)?;
+            delete_from_packfile(pack_file, tree_path);
             files_deleted += 1;
         }
     }
 
     // And now we return success or error depending on what happened during the patching process.
     if packfile_is_empty {
-        Err(format_err!("This packfile is empty, so we can't patch it."))
+        Err(ErrorKind::PatchSiegeAIEmptyPackFile)?
     }
     else if files_patched == 0 && files_deleted == 0 {
-        Err(format_err!("There are not files in this Packfile that could be patched/deleted."))
+        Err(ErrorKind::PatchSiegeAINoPatchableFiles)?
     }
     else if files_patched >= 0 || files_deleted >= 0 {
         if files_patched == 0 {
@@ -837,9 +834,7 @@ pub fn patch_siege_ai (
             Ok((format!("{} files patched.\n{} files deleted.", files_patched, files_deleted), deleted_files_type))
         }
     }
-    else {
-        Err(format_err!("This should never happen."))
-    }
+    else { unreachable!() }
 }
 
 /// This function is used to patch a RigidModel 3D model from Total War: Attila to work in Total War:
@@ -852,7 +847,7 @@ pub fn patch_siege_ai (
 /// It requires a mut ref to a decoded PackFile, and returns an String (Result<Success, Error>).
 pub fn patch_rigid_model_attila_to_warhammer (
     rigid_model: &mut RigidModel
-) -> Result<String, Error> {
+) -> Result<String> {
 
     // If the RigidModel is an Attila RigidModel, we continue. Otherwise, return Error.
     match rigid_model.packed_file_header.packed_file_header_model_type {
@@ -868,11 +863,12 @@ pub fn patch_rigid_model_attila_to_warhammer (
             }
             Ok(format!("RigidModel patched succesfully."))
         },
-        7 => Err(format_err!("This is not an Attila's RigidModel, but a Warhammer one.")),
-        _ => Err(format_err!("I don't even know from what game is this RigidModel.")),
+        7 => Err(ErrorKind::RigidModelPatchToWarhammer("This is not an Attila's RigidModel, but a Warhammer one.".to_owned()))?,
+        _ => Err(ErrorKind::RigidModelPatchToWarhammer("I don't even know from what game is this RigidModel.".to_owned()))?,
     }
 }
 
+/*
 /// This function is used to turn a bunch of catchment files into Prefabs. It requires:
 /// - name_list: the list of names for the new prefabs.
 /// - game_path: the base path of our game, to know where to put the xml files for the prefabs.
@@ -883,7 +879,7 @@ pub fn create_prefab_from_catchment(
     game_path: &PathBuf,
     catchment_indexes: &[usize],
     pack_file: &Rc<RefCell<packfile::PackFile>>,
-) -> Result<String, Error> {
+) -> Result<String> {
 
     // Create a new PackFile to store all the new prefabs, and make it "Movie" type.
     let mut prefab_pack_file = new_packfile(format!("_prefab_{}", &pack_file.borrow().extra_data.file_name), &pack_file.borrow().header.id);
@@ -987,3 +983,4 @@ pub fn create_prefab_from_catchment(
     // If nothing failed, return success.
     Ok("Prefabs successfully created.".to_owned())
 }
+*/

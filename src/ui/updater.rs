@@ -1,34 +1,29 @@
 // Here it goes all the stuff related to the UI part of the "Update Checker" and the future "Autoupdater".
 extern crate serde_json;
-extern crate failure;
 extern crate restson;
 extern crate qt_widgets;
 extern crate qt_gui;
 extern crate qt_core;
 extern crate cpp_utils;
 
+use qt_widgets::{widget::Widget, message_box, message_box::MessageBox};
+
+use qt_core::{flags::Flags, event_loop::EventLoop};
+
 use self::restson::RestClient;
-use qt_widgets::{
-    widget::Widget, message_box, message_box::MessageBox
-};
-
-use qt_core::{
-    flags::Flags, event_loop::EventLoop
-};
-
 use std::sync::mpsc::{channel, Sender, Receiver};
 use std::thread;
-use std::time::Duration;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::path::PathBuf;
 use std::fs::File;
 use std::io::BufReader;
-use failure::Error;
 
 use VERSION;
 use AppUI;
 use QString;
+use common::*;
+use error::{ErrorKind, Result};
 use ui::*;
 use updater::*;
 
@@ -87,34 +82,48 @@ pub fn check_updates(
         // Until we receive a response from the network thread...
         loop {
 
-            // When we finally receive the data of the PackFile...
-            if let Ok(data) = receiver_ui.try_recv() {
+            // Get the response from the other thread.
+            let response: Result<APIResponse> = check_message_validity_tryrecv_background(&receiver_ui);
 
-                // This will always be Ok, so we unwrap it and deserialize it.
-                let data = data.unwrap();
-                let response: APIResponse = serde_json::from_slice(&data).unwrap();
+            // Check what our response is.
+            match response {
 
-                // Depending on the response, we change the text of the dialog in a way or another.
-                let mut message: String = match response {
-                    APIResponse::SuccessNewUpdate(last_release) => format!("<h4>New major update found: \"{}\"</h4> <p>Download and changelog available here:<br><a href=\"{}\">{}</a></p>", last_release.name, last_release.html_url, last_release.html_url),
-                    APIResponse::SuccessNewUpdateHotfix(last_release) => format!("<h4>New minor update/hotfix found: \"{}\"</h4> <p>Download and changelog available here:<br><a href=\"{}\">{}</a></p>", last_release.name, last_release.html_url, last_release.html_url),
-                    APIResponse::SuccessNoUpdate => "<h4>No new updates available</h4> <p>More luck next time :)</p>".to_owned(),
-                    APIResponse::SuccessUnknownVersion => "<h4>Error while checking new updates</h4> <p>There has been a problem when getting the lastest released version number, or the current version number. That means I fucked up the last release title. If you see this, please report it here:\n<a href=\"https://github.com/Frodo45127/rpfm/issues\">https://github.com/Frodo45127/rpfm/issues</a></p>".to_owned(),
-                    APIResponse::Error => "<h4>Error while checking new updates :(</h4> <p>If you see this message, there has been a problem with your connection to the Github.com server. Please, make sure you can access to <a href=\"https://api.github.com\">https://api.github.com</a> and try again.</p>".to_owned(),
-                };
+                // If we got a message...
+                Ok(response) => {
 
-                // Change the text of the dialog.
-                dialog.set_text(&QString::from_std_str(message));
+                    // Depending on the response, we change the text of the dialog in a way or another.
+                    let mut message: String = match response {
+                        APIResponse::SuccessNewUpdate(last_release) => format!("<h4>New major update found: \"{}\"</h4> <p>Download and changelog available here:<br><a href=\"{}\">{}</a></p>", last_release.name, last_release.html_url, last_release.html_url),
+                        APIResponse::SuccessNewUpdateHotfix(last_release) => format!("<h4>New minor update/hotfix found: \"{}\"</h4> <p>Download and changelog available here:<br><a href=\"{}\">{}</a></p>", last_release.name, last_release.html_url, last_release.html_url),
+                        APIResponse::SuccessNoUpdate => "<h4>No new updates available</h4> <p>More luck next time :)</p>".to_owned(),
+                        APIResponse::SuccessUnknownVersion => "<h4>Error while checking new updates</h4> <p>There has been a problem when getting the lastest released version number, or the current version number. That means I fucked up the last release title. If you see this, please report it here:\n<a href=\"https://github.com/Frodo45127/rpfm/issues\">https://github.com/Frodo45127/rpfm/issues</a></p>".to_owned(),
+                        APIResponse::Error => "<h4>Error while checking new updates :(</h4> <p>If you see this message, there has been a problem with your connection to the Github.com server. Please, make sure you can access to <a href=\"https://api.github.com\">https://api.github.com</a> and try again.</p>".to_owned(),
+                    };
 
-                // Stop the loop.
-                break;
+                    // Change the text of the dialog.
+                    dialog.set_text(&QString::from_std_str(message));
+
+                    // Stop the loop.
+                    break;
+                }
+
+                // If we got an error...
+                Err(error) => {
+
+                    // We must check what kind of error it's.
+                    match error.kind() {
+
+                        // If it's "Message Empty", do nothing.
+                        ErrorKind::MessageSystemEmpty => {},
+
+                        // In ANY other situation, it's a message problem.
+                        _ => panic!(THREADS_MESSAGE_ERROR)
+                    }
+                }
             }
 
             // Keep the UI responsive.
             event_loop.process_events(());
-
-            // Wait a bit to not saturate a CPU core.
-            thread::sleep(Duration::from_millis(50));
         }
 
         // Now, execute the dialog.
@@ -130,43 +139,57 @@ pub fn check_updates(
         // Until we receive a response from the network thread...
         loop {
 
-            // When we finally receive the data of the PackFile...
-            if let Ok(data) = receiver_ui.try_recv() {
+            // Get the response from the other thread.
+            let response: Result<APIResponse> = check_message_validity_tryrecv_background(&receiver_ui);
 
-                // This will always be Ok, so we unwrap it and deserialize it.
-                let data = data.unwrap();
-                let response: APIResponse = serde_json::from_slice(&data).unwrap();
+            // Check what our response is.
+            match response {
 
-                // Depending on the response, we change the text of the dialog in a way or another, or just stop the loop.
-                let mut message: String = match response {
-                    APIResponse::SuccessNewUpdate(last_release) => format!("<h4>New major update found: \"{}\"</h4> <p>Download and changelog available here:<br><a href=\"{}\">{}</a></p>", last_release.name, last_release.html_url, last_release.html_url),
-                    APIResponse::SuccessNewUpdateHotfix(last_release) => format!("<h4>New minor update/hotfix found: \"{}\"</h4> <p>Download and changelog available here:<br><a href=\"{}\">{}</a></p>", last_release.name, last_release.html_url, last_release.html_url),
-                    _ => break
-                };
+                // If we got a message...
+                Ok(response) => {
 
-                // Create the dialog to show the response.
-                let mut dialog;
-                unsafe { dialog = MessageBox::new_unsafe((
-                    message_box::Icon::Information,
-                    &QString::from_std_str("Update Checker"),
-                    &QString::from_std_str(message),
-                    Flags::from_int(2097152), // Close button.
-                    app_ui.window as *mut Widget,
-                )); }
+                    // Depending on the response, we change the text of the dialog in a way or another, or just stop the loop.
+                    let mut message: String = match response {
+                        APIResponse::SuccessNewUpdate(last_release) => format!("<h4>New major update found: \"{}\"</h4> <p>Download and changelog available here:<br><a href=\"{}\">{}</a></p>", last_release.name, last_release.html_url, last_release.html_url),
+                        APIResponse::SuccessNewUpdateHotfix(last_release) => format!("<h4>New minor update/hotfix found: \"{}\"</h4> <p>Download and changelog available here:<br><a href=\"{}\">{}</a></p>", last_release.name, last_release.html_url, last_release.html_url),
+                        _ => break
+                    };
 
-                // Set it to be modal, and execute it.
-                dialog.set_modal(true);
-                dialog.exec();
+                    // Create the dialog to show the response.
+                    let mut dialog;
+                    unsafe { dialog = MessageBox::new_unsafe((
+                        message_box::Icon::Information,
+                        &QString::from_std_str("Update Checker"),
+                        &QString::from_std_str(message),
+                        Flags::from_int(2097152), // Close button.
+                        app_ui.window as *mut Widget,
+                    )); }
 
-                // Stop the loop.
-                break;
+                    // Set it to be modal, and execute it.
+                    dialog.set_modal(true);
+                    dialog.exec();
+
+                    // Stop the loop.
+                    break;
+                }
+
+                // If we got an error...
+                Err(error) => {
+
+                    // We must check what kind of error it's.
+                    match error.kind() {
+
+                        // If it's "Message Empty", do nothing.
+                        ErrorKind::MessageSystemEmpty => {},
+
+                        // In ANY other situation, it's a message problem.
+                        _ => panic!(THREADS_MESSAGE_ERROR)
+                    }
+                }
             }
 
             // Keep the UI responsive.
             event_loop.process_events(());
-
-            // Wait a bit to not saturate a CPU core.
-            thread::sleep(Duration::from_millis(50));
         }
     }
 }
@@ -178,8 +201,8 @@ pub fn check_schema_updates(
     use_dialog: bool,
     rpfm_path: &PathBuf,
     sender_qt: &Sender<&str>,
-    sender_qt_data: &Sender<Result<Vec<u8>, Error>>,
-    receiver_qt: &Rc<RefCell<Receiver<Result<Vec<u8>, Error>>>>,
+    sender_qt_data: &Sender<Result<Vec<u8>>>,
+    receiver_qt: &Rc<RefCell<Receiver<Result<Vec<u8>>>>>,
 ) {
 
     // Create a channel to comunicate with the "Network" thread.
@@ -218,12 +241,14 @@ pub fn check_schema_updates(
         // Until we receive a response from the network thread...
         loop {
 
-            // When we finally receive the data of the PackFile...
-            if let Ok(data) = receiver_ui.try_recv() {
+            // Get the response from the other thread.
+            let data: Result<APIResponseSchema> = check_message_validity_tryrecv_background(&receiver_ui);
 
-                // This will always be Ok, so we unwrap it and deserialize it.
-                let data = data.unwrap();
-                response = serde_json::from_slice(&data).unwrap();
+            // If we got a message...
+            if let Ok(data) = data {
+
+                // Store the response for later use.
+                response = data;
 
                 // Depending on the response, we change the text of the dialog in a way or another.
                 let mut message: String = match &response {
@@ -278,9 +303,6 @@ pub fn check_schema_updates(
 
             // Keep the UI responsive.
             event_loop.process_events(());
-
-            // Wait a bit to not saturate a CPU core.
-            thread::sleep(Duration::from_millis(50));
         }
 
         // If we hit "Update"...
@@ -304,28 +326,38 @@ pub fn check_schema_updates(
                 // Until we receive a response from the background thread...
                 loop {
 
-                    // When we finally receive the data of the PackFile...
-                    if let Ok(data) = receiver_qt.borrow().try_recv() {
+                    // Get the response from the other thread.
+                    let response: Result<()> = check_message_validity_tryrecv(&receiver_qt);
 
-                        // Check if it was a success or error.
-                        match data {
+                    // Check the response received from the network thread.
+                    match response {
 
-                            // If it was a success...
-                            Ok(_) => show_dialog(app_ui.window, true, "<h4>Schemas updated and reloaded</h4><p>You can continue using RPFM now.</p>"),
-
-                            // If it was an error...
-                            Err(error) => show_dialog(app_ui.window, false, format!("<h4>Error while updating schemas</h4><p>{}</p>", error)),
+                        // If it was a success, report it and break the loop.
+                        Ok(_) => {
+                            show_dialog(app_ui.window, true, "<h4>Schemas updated and reloaded</h4><p>You can continue using RPFM now.</p>");
+                            break;
                         }
 
-                        // Stop the loop.
-                        break;
+                        // If it was an error...
+                        Err(error) => {
+
+                            // We must check what kind of error it's.
+                            match error.kind() {
+
+                                // If it's "Message Empty", do nothing.
+                                ErrorKind::MessageSystemEmpty => {},
+
+                                // Here we don't really care about checking messages, so just report any error you get and break the loop.
+                                _ => {
+                                    show_dialog(app_ui.window, true, error.kind());
+                                    break;
+                                }
+                            }
+                        }
                     }
 
                     // Keep the UI responsive.
                     event_loop.process_events(());
-
-                    // Wait a bit to not saturate a CPU core.
-                    thread::sleep(Duration::from_millis(50));
                 }
             }
         }
@@ -340,125 +372,149 @@ pub fn check_schema_updates(
         // Until we receive a response from the network thread...
         loop {
 
-            // When we finally receive the data of the PackFile...
-            if let Ok(data) = receiver_ui.try_recv() {
+            // Get the response from the other thread.
+            let response: Result<APIResponseSchema> = check_message_validity_tryrecv_background(&receiver_ui);
 
-                // This will always be Ok, so we unwrap it and deserialize it.
-                let data = data.unwrap();
-                response = serde_json::from_slice(&data).unwrap();
+            // Check the response received from the network thread.
+            match response {
 
-                // Depending on the response, we change the text of the dialog in a way or another.
-                let mut message: String = match &response {
-                    APIResponseSchema::SuccessNewUpdate(local_versions, current_versions) => {
+                // If we got a success...
+                Ok(response) => {
 
-                        // Create the initial message.
-                        let mut message = "<h4>New schema update available</h4> <table>".to_owned();
+                    // Depending on the response, we change the text of the dialog in a way or another.
+                    let mut message: String = match &response {
+                        APIResponseSchema::SuccessNewUpdate(local_versions, current_versions) => {
 
-                        // For each schema supported...
-                        for (index, schema) in current_versions.schemas.iter().enumerate() {
+                            // Create the initial message.
+                            let mut message = "<h4>New schema update available</h4> <table>".to_owned();
 
-                            // Start the line.
-                            message.push_str("<tr>");
+                            // For each schema supported...
+                            for (index, schema) in current_versions.schemas.iter().enumerate() {
 
-                            // Add the name of the game.
-                            message.push_str(&format!("<td>{}:</td>", schema.schema_file));
+                                // Start the line.
+                                message.push_str("<tr>");
 
-                            // If the game exist in the local version, show both versions.
-                            if let Some(local_schema) = local_versions.schemas.get(index) {
-                                message.push_str(&format!("<td>{} => {}</td>", local_schema.version, schema.version));
-                            }
+                                // Add the name of the game.
+                                message.push_str(&format!("<td>{}:</td>", schema.schema_file));
 
-                            // Otherwise, it's a new game. Use 0 as his initial version.
-                            else { message.push_str(&format!("<td>0 => {}</td>", schema.version))}
-
-                            // End the line.
-                            message.push_str("</tr>");
-                        }
-
-                        // Complete the table.
-                        message.push_str("</table>");
-
-                        // Ask if you want to update.
-                        message.push_str("<p>Do you want to update the schemas?</p>");
-
-                        // Return the message.
-                        message
-                    }
-                    _ => break
-                };
-
-                // Create the dialog to show the response.
-                let mut dialog;
-                unsafe { dialog = MessageBox::new_unsafe((
-                    message_box::Icon::Information,
-                    &QString::from_std_str("Update Schema Checker"),
-                    &QString::from_std_str(message),
-                    Flags::from_int(2097152), // Close button.
-                    app_ui.window as *mut Widget,
-                )); }
-
-                // Add a "Update" button with the "Accept" role.
-                let update_button = dialog.add_button((&QString::from_std_str("&Update"), message_box::ButtonRole::AcceptRole));
-
-                // Set it to be modal, and execute it.
-                dialog.set_modal(true);
-
-                // If we hit "Update"...
-                if dialog.exec() == 0 {
-
-                    // Useless if, but easiest way I know to get local and current version at this point.
-                    if let APIResponseSchema::SuccessNewUpdate(local_versions, current_versions) = response {
-
-                        // Sent to the background thread the order to download the lastest schemas.
-                        sender_qt.send("update_schemas").unwrap();
-                        sender_qt_data.send(serde_json::to_vec(&(local_versions, current_versions)).map_err(From::from)).unwrap();
-
-                        // Change the text of the dialog and disable the update button.
-                        dialog.show();
-                        dialog.set_text(&QString::from_std_str("<p>Downloading updates, don't close this window...</p> <p>This may take a while.</p>"));
-                        unsafe { update_button.as_mut().unwrap().set_enabled(false); }
-
-                        // Prepare the event loop, so we don't hang the UI while the background thread is working.
-                        let mut event_loop = EventLoop::new();
-
-                        // Until we receive a response from the background thread...
-                        loop {
-
-                            // When we finally receive the data of the PackFile...
-                            if let Ok(data) = receiver_qt.borrow().try_recv() {
-
-                                // Check if it was a success or error.
-                                match data {
-
-                                    // If it was a success...
-                                    Ok(_) => show_dialog(app_ui.window, true, "<h4>Schemas updated and reloaded</h4><p>You can continue using RPFM now.</p>"),
-
-                                    // If it was an error...
-                                    Err(error) => show_dialog(app_ui.window, false, format!("<h4>Error while updating schemas</h4><p>{}</p>", error)),
+                                // If the game exist in the local version, show both versions.
+                                if let Some(local_schema) = local_versions.schemas.get(index) {
+                                    message.push_str(&format!("<td>{} => {}</td>", local_schema.version, schema.version));
                                 }
 
-                                // Stop the loop.
-                                break;
+                                // Otherwise, it's a new game. Use 0 as his initial version.
+                                else { message.push_str(&format!("<td>0 => {}</td>", schema.version))}
+
+                                // End the line.
+                                message.push_str("</tr>");
                             }
 
-                            // Keep the UI responsive.
-                            event_loop.process_events(());
+                            // Complete the table.
+                            message.push_str("</table>");
 
-                            // Wait a bit to not saturate a CPU core.
-                            thread::sleep(Duration::from_millis(50));
+                            // Ask if you want to update.
+                            message.push_str("<p>Do you want to update the schemas?</p>");
+
+                            // Return the message.
+                            message
+                        }
+                        _ => break
+                    };
+
+                    // Create the dialog to show the response.
+                    let mut dialog;
+                    unsafe { dialog = MessageBox::new_unsafe((
+                        message_box::Icon::Information,
+                        &QString::from_std_str("Update Schema Checker"),
+                        &QString::from_std_str(message),
+                        Flags::from_int(2097152), // Close button.
+                        app_ui.window as *mut Widget,
+                    )); }
+
+                    // Add a "Update" button with the "Accept" role.
+                    let update_button = dialog.add_button((&QString::from_std_str("&Update"), message_box::ButtonRole::AcceptRole));
+
+                    // Set it to be modal, and execute it.
+                    dialog.set_modal(true);
+
+                    // If we hit "Update"...
+                    if dialog.exec() == 0 {
+
+                        // Useless if, but easiest way I know to get local and current version at this point.
+                        if let APIResponseSchema::SuccessNewUpdate(local_versions, current_versions) = response {
+
+                            // Sent to the background thread the order to download the lastest schemas.
+                            sender_qt.send("update_schemas").unwrap();
+                            sender_qt_data.send(serde_json::to_vec(&(local_versions, current_versions)).map_err(From::from)).unwrap();
+
+                            // Change the text of the dialog and disable the update button.
+                            dialog.show();
+                            dialog.set_text(&QString::from_std_str("<p>Downloading updates, don't close this window...</p> <p>This may take a while.</p>"));
+                            unsafe { update_button.as_mut().unwrap().set_enabled(false); }
+
+                            // Prepare the event loop, so we don't hang the UI while the background thread is working.
+                            let mut event_loop = EventLoop::new();
+
+                            // Until we receive a response from the background thread...
+                            loop {
+
+                                // Get the response from the other thread.
+                                let response: Result<()> = check_message_validity_tryrecv(&receiver_qt);
+
+                                // Check the response received from the network thread.
+                                match response {
+
+                                    // If it was a success, report it and break the loop.
+                                    Ok(_) => {
+                                        show_dialog(app_ui.window, true, "<h4>Schemas updated and reloaded</h4><p>You can continue using RPFM now.</p>");
+                                        break;
+                                    }
+
+                                    // If it was an error...
+                                    Err(error) => {
+
+                                        // We must check what kind of error it's.
+                                        match error.kind() {
+
+                                            // If it's "Message Empty", do nothing.
+                                            ErrorKind::MessageSystemEmpty => {},
+
+                                            // Here we don't really care about checking messages, so just report any error you get and break the loop.
+                                            _ => {
+                                                show_dialog(app_ui.window, true, error.kind());
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Keep the UI responsive.
+                                event_loop.process_events(());
+                            }
                         }
                     }
+
+                    // Stop the loop.
+                    break;
                 }
 
-                // Stop the loop.
-                break;
+                // If it was an error...
+                Err(error) => {
+
+                    // We must check what kind of error it's.
+                    match error.kind() {
+
+                        // If it's "Message Empty", do nothing.
+                        ErrorKind::MessageSystemEmpty => {},
+
+                        // In ANY other situation, it's a message problem.
+                        _ => panic!(THREADS_MESSAGE_ERROR)
+                    }
+                }
             }
 
             // Keep the UI responsive.
             event_loop.process_events(());
-
-            // Wait a bit to not saturate a CPU core.
-            thread::sleep(Duration::from_millis(50));
         }
     }
 }
@@ -466,7 +522,7 @@ pub fn check_schema_updates(
 /// This function check network stuff based on what operation we pass it. It REQUIRES to be executed
 /// in a different thread.
 fn network_thread(
-    sender: Sender<Result<Vec<u8>, Error>>,
+    sender: Sender<Result<Vec<u8>>>,
     operation: &str,
     rpfm_path: PathBuf,
 ) {
@@ -611,6 +667,6 @@ fn network_thread(
             sender.send(serde_json::to_vec(&apiresponse).map_err(From::from)).unwrap();
         }
 
-        _ => println!("Error while receiving the operation, \"{}\" is not a valid operation.", operation),
+        _ => panic!("Error while receiving the operation, \"{}\" is not a valid operation.", operation),
     }
 }

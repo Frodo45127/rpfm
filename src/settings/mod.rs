@@ -1,13 +1,12 @@
 // In this module should be everything related to the settings stuff.
 extern crate serde_json;
-extern crate failure;
 
 use std::path::PathBuf;
 use std::fs::File;
 use std::io::Write;
 use std::io::BufReader;
 
-use failure::Error;
+use error::{ErrorKind, Result};
 
 /// `GameInfo`: This struct holds all the info needed for a game to be "supported" by RPFM features.
 /// It's stores the following data:
@@ -153,7 +152,7 @@ impl Settings {
     }
 
     /// This function takes a settings.json file and reads it into a "Settings" object.
-    pub fn load(path: &PathBuf, supported_games: &[GameInfo]) -> Result<Self, Error> {
+    pub fn load(path: &PathBuf, supported_games: &[GameInfo]) -> Result<Self> {
         let settings_path = path.to_path_buf().join(PathBuf::from("settings.json"));
         let settings_file = BufReader::new(File::open(settings_path)?);
         let mut settings: Self = serde_json::from_reader(settings_file)?;
@@ -185,19 +184,19 @@ impl Settings {
     }
 
     /// This function takes the Settings object and saves it into a settings.json file.
-    pub fn save(&self, path: &PathBuf) -> Result<(), Error> {
+    pub fn save(&self, path: &PathBuf) -> Result<()> {
         let mut settings_path = path.clone();
         settings_path.push("settings.json");
 
         let settings_json = serde_json::to_string_pretty(self);
-        match File::create(settings_path) {
+        match File::create(settings_path.to_path_buf()) {
             Ok(mut file) => {
                 match file.write_all(settings_json.unwrap().as_bytes()) {
                     Ok(_) => Ok(()),
-                    Err(_) => Err(format_err!("Error while trying to write the \"settings.json\" file.")),
+                    Err(_) => Err(ErrorKind::IOSaveSettings)?
                 }
             },
-            Err(_) => Err(format_err!("Error while trying prepare the \"settings.json\" file to be written."))
+            Err(_) => Err(ErrorKind::IOSaveSettings)?
         }
     }
 }

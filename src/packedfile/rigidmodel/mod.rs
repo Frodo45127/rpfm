@@ -2,10 +2,8 @@
 // This is the type used by 3D model files of units and buildings. Both are different, so we need to
 // take the type in count while processing them.
 
-extern crate failure;
-
 use common::coding_helpers;
-use self::failure::Error;
+use error::{ErrorKind, Result};
 
 /// Struct "RigidModel". For more info about this, check the comment at the start of "packedfile/
 /// rigidmodel/mod.rs".
@@ -59,7 +57,7 @@ impl RigidModel {
 
     /// This function reads the data from a Vec<u8> and decode it into a RigidModel. This CAN FAIL,
     /// so we return Result<RigidModel, Error>.
-    pub fn read(packed_file_data: &[u8]) -> Result<RigidModel, Error> {
+    pub fn read(packed_file_data: &[u8]) -> Result<RigidModel> {
         match RigidModelHeader::read(&packed_file_data[..140]) {
             Ok(packed_file_header) => {
                 match RigidModelData::read(
@@ -81,7 +79,7 @@ impl RigidModel {
 
     /// This function reads the data from a RigidModel and encode it into a Vec<u8>. This CAN FAIL,
     /// so we return Result<Vec<u8>, Error>.
-    pub fn save(rigid_model_data: &RigidModel) -> Result<Vec<u8>, Error> {
+    pub fn save(rigid_model_data: &RigidModel) -> Result<Vec<u8>> {
         let mut packed_file_data_encoded = RigidModelData::save(&rigid_model_data.packed_file_data);
         let mut packed_file_header_encoded = RigidModelHeader::save(&rigid_model_data.packed_file_header)?;
 
@@ -108,7 +106,7 @@ impl RigidModelHeader {
 
     /// This function reads the data from a Vec<u8> and decode it into a RigidModelHeader. This CAN FAIL,
     /// so we return Result<RigidModelHeader, Error>.
-    pub fn read(packed_file_data: &[u8]) -> Result<RigidModelHeader, Error> {
+    pub fn read(packed_file_data: &[u8]) -> Result<RigidModelHeader> {
 
         let mut packed_file_header = RigidModelHeader {
             packed_file_header_signature: String::new(),
@@ -125,7 +123,7 @@ impl RigidModelHeader {
         // We check this, just in case we try to read some malformed file with a string in the first
         // four bytes (which is not uncommon).
         if packed_file_header.packed_file_header_signature != "RMV2" {
-            return Err(format_err!("This is not a RMV2 RigidModel."))
+            return Err(ErrorKind::RigidModelNotSupportedFile)?
         }
 
         match coding_helpers::decode_integer_u32(&packed_file_data[4..8]) {
@@ -147,7 +145,7 @@ impl RigidModelHeader {
 
     /// This function reads the data from a RigidModelHeader and encode it into a Vec<u8>. This CAN FAIL,
     /// so we return Result<Vec<u8>, Error>.
-    pub fn save(rigid_model_header: &RigidModelHeader) -> Result<Vec<u8>, Error> {
+    pub fn save(rigid_model_header: &RigidModelHeader) -> Result<Vec<u8>> {
         let mut packed_file_data: Vec<u8> = vec![];
 
         let mut packed_file_header_signature = coding_helpers::encode_string_u8(&rigid_model_header.packed_file_header_signature);
@@ -176,13 +174,13 @@ impl RigidModelData {
 
     /// This function reads the data from a Vec<u8> and decode it into a RigidModelData. This CAN FAIL,
     /// so we return Result<RigidModelData, Error>.
-    pub fn read(packed_file_data: &[u8], packed_file_header_model_type: &u32, packed_file_header_lods_count: &u32) -> Result<RigidModelData, Error> {
+    pub fn read(packed_file_data: &[u8], packed_file_header_model_type: &u32, packed_file_header_lods_count: &u32) -> Result<RigidModelData> {
         let mut packed_file_data_lods_header: Vec<RigidModelLodHeader> = vec![];
         let mut index: usize = 0;
         let offset: usize = match *packed_file_header_model_type {
             6 => 20, // Attila
             7 => 28, // Warhammer 1&2
-            _ => return Err(format_err!("RigidModel model not yet decodeable."))
+            _ => return Err(ErrorKind::RigidModelNotSupportedType)?
         };
 
         // We get the "headers" of every lod.
@@ -224,7 +222,7 @@ impl RigidModelLodHeader {
 
     /// This function reads the data from a Vec<u8> and decode it into a RigidModelLodHeader. This CAN FAIL,
     /// so we return Result<RigidModelLodHeader, Error>.
-    pub fn read(packed_file_data: &[u8]) -> Result<RigidModelLodHeader, Error> {
+    pub fn read(packed_file_data: &[u8]) -> Result<RigidModelLodHeader> {
         let mut header = RigidModelLodHeader {
             groups_count: 0,
             vertices_data_length: 0,

@@ -1,14 +1,13 @@
 // In this file are all the Fn, Structs and Impls common to at least 2 PackedFile types.
 extern crate csv;
-extern crate failure;
 
-use failure::Error;
 use std::io::{ BufReader, Read };
 use std::fs::File;
 use std::path::PathBuf;
 
 use common::*;
 use common::coding_helpers::*;
+use error::{ErrorKind, Result};
 use packfile::packfile::PackFile;
 use packfile::packfile::PackedFile;
 use packedfile::loc::*;
@@ -45,11 +44,11 @@ pub trait SerializableToTSV {
 
     /// `import_tsv`: Requires `&mut self`, a `&PathBuf` with the path of the TSV file and the name of our PackedFile.
     /// Returns success or an error.
-    fn import_tsv(&mut self, tsv_file_path: &PathBuf, packed_file_type: &str) -> Result<(), Error>;
+    fn import_tsv(&mut self, tsv_file_path: &PathBuf, packed_file_type: &str) -> Result<()>;
 
     /// `export_tsv`: Requires `&self`, the destination path for the TSV file and a name and a number (version)
     /// to put in the header of the TSV file. Returns a success message, or an error.
-    fn export_tsv(&self, tsv_file_path: &PathBuf, extra_data: (&str, u32)) -> Result<String, Error>;
+    fn export_tsv(&self, tsv_file_path: &PathBuf, extra_data: (&str, u32)) -> Result<String>;
 }
 
 /*
@@ -64,7 +63,7 @@ pub fn create_packed_file(
     packed_file_type: PackedFileType,
     path: Vec<String>,
     schema: &Option<Schema>,
-) -> Result<(), Error> {
+) -> Result<()> {
 
     // Depending on their type, we do different things to prepare the PackedFile and get his data.
     let data = match packed_file_type {
@@ -78,13 +77,13 @@ pub fn create_packed_file(
             // Try to get his table definition.
             let table_definition = match schema {
                 Some(schema) => DB::get_schema(&table, version, &schema),
-                None => return Err(format_err!("There is no schema loaded for this game."))
+                None => return Err(ErrorKind::SchemaNotFound)?
             };
 
             // If there is a table definition, create the new table. Otherwise, return error.
             match table_definition {
                 Some(table_definition) => DB::new(&table, version, table_definition).save(),
-                None => return Err(format_err!("We don't have a table definition for this table/version of the table, so we can neither decode it nor create it."))
+                None => return Err(ErrorKind::SchemaTableDefinitionNotFound)?
             }
         }
 
@@ -106,7 +105,7 @@ pub fn tsv_mass_import(
     name: &str,
     schema: &Option<Schema>,
     pack_file: &mut PackFile
-) -> Result<(Vec<Vec<String>>, Vec<Vec<String>>), Error> {
+) -> Result<(Vec<Vec<String>>, Vec<Vec<String>>)> {
 
     // Create a list of PackedFiles succesfully imported, and another for the ones that didn't work.
     let mut packed_files: Vec<PackedFile> = vec![];
@@ -223,7 +222,8 @@ pub fn tsv_mass_import(
 
     // If any of the files returned error, return error.
     if !error_files.is_empty() {
-        return Err(format_err!("<p>The following files returned error when trying to import them:</p><p>{:#?}</p><p>No files have been imported.</p>", error_files))
+        let error_files_string = error_files.iter().map(|x| format!("<li>{}</li>", x.display().to_string())).collect::<Vec<String>>();
+        return Err(ErrorKind::MassImport(error_files_string))?
     }
 
     // Get the "TreePath" of the new PackFiles to return them.
@@ -254,7 +254,7 @@ pub fn tsv_mass_export(
     export_path: &PathBuf,
     schema: &Option<Schema>,
     pack_file: &PackFile
-) -> Result<(String, Vec<Vec<String>>), Error> {
+) -> Result<String> {
 
     // List of PackedFiles that couldn't be exported for one thing or another.
     let mut error_list = vec![];
@@ -383,8 +383,11 @@ pub fn tsv_mass_export(
     }
 
     // If there has been errors, return ok with the list of errors.
-    if !error_list.is_empty() { Ok(("All exportable files have been exported, except the following ones:".to_owned(), error_list)) }
+    if !error_list.is_empty() {
+        let error_files_string = error_list.iter().map(|x| format!("<li>{:#?}</li>", x)).collect::<String>();
+        Ok(format!("<p>All exportable files have been exported, except the following ones:</p><ul>{}</ul>", error_files_string))
+    }
 
     // Otherwise, just return success and an empty error list.
-    else { Ok(("All exportable files have been exported.".to_owned(), error_list)) }
+    else { Ok("<p>All exportable files have been exported.</p>".to_owned()) }
 }

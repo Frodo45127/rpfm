@@ -1,13 +1,12 @@
 // In this file goes all the stuff needed for the schema decoder to work.
 extern crate serde_json;
-extern crate failure;
 
 use std::path::PathBuf;
 use std::fs::File;
 use std::io::Write;
 use std::io::BufReader;
 
-use self::failure::Error;
+use error::{ErrorKind, Result};
 use super::schemas_importer;
 
 /// This struct holds the entire schema for the currently selected game (by "game" I mean the PackFile
@@ -113,7 +112,7 @@ impl Schema {
     }
 
     /// This function takes an schema file and reads it into a "Schema" object.
-    pub fn load(rpfm_path: &PathBuf, schema_file: &str) -> Result<Schema, Error> {
+    pub fn load(rpfm_path: &PathBuf, schema_file: &str) -> Result<Schema> {
 
         let mut schemas_path = rpfm_path.clone();
         schemas_path.push("schemas");
@@ -126,21 +125,21 @@ impl Schema {
     }
 
     /// This function takes an "Schema" object and saves it into a schema file.
-    pub fn save(schema: &Schema, rpfm_path: &PathBuf, schema_file: &str) -> Result<(), Error> {
+    pub fn save(schema: &Schema, rpfm_path: &PathBuf, schema_file: &str) -> Result<()> {
 
         let schema_json = serde_json::to_string_pretty(schema);
         let mut schema_path = rpfm_path.clone();
         schema_path.push("schemas");
         schema_path.push(schema_file);
 
-        match File::create(schema_path) {
+        match File::create(schema_path.to_path_buf()) {
             Ok(mut file) => {
                 match file.write_all(schema_json.unwrap().as_bytes()) {
                     Ok(_) => Ok(()),
-                    Err(_) => Err(format_err!("Error while trying to write the schema file.")),
+                    Err(_) => Err(ErrorKind::IOGenericWrite(vec![schema_path.display().to_string();1]))?
                 }
             },
-            Err(_) => Err(format_err!("Error while trying prepare the schema file to be written."))
+            Err(_) => Err(ErrorKind::IOGenericWrite(vec![schema_path.display().to_string();1]))?
         }
     }
 }
