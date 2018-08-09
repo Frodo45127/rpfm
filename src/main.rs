@@ -1671,7 +1671,7 @@ fn main() {
                         }
 
                         // If it's a DB, we should enable this too.
-                        if !data.0.is_empty() && data.0.starts_with(&["db".to_owned()]) && data.0.len() == 2 {
+                        if !data.0.is_empty() && data.0.starts_with(&["db".to_owned()]) && data.0.len() == 3 {
                             unsafe { app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(true); }
                         }
                     },
