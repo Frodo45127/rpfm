@@ -376,7 +376,6 @@ impl PackFileHeader {
         // writing it to the data.
         let mut creation_time = encode_integer_i64(Utc::now().naive_utc().timestamp());
         creation_time.truncate(4);
-        creation_time.reverse();
         file.write(&creation_time)?;
 
         // Return success.
