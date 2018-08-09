@@ -21896,22 +21896,22 @@
           "version": 0,
           "fields": [
             {
-              "field_name": "art_set",
-              "field_type": "StringU8",
-              "field_is_key": true,
-              "field_is_reference": [
-                "campaign_character_art_sets",
-                "art_set_id"
-              ],
-              "field_description": ""
-            },
-            {
               "field_name": "ancillary",
               "field_type": "StringU8",
               "field_is_key": true,
               "field_is_reference": [
                 "ancillaries",
                 "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "art_set",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "campaign_character_art_sets",
+                "art_set_id"
               ],
               "field_description": ""
             },
