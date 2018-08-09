@@ -2,7 +2,7 @@
   "schemas": [
     {
       "schema_file": "schema_wh.json",
-      "version": 2
+      "version": 3
     },
     {
       "schema_file": "schema_att.json",
