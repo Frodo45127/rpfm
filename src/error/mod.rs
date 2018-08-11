@@ -227,9 +227,6 @@ pub enum ErrorKind {
     // Error for when extracting one or more PackedFiles from a PackFile.
     ExtractError(Vec<String>),
 
-    // Error for when we haven't selected source and destination in the "Add from PackFile" view.
-    AddFromPackFileSelection,
-
     // Errors for when we fail to mass-import/export TSV files.
     MassImport(Vec<String>),
 
@@ -247,9 +244,6 @@ pub enum ErrorKind {
 
     // Error for when mass-importing TSV file without selecting any file.
     NoFilesToImport,
-
-    // Error for when the PackedFile we are trying to add from another PackFile already exist in the current path.
-    PackedFileAlreadyInPackFile,
 
     // Error for when the file we are trying to create already exist in the current path.
     FileAlreadyInPackFile,
@@ -449,14 +443,12 @@ impl Display for ErrorKind {
             //-----------------------------------------------------//
             ErrorKind::NameAlreadyInUseInThisPath => write!(f, "<p>The provided name is already in use in the current path.</p>"),
             ErrorKind::ExtractError(errors) => write!(f, "<p>There has been a problem extracting the following files:</p><ul>{:#?}</ul>", errors),
-            ErrorKind::AddFromPackFileSelection => write!(f, "<p>You need to select what and where you want to import BEFORE pressing the button.</p>"),
             ErrorKind::MassImport(errors) => write!(f, "<p>The following files returned error when trying to import them:</p><ul>{:#?}</ul><p>No files have been imported.</p>", errors),
             ErrorKind::DeletePackedFilesWithPackedFileOpen => write!(f, "<p>You can't delete a PackedFile/Folder while there is a PackedFile opened in the right side.</p><p>Close it by clicking in a Folder/PackFile before trying to delete it again.</p>"),
             ErrorKind::EmptyInput => write!(f, "<p>Only my hearth can be empty.</p>"),
             ErrorKind::InvalidInput => write!(f, "<p>There are characters that shall never be used.</p>"),
             ErrorKind::UnchangedInput => write!(f, "<p>Like war, nothing changed.</p>"),
             ErrorKind::NoFilesToImport => write!(f, "<p>It's mathematically impossible to successfully import zero TSV files.</p>"),
-            ErrorKind::PackedFileAlreadyInPackFile => write!(f, "<p>One or more of the PackedFiles you wanted to add already exists in the current PackFile.</p>"),
             ErrorKind::FileAlreadyInPackFile => write!(f, "<p>The provided file/s already exists in the current path.</p>"),
             ErrorKind::FolderAlreadyInPackFile => write!(f, "<p>That folder already exists in the current path.</p>"),
 

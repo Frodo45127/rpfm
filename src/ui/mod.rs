@@ -17,7 +17,6 @@ use qt_widgets::line_edit::LineEdit;
 use qt_widgets::main_window::MainWindow;
 use qt_widgets::message_box::{MessageBox, Icon};
 use qt_widgets::push_button::PushButton;
-use qt_widgets::size_policy::Policy;
 use qt_widgets::tree_view::TreeView;
 use qt_widgets::widget::Widget;
 
@@ -32,7 +31,7 @@ use qt_core::event_loop::EventLoop;
 use qt_core::flags::Flags;
 use qt_core::item_selection::ItemSelection;
 use qt_core::qt::GlobalColor;
-use qt_core::slots::{SlotBool, SlotNoArgs, SlotItemSelectionRefItemSelectionRef};
+use qt_core::slots::{SlotBool, SlotNoArgs, SlotModelIndexRef};
 use qt_core::variant::Variant;
 use cpp_utils::StaticCast;
 
@@ -87,8 +86,7 @@ pub struct MyModSlots {
 /// This struct holds all the Slots related to the "Add from PackFile" View, as otherwise they'll
 /// die before we press their buttons and do nothing.
 pub struct AddFromPackFileSlots {
-    pub copy_check: SlotItemSelectionRefItemSelectionRef<'static>,
-    pub copy: SlotNoArgs<'static>,
+    pub copy: SlotModelIndexRef<'static>,
     pub exit: SlotNoArgs<'static>,
 }
 
@@ -105,8 +103,7 @@ impl AddFromPackFileSlots {
 
         // Create some dummy slots and return them.
         Self {
-            copy_check: SlotItemSelectionRefItemSelectionRef::new(|_,_| {}),
-            copy: SlotNoArgs::new(|| {}),
+            copy: SlotModelIndexRef::new(|_| {}),
             exit: SlotNoArgs::new(|| {}),
         }
     }
@@ -127,67 +124,37 @@ impl AddFromPackFileSlots {
         let tree_view = TreeView::new().into_raw();
         let tree_model = StandardItemModel::new(()).into_raw();
         let exit_button = PushButton::new(&QString::from_std_str("Exit 'Add from Packfile' Mode")).into_raw();
-        let copy_button = PushButton::new(&QString::from_std_str("<=")).into_raw();
 
         // Configure it.
         unsafe { tree_view.as_mut().unwrap().set_model(tree_model as *mut AbstractItemModel); }
         unsafe { tree_view.as_mut().unwrap().set_header_hidden(true); }
-        unsafe { copy_button.as_mut().unwrap().set_size_policy((Policy::Maximum, Policy::Expanding)); }
+        unsafe { tree_view.as_mut().unwrap().set_expands_on_double_click(false); }
 
         // Add all the stuff to the Grid.
-        unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((exit_button as *mut Widget, 0, 0, 1, 2)); }
-        unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((copy_button as *mut Widget, 1, 0, 1, 1)); }
-        unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((tree_view as *mut Widget, 1, 1, 1, 1)); }
+        unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((exit_button as *mut Widget, 0, 0, 1, 1)); }
+        unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((tree_view as *mut Widget, 1, 0, 1, 1)); }
 
         // Create the slots for the stuff we need.
         let slots = Self {
 
-            // This slot is used to check if the selection can be moved or not.
-            copy_check: SlotItemSelectionRefItemSelectionRef::new(clone!(
-                sender_qt,
-                sender_qt_data,
-                receiver_qt => move |selection,_| {
-
-                    // Get the path of the selected item in the main TreeView.
-                    let path = get_path_from_item_selection(app_ui.folder_tree_model, &selection, true);
-
-                    // Send the Path to the Background Thread to get the Item's Type.
-                    sender_qt.send("get_type_of_path").unwrap();
-                    sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
-                    let item_type: TreePathType = match check_message_validity_recv(&receiver_qt) {
-                        Ok(data) => data,
-                        Err(_) => panic!(THREADS_MESSAGE_ERROR)
-                    };
-
-                    // Depending on the type of the selected item, we enable or disable the copy button.
-                    match item_type {
-                        TreePathType::File(_) | TreePathType::None => unsafe { copy_button.as_mut().unwrap().set_enabled(false) }
-                        _ => unsafe { copy_button.as_mut().unwrap().set_enabled(true) },
-                    }
-                }
-            )),
-
             // This slot is used to copy something from one PackFile to the other when pressing the "<=" button.
-            copy: SlotNoArgs::new(clone!(
+            copy: SlotModelIndexRef::new(clone!(
                 rpfm_path,
                 is_modified,
                 sender_qt,
                 sender_qt_data,
-                receiver_qt => move || {
+                receiver_qt => move |_| {
 
-                    // Get the selections of both TreeViews.
-                    let selection_source;
-                    let selection_destination;
-                    unsafe { selection_source = tree_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection(); }
-                    unsafe { selection_destination = app_ui.folder_tree_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection(); }
+                    // Get the file to get from the Right TreeView.
+                    let selection_file_to_move;
+                    unsafe { selection_file_to_move = tree_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection(); }
 
-                    // Get his source & destination paths.
-                    let path_source = get_path_from_item_selection(tree_model, &selection_source, true);
-                    let path_destination = get_path_from_item_selection(app_ui.folder_tree_model, &selection_destination, true);
+                    // Get his path.
+                    let item_path = get_path_from_item_selection(tree_model, &selection_file_to_move, true);
 
-                    // Ask the Background Thread to move the files, and send him the paths.
+                    // Ask the Background Thread to move the files, and send him the path.
                     sender_qt.send("add_packedfile_from_packfile").unwrap();
-                    sender_qt_data.send(serde_json::to_vec(&(path_source, path_destination)).map_err(From::from)).unwrap();
+                    sender_qt_data.send(serde_json::to_vec(&item_path).map_err(From::from)).unwrap();
 
                     // Disable the Main Window (so we can't do other stuff).
                     unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
@@ -199,7 +166,7 @@ impl AddFromPackFileSlots {
                     loop {
 
                         // Get the response from the other thread.
-                        let response: Result<(Vec<String>, Vec<String>, Vec<Vec<String>>)> = check_message_validity_tryrecv(&receiver_qt);
+                        let response: Result<(Vec<Vec<String>>)> = check_message_validity_tryrecv(&receiver_qt);
 
                         // Check what response we got.
                         match response {
@@ -216,7 +183,7 @@ impl AddFromPackFileSlots {
                                     app_ui.window,
                                     app_ui.folder_tree_view,
                                     app_ui.folder_tree_model,
-                                    TreeViewOperation::AddFromPackFile(paths.0, paths.1, paths.2),
+                                    TreeViewOperation::Add(paths),
                                 );
 
                                 // Set the mod as "Modified". This is an exception for the path, as it'll be painted later on.
@@ -276,8 +243,7 @@ impl AddFromPackFileSlots {
         };
 
         // Actions for the slots...
-        unsafe { app_ui.folder_tree_view.as_mut().unwrap().selection_model().as_ref().unwrap().signals().selection_changed().connect(&slots.copy_check); }
-        unsafe { copy_button.as_ref().unwrap().signals().released().connect(&slots.copy); }
+        unsafe { tree_view.as_ref().unwrap().signals().double_clicked().connect(&slots.copy); }
         unsafe { exit_button.as_ref().unwrap().signals().released().connect(&slots.exit); }
 
         // Update the new TreeView.
@@ -723,7 +689,6 @@ fn create_prefab(
 /// Enum `TreeViewOperation`: This enum has the different possible operations we want to do over a TreeView. The options are:
 /// - `Build`: Build the entire TreeView from nothing. Requires a bool, depending if the PackFile is editable or not.
 /// - `Add`: Add a File/Folder to the TreeView. Requires the path in the TreeView, without the mod's name.
-/// - `AddFromPackFile`: Add a File/Folder from another TreeView. Requires the source path, destination path, and list of new paths (new files to add).
 /// - `DeleteSelected`: Removes whatever is selected from the TreeView. It requires the TreePathType of whatever you want to delete.
 /// - `DeleteUnselected`: Remove the File/Folder corresponding to the TreePathType we provide from the TreeView. It requires the TreePathType of whatever you want to delete.
 /// - `Rename`: Change the name of a File/Folder from the TreeView. Requires the TreePathType of whatever you want to rename and the new name.
@@ -731,7 +696,6 @@ fn create_prefab(
 pub enum TreeViewOperation {
     Build(bool),
     Add(Vec<Vec<String>>),
-    AddFromPackFile(Vec<String>, Vec<String>, Vec<Vec<String>>),
     DeleteSelected(TreePathType),
     DeleteUnselected(TreePathType),
     Rename(TreePathType, String),
@@ -1329,6 +1293,9 @@ pub fn get_item_from_incomplete_path(
             let children_count;
             unsafe { children_count = item.as_ref().unwrap().row_count(); }
 
+            // Bool to know when to stop in case of not finding the path.
+            let mut not_found = true;
+
             // For each children we have...
             for row in 0..children_count {
 
@@ -1354,10 +1321,16 @@ pub fn get_item_from_incomplete_path(
                     // Increase the index.
                     index += 1;
 
+                    // Tell the progam you found the child.
+                    not_found = false;
+
                     // Break the loop.
                     break;
                 }
             }
+
+            // If the child was not found, stop and return the parent.
+            if not_found { break; }
         }
     }
 
@@ -1742,49 +1715,66 @@ pub fn update_treeview(
                     // If it's the last one of the path, it's a file.
                     if index >= (path.len() - 1) {
 
-                        // Add the file to the TreeView.
-                        let item = StandardItem::new(&QString::from_std_str(field)).into_raw();
+                        // Try to get an item from this path.
+                        let possible_item = get_item_from_incomplete_path(model, path);
 
-                        // Also, set it as not editable by the user. Otherwise will cause problems when renaming.
-                        unsafe { item.as_mut().unwrap().set_editable(false); }
-                        unsafe { parent.as_mut().unwrap().append_row_unsafe(item); }
+                        // Try to get the path from that item.
+                        let possible_path = get_path_from_item(model, possible_item, false);
 
-                        // Get the Path of the File.
-                        let path = get_path_from_item(model, item, true);
+                        // If the path already exists, it means we have overwritten his file, so consider it as good as new.
+                        if &possible_path == path {
 
-                        // Send the Path to the Background Thread to get the Item's Type.
-                        sender_qt.send("get_type_of_path").unwrap();
-                        sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
-                        let item_type: TreePathType = match check_message_validity_recv(&receiver_qt) {
-                            Ok(data) => data,
-                            Err(_) => panic!(THREADS_MESSAGE_ERROR)
-                        };
-
-                        // Act depending on the Type of the Path.
-                        match item_type {
-
-                            // If it's a folder, give it an Icon.
-                            TreePathType::Folder(_) => set_icon_to_item(item, &icons, IconType::Folder),
-
-                            // If it's a folder, give it an Icon.
-                            TreePathType::File((ref path,_)) => set_icon_to_item(item, &icons, IconType::File(path.to_vec())),
-
-                            // Any other type, ignore it.
-                            _ => {},
+                            // Just re-paint it like that parrot you painted yesterday.
+                            paint_treeview(possible_item, model, ItemVisualStatus::Added);
                         }
 
-                        // Paint it like that parrot you painted yesterday.
-                        paint_treeview(item, model, ItemVisualStatus::Added);
+                        // Otherwise, it's a new PackedFile, so do the usual stuff.
+                        else {
 
-                        // Sort the TreeView.
-                        sort_item_in_tree_view(
-                            sender_qt,
-                            sender_qt_data,
-                            receiver_qt.clone(),
-                            model,
-                            item,
-                            item_type
-                        );
+                            // Add the file to the TreeView.
+                            let item = StandardItem::new(&QString::from_std_str(field)).into_raw();
+
+                            // Also, set it as not editable by the user. Otherwise will cause problems when renaming.
+                            unsafe { item.as_mut().unwrap().set_editable(false); }
+                            unsafe { parent.as_mut().unwrap().append_row_unsafe(item); }
+
+                            // Get the Path of the File.
+                            let path = get_path_from_item(model, item, true);
+
+                            // Send the Path to the Background Thread to get the Item's Type.
+                            sender_qt.send("get_type_of_path").unwrap();
+                            sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
+                            let item_type: TreePathType = match check_message_validity_recv(&receiver_qt) {
+                                Ok(data) => data,
+                                Err(_) => panic!(THREADS_MESSAGE_ERROR)
+                            };
+
+                            // Act depending on the Type of the Path.
+                            match item_type {
+
+                                // If it's a folder, give it an Icon.
+                                TreePathType::Folder(_) => set_icon_to_item(item, &icons, IconType::Folder),
+
+                                // If it's a folder, give it an Icon.
+                                TreePathType::File((ref path,_)) => set_icon_to_item(item, &icons, IconType::File(path.to_vec())),
+
+                                // Any other type, ignore it.
+                                _ => {},
+                            }
+
+                            // Paint it like that parrot you painted yesterday.
+                            paint_treeview(item, model, ItemVisualStatus::Added);
+
+                            // Sort the TreeView.
+                            sort_item_in_tree_view(
+                                sender_qt,
+                                sender_qt_data,
+                                receiver_qt.clone(),
+                                model,
+                                item,
+                                item_type
+                            );
+                        }
                     }
 
                     // Otherwise, it's a folder.
@@ -1880,40 +1870,6 @@ pub fn update_treeview(
                     }
                 }
             }
-        },
-
-        // If we want to add a file/folder from another TreeView...
-        TreeViewOperation::AddFromPackFile(mut source_prefix, destination_prefix, new_files_list) => {
-
-            // If his path is something, take our the last folder.
-            if !source_prefix.is_empty() { source_prefix.pop(); }
-
-            // Create a Vector to store the final paths of the files.
-            let mut final_paths_list = vec![];
-
-            // For each file...
-            for file in &new_files_list {
-
-                // Filter his new path.
-                let mut filtered_source_path = file[source_prefix.len()..].to_vec();
-                let mut final_path = destination_prefix.to_vec();
-                final_path.append(&mut filtered_source_path);
-
-                // And add it to the list.
-                final_paths_list.push(final_path);
-            }
-
-            // Update the TreeView with all the new Paths.
-            update_treeview(
-                &rpfm_path,
-                &sender_qt,
-                &sender_qt_data,
-                receiver_qt.clone(),
-                window,
-                tree_view,
-                model,
-                TreeViewOperation::Add(final_paths_list),
-            );
         },
 
         // If we want to delete something selected from the `TreeView`...

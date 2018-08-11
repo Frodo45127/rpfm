@@ -1658,7 +1658,7 @@ fn main() {
                         unsafe {
                             app_ui.context_menu_add_file.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_add_folder.as_mut().unwrap().set_enabled(false);
-                            app_ui.context_menu_add_from_packfile.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_add_from_packfile.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_create_folder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_create_db.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_create_loc.as_mut().unwrap().set_enabled(false);
@@ -4359,49 +4359,35 @@ fn background_loop(
                     "add_packedfile_from_packfile" => {
 
                         // Wait until we get the needed data from the UI thread.
-                        let paths: (Vec<String>, Vec<String>) = match check_message_validity_recv_background(&receiver_data) {
+                        let path: Vec<String> = match check_message_validity_recv_background(&receiver_data) {
                             Ok(data) => data,
                             Err(_) => panic!(THREADS_MESSAGE_ERROR),
                         };
-
+                        
                         // Try to add the PackedFile to the main PackFile.
                         match packfile::add_packedfile_to_packfile(
                             &mut pack_file_decoded_extra_buffer,
                             &pack_file_decoded_extra,
                             &mut pack_file_decoded,
-                            &paths.0,
-                            &paths.1,
+                            &path
                         ) {
 
                             // In case of success, get the list of copied PackedFiles and send it back.
                             Ok(_) => {
 
-                                // Get the new "Prefix" for the PackedFiles.
-                                let mut source_prefix = paths.0;
-
-                                // Remove the PackFile's name from it.
-                                source_prefix.reverse();
-                                source_prefix.pop();
-                                source_prefix.reverse();
-
-                                // Get the new "Prefix" for the Destination PackedFiles.
-                                let mut destination_prefix = paths.1;
-
-                                // Remove the PackFile's name from it.
-                                destination_prefix.reverse();
-                                destination_prefix.pop();
-                                destination_prefix.reverse();
+                                // Get the "real" path, without the PackFile on it. If the path is just the PackFile, leave it empty.
+                                let real_path = if path.len() > 1 { &path[1..] } else { &[] };
 
                                 // Get all the PackedFiles to copy.
                                 let path_list: Vec<Vec<String>> = pack_file_decoded_extra
                                     .data.packed_files
                                     .iter()
-                                    .filter(|x| x.path.starts_with(&source_prefix))
+                                    .filter(|x| x.path.starts_with(&real_path))
                                     .map(|x| x.path.to_vec())
                                     .collect();
 
                                 // Send all of it back.
-                                sender.send(serde_json::to_vec(&(source_prefix, destination_prefix, path_list)).map_err(From::from)).unwrap();
+                                sender.send(serde_json::to_vec(&path_list).map_err(From::from)).unwrap();
                             }
 
                             // In case of error, report it.
