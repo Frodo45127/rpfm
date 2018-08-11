@@ -8,3 +8,5 @@ Cargo.lock
 settings.json
 rpfm-code.iml
 *.*~
+*.sublime-project
+*.sublime-workspace
