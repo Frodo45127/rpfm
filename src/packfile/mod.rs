@@ -115,7 +115,6 @@ pub fn save_packfile(
     packfile::PackFile::save(&mut pack_file, &mut file)
 }
 
-// TODO: Make this and the update_treeview function deal with duplicates by overwriting.
 /// This function is used to add a file to a PackFile, processing it and turning it into a PackedFile.
 /// It returns a success or error message, depending on whether the file has been added, or not.
 /// It requires:
@@ -126,10 +125,35 @@ pub fn add_file_to_packfile(
     pack_file: &mut packfile::PackFile,
     file_path: &PathBuf,
     tree_path: Vec<String>
-) -> Result<String> {
+) -> Result<()> {
 
-    // Before anything, check for duplicates.
-    if !pack_file.data.packedfile_exists(&tree_path) {
+    // If there is already a PackedFile in that path...
+    if pack_file.data.packedfile_exists(&tree_path) {
+
+        // Create the theorical path of the PackedFile.
+        let mut theorical_path = tree_path.to_vec();
+        theorical_path.insert(0, pack_file.extra_data.file_name.to_owned());
+
+        // Get the destination PackedFile. If it fails, CTD because it's a code problem.
+        let packed_file = if let TreePathType::File((_, index)) = get_type_of_selected_path(&theorical_path, pack_file) {
+            &mut pack_file.data.packed_files[index]
+        } else { unreachable!() };
+
+        // We get the data and his size...
+        packed_file.data = vec![];
+        let mut file = BufReader::new(File::open(&file_path)?);
+        file.read_to_end(&mut packed_file.data)?;
+        packed_file.size = packed_file.data.len() as u32;
+
+        // Change his last modified time.
+        packed_file.last_modified_date = get_last_modified_time_from_file(&file.get_ref());
+
+        // And then, return sucess.
+        Ok(())
+    }
+
+    // Otherwise, we add it as a new PackedFile.
+    else {
 
         // We get the data and his size...
         let mut file_data = vec![];
@@ -140,9 +164,8 @@ pub fn add_file_to_packfile(
         // And then we make a PackedFile with it and save it.
         let packed_files = vec![packfile::PackedFile::read(file_size, get_last_modified_time_from_file(&file.get_ref()), tree_path, file_data); 1];
         pack_file.add_packedfiles(packed_files);
-        Ok(format!("File added."))
+        Ok(())
     }
-    else { Err(ErrorKind::FileAlreadyInPackFile)? }
 }
 
 /// This function is used to add one or many PackedFiles to a PackFile (from another PackFile).

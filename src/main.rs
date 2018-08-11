@@ -1868,20 +1868,13 @@ fn main() {
                                 loop {
 
                                     // Get the response from the other thread.
-                                    let response: Result<Vec<Vec<String>>> = check_message_validity_tryrecv(&receiver_qt);
+                                    let response: Result<()> = check_message_validity_tryrecv(&receiver_qt);
 
                                     // Check what response we got.
                                     match response {
 
                                         // If we got a message....
-                                        Ok(error_list) => {
-                                            // TODO: Improve this.
-                                            // If there is any error, report it. Otherwise, it's a success.
-                                            let error_message = error_list.iter().map(|x| format!("<li>{:?}</li>", x.iter().collect::<PathBuf>())).collect::<String>();
-                                            if !error_list.is_empty() { show_dialog(app_ui.window, false, format!("<p>The following files failed to be imported:</p> <ul>{}</ul>", error_message)); }
-
-                                            // Take out of the path list the ones that failed.
-                                            paths_packedfile.retain(|x| !error_list.contains(x));
+                                        Ok(_) => {
 
                                             // Update the TreeView.
                                             update_treeview(
@@ -1910,6 +1903,12 @@ fn main() {
 
                                                 // If it's "Message Empty", do nothing.
                                                 ErrorKind::MessageSystemEmpty => {},
+
+                                                // If it's an IO error, report it and break the loop.
+                                                ErrorKind::IOGeneric | ErrorKind::IOPermissionDenied | ErrorKind::IOFileNotFound => {
+                                                    show_dialog(app_ui.window, false, error);
+                                                    break;
+                                                }
 
                                                 // In ANY other situation, it's a message problem.
                                                 _ => panic!(THREADS_MESSAGE_ERROR)
@@ -1959,20 +1958,13 @@ fn main() {
                             loop {
 
                                 // Get the response from the other thread.
-                                let response: Result<Vec<Vec<String>>> = check_message_validity_tryrecv(&receiver_qt);
+                                let response: Result<()> = check_message_validity_tryrecv(&receiver_qt);
 
                                 // Check what response we got.
                                 match response {
 
                                     // If we got a message....
-                                    Ok(error_list) => {
-                                        // TODO: Improve this.
-                                        // If there is any error, report it. Otherwise, it's a success.
-                                        let error_message = error_list.iter().map(|x| format!("<li>{:?}</li>", x.iter().collect::<PathBuf>())).collect::<String>();
-                                        if !error_list.is_empty() { show_dialog(app_ui.window, false, format!("<p>The following files failed to be imported:</p> <ul>{}</ul>", error_message)); }
-
-                                        // Take out of the path list the ones that failed.
-                                        paths_packedfile.retain(|x| !error_list.contains(x));
+                                    Ok(_) => {
 
                                         // Update the TreeView.
                                         update_treeview(
@@ -2001,6 +1993,12 @@ fn main() {
 
                                             // If it's "Message Empty", do nothing.
                                             ErrorKind::MessageSystemEmpty => {},
+
+                                            // If it's an IO error, report it and break the loop.
+                                            ErrorKind::IOGeneric | ErrorKind::IOPermissionDenied | ErrorKind::IOFileNotFound => {
+                                                show_dialog(app_ui.window, false, error);
+                                                break;
+                                            }
 
                                             // In ANY other situation, it's a message problem.
                                             _ => panic!(THREADS_MESSAGE_ERROR)
@@ -2125,21 +2123,13 @@ fn main() {
                                 loop {
 
                                     // Get the response from the other thread.
-                                    let response: Result<Vec<Vec<String>>> = check_message_validity_tryrecv(&receiver_qt);
+                                    let response: Result<()> = check_message_validity_tryrecv(&receiver_qt);
 
                                     // Check what response we got.
                                     match response {
 
                                         // If we got a message....
-                                        Ok(error_list) => {
-
-                                            // TODO: Fix this shit.
-                                            // If there is any error, report it. Otherwise, it's a success.
-                                            let error_message = error_list.iter().map(|x| format!("<li>{:?}</li>", x.iter().collect::<PathBuf>())).collect::<String>();
-                                            if !error_list.is_empty() { show_dialog(app_ui.window, false, format!("<p>The following files failed to be imported:</p> <ul>{}</ul>", error_message)); }
-
-                                            // Take out of the path list the ones that failed.
-                                            paths_packedfile.retain(|x| !error_list.contains(x));
+                                        Ok(_) => {
 
                                             // Update the TreeView.
                                             update_treeview(
@@ -2168,6 +2158,12 @@ fn main() {
 
                                                 // If it's "Message Empty", do nothing.
                                                 ErrorKind::MessageSystemEmpty => {},
+
+                                                // If it's an IO error, report it and break the loop.
+                                                ErrorKind::IOGeneric | ErrorKind::IOPermissionDenied | ErrorKind::IOFileNotFound => {
+                                                    show_dialog(app_ui.window, false, error);
+                                                    break;
+                                                }
 
                                                 // In ANY other situation, it's a message problem.
                                                 _ => panic!(THREADS_MESSAGE_ERROR)
@@ -2221,21 +2217,13 @@ fn main() {
                             loop {
 
                                 // Get the response from the other thread.
-                                let response: Result<Vec<Vec<String>>> = check_message_validity_tryrecv(&receiver_qt);
+                                let response: Result<()> = check_message_validity_tryrecv(&receiver_qt);
 
                                 // Check what response we got.
                                 match response {
 
                                     // If we got a message....
-                                    Ok(error_list) => {
-
-                                        // TODO: Fix this shit.
-                                        // If there is any error, report it. Otherwise, it's a success.
-                                        let error_message = error_list.iter().map(|x| format!("<li>{:?}</li>", x.iter().collect::<PathBuf>())).collect::<String>();
-                                        if !error_list.is_empty() { show_dialog(app_ui.window, false, format!("<p>The following files failed to be imported:</p> <ul>{}</ul>", error_message)); }
-
-                                        // Take out of the path list the ones that failed.
-                                        paths_packedfile.retain(|x| !error_list.contains(x));
+                                    Ok(_) => {
 
                                         // Update the TreeView.
                                         update_treeview(
@@ -2264,6 +2252,12 @@ fn main() {
 
                                             // If it's "Message Empty", do nothing.
                                             ErrorKind::MessageSystemEmpty => {},
+
+                                            // If it's an IO error, report it and break the loop.
+                                            ErrorKind::IOGeneric | ErrorKind::IOPermissionDenied | ErrorKind::IOFileNotFound => {
+                                                show_dialog(app_ui.window, false, error);
+                                                break;
+                                            }
 
                                             // In ANY other situation, it's a message problem.
                                             _ => panic!(THREADS_MESSAGE_ERROR)
@@ -4168,25 +4162,18 @@ fn background_loop(
                             Err(_) => panic!(THREADS_MESSAGE_ERROR),
                         };
 
-                        // Redundant, but needed for the deserializer to know the types.
-                        let paths = data.0;
-                        let paths_packedfile = data.1;
-
-                        // TODO: Add the type of error to this list.
-                        // Get a list of the PackedFiles that failed to be added, for one reason or another.
-                        let mut errors = vec![];
-
                         // For each file...
-                        for index in 0..paths.len() {
+                        for index in 0..data.0.len() {
 
-                            // Try to add it to the PackFile. If it fails, add it to the error list.
-                            if let Err(_) = packfile::add_file_to_packfile(&mut pack_file_decoded, &paths[index], paths_packedfile[index].to_vec()) {
-                                errors.push(paths_packedfile[index].to_vec());
+                            // Try to add it to the PackFile. If it fails, report it and stop adding files.
+                            if let Err(error) = packfile::add_file_to_packfile(&mut pack_file_decoded, &data.0[index], data.1[index].to_vec()) {
+                                sender.send(Err(error)).unwrap();
+                                break;
                             }
                         }
 
-                        // Send back the list of files that failed.
-                        sender.send(serde_json::to_vec(&errors).map_err(From::from)).unwrap();
+                        // If nothing failed, send back success.
+                        sender.send(serde_json::to_vec(&()).map_err(From::from)).unwrap();
                     }
 
                     // In case we want to delete PackedFiles from a PackFile...
@@ -4363,7 +4350,7 @@ fn background_loop(
                             Ok(data) => data,
                             Err(_) => panic!(THREADS_MESSAGE_ERROR),
                         };
-                        
+
                         // Try to add the PackedFile to the main PackFile.
                         match packfile::add_packedfile_to_packfile(
                             &mut pack_file_decoded_extra_buffer,
