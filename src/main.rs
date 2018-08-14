@@ -2924,6 +2924,7 @@ fn main() {
 
                 // Send the Path to the Background Thread, and get the type of the item.
                 sender_qt.send("get_type_of_path").unwrap();
+                sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
                 let item_type: TreePathType = match check_message_validity_recv(&receiver_qt) {
                     Ok(data) => data,
                     Err(_) => panic!(THREADS_MESSAGE_ERROR)
