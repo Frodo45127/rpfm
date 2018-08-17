@@ -558,7 +558,10 @@ impl PackFileData {
                 packed_file.size = decrypt_index_item_file_length(encrypted_size, packed_files_after_this_one as u32, &mut packed_file_index_offset);
 
                 // If we have the last modified date of the PackedFiles, get it.
-                if header.index_includes_timestamp { packed_file.timestamp = decode_integer_u32(&packed_file_index[packed_file_index_offset..(packed_file_index_offset + 4)])?; }
+                if header.index_includes_timestamp { 
+                    let timestamp = decode_integer_u32(&packed_file_index[packed_file_index_offset..(packed_file_index_offset + 4)])?;
+                    packed_file.timestamp = decrypt_index_item_file_length(timestamp, packed_files_after_this_one as u32, &mut packed_file_index_offset);
+                }
 
                 // Get the decrypted path.
                 let decrypted_path = decrypt_index_item_filename(&packed_file_index[packed_file_index_offset..], packed_file.size as u8, &mut packed_file_index_offset);
