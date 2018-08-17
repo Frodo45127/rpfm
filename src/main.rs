@@ -765,52 +765,20 @@ fn main() {
                         // If we got a message....
                         Ok(response) => {
 
-                            // If the Game Selected is Arena, block any attempt of creating or saving a PackFile.
-                            if response.0.game == "arena" {
+                            // Get the current settings.
+                            sender_qt.send("get_settings").unwrap();
 
-                                // Disable the actions that allow to create and save PackFiles.
-                                unsafe { app_ui.new_packfile.as_mut().unwrap().set_enabled(false); }
-                                unsafe { app_ui.save_packfile.as_mut().unwrap().set_enabled(false); }
-                                unsafe { app_ui.save_packfile_as.as_mut().unwrap().set_enabled(false); }
+                            // Try to get the settings. This should never fail, so CTD if it does it.
+                            let settings: Settings = match check_message_validity_recv(&receiver_qt) {
+                                Ok(data) => data,
+                                Err(_) => panic!(THREADS_MESSAGE_ERROR)
+                            };
 
-                                // This one too, though we had to deal with it specially later on.
-                                unsafe { mymod_stuff.borrow().new_mymod.as_mut().unwrap().set_enabled(false); }
-                            }
+                            // Disable the "PackFile Management" actions.
+                            enable_packfile_actions(&app_ui, &response.0, &mymod_stuff, settings.clone(), false);
 
-                            // Otherwise, enable them.
-                            else {
-
-                                // Disable the actions that allow to create and save PackFiles.
-                                unsafe { app_ui.new_packfile.as_mut().unwrap().set_enabled(true); }
-
-                                // Disable the "PackFile Management" actions.
-                                enable_packfile_actions(&app_ui, &response.0, false);
-
-                                // If we have a PackFile opened, re-enable the "PackFile Management" actions, so the "Special Stuff" menu gets updated properly.
-                                if !response.1 { enable_packfile_actions(&app_ui, &response.0, true); }
-
-                                // Get the current settings.
-                                sender_qt.send("get_settings").unwrap();
-
-                                // Try to get the settings. This should never fail, so CTD if it does it.
-                                let settings: Settings = match check_message_validity_recv(&receiver_qt) {
-                                    Ok(data) => data,
-                                    Err(_) => panic!(THREADS_MESSAGE_ERROR)
-                                };
-
-                                // If there is a "MyMod" path set in the settings...
-                                if let Some(ref path) = settings.paths.my_mods_base_path {
-
-                                    // And it's a valid directory, enable the "New MyMod" button.
-                                    if path.is_dir() { unsafe { mymod_stuff.borrow().new_mymod.as_mut().unwrap().set_enabled(true); }}
-
-                                    // Otherwise, disable it.
-                                    else { unsafe { mymod_stuff.borrow().new_mymod.as_mut().unwrap().set_enabled(false); }}
-                                }
-
-                                // Otherwise, disable it.
-                                else { unsafe { mymod_stuff.borrow().new_mymod.as_mut().unwrap().set_enabled(false); }}
-                            }
+                            // If we have a PackFile opened, re-enable the "PackFile Management" actions, so the "Special Stuff" menu gets updated properly.
+                            if !response.1 { enable_packfile_actions(&app_ui, &response.0, &mymod_stuff, settings, true); }
 
                             // Set the current "Operational Mode" to `Normal` (In case we were in `MyMod` mode).
                             set_my_mod_mode(&mymod_stuff, &mode, None);
@@ -975,8 +943,15 @@ fn main() {
                         Err(_) => panic!(THREADS_MESSAGE_ERROR)
                     };
 
+                    // Try to get the settings.
+                    sender_qt.send("get_settings").unwrap();
+                    let settings: Settings = match check_message_validity_recv(&receiver_qt) {
+                        Ok(data) => data,
+                        Err(_) => panic!(THREADS_MESSAGE_ERROR)
+                    };
+
                     // Enable the actions available for the PackFile from the `MenuBar`.
-                    enable_packfile_actions(&app_ui, &game_selected, true);
+                    enable_packfile_actions(&app_ui, &game_selected, &mymod_stuff, settings, true);
 
                     // Set the current "Operational Mode" to Normal, as this is a "New" mod.
                     set_my_mod_mode(&mymod_stuff, &mode, None);
@@ -4761,12 +4736,46 @@ fn background_loop(
 fn enable_packfile_actions(
     app_ui: &AppUI,
     game_selected: &GameSelected,
+    mymod_stuff: &Rc<RefCell<MyModStuff>>,
+    settings: Settings,
     enable: bool
 ) {
 
-    // Enable or disable the actions from "PackFile" Submenu.
-    unsafe { app_ui.save_packfile.as_mut().unwrap().set_enabled(enable); }
-    unsafe { app_ui.save_packfile_as.as_mut().unwrap().set_enabled(enable); }
+    // If the game is Arena, no matter what we're doing, these ones ALWAYS have to be disabled.
+    if game_selected.game == "arena" {
+
+        // Disable the actions that allow to create and save PackFiles.
+        unsafe { app_ui.new_packfile.as_mut().unwrap().set_enabled(false); }
+        unsafe { app_ui.save_packfile.as_mut().unwrap().set_enabled(false); }
+        unsafe { app_ui.save_packfile_as.as_mut().unwrap().set_enabled(false); }
+
+        // This one too, though we had to deal with it specially later on.
+        unsafe { mymod_stuff.borrow().new_mymod.as_mut().unwrap().set_enabled(false); }
+    }
+
+    // Otherwise...
+    else {
+
+        // Enable or disable the actions from "PackFile" Submenu.
+        unsafe { app_ui.new_packfile.as_mut().unwrap().set_enabled(true); }
+        unsafe { app_ui.save_packfile.as_mut().unwrap().set_enabled(enable); }
+        unsafe { app_ui.save_packfile_as.as_mut().unwrap().set_enabled(enable); }
+
+        // If there is a "MyMod" path set in the settings...
+        if let Some(ref path) = settings.paths.my_mods_base_path {
+
+            // And it's a valid directory, enable the "New MyMod" button.
+            if path.is_dir() { unsafe { mymod_stuff.borrow().new_mymod.as_mut().unwrap().set_enabled(true); }}
+
+            // Otherwise, disable it.
+            else { unsafe { mymod_stuff.borrow().new_mymod.as_mut().unwrap().set_enabled(false); }}
+        }
+
+        // Otherwise, disable it.
+        else { unsafe { mymod_stuff.borrow().new_mymod.as_mut().unwrap().set_enabled(false); }}
+    }
+
+    // These actions are common, no matter what game we have.    
     unsafe { app_ui.change_packfile_type_group.as_mut().unwrap().set_enabled(enable); }
     unsafe { app_ui.change_packfile_type_index_includes_timestamp.as_mut().unwrap().set_enabled(enable); }
 
@@ -5190,8 +5199,15 @@ fn build_my_mod_menu(
                                         Err(_) => panic!(THREADS_MESSAGE_ERROR)
                                     };
 
+                                    // Try to get the settings.
+                                    sender_qt.send("get_settings").unwrap();
+                                    let settings: Settings = match check_message_validity_recv(&receiver_qt) {
+                                        Ok(data) => data,
+                                        Err(_) => panic!(THREADS_MESSAGE_ERROR)
+                                    };
+
                                     // Enable the actions available for the PackFile from the `MenuBar`.
-                                    enable_packfile_actions(&app_ui, &game_selected, true);
+                                    enable_packfile_actions(&app_ui, &game_selected, &Rc::new(RefCell::new(mymod_stuff.clone())), settings, true);
 
                                     // Set the current "Operational Mode" to `MyMod`.
                                     set_my_mod_mode(&Rc::new(RefCell::new(mymod_stuff.clone())), &mode, Some(mymod_path));
@@ -5319,8 +5335,15 @@ fn build_my_mod_menu(
                             Err(_) => panic!(THREADS_MESSAGE_ERROR)
                         };
 
+                        // Try to get the settings.
+                        sender_qt.send("get_settings").unwrap();
+                        let settings: Settings = match check_message_validity_recv(&receiver_qt) {
+                            Ok(data) => data,
+                            Err(_) => panic!(THREADS_MESSAGE_ERROR)
+                        };
+
                         // Disable the actions available for the PackFile from the `MenuBar`.
-                        enable_packfile_actions(&app_ui, &game_selected, false);
+                        enable_packfile_actions(&app_ui, &game_selected, &Rc::new(RefCell::new(mymod_stuff.clone())), settings, false);
 
                         // Clear the TreeView.
                         unsafe { app_ui.folder_tree_model.as_mut().unwrap().clear(); }
