@@ -173,10 +173,10 @@ pub struct AppUI {
     pub change_packfile_type_movie: *mut Action,
     pub change_packfile_type_other: *mut Action,
 
-    pub change_packfile_type_mysterious_byte_music: *mut Action,
-    pub change_packfile_type_index_includes_last_modified_date: *mut Action,
+    pub change_packfile_type_data_is_encrypted: *mut Action,
+    pub change_packfile_type_index_includes_timestamp: *mut Action,
     pub change_packfile_type_index_is_encrypted: *mut Action,
-    pub change_packfile_type_mysterious_byte: *mut Action,
+    pub change_packfile_type_header_is_extended: *mut Action,
 
     // Action Group for the submenu.
     pub change_packfile_type_group: *mut ActionGroup,
@@ -397,10 +397,10 @@ fn main() {
                 change_packfile_type_movie: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("Mo&vie")),
                 change_packfile_type_other: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Other")),
 
-                change_packfile_type_mysterious_byte_music: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("Has Musical Byte")),
-                change_packfile_type_index_includes_last_modified_date: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Include Last Modified Date")),
+                change_packfile_type_data_is_encrypted: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Data Is Encrypted")),
+                change_packfile_type_index_includes_timestamp: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Index Includes Timestamp")),
                 change_packfile_type_index_is_encrypted: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("Index Is &Encrypted")),
-                change_packfile_type_mysterious_byte: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Has Mysterious Byte")),
+                change_packfile_type_header_is_extended: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Header Is Extended")),
 
                 // Action Group for the submenu.
                 change_packfile_type_group: ActionGroup::new(menu_change_packfile_type.as_mut().unwrap().static_cast_mut()).into_raw(),
@@ -477,17 +477,18 @@ fn main() {
         unsafe { app_ui.change_packfile_type_other.as_mut().unwrap().set_checkable(true); }
 
         // These ones are individual, but they need to be checkable and not editable.
-        unsafe { app_ui.change_packfile_type_mysterious_byte_music.as_mut().unwrap().set_checkable(true); }
-        unsafe { app_ui.change_packfile_type_index_includes_last_modified_date.as_mut().unwrap().set_checkable(true); }
+        unsafe { app_ui.change_packfile_type_data_is_encrypted.as_mut().unwrap().set_checkable(true); }
+        unsafe { app_ui.change_packfile_type_index_includes_timestamp.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_checkable(true); }
-        unsafe { app_ui.change_packfile_type_mysterious_byte.as_mut().unwrap().set_checkable(true); }
+        unsafe { app_ui.change_packfile_type_header_is_extended.as_mut().unwrap().set_checkable(true); }
 
+        unsafe { app_ui.change_packfile_type_data_is_encrypted.as_mut().unwrap().set_enabled(false); }
         unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_enabled(false); }
-        unsafe { app_ui.change_packfile_type_mysterious_byte.as_mut().unwrap().set_enabled(false); }
+        unsafe { app_ui.change_packfile_type_header_is_extended.as_mut().unwrap().set_enabled(false); }
 
         // Put separators in the SubMenu.
         unsafe { menu_change_packfile_type.as_mut().unwrap().insert_separator(app_ui.change_packfile_type_other); }
-        unsafe { menu_change_packfile_type.as_mut().unwrap().insert_separator(app_ui.change_packfile_type_mysterious_byte_music); }
+        unsafe { menu_change_packfile_type.as_mut().unwrap().insert_separator(app_ui.change_packfile_type_data_is_encrypted); }
 
         // The "Game Selected" Menu should be an ActionGroup.
         unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.warhammer_2); }
@@ -677,10 +678,10 @@ fn main() {
         unsafe { app_ui.preferences.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the Preferences/Settings dialog.")); }
         unsafe { app_ui.quit.as_mut().unwrap().set_status_tip(&QString::from_std_str("Exit the Program.")); }
 
-        unsafe { app_ui.change_packfile_type_mysterious_byte_music.as_mut().unwrap().set_status_tip(&QString::from_std_str("If checked, this PackFile has a mysterious byte in the header. Only seen in music PackFiles.")); }
-        unsafe { app_ui.change_packfile_type_index_includes_last_modified_date.as_mut().unwrap().set_status_tip(&QString::from_std_str("If checked, the PackedFile Index of this PackFile includes the 'Last Modified' date of every PackedFile. Note that PackFiles with this enabled WILL NOT SHOW UP in the official launcher.")); }
+        unsafe { app_ui.change_packfile_type_data_is_encrypted.as_mut().unwrap().set_status_tip(&QString::from_std_str("If checked, the data of the PackedFiles in this PackFile is encrypted. Saving this kind of PackFiles is NOT SUPPORTED.")); }
+        unsafe { app_ui.change_packfile_type_index_includes_timestamp.as_mut().unwrap().set_status_tip(&QString::from_std_str("If checked, the PackedFile Index of this PackFile includes the 'Last Modified' date of every PackedFile. Note that PackFiles with this enabled WILL NOT SHOW UP as mods in the official launcher.")); }
         unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_status_tip(&QString::from_std_str("If checked, the PackedFile Index of this PackFile is encrypted. Saving this kind of PackFiles is NOT SUPPORTED.")); }
-        unsafe { app_ui.change_packfile_type_mysterious_byte.as_mut().unwrap().set_status_tip(&QString::from_std_str("If checked, this PackFile has a mysterious byte in the header. Only seen in Arena PackFiles. Saving this kind of PackFiles is NOT SUPPORTED.")); }
+        unsafe { app_ui.change_packfile_type_header_is_extended.as_mut().unwrap().set_status_tip(&QString::from_std_str("If checked, the header of this PackFile is extended by 20 bytes. Only seen in Arena PackFiles with encryption. Saving this kind of PackFiles is NOT SUPPORTED.")); }
 
         // Menu bar, Game Selected.
         unsafe { app_ui.warhammer_2.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Warhammer 2' as 'Game Selected'.")); }
@@ -921,10 +922,10 @@ fn main() {
                                 }
 
                                 // By default, the four bitmask should be false.
-                                unsafe { app_ui.change_packfile_type_mysterious_byte_music.as_mut().unwrap().set_checked(false); }
-                                unsafe { app_ui.change_packfile_type_index_includes_last_modified_date.as_mut().unwrap().set_checked(false); }
+                                unsafe { app_ui.change_packfile_type_data_is_encrypted.as_mut().unwrap().set_checked(false); }
+                                unsafe { app_ui.change_packfile_type_index_includes_timestamp.as_mut().unwrap().set_checked(false); }
                                 unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_checked(false); }
-                                unsafe { app_ui.change_packfile_type_mysterious_byte.as_mut().unwrap().set_checked(false); }
+                                unsafe { app_ui.change_packfile_type_header_is_extended.as_mut().unwrap().set_checked(false); }
 
                                 // Update the TreeView.
                                 update_treeview(
@@ -1328,31 +1329,16 @@ fn main() {
         ));
 
         // What happens when we change the value of "Include Last Modified Date" action.
-        let slot_include_last_modified_date = SlotBool::new(clone!(
+        let slot_index_includes_timestamp = SlotBool::new(clone!(
             sender_qt,
             sender_qt_data => move |_| {
 
                 // Get the current value of the action.
                 let state;
-                unsafe { state = app_ui.change_packfile_type_index_includes_last_modified_date.as_ref().unwrap().is_checked(); }
+                unsafe { state = app_ui.change_packfile_type_index_includes_timestamp.as_ref().unwrap().is_checked(); }
 
                 // Send the new state to the background thread.
-                sender_qt.send("change_include_last_modified_date").unwrap();
-                sender_qt_data.send(serde_json::to_vec(&state).map_err(From::from)).unwrap();
-            }
-        ));
-
-        // What happens when we change the value of "Has Musical Bit" action.
-        let slot_has_musical_bit = SlotBool::new(clone!(
-            sender_qt,
-            sender_qt_data => move |_| {
-
-                // Get the current value of the action.
-                let state;
-                unsafe { state = app_ui.change_packfile_type_mysterious_byte_music.as_ref().unwrap().is_checked(); }
-
-                // Send the new state to the background thread.
-                sender_qt.send("change_has_musical_bit").unwrap();
+                sender_qt.send("change_index_includes_timestamp").unwrap();
                 sender_qt_data.send(serde_json::to_vec(&state).map_err(From::from)).unwrap();
             }
         ));
@@ -1454,8 +1440,7 @@ fn main() {
         unsafe { app_ui.change_packfile_type_mod.as_ref().unwrap().signals().triggered().connect(&slot_change_packfile_type); }
         unsafe { app_ui.change_packfile_type_movie.as_ref().unwrap().signals().triggered().connect(&slot_change_packfile_type); }
         unsafe { app_ui.change_packfile_type_other.as_ref().unwrap().signals().triggered().connect(&slot_change_packfile_type); }
-        unsafe { app_ui.change_packfile_type_mysterious_byte_music.as_ref().unwrap().signals().triggered().connect(&slot_has_musical_bit); }
-        unsafe { app_ui.change_packfile_type_index_includes_last_modified_date.as_ref().unwrap().signals().triggered().connect(&slot_include_last_modified_date); }
+        unsafe { app_ui.change_packfile_type_index_includes_timestamp.as_ref().unwrap().signals().triggered().connect(&slot_index_includes_timestamp); }
 
         unsafe { app_ui.preferences.as_ref().unwrap().signals().triggered().connect(&slot_preferences); }
         unsafe { app_ui.quit.as_ref().unwrap().signals().triggered().connect(&slot_quit); }
@@ -3870,7 +3855,7 @@ fn background_loop(
                     "save_packfile" => {
 
                         // If it's of a type we can edit...
-                        if pack_file_decoded.is_editable(&settings) {
+                        if pack_file_decoded.is_editable(settings.allow_editing_of_ca_packfiles) {
 
                             // Check if it already exist in the disk.
                             if pack_file_decoded.extra_data.file_path.is_file() {
@@ -3894,7 +3879,7 @@ fn background_loop(
                     "save_packfile_as" => {
 
                         // If it's of a type we can edit...
-                        if pack_file_decoded.is_editable(&settings) {
+                        if pack_file_decoded.is_editable(settings.allow_editing_of_ca_packfiles) {
 
                             // If it's editable, we send the UI the "Extra data" of the PackFile, as the UI needs it for some stuff.
                             sender.send(serde_json::to_vec(&pack_file_decoded.extra_data).map_err(From::from)).unwrap();
@@ -3937,7 +3922,7 @@ fn background_loop(
                     }
 
                     // In case we want to change the "Include Last Modified Date" setting of the PackFile...
-                    "change_include_last_modified_date" => {
+                    "change_index_includes_timestamp" => {
 
                         // Wait until we get the needed data from the UI thread.
                         let state: bool = match check_message_validity_recv_background(&receiver_data) {
@@ -3946,20 +3931,7 @@ fn background_loop(
                         };
 
                         // If it can be deserialized as a bool, change the state of the "Include Last Modified Date" setting of the PackFile.
-                        pack_file_decoded.header.index_includes_last_modified_date = state;
-                    }
-
-                    // In case we want to change the "Has Musical Bit" setting of the PackFile...
-                    "change_has_musical_bit" => {
-
-                        // Wait until we get the needed data from the UI thread.
-                        let state: bool = match check_message_validity_recv_background(&receiver_data) {
-                            Ok(data) => data,
-                            Err(_) => panic!(THREADS_MESSAGE_ERROR),
-                        };
-
-                        // If it can be deserialized as a bool, change the state of the "Has Musical Bit" setting of the PackFile.
-                        pack_file_decoded.header.mysterious_mask_music = state;
+                        pack_file_decoded.header.index_includes_timestamp = state;
                     }
 
                     // In case we want to get the currently loaded Schema...
@@ -4796,8 +4768,7 @@ fn enable_packfile_actions(
     unsafe { app_ui.save_packfile.as_mut().unwrap().set_enabled(enable); }
     unsafe { app_ui.save_packfile_as.as_mut().unwrap().set_enabled(enable); }
     unsafe { app_ui.change_packfile_type_group.as_mut().unwrap().set_enabled(enable); }
-    unsafe { app_ui.change_packfile_type_mysterious_byte_music.as_mut().unwrap().set_enabled(enable); }
-    unsafe { app_ui.change_packfile_type_index_includes_last_modified_date.as_mut().unwrap().set_enabled(enable); }
+    unsafe { app_ui.change_packfile_type_index_includes_timestamp.as_mut().unwrap().set_enabled(enable); }
 
     // If we are enabling...
     if enable {
@@ -4926,10 +4897,10 @@ fn open_packfile(
                 }
 
                 // Enable or disable these, depending on what data we have in the header.
-                unsafe { app_ui.change_packfile_type_mysterious_byte_music.as_mut().unwrap().set_checked(header.mysterious_mask_music); }
-                unsafe { app_ui.change_packfile_type_index_includes_last_modified_date.as_mut().unwrap().set_checked(header.index_includes_last_modified_date); }
+                unsafe { app_ui.change_packfile_type_data_is_encrypted.as_mut().unwrap().set_checked(header.data_is_encrypted); }
+                unsafe { app_ui.change_packfile_type_index_includes_timestamp.as_mut().unwrap().set_checked(header.index_includes_timestamp); }
                 unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_checked(header.index_is_encrypted); }
-                unsafe { app_ui.change_packfile_type_mysterious_byte.as_mut().unwrap().set_checked(header.mysterious_mask); }
+                unsafe { app_ui.change_packfile_type_header_is_extended.as_mut().unwrap().set_checked(header.header_is_extended); }
 
                 // Update the TreeView.
                 update_treeview(
@@ -4972,7 +4943,7 @@ fn open_packfile(
                         "PFH5" => {
 
                             // If the PackFile has the mysterious byte enabled, it's from Arena.
-                            if header.mysterious_mask { unsafe { app_ui.arena.as_mut().unwrap().trigger(); } }
+                            if header.header_is_extended { unsafe { app_ui.arena.as_mut().unwrap().trigger(); } }
 
                             // Otherwise, it's from Warhammer 2.
                             else { unsafe { app_ui.warhammer_2.as_mut().unwrap().trigger(); } }
@@ -5204,10 +5175,10 @@ fn build_my_mod_menu(
                                     unsafe { app_ui.change_packfile_type_mod.as_mut().unwrap().set_checked(true); }
 
                                     // By default, the four bitmask should be false.
-                                    unsafe { app_ui.change_packfile_type_mysterious_byte_music.as_mut().unwrap().set_checked(false); }
-                                    unsafe { app_ui.change_packfile_type_index_includes_last_modified_date.as_mut().unwrap().set_checked(false); }
+                                    unsafe { app_ui.change_packfile_type_data_is_encrypted.as_mut().unwrap().set_checked(false); }
+                                    unsafe { app_ui.change_packfile_type_index_includes_timestamp.as_mut().unwrap().set_checked(false); }
                                     unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_checked(false); }
-                                    unsafe { app_ui.change_packfile_type_mysterious_byte.as_mut().unwrap().set_checked(false); }
+                                    unsafe { app_ui.change_packfile_type_header_is_extended.as_mut().unwrap().set_checked(false); }
 
                                     // Set the new "MyMod" as "Not modified".
                                     *is_modified.borrow_mut() = set_modified(false, &app_ui, None);

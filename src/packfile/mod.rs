@@ -146,7 +146,7 @@ pub fn add_file_to_packfile(
         packed_file.size = packed_file.data.len() as u32;
 
         // Change his last modified time.
-        packed_file.last_modified_date = get_last_modified_time_from_file(&file.get_ref());
+        packed_file.timestamp = get_last_modified_time_from_file(&file.get_ref());
 
         // And then, return sucess.
         Ok(())
