@@ -1,6 +1,6 @@
 [package]
 name = "rpfm-code"
-version = "0.9.3"
+version = "0.9.4"
 authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
 build = "build.rs"
 description = "A modding tool for Total War games."
