@@ -4,11 +4,9 @@
 
 use coding_helpers::*;
 
-/*
---------------------------------------------------------
-            Decoding helpers (Common decoders)
---------------------------------------------------------
-*/
+//-----------------------------------------------------//
+//          Decoding helpers (Common decoders)
+//-----------------------------------------------------//
 
 /// Test to make sure the u16 integer decoder (`decode_integer_u16()`) works and fails properly.
 #[test]
@@ -128,11 +126,9 @@ fn test_decode_bool() {
     assert_eq!(decode_bool(2).is_err(), true);
 }
 
-/*
---------------------------------------------------------
-            Encoding helpers (Common encoders)
---------------------------------------------------------
-*/
+//-----------------------------------------------------//
+//          Encoding helpers (Common encoders)
+//-----------------------------------------------------//
 
 /// Test to make sure the u16 integer encoder (`encode_integer_u16()`) works properly.
 #[test]
@@ -218,11 +214,9 @@ fn test_encode_bool() {
     assert_eq!(encode_bool(false), 0);
 }
 
-/*
---------------------------------------------------------
-          Decoding helpers (Specific decoders)
---------------------------------------------------------
-*/
+//-----------------------------------------------------//
+//        Decoding helpers (Specific decoders)
+//-----------------------------------------------------//
 
 /// Test to make sure the u16 integer specific decoder (`decode_packedfile_integer_u16()`) works
 /// and fails properly.
@@ -518,11 +512,9 @@ fn test_decode_packedfile_bool() {
     }
 }
 
-/*
---------------------------------------------------------
-          Encoding helpers (Specific encoders)
---------------------------------------------------------
-*/
+//-----------------------------------------------------//
+//        Encoding helpers (Specific encoders)
+//-----------------------------------------------------//
 
 /// Test to make sure the u8 string specific encoder (`encode_packedfile_string_u8()`) works properly.
 #[test]

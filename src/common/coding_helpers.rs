@@ -16,14 +16,11 @@ use self::encoding::{Encoding, DecoderTrap};
 use self::encoding::all::ISO_8859_1;
 use error::{Error, ErrorKind, Result};
 
-/*
---------------------------------------------------------
-            Decoding helpers (Common decoders)
---------------------------------------------------------
-*/
+//-----------------------------------------------------//
+//          Decoding helpers (Common decoders)
+//-----------------------------------------------------//
 
-/// This function allow us to decode an UTF-16 encoded integer. This type of Integers are encoded in
-/// in 2 bytes reversed (LittleEndian).
+/// Common helper. This function allows us to decode an u16 encoded integer.
 #[allow(dead_code)]
 pub fn decode_integer_u16(integer_encoded: &[u8]) -> Result<u16> {
     match integer_encoded.len() {
@@ -33,8 +30,7 @@ pub fn decode_integer_u16(integer_encoded: &[u8]) -> Result<u16> {
 
 }
 
-/// This function allow us to decode an UTF-32 encoded integer. This type of Integers are encoded in
-/// in 4 bytes reversed (LittleEndian).
+/// Common helper. This function allows us to decode an u32 encoded integer.
 #[allow(dead_code)]
 pub fn decode_integer_u32(integer_encoded: &[u8]) -> Result<u32> {
     match integer_encoded.len() {
@@ -43,8 +39,7 @@ pub fn decode_integer_u32(integer_encoded: &[u8]) -> Result<u32> {
     }
 }
 
-/// This function allow us to decode an encoded Long Integer. This type of Integers are encoded in
-/// in 8 bytes reversed (LittleEndian).
+/// Common helper. This function allows us to decode an u64 encoded integer.
 #[allow(dead_code)]
 pub fn decode_integer_u64(integer_encoded: &[u8]) -> Result<u64> {
     match integer_encoded.len() {
@@ -53,8 +48,7 @@ pub fn decode_integer_u64(integer_encoded: &[u8]) -> Result<u64> {
     }
 }
 
-/// This function allow us to decode an signed UTF-32 encoded integer. This type of Integers are encoded in
-/// in 4 bytes reversed (LittleEndian).
+/// Common helper. This function allows us to decode an i32 encoded integer.
 #[allow(dead_code)]
 pub fn decode_integer_i32(integer_encoded: &[u8]) -> Result<i32> {
     match integer_encoded.len() {
@@ -63,8 +57,7 @@ pub fn decode_integer_i32(integer_encoded: &[u8]) -> Result<i32> {
     }
 }
 
-/// This function allow us to decode an signed encoded Long Integer. This type of Integers are encoded in
-/// in 8 bytes reversed (LittleEndian).
+/// Common helper. This function allows us to decode an i64 encoded integer.
 #[allow(dead_code)]
 pub fn decode_integer_i64(integer_encoded: &[u8]) -> Result<i64> {
     match integer_encoded.len() {
@@ -73,8 +66,7 @@ pub fn decode_integer_i64(integer_encoded: &[u8]) -> Result<i64> {
     }
 }
 
-/// This function allow us to decode an UTF-32 encoded float. This type of floats are encoded in
-/// in 4 bytes reversed (LittleEndian).
+/// Common helper. This function allows us to decode a f32 encoded float.
 #[allow(dead_code)]
 pub fn decode_float_f32(float_encoded: &[u8]) -> Result<f32> {
     match float_encoded.len() {
@@ -83,21 +75,21 @@ pub fn decode_float_f32(float_encoded: &[u8]) -> Result<f32> {
     }
 }
 
-/// This function allow us to decode an UTF-8 encoded String.
+/// Common helper. This function allows us to decode an UTF-8 encoded String.
 #[allow(dead_code)]
 pub fn decode_string_u8(string_encoded: &[u8]) -> Result<String> {
     String::from_utf8(string_encoded.to_vec()).map_err(|_| Error::from(ErrorKind::HelperDecodingEncodingError("<p>Error trying to decode an UTF-8 String.</p>".to_owned())))
 }
 
-/// This function allow us to decode an UTF-8 encoded String.
+/// Common helper. This function allows us to decode an ISO_8859_1 encoded String.
 #[allow(dead_code)]
 pub fn decode_string_u8_iso_8859_1(string_encoded: &[u8]) -> Result<String> {
     ISO_8859_1.decode(string_encoded, DecoderTrap::Replace).map(|x| x.to_string()).map_err(|_| Error::from(ErrorKind::HelperDecodingEncodingError("<p>Error trying to decode an UTF-8 String.</p>".to_owned())))
 }
 
-/// This function allow us to decode an (0-Padded) UTF-8 encoded String. This type of String has a
-/// fixed size and, when the chars ends, it's filled with "0" bytes. We use a tuple to store
-/// his text and his size when encoded.
+/// Common helper. This function allows us to decode a 00-Padded UTF-8 encoded String. This type of String has a
+/// fixed size and, when the characters end, it's filled with `00` bytes until it reach his size.
+/// We return the decoded String and his full size when encoded.
 #[allow(dead_code)]
 pub fn decode_string_u8_0padded(string_encoded: &[u8]) -> Result<(String, usize)> {
     let mut string_encoded_without_0 = vec![];
@@ -111,16 +103,12 @@ pub fn decode_string_u8_0padded(string_encoded: &[u8]) -> Result<(String, usize)
     Ok((string_decoded, string_encoded.len()))
 }
 
-/// This function allow us to decode an UTF-16 encoded String. This type of Strings are encoded in
-/// in 2 bytes reversed (LittleEndian).
+/// Common helper. This function allows us to decode an UTF-16 encoded String.
 #[allow(dead_code)]
 pub fn decode_string_u16(string_encoded: &[u8]) -> Result<String> {
     let mut u16_characters = vec![];
     let mut offset: usize = 0;
     for _ in 0..(string_encoded.len() / 2) {
-
-        // This unwrap() is allowed, as decoding an u16 can only fail if we don't provide an slice
-        // of len() == 2.
         u16_characters.push(decode_integer_u16(&string_encoded[offset..offset + 2]).unwrap());
         offset += 2;
     }
@@ -128,8 +116,7 @@ pub fn decode_string_u16(string_encoded: &[u8]) -> Result<String> {
     String::from_utf16(&u16_characters).map_err(|_| Error::from(ErrorKind::HelperDecodingEncodingError("<p>Error trying to decode an UTF-16 String.</p>".to_owned())))
 }
 
-/// This function allow us to decode an encoded boolean. This is simple: 0 is false, 1 is true.
-/// It only uses a byte.
+/// Common helper. This function allows us to decode an encoded boolean. This is simple: 0 is false, 1 is true. It only uses a byte.
 #[allow(dead_code)]
 pub fn decode_bool(bool_encoded: u8) -> Result<bool> {
     match bool_encoded {
@@ -139,13 +126,11 @@ pub fn decode_bool(bool_encoded: u8) -> Result<bool> {
     }
 }
 
-/*
---------------------------------------------------------
-            Encoding helpers (Common encoders)
---------------------------------------------------------
-*/
-/// This function allow us to encode an UTF-16 decoded Integer. This type of Integers are encoded in
-/// in 2 bytes reversed (LittleEndian).
+//-----------------------------------------------------//
+//          Encoding helpers (Common encoders)
+//-----------------------------------------------------//
+
+/// Common helper. This function allows us to encode an u16 decoded integer.
 #[allow(dead_code)]
 pub fn encode_integer_u16(integer_decoded: u16) -> Vec<u8> {
     let mut integer_encoded: [u8;2] = [0;2];
@@ -153,8 +138,7 @@ pub fn encode_integer_u16(integer_decoded: u16) -> Vec<u8> {
     integer_encoded.to_vec()
 }
 
-/// This function allow us to encode an UTF-32 decoded Integer. This type of Integers are encoded in
-/// in 4 bytes reversed (LittleEndian).
+/// Common helper. This function allows us to encode an u32 decoded integer.
 #[allow(dead_code)]
 pub fn encode_integer_u32(integer_decoded: u32) -> Vec<u8> {
     let mut integer_encoded: [u8;4] = [0;4];
@@ -162,8 +146,7 @@ pub fn encode_integer_u32(integer_decoded: u32) -> Vec<u8> {
     integer_encoded.to_vec()
 }
 
-/// This function allow us to encode a decoded Long Integer. This type of Integers are encoded in
-/// in 8 bytes reversed (LittleEndian).
+/// Common helper. This function allows us to encode an u64 decoded integer.
 #[allow(dead_code)]
 pub fn encode_integer_u64(integer_decoded: u64) -> Vec<u8> {
     let mut integer_encoded: [u8;8] = [0;8];
@@ -172,8 +155,7 @@ pub fn encode_integer_u64(integer_decoded: u64) -> Vec<u8> {
 }
 
 
-/// This function allow us to encode an signed UTF-32 decoded Integer. This type of Integers are encoded in
-/// in 4 bytes reversed (LittleEndian).
+/// Common helper. This function allows us to encode an i32 decoded integer.
 #[allow(dead_code)]
 pub fn encode_integer_i32(integer_decoded: i32) -> Vec<u8> {
     let mut integer_encoded: [u8;4] = [0;4];
@@ -181,8 +163,7 @@ pub fn encode_integer_i32(integer_decoded: i32) -> Vec<u8> {
     integer_encoded.to_vec()
 }
 
-/// This function allow us to encode a signed decoded Long Integer. This type of Integers are encoded in
-/// in 8 bytes reversed (LittleEndian).
+/// Common helper. This function allows us to encode an i64 decoded integer.
 #[allow(dead_code)]
 pub fn encode_integer_i64(integer_decoded: i64) -> Vec<u8> {
     let mut integer_encoded: [u8;8] = [0;8];
@@ -190,8 +171,7 @@ pub fn encode_integer_i64(integer_decoded: i64) -> Vec<u8> {
     integer_encoded.to_vec()
 }
 
-/// This function allow us to encode an UTF-32 decoded Float. This type of Floats are encoded in
-/// in 4 bytes reversed (LittleEndian).
+/// Common helper. This function allows us to encode a f32 decoded Float.
 #[allow(dead_code)]
 pub fn encode_float_f32(float_decoded: f32) -> Vec<u8> {
     let mut float_encoded: [u8;4] = [0;4];
@@ -199,15 +179,17 @@ pub fn encode_float_f32(float_decoded: f32) -> Vec<u8> {
     float_encoded.to_vec()
 }
 
-/// This function allow us to encode an UTF-8 decoded String.
+/// Common helper. This function allows us to encode an UTF-8 decoded String.
 #[allow(dead_code)]
 pub fn encode_string_u8(string_decoded: &str) -> Vec<u8> {
     string_decoded.as_bytes().to_vec()
 }
 
-/// This function allow us to encode an UTF-8 decoded 0-padded String. This one is a bit special.
-/// It's uses a tuple with the String to encode and the total size of the encoded string.
-/// So... we just encode the String as a normal string, then add 0 until we reach the desired size.
+/// Common helper. This function allows us to encode a 00-Padded UTF-8 decoded String.
+///
+/// This one is a bit special. It's uses a tuple with the String to encode and the total size of the encoded string.
+/// So... we just encode the String as a normal string, then add 0 until we reach the desired size. If the String is
+/// longer than the size, we throw an error.
 #[allow(dead_code)]
 pub fn encode_string_u8_0padded(string_decoded: &(String, usize)) -> Result<Vec<u8>> {
     let mut string_encoded = string_decoded.0.as_bytes().to_vec();
@@ -224,8 +206,7 @@ pub fn encode_string_u8_0padded(string_decoded: &(String, usize)) -> Result<Vec<
     }
 }
 
-/// This function allow us to encode an UTF-16 decoded String. This type of Strings are encoded in
-/// in 2 bytes reversed (LittleEndian).
+/// Common helper. This function allows us to encode an UTF-16 decoded String.
 #[allow(dead_code)]
 pub fn encode_string_u16(string_decoded: &str) -> Vec<u8> {
     let mut string_encoded: Vec<u8> = vec![];
@@ -233,21 +214,17 @@ pub fn encode_string_u16(string_decoded: &str) -> Vec<u8> {
     string_encoded
 }
 
-/// This function allow us to encode a boolean. This is simple: 0 is false, 1 is true.
-/// It only uses a byte.
+/// Common helper. This function allows us to encode a boolean. This is simple: 0 is false, 1 is true. It only uses a byte.
 #[allow(dead_code)]
 pub fn encode_bool(bool_decoded: bool) -> u8 {
     if bool_decoded { 1 } else { 0 }
 }
 
-/*
---------------------------------------------------------
-          Decoding helpers (Specific decoders)
---------------------------------------------------------
-*/
+//-----------------------------------------------------//
+//        Decoding helpers (Specific decoders)
+//-----------------------------------------------------//
 
-/// This function allow us to decode an UTF-16 encoded integer, returning with it the byte where
-/// the next thing to decode is.
+/// Specific helper. This function allows us to decode an u16 encoded integer, moving the index to the byte where the next data starts.
 #[allow(dead_code)]
 pub fn decode_packedfile_integer_u16(packed_file_data: &[u8], index: &mut usize) -> Result<u16> {
     let result = decode_integer_u16(packed_file_data);
@@ -255,8 +232,7 @@ pub fn decode_packedfile_integer_u16(packed_file_data: &[u8], index: &mut usize)
     result
 }
 
-/// This function allow us to decode an UTF-32 encoded integer, returning with it the byte where
-/// the next thing to decode is.
+/// Specific helper. This function allows us to decode an u32 encoded integer, moving the index to the byte where the next data starts.
 #[allow(dead_code)]
 pub fn decode_packedfile_integer_u32(packed_file_data: &[u8], index: &mut usize) -> Result<u32> {
     let result = decode_integer_u32(packed_file_data);
@@ -264,8 +240,7 @@ pub fn decode_packedfile_integer_u32(packed_file_data: &[u8], index: &mut usize)
     result
 }
 
-/// This function allow us to decode an encoded Long Integer (u64), returning with it the byte where
-/// the next thing to decode is.
+/// Specific helper. This function allows us to decode an u64 encoded integer, moving the index to the byte where the next data starts.
 #[allow(dead_code)]
 pub fn decode_packedfile_integer_u64(packed_file_data: &[u8], index: &mut usize) -> Result<u64> {
     let result = decode_integer_u64(packed_file_data);
@@ -273,8 +248,7 @@ pub fn decode_packedfile_integer_u64(packed_file_data: &[u8], index: &mut usize)
     result
 }
 
-/// This function allow us to decode an UTF-32 encoded signed integer, returning with it the byte where
-/// the next thing to decode is.
+/// Specific helper. This function allows us to decode an i32 encoded integer, moving the index to the byte where the next data starts.
 #[allow(dead_code)]
 pub fn decode_packedfile_integer_i32(packed_file_data: &[u8], index: &mut usize) -> Result<i32> {
     let result = decode_integer_i32(packed_file_data);
@@ -282,8 +256,7 @@ pub fn decode_packedfile_integer_i32(packed_file_data: &[u8], index: &mut usize)
     result
 }
 
-/// This function allow us to decode an encoded signed Long Integer (i64), returning with it the byte where
-/// the next thing to decode is.
+/// Specific helper. This function allows us to decode an i64 encoded integer, moving the index to the byte where the next data starts.
 #[allow(dead_code)]
 pub fn decode_packedfile_integer_i64(packed_file_data: &[u8], index: &mut usize) -> Result<i64> {
     let result = decode_integer_i64(packed_file_data);
@@ -291,8 +264,7 @@ pub fn decode_packedfile_integer_i64(packed_file_data: &[u8], index: &mut usize)
     result
 }
 
-/// This function allow us to decode an UTF-32 encoded float, returning with it the byte where
-/// the next thing to decode is.
+/// Specific helper. This function allows us to decode an f32 encoded float, moving the index to the byte where the next data starts.
 #[allow(dead_code)]
 pub fn decode_packedfile_float_f32(packed_file_data: &[u8], index: &mut usize) -> Result<f32> {
     let result = decode_float_f32(packed_file_data);
@@ -300,8 +272,7 @@ pub fn decode_packedfile_float_f32(packed_file_data: &[u8], index: &mut usize) -
     result
 }
 
-/// This function allow us to decode an UTF-8 encoded String, returning with it the byte where
-/// the next thing to decode is.
+/// Specific helper. This function allows us to decode an UTF-8 encoded String, moving the index to the byte where the next data starts.
 #[allow(dead_code)]
 pub fn decode_packedfile_string_u8(packed_file_data: &[u8], mut index: &mut usize) -> Result<String> {
     if packed_file_data.get(1).is_some() {
@@ -327,10 +298,10 @@ pub fn decode_packedfile_string_u8(packed_file_data: &[u8], mut index: &mut usiz
     }
 }
 
-/// This function allow us to decode an UTF-8 encoded optional String, returning with it the byte where
-/// the next thing to decode is.
+/// Specific helper. This function allows us to decode an UTF-8 encoded optional String, moving the index to the byte where the next data starts.
 ///
-/// NOTE: These strings's first byte it's a boolean that indicates if the string has something.
+/// These Strings's first byte it's a boolean that indicates if the string has something. If false, there string it's just that byte.
+/// If true, there is a normal UTF-8 encoded String after that byte.
 #[allow(dead_code)]
 pub fn decode_packedfile_optional_string_u8(packed_file_data: &[u8], mut index: &mut usize) -> Result<String> {
     if packed_file_data.get(0).is_some() {
@@ -354,8 +325,7 @@ pub fn decode_packedfile_optional_string_u8(packed_file_data: &[u8], mut index: 
     }
 }
 
-/// This function allow us to decode an UTF-16 encoded String, returning with it the byte where
-/// the next thing to decode is.
+/// Specific helper. This function allows us to decode an UTF-16 encoded String, moving the index to the byte where the next data starts.
 #[allow(dead_code)]
 pub fn decode_packedfile_string_u16(packed_file_data: &[u8], mut index: &mut usize) -> Result<String> {
     if packed_file_data.get(1).is_some() {
@@ -385,10 +355,10 @@ pub fn decode_packedfile_string_u16(packed_file_data: &[u8], mut index: &mut usi
     }
 }
 
-/// This function allow us to decode an UTF-16 encoded optional String, returning with it the byte where
-/// the next thing to decode is.
+/// Specific helper. This function allows us to decode an UTF-16 encoded optional String, moving the index to the byte where the next data starts.
 ///
-/// NOTE: These strings's first byte it's a boolean that indicates if the string has something.
+/// These Strings's first byte it's a boolean that indicates if the string has something. If false, there string it's just that byte.
+/// If true, there is a normal UTF-16 encoded String after that byte.
 #[allow(dead_code)]
 pub fn decode_packedfile_optional_string_u16(packed_file_data: &[u8], mut index: &mut usize) -> Result<String> {
     if packed_file_data.get(0).is_some() {
@@ -411,8 +381,7 @@ pub fn decode_packedfile_optional_string_u16(packed_file_data: &[u8], mut index:
     }
 }
 
-/// This function allow us to decode a boolean, returning with it the byte where
-/// the next thing to decode is.
+/// Specific helper. This function allows us to decode a boolean, moving the index to the byte where the next data starts.
 #[allow(dead_code)]
 pub fn decode_packedfile_bool(packed_file_data: u8, index: &mut usize) -> Result<bool> {
     let result = decode_bool(packed_file_data);
@@ -420,14 +389,11 @@ pub fn decode_packedfile_bool(packed_file_data: u8, index: &mut usize) -> Result
     result
 }
 
-/*
---------------------------------------------------------
-          Encoding helpers (Specific encoders)
---------------------------------------------------------
-*/
+//-----------------------------------------------------//
+//        Encoding helpers (Specific encoders)
+//-----------------------------------------------------//
 
-/// This function allow us to encode an UTF-8 decoded String that requires having his lenght
-/// (two bytes, an u16 integer) encoded before the encoded string.
+/// Specific helper. This function allows us to encode an UTF-8 decoded String that requires having his lenght (an u16 integer) encoded before the encoded string.
 #[allow(dead_code)]
 pub fn encode_packedfile_string_u8(string_u8_decoded: &str) -> Vec<u8> {
     let mut string_u8_encoded = vec![];
@@ -440,9 +406,8 @@ pub fn encode_packedfile_string_u8(string_u8_decoded: &str) -> Vec<u8> {
     string_u8_encoded
 }
 
-/// This function allow us to encode an UTF-8 decoded String that requires having a boolean (one
-/// byte, true if exists, false if it's empty) and his lenght (two bytes, an u16 integer) encoded
-/// before the encoded string.
+/// Specific helper. This function allows us to encode an UTF-8 decoded String that requires having a boolean (one
+/// byte, true if exists, false if it's empty) and his lenght (an u16 integer) encoded before the encoded string.
 #[allow(dead_code)]
 pub fn encode_packedfile_optional_string_u8(optional_string_u8_decoded: &str) -> Vec<u8> {
     let mut optional_string_u8_encoded = vec![];
@@ -462,8 +427,7 @@ pub fn encode_packedfile_optional_string_u8(optional_string_u8_decoded: &str) ->
     optional_string_u8_encoded
 }
 
-/// This function allow us to encode an UTF-16 decoded String that requires having his lenght
-/// (two bytes, an u16 integer) encoded before the encoded string.
+/// Specific helper. This function allows us to encode an UTF-16 decoded String that requires having his lenght (an u16 integer) encoded before the encoded string.
 #[allow(dead_code)]
 pub fn encode_packedfile_string_u16(string_u16_decoded: &str) -> Vec<u8> {
     let mut string_u16_encoded = vec![];
@@ -476,9 +440,8 @@ pub fn encode_packedfile_string_u16(string_u16_decoded: &str) -> Vec<u8> {
     string_u16_encoded
 }
 
-/// This function allow us to encode an UTF-16 decoded String that requires having a boolean (one
-/// byte, true if exists, false if it's empty) and his lenght (two bytes, an u16 integer) encoded
-/// before the encoded string.
+/// Specific helper. This function allows us to encode an UTF-16 decoded String that requires having a boolean (one
+/// byte, true if exists, false if it's empty) and his lenght (an u16 integer) encoded before the encoded string.
 #[allow(dead_code)]
 pub fn encode_packedfile_optional_string_u16(optional_string_u16_decoded: &str) -> Vec<u8> {
     let mut optional_string_u16_encoded = vec![];
