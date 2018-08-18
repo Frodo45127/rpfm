@@ -380,8 +380,8 @@ impl Display for ErrorKind {
             ErrorKind::DBTableNotADBTable => write!(f, "<p>This PackedFile is not a DB Table.</p>"),
             ErrorKind::DBTableParse => write!(f, "<p>Error while trying to save the DB Table.</p><p>This is probably caused by one of the fields you just changed. Please, make sure the data in that field it's of the correct type.</p>"),
             ErrorKind::DBTableDecode(cause) => write!(f, "<p>Error while trying to decode the DB Table:</p><p>{}</p>", cause),
-            ErrorKind::SchemaNotFound => write!(f, "<p>There is no Schema for the Game Selected, so we can't do that.</p>"),
-            ErrorKind::SchemaTableDefinitionNotFound => write!(f, "<p>There is no Table Definition for this specific version of the table in the Schema, so we can't do that.</p>"),
+            ErrorKind::SchemaNotFound => write!(f, "<p>There is no Schema for the Game Selected.</p>"),
+            ErrorKind::SchemaTableDefinitionNotFound => write!(f, "<p>There is no Table Definition for this specific version of the table in the Schema.</p>"),
 
             //--------------------------------//
             // RigidModel Errors

@@ -145,7 +145,7 @@ impl DB {
                             Err(error) => Err(error)
                         }
                     }
-                    None => Err(ErrorKind::SchemaNotFound)?
+                    None => Err(ErrorKind::SchemaTableDefinitionNotFound)?
                 }
 
             }
