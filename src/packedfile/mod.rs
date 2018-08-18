@@ -8,8 +8,8 @@ use std::path::PathBuf;
 use common::*;
 use common::coding_helpers::*;
 use error::{ErrorKind, Result};
-use packfile::packfile::PackFile;
-use packfile::packfile::PackedFile;
+use packfile::packfile::PackFileView;
+use packfile::packfile::PackedFileView;
 use packedfile::loc::*;
 use packedfile::db::*;
 use packedfile::db::schemas::*;
@@ -59,7 +59,7 @@ pub trait SerializableToTSV {
 
 /// This function is used to create a PackedFile outtanowhere. It returns his new path.
 pub fn create_packed_file(
-    pack_file: &mut PackFile,
+    pack_file: &mut PackFileView,
     packed_file_type: PackedFileType,
     path: Vec<String>,
     schema: &Option<Schema>,
@@ -92,7 +92,7 @@ pub fn create_packed_file(
     };
 
     // Create and add the new PackedFile to the PackFile.
-    pack_file.add_packedfiles(vec![PackedFile::read(data.len() as u32, get_current_time(), path, data); 1]);
+    pack_file.add_packedfiles(vec![PackedFileView::new(Some(get_current_time()), path, data)]);
 
     // Return the path to update the UI.
     Ok(())
@@ -104,11 +104,11 @@ pub fn tsv_mass_import(
     tsv_paths: &[PathBuf],
     name: &str,
     schema: &Option<Schema>,
-    pack_file: &mut PackFile
+    pack_file: &mut PackFileView
 ) -> Result<(Vec<Vec<String>>, Vec<Vec<String>>)> {
 
     // Create a list of PackedFiles succesfully imported, and another for the ones that didn't work.
-    let mut packed_files: Vec<PackedFile> = vec![];
+    let mut packed_files: Vec<PackedFileView> = vec![];
     let mut packed_files_to_remove = vec![];
     let mut error_files = vec![];
 
@@ -152,10 +152,10 @@ pub fn tsv_mass_import(
                             }
 
                             // If that path already exist in the PackFile, add it to the "remove" list.
-                            if pack_file.data.packedfile_exists(&path) { packed_files_to_remove.push(path.to_vec()) }
+                            if pack_file.packedfile_exists(&path) { packed_files_to_remove.push(path.to_vec()) }
 
                             // Create and add the new PackedFile to the PackFile.
-                            packed_files.push(PackedFile::read(data.len() as u32, get_current_time(), path, data));
+                            packed_files.push(PackedFileView::new(Some(get_current_time()), path, data));
                         }
 
                         // In case of error, add it to the error list.
@@ -200,10 +200,10 @@ pub fn tsv_mass_import(
                             }
 
                             // If that path already exists in the PackFile, add it to the "remove" list.
-                            if pack_file.data.packedfile_exists(&path) { packed_files_to_remove.push(path.to_vec()) }
+                            if pack_file.packedfile_exists(&path) { packed_files_to_remove.push(path.to_vec()) }
 
                             // Create and add the new PackedFile to the PackFile.
-                            packed_files.push(PackedFile::read(data.len() as u32, get_current_time(), path, data));
+                            packed_files.push(PackedFileView::new(Some(get_current_time()), path, data));
                         }
 
                         // In case of error, add it to the error list.
@@ -232,7 +232,7 @@ pub fn tsv_mass_import(
     // Remove all the "conflicting" PackedFiles from the PackFile, before adding the new ones.
     let mut indexes = vec![];
     for packed_file_to_remove in &packed_files_to_remove {
-        for (index, packed_file) in pack_file.data.packed_files.iter_mut().enumerate() {
+        for (index, packed_file) in pack_file.packed_files.iter_mut().enumerate() {
             if packed_file.path == *packed_file_to_remove {
                 indexes.push(index);
                 break;
@@ -253,7 +253,7 @@ pub fn tsv_mass_import(
 pub fn tsv_mass_export(
     export_path: &PathBuf,
     schema: &Option<Schema>,
-    pack_file: &PackFile
+    pack_file: &PackFileView
 ) -> Result<String> {
 
     // List of PackedFiles that couldn't be exported for one thing or another.
@@ -263,7 +263,7 @@ pub fn tsv_mass_export(
     let mut exported_files = vec![];
 
     // For each PackedFile we have...
-    for packed_file in &pack_file.data.packed_files {
+    for packed_file in &pack_file.packed_files {
 
         // Check if it's "valid for exportation". We check if his path is empty first to avoid false
         // positives related with "starts_with" function.
@@ -279,7 +279,7 @@ pub fn tsv_mass_export(
                     Some(schema) => {
 
                         // Try to decode the data of the PackedFile.
-                        match DB::read(&packed_file.data, &packed_file.path[1], &schema) {
+                        match DB::read(&packed_file.get_data().unwrap(), &packed_file.path[1], &schema) {
 
                             // In case of success...
                             Ok(db) => {
@@ -316,31 +316,31 @@ pub fn tsv_mass_export(
                                     Ok(_) => exported_files.push(name.to_owned()),
 
                                     // In case of error, add it to the error list.
-                                    Err(_) => error_list.push(packed_file.path.to_vec()),
+                                    Err(_) => error_list.push(packed_file.path.clone()),
                                 }
                             }
 
                             // In case of error, add it to the error list.
-                            Err(_) => error_list.push(packed_file.path.to_vec()),
+                            Err(_) => error_list.push(packed_file.path.clone()),
                         }
                     }
 
                     // If we don't have it, add the PackedFile to the error list.
-                    None => error_list.push(packed_file.path.to_vec()),
+                    None => error_list.push(packed_file.path.clone()),
                 }
             }
 
             // Otherwise, we check if it's a Loc PackedFile.
-            else if packed_file.path.last().unwrap().ends_with(".loc") {
+            else if packed_file.path.last().unwrap() == ".loc" {
 
                 // Try to decode the data of the PackedFile.
-                match Loc::read(&packed_file.data) {
+                match Loc::read(&packed_file.get_data().unwrap()) {
 
                     // In case of success...
                     Ok(loc) => {
 
                         // Get his name to add it to the path.
-                        let mut name = format!("{}.tsv", packed_file.path.last().unwrap().to_owned());
+                        let mut name = format!("{}.tsv", &packed_file.path.last().unwrap());
 
                         // Get the final exported path.
                         let mut export_path = export_path.to_path_buf();

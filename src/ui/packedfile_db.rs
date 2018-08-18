@@ -51,10 +51,10 @@ use Data;
 use QString;
 use common::*;
 use common::communications::*;
+use packfile::packfile::PackedFileView;
 use error::{Error, ErrorKind, Result};
 use settings::Settings;
 use ui::*;
-use packfile::packfile::PackedFile;
 
 /// Struct `PackedFileDBTreeView`: contains all the stuff we need to give to the program to show a
 /// TableView with the data of a DB PackedFile, allowing us to manipulate it.
@@ -180,7 +180,7 @@ pub struct PackedFileDBDecoderStuff {
 /// Struct PackedFileDBDecoderStuffNonUI: contains data needed for the decoder to properly work.
 #[derive(Clone)]
 pub struct PackedFileDBDecoderStuffNonUI {
-    pub packed_file: PackedFile,
+    pub packed_file: PackedFileView,
     pub initial_index: usize,
     pub header: DBHeader,
 }
@@ -3304,7 +3304,7 @@ impl PackedFileDBDecoder {
                 let mut initial_index = 0;
 
                 // Check if it can be read as a table.
-                match DBHeader::read(&packed_file.data, &mut initial_index) {
+                match DBHeader::read(&packed_file.get_data().unwrap(), &mut initial_index) {
 
                     // If we succeed at decoding his header...
                     Ok(header) => {
@@ -3952,8 +3952,9 @@ impl PackedFileDBDecoder {
         let font_metrics = FontMetrics::new(&font);
 
         // We don't need the entire PackedFile, just his begining. Otherwise, this function takes ages to finish.
-        let data_reduced = if stuff_non_ui.packed_file.data.len() > 16 * 60 { &stuff_non_ui.packed_file.data[..16 * 60] }
-        else { &stuff_non_ui.packed_file.data };
+        let data = stuff_non_ui.packed_file.get_data().unwrap();
+        let data_reduced = if stuff_non_ui.packed_file.get_data().unwrap().len() > 16 * 60 { &data[..16 * 60] }
+        else { &data };
 
         // This creates the "index" column at the left of the hex data. The logic behind this, because
         // even I have problems to understand it: lines are 4 packs of 4 bytes => 16 bytes. Amount of
@@ -4147,18 +4148,18 @@ impl PackedFileDBDecoder {
         }
 
         // Check if the index does even exist, to avoid crashes.
-        if stuff_non_ui.packed_file.data.get(*index_data).is_some() {
-            decoded_bool = match coding_helpers::decode_packedfile_bool(stuff_non_ui.packed_file.data[*index_data], &mut index_data.clone()) {
+        if stuff_non_ui.packed_file.get_data().unwrap().get(*index_data).is_some() {
+            decoded_bool = match coding_helpers::decode_packedfile_bool(stuff_non_ui.packed_file.get_data().unwrap()[*index_data], &mut index_data.clone()) {
                 Ok(data) => if data { "True" } else { "False" },
                 Err(_) => "Error"
             };
 
-            decoded_optional_string_u8 = match coding_helpers::decode_packedfile_optional_string_u8(&stuff_non_ui.packed_file.data[*index_data..], &mut index_data.clone()) {
+            decoded_optional_string_u8 = match coding_helpers::decode_packedfile_optional_string_u8(&stuff_non_ui.packed_file.get_data().unwrap()[*index_data..], &mut index_data.clone()) {
                 Ok(data) => data,
                 Err(_) => "Error".to_owned()
             };
 
-            decoded_optional_string_u16 = match coding_helpers::decode_packedfile_optional_string_u16(&stuff_non_ui.packed_file.data[*index_data..], &mut index_data.clone()) {
+            decoded_optional_string_u16 = match coding_helpers::decode_packedfile_optional_string_u16(&stuff_non_ui.packed_file.get_data().unwrap()[*index_data..], &mut index_data.clone()) {
                 Ok(data) => data,
                 Err(_) => "Error".to_owned()
             };
@@ -4170,13 +4171,13 @@ impl PackedFileDBDecoder {
         };
 
         // Check if the index does even exist, to avoid crashes.
-        if stuff_non_ui.packed_file.data.get(*index_data + 3).is_some() {
-            decoded_float = match coding_helpers::decode_packedfile_float_f32(&stuff_non_ui.packed_file.data[*index_data..(*index_data + 4)], &mut index_data.clone()) {
+        if stuff_non_ui.packed_file.get_data().unwrap().get(*index_data + 3).is_some() {
+            decoded_float = match coding_helpers::decode_packedfile_float_f32(&stuff_non_ui.packed_file.get_data().unwrap()[*index_data..(*index_data + 4)], &mut index_data.clone()) {
                 Ok(data) => data.to_string(),
                 Err(_) => "Error".to_owned(),
             };
 
-            decoded_integer = match coding_helpers::decode_packedfile_integer_i32(&stuff_non_ui.packed_file.data[*index_data..(*index_data + 4)], &mut index_data.clone()) {
+            decoded_integer = match coding_helpers::decode_packedfile_integer_i32(&stuff_non_ui.packed_file.get_data().unwrap()[*index_data..(*index_data + 4)], &mut index_data.clone()) {
                 Ok(data) => data.to_string(),
                 Err(_) => "Error".to_owned()
             };
@@ -4187,8 +4188,8 @@ impl PackedFileDBDecoder {
         }
 
         // Check if the index does even exist, to avoid crashes.
-        decoded_long_integer = if stuff_non_ui.packed_file.data.get(*index_data + 7).is_some() {
-            match coding_helpers::decode_packedfile_integer_i64(&stuff_non_ui.packed_file.data[*index_data..(*index_data + 8)], &mut index_data.clone()) {
+        decoded_long_integer = if stuff_non_ui.packed_file.get_data().unwrap().get(*index_data + 7).is_some() {
+            match coding_helpers::decode_packedfile_integer_i64(&stuff_non_ui.packed_file.get_data().unwrap()[*index_data..(*index_data + 8)], &mut index_data.clone()) {
                 Ok(data) => data.to_string(),
                 Err(_) => "Error".to_owned()
             }
@@ -4196,13 +4197,13 @@ impl PackedFileDBDecoder {
         else { "Error".to_owned() };
 
         // Check that the index exist, to avoid crashes.
-        if stuff_non_ui.packed_file.data.get(*index_data + 1).is_some() {
-            decoded_string_u8 = match coding_helpers::decode_packedfile_string_u8(&stuff_non_ui.packed_file.data[*index_data..], &mut index_data.clone()) {
+        if stuff_non_ui.packed_file.get_data().unwrap().get(*index_data + 1).is_some() {
+            decoded_string_u8 = match coding_helpers::decode_packedfile_string_u8(&stuff_non_ui.packed_file.get_data().unwrap()[*index_data..], &mut index_data.clone()) {
                 Ok(data) => data,
                 Err(_) => "Error".to_owned()
             };
 
-            decoded_string_u16 = match coding_helpers::decode_packedfile_string_u16(&stuff_non_ui.packed_file.data[*index_data..], &mut index_data.clone()) {
+            decoded_string_u16 = match coding_helpers::decode_packedfile_string_u16(&stuff_non_ui.packed_file.get_data().unwrap()[*index_data..], &mut index_data.clone()) {
                 Ok(data) => data,
                 Err(_) => "Error".to_owned()
             };
@@ -4410,7 +4411,7 @@ impl PackedFileDBDecoder {
 
         // Decode the data from the field.
         let decoded_data = Self::decode_data_by_fieldtype(
-            &stuff_non_ui.packed_file.data,
+            &stuff_non_ui.packed_file.get_data().unwrap(),
             &field_type,
             &mut index_data
         );
@@ -4685,7 +4686,7 @@ impl PackedFileDBDecoder {
 
                 // Get the decoded data using it's type...
                 let decoded_data = Self::decode_data_by_fieldtype(
-                    &stuff_non_ui.packed_file.data,
+                    &stuff_non_ui.packed_file.get_data().unwrap(),
                     &field_type,
                     &mut index
                 );
@@ -4796,18 +4797,18 @@ impl PackedFileDBDecoder {
         let decoded_optional_string_u16;
 
         // Check if the index does even exist, to avoid crashes.
-        if stuff_non_ui.packed_file.data.get(selection_start).is_some() {
-            decoded_bool = match coding_helpers::decode_packedfile_bool(stuff_non_ui.packed_file.data[selection_start], &mut selection_start.clone()) {
+        if stuff_non_ui.packed_file.get_data().unwrap().get(selection_start).is_some() {
+            decoded_bool = match coding_helpers::decode_packedfile_bool(stuff_non_ui.packed_file.get_data().unwrap()[selection_start], &mut selection_start.clone()) {
                 Ok(data) => if data { "True" } else { "False" },
                 Err(_) => "Error"
             };
 
-            decoded_optional_string_u8 = match coding_helpers::decode_packedfile_optional_string_u8(&stuff_non_ui.packed_file.data[selection_start..], &mut selection_start.clone()) {
+            decoded_optional_string_u8 = match coding_helpers::decode_packedfile_optional_string_u8(&stuff_non_ui.packed_file.get_data().unwrap()[selection_start..], &mut selection_start.clone()) {
                 Ok(data) => data,
                 Err(_) => "Error".to_owned()
             };
 
-            decoded_optional_string_u16 = match coding_helpers::decode_packedfile_optional_string_u16(&stuff_non_ui.packed_file.data[selection_start..], &mut selection_start.clone()) {
+            decoded_optional_string_u16 = match coding_helpers::decode_packedfile_optional_string_u16(&stuff_non_ui.packed_file.get_data().unwrap()[selection_start..], &mut selection_start.clone()) {
                 Ok(data) => data,
                 Err(_) => "Error".to_owned()
             };
@@ -4819,13 +4820,13 @@ impl PackedFileDBDecoder {
         };
 
         // Check if the index does even exist, to avoid crashes.
-        if stuff_non_ui.packed_file.data.get(selection_start + 3).is_some() {
-            decoded_float = match coding_helpers::decode_packedfile_float_f32(&stuff_non_ui.packed_file.data[selection_start..(selection_start + 4)], &mut selection_start.clone()) {
+        if stuff_non_ui.packed_file.get_data().unwrap().get(selection_start + 3).is_some() {
+            decoded_float = match coding_helpers::decode_packedfile_float_f32(&stuff_non_ui.packed_file.get_data().unwrap()[selection_start..(selection_start + 4)], &mut selection_start.clone()) {
                 Ok(data) => data.to_string(),
                 Err(_) => "Error".to_owned(),
             };
 
-            decoded_integer = match coding_helpers::decode_packedfile_integer_i32(&stuff_non_ui.packed_file.data[selection_start..(selection_start + 4)], &mut selection_start.clone()) {
+            decoded_integer = match coding_helpers::decode_packedfile_integer_i32(&stuff_non_ui.packed_file.get_data().unwrap()[selection_start..(selection_start + 4)], &mut selection_start.clone()) {
                 Ok(data) => data.to_string(),
                 Err(_) => "Error".to_owned()
             };
@@ -4836,8 +4837,8 @@ impl PackedFileDBDecoder {
         }
 
         // Check if the index does even exist, to avoid crashes.
-        decoded_long_integer = if stuff_non_ui.packed_file.data.get(selection_start + 7).is_some() {
-            match coding_helpers::decode_packedfile_integer_i64(&stuff_non_ui.packed_file.data[selection_start..(selection_start + 8)], &mut selection_start.clone()) {
+        decoded_long_integer = if stuff_non_ui.packed_file.get_data().unwrap().get(selection_start + 7).is_some() {
+            match coding_helpers::decode_packedfile_integer_i64(&stuff_non_ui.packed_file.get_data().unwrap()[selection_start..(selection_start + 8)], &mut selection_start.clone()) {
                 Ok(data) => data.to_string(),
                 Err(_) => "Error".to_owned()
             }
@@ -4845,13 +4846,13 @@ impl PackedFileDBDecoder {
         else { "Error".to_owned() };
 
         // Check that the index exist, to avoid crashes.
-        if stuff_non_ui.packed_file.data.get(selection_start + 1).is_some() {
-            decoded_string_u8 = match coding_helpers::decode_packedfile_string_u8(&stuff_non_ui.packed_file.data[selection_start..], &mut selection_start.clone()) {
+        if stuff_non_ui.packed_file.get_data().unwrap().get(selection_start + 1).is_some() {
+            decoded_string_u8 = match coding_helpers::decode_packedfile_string_u8(&stuff_non_ui.packed_file.get_data().unwrap()[selection_start..], &mut selection_start.clone()) {
                 Ok(data) => data,
                 Err(_) => "Error".to_owned()
             };
 
-            decoded_string_u16 = match coding_helpers::decode_packedfile_string_u16(&stuff_non_ui.packed_file.data[selection_start..], &mut selection_start.clone()) {
+            decoded_string_u16 = match coding_helpers::decode_packedfile_string_u16(&stuff_non_ui.packed_file.get_data().unwrap()[selection_start..], &mut selection_start.clone()) {
                 Ok(data) => data,
                 Err(_) => "Error".to_owned()
             };

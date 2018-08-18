@@ -65,15 +65,22 @@ impl RigidModel {
                     &packed_file_header.packed_file_header_model_type,
                     &packed_file_header.packed_file_header_lods_count
                 ) {
-                    Ok(packed_file_data) =>
+                    Ok(packed_file_data) => {
                         Ok(RigidModel {
                             packed_file_header,
                             packed_file_data,
-                        }),
-                    Err(error) => Err(error)
+                        })
+                    },
+                    Err(error) => {
+                        println!("{}", &error);
+                        Err(error)
+                    }
                 }
             }
-            Err(error) => Err(error)
+            Err(error) => {
+                println!("{}", &error);
+                Err(error)
+            }
         }
     }
 

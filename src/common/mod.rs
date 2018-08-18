@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 
 use SUPPORTED_GAMES;
 use error::{ErrorKind, Result};
-use packfile::packfile::PackFile;
+use packfile::packfile::PackFileView;
 use settings::Settings;
 
 pub mod coding_helpers;
@@ -58,7 +58,7 @@ impl PartialEq for TreePathType {
 #[allow(dead_code)]
 pub fn get_type_of_selected_path(
     tree_path: &[String],
-    pack_file_decoded: &PackFile
+    pack_file_decoded: &PackFileView
 ) -> TreePathType {
 
     // Get a local copy of the Path.
@@ -81,7 +81,7 @@ pub fn get_type_of_selected_path(
         // Now we check if it's a file or a folder.
         let mut is_a_file = false;
 
-        for i in &pack_file_decoded.data.packed_files {
+        for i in &pack_file_decoded.packed_files {
             if i.path == tree_path {
                 is_a_file = true;
                 break;
@@ -95,7 +95,7 @@ pub fn get_type_of_selected_path(
         else {
 
             // We check if the folder actually exists in our PackFile.
-            let is_a_folder = pack_file_decoded.data.folder_exists(&tree_path);
+            let is_a_folder = pack_file_decoded.folder_exists(&tree_path);
 
             // If it exists, we return it as a folder.
             if is_a_folder { return TreePathType::Folder(tree_path) }

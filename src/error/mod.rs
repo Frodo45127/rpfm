@@ -8,6 +8,8 @@ extern crate hyper_tls;
 
 use failure::{Backtrace, Context, Fail};
 use serde_json::error::Category;
+use tw_pack_lib::ParsePackError;
+use tw_pack_lib::BuildPackError;
 
 use std::fmt;
 use std::fmt::Display;
@@ -558,5 +560,17 @@ impl From<io::Error> for Error {
             io::ErrorKind::PermissionDenied => Error::from(ErrorKind::IOPermissionDenied),
             _ => Error::from(ErrorKind::IOGeneric),
         }
+    }
+}
+
+impl From<ParsePackError> for Error {
+    fn from(_: ParsePackError) -> Error {
+        Error::from(ErrorKind::OpenPackFileGeneric("Could not parse pack file".to_string()))
+    }
+}
+
+impl From<BuildPackError> for Error {
+    fn from(_: BuildPackError) -> Error {
+        Error::from(ErrorKind::SavePackFileGeneric("Could not save pack file".to_string()))
     }
 }

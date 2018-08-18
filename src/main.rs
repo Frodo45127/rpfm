@@ -10,7 +10,7 @@
 #![allow(doc_markdown,useless_format,match_bool,redundant_closure)]
 
 // This disables the terminal window, so it doesn't show up when executing RPFM in Windows.
-#![windows_subsystem = "windows"]
+//#![windows_subsystem = "windows"]
 
 #[macro_use]
 extern crate serde_derive;
@@ -28,6 +28,7 @@ extern crate qt_widgets;
 extern crate qt_gui;
 extern crate qt_core;
 extern crate cpp_utils;
+extern crate tw_pack_lib;
 
 #[macro_use]
 extern crate lazy_static;

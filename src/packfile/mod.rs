@@ -5,10 +5,9 @@
 use std::fs::{File, DirBuilder};
 use std::io::{Read, Write};
 use std::path::PathBuf;
-use std::io::BufReader;
-use std::io::BufWriter;
-use std::io::prelude::*;
-use std::io::SeekFrom;
+use std::sync::Arc;
+
+use tw_pack_lib::PFHVersion;
 
 use common::*;
 use error::{Error, ErrorKind, Result};
@@ -17,6 +16,8 @@ use packedfile::db::{DB, DBHeader};
 use packedfile::db::schemas::Schema;
 use packedfile::rigidmodel::RigidModel;
 use settings::Settings;
+use packfile::packfile::PackFileView;
+use packfile::packfile::PackedFileView;
 
 pub mod packfile;
 
@@ -27,46 +28,17 @@ pub mod packfile;
 */
 
 /// This function creates a new PackFile with the name received.
-pub fn new_packfile(file_name: String, packfile_id: &str) -> packfile::PackFile {
-    packfile::PackFile::new_with_name(file_name, packfile_id)
+pub fn new_packfile(file_name: String, pfh_version: PFHVersion) -> PackFileView {
+    PackFileView::new_with_name(file_name, pfh_version)
 }
 
 /// This function is used to open the PackFiles. It requires the path of the PackFile to open, and
 /// it returns the PackFile decoded (if success) or an error message (if error).
-pub fn open_packfile(pack_file_path: PathBuf) -> Result<packfile::PackFile> {
-
-    // First, we get his name.
-    let pack_file_name = pack_file_path.file_name().unwrap().to_str().unwrap().to_string();
+pub fn open_packfile(pack_file_path: PathBuf, load_lazy: bool) -> Result<PackFileView> {
 
     // If the name doesn't end in ".pack", we don't open it. It works, but it'll break some things.
-    if pack_file_name.ends_with(".pack") {
-
-        // We try to open the File.
-        let mut pack_file = BufReader::new(File::open(&pack_file_path)?);
-
-        // And then we try to read it into a PackFile.
-        packfile::PackFile::read(&mut pack_file, pack_file_name, pack_file_path, false)
-    }
-
-    // Otherwise, return an error.
-    else { Err(ErrorKind::OpenPackFileInvalidExtension)? }
-}
-
-/// This function is used to open the PackFiles. It requires the path of the PackFile to open, and
-/// it returns the PackFile decoded (if success) or an error message (if error).
-pub fn open_packfile_with_bufreader(pack_file_path: PathBuf) -> Result<(packfile::PackFile, BufReader<File>)> {
-
-    // First, we get his name.
-    let pack_file_name = pack_file_path.file_name().unwrap().to_str().unwrap().to_string();
-
-    // If the name doesn't end in ".pack", we don't open it. It works, but it'll break some things.
-    if pack_file_name.ends_with(".pack") {
-
-        // We try to open the File.
-        let mut pack_file = BufReader::new(File::open(&pack_file_path)?);
-
-        // And then we try to read it into a PackFile.
-        packfile::PackFile::read(&mut pack_file, pack_file_name, pack_file_path, true).map(|result| (result, pack_file))
+    if pack_file_path.file_name().unwrap().to_str().unwrap().ends_with(".pack") {
+        PackFileView::read(pack_file_path, load_lazy)
     }
 
     // Otherwise, return an error.
@@ -75,7 +47,7 @@ pub fn open_packfile_with_bufreader(pack_file_path: PathBuf) -> Result<(packfile
 
 /// This function is a special open function, to get all the DB and LOC PackedFiles for a game, and a mod if that mode requires another mod.
 /// It returns all the PackedFiles in a big Vec<PackedFile>.
-pub fn load_dependency_packfiles(game_selected: &str, settings: &Settings, dependencies: &[String]) -> Vec<packfile::PackedFile> {
+pub fn load_dependency_packfiles(game_selected: &str, settings: &Settings, dependencies: &[String]) -> Vec<packfile::PackedFileView> {
 
     // Create the empty list.
     let mut packed_files = vec![];
@@ -89,28 +61,16 @@ pub fn load_dependency_packfiles(game_selected: &str, settings: &Settings, depen
 
     // Get all the DB Tables from the main DB PackFile, if it's configured.
     if let Some(path) = main_db_pack_path {
-        if let Ok(packfile) = open_packfile_with_bufreader(path.to_path_buf()) {
-
-            // Get the PackFile and the BufReader.
-            let pack_file = packfile.0;
-            let mut reader = packfile.1;
+        if let Ok(pack_file) = open_packfile(path.to_path_buf(), true) {
 
             // For each PackFile in the data.pack...
-            for (index, packed_file) in pack_file.data.packed_files.iter().enumerate() {
+            for packed_file in pack_file.packed_files {
 
                 // If it's a DB file...
                 if !packed_file.path.is_empty() && packed_file.path.starts_with(&["db".to_owned()]) {
 
-                    // Clone the PackedFile.
-                    let mut packed_file = packed_file.clone();
-
-                    // Read it.
-                    packed_file.data = vec![0; packed_file.size as usize];
-                    reader.seek(SeekFrom::Start(pack_file.packed_file_indexes[index])).unwrap();
-                    reader.read_exact(&mut packed_file.data).unwrap();
-
                     // Add it to the PackedFiles List.
-                    packed_files.push(packed_file);
+                    packed_files.push(packed_file.clone());
                 }
             }
         }
@@ -118,28 +78,16 @@ pub fn load_dependency_packfiles(game_selected: &str, settings: &Settings, depen
 
     // Get all the Loc PackedFiles from the main Loc PackFile, if it's configured.
     if let Some(path) = main_loc_pack_path {
-        if let Ok(packfile) = open_packfile_with_bufreader(path.to_path_buf()) {
-
-            // Get the PackFile and the BufReader.
-            let pack_file = packfile.0;
-            let mut reader = packfile.1;
+        if let Ok(pack_file) = open_packfile(path.to_path_buf(), true) {
 
             // For each PackFile in the data.pack...
-            for (index, packed_file) in pack_file.data.packed_files.iter().enumerate() {
+            for packed_file in pack_file.packed_files {
 
                 // If it's a Loc file...
                 if !packed_file.path.is_empty() && packed_file.path.last().unwrap().ends_with(".loc") {
 
-                    // Clone the PackedFile.
-                    let mut packed_file = packed_file.clone();
-
-                    // Read it.
-                    packed_file.data = vec![0; packed_file.size as usize];
-                    reader.seek(SeekFrom::Start(pack_file.packed_file_indexes[index])).unwrap();
-                    reader.read_exact(&mut packed_file.data).unwrap();
-
                     // Add it to the PackedFiles List.
-                    packed_files.push(packed_file);
+                    packed_files.push(packed_file.clone());
                 }
             }
         }
@@ -154,55 +102,31 @@ pub fn load_dependency_packfiles(game_selected: &str, settings: &Settings, depen
                 if path.file_name().unwrap().to_string_lossy().as_ref().to_owned() == *packfile {
 
                     // Get all the DB Tables from the main DB PackFile, if it's configured.
-                    if let Ok(packfile) = open_packfile_with_bufreader(path.to_path_buf()) {
-
-                        // Get the PackFile and the BufReader.
-                        let pack_file = packfile.0;
-                        let mut reader = packfile.1;
+                    if let Ok(pack_file) = open_packfile(path.to_path_buf(), true) {
 
                         // For each PackFile in the data.pack...
-                        for (index, packed_file) in pack_file.data.packed_files.iter().enumerate() {
+                        for packed_file in pack_file.packed_files {
 
                             // If it's a DB file...
                             if !packed_file.path.is_empty() && packed_file.path.starts_with(&["db".to_owned()]) {
 
-                                // Clone the PackedFile.
-                                let mut packed_file = packed_file.clone();
-
-                                // Read it.
-                                packed_file.data = vec![0; packed_file.size as usize];
-                                reader.seek(SeekFrom::Start(pack_file.packed_file_indexes[index])).unwrap();
-                                reader.read_exact(&mut packed_file.data).unwrap();
-
                                 // Add it to the PackedFiles List.
-                                packed_files.push(packed_file);
+                                packed_files.push(packed_file.clone());
                             }
                         }
                     }
 
                     // Get all the Loc PackedFiles from the main Loc PackFile, if it's configured.
-                    if let Ok(packfile) = open_packfile_with_bufreader(path.to_path_buf()) {
-
-                        // Get the PackFile and the BufReader.
-                        let pack_file = packfile.0;
-                        let mut reader = packfile.1;
+                    if let Ok(pack_file) = open_packfile(path.to_path_buf(), true) {
 
                         // For each PackFile in the data.pack...
-                        for (index, packed_file) in pack_file.data.packed_files.iter().enumerate() {
+                        for packed_file in pack_file.packed_files {
 
                             // If it's a Loc file...
                             if !packed_file.path.is_empty() && packed_file.path.last().unwrap().ends_with(".loc") {
 
-                                // Clone the PackedFile.
-                                let mut packed_file = packed_file.clone();
-
-                                // Read it.
-                                packed_file.data = vec![0; packed_file.size as usize];
-                                reader.seek(SeekFrom::Start(pack_file.packed_file_indexes[index])).unwrap();
-                                reader.read_exact(&mut packed_file.data).unwrap();
-
                                 // Add it to the PackedFiles List.
-                                packed_files.push(packed_file);
+                                packed_files.push(packed_file.clone());
                             }
                         }
                     }
@@ -216,55 +140,31 @@ pub fn load_dependency_packfiles(game_selected: &str, settings: &Settings, depen
                 if path.file_name().unwrap().to_string_lossy().as_ref().to_owned() == *packfile {
 
                     // Get all the DB Tables from the main DB PackFile, if it's configured.
-                    if let Ok(packfile) = open_packfile_with_bufreader(path.to_path_buf()) {
-
-                        // Get the PackFile and the BufReader.
-                        let pack_file = packfile.0;
-                        let mut reader = packfile.1;
+                    if let Ok(pack_file) = open_packfile(path.to_path_buf(), true) {
 
                         // For each PackFile in the data.pack...
-                        for (index, packed_file) in pack_file.data.packed_files.iter().enumerate() {
+                        for packed_file in pack_file.packed_files {
 
                             // If it's a DB file...
                             if !packed_file.path.is_empty() && packed_file.path.starts_with(&["db".to_owned()]) {
 
-                                // Clone the PackedFile.
-                                let mut packed_file = packed_file.clone();
-
-                                // Read it.
-                                packed_file.data = vec![0; packed_file.size as usize];
-                                reader.seek(SeekFrom::Start(pack_file.packed_file_indexes[index])).unwrap();
-                                reader.read_exact(&mut packed_file.data).unwrap();
-
                                 // Add it to the PackedFiles List.
-                                packed_files.push(packed_file);
+                                packed_files.push(packed_file.clone());
                             }
                         }
                     }
 
                     // Get all the Loc PackedFiles from the main Loc PackFile, if it's configured.
-                    if let Ok(packfile) = open_packfile_with_bufreader(path.to_path_buf()) {
-
-                        // Get the PackFile and the BufReader.
-                        let pack_file = packfile.0;
-                        let mut reader = packfile.1;
+                    if let Ok(pack_file) = open_packfile(path.to_path_buf(), true) {
 
                         // For each PackFile in the data.pack...
-                        for (index, packed_file) in pack_file.data.packed_files.iter().enumerate() {
+                        for packed_file in pack_file.packed_files {
 
                             // If it's a Loc file...
                             if !packed_file.path.is_empty() && packed_file.path.last().unwrap().ends_with(".loc") {
 
-                                // Clone the PackedFile.
-                                let mut packed_file = packed_file.clone();
-
-                                // Read it.
-                                packed_file.data = vec![0; packed_file.size as usize];
-                                reader.seek(SeekFrom::Start(pack_file.packed_file_indexes[index])).unwrap();
-                                reader.read_exact(&mut packed_file.data).unwrap();
-
                                 // Add it to the PackedFiles List.
-                                packed_files.push(packed_file);
+                                packed_files.push(packed_file.clone());
                             }
                         }
                     }
@@ -284,7 +184,7 @@ pub fn load_dependency_packfiles(game_selected: &str, settings: &Settings, depen
 /// - new_path: an Option<PathBuf> with the path were we are going to save the PackFile. None if we
 ///   are saving it in the same path it's when we opened it.
 pub fn save_packfile(
-    mut pack_file: &mut packfile::PackFile,
+    mut pack_file: &mut PackFileView,
     new_path: Option<PathBuf>
 ) -> Result<()> {
 
@@ -294,31 +194,20 @@ pub fn save_packfile(
 
         // If we have received a new path...
         Some(new_path) => {
-
             // Update the data of the PackFile's path.
-            pack_file.extra_data.file_name = new_path.file_name().unwrap().to_string_lossy().as_ref().to_owned();
-            pack_file.extra_data.file_path = new_path;
-            pack_file.extra_data.file_path.to_path_buf()
+            pack_file.file_path = new_path;
+            pack_file.file_path.to_path_buf()
         },
 
         // If we haven't received a new path...
         None => {
-
-            // If the current path exists, use it.
-            if pack_file.extra_data.file_path.exists() {
-                pack_file.extra_data.file_path.to_path_buf()
-            }
-
-            // Unless I fuck up the code in an impressive way, this is unreachable.
-            else { unreachable!() }
+            assert!(pack_file.file_path.exists());
+            pack_file.file_path.to_path_buf()
         }
     };
 
-    // We try to create the File.
-    let mut file = BufWriter::new(File::create(pack_file_path)?);
-
     // And we try to save it.
-    packfile::PackFile::save(&mut pack_file, &mut file)
+    PackFileView::save(&mut pack_file, &pack_file_path)
 }
 
 /// This function is used to add a file to a PackFile, processing it and turning it into a PackedFile.
@@ -328,45 +217,41 @@ pub fn save_packfile(
 /// - file_path: a PathBuf with the current path of the file.
 /// - tree_path: a Vec<String> with the path in the TreeView where we are going to add the file.
 pub fn add_file_to_packfile(
-    pack_file: &mut packfile::PackFile,
+    pack_file: &mut PackFileView,
     file_path: &PathBuf,
     tree_path: Vec<String>
 ) -> Result<()> {
 
     // If there is already a PackedFile in that path...
-    if pack_file.data.packedfile_exists(&tree_path) {
+    if pack_file.packedfile_exists(&tree_path) {
 
         // Create the theorical path of the PackedFile.
         let mut theorical_path = tree_path.to_vec();
-        theorical_path.insert(0, pack_file.extra_data.file_name.to_owned());
+        theorical_path.insert(0, pack_file.file_path.file_name().unwrap().to_string_lossy().to_string());
 
         // Get the destination PackedFile.
-        let packed_file = &mut pack_file.data.packed_files.iter_mut().find(|x| x.path == tree_path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?;
+        let packed_file = &mut pack_file.packed_files.iter_mut().find(|x| x.path == tree_path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?;
 
         // We get the data and his size...
-        packed_file.data = vec![];
-        let mut file = BufReader::new(File::open(&file_path)?);
-        file.read_to_end(&mut packed_file.data)?;
-        packed_file.size = packed_file.data.len() as u32;
+        let mut buf = vec![];
+        let mut file = File::open(&file_path)?;
+        file.read_to_end(&mut buf)?;
+        packed_file.set_data(Arc::new(buf));
 
         // Change his last modified time.
-        packed_file.timestamp = get_last_modified_time_from_file(&file.get_ref());
+        packed_file.timestamp = Some(get_last_modified_time_from_file(&file));
 
         // And then, return sucess.
         Ok(())
-    }
-
-    // Otherwise, we add it as a new PackedFile.
-    else {
+    } else { // Otherwise, we add it as a new PackedFile.
 
         // We get the data and his size...
         let mut file_data = vec![];
-        let mut file = BufReader::new(File::open(&file_path)?);
+        let mut file = File::open(&file_path)?;
         file.read_to_end(&mut file_data)?;
-        let file_size = file_data.len() as u32;
 
         // And then we make a PackedFile with it and save it.
-        let packed_files = vec![packfile::PackedFile::read(file_size, get_last_modified_time_from_file(&file.get_ref()), tree_path, file_data); 1];
+        let packed_files = vec![PackedFileView::new(Some(get_last_modified_time_from_file(&file)), tree_path, file_data)];
         pack_file.add_packedfiles(packed_files);
         Ok(())
     }
@@ -375,14 +260,12 @@ pub fn add_file_to_packfile(
 /// This function is used to add one or many PackedFiles to a PackFile (from another PackFile).
 /// It returns a success or error message, depending on whether the PackedFile has been added, or not.
 /// It requires:
-/// - pack_file_source_buffer: &mut BufReader<File>, over the source PackFile.
 /// - pack_file_source: a &pack_file::PackFile. It's the PackFile from we are going to take the PackedFile.
 /// - pack_file_destination: a &mut pack_file::PackFile. It's the Destination PackFile for the PackedFile.
 /// - complete_tree_path: the complete path (with PackFile) of the PackedFile or PackedFiles we want to add. A &[String] it is.
 pub fn add_packedfile_to_packfile(
-    pack_file_source_buffer: &mut BufReader<File>,
-    pack_file_source: &packfile::PackFile,
-    pack_file_destination: &mut packfile::PackFile,
+    pack_file_source: &PackFileView,
+    pack_file_destination: &mut PackFileView,
     complete_path: &[String],
 ) -> Result<()> {
 
@@ -399,17 +282,11 @@ pub fn add_packedfile_to_packfile(
         TreePathType::File(path) => {
 
             // Check if the PackedFile already exists in the destination.
-            if pack_file_destination.data.packedfile_exists(real_path) {
+            if pack_file_destination.packedfile_exists(real_path) {
 
                 // Get the destination PackedFile. If it fails, CTD because it's a code problem.
-                let packed_file = &mut pack_file_destination.data.packed_files.iter_mut().find(|x| x.path == path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?;
-
-                // Then, we get his data.
-                let index = pack_file_source.data.packed_files.iter().position(|x| x.path == path).unwrap();
-                packed_file.size = pack_file_source.data.packed_files[index].size;
-                packed_file.data = vec![0; packed_file.size as usize];
-                pack_file_source_buffer.seek(SeekFrom::Start(pack_file_source.packed_file_indexes[index]))?;
-                pack_file_source_buffer.read_exact(&mut packed_file.data)?;
+                let packed_file = &mut pack_file_destination.packed_files.iter_mut().find(|x| x.path == path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?;
+                packed_file.set_data(pack_file_source.packed_files.iter().find(|x| x.path == path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?.get_data()?.clone());
 
                 // Return success.
                 Ok(())
@@ -419,13 +296,7 @@ pub fn add_packedfile_to_packfile(
             else {
 
                 // We get the PackedFile.
-                let mut packed_file = pack_file_source.data.packed_files.iter().find(|x| x.path == path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?.clone();
-
-                // Then, we get his data.
-                let index = pack_file_source.data.packed_files.iter().position(|x| x.path == path).unwrap();
-                packed_file.data = vec![0; packed_file.size as usize];
-                pack_file_source_buffer.seek(SeekFrom::Start(pack_file_source.packed_file_indexes[index]))?;
-                pack_file_source_buffer.read_exact(&mut packed_file.data)?;
+                let mut packed_file = pack_file_source.packed_files.iter().find(|x| x.path == path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?.clone();
 
                 // Add it to the PackFile.
                 pack_file_destination.add_packedfiles(vec![packed_file; 1]);
@@ -439,39 +310,30 @@ pub fn add_packedfile_to_packfile(
         TreePathType::Folder(_) => {
 
             // For each PackedFile inside the folder...
-            for packed_file in pack_file_source.data.packed_files.iter() {
+            for packed_file in pack_file_source.packed_files.iter() {
 
                 // If it's one of the PackedFiles we want...
                 if !packed_file.path.is_empty() && packed_file.path.starts_with(real_path) {
 
                     // Check if the PackedFile already exists in the destination.
-                    if pack_file_destination.data.packedfile_exists(&packed_file.path) {
+                    if pack_file_destination.packedfile_exists(&packed_file.path) {
 
                         // Get the destination PackedFile.
-                        let packed_file = &mut pack_file_destination.data.packed_files.iter_mut().find(|x| x.path == packed_file.path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?;
+                        let packed_file = &mut pack_file_destination.packed_files.iter_mut().find(|x| x.path == packed_file.path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?;
 
                         // Then, we get his data.
-                        let index = pack_file_source.data.packed_files.iter().position(|x| x.path == packed_file.path).unwrap();
-                        packed_file.size = pack_file_source.data.packed_files[index].size;
-                        packed_file.data = vec![0; packed_file.size as usize];
-                        pack_file_source_buffer.seek(SeekFrom::Start(pack_file_source.packed_file_indexes[index]))?;
-                        pack_file_source_buffer.read_exact(&mut packed_file.data)?;
+                        let index = pack_file_source.packed_files.iter().position(|x| x.path == packed_file.path).unwrap();
+                        packed_file.set_data(pack_file_source.packed_files[index].get_data().unwrap().clone());
                     }
 
                     // Otherwise...
                     else {
 
                         // We get the PackedFile.
-                        let mut packed_file = pack_file_source.data.packed_files.iter().find(|x| x.path == packed_file.path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?.clone();
+                        let mut packed_file = pack_file_source.packed_files.iter().find(|x| x.path == packed_file.path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?.clone();
 
                         // Then, we get his data.
-                        let index = pack_file_source.data.packed_files.iter().position(|x| x.path == packed_file.path).unwrap();
-                        packed_file.data = vec![0; packed_file.size as usize];
-                        pack_file_source_buffer.seek(SeekFrom::Start(pack_file_source.packed_file_indexes[index]))?;
-                        pack_file_source_buffer.read_exact(&mut packed_file.data)?;
-
-                        // Add it to the PackFile.
-                        pack_file_destination.add_packedfiles(vec![packed_file; 1]);
+                        pack_file_destination.add_packedfiles(vec![packed_file.clone()]);
                     }
                 }
             }
@@ -484,36 +346,27 @@ pub fn add_packedfile_to_packfile(
         TreePathType::PackFile => {
 
             // For each PackedFile inside the folder...
-            for packed_file in pack_file_source.data.packed_files.iter() {
+            for packed_file in pack_file_source.packed_files.iter() {
 
                 // Check if the PackedFile already exists in the destination.
-                if pack_file_destination.data.packedfile_exists(&packed_file.path) {
+                if pack_file_destination.packedfile_exists(&packed_file.path) {
 
                     // Get the destination PackedFile.
-                    let packed_file = &mut pack_file_destination.data.packed_files.iter_mut().find(|x| x.path == packed_file.path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?;
+                    let packed_file = &mut pack_file_destination.packed_files.iter_mut().find(|x| x.path == packed_file.path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?;
 
                     // Then, we get his data.
-                    let index = pack_file_source.data.packed_files.iter().position(|x| x.path == packed_file.path).unwrap();
-                    packed_file.size = pack_file_source.data.packed_files[index].size;
-                    packed_file.data = vec![0; packed_file.size as usize];
-                    pack_file_source_buffer.seek(SeekFrom::Start(pack_file_source.packed_file_indexes[index]))?;
-                    pack_file_source_buffer.read_exact(&mut packed_file.data)?;
+                    let index = pack_file_source.packed_files.iter().position(|x| x.path == packed_file.path).unwrap();
+                    packed_file.set_data(pack_file_source.packed_files[index].get_data().unwrap().clone())
                 }
 
                 // Otherwise...
                 else {
 
                     // We get the PackedFile.
-                    let mut packed_file = pack_file_source.data.packed_files.iter().find(|x| x.path == packed_file.path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?.clone();
+                    let mut packed_file = pack_file_source.packed_files.iter().find(|x| x.path == packed_file.path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?.clone();
 
-                    // Then, we get his data.
-                    let index = pack_file_source.data.packed_files.iter().position(|x| x.path == packed_file.path).unwrap();
-                    packed_file.data = vec![0; packed_file.size as usize];
-                    pack_file_source_buffer.seek(SeekFrom::Start(pack_file_source.packed_file_indexes[index]))?;
-                    pack_file_source_buffer.read_exact(&mut packed_file.data)?;
-
-                    // Add it to the PackFile.
-                    pack_file_destination.add_packedfiles(vec![packed_file; 1]);
+                    // Add a clone to the PackFile.
+                    pack_file_destination.add_packedfiles(vec![packed_file.clone()]);
                 }
             }
 
@@ -529,7 +382,7 @@ pub fn add_packedfile_to_packfile(
 /// This function is used to delete a PackedFile or a group of PackedFiles under the same tree_path
 /// from the PackFile. We just need the open PackFile and the tree_path of the file/folder to delete.
 pub fn delete_from_packfile(
-    pack_file: &mut packfile::PackFile,
+    pack_file: &mut PackFileView,
     tree_path: &[String]
 ) -> Result<()> {
 
@@ -538,7 +391,7 @@ pub fn delete_from_packfile(
 
         // If it's a file, easy job.
         TreePathType::File(packed_file_path) => {
-            let index = pack_file.data.packed_files.iter().position(|x| x.path == packed_file_path).unwrap();
+            let index = pack_file.packed_files.iter().position(|x| x.path == packed_file_path).unwrap();
             pack_file.remove_packedfile(index);
         }
 
@@ -549,7 +402,7 @@ pub fn delete_from_packfile(
             let mut indexes = vec![];
 
             // For each PackedFile in our PackFile...
-            for (index, packed_file) in pack_file.data.packed_files.iter().enumerate() {
+            for (index, packed_file) in pack_file.packed_files.iter().enumerate() {
 
                 // If the PackedFile it's in our folder...
                 if !packed_file.path.is_empty() && packed_file.path.starts_with(&tree_path) {
@@ -578,7 +431,7 @@ pub fn delete_from_packfile(
 /// - tree_path: the COMPLETE tree_path of the PackedFile we want to extract.
 /// - extracted_path: the destination path of the file we want to extract.
 pub fn extract_from_packfile(
-    pack_file: &packfile::PackFile,
+    pack_file: &PackFileView,
     tree_path: &[String],
     extracted_path: &PathBuf
 ) -> Result<String> {
@@ -590,10 +443,10 @@ pub fn extract_from_packfile(
         TreePathType::File(path) => {
 
             // We try to create the File.
-            let mut file = BufWriter::new(File::create(&extracted_path)?);
+            let mut file = File::create(&extracted_path)?;
 
             // And try to write it.
-            match file.write_all(&pack_file.data.packed_files.iter().find(|x| x.path == path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?.data){
+            match file.write_all(&pack_file.packed_files.iter().find(|x| x.path == path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?.get_data()?) {
                 Ok(_) => Ok(format!("File extracted successfully:\n{}", extracted_path.display())),
                 Err(_) => Err(ErrorKind::ExtractError(vec![format!("<li>{}</li>", extracted_path.display().to_string());1]))?
             }
@@ -607,8 +460,7 @@ pub fn extract_from_packfile(
             let mut error_files = vec![];
 
             // For each PackedFile we have...
-            for packed_file in &pack_file.data.packed_files {
-
+            for packed_file in &pack_file.packed_files {
                 // If it's one we need to extract...
                 if packed_file.path.starts_with(&tree_path) {
 
@@ -629,10 +481,10 @@ pub fn extract_from_packfile(
                     current_path.push(&file_name);
 
                     // Try to create the file.
-                    let mut file = BufWriter::new(File::create(&current_path)?);
+                    let mut file = File::create(&current_path)?;
 
                     // And try to write it. If any of the files throws an error, add it to the list and continue.
-                    match file.write_all(&packed_file.data) {
+                    match file.write_all(&packed_file.get_data().unwrap()) {
                         Ok(_) => files_extracted += 1,
                         Err(_) => error_files.push(format!("{:?}", current_path)),
                     }
@@ -657,8 +509,7 @@ pub fn extract_from_packfile(
             let mut error_files = vec![];
 
             // For each PackedFile we have...
-            for packed_file in &pack_file.data.packed_files {
-
+            for packed_file in &pack_file.packed_files {
                 // We remove everything from his path up to the folder we want to extract (not included).
                 let mut additional_path = packed_file.path.to_vec();
 
@@ -675,10 +526,10 @@ pub fn extract_from_packfile(
                 current_path.push(&file_name);
 
                 // Try to create the file.
-                let mut file = BufWriter::new(File::create(&current_path)?);
+                let mut file = File::create(&current_path)?;
 
                 // And try to write it. If any of the files throws an error, add it to the list and continue.
-                match file.write_all(&packed_file.data){
+                match file.write_all(&packed_file.get_data().unwrap()){
                     Ok(_) => files_extracted += 1,
                     Err(_) => error_files.push(format!("{:?}", current_path)),
                 }
@@ -705,7 +556,7 @@ pub fn extract_from_packfile(
 /// - tree_path: a Vec<String> with the tree_path of the file to rename. It needs to be complete.
 /// - new_name: the new name of the file to rename.
 pub fn rename_packed_file(
-    pack_file: &mut packfile::PackFile,
+    pack_file: &mut PackFileView,
     tree_path: &[String],
     new_name: &str
 ) -> Result<()> {
@@ -731,8 +582,8 @@ pub fn rename_packed_file(
                 new_path.pop();
                 new_path.push(new_name.to_string());
 
-                if !pack_file.data.packedfile_exists(&new_path) {
-                    pack_file.data.packed_files.iter_mut().find(|x| x.path == path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?.path = new_path;
+                if !pack_file.packedfile_exists(&new_path) {
+                    pack_file.packed_files.iter_mut().find(|x| x.path == path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?.path = new_path;
                     Ok(())
                 }
                 else { Err(ErrorKind::NameAlreadyInUseInThisPath)? }
@@ -744,9 +595,9 @@ pub fn rename_packed_file(
 
                 // If the folder doesn't exist yet, we change the name of the folder we want to rename
                 // in the path of every file that starts with his path.
-                if !pack_file.data.folder_exists(&new_tree_path) {
+                if !pack_file.folder_exists(&new_tree_path) {
                     let index_position = tree_path.len() - 1;
-                    for packed_file in &mut pack_file.data.packed_files {
+                    for packed_file in &mut pack_file.packed_files {
                         if packed_file.path.starts_with(&tree_path) {
                             packed_file.path.remove(index_position);
                             packed_file.path.insert(index_position, new_name.to_string());
@@ -811,25 +662,23 @@ pub fn apply_prefix_to_packed_files(
 /// been done by the user. Checking for valid characters is done before this, so be careful to not break it.
 pub fn update_packed_file_data_loc(
     packed_file_data_decoded: &Loc,
-    pack_file: &mut packfile::PackFile,
+    pack_file: &mut packfile::PackFileView,
     path: &[String],
 ) {
-    let packed_file = &mut pack_file.data.packed_files.iter_mut().find(|x| x.path == path).ok_or(Error::from(ErrorKind::PackedFileNotFound)).unwrap();
-    packed_file.data = Loc::save(packed_file_data_decoded);
-    packed_file.size = packed_file.data.len() as u32;
+    let packed_file = &mut pack_file.packed_files.iter_mut().find(|x| x.path == path).ok_or(Error::from(ErrorKind::PackedFileNotFound)).unwrap();
+    packed_file.set_data(Arc::new(Loc::save(packed_file_data_decoded)));
 }
 
 /// This function saves the data of the edited DB PackedFile in the main PackFile after a change has
 /// been done by the user. Checking for valid characters is done before this, so be careful to not break it.
 pub fn update_packed_file_data_db(
     packed_file_data_decoded: &DB,
-    pack_file: &mut packfile::PackFile,
+    pack_file: &mut packfile::PackFileView,
     path: &[String],
 ) {
 
-    let packed_file = &mut pack_file.data.packed_files.iter_mut().find(|x| x.path == path).ok_or(Error::from(ErrorKind::PackedFileNotFound)).unwrap();
-    packed_file.data = DB::save(packed_file_data_decoded);
-    packed_file.size = packed_file.data.len() as u32;
+    let packed_file = &mut pack_file.packed_files.iter_mut().find(|x| x.path == path).ok_or(Error::from(ErrorKind::PackedFileNotFound)).unwrap();
+    packed_file.set_data(Arc::new(DB::save(packed_file_data_decoded)));
 }
 
 // Same as the other one, but it requires a PackedFile to modify instead the entire PackFile.
@@ -845,12 +694,11 @@ pub fn update_packed_file_data_db_2(
 /// been done by the user. Checking for valid characters is done before this, so be careful to not break it.
 pub fn update_packed_file_data_text(
     packed_file_data_decoded: &[u8],
-    pack_file: &mut packfile::PackFile,
+    pack_file: &mut packfile::PackFileView,
     path: &[String],
 ) {
-    let packed_file = &mut pack_file.data.packed_files.iter_mut().find(|x| x.path == path).ok_or(Error::from(ErrorKind::PackedFileNotFound)).unwrap();
-    packed_file.data = packed_file_data_decoded.to_vec();
-    packed_file.size = packed_file.data.len() as u32;
+    let packed_file = &mut pack_file.packed_files.iter_mut().find(|x| x.path == path).ok_or(Error::from(ErrorKind::PackedFileNotFound)).unwrap();
+    packed_file.set_data(Arc::new(packed_file_data_decoded.to_vec()));
 }
 
 /// This function saves the data of the edited RigidModel PackedFile in the main PackFile after a change has
@@ -858,13 +706,11 @@ pub fn update_packed_file_data_text(
 /// This can fail in case a 0-Padded String of the RigidModel fails his encoding, so we check that too.
 pub fn update_packed_file_data_rigid(
     packed_file_data_decoded: &RigidModel,
-    pack_file: &mut packfile::PackFile,
+    pack_file: &mut packfile::PackFileView,
     path: &[String],
 ) -> Result<String> {
-    let packed_file = &mut pack_file.data.packed_files.iter_mut().find(|x| x.path == path).ok_or(Error::from(ErrorKind::PackedFileNotFound)).unwrap();
-    packed_file.data = RigidModel::save(packed_file_data_decoded)?;
-    packed_file.size = packed_file.data.len() as u32;
-
+    let packed_file = &mut pack_file.packed_files.iter_mut().find(|x| x.path == path).ok_or(Error::from(ErrorKind::PackedFileNotFound)).unwrap();
+    packed_file.set_data(Arc::new(RigidModel::save(packed_file_data_decoded)?));
     Ok(format!("RigidModel PackedFile updated successfully."))
 }
 
@@ -878,7 +724,7 @@ pub fn update_packed_file_data_rigid(
 /// is SiegeAI implemented in the map) is patched and the extra useless .xml files are deleted.
 /// It requires a mut ref to a decoded PackFile, and returns an String and the list of removed PackedFiles.
 pub fn patch_siege_ai (
-    pack_file: &mut packfile::PackFile
+    pack_file: &mut PackFileView
 ) -> Result<(String, Vec<TreePathType>)> {
 
     let mut files_patched = 0;
@@ -890,11 +736,11 @@ pub fn patch_siege_ai (
 
     // For every PackedFile in the PackFile we check first if it's in the usual map folder, as we
     // don't want to touch files outside that folder.
-    for i in &mut pack_file.data.packed_files {
+    for i in &mut pack_file.packed_files {
         if i.path.starts_with(&["terrain".to_owned(), "tiles".to_owned(), "battle".to_owned(), "_assembly_kit".to_owned()]) &&
             i.path.last() != None {
 
-            let x = i.path.last().unwrap();
+            let x = i.path.last().unwrap().clone();
             packfile_is_empty = false;
 
             // If it's one of the possible candidates for Patching, we first check if it has
@@ -913,26 +759,28 @@ pub fn patch_siege_ai (
                 || x == "catchment_08_layer_bmd_data.bin"
                 || x == "catchment_09_layer_bmd_data.bin" {
 
-                if i.data.windows(19).find(|window: &&[u8]
+                let mut data: Vec<u8> = i.get_data().unwrap().to_vec();
+                if data.windows(19).find(|window: &&[u8]
                         |String::from_utf8_lossy(window) == "AIH_SIEGE_AREA_NODE") != None {
 
                     let patch = "AIH_FORT_PERIMETER".to_string();
-                    let index = i.data.windows(18)
+                    let index = data.windows(18)
                         .position(
                             |window: &[u8]
                             |String::from_utf8_lossy(window) == "AIH_DEFENSIVE_HILL");
 
                     if index != None {
                         for j in 0..18 {
-                            i.data[index.unwrap() + (j as usize)] = patch.chars().nth(j).unwrap() as u8;
+                            data[index.unwrap() + (j as usize)] = patch.chars().nth(j).unwrap() as u8;
                         }
                         files_patched += 1;
                     }
-                    if i.data.windows(18).find(|window: &&[u8]
+                    if data.windows(18).find(|window: &&[u8]
                             |String::from_utf8_lossy(window) == "AIH_DEFENSIVE_HILL") != None {
                         multiple_defensive_hill_hints = true;
                     }
                 }
+                i.set_data(Arc::new(data));
             }
 
             // If it's an xml, we add it to the list of files_to_delete, as all the .xml files
@@ -949,7 +797,7 @@ pub fn patch_siege_ai (
 
             // Due to the rework of the "delete_from_packfile" function, we need to give it a complete
             // path to delete, so we "complete" his path before deleting.
-            let file_name = vec![pack_file.extra_data.file_name.to_owned()];
+            let file_name = vec![pack_file.get_file_name()];
             tree_path.splice(0..0, file_name.iter().cloned());
 
             // Get his type before deleting it.
@@ -1158,8 +1006,8 @@ pub fn create_prefab_from_catchment(
 /// from tables (and if the table is empty, it removes it too) and it cleans the PackFile of extra .xml files 
 /// often created by map editors. It requires just the PackFile to optimize and the dependency PackFile.
 pub fn optimize_packfile(
-    pack_file: &mut packfile::PackFile,
-    original_tables: &[packfile::PackedFile],
+    mut pack_file: &mut PackFileView,
+    original_tables: &[PackedFileView],
     schema: &Option<Schema>
 ) -> Vec<TreePathType> {
 
@@ -1191,7 +1039,7 @@ pub fn optimize_packfile(
                     if dep_tables.is_empty() { continue }
 
                     // If the table is empty, add it to the deletion list and continue.
-                    if let Ok(header) = DBHeader::read(&packed_file.data, &mut 0) {
+                    if let Ok(header) = DBHeader::read(&packed_file.get_data().unwrap(), &mut 0) {
                         if header.entry_count == 0 { 
                             files_to_delete.push(packed_file.path.to_vec());
                             continue;
@@ -1199,7 +1047,7 @@ pub fn optimize_packfile(
                     }
 
                     // Try to decode our table.
-                    let mut optimized_table = match DB::read(&packed_file.data, &packed_file.path[1], &schema) {
+                    let mut optimized_table = match DB::read(&packed_file.get_data().unwrap(), &packed_file.path[1], &schema) {
                         Ok(table) => table,
                         Err(error) => {
                             if error.kind() == ErrorKind::DBTableContainsListField { files_to_delete.push(packed_file.path.to_vec()); } 
@@ -1211,7 +1059,7 @@ pub fn optimize_packfile(
                     for table in &dep_tables {
 
                         // Try to decode the vanilla table.
-                        let mut vanilla_table = match DB::read(&table.data, &table.path[1], &schema) {
+                        let mut vanilla_table = match DB::read(&table.get_data().unwrap(), &packed_file.path[1], &schema) {
                             Ok(table) => table,
                             Err(_) => continue,
                         };
@@ -1233,7 +1081,7 @@ pub fn optimize_packfile(
 
                 // Otherwise, we just check if it's empty. In that case, we delete it.
                 else { 
-                    if let Ok(header) = DBHeader::read(&packed_file.data, &mut 0) {
+                    if let Ok(header) = DBHeader::read(&packed_file.get_data().unwrap(), &mut 0) {
                         if header.entry_count == 0 { files_to_delete.push(packed_file.path.to_vec()); }
                     }
                 }
@@ -1247,7 +1095,7 @@ pub fn optimize_packfile(
 
             // Due to the rework of the "delete_from_packfile" function, we need to give it a complete
             // path to delete, so we "complete" his path before deleting.
-            let file_name = vec![pack_file.extra_data.file_name.to_owned()];
+            let file_name = vec![pack_file.file_path.file_name().unwrap().to_string_lossy().to_string()];
             tree_path.splice(0..0, file_name.iter().cloned());
 
             // Get his type before deleting it.

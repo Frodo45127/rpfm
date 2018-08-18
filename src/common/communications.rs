@@ -9,7 +9,7 @@ use std::sync::mpsc::{Receiver, TryRecvError};
 use GlobalMatch;
 use common::*;
 use error::Error;
-use packfile::packfile::{PackFileExtraData, PackFileHeader, PackedFile};
+use packfile::packfile::{PackFileExtraData, PackFileHeader, PackedFileView};
 use packedfile::*;
 use packedfile::loc::*;
 use packedfile::db::*;
@@ -118,7 +118,7 @@ pub enum Data {
     PackFileHeader(PackFileHeader),
     PackFileExtraData(PackFileExtraData),
 
-    PackedFile(PackedFile),
+    PackedFile(PackedFileView),
     TreePathType(TreePathType),
 
     LocData(LocData),
