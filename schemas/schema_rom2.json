@@ -343,6 +343,25 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "ability",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "cannot_fail",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -440,6 +459,38 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "actor_effect_bundle",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "effect_bundles",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "target_effect_bundle",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "effect_bundles",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -511,21 +562,25 @@
               "field_description": ""
             },
             {
-              "field_name": "affects_target",
-              "field_type": "Boolean",
+              "field_name": "authority_value_coefficient",
+              "field_type": "Float",
               "field_is_key": false,
               "field_is_reference": null,
-              "field_description": ""
+              "field_description": "final_value = value + (authority_value_coefficient * agent.attribute_level(ATTRIBUTE_AUTHORITY)"
             },
             {
-              "field_name": "advancement_stage",
-              "field_type": "OptionalStringU8",
+              "field_name": "subterfuge_value_coefficient",
+              "field_type": "Float",
               "field_is_key": false,
-              "field_is_reference": [
-                "effect_bundle_advancement_stages",
-                "key"
-              ],
-              "field_description": ""
+              "field_is_reference": null,
+              "field_description": "final_value = value + (subterfuge_value_coefficient * agent.attribute_level(ATTRIBUTE_SUBTERFUGE)"
+            },
+            {
+              "field_name": "zeal_value_coefficient",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "final_value = value + (zeal_value_coefficient * agent.attribute_level(ATTRIBUTE_ZEAL)"
             }
           ]
         }
@@ -1286,6 +1341,165 @@
               "field_is_reference": [
                 "campaigns",
                 "campaign_name"
+              ],
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 4,
+          "fields": [
+            {
+              "field_name": "ability",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "abilities",
+                "ability"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "agent",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "agents",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "attribute",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "agent_attributes",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "cannot_fail",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "action_results",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "critical_failure",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "action_results",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "critical_success",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "action_results",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "failure",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "action_results",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "opportune_failure",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "action_results",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "success",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "action_results",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "localised_action_name",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "localised_action_description",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "your_message_events_male",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "agent_action_message_events",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "your_message_events_female",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "agent_action_message_events",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "their_message_events_male",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "agent_action_message_events",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "their_message_events_female",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "agent_action_message_events",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "enabled_by_effect",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "effects",
+                "effect"
               ],
               "field_description": ""
             }
@@ -2434,6 +2648,56 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 6,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "picture_in_picture",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "offset_angle",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "offset_range",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "circunvent_cooldown",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "cinematic_event",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "battle_cinematic_events",
+                "key"
+              ],
+              "field_description": "Cinematic event to trigger when receives aide de camp message"
+            }
+          ]
         }
       ]
     },
@@ -2987,6 +3251,191 @@
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 12,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "ancillary_info",
+                "ancillary"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "type",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "ancillary_types",
+                "type"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "applies_to",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "transferrable",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "unique_to_world",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "unique_to_faction",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "precedence",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "start_date",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "end_date",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "avatar_skill",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "avatar_special_ability",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "legendary_item",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "mp_exclusive",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "is_wife_ancillary",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "is_husband_ancillary",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "is_diplomatic_ancillary",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "is_dynastic_ancillary",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "spouse_subculture",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "category",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "ancillaries_categories",
+                "category"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "min_starting_age",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "max_starting_age",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "min_expiry_age",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "max_expiry_age",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "spouse_type",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "marriage_types",
+                "key"
+              ],
+              "field_description": "For spouse ancillaries."
             }
           ]
         }
@@ -8148,6 +8597,77 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "audio_projectile_type",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_projectiles_enum",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "max_attenuation_fire",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "max_attenuation_impact",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "max_attenuation_inflight",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "play_incoming_sound",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "requires_distance",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "requires_speed",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "inflight_min_speed",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -8568,6 +9088,168 @@
             },
             {
               "field_name": "vo_actor_15",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_vo_actors",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "name",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "actor_1",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_vo_actors",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "actor_2",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_vo_actors",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "actor_3",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_vo_actors",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "actor_4",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_vo_actors",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "actor_5",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_vo_actors",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "actor_6",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_vo_actors",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "actor_7",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_vo_actors",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "actor_8",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_vo_actors",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "actor_9",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_vo_actors",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "actor_10",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_vo_actors",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "actor_11",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_vo_actors",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "actor_12",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_vo_actors",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "actor_13",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_vo_actors",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "actor_14",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_vo_actors",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "actor_15",
               "field_type": "OptionalStringU8",
               "field_is_key": false,
               "field_is_reference": [
@@ -62394,6 +63076,48 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "agent",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "agents",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "gender",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "genders",
+                "gender"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "subculture",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cultures_subculture",
+                "subculture"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "icon_path",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -63128,6 +63852,48 @@
                 "religions",
                 "religion_key"
               ],
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "agent",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "agents",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "faction",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "factions",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "gender",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "genders",
+                "gender"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "icon_path",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
               "field_description": ""
             }
           ]
@@ -68410,6 +69176,113 @@
               "field_type": "Integer",
               "field_is_key": false,
               "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "agent_action_message_events_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "critical_failure",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "message_events",
+                "event"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "critical_success",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "message_events",
+                "event"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "failure",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "message_events",
+                "event"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "oportune_failure",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "message_events",
+                "event"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "success",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "message_events",
+                "event"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "agent_subculture_gender_overrides_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "agent",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "agents",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "gender",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "genders",
+                "gender"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "subculture",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cultures_subcultures",
+                "subculture"
+              ],
               "field_description": ""
             }
           ]
