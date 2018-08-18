@@ -3571,10 +3571,10 @@ fn build_columns(
         unsafe { header = table_view.as_mut().unwrap().horizontal_header(); }
 
         // For each key column (in reverse)...
-        for column in keys.iter().rev() {
+        for (position, column) in keys.iter().enumerate() {
 
             // Move the column to the begining.
-            unsafe { header.as_mut().unwrap().move_section(*column as i32, 0); }
+            unsafe { header.as_mut().unwrap().move_section(*column as i32, position as i32); }
         }
     }
 }
