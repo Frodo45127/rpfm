@@ -2670,7 +2670,7 @@ impl PackedFileDBDecoder {
 
             // Create the "Selection" for the header. We need to add 1 char per line to this.
             cursor.move_position(MoveOperation::Start);
-            cursor.move_position((MoveOperation::NextCharacter, MoveMode::Keep, (stuff_non_ui.initial_index + (stuff_non_ui.initial_index / 17)) as i32));
+            cursor.move_position((MoveOperation::NextCharacter, MoveMode::Keep, (stuff_non_ui.initial_index + (stuff_non_ui.initial_index as f32 / 16.0).floor() as usize) as i32));
 
             // Block the signals during this, so we don't mess things up.
             let mut blocker;
@@ -2876,7 +2876,7 @@ impl PackedFileDBDecoder {
 
             // Create the "Selection" for the rest of the data.
             cursor.move_position(MoveOperation::Start);
-            cursor.move_position((MoveOperation::NextCharacter, MoveMode::Move, (stuff_non_ui.initial_index + (stuff_non_ui.initial_index / 17)) as i32));
+            cursor.move_position((MoveOperation::NextCharacter, MoveMode::Move, (stuff_non_ui.initial_index + (stuff_non_ui.initial_index as f32 / 16.0).floor() as usize) as i32));
             cursor.move_position((MoveOperation::End, MoveMode::Keep));
 
             // Block the signals during this, so we don't mess things up.
@@ -2934,7 +2934,7 @@ impl PackedFileDBDecoder {
             let positions_to_move = positions_to_move_horizontal + positions_to_move_vertical;
 
             cursor.move_position(MoveOperation::Start);
-            cursor.move_position((MoveOperation::NextCharacter, MoveMode::Move, (stuff_non_ui.initial_index + (stuff_non_ui.initial_index / 17)) as i32));
+            cursor.move_position((MoveOperation::NextCharacter, MoveMode::Move, (stuff_non_ui.initial_index + (stuff_non_ui.initial_index as f32 / 16.0).floor() as usize) as i32));
             cursor.move_position((MoveOperation::NextCharacter, MoveMode::Keep, positions_to_move as i32));
 
             // Block the signals during this, so we don't mess things up.
