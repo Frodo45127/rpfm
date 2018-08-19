@@ -39095,6 +39095,58 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "diplomacy_keys",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "culture",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "cultures",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "government_type",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "government_types",
+                "government_type"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "string",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "diplomacy_strings",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "option",
+              "field_type": "Integer",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -39291,20 +39343,6 @@
           "version": 0,
           "fields": [
             {
-              "field_name": "campaign",
-              "field_type": "OptionalStringU8",
-              "field_is_key": false,
-              "field_is_reference": null,
-              "field_description": ""
-            },
-            {
-              "field_name": "relations_modifier",
-              "field_type": "Float",
-              "field_is_key": false,
-              "field_is_reference": null,
-              "field_description": ""
-            },
-            {
               "field_name": "religion_a",
               "field_type": "StringU8",
               "field_is_key": true,
@@ -39322,6 +39360,13 @@
                 "religions",
                 "religion_key"
               ],
+              "field_description": ""
+            },
+            {
+              "field_name": "relations_modifier",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
               "field_description": ""
             },
             {
@@ -41313,11 +41358,11 @@
               "field_description": ""
             },
             {
-              "field_name": "effect_bundle",
-              "field_type": "OptionalStringU8",
+              "field_name": "secessionist_faction",
+              "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
-                "effect_bundles",
+                "factions",
                 "key"
               ],
               "field_description": ""
@@ -41502,6 +41547,35 @@
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": "Order for campaign selection screen"
+            }
+          ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "effect_bundle",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "effect_bundles",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "ui_icon",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
             }
           ]
         }
@@ -43222,6 +43296,423 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 14,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "index",
+              "field_type": "LongInteger",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "subculture",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cultures_subcultures",
+                "subculture"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "category",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "screen_name",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "screen_adjective",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "name_group",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": [
+                "names_groups",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "skin",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "unit_banners",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "ui_skin",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "is_rebel",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "mp_available",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "mp_available_naval",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "icon_path_units",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "flags_path",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "republican_flag_path",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "same_gov_type_revolution_flag_path",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "primary_colour_r",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "primary_colour_g",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "primary_colour_b",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "alt_primary_colour_r",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "NOT USED"
+            },
+            {
+              "field_name": "alt_primary_colour_g",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "NOT USED"
+            },
+            {
+              "field_name": "alt_primary_colour_b",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "NOT USED"
+            },
+            {
+              "field_name": "secondary_colour_r",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "secondary_colour_g",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "secondary_colour_b",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "alt_secondary_colour_r",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "NOT USED"
+            },
+            {
+              "field_name": "alt_secondary_colour_g",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "NOT USED"
+            },
+            {
+              "field_name": "alt_secondary_colour_b",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "NOT USED"
+            },
+            {
+              "field_name": "uniform_colour_r",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "NOT USED"
+            },
+            {
+              "field_name": "uniform_colour_g",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "NOT USED"
+            },
+            {
+              "field_name": "uniform_colour_b",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "NOT USED"
+            },
+            {
+              "field_name": "alt_uniform_colour_r",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "NOT USED"
+            },
+            {
+              "field_name": "alt_uniform_colour_g",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "NOT USED"
+            },
+            {
+              "field_name": "alt_uniform_colour_b",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "NOT USED"
+            },
+            {
+              "field_name": "military_group",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "groupings_military",
+                "military_group"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "settler_rebellion_faction",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "rebel_colour_r",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "NOT USED"
+            },
+            {
+              "field_name": "rebel_colour_g",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "NOT USED"
+            },
+            {
+              "field_name": "rebel_colour_b",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "NOT USED"
+            },
+            {
+              "field_name": "movie_death_event",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "movie_event_strings",
+                "id"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "mp_use_republic_early",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "mp_use_republic_late",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "unit_regiment_name_group",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": [
+                "names_groups",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "ship_name_group",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": [
+                "names_groups",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "attack_desc",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "defend_desc",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "mp_stats_name",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "pre_battle_speech_parameter",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "pre_battle_speech_parameters_enum",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "can_be_regionless",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "card_colour_r",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "card_colour_g",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "card_colour_b",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "diplomacy_culture",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cultures",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "senator_total",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "use_legion_names",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -43535,6 +44026,104 @@
               "field_is_key": false,
               "field_is_reference": [
                 "campaign_localised_strings",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 4,
+          "fields": [
+            {
+              "field_name": "ai_prestige",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "army_cap",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "champion_cap",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "dignatary_cap",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "level",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "navy_cap",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "player_prestige",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "province_initiative_cap",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "spy_cap",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "campaign",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "campaigns",
+                "campaign_name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "description_lookup",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "campaign_localised_strings",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "effect_bundle",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "effect_bundles",
                 "key"
               ],
               "field_description": ""
@@ -44594,6 +45183,49 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 3,
+          "fields": [
+            {
+              "field_name": "animation",
+              "field_type": "OptionalStringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "party",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "political_parties",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "uniform",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "x_offset",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "y_offset",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -45197,6 +45829,55 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 2,
+          "fields": [
+            {
+              "field_name": "enum_value",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "selection_cursor",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cursors",
+                "key"
+              ],
+              "field_description": "Cursor that appears while have unit selected and mouse over ground type"
+            },
+            {
+              "field_name": "standard_cursor",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cursors",
+                "key"
+              ],
+              "field_description": "Cursor that appears when have nothing selected and mouse over ground type"
+            },
+            {
+              "field_name": "type",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "penalty_immune_attribute",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "unit_attributes",
+                "key"
+              ],
+              "field_description": "Some ground types have penalties; this one will allow the unit to be immune to those penalties"
+            }
+          ]
         }
       ]
     },
@@ -45419,6 +46100,46 @@
                 "cdir_events_categories",
                 "category_key"
               ],
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 3,
+          "fields": [
+            {
+              "field_name": "generate",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "ui_icon",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "ui_image",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "prioritised",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
               "field_description": ""
             }
           ]
@@ -66521,6 +67242,25 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "experience_points",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "trigger_key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -69951,6 +70691,143 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 7,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "nobility",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "gender",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "genders",
+                "gender"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "agent_type",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "agents",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "faction",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "factions",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "spawning_window_start",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "spawning_window_end",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "spawn_conditions",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "name_key",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "names",
+                "id"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "surname_key",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "names",
+                "id"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "art_set_id",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "campaign_character_art_sets",
+                "art_set_id"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "clan_name_key",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "names",
+                "id"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "other_name_key",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "names",
+                "id"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "political_party",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "political_parties",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "age_start",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -72888,6 +73765,735 @@
                 "trait"
               ],
               "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "diplomacy_negotiation_attitude_override_strings_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "attitude",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "diplomacy_negotiation_attitudes",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "culture",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "cultures",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "government_type",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "government_types",
+                "government_type"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "diplomacy_keys",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "option",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "string",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "diplomacy_strings",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "diplomacy_negotiation_faction_attitude_override_strings_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "attitude",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "diplomacy_negotiation_attitudes",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "culture",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "cultures",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "faction",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "factions",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "government_type",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "government_types",
+                "government_type"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "diplomacy_keys",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "option",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "string",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "diplomacy_strings",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "diplomacy_negotiation_faction_override_strings_tables",
+      "versions": [
+        {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "diplomacy_keys",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "culture",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "cultures",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "government_type",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "government_types",
+                "government_type"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "faction",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "factions",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "string",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "diplomacy_strings",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "option",
+              "field_type": "Integer",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "diplomacy_negotiation_strings_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "culture",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "cultures",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "government_type",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "government_types",
+                "government_type"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "diplomacy_keys",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "effect_bonus_value_projectile_junctions_tables",
+      "versions": [
+        {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "effect",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "effects",
+                "effect"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "bonus_value",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "campaign_bonus_value_ids_projectile",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "projectile",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "projectiles",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "effect_bonus_value_unit_caste_junctions_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "bonus_value_id",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "campaign_bonus_value_ids_unit_caste",
+                "key"
+              ],
+              "field_description": "delete this field if you see it"
+            },
+            {
+              "field_name": "caste",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "unit_castes",
+                "caste"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "effect",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "effects",
+                "effect"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "encyclopedia_building_redirects_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "building",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "building_levels",
+                "level_name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "redirect_building",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "building_levels",
+                "level_name"
+              ],
+              "field_description": "building to redirect the user to if 'building' was clicked on"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "encyclopedia_unit_redirects_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "redirect_unit",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "main_units",
+                "unit"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "unit",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "main_units",
+                "unit"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "event_log_descriptions_tables",
+      "versions": [
+        {
+          "version": 3,
+          "fields": [
+            {
+              "field_name": "event_key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "optional_campaign_key",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "campaigns",
+                "campaign_name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "has_position",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "icon",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "is_region_position",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "movie_id",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "faction_politics_government_actions_junctions_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "description",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "delete this field if you see it"
+            },
+            {
+              "field_name": "faction",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "factions",
+                "key"
+              ],
+              "field_description": "The faction for which this action is defined."
+            },
+            {
+              "field_name": "id",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": "An id for the action. Will be passed to lua for TRIGGER_EVENT-type actions."
+            },
+            {
+              "field_name": "image_path",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "title",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "type",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "politics_government_actions",
+                "key"
+              ],
+              "field_description": "One of the hardcoded action types."
+            },
+            {
+              "field_name": "cost",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "Fixed cost in gold for this action."
+            },
+            {
+              "field_name": "cost_per_region",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "Cost per owned region, used to make the action more expensive for large factions."
+            },
+            {
+              "field_name": "cooldown",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "Cooldown in turns. The cooldown counter is shared for all actions."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "faction_to_campaign_junctions_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "campaign",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "campaigns",
+                "campaign_name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "faction",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "factions",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "female_character_culture_details_tables",
+      "versions": [
+        {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "chance_to_spawn",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cultures",
+                "key"
+              ],
+              "field_description": "values: (>= 0) - chance to spawn female character (in percent). If not set (value < 0) -> the value is read from female_character_faction_spawn_rates."
+            },
+            {
+              "field_name": "culture",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "general",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "values: (\"y\" / \"n\") - the ability to \"raise a force\" from a settlement."
+            },
+            {
+              "field_name": "public_office",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "values: (\"y\" / \"n\") - access to the \"Secure Promotion\" action, as well as the ability to be faction and party leader."
+            },
+            {
+              "field_name": "missions",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "values: (\"y\" / \"n\") - access to any and all actions listed as missions (Diplomat, Administrator, Organize Feast + the new Political Marriage, Diplomatic Marriage, Dynastic Marriage)."
+            },
+            {
+              "field_name": "trait",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "trait_info",
+                "trait"
+              ],
+              "field_description": "special trait gives females bonus to missions."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "female_character_faction_details_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "chance_to_spawn",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "values: (>= 0) - chance to spawn female character (in percent). If not set (value < 0) -> the value is read from female_character_subculture_details"
+            },
+            {
+              "field_name": "faction",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "factions",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "general",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "values: (\"y\" / \"n\" / not set ) - the ability to \"raise a force\" from a settlement. If not set -> the value is read from female_character_subculture_details"
+            },
+            {
+              "field_name": "public_office",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "values: (\"y\" / \"n\" / not set ) - access to the \"Secure Promotion\" action, as well as the ability to be faction and party leader. If not set -> the value is read from female_character_subculture_details"
+            },
+            {
+              "field_name": "missions",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "values: (\"y\" / \"n\" / not set ) - access to any and all actions listed as missions (Diplomat, Administrator, Organize Feast + the new Political Marriage, Diplomatic Marriage, Dynastic Marriage). If not set -> the value is read from female_character_subculture_details"
+            },
+            {
+              "field_name": "trait",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "trait_info",
+                "trait"
+              ],
+              "field_description": "special trait gives females bonus to missions. If not set the value is read from female_character_subculture_details"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "female_character_subculture_details_tables",
+      "versions": [
+        {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "chance_to_spawn",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "values: (>= 0) - chance to spawn female character (in percent). If not set (value < 0) -> the value is read from female_character_culture_details"
+            },
+            {
+              "field_name": "general",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "values: (\"y\" / \"n\" / not set ) - the ability to \"raise a force\" from a settlement. If not set -> the value is read from female_character_culture_details"
+            },
+            {
+              "field_name": "public_office",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "values: (\"y\" / \"n\" / not set ) - access to the \"Secure Promotion\" action, as well as the ability to be faction and party leader. If not set -> the value is read from female_character_culture_details"
+            },
+            {
+              "field_name": "missions",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "values: (\"y\" / \"n\" / not set ) - access to any and all actions listed as missions (Diplomat, Administrator, Organize Feast + the new Political Marriage, Diplomatic Marriage, Dynastic Marriage). If not set -> the value is read from female_character_culture_details"
+            },
+            {
+              "field_name": "subculture",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "cultures_subcultures",
+                "subculture"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "trait",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "trait_info",
+                "trait"
+              ],
+              "field_description": "special trait gives females bonus to missions. If not set the value is read from female_character_culture_details"
             }
           ]
         }
