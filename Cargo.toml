@@ -31,7 +31,7 @@ qt_core = "0.2"
 
 cpp_utils = "*"
 
-[target.x86_64-pc-windows-gnu.build-dependencies]
+[target.'cfg(windows)'.build-dependencies]
 winres = "0.1.5"
 
 [profile.release]
