@@ -430,8 +430,6 @@ impl PackFileHeader {
             pack_file_header.unknown_data_4 = decode_integer_u32(&buffer[44..48])?;
         }
 
-        println!("{:?}", pack_file_header);
-
         // Return the header.
         Ok(pack_file_header)
     }
