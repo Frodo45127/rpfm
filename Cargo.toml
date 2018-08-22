@@ -33,7 +33,7 @@ cpp_utils = "*"
 
 twa_table_decrypt_lib = "*"
 
-[target.x86_64-pc-windows-gnu.build-dependencies]
+[target.'cfg(windows)'.build-dependencies]
 winres = "0.1.5"
 
 [profile.release]
