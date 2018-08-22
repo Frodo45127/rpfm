@@ -1,6 +1,8 @@
 // In this file are all the Structs and Impls required to decode and encode the PackFiles.
 // NOTE: Arena support was implemented thanks to the work of "Trolldemorted" here: https://github.com/TotalWarArena-Modding/twa_pack_lib
+extern crate twa_table_decrypt_lib;
 
+use std::num::Wrapping;
 use std::path::PathBuf;
 use std::io::prelude::*;
 use std::io::{ BufReader, BufWriter, Read, Write, SeekFrom };
@@ -39,7 +41,7 @@ pub struct PackFileExtraData {
 
 /// This `Struct` stores all the info we can get from the header of the PackFile.
 ///
-/// It contains the followind fields:
+/// It contains the followind fields, all in 4 byte packs:
 /// - `id`: ID of the PackFile, like a version. Normally it's `PFHX`.
 /// - `pack_file_type`: type of the PackFile (mod, movie,...).
 /// - `pack_file_count`: amount of entries in the PackFile index, at the start of the data (dependencies).
@@ -47,6 +49,13 @@ pub struct PackFileExtraData {
 /// - `packed_file_count`: amount of PackedFiles stored inside the PackFile.
 /// - `packed_file_index_size`: size in bytes of the entire PackedFile Index.
 /// - `creation_time`: timestamp of when the PackFile was created, encoded in u32.
+///
+/// These fields are only used in "extended" `PFH4` and `PFH5` headers:
+/// - `unknown_data_1`: bytes 0->4 of the extension, encoded in u32. Unknown use.
+/// - `unknown_data_2`: bytes 4->8 of the extension, encoded in u32. Unknown use.
+/// - `unknown_data_3`: bytes 8->12 of the extension, encoded in u32. Unknown use.
+/// - `signature_position`: position of the signature at the end on the PackFile.
+/// - `unknown_data_4`: bytes 16->20 of the extension, encoded in u32. Unknown use. Maybe this is part of the `signature_position` so it supports >4GB PackFiles?
 ///
 /// These four variables are not directly related to the header, but are decoded from it:
 /// - `data_is_encrypted`: true if the data of the PackedFiles is encrypted. Seen in `music.pack` in Attila, Rome 2 and Arena.
@@ -66,7 +75,7 @@ pub struct PackFileExtraData {
 /// - `16` => PackedFiles data is encrypted. 
 /// - `64` => PackedFile index has a timestamp (last modification date) of each PackedFile just after his size.
 /// - `128` => PackedFile index is encrypted (Only in Arena).
-/// - `256` => Header is extended by 20 bytes, and bytes 12-16 are the signature position. Also, this in a PFH5 means the Indexes have a PFH4 structure. It's in every Arena PackFile (Only in Arena).
+/// - `256` => Header is extended by 20 bytes, and bytes 12-16 of that extension are the signature position. Also, this in a PFH5 means the Indexes have a PFH4 structure. It's in every Arena PackFile (Only in Arena).
 ///
 /// So, when getting the type, we first have to check his bitmasks and see what does it have.
 /// NOTE: Currently we only support saving a PackFile if it doesn't have `data_is_encrypted`, `index_is_encrypted` or `header_is_extended` enabled.
@@ -79,6 +88,12 @@ pub struct PackFileHeader {
     pub packed_file_count: u32,
     pub packed_file_index_size: u32,
     pub creation_time: u32,
+
+    pub unknown_data_1: u32,
+    pub unknown_data_2: u32,
+    pub unknown_data_3: u32,
+    pub signature_position: u32,
+    pub unknown_data_4: u32,
 
     pub data_is_encrypted: bool,
     pub index_includes_timestamp: bool,
@@ -235,7 +250,7 @@ impl PackFile {
         else {
 
             // We try to load his data to memory.
-            let _ = data.read_data(pack_file)?;
+            let _ = data.read_data(pack_file, &header)?;
 
             // We return a fully decoded PackFile.
             Ok(Self {
@@ -316,6 +331,12 @@ impl PackFileHeader {
             packed_file_index_size: 0,
             creation_time: get_current_time(),
 
+            unknown_data_1: 0,
+            unknown_data_2: 0,
+            unknown_data_3: 0,
+            signature_position: 0,
+            unknown_data_4: 0,
+
             data_is_encrypted: false,
             index_includes_timestamp: false,
             index_is_encrypted: false,
@@ -330,38 +351,22 @@ impl PackFileHeader {
         let mut pack_file_header = Self::new("PFH5");
 
         // Create a little buffer to read the data from the header.
-        let mut buffer = [0; 28];
+        let mut buffer = vec![0; 8];
 
-        // Check if at least has enough bytes to try to get his header.
-        match header.read(&mut buffer) {
-            Ok(bytes) => {
+        // We try to read the ID and the Type/Bitmask of the PackFile.
+        let bytes = header.read(&mut buffer)?;
 
-                // If we filled the complete buffer, we have the minimum amount of bytes to try to decode it.
-                if bytes == 28 {
+        // If we didn't fill the complete buffer, the PackFile is invalid.
+        if bytes != 8 { return Err(ErrorKind::PackFileHeaderNotComplete)? }
 
-                    // Check his first 4 headers, to see if they are PackFiles we can read.
-                    match decode_string_u8(&buffer[..4]) {
-                        Ok(id) => {
+        // Try to decode his id.
+        let id = decode_string_u8(&buffer[..4])?;
 
-                            // If the header's first 4 bytes are "PFH5" or "PFH4", it's a valid file, so we read it.
-                            if id == "PFH5" || id == "PFH4" { pack_file_header.id = id; }
+        // If the header's first 4 bytes are "PFH5" or "PFH4", it's a valid file, so we read it.
+        if id == "PFH5" || id == "PFH4" { pack_file_header.id = id; }
 
-                            // If we reach this point, the file is not valid.
-                            else { return Err(ErrorKind::PackFileNotSupported)? }
-                        }
-
-                        // If we reach this point, there has been a decoding error.
-                        Err(error) => return Err(error),
-                    }
-                }
-
-                // Otherwise, return an error.
-                else { return Err(ErrorKind::PackFileHeaderNotComplete)? }
-            }
-
-            // If we couldn't read the header, return the error.
-            Err(error) => return Err(From::from(error)),
-        }
+        // If we reach this point, the file is not valid.
+        else { return Err(ErrorKind::PackFileNotSupported)? }
 
         // Get the "base" PackFile Type.
         pack_file_header.pack_file_type = decode_integer_u32(&buffer[4..8])?;
@@ -378,6 +383,33 @@ impl PackFileHeader {
         pack_file_header.pack_file_type = pack_file_header.pack_file_type & 127;
         pack_file_header.pack_file_type = pack_file_header.pack_file_type & 255;
 
+        // If it's a "PFH5" or "PFH4"...
+        if pack_file_header.id == "PFH5" || pack_file_header.id == "PFH4" {
+
+            // If it has an extended header, his size is 48 bytes.
+            if pack_file_header.header_is_extended { buffer = vec![0; 48]; }
+
+            // Otherwise, his size is 28 bytes.
+            else { buffer = vec![0; 28]; }
+        }
+
+        // Restore the cursor of the BufReader to 0, so we can read the full header in one go. The first 8 bytes are
+        // already decoded but, for the sake of clarity in the positions of the rest of the header stuff, we do this.
+        header.seek(SeekFrom::Start(0))?;
+
+        // We try to read the rest of the header.
+        let bytes = header.read(&mut buffer)?;
+
+        // If it's a "PFH5" or "PFH4"...
+        if pack_file_header.id == "PFH5" || pack_file_header.id == "PFH4" {
+
+            // If it has an extended header and his size is not 48, the PackFile doesn't have a complete header.
+            if pack_file_header.header_is_extended && bytes != 48 { return Err(ErrorKind::PackFileHeaderNotComplete)? }
+
+            // If it doesn't have an extended header and his size is not 28. the PackFile doesn't have a complete header.
+            else if !pack_file_header.header_is_extended && bytes != 28 { return Err(ErrorKind::PackFileHeaderNotComplete)? }
+        }
+
         // Fill the default header with the current PackFile values.
         pack_file_header.pack_file_count = decode_integer_u32(&buffer[8..12])?;
         pack_file_header.pack_file_index_size = decode_integer_u32(&buffer[12..16])?;
@@ -388,6 +420,17 @@ impl PackFileHeader {
         // To get the full timestamp we need to use:
         // let naive_date_time: NaiveDateTime = NaiveDateTime::from_timestamp(i64::from(decode_integer_u32(&buffer[24..28])?), 0);
         pack_file_header.creation_time = decode_integer_u32(&buffer[24..28])?;
+
+        // If it's a "PFH5" or "PFH4" with an extended header...
+        if (pack_file_header.id == "PFH5" || pack_file_header.id == "PFH4") && pack_file_header.header_is_extended { 
+
+            // Fill the default header with the extended header values.
+            pack_file_header.unknown_data_1 = decode_integer_u32(&buffer[28..32])?;
+            pack_file_header.unknown_data_2 = decode_integer_u32(&buffer[32..36])?;
+            pack_file_header.unknown_data_3 = decode_integer_u32(&buffer[36..40])?;
+            pack_file_header.signature_position = decode_integer_u32(&buffer[40..44])?;
+            pack_file_header.unknown_data_4 = decode_integer_u32(&buffer[44..48])?;
+        }
 
         // Return the header.
         Ok(pack_file_header)
@@ -526,9 +569,6 @@ impl PackFileData {
         // Create the buffers for the indexes data.
         let mut pack_file_index = vec![0; header.pack_file_index_size as usize];
         let mut packed_file_index = vec![0; header.packed_file_index_size as usize];
-
-        // If the header is extended (Arena PackFile), skip the next 20 bytes, as it's stuff we don't need to decode the PackFile.
-        if header.id == "PFH5" && header.header_is_extended { data.read_exact(&mut vec![0; 20])?; }
 
         // Get the data from both indexes to their buffers.
         data.read_exact(&mut pack_file_index)?;
@@ -717,16 +757,59 @@ impl PackFileData {
     fn read_data(
         &mut self,
         data: &mut BufReader<File>,
+        header: &PackFileHeader,
     ) -> Result<()> {
 
-        // Now, we get the raw data from the PackedFiles, and get it into the corresponding PackedFile.
+        // If it's a `PFH5` and the PackFile's data is encrypted, his data must start in a divisible by 8, so...
+        if header.id == "PFH5" && header.data_is_encrypted { 
+
+            // We get the current position in the file, and skip the bytes until we reach a divisible by 8.
+            let position = data.seek(SeekFrom::Current(0))?;
+            let padding = 8 - (position % 8);
+            data.read(&mut vec![0; padding as usize])?;
+        }
+
+        // Now, we get the raw data from the PackFile, and get it into the corresponding PackedFile.
         for packed_file in &mut self.packed_files {
 
-            // Prepare his buffer.
-            packed_file.data = vec![0; packed_file.size as usize];
+            // If it's a `PFH5` and the PackFile's data is encrypted, we need to decrypt it before storing it.
+            // These encryted files always start in a divisible by 8, so we need to account for that.
+            if header.id == "PFH5" && header.data_is_encrypted { 
 
-            // Read his "size" of bytes into his data.
-            data.read_exact(&mut packed_file.data)?;
+                // Due to how the decrypt function works, every PackedFile must have a divisible by 8 size so we need to calculate the "extra bytes" to add to the PackedFile.
+                let padding = 8 - (packed_file.size % 8);
+
+                // Once we got the amount of "extra bytes" needed, we calculate his "final" size.
+                let padded_size = if padding < 8 { packed_file.size + padding } else { packed_file.size };
+
+                // Read his data from the PackFile.
+                let mut encrypted_data = vec![0; padded_size as usize];
+                data.read_exact(&mut encrypted_data)?;
+
+                // Try to decrypt the data of the PackedFile and store it.
+                packed_file.data = decrypt_file(&encrypted_data, packed_file.size as usize, false);
+            }
+
+            // If it's a `PFH4` and the PackFile's data is encrypted, we need to decrypt it before storing it. 
+            else if header.id == "PFH4" && header.data_is_encrypted { 
+
+                // Read his data from the PackFile.
+                let mut encrypted_data = vec![0; packed_file.size as usize];
+                data.read_exact(&mut encrypted_data)?;
+
+                // Try to decrypt the data of the PackedFile and store it.
+                packed_file.data = twa_table_decrypt_lib::decrypt_table(&encrypted_data, false);
+            }
+
+            // Otherwise, we just read it.
+            else {
+
+                // Prepare his buffer.
+                packed_file.data = vec![0; packed_file.size as usize];
+
+                // Read his "size" of bytes into his data.
+                data.read_exact(&mut packed_file.data)?;
+            }
         }
 
         // If we reach this point, we managed to get the entire PackFile decoded, so we return it.
@@ -849,6 +932,8 @@ impl PackedFile {
 //                Decryption Functions (for Arena), copied from twa_pack_lib
 //-----------------------------------------------------------------------------------------------//
 
+// NOTE: The reason all these functions are here is because the `twa_pack_lib` doesn't make them public.
+
 // Decryption key.
 static KEY: &str = "L2{B3dPL7L*v&+Q3ZsusUhy[BGQn(Uq$f>JQdnvdlf{-K:>OssVDr#TlYU|13B}r";
 
@@ -906,4 +991,67 @@ fn decrypt_index_item_filename(ciphertext: &[u8], decrypted_size: u8, offset: &m
 
     // Once we finish, return the path
     path
+}
+
+// Key needed to decrypt files.
+static FILE_KEY: Wrapping<u64> = Wrapping(0x8FEB2A6740A6920E);
+
+// Don't make me try to explain this. Is magic for me.
+pub fn decrypt_file(ciphertext: &[u8], length: usize, verbose: bool) -> Vec<u8> {
+    assert!(ciphertext.len() % 8 == 0, "ciphertext is not a multiple of 8");
+    let mut plaintext = Vec::with_capacity(ciphertext.len());
+    let mut edi: u32 = 0;
+    let mut esi = 0;
+    let mut eax;
+    let mut edx;
+    for _ in 0..ciphertext.len()/8 {
+        // push 0x8FEB2A67
+        // push 0x40A6920E
+        // mov eax, edi
+        // not eax
+        // push 0
+        // push eax
+        // call multiply
+        let prod = (FILE_KEY * Wrapping((!edi) as u64)).0;
+        if verbose {
+            println!("prod: {:X}", prod);
+        }
+        eax = prod as u32;
+        edx = (prod >> 32) as u32;
+        if verbose {
+            println!("eax: {:X}", eax);
+            println!("edx: {:X}", edx);
+        }
+
+        // xor eax, [ebx+esi]
+        eax ^= decode_integer_u32(&ciphertext[esi..esi + 4]).unwrap();
+        if verbose {
+            println!("eax: {:X}", eax);
+        }
+
+        // add edi, 8
+        edi += 8;
+
+        // xor edx, [ebx+esi+4]
+        let _edx = decode_integer_u32(&ciphertext[esi + 4..esi + 8]).unwrap();
+        if verbose {
+            println!("_edx {:X}", _edx);
+        }
+        edx ^= _edx;
+        if verbose {
+            println!("edx {:X}", edx);
+        }
+
+        // mov [esi], eax
+        plaintext.append(&mut encode_integer_u32(eax));
+
+        // mov [esi+4], edx
+        if verbose {
+            println!("{:X}", edx);
+        }
+        plaintext.append(&mut encode_integer_u32(edx));
+        esi += 8;
+    }
+    plaintext.truncate(length);
+    plaintext
 }

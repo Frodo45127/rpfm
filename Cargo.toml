@@ -31,6 +31,8 @@ qt_core = "0.2"
 
 cpp_utils = "*"
 
+twa_table_decrypt_lib = "*"
+
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1.5"
 
