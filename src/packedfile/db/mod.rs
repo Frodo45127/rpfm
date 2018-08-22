@@ -105,51 +105,49 @@ impl DB {
         let mut index = 0;
 
         // We try to read the header.
-        match DBHeader::read(packed_file_data, &mut index) {
+        let header = DBHeader::read(packed_file_data, &mut index)?;
 
-            // If the header was read without errors...
-            Ok(header) => {
+        // These tables use the not-yet-implemented type "List" in the following versions:
+        // - models_artillery: 0
+        // - models_building: 3, 7.
+        // - models_naval: 11.
+        // - models_sieges: 2, 3.
+        // So we disable everything for any problematic version of these tables.
+        // TODO: Implement the needed type for these tables.
+        if (db_type == "models_artillery_tables" && header.version == 0) ||
+            (db_type == "models_building_tables" && (header.version == 3 ||
+                                                    header.version == 7)) ||
+            (db_type == "models_naval_tables" && header.version == 11) ||
+            (db_type == "models_sieges_tables" && (header.version == 2 ||
+                                                    header.version == 3))
+        { return Err(ErrorKind::DBTableContainsListField)? }
 
-                // These tables use the not-yet-implemented type "List" in the following versions:
-                // - models_artillery: 0
-                // - models_building: 3, 7.
-                // - models_naval: 11.
-                // - models_sieges: 2, 3.
-                // So we disable everything for any problematic version of these tables.
-                // TODO: Implement the needed type for these tables.
-                if (db_type == "models_artillery_tables" && header.version == 0) ||
-                    (db_type == "models_building_tables" && (header.version == 3 ||
-                                                            header.version == 7)) ||
-                    (db_type == "models_naval_tables" && header.version == 11) ||
-                    (db_type == "models_sieges_tables" && (header.version == 2 ||
-                                                            header.version == 3))
-                { return Err(ErrorKind::DBTableContainsListField)? }
+        // Then, we try to get the schema for our table, if exists.
+        match Self::get_schema(db_type, header.version, master_schema) {
 
-                // Then, we try to get the schema for our table, if exists.
-                match Self::get_schema(db_type, header.version, master_schema) {
+            // If we got an schema...
+            Some(table_definition) => {
 
-                    // If we got an schema...
-                    Some(table_definition) => {
+                // We try to decode his rows.
+                let data = DBData::read(&packed_file_data, table_definition, &header, &mut index)?;
 
-                        // We try to decode his rows. If it works, we return the decoded DB file.
-                        match DBData::read(&packed_file_data, table_definition, &header, &mut index) {
-                            Ok(data) => {
-                                Ok(Self {
-                                    db_type: db_type.to_owned(),
-                                    header,
-                                    data,
-                                })
-                            }
-
-                            // Otherwise. return error.
-                            Err(error) => Err(error)
-                        }
-                    }
-                    None => Err(ErrorKind::SchemaTableDefinitionNotFound)?
-                }
-
+                // Return the decoded DB file.
+                Ok(Self {
+                    db_type: db_type.to_owned(),
+                    header,
+                    data,
+                })
             }
-            Err(error) => Err(error)
+
+            // If we got nothing...
+            None => {
+
+                // If the table is empty, return his specific error.
+                if header.entry_count == 0 { Err(ErrorKind::DBTableEmptyWithNoTableDefinition)? }
+
+                // Otherwise, return the generic "No Table Definition" error.
+                else { Err(ErrorKind::SchemaTableDefinitionNotFound)? }
+            }
         }
     }
 

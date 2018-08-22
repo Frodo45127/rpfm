@@ -122,6 +122,9 @@ pub enum ErrorKind {
     // Error for when a DB Table fails to decode.
     DBTableDecode(String),
 
+    // Error for when a DB Table is empty and it doesn't have an schema, so it's undecodeable.
+    DBTableEmptyWithNoTableDefinition,
+
     // Error for when we don't have an schema to use.
     SchemaNotFound,
 
@@ -380,6 +383,7 @@ impl Display for ErrorKind {
             ErrorKind::DBTableNotADBTable => write!(f, "<p>This PackedFile is not a DB Table.</p>"),
             ErrorKind::DBTableParse => write!(f, "<p>Error while trying to save the DB Table.</p><p>This is probably caused by one of the fields you just changed. Please, make sure the data in that field it's of the correct type.</p>"),
             ErrorKind::DBTableDecode(cause) => write!(f, "<p>Error while trying to decode the DB Table:</p><p>{}</p>", cause),
+            ErrorKind::DBTableEmptyWithNoTableDefinition => write!(f, "<p>This DB Table is empty and there is not a Table Definition for it. That means is undecodeable.</p>"),
             ErrorKind::SchemaNotFound => write!(f, "<p>There is no Schema for the Game Selected.</p>"),
             ErrorKind::SchemaTableDefinitionNotFound => write!(f, "<p>There is no Table Definition for this specific version of the table in the Schema.</p>"),
 
