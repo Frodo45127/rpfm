@@ -1,6 +1,8 @@
 // In this file are all the Structs and Impls required to decode and encode the PackFiles.
 // NOTE: Arena support was implemented thanks to the work of "Trolldemorted" here: https://github.com/TotalWarArena-Modding/twa_pack_lib
+extern crate twa_table_decrypt_lib;
 
+use std::num::Wrapping;
 use std::path::PathBuf;
 use std::io::prelude::*;
 use std::io::{ BufReader, BufWriter, Read, Write, SeekFrom };
@@ -248,7 +250,7 @@ impl PackFile {
         else {
 
             // We try to load his data to memory.
-            let _ = data.read_data(pack_file)?;
+            let _ = data.read_data(pack_file, &header)?;
 
             // We return a fully decoded PackFile.
             Ok(Self {
@@ -755,16 +757,59 @@ impl PackFileData {
     fn read_data(
         &mut self,
         data: &mut BufReader<File>,
+        header: &PackFileHeader,
     ) -> Result<()> {
 
-        // Now, we get the raw data from the PackedFiles, and get it into the corresponding PackedFile.
+        // If it's a `PFH5` and the PackFile's data is encrypted, his data must start in a divisible by 8, so...
+        if header.id == "PFH5" && header.data_is_encrypted { 
+
+            // We get the current position in the file, and skip the bytes until we reach a divisible by 8.
+            let position = data.seek(SeekFrom::Current(0))?;
+            let padding = 8 - (position % 8);
+            data.read(&mut vec![0; padding as usize])?;
+        }
+
+        // Now, we get the raw data from the PackFile, and get it into the corresponding PackedFile.
         for packed_file in &mut self.packed_files {
 
-            // Prepare his buffer.
-            packed_file.data = vec![0; packed_file.size as usize];
+            // If it's a `PFH5` and the PackFile's data is encrypted, we need to decrypt it before storing it.
+            // These encryted files always start in a divisible by 8, so we need to account for that.
+            if header.id == "PFH5" && header.data_is_encrypted { 
 
-            // Read his "size" of bytes into his data.
-            data.read_exact(&mut packed_file.data)?;
+                // Due to how the decrypt function works, every PackedFile must have a divisible by 8 size so we need to calculate the "extra bytes" to add to the PackedFile.
+                let padding = 8 - (packed_file.size % 8);
+
+                // Once we got the amount of "extra bytes" needed, we calculate his "final" size.
+                let padded_size = if padding < 8 { packed_file.size + padding } else { packed_file.size };
+
+                // Read his data from the PackFile.
+                let mut encrypted_data = vec![0; padded_size as usize];
+                data.read_exact(&mut encrypted_data)?;
+
+                // Try to decrypt the data of the PackedFile and store it.
+                packed_file.data = decrypt_file(&encrypted_data, packed_file.size as usize, false);
+            }
+
+            // If it's a `PFH4` and the PackFile's data is encrypted, we need to decrypt it before storing it. 
+            else if header.id == "PFH4" && header.data_is_encrypted { 
+
+                // Read his data from the PackFile.
+                let mut encrypted_data = vec![0; packed_file.size as usize];
+                data.read_exact(&mut encrypted_data)?;
+
+                // Try to decrypt the data of the PackedFile and store it.
+                packed_file.data = twa_table_decrypt_lib::decrypt_table(&encrypted_data, false);
+            }
+
+            // Otherwise, we just read it.
+            else {
+
+                // Prepare his buffer.
+                packed_file.data = vec![0; packed_file.size as usize];
+
+                // Read his "size" of bytes into his data.
+                data.read_exact(&mut packed_file.data)?;
+            }
         }
 
         // If we reach this point, we managed to get the entire PackFile decoded, so we return it.
@@ -887,6 +932,8 @@ impl PackedFile {
 //                Decryption Functions (for Arena), copied from twa_pack_lib
 //-----------------------------------------------------------------------------------------------//
 
+// NOTE: The reason all these functions are here is because the `twa_pack_lib` doesn't make them public.
+
 // Decryption key.
 static KEY: &str = "L2{B3dPL7L*v&+Q3ZsusUhy[BGQn(Uq$f>JQdnvdlf{-K:>OssVDr#TlYU|13B}r";
 
@@ -944,4 +991,67 @@ fn decrypt_index_item_filename(ciphertext: &[u8], decrypted_size: u8, offset: &m
 
     // Once we finish, return the path
     path
+}
+
+// Key needed to decrypt files.
+static FILE_KEY: Wrapping<u64> = Wrapping(0x8FEB2A6740A6920E);
+
+// Don't make me try to explain this. Is magic for me.
+pub fn decrypt_file(ciphertext: &[u8], length: usize, verbose: bool) -> Vec<u8> {
+    assert!(ciphertext.len() % 8 == 0, "ciphertext is not a multiple of 8");
+    let mut plaintext = Vec::with_capacity(ciphertext.len());
+    let mut edi: u32 = 0;
+    let mut esi = 0;
+    let mut eax;
+    let mut edx;
+    for _ in 0..ciphertext.len()/8 {
+        // push 0x8FEB2A67
+        // push 0x40A6920E
+        // mov eax, edi
+        // not eax
+        // push 0
+        // push eax
+        // call multiply
+        let prod = (FILE_KEY * Wrapping((!edi) as u64)).0;
+        if verbose {
+            println!("prod: {:X}", prod);
+        }
+        eax = prod as u32;
+        edx = (prod >> 32) as u32;
+        if verbose {
+            println!("eax: {:X}", eax);
+            println!("edx: {:X}", edx);
+        }
+
+        // xor eax, [ebx+esi]
+        eax ^= decode_integer_u32(&ciphertext[esi..esi + 4]).unwrap();
+        if verbose {
+            println!("eax: {:X}", eax);
+        }
+
+        // add edi, 8
+        edi += 8;
+
+        // xor edx, [ebx+esi+4]
+        let _edx = decode_integer_u32(&ciphertext[esi + 4..esi + 8]).unwrap();
+        if verbose {
+            println!("_edx {:X}", _edx);
+        }
+        edx ^= _edx;
+        if verbose {
+            println!("edx {:X}", edx);
+        }
+
+        // mov [esi], eax
+        plaintext.append(&mut encode_integer_u32(eax));
+
+        // mov [esi+4], edx
+        if verbose {
+            println!("{:X}", edx);
+        }
+        plaintext.append(&mut encode_integer_u32(edx));
+        esi += 8;
+    }
+    plaintext.truncate(length);
+    plaintext
 }
