@@ -269,7 +269,10 @@ impl PackFile {
     /// - `mut file`: a `BufWriter` of the PackFile we are trying to write to.
     pub fn save(&mut self, mut file: &mut BufWriter<File>) -> Result<()> {
 
-        // First, we encode the indexes, as we need their final size to encode complete the header.
+        // If any of the problematic masks in the header is set, return an error.
+        if self.header.data_is_encrypted || self.header.index_is_encrypted || self.header.header_is_extended { return Err(ErrorKind::PackFileIsNonEditable)? }
+
+        // We encode the indexes, as we need their final size to encode complete the header.
         let indexes = self.data.save_indexes(&self.header);
 
         // We try to write the header.
@@ -446,12 +449,13 @@ impl PackFileHeader {
         packed_file_index_size: u32
     ) -> Result<()> {
 
-        // Complete the PackFile Type using the bitmasks.
+        // Complete the PackFile Type using the bitmasks. Currently, we don't really support saving with some of these bitmasks,
+        // but to show how it would be done, we left this here. 
         let mut final_type = self.pack_file_type;
-        if self.data_is_encrypted { final_type = final_type | 16; }
+        //if self.data_is_encrypted { final_type = final_type | 16; }
         if self.index_includes_timestamp { final_type = final_type | 64; }
-        if self.index_is_encrypted { final_type = final_type | 128; }
-        if self.header_is_extended { final_type = final_type | 256; }
+        //if self.index_is_encrypted { final_type = final_type | 128; }
+        //if self.header_is_extended { final_type = final_type | 256; }
 
         // Write the entire header.
         file.write(&encode_string_u8(&self.id))?;
@@ -843,7 +847,8 @@ impl PackFileData {
                 // If it has the extended header bit, is an Arena PackFile.
                 if header.header_is_extended {
 
-                    // If it has the last modified date of the PackedFiles, we add it to the Index (Arena).
+                    // If it has the last modified date of the PackedFiles, we add it to the Index (Arena). 
+                    // NOTE: This is not actually used, because if an Arena PackFile reaches this point, it means something broke somewhere else.
                     if header.index_includes_timestamp { packed_file_index.extend_from_slice(&encode_integer_u32(packed_file.timestamp)); }
                 }
 
@@ -889,7 +894,7 @@ impl PackFileData {
         (pack_file_index, packed_file_index)
     }
 
-    /// This function writes all the PackedFile's data at the end of the provided file.
+    /// This function writes all the PackedFile's data at the end of the provided file. Keep in mind this doesn't work with ANY kind of encryption.
     fn save_data(&self, file: &mut BufWriter<File>) -> Result<()> {
 
         // For each PackedFile, just try to write his data to the disk.
