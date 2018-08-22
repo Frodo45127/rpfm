@@ -896,8 +896,6 @@ pub fn set_modified(
     // If it's not modified...
     else {
 
-        // TODO: when this triggers, clean the main TreeView from painting.
-
         // Check if there is a PackFile open.
         let is_pack_file_open;
         unsafe { is_pack_file_open = if app_ui.folder_tree_model.as_mut().unwrap().row_count(()) > 0 { true } else { false }; }
@@ -918,6 +916,9 @@ pub fn set_modified(
 
             // Change the title of the Main Window.
             unsafe { app_ui.window.as_mut().unwrap().set_window_title(&QString::from_std_str(format!("{} - Not Modified", pack_file_name))); }
+
+            // Clean the TreeView from changes.
+            unsafe { clean_treeview(app_ui.folder_tree_model.as_mut().unwrap().item(0), app_ui.folder_tree_model); }
         }
 
         // And return false.
@@ -1408,6 +1409,35 @@ pub fn paint_treeview(
 
         // Set the new parent.
         unsafe { parent = parent.as_mut().unwrap().parent(); }
+    }
+}
+
+/// This function cleans the entire TreeView from colors. To be used when saving.
+pub fn clean_treeview(
+    item: *mut StandardItem,
+    model: *mut StandardItemModel
+) {
+
+    // Get the color we need to apply.
+    let color = GlobalColor::Transparent;
+
+    // Paint the current item.
+    unsafe { item.as_mut().unwrap().set_background(&Brush::new(color)); }
+
+    // Get the amount of children of the current item.
+    let children_count;
+    unsafe { children_count = item.as_ref().unwrap().row_count(); }
+
+    // For each children we have...
+    for row in 0..children_count {
+
+        // Get the child.
+        let child;
+        unsafe { child = item.as_ref().unwrap().child(row); }
+        
+        // Paint him and his children too.
+        clean_treeview(child, model);
+
     }
 }
 
