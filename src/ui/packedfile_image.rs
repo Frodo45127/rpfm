@@ -13,13 +13,14 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use AppUI;
+use Commands;
 use ui::*;
 use error::Result;
 
 /// This function creates a new TreeView with the PackedFile's View as father and returns a
 /// `PackedFileLocTreeView` with all his data.
 pub fn create_image_view(
-    sender_qt: Sender<&'static str>,
+    sender_qt: Sender<Commands>,
     sender_qt_data: &Sender<Result<Vec<u8>>>,
     receiver_qt: &Rc<RefCell<Receiver<Result<Vec<u8>>>>>,
     app_ui: &AppUI,
@@ -27,7 +28,7 @@ pub fn create_image_view(
 ) -> Result<()> {
 
     // Get the path of the extracted Image.
-    sender_qt.send("decode_packed_file_image").unwrap();
+    sender_qt.send(Commands::DecodePackedFileImage).unwrap();
     sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
 
     // Get the response from the other thread.

@@ -12,6 +12,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use AppUI;
+use Commands;
 use ui::*;
 use error::Result;
 
@@ -36,7 +37,7 @@ impl PackedFileTextView {
     /// This function creates a new TreeView with the PackedFile's View as father and returns a
     /// `PackedFileLocTreeView` with all his data.
     pub fn create_text_view(
-        sender_qt: Sender<&'static str>,
+        sender_qt: Sender<Commands>,
         sender_qt_data: &Sender<Result<Vec<u8>>>,
         receiver_qt: &Rc<RefCell<Receiver<Result<Vec<u8>>>>>,
         is_modified: &Rc<RefCell<bool>>,
@@ -45,7 +46,7 @@ impl PackedFileTextView {
     ) -> Result<Self> {
 
         // Get the text of the PackedFile.
-        sender_qt.send("decode_packed_file_text").unwrap();
+        sender_qt.send(Commands::DecodePackedFileText).unwrap();
         sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
 
         // Get the response from the other thread.
@@ -71,7 +72,7 @@ impl PackedFileTextView {
                 receiver_qt => move || {
 
                     // Tell the background thread to start saving the PackedFile.
-                    sender_qt.send("encode_packed_file_text").unwrap();
+                    sender_qt.send(Commands::EncodePackedFileText).unwrap();
 
                     // Get the text from the PlainTextEdit.
                     let text;
@@ -81,7 +82,7 @@ impl PackedFileTextView {
                     sender_qt_data.send(serde_json::to_vec(&(text, packed_file_index)).map_err(From::from)).unwrap();
 
                     // Get the incomplete path of the edited PackedFile.
-                    sender_qt.send("get_packed_file_path").unwrap();
+                    sender_qt.send(Commands::GetPackedFilePath).unwrap();
                     sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
                     let path: Vec<String> = match check_message_validity_recv(&receiver_qt) {
                         Ok(data) => data,

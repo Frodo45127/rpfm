@@ -141,6 +141,63 @@ enum Mode {
     Normal,
 }
 
+/// This enum is meant for sending commands from the UI Thread to the Background thread.
+/// If you want to know what each command do, check the `background_loop` function.
+/// If you need to send data, DO NOT USE THIS. Serialize it to Vec<u8> with serde and send it.
+pub enum Commands {
+    ResetPackFile,
+    ResetPackFileExtra,
+    NewPackFile,
+    OpenPackFile,
+    OpenPackFileExtra,
+    SavePackFile,
+    SavePackFileAs,
+    SetPackFileType,
+    ChangeIndexIncludesTimestamp,
+    GetSchema,
+    SaveSchema,
+    GetSettings,
+    SetSettings,
+    GetGameSelected,
+    SetGameSelected,
+    GetPackFileHeader,
+    GetPackedFilePath,
+    IsThereADependencyDatabase,
+    IsThereASchema,
+    PatchSiegeAI,
+    UpdateSchemas,
+    AddPackedFile,
+    DeletePackedFile,
+    ExtractPackedFile,
+    GetTypeOfPath,
+    PackedFileExists,
+    FolderExists,
+    CreatePackedFile,
+    CreateFolder,
+    UpdateEmptyFolders,
+    GetPackFileDataForTreeView,
+    GetPackFileExtraDataForTreeView,
+    AddPackedFileFromPackFile,
+    MassImportTSV,
+    MassExportTSV,
+    DecodePackedFileLoc,
+    EncodePackedFileLoc,
+    ImportTSVPackedFileLoc,
+    ExportTSVPackedFileLoc,
+    DecodePackedFileDB,
+    EncodePackedFileDB,
+    ImportTSVPackedFileDB,
+    ExportTSVPackedFileDB,
+    DecodePackedFileText,
+    EncodePackedFileText,
+    DecodePackedFileRigidModel,
+    EncodePackedFileRigidModel,
+    PatchAttilaRigidModelToWarhammer,
+    DecodePackedFileImage,
+    RenamePackedFile,
+    GetPackedFile,
+}
+
 /// This struct contains all the "Special Stuff" Actions, so we can pass all of them to functions at once.
 #[derive(Copy, Clone)]
 pub struct AppUI {
@@ -744,7 +801,7 @@ fn main() {
                 let new_game_selected_folder_name = supported_games.iter().filter(|x| x.display_name == new_game_selected).map(|x| x.folder_name.to_owned()).collect::<String>();
 
                 // Change the Game Selected in the Background Thread.
-                sender_qt.send("set_game_selected").unwrap();
+                sender_qt.send(Commands::SetGameSelected).unwrap();
                 sender_qt_data.send(serde_json::to_vec(&new_game_selected_folder_name).map_err(From::from)).unwrap();
 
                 // Disable the Main Window (so we can't do other stuff).
@@ -766,7 +823,7 @@ fn main() {
                         Ok(response) => {
 
                             // Get the current settings.
-                            sender_qt.send("get_settings").unwrap();
+                            sender_qt.send(Commands::GetSettings).unwrap();
 
                             // Try to get the settings. This should never fail, so CTD if it does it.
                             let settings: Settings = match check_message_validity_recv(&receiver_qt) {
@@ -819,7 +876,7 @@ fn main() {
         unsafe { app_ui.arena.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
 
         // Try to get the Game Selected. This should never fail, so CTD if it does it.
-        sender_qt.send("get_game_selected").unwrap();
+        sender_qt.send(Commands::GetGameSelected).unwrap();
         let game_selected: GameSelected = match check_message_validity_recv(&receiver_qt) {
             Ok(data) => data,
             Err(_) => panic!(THREADS_MESSAGE_ERROR)
@@ -859,7 +916,7 @@ fn main() {
                     display_help_tips(&app_ui);
 
                     // Tell the Background Thread to create a new PackFile.
-                    sender_qt.send("new_packfile").unwrap();
+                    sender_qt.send(Commands::NewPackFile).unwrap();
 
                     // Disable the Main Window (so we can't do other stuff).
                     unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
@@ -937,14 +994,14 @@ fn main() {
                     *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
 
                     // Try to get the Game Selected. This should never fail, so CTD if it does it.
-                    sender_qt.send("get_game_selected").unwrap();
+                    sender_qt.send(Commands::GetGameSelected).unwrap();
                     let game_selected: GameSelected = match check_message_validity_recv(&receiver_qt) {
                         Ok(data) => data,
                         Err(_) => panic!(THREADS_MESSAGE_ERROR)
                     };
 
                     // Try to get the settings.
-                    sender_qt.send("get_settings").unwrap();
+                    sender_qt.send(Commands::GetSettings).unwrap();
                     let settings: Settings = match check_message_validity_recv(&receiver_qt) {
                         Ok(data) => data,
                         Err(_) => panic!(THREADS_MESSAGE_ERROR)
@@ -984,7 +1041,7 @@ fn main() {
                     file_dialog.set_name_filter(&QString::from_std_str("PackFiles (*.pack)"));
 
                     // Try to get the Game Selected. This should never fail, so CTD if it does it.
-                    sender_qt.send("get_game_selected").unwrap();
+                    sender_qt.send(Commands::GetGameSelected).unwrap();
                     let game_selected: GameSelected = match check_message_validity_recv(&receiver_qt) {
                         Ok(data) => data,
                         Err(_) => panic!(THREADS_MESSAGE_ERROR)
@@ -1029,7 +1086,7 @@ fn main() {
             receiver_qt => move |_| {
 
                 // Tell the Background Thread to save the PackFile.
-                sender_qt.send("save_packfile").unwrap();
+                sender_qt.send(Commands::SavePackFile).unwrap();
 
                 // Disable the Main Window (so we can't do other stuff).
                 unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
@@ -1106,14 +1163,14 @@ fn main() {
             receiver_qt => move |_| {
 
                 // Try to get the Game Selected. This should never fail, so CTD if it does it.
-                sender_qt.send("get_game_selected").unwrap();
+                sender_qt.send(Commands::GetGameSelected).unwrap();
                 let game_selected: GameSelected = match check_message_validity_recv(&receiver_qt) {
                     Ok(data) => data,
                     Err(_) => panic!(THREADS_MESSAGE_ERROR)
                 };
 
                 // Tell the Background Thread that we want to save the PackFile, and wait for confirmation.
-                sender_qt.send("save_packfile_as").unwrap();
+                sender_qt.send(Commands::SavePackFileAs).unwrap();
                 let extra_data: Result<PackFileExtraData> = check_message_validity_recv(&receiver_qt);
 
                 // Check what response we got.
@@ -1294,7 +1351,7 @@ fn main() {
                 }; }
 
                 // Send the type to the Background Thread.
-                sender_qt.send("set_packfile_type").unwrap();
+                sender_qt.send(Commands::SetPackFileType).unwrap();
                 sender_qt_data.send(serde_json::to_vec(&packfile_type).map_err(From::from)).unwrap();
 
                 // TODO: Make the PackFile become Yellow.
@@ -1313,7 +1370,7 @@ fn main() {
                 unsafe { state = app_ui.change_packfile_type_index_includes_timestamp.as_ref().unwrap().is_checked(); }
 
                 // Send the new state to the background thread.
-                sender_qt.send("change_index_includes_timestamp").unwrap();
+                sender_qt.send(Commands::ChangeIndexIncludesTimestamp).unwrap();
                 sender_qt_data.send(serde_json::to_vec(&state).map_err(From::from)).unwrap();
             }
         ));
@@ -1329,7 +1386,7 @@ fn main() {
             mymod_menu_needs_rebuild => move |_| {
 
                 // Try to get the current Settings. This should never fail, so CTD if it does it.
-                sender_qt.send("get_settings").unwrap();
+                sender_qt.send(Commands::GetSettings).unwrap();
                 let old_settings: Settings = match check_message_validity_recv(&receiver_qt) {
                     Ok(data) => data,
                     Err(_) => panic!(THREADS_MESSAGE_ERROR)
@@ -1339,7 +1396,7 @@ fn main() {
                 if let Some(settings) = SettingsDialog::create_settings_dialog(&app_ui, &old_settings, &supported_games) {
 
                     // Send the signal to save them.
-                    sender_qt.send("set_settings").unwrap();
+                    sender_qt.send(Commands::SetSettings).unwrap();
                     sender_qt_data.send(serde_json::to_vec(&settings).map_err(From::from)).unwrap();
 
                     // Wait until you got a response.
@@ -1433,7 +1490,7 @@ fn main() {
             sender_qt_data => move |_| {
 
                 // Ask the background loop to create the Dependency PackFile.
-                sender_qt.send("patch_siege_ai").unwrap();
+                sender_qt.send(Commands::PatchSiegeAI).unwrap();
 
                 // Disable the Main Window (so we can't do other stuff).
                 unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
@@ -1603,7 +1660,7 @@ fn main() {
                 let path = get_path_from_item_selection(app_ui.folder_tree_model, &selection, true);
 
                 // Try to get the TreePathType. This should never fail, so CTD if it does it.
-                sender_qt.send("get_type_of_path").unwrap();
+                sender_qt.send(Commands::GetTypeOfPath).unwrap();
                 sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
                 let item_type: TreePathType = match check_message_validity_recv(&receiver_qt) {
                     Ok(data) => data,
@@ -1695,14 +1752,14 @@ fn main() {
                 }
 
                 // Ask the other thread if there is a Dependency Database loaded.
-                sender_qt.send("is_there_a_dependency_database").unwrap();
+                sender_qt.send(Commands::IsThereADependencyDatabase).unwrap();
                 let is_there_a_dependency_database: bool = match check_message_validity_recv(&receiver_qt) {
                     Ok(data) => data,
                     Err(_) => panic!(THREADS_MESSAGE_ERROR)
                 };
 
                 // Ask the other thread if there is a Schema loaded.
-                sender_qt.send("is_there_a_schema").unwrap();
+                sender_qt.send(Commands::IsThereASchema).unwrap();
                 let is_there_a_schema: bool = match check_message_validity_recv(&receiver_qt) {
                     Ok(data) => data,
                     Err(_) => panic!(THREADS_MESSAGE_ERROR)
@@ -1755,7 +1812,7 @@ fn main() {
                     Mode::MyMod {ref game_folder_name, ref mod_name} => {
 
                         // Get the settings.
-                        sender_qt.send("get_settings").unwrap();
+                        sender_qt.send(Commands::GetSettings).unwrap();
                         let settings: Settings = match check_message_validity_recv(&receiver_qt) {
                             Ok(data) => data,
                             Err(_) => panic!(THREADS_MESSAGE_ERROR)
@@ -1815,7 +1872,7 @@ fn main() {
                                 };
 
                                 // Tell the Background Thread to add the files.
-                                sender_qt.send("add_packedfile").unwrap();
+                                sender_qt.send(Commands::AddPackedFile).unwrap();
                                 sender_qt_data.send(serde_json::to_vec(&(paths.to_vec(), paths_packedfile.to_vec())).map_err(From::from)).unwrap();
 
                                 // Disable the Main Window (so we can't do other stuff).
@@ -1905,7 +1962,7 @@ fn main() {
                             for path in &paths { paths_packedfile.append(&mut get_path_from_pathbuf(&app_ui, &path, true)); }
 
                             // Tell the Background Thread to add the files.
-                            sender_qt.send("add_packedfile").unwrap();
+                            sender_qt.send(Commands::AddPackedFile).unwrap();
                             sender_qt_data.send(serde_json::to_vec(&(paths.to_vec(), paths_packedfile.to_vec())).map_err(From::from)).unwrap();
 
                             // Disable the Main Window (so we can't do other stuff).
@@ -2006,7 +2063,7 @@ fn main() {
                     Mode::MyMod {ref game_folder_name, ref mod_name} => {
 
                         // Get the settings.
-                        sender_qt.send("get_settings").unwrap();
+                        sender_qt.send(Commands::GetSettings).unwrap();
                         let settings: Settings = match check_message_validity_recv(&receiver_qt) {
                             Ok(data) => data,
                             Err(_) => panic!(THREADS_MESSAGE_ERROR)
@@ -2070,7 +2127,7 @@ fn main() {
                                 };
 
                                 // Tell the Background Thread to add the files.
-                                sender_qt.send("add_packedfile").unwrap();
+                                sender_qt.send(Commands::AddPackedFile).unwrap();
                                 sender_qt_data.send(serde_json::to_vec(&(paths.to_vec(), paths_packedfile.to_vec())).map_err(From::from)).unwrap();
 
                                 // Disable the Main Window (so we can't do other stuff).
@@ -2164,7 +2221,7 @@ fn main() {
                             for path in &folder_paths { paths_packedfile.append(&mut get_path_from_pathbuf(&app_ui, &path, false)); }
 
                             // Tell the Background Thread to add the files.
-                            sender_qt.send("add_packedfile").unwrap();
+                            sender_qt.send(Commands::AddPackedFile).unwrap();
                             sender_qt_data.send(serde_json::to_vec(&(paths.to_vec(), paths_packedfile.to_vec())).map_err(From::from)).unwrap();
 
                             // Prepare the event loop, so we don't hang the UI while the background thread is working.
@@ -2266,7 +2323,7 @@ fn main() {
                     let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
 
                     // Tell the Background Thread to open the secondary PackFile.
-                    sender_qt.send("open_packfile_extra").unwrap();
+                    sender_qt.send(Commands::OpenPackFileExtra).unwrap();
                     sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
 
                     // Disable the Main Window (so we can't do other stuff).
@@ -2353,7 +2410,7 @@ fn main() {
                     complete_path.push(new_folder_name);
 
                     // Check if the folder exists.
-                    sender_qt.send("folder_exists").unwrap();
+                    sender_qt.send(Commands::FolderExists).unwrap();
                     sender_qt_data.send(serde_json::to_vec(&complete_path).map_err(From::from)).unwrap();
                     let folder_exists: bool = match check_message_validity_recv(&receiver_qt) {
                         Ok(data) => data,
@@ -2364,7 +2421,7 @@ fn main() {
                     if folder_exists { return show_dialog(app_ui.window, false, ErrorKind::FolderAlreadyInPackFile)}
 
                     // Add it to the PackFile.
-                    sender_qt.send("create_folder").unwrap();
+                    sender_qt.send(Commands::CreateFolder).unwrap();
                     sender_qt_data.send(serde_json::to_vec(&complete_path).map_err(From::from)).unwrap();
 
                     // Add the new Folder to the TreeView.
@@ -2409,7 +2466,7 @@ fn main() {
                                     let mut complete_path = vec!["db".to_owned(), table, name];
 
                                     // Check if the PackedFile already exists.
-                                    sender_qt.send("packed_file_exists").unwrap();
+                                    sender_qt.send(Commands::PackedFileExists).unwrap();
                                     sender_qt_data.send(serde_json::to_vec(&complete_path).map_err(From::from)).unwrap();
                                     let exists: bool = match check_message_validity_recv(&receiver_qt) {
                                         Ok(data) => data,
@@ -2420,7 +2477,7 @@ fn main() {
                                     if exists { return show_dialog(app_ui.window, false, ErrorKind::FileAlreadyInPackFile)}
 
                                     // Add it to the PackFile.
-                                    sender_qt.send("create_packed_file").unwrap();
+                                    sender_qt.send(Commands::CreatePackedFile).unwrap();
                                     sender_qt_data.send(serde_json::to_vec(&(complete_path.to_vec(), packed_file_type.clone())).map_err(From::from)).unwrap();
 
                                     // Get the response, just in case it failed.
@@ -2491,7 +2548,7 @@ fn main() {
                                     complete_path.push(name);
 
                                     // Check if the PackedFile already exists.
-                                    sender_qt.send("packed_file_exists").unwrap();
+                                    sender_qt.send(Commands::PackedFileExists).unwrap();
                                     sender_qt_data.send(serde_json::to_vec(&complete_path).map_err(From::from)).unwrap();
                                     let exists: bool = match check_message_validity_recv(&receiver_qt) {
                                         Ok(data) => data,
@@ -2502,7 +2559,7 @@ fn main() {
                                     if exists { return show_dialog(app_ui.window, false, ErrorKind::FileAlreadyInPackFile)}
 
                                     // Add it to the PackFile.
-                                    sender_qt.send("create_packed_file").unwrap();
+                                    sender_qt.send(Commands::CreatePackedFile).unwrap();
                                     sender_qt_data.send(serde_json::to_vec(&(complete_path.to_vec(), packed_file_type.clone())).map_err(From::from)).unwrap();
 
                                     // Get the response, just in case it failed. This CANNOT FAIL IN ANY WAY. If it fails, it's a message problem.
@@ -2587,7 +2644,7 @@ fn main() {
                                     complete_path.push(name);
 
                                     // Check if the PackedFile already exists.
-                                    sender_qt.send("packed_file_exists").unwrap();
+                                    sender_qt.send(Commands::PackedFileExists).unwrap();
                                     sender_qt_data.send(serde_json::to_vec(&complete_path).map_err(From::from)).unwrap();
                                     let exists: bool = match check_message_validity_recv(&receiver_qt) {
                                         Ok(data) => data,
@@ -2598,7 +2655,7 @@ fn main() {
                                     if exists { return show_dialog(app_ui.window, false, ErrorKind::FileAlreadyInPackFile)}
 
                                     // Add it to the PackFile.
-                                    sender_qt.send("create_packed_file").unwrap();
+                                    sender_qt.send(Commands::CreatePackedFile).unwrap();
                                     sender_qt_data.send(serde_json::to_vec(&(complete_path.to_vec(), packed_file_type.clone())).map_err(From::from)).unwrap();
 
                                     // Get the response, just in case it failed. This CANNOT FAIL IN ANY WAY. If it fails, it's a message problem.
@@ -2654,7 +2711,7 @@ fn main() {
                     else {
 
                         // Try to import them.
-                        sender_qt.send("mass_import_tsv").unwrap();
+                        sender_qt.send(Commands::MassImportTSV).unwrap();
                         sender_qt_data.send(serde_json::to_vec(&data).map_err(From::from)).unwrap();
 
                         // Disable the Main Window (so we can't do other stuff).
@@ -2759,7 +2816,7 @@ fn main() {
                     if export_path.is_dir() {
 
                         // Tell the Background Thread to export all the tables and loc files there.
-                        sender_qt.send("mass_export_tsv").unwrap();
+                        sender_qt.send(Commands::MassExportTSV).unwrap();
                         sender_qt_data.send(serde_json::to_vec(&export_path).map_err(From::from)).unwrap();
 
                         // Disable the Main Window (so we can't do other stuff).
@@ -2842,7 +2899,7 @@ fn main() {
                     let path = get_path_from_selection(&app_ui, true);
 
                     // Tell the Background Thread to delete the selected stuff.
-                    sender_qt.send("delete_packedfile").unwrap();
+                    sender_qt.send(Commands::DeletePackedFile).unwrap();
                     sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
 
                     // Get the response from the other thread.
@@ -2883,7 +2940,7 @@ fn main() {
                 let path = get_path_from_selection(&app_ui, true);
 
                 // Send the Path to the Background Thread, and get the type of the item.
-                sender_qt.send("get_type_of_path").unwrap();
+                sender_qt.send(Commands::GetTypeOfPath).unwrap();
                 sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
                 let item_type: TreePathType = match check_message_validity_recv(&receiver_qt) {
                     Ok(data) => data,
@@ -2891,7 +2948,7 @@ fn main() {
                 };
 
                 // Get the settings.
-                sender_qt.send("get_settings").unwrap();
+                sender_qt.send(Commands::GetSettings).unwrap();
                 let settings: Settings = match check_message_validity_recv(&receiver_qt) {
                     Ok(data) => data,
                     Err(_) => panic!(THREADS_MESSAGE_ERROR)
@@ -2943,7 +3000,7 @@ fn main() {
                             }
 
                             // Tell the Background Thread to delete the selected stuff.
-                            sender_qt.send("extract_packedfile").unwrap();
+                            sender_qt.send(Commands::ExtractPackedFile).unwrap();
                             sender_qt_data.send(serde_json::to_vec(&(path.to_vec(), assets_folder.to_path_buf())).map_err(From::from)).unwrap();
 
                             // Disable the Main Window (so we can't do other stuff).
@@ -3057,7 +3114,7 @@ fn main() {
                                 };
 
                                 // Tell the Background Thread to delete the selected stuff.
-                                sender_qt.send("extract_packedfile").unwrap();
+                                sender_qt.send(Commands::ExtractPackedFile).unwrap();
                                 sender_qt_data.send(serde_json::to_vec(&(path.to_vec(), final_extraction_path.to_path_buf())).map_err(From::from)).unwrap();
 
                                 // Disable the Main Window (so we can't do other stuff).
@@ -3155,7 +3212,7 @@ fn main() {
                                 let mut extraction_path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
 
                                 // Tell the Background Thread to delete the selected stuff.
-                                sender_qt.send("extract_packedfile").unwrap();
+                                sender_qt.send(Commands::ExtractPackedFile).unwrap();
                                 sender_qt_data.send(serde_json::to_vec(&(path.to_vec(), extraction_path.to_path_buf())).map_err(From::from)).unwrap();
 
                                 // Disable the Main Window (so we can't do other stuff).
@@ -3228,7 +3285,7 @@ fn main() {
                 let path = get_path_from_selection(&app_ui, true);
 
                 // Send the Path to the Background Thread, and get the type of the item.
-                sender_qt.send("get_type_of_path").unwrap();
+                sender_qt.send(Commands::GetTypeOfPath).unwrap();
                 sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
                 let item_type: TreePathType = match check_message_validity_recv(&receiver_qt) {
                     Ok(data) => data,
@@ -3292,7 +3349,7 @@ fn main() {
                 let complete_path = get_path_from_selection(&app_ui, true);
 
                 // Send the Path to the Background Thread, and get the type of the item.
-                sender_qt.send("get_type_of_path").unwrap();
+                sender_qt.send(Commands::GetTypeOfPath).unwrap();
                 sender_qt_data.send(serde_json::to_vec(&complete_path).map_err(From::from)).unwrap();
                 let item_type: TreePathType = match check_message_validity_recv(&receiver_qt) {
                     Ok(data) => data,
@@ -3312,7 +3369,7 @@ fn main() {
                         if let Some(new_name) = create_rename_dialog(&app_ui, &current_name) {
 
                             // Send the New Name to the Background Thread, wait for a response.
-                            sender_qt.send("rename_packed_file").unwrap();
+                            sender_qt.send(Commands::RenamePackedFile).unwrap();
                             sender_qt_data.send(serde_json::to_vec(&(complete_path, &new_name)).map_err(From::from)).unwrap();
 
                             // Get the response and check what we got.
@@ -3400,7 +3457,7 @@ fn main() {
                     let path = get_path_from_item_selection(app_ui.folder_tree_model, &selection, true);
 
                     // Send the Path to the Background Thread, and get the type of the item.
-                    sender_qt.send("get_type_of_path").unwrap();
+                    sender_qt.send(Commands::GetTypeOfPath).unwrap();
                     sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
                     let item_type: TreePathType = match check_message_validity_recv(&receiver_qt) {
                         Ok(data) => data,
@@ -3627,7 +3684,7 @@ fn main() {
         unsafe { app_ui.window.as_mut().unwrap().show(); }
 
         // Get the settings.
-        sender_qt.send("get_settings").unwrap();
+        sender_qt.send(Commands::GetSettings).unwrap();
         let settings: Settings = match check_message_validity_recv(&receiver_qt) {
             Ok(data) => data,
             Err(_) => panic!(THREADS_MESSAGE_ERROR)
@@ -3677,7 +3734,7 @@ fn main() {
 fn background_loop(
     rpfm_path: &PathBuf,
     sender: Sender<Result<Vec<u8>>>,
-    receiver: Receiver<&str>,
+    receiver: Receiver<Commands>,
     receiver_data: Receiver<Result<Vec<u8>>>
 ) {
 
@@ -3733,21 +3790,21 @@ fn background_loop(
                 match data {
 
                     // In case we want to reset the PackFile to his original state (dummy)...
-                    "reset_packfile" => {
+                    Commands::ResetPackFile => {
 
                         // Create the new PackFile.
                         pack_file_decoded = PackFile::new();
                     }
 
                     // In case we want to reset the Secondary PackFile to his original state (dummy)...
-                    "reset_packfile_extra" => {
+                    Commands::ResetPackFileExtra => {
 
                         // Create the new PackFile.
                         pack_file_decoded_extra = PackFile::new();
                     }
 
                     // In case we want to create a "New PackFile"...
-                    "new_packfile" => {
+                    Commands::NewPackFile => {
 
                         // Get the ID for the new PackFile.
                         let pack_file_id = supported_games.iter().filter(|x| x.folder_name == game_selected.game).map(|x| x.id.to_owned()).collect::<String>();
@@ -3766,7 +3823,7 @@ fn background_loop(
                     }
 
                     // In case we want to "Open a PackFile"...
-                    "open_packfile" => {
+                    Commands::OpenPackFile => {
 
                         // Try to get the path to the PackFile.
                         let path: PathBuf = match check_message_validity_recv_background(&receiver_data) {
@@ -3796,7 +3853,7 @@ fn background_loop(
                     }
 
                     // In case we want to "Open an Extra PackFile" (for "Add from PackFile")...
-                    "open_packfile_extra" => {
+                    Commands::OpenPackFileExtra => {
 
                         // Try to get the path to the PackFile.
                         let path: PathBuf = match check_message_validity_recv_background(&receiver_data) {
@@ -3827,7 +3884,7 @@ fn background_loop(
                     }
 
                     // In case we want to "Save a PackFile"...
-                    "save_packfile" => {
+                    Commands::SavePackFile => {
 
                         // If it's of a type we can edit...
                         if pack_file_decoded.is_editable(settings.allow_editing_of_ca_packfiles) {
@@ -3851,7 +3908,7 @@ fn background_loop(
                     }
 
                     // In case we want to "Save a PackFile As"...
-                    "save_packfile_as" => {
+                    Commands::SavePackFileAs => {
 
                         // If it's of a type we can edit...
                         if pack_file_decoded.is_editable(settings.allow_editing_of_ca_packfiles) {
@@ -3884,7 +3941,7 @@ fn background_loop(
                     }
 
                     // In case we want to change the PackFile's Type...
-                    "set_packfile_type" => {
+                    Commands::SetPackFileType => {
 
                         // Wait until we get the needed data from the UI thread.
                         let new_type: u32 = match check_message_validity_recv_background(&receiver_data) {
@@ -3897,7 +3954,7 @@ fn background_loop(
                     }
 
                     // In case we want to change the "Include Last Modified Date" setting of the PackFile...
-                    "change_index_includes_timestamp" => {
+                    Commands::ChangeIndexIncludesTimestamp => {
 
                         // Wait until we get the needed data from the UI thread.
                         let state: bool = match check_message_validity_recv_background(&receiver_data) {
@@ -3910,14 +3967,14 @@ fn background_loop(
                     }
 
                     // In case we want to get the currently loaded Schema...
-                    "get_schema" => {
+                    Commands::GetSchema => {
 
                         // Send the schema back to the UI thread.
                         sender.send(serde_json::to_vec(&schema).map_err(From::from)).unwrap();
                     }
 
                     // In case we want to save an schema...
-                    "save_schema" => {
+                    Commands::SaveSchema => {
 
                         // Wait until we get the needed data from the UI thread.
                         let new_schema = match check_message_validity_recv_background(&receiver_data) {
@@ -3944,14 +4001,14 @@ fn background_loop(
                     }
 
                     // In case we want to get the current settings...
-                    "get_settings" => {
+                    Commands::GetSettings => {
 
                         // Send the current settings back to the UI thread.
                         sender.send(serde_json::to_vec(&settings).map_err(From::from)).unwrap();
                     }
 
                     // In case we want to change the current settings...
-                    "set_settings" => {
+                    Commands::SetSettings => {
 
                         // Wait until we get the needed data from the UI thread.
                         let new_settings = match check_message_validity_recv_background(&receiver_data) {
@@ -3970,14 +4027,14 @@ fn background_loop(
                     }
 
                     // In case we want get our current Game Selected...
-                    "get_game_selected" => {
+                    Commands::GetGameSelected => {
 
                         // Send the current Game Selected back to the UI thread.
                         sender.send(serde_json::to_vec(&game_selected).map_err(From::from)).unwrap();
                     }
 
                     // In case we want to change the current Game Selected...
-                    "set_game_selected" => {
+                    Commands::SetGameSelected => {
 
                         // Wait until we get the needed data from the UI thread.
                         let game_name: String = match check_message_validity_recv_background(&receiver_data) {
@@ -4024,14 +4081,14 @@ fn background_loop(
                     }
 
                     // In case we want to get the current PackFile's Header...
-                    "get_packfile_header" => {
+                    Commands::GetPackFileHeader => {
 
                         // Send the header of the currently open PackFile.
                         sender.send(serde_json::to_vec(&pack_file_decoded.header).map_err(From::from)).unwrap();
                     }
 
                     // In case we want to get the path of a PackedFile...
-                    "get_packed_file_path" => {
+                    Commands::GetPackedFilePath => {
 
                         // Wait until we get the needed data from the UI thread.
                         let index: usize = match check_message_validity_recv_background(&receiver_data) {
@@ -4047,13 +4104,13 @@ fn background_loop(
                     }
 
                     // In case we want to check if there is a current Dependency Database loaded...
-                    "is_there_a_dependency_database" => {
+                    Commands::IsThereADependencyDatabase => {
                         if !dependency_database.is_empty() { sender.send(serde_json::to_vec(&true).map_err(From::from)).unwrap(); }
                         else { sender.send(serde_json::to_vec(&false).map_err(From::from)).unwrap(); }
                     }
 
                     // In case we want to check if there is an Schema loaded...
-                    "is_there_a_schema" => {
+                    Commands::IsThereASchema => {
                         match schema {
                             Some(_) => sender.send(serde_json::to_vec(&true).map_err(From::from)).unwrap(),
                             None => sender.send(serde_json::to_vec(&false).map_err(From::from)).unwrap(),
@@ -4061,7 +4118,7 @@ fn background_loop(
                     }
 
                     // In case we want to Patch the SiegeAI of a PackFile...
-                    "patch_siege_ai" => {
+                    Commands::PatchSiegeAI => {
 
                         // First, we try to patch the PackFile.
                         match packfile::patch_siege_ai(&mut pack_file_decoded) {
@@ -4075,7 +4132,7 @@ fn background_loop(
                     }
 
                     // In case we want to update our Schemas...
-                    "update_schemas" => {
+                    Commands::UpdateSchemas => {
 
                         // Wait until we get the needed data from the UI thread.
                         let data: (Versions, Versions) = match check_message_validity_recv_background(&receiver_data) {
@@ -4102,7 +4159,7 @@ fn background_loop(
                     }
 
                     // In case we want to add PackedFiles into a PackFile...
-                    "add_packedfile" => {
+                    Commands::AddPackedFile => {
 
                         // Wait until we get the needed data from the UI thread.
                         let data: (Vec<PathBuf>, Vec<Vec<String>>) = match check_message_validity_recv_background(&receiver_data) {
@@ -4125,7 +4182,7 @@ fn background_loop(
                     }
 
                     // In case we want to delete PackedFiles from a PackFile...
-                    "delete_packedfile" => {
+                    Commands::DeletePackedFile => {
 
                         // Wait until we get the needed data from the UI thread.
                         let path: Vec<String> = match check_message_validity_recv_background(&receiver_data) {
@@ -4144,7 +4201,7 @@ fn background_loop(
                     }
 
                     // In case we want to extract PackedFiles from a PackFile...
-                    "extract_packedfile" => {
+                    Commands::ExtractPackedFile => {
 
                         // Wait until we get the needed data from the UI thread.
                         let data: (Vec<String>, PathBuf) = match check_message_validity_recv_background(&receiver_data) {
@@ -4168,7 +4225,7 @@ fn background_loop(
                     }
 
                     // In case we want to get the type of an item in the TreeView, from his path...
-                    "get_type_of_path" => {
+                    Commands::GetTypeOfPath => {
 
                         // Wait until we get the needed data from the UI thread.
                         let path: Vec<String> = match check_message_validity_recv_background(&receiver_data) {
@@ -4184,7 +4241,7 @@ fn background_loop(
                     }
 
                     // In case we want to know if a PackedFile exists, knowing his path...
-                    "packed_file_exists" => {
+                    Commands::PackedFileExists => {
 
                         // Wait until we get the needed data from the UI thread.
                         let path: Vec<String> = match check_message_validity_recv_background(&receiver_data) {
@@ -4200,7 +4257,7 @@ fn background_loop(
                     }
 
                     // In case we want to know if a Folder exists, knowing his path...
-                    "folder_exists" => {
+                    Commands::FolderExists => {
 
                         // Wait until we get the needed data from the UI thread.
                         let path: Vec<String> = match check_message_validity_recv_background(&receiver_data) {
@@ -4216,7 +4273,7 @@ fn background_loop(
                     }
 
                     // In case we want to create a PackedFile from scratch...
-                    "create_packed_file" => {
+                    Commands::CreatePackedFile => {
 
                         // Wait until we get the needed data from the UI thread.
                         let data: (Vec<String>, PackedFileType) = match check_message_validity_recv_background(&receiver_data) {
@@ -4243,7 +4300,7 @@ fn background_loop(
 
                     // TODO: Move checkings here, from the UI.
                     // In case we want to create an empty folder...
-                    "create_folder" => {
+                    Commands::CreateFolder => {
 
                         // Wait until we get the needed data from the UI thread.
                         let path = match check_message_validity_recv_background(&receiver_data) {
@@ -4256,14 +4313,14 @@ fn background_loop(
                     }
 
                     // In case we want to update the empty folder list...
-                    "update_empty_folders" => {
+                    Commands::UpdateEmptyFolders => {
 
                         // Update the empty folder list, if needed.
                         pack_file_decoded.data.update_empty_folders();
                     }
 
                     // In case we want to get the data of a PackFile needed to form the TreeView...
-                    "get_packfile_data_for_treeview" => {
+                    Commands::GetPackFileDataForTreeView => {
 
                         // Get the name and the PackedFile list, and serialize it.
                         let data = serde_json::to_vec(&(
@@ -4277,7 +4334,7 @@ fn background_loop(
                     }
 
                     // In case we want to get the data of a Secondary PackFile needed to form the TreeView...
-                    "get_packfile_extra_data_for_treeview" => {
+                    Commands::GetPackFileExtraDataForTreeView => {
 
                         // Get the name and the PackedFile list, and serialize it.
                         let data = serde_json::to_vec(&(
@@ -4291,7 +4348,7 @@ fn background_loop(
                     }
 
                     // In case we want to move stuff from one PackFile to another...
-                    "add_packedfile_from_packfile" => {
+                    Commands::AddPackedFileFromPackFile => {
 
                         // Wait until we get the needed data from the UI thread.
                         let path: Vec<String> = match check_message_validity_recv_background(&receiver_data) {
@@ -4331,7 +4388,7 @@ fn background_loop(
                     }
 
                     // In case we want to Mass-Import TSV Files...
-                    "mass_import_tsv" => {
+                    Commands::MassImportTSV => {
 
                         // Wait until we get the needed data from the UI thread.
                         let data: (String, Vec<PathBuf>) = match check_message_validity_recv_background(&receiver_data) {
@@ -4347,7 +4404,7 @@ fn background_loop(
                     }
 
                     // In case we want to Mass-Export TSV Files...
-                    "mass_export_tsv" => {
+                    Commands::MassExportTSV => {
 
                         // Wait until we get the needed data from the UI thread.
                         let data = match check_message_validity_recv_background(&receiver_data) {
@@ -4363,7 +4420,7 @@ fn background_loop(
                     }
 
                     // In case we want to decode a Loc PackedFile...
-                    "decode_packed_file_loc" => {
+                    Commands::DecodePackedFileLoc => {
 
                         // Wait until we get the needed data from the UI thread.
                         let index: usize = match check_message_validity_recv_background(&receiver_data) {
@@ -4386,7 +4443,7 @@ fn background_loop(
                     }
 
                     // In case we want to encode a Loc PackedFile...
-                    "encode_packed_file_loc" => {
+                    Commands::EncodePackedFileLoc => {
 
                         // Wait until we get the needed data from the UI thread.
                         let data: (LocData, usize) = match check_message_validity_recv_background(&receiver_data) {
@@ -4406,7 +4463,7 @@ fn background_loop(
                     }
 
                     // In case we want to import a TSV file into a Loc PackedFile...
-                    "import_tsv_packed_file_loc" => {
+                    Commands::ImportTSVPackedFileLoc => {
 
                         // Wait until we get the needed data from the UI thread.
                         let path = match check_message_validity_recv_background(&receiver_data) {
@@ -4422,7 +4479,7 @@ fn background_loop(
                     }
 
                     // In case we want to export a Loc PackedFile into a TSV file...
-                    "export_tsv_packed_file_loc" => {
+                    Commands::ExportTSVPackedFileLoc => {
 
                         // Wait until we get the needed data from the UI thread.
                         let path = match check_message_validity_recv_background(&receiver_data) {
@@ -4438,7 +4495,7 @@ fn background_loop(
                     }
 
                     // In case we want to decode a DB PackedFile...
-                    "decode_packed_file_db" => {
+                    Commands::DecodePackedFileDB => {
 
                         // Wait until we get the needed data from the UI thread.
                         let index: usize = match check_message_validity_recv_background(&receiver_data) {
@@ -4476,7 +4533,7 @@ fn background_loop(
                     }
 
                     // In case we want to encode a DB PackedFile...
-                    "encode_packed_file_db" => {
+                    Commands::EncodePackedFileDB => {
 
                         // Wait until we get the needed data from the UI thread.
                         let data: (DBData, usize) = match check_message_validity_recv_background(&receiver_data) {
@@ -4496,7 +4553,7 @@ fn background_loop(
                     }
 
                     // In case we want to import a TSV file into a DB PackedFile...
-                    "import_tsv_packed_file_db" => {
+                    Commands::ImportTSVPackedFileDB => {
 
                         // Wait until we get the needed data from the UI thread.
                         let path = match check_message_validity_recv_background(&receiver_data) {
@@ -4515,7 +4572,7 @@ fn background_loop(
                     }
 
                     // In case we want to export a DB PackedFile into a TSV file...
-                    "export_tsv_packed_file_db" => {
+                    Commands::ExportTSVPackedFileDB => {
 
                         // Wait until we get the needed data from the UI thread.
                         let path = match check_message_validity_recv_background(&receiver_data) {
@@ -4531,7 +4588,7 @@ fn background_loop(
                     }
 
                     // In case we want to decode a Plain Text PackedFile...
-                    "decode_packed_file_text" => {
+                    Commands::DecodePackedFileText => {
 
                         // Wait until we get the needed data from the UI thread.
                         let index: usize = match check_message_validity_recv_background(&receiver_data) {
@@ -4558,7 +4615,7 @@ fn background_loop(
                     }
 
                     // In case we want to encode a Text PackedFile...
-                    "encode_packed_file_text" => {
+                    Commands::EncodePackedFileText => {
 
                         // Wait until we get the needed data from the UI thread.
                         let data: (String, usize) = match check_message_validity_recv_background(&receiver_data) {
@@ -4578,7 +4635,7 @@ fn background_loop(
                     }
 
                     // In case we want to decode a RigidModel...
-                    "decode_packed_file_rigid_model" => {
+                    Commands::DecodePackedFileRigidModel => {
 
                         // Wait until we get the needed data from the UI thread.
                         let index: usize = match check_message_validity_recv_background(&receiver_data) {
@@ -4601,7 +4658,7 @@ fn background_loop(
                     }
 
                     // In case we want to encode a RigidModel...
-                    "encode_packed_file_rigid_model" => {
+                    Commands::EncodePackedFileRigidModel => {
 
                         // Wait until we get the needed data from the UI thread.
                         let data: (RigidModel, usize) = match check_message_validity_recv_background(&receiver_data) {
@@ -4621,7 +4678,7 @@ fn background_loop(
                     }
 
                     // In case we want to patch a decoded RigidModel from Attila to Warhammer...
-                    "patch_rigid_model_attila_to_warhammer" => {
+                    Commands::PatchAttilaRigidModelToWarhammer => {
 
                         // Wait until we get the needed data from the UI thread.
                         let index = match check_message_validity_recv_background(&receiver_data) {
@@ -4652,7 +4709,7 @@ fn background_loop(
                     }
 
                     // In case we want to decode an Image...
-                    "decode_packed_file_image" => {
+                    Commands::DecodePackedFileImage => {
 
                         // Wait until we get the needed data from the UI thread.
                         let index: usize = match check_message_validity_recv_background(&receiver_data) {
@@ -4685,7 +4742,7 @@ fn background_loop(
                     }
 
                     // In case we want to "Rename a PackedFile"...
-                    "rename_packed_file" => {
+                    Commands::RenamePackedFile => {
 
                         // Wait until we get the needed data from the UI thread.
                         let data: (Vec<String>, String) = match check_message_validity_recv_background(&receiver_data) {
@@ -4701,7 +4758,7 @@ fn background_loop(
                     }
 
                     // In case we want to get a PackedFile's data...
-                    "get_packed_file" => {
+                    Commands::GetPackedFile => {
 
                         // Wait until we get the needed data from the UI thread.
                         let index: usize = match check_message_validity_recv_background(&receiver_data) {
@@ -4712,9 +4769,6 @@ fn background_loop(
                         // Send back the PackedFile.
                         sender.send(serde_json::to_vec(&pack_file_decoded.data.packed_files[index]).map_err(From::from)).unwrap();
                     }
-
-                    // In case the message received doesn't exists, show it in the terminal.
-                    _ => panic!("Error while receiving message, \"{}\" is not a valid message.", data),
                 }
             }
 
@@ -4861,7 +4915,7 @@ fn set_my_mod_mode(
 /// normal mod, pass an empty &str there.
 fn open_packfile(
     rpfm_path: &PathBuf,
-    sender_qt: &Sender<&str>,
+    sender_qt: &Sender<Commands>,
     sender_qt_data: &Sender<Result<Vec<u8>>>,
     receiver_qt: &Rc<RefCell<Receiver<Result<Vec<u8>>>>>,
     pack_file_path: PathBuf,
@@ -4874,7 +4928,7 @@ fn open_packfile(
 ) -> Result<()> {
 
     // Tell the Background Thread to create a new PackFile.
-    sender_qt.send("open_packfile").unwrap();
+    sender_qt.send(Commands::OpenPackFile).unwrap();
     sender_qt_data.send(serde_json::to_vec(&pack_file_path).map_err(From::from)).unwrap();
 
     // Disable the Main Window (so we can't do other stuff).
@@ -4962,7 +5016,7 @@ fn open_packfile(
                         "PFH4" | _ => {
 
                             // Get the Game Selected.
-                            sender_qt.send("get_game_selected").unwrap();
+                            sender_qt.send(Commands::GetGameSelected).unwrap();
                             let game_selected: GameSelected = match check_message_validity_recv(&receiver_qt) {
                                 Ok(data) => data,
                                 Err(_) => panic!(THREADS_MESSAGE_ERROR)
@@ -5032,7 +5086,7 @@ fn open_packfile(
 /// We need to return a tuple with the actions (for further manipulation) and the slots (to keep them alive).
 fn build_my_mod_menu(
     rpfm_path: PathBuf,
-    sender_qt: Sender<&'static str>,
+    sender_qt: Sender<Commands>,
     sender_qt_data: &Sender<Result<Vec<u8>>>,
     receiver_qt: Rc<RefCell<Receiver<Result<Vec<u8>>>>>,
     app_ui: AppUI,
@@ -5045,7 +5099,7 @@ fn build_my_mod_menu(
 ) -> (MyModStuff, MyModSlots) {
 
     // Get the current Settings, as we are going to need them later.
-    sender_qt.send("get_settings").unwrap();
+    sender_qt.send(Commands::GetSettings).unwrap();
     let settings: Settings = match check_message_validity_recv(&receiver_qt) {
         Ok(data) => data,
         Err(_) => panic!(THREADS_MESSAGE_ERROR)
@@ -5131,14 +5185,14 @@ fn build_my_mod_menu(
                         mymod_path.push(&full_mod_name);
 
                         // Tell the Background Thread to create a new PackFile.
-                        sender_qt.send("new_packfile").unwrap();
+                        sender_qt.send(Commands::NewPackFile).unwrap();
                         let _confirmation: u32 = match check_message_validity_recv(&receiver_qt) {
                             Ok(data) => data,
                             Err(_) => panic!(THREADS_MESSAGE_ERROR)
                         };
 
                         // Tell the Background Thread to create a new PackFile.
-                        sender_qt.send("save_packfile_as").unwrap();
+                        sender_qt.send(Commands::SavePackFileAs).unwrap();
                         let _confirmation: PackFileExtraData = match check_message_validity_recv(&receiver_qt) {
                             Ok(data) => data,
                             Err(_) => panic!(THREADS_MESSAGE_ERROR)
@@ -5193,14 +5247,14 @@ fn build_my_mod_menu(
                                     *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
 
                                     // Get the Game Selected.
-                                    sender_qt.send("get_game_selected").unwrap();
+                                    sender_qt.send(Commands::GetGameSelected).unwrap();
                                     let game_selected: GameSelected = match check_message_validity_recv(&receiver_qt) {
                                         Ok(data) => data,
                                         Err(_) => panic!(THREADS_MESSAGE_ERROR)
                                     };
 
                                     // Try to get the settings.
-                                    sender_qt.send("get_settings").unwrap();
+                                    sender_qt.send(Commands::GetSettings).unwrap();
                                     let settings: Settings = match check_message_validity_recv(&receiver_qt) {
                                         Ok(data) => data,
                                         Err(_) => panic!(THREADS_MESSAGE_ERROR)
@@ -5326,17 +5380,17 @@ fn build_my_mod_menu(
                         set_my_mod_mode(&Rc::new(RefCell::new(mymod_stuff.clone())), &mode, None);
 
                         // Create a "dummy" PackFile, effectively closing the currently open PackFile.
-                        sender_qt.send("reset_packfile").unwrap();
+                        sender_qt.send(Commands::ResetPackFile).unwrap();
 
                         // Get the Game Selected.
-                        sender_qt.send("get_game_selected").unwrap();
+                        sender_qt.send(Commands::GetGameSelected).unwrap();
                         let game_selected: GameSelected = match check_message_validity_recv(&receiver_qt) {
                             Ok(data) => data,
                             Err(_) => panic!(THREADS_MESSAGE_ERROR)
                         };
 
                         // Try to get the settings.
-                        sender_qt.send("get_settings").unwrap();
+                        sender_qt.send(Commands::GetSettings).unwrap();
                         let settings: Settings = match check_message_validity_recv(&receiver_qt) {
                             Ok(data) => data,
                             Err(_) => panic!(THREADS_MESSAGE_ERROR)
@@ -5379,7 +5433,7 @@ fn build_my_mod_menu(
                         if let Some(ref mymods_base_path) = settings.paths.my_mods_base_path {
 
                             // Get the Game Selected.
-                            sender_qt.send("get_game_selected").unwrap();
+                            sender_qt.send(Commands::GetGameSelected).unwrap();
                             let game_selected: GameSelected = match check_message_validity_recv(&receiver_qt) {
                                 Ok(data) => data,
                                 Err(_) => panic!(THREADS_MESSAGE_ERROR)
@@ -5442,7 +5496,7 @@ fn build_my_mod_menu(
                     Mode::MyMod {ref mod_name,..} => {
 
                         // Get the Game Selected.
-                        sender_qt.send("get_game_selected").unwrap();
+                        sender_qt.send(Commands::GetGameSelected).unwrap();
                         let game_selected: GameSelected = match check_message_validity_recv(&receiver_qt) {
                             Ok(data) => data,
                             Err(_) => panic!(THREADS_MESSAGE_ERROR)
@@ -5498,13 +5552,6 @@ fn build_my_mod_menu(
 
     // Add a separator for this section.
     unsafe { menu_bar_mymod.as_mut().unwrap().add_separator(); }
-
-    // Get the current settings.
-    sender_qt.send("get_settings").unwrap();
-    let settings: Settings = match check_message_validity_recv(&receiver_qt) {
-        Ok(data) => data,
-        Err(_) => panic!(THREADS_MESSAGE_ERROR)
-    };
 
     // If we have the "MyMod" path configured...
     if let Some(ref my_mod_base_path) = settings.paths.my_mods_base_path {

@@ -15,6 +15,7 @@ use std::rc::Rc;
 use std::sync::mpsc::{Sender, Receiver};
 
 use AppUI;
+use Commands;
 use ui::*;
 use error::{ErrorKind, Result};
 use packedfile::rigidmodel::*;
@@ -43,7 +44,7 @@ impl PackedFileRigidModelDataView {
     /// This function creates a "view" with the PackedFile's View as father and returns a
     /// `PackedFileRigidModelDataView` with all his slots.
     pub fn create_data_view(
-        sender_qt: Sender<&'static str>,
+        sender_qt: Sender<Commands>,
         sender_qt_data: &Sender<Result<Vec<u8>>>,
         receiver_qt: &Rc<RefCell<Receiver<Result<Vec<u8>>>>>,
         is_modified: &Rc<RefCell<bool>>,
@@ -52,7 +53,7 @@ impl PackedFileRigidModelDataView {
     ) -> Result<Self> {
 
         // Get the data of the PackedFile.
-        sender_qt.send("decode_packed_file_rigid_model").unwrap();
+        sender_qt.send(Commands::DecodePackedFileRigidModel).unwrap();
         sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
 
         // Get the response from the other thread.
@@ -297,11 +298,11 @@ impl PackedFileRigidModelDataView {
                     }
 
                     // Tell the background thread to start saving the PackedFile.
-                    sender_qt.send("encode_packed_file_rigid_model").unwrap();
+                    sender_qt.send(Commands::EncodePackedFileRigidModel).unwrap();
                     sender_qt_data.send(serde_json::to_vec(&(&*packed_file.borrow(), packed_file_index)).map_err(From::from)).unwrap();
 
                     // Get the incomplete path of the edited PackedFile.
-                    sender_qt.send("get_packed_file_path").unwrap();
+                    sender_qt.send(Commands::GetPackedFilePath).unwrap();
                     sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
 
                     // Get the response from the other thread.
@@ -326,7 +327,7 @@ impl PackedFileRigidModelDataView {
                 receiver_qt => move || {
 
                     // Send the data to the background to try to patch the rigidmodel.
-                    sender_qt.send("patch_rigid_model_attila_to_warhammer").unwrap();
+                    sender_qt.send(Commands::PatchAttilaRigidModelToWarhammer).unwrap();
                     sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
 
                     // Disable the Main Window (so we can't do other stuff).
@@ -356,7 +357,7 @@ impl PackedFileRigidModelDataView {
                                 unsafe { patch_attila_to_warhammer_button.as_mut().unwrap().set_enabled(false); }
 
                                 // Get the incomplete path of the edited PackedFile.
-                                sender_qt.send("get_packed_file_path").unwrap();
+                                sender_qt.send(Commands::GetPackedFilePath).unwrap();
                                 sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
 
                                 // Get the response from the other thread.

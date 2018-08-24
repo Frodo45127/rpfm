@@ -22,6 +22,7 @@ use std::io::BufReader;
 use VERSION;
 use AppUI;
 use QString;
+use Commands;
 use common::*;
 use error::{ErrorKind, Result};
 use ui::*;
@@ -200,7 +201,7 @@ pub fn check_schema_updates(
     app_ui: &AppUI,
     use_dialog: bool,
     rpfm_path: &PathBuf,
-    sender_qt: &Sender<&str>,
+    sender_qt: &Sender<Commands>,
     sender_qt_data: &Sender<Result<Vec<u8>>>,
     receiver_qt: &Rc<RefCell<Receiver<Result<Vec<u8>>>>>,
 ) {
@@ -312,7 +313,7 @@ pub fn check_schema_updates(
             if let APIResponseSchema::SuccessNewUpdate(local_versions, current_versions) = response {
 
                 // Sent to the background thread the order to download the lastest schemas.
-                sender_qt.send("update_schemas").unwrap();
+                sender_qt.send(Commands::UpdateSchemas).unwrap();
                 sender_qt_data.send(serde_json::to_vec(&(local_versions, current_versions)).map_err(From::from)).unwrap();
 
                 // Change the text of the dialog and disable the update button.
@@ -444,7 +445,7 @@ pub fn check_schema_updates(
                         if let APIResponseSchema::SuccessNewUpdate(local_versions, current_versions) = response {
 
                             // Sent to the background thread the order to download the lastest schemas.
-                            sender_qt.send("update_schemas").unwrap();
+                            sender_qt.send(Commands::UpdateSchemas).unwrap();
                             sender_qt_data.send(serde_json::to_vec(&(local_versions, current_versions)).map_err(From::from)).unwrap();
 
                             // Change the text of the dialog and disable the update button.

@@ -45,6 +45,7 @@ use std::fmt::Display;
 
 use QString;
 use AppUI;
+use Commands;
 use common::*;
 use error::{Error, ErrorKind, Result};
 use packedfile::*;
@@ -111,7 +112,7 @@ impl AddFromPackFileSlots {
     /// This function creates a new "Add From PackFile" struct and returns it.
     pub fn new_with_grid(
         rpfm_path: PathBuf,
-        sender_qt: Sender<&'static str>,
+        sender_qt: Sender<Commands>,
         sender_qt_data: &Sender<Result<Vec<u8>>>,
         receiver_qt: &Rc<RefCell<Receiver<Result<Vec<u8>>>>>,
         app_ui: AppUI,
@@ -153,7 +154,7 @@ impl AddFromPackFileSlots {
                     let item_path = get_path_from_item_selection(tree_model, &selection_file_to_move, true);
 
                     // Ask the Background Thread to move the files, and send him the path.
-                    sender_qt.send("add_packedfile_from_packfile").unwrap();
+                    sender_qt.send(Commands::AddPackedFileFromPackFile).unwrap();
                     sender_qt_data.send(serde_json::to_vec(&item_path).map_err(From::from)).unwrap();
 
                     // Disable the Main Window (so we can't do other stuff).
@@ -228,7 +229,7 @@ impl AddFromPackFileSlots {
                 is_folder_tree_view_locked => move || {
 
                     // Reset the Secondary PackFile.
-                    sender_qt.send("reset_packfile_extra").unwrap();
+                    sender_qt.send(Commands::ResetPackFileExtra).unwrap();
 
                     // Destroy the "Add from PackFile" stuff.
                     purge_them_all(&app_ui, &is_packedfile_opened);
@@ -393,7 +394,7 @@ pub fn create_new_folder_dialog(app_ui: &AppUI) -> Option<String> {
 /// or None if the dialog is canceled or closed.
 pub fn create_new_packed_file_dialog(
     app_ui: &AppUI,
-    sender: &Sender<&'static str>,
+    sender: &Sender<Commands>,
     receiver: &Rc<RefCell<Receiver<Result<Vec<u8>>>>>,
     packed_file_type: PackedFileType
 ) -> Option<Result<PackedFileType>> {
@@ -447,7 +448,7 @@ pub fn create_new_packed_file_dialog(
     if let PackedFileType::DB(_,_,_) = packed_file_type {
 
         // Get the current schema.
-        sender.send("get_schema").unwrap();
+        sender.send(Commands::GetSchema).unwrap();
         let schema: Option<Schema> = match check_message_validity_recv(&receiver) {
             Ok(data) => data,
             Err(_) => panic!(THREADS_MESSAGE_ERROR),
@@ -490,7 +491,7 @@ pub fn create_new_packed_file_dialog(
             PackedFileType::DB(_,_,_) => {
 
                 // Get the current schema.
-                sender.send("get_schema").unwrap();
+                sender.send(Commands::GetSchema).unwrap();
                 let schema: Option<Schema> = match check_message_validity_recv(&receiver) {
                     Ok(data) => data,
                     Err(_) => panic!(THREADS_MESSAGE_ERROR),
@@ -1514,7 +1515,7 @@ fn set_icon_to_item(
 /// It does one thing or another, depending on the operation we provide it.
 pub fn update_treeview(
     rpfm_path: &PathBuf,
-    sender_qt: &Sender<&str>,
+    sender_qt: &Sender<Commands>,
     sender_qt_data: &Sender<Result<Vec<u8>>>,
     receiver_qt: Rc<RefCell<Receiver<Result<Vec<u8>>>>>,
     window: *mut MainWindow,
@@ -1534,8 +1535,8 @@ pub fn update_treeview(
         TreeViewOperation::Build(is_extra_packfile) => {
 
             // Depending on the PackFile we want to build the TreeView with, we ask for his data.
-            if is_extra_packfile { sender_qt.send("get_packfile_extra_data_for_treeview").unwrap(); }
-            else { sender_qt.send("get_packfile_data_for_treeview").unwrap(); }
+            if is_extra_packfile { sender_qt.send(Commands::GetPackFileExtraDataForTreeView).unwrap(); }
+            else { sender_qt.send(Commands::GetPackFileDataForTreeView).unwrap(); }
 
             let pack_file_data: (String, u32, Vec<Vec<String>>)  = match check_message_validity_recv(&receiver_qt) {
                 Ok(data) => data,
@@ -1772,7 +1773,7 @@ pub fn update_treeview(
                             let path = get_path_from_item(model, item, true);
 
                             // Send the Path to the Background Thread to get the Item's Type.
-                            sender_qt.send("get_type_of_path").unwrap();
+                            sender_qt.send(Commands::GetTypeOfPath).unwrap();
                             sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
                             let item_type: TreePathType = match check_message_validity_recv(&receiver_qt) {
                                 Ok(data) => data,
@@ -2165,7 +2166,7 @@ pub fn update_treeview(
     }
 
     // If we have altered the TreeView in ANY way, we need to recheck the empty folders list.
-    sender_qt.send("update_empty_folders").unwrap();
+    sender_qt.send(Commands::UpdateEmptyFolders).unwrap();
 }
 
 /// This function sorts items in a TreeView following this order:
@@ -2180,7 +2181,7 @@ pub fn update_treeview(
 /// The reason for this function is because the native Qt function doesn't order folders before files.
 #[allow(dead_code)]
 fn sort_item_in_tree_view(
-    sender_qt: &Sender<&str>,
+    sender_qt: &Sender<Commands>,
     sender_qt_data: &Sender<Result<Vec<u8>>>,
     receiver_qt: Rc<RefCell<Receiver<Result<Vec<u8>>>>>,
     model: *mut StandardItemModel,
@@ -2215,7 +2216,7 @@ fn sort_item_in_tree_view(
         let path = get_path_from_item(model, item_sibling, true);
 
         // Send the Path to the Background Thread, and get the type of the item.
-        sender_qt.send("get_type_of_path").unwrap();
+        sender_qt.send(Commands::GetTypeOfPath).unwrap();
         sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
         match check_message_validity_recv(&receiver_qt) {
             Ok(data) => data,
@@ -2237,7 +2238,7 @@ fn sort_item_in_tree_view(
         let path = get_path_from_item(model, item_sibling, true);
 
         // Send the Path to the Background Thread, and get the type of the item.
-        sender_qt.send("get_type_of_path").unwrap();
+        sender_qt.send(Commands::GetTypeOfPath).unwrap();
         sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
         match check_message_validity_recv(&receiver_qt) {
             Ok(data) => data,
@@ -2319,7 +2320,7 @@ fn sort_item_in_tree_view(
             let path = get_path_from_item(model, item_sibling, true);
 
             // Send the Path to the Background Thread, and get the type of the item.
-            sender_qt.send("get_type_of_path").unwrap();
+            sender_qt.send(Commands::GetTypeOfPath).unwrap();
             sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
             let item_sibling_type: TreePathType = match check_message_validity_recv(&receiver_qt) {
                 Ok(data) => data,
