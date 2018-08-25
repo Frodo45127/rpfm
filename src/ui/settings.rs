@@ -117,7 +117,7 @@ impl SettingsDialog {
 
         // For each game supported...
         let mut game_paths = BTreeMap::new();
-        let mut game_buttons = vec![];
+        let mut game_buttons = BTreeMap::new();
         for (index, game_supported) in supported_games.iter().enumerate() {
 
             // Create his fields.
@@ -135,7 +135,7 @@ impl SettingsDialog {
 
             // Add the LineEdit and Button to the list.
             game_paths.insert(game_supported.folder_name.to_owned(), game_line_edit);
-            game_buttons.push(game_button);
+            game_buttons.insert(game_supported.folder_name.to_owned(), game_button);
         }
 
         // Create the "UI Settings" frame and Grid.
@@ -256,9 +256,9 @@ impl SettingsDialog {
         });
 
         // What happens when we hit any of the "..." buttons for the games.
-        let mut slots_select_paths = vec![];
-        for (_, path) in &game_paths {
-            slots_select_paths.push(SlotNoArgs::new(move || {
+        let mut slots_select_paths = BTreeMap::new();
+        for (key, path) in &game_paths {
+            slots_select_paths.insert(key, SlotNoArgs::new(move || {
                 update_entry_path(*path, dialog);
             }));
         }
@@ -311,8 +311,8 @@ impl SettingsDialog {
         unsafe { mymod_button.as_mut().unwrap().signals().released().connect(&slot_select_mymod_path); }
 
         // What happens when we hit the "..." button for Games.
-        for (index, button) in game_buttons.iter().enumerate() {
-            unsafe { button.as_mut().unwrap().signals().released().connect(&slots_select_paths[index]); }
+        for (key, button) in game_buttons.iter() {
+            unsafe { button.as_mut().unwrap().signals().released().connect(slots_select_paths.get(key).unwrap()); }
         }
 
         // What happens when we hit the "Shortcuts" button.
