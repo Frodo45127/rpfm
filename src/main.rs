@@ -270,6 +270,7 @@ pub struct AppUI {
     //-------------------------------------------------------------------------------//
     pub about_qt: *mut Action,
     pub about_rpfm: *mut Action,
+    pub open_manual: *mut Action,
     pub patreon_link: *mut Action,
     pub check_updates: *mut Action,
     pub check_schema_updates: *mut Action,
@@ -494,6 +495,7 @@ fn main() {
                 //-------------------------------------------------------------------------------//
                 about_qt: menu_bar_about.as_mut().unwrap().add_action(&QString::from_std_str("About &Qt")),
                 about_rpfm: menu_bar_about.as_mut().unwrap().add_action(&QString::from_std_str("&About RPFM")),
+                open_manual: menu_bar_about.as_mut().unwrap().add_action(&QString::from_std_str("&Open Manual")),
                 patreon_link: menu_bar_about.as_mut().unwrap().add_action(&QString::from_std_str("&Support me on Patreon")),
                 check_updates: menu_bar_about.as_mut().unwrap().add_action(&QString::from_std_str("&Check Updates")),
                 check_schema_updates: menu_bar_about.as_mut().unwrap().add_action(&QString::from_std_str("Check Schema &Updates")),
@@ -613,6 +615,7 @@ fn main() {
 
         unsafe { app_ui.about_qt.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.menu_bar_about.get("about_qt").unwrap()))); }
         unsafe { app_ui.about_rpfm.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.menu_bar_about.get("about_rpfm").unwrap()))); }
+        unsafe { app_ui.open_manual.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.menu_bar_about.get("open_manual").unwrap()))); }
         unsafe { app_ui.check_updates.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.menu_bar_about.get("check_updates").unwrap()))); }
         unsafe { app_ui.check_schema_updates.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.menu_bar_about.get("check_schema_updates").unwrap()))); }
 
@@ -626,6 +629,7 @@ fn main() {
 
         unsafe { app_ui.about_qt.as_mut().unwrap().set_shortcut_context(ShortcutContext::Application); }
         unsafe { app_ui.about_rpfm.as_mut().unwrap().set_shortcut_context(ShortcutContext::Application); }
+        unsafe { app_ui.open_manual.as_mut().unwrap().set_shortcut_context(ShortcutContext::Application); }
         unsafe { app_ui.check_updates.as_mut().unwrap().set_shortcut_context(ShortcutContext::Application); }
         unsafe { app_ui.check_schema_updates.as_mut().unwrap().set_shortcut_context(ShortcutContext::Application); }
 
@@ -776,6 +780,7 @@ fn main() {
         // Menu bar, About.
         unsafe { app_ui.about_qt.as_mut().unwrap().set_status_tip(&QString::from_std_str("Info about Qt, the UI Toolkit used to make this program.")); }
         unsafe { app_ui.about_rpfm.as_mut().unwrap().set_status_tip(&QString::from_std_str("Info about RPFM.")); }
+        unsafe { app_ui.open_manual.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open RPFM's Manual in a PDF Reader.")); }
         unsafe { app_ui.patreon_link.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open RPFM's Patreon page. Even if you are not interested in becoming a Patron, check it out. I post info about the next updates and in-dev features from time to time.")); }
         unsafe { app_ui.check_updates.as_mut().unwrap().set_status_tip(&QString::from_std_str("Checks if there is any update available for RPFM.")); }
         unsafe { app_ui.check_schema_updates.as_mut().unwrap().set_status_tip(&QString::from_std_str("Checks if there is any update available for the schemas. This is what you have to use after a game's patch.")); }
@@ -1646,6 +1651,23 @@ fn main() {
             }
         );
 
+        // What happens when we trigger the "Open Manual" action.
+        let slot_open_manual = SlotBool::new(clone!(
+            rpfm_path => move |_| { 
+                let mut manual_path = format!("{:?}", rpfm_path.to_path_buf().join(PathBuf::from("LICENSE")));
+
+                // Remove the commas.
+                manual_path.remove(0);
+                manual_path.pop();
+                
+                // If we are in windows, we need a windows-exclusive command.
+                if cfg!(target_os = "windows") { std::process::Command::new("start").arg(manual_path).output().unwrap(); }
+
+                // Otherwise, we assume Linux.
+                else { std::process::Command::new("xdg-open").arg(manual_path).output().unwrap(); }
+            }
+        ));
+
         // What happens when we trigger the "Support me on Patreon" action.
         let slot_patreon_link = SlotBool::new(|_| { DesktopServices::open_url(&qt_core::url::Url::new(&QString::from_std_str("https://www.patreon.com/RPFM"))); });
 
@@ -1662,6 +1684,7 @@ fn main() {
         // "About" Menu Actions.
         unsafe { app_ui.about_qt.as_ref().unwrap().signals().triggered().connect(&slot_about_qt); }
         unsafe { app_ui.about_rpfm.as_ref().unwrap().signals().triggered().connect(&slot_about_rpfm); }
+        unsafe { app_ui.open_manual.as_ref().unwrap().signals().triggered().connect(&slot_open_manual); }
         unsafe { app_ui.patreon_link.as_ref().unwrap().signals().triggered().connect(&slot_patreon_link); }
         unsafe { app_ui.check_updates.as_ref().unwrap().signals().triggered().connect(&slot_check_updates); }
         unsafe { app_ui.check_schema_updates.as_ref().unwrap().signals().triggered().connect(&slot_check_schema_updates); }

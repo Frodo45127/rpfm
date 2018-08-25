@@ -48,6 +48,7 @@ impl Shortcuts {
 
         menu_bar_about.insert("about_qt".to_owned(), "Ctrl+Alt+H".to_owned());
         menu_bar_about.insert("about_rpfm".to_owned(), "Ctrl+Shift+H".to_owned());
+        menu_bar_about.insert("open_manual".to_owned(), "Ctrl+H".to_owned());
         menu_bar_about.insert("check_updates".to_owned(), "Ctrl+U".to_owned());
         menu_bar_about.insert("check_schema_updates".to_owned(), "Ctrl+Shift+U".to_owned());
 
