@@ -1457,6 +1457,13 @@ fn main() {
                                 }
                             } 
 
+                            // Get the current GameSelected.
+                            sender_qt.send(Commands::GetGameSelected).unwrap();
+                            let game_selected: GameSelected = match check_message_validity_recv(&receiver_qt) {
+                                Ok(data) => data,
+                                Err(_) => panic!(THREADS_MESSAGE_ERROR)
+                            };
+
                             // If our current `GameSelected` is in the `games_with_changed_paths` list...
                             if games_with_changed_paths.contains(&game_selected.game) {
 
