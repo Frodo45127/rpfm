@@ -6,6 +6,7 @@
 .directory
 Cargo.lock
 settings.json
+shortcuts.json
 rpfm-code.iml
 *.*~
 *.sublime-project
