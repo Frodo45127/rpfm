@@ -151,6 +151,9 @@ impl PackedFileLocTreeView {
         unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((row_filter_case_sensitive_button as *mut Widget, 1, 1, 1, 1)); }
         unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((row_filter_column_selector as *mut Widget, 1, 2, 1, 1)); }
 
+        // Build the columns.
+        build_columns(table_view, model);
+
         // Get the settings.
         sender_qt.send(Commands::GetSettings).unwrap();
         let settings: Settings = match check_message_validity_recv(&receiver_qt) {
@@ -158,8 +161,10 @@ impl PackedFileLocTreeView {
             Err(_) => panic!(THREADS_MESSAGE_ERROR)
         };
 
-        // Build the columns.
-        build_columns(&settings, table_view, model);
+        // If we want to let the columns resize themselfs...
+        if *settings.settings_bool.get("adjust_columns_to_content").unwrap() {
+            unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().resize_sections(ResizeMode::ResizeToContents); }
+        }
 
         // Create the Contextual Menu for the TableView.
         let mut context_menu = Menu::new(());
@@ -829,6 +834,9 @@ impl PackedFileLocTreeView {
                             Err(error) => return show_dialog(app_ui.window, false, error.kind()),
                         }
 
+                        // Build the columns.
+                        build_columns(table_view, model);
+
                         // Get the settings.
                         sender_qt.send(Commands::GetSettings).unwrap();
                         let settings: Settings = match check_message_validity_recv(&receiver_qt) {
@@ -836,8 +844,10 @@ impl PackedFileLocTreeView {
                             Err(_) => panic!(THREADS_MESSAGE_ERROR)
                         };
 
-                        // Build the columns.
-                        build_columns(&settings, table_view, model);
+                        // If we want to let the columns resize themselfs...
+                        if *settings.settings_bool.get("adjust_columns_to_content").unwrap() {
+                            unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().resize_sections(ResizeMode::ResizeToContents); }
+                        }
 
                         // Tell the background thread to start saving the PackedFile.
                         sender_qt.send(Commands::EncodePackedFileLoc).unwrap();
@@ -1040,7 +1050,6 @@ impl PackedFileLocTreeView {
 /// This function is meant to be used to prepare and build the column headers, and the column-related stuff.
 /// His intended use is for just after we reload the data to the table.
 fn build_columns(
-    settings: &Settings,
     table_view: *mut TableView,
     model: *mut StandardItemModel
 ) {
@@ -1050,17 +1059,9 @@ fn build_columns(
     unsafe { model.as_mut().unwrap().set_header_data((1, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Text")))); }
     unsafe { model.as_mut().unwrap().set_header_data((2, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Tooltip")))); }
 
-    // If we want to let the columns resize themselfs...
-    if *settings.settings_bool.get("adjust_columns_to_content").unwrap() {
-        unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().resize_sections(ResizeMode::ResizeToContents); }
-    }
-
-    // Otherwise, use fixed width.
-    else {
-        unsafe { table_view.as_mut().unwrap().set_column_width(0, 450); }
-        unsafe { table_view.as_mut().unwrap().set_column_width(1, 450); }
-        unsafe { table_view.as_mut().unwrap().set_column_width(2, 60); }
-    }
+    unsafe { table_view.as_mut().unwrap().set_column_width(0, 450); }
+    unsafe { table_view.as_mut().unwrap().set_column_width(1, 450); }
+    unsafe { table_view.as_mut().unwrap().set_column_width(2, 60); }
 }
 
 /// This function checks if the data in the clipboard is suitable for the selected Items.
