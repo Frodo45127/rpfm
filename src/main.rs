@@ -1656,9 +1656,17 @@ fn main() {
         let slot_open_manual = SlotBool::new(clone!(
             rpfm_path => move |_| { 
                 let mut manual_path = format!("{:?}", rpfm_path.to_path_buf().join(PathBuf::from("LICENSE")));
+
+                // In linux we have to remove the commas.
+                if cfg!(target_os = "linux") { 
+                    manual_path.remove(0);
+                    manual_path.pop();
+                }
                 
                 // No matter how many times I tried, it's IMPOSSIBLE to open a file on windows, so instead we use this magic crate that seems to work everywhere.
-                open::that(manual_path);
+                if let Err(error) = open::that(manual_path) {
+                    show_dialog(app_ui.window, false, error);
+                }
             }
         ));
 
