@@ -23,6 +23,7 @@ extern crate chrono;
 
 #[macro_use]
 extern crate sentry;
+extern crate open;
 extern crate qt_widgets;
 extern crate qt_gui;
 extern crate qt_core;
@@ -1655,16 +1656,9 @@ fn main() {
         let slot_open_manual = SlotBool::new(clone!(
             rpfm_path => move |_| { 
                 let mut manual_path = format!("{:?}", rpfm_path.to_path_buf().join(PathBuf::from("LICENSE")));
-
-                // Remove the commas.
-                manual_path.remove(0);
-                manual_path.pop();
                 
-                // If we are in windows, we need a windows-exclusive command.
-                if cfg!(target_os = "windows") { std::process::Command::new("start").arg(manual_path).output().unwrap(); }
-
-                // Otherwise, we assume Linux.
-                else { std::process::Command::new("xdg-open").arg(manual_path).output().unwrap(); }
+                // No matter how many times I tried, it's IMPOSSIBLE to open a file on windows, so instead we use this magic crate that seems to work everywhere.
+                open::that(manual_path);
             }
         ));
 

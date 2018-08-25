@@ -22,6 +22,7 @@ futures = "0.1"
 hyper = "0.11"
 hyper-tls = "0.1.4"
 tokio-core = "0.1"
+open = "*"
 
 sentry = "0.7"
 
