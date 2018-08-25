@@ -217,6 +217,9 @@ pub enum ErrorKind {
     // Error for when trying to patch the SiegeAI and there is no patchable files in the PackFile.
     PatchSiegeAINoPatchableFiles,
 
+    // Error for when you can't do something with a PackedFile open in the right side.
+    OperationNotAllowedWithPackedFileOpen,
+
     //-----------------------------------------------------//
     //                Contextual Errors
     //-----------------------------------------------------//
@@ -436,6 +439,7 @@ impl Display for ErrorKind {
             //-----------------------------------------------------//
             ErrorKind::PatchSiegeAIEmptyPackFile => write!(f, "<p>This packfile is empty, so we can't patch it.</p>"),
             ErrorKind::PatchSiegeAINoPatchableFiles => write!(f, "<p>There are not files in this Packfile that could be patched/deleted.</p>"),
+            ErrorKind::OperationNotAllowedWithPackedFileOpen => write!(f, "<p>This operation cannot be done while there is a PackedFile open. Select a folder or the PackFile to close it and try again.</p>"),
 
             //-----------------------------------------------------//
             //                Contextual Errors

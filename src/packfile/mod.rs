@@ -13,7 +13,8 @@ use std::io::SeekFrom;
 use common::*;
 use error::{ErrorKind, Result};
 use packedfile::loc::Loc;
-use packedfile::db::DB;
+use packedfile::db::{DB, DBHeader};
+use packedfile::db::schemas::Schema;
 use packedfile::rigidmodel::RigidModel;
 
 pub mod packfile;
@@ -920,3 +921,113 @@ pub fn create_prefab_from_catchment(
     Ok("Prefabs successfully created.".to_owned())
 }
 */
+
+/// This function is used to optimize the size of a PackFile. It does two things: removes unchanged rows
+/// from tables (and if the table is empty, it removes it too) and it cleans the PackFile of extra .xml files 
+/// often created by map editors. It requires just the PackFile to optimize and the dependency PackFile.
+pub fn optimize_packfile(
+    mut pack_file: &mut packfile::PackFile,
+    original_tables: &[packfile::PackedFile],
+    schema: &Option<Schema>
+) -> Vec<TreePathType> {
+
+    // List of PackedFiles to delete. This includes empty tables and xml files.
+    let mut files_to_delete: Vec<Vec<String>> = vec![];
+    let mut deleted_files_type: Vec<TreePathType> = vec![];
+
+    // TODO: Fix this clone.
+    // For each PackedFile we have...
+    for (index, packed_file) in pack_file.data.packed_files.clone().iter().enumerate() {
+
+
+        // If it's a DB table...
+        if packed_file.path.len() == 3 {
+            if packed_file.path[0] == "db" {
+
+                // If we have an schema we optimize DB tables. Otherwise ignore this.
+                if let Some(schema) = schema {
+
+                    // Get the tables if exists from the dependency database.
+                    let mut dep_tables = vec![];
+                    for vanilla_packed_file in original_tables {
+                        if vanilla_packed_file.path.len() == 3 {
+                            if vanilla_packed_file.path[0] == "db" && vanilla_packed_file.path[1] == packed_file.path[1] {
+                                dep_tables.push(vanilla_packed_file);
+                            }
+                        }
+                    }
+
+                    // If there are no tables, we cannot optimize that PackedFile.
+                    if dep_tables.is_empty() { continue }
+
+                    // If the table is empty, add it to the deletion list and continue.
+                    if let Ok(header) = DBHeader::read(&packed_file.data, &mut 0) {
+                        if header.entry_count == 0 { 
+                            files_to_delete.push(packed_file.path.to_vec());
+                            continue;
+                        }
+                    }
+
+                    // Try to decode our table.
+                    let mut optimized_table = match DB::read(&packed_file.data, &packed_file.path[1], &schema) {
+                        Ok(table) => table,
+                        Err(error) => {
+                            if error.kind() == ErrorKind::DBTableContainsListField { files_to_delete.push(packed_file.path.to_vec()); } 
+                            continue;
+                        }
+                    };
+
+                    // For each table we got...
+                    for table in &dep_tables {
+
+                        // Try to decode the vanilla table.
+                        let mut vanilla_table = match DB::read(&table.data, &table.path[1], &schema) {
+                            Ok(table) => table,
+                            Err(_) => continue,
+                        };
+
+                        // For each row we have in our table (in reverse) check if it exists in the vanilla table, and delete it if it does.
+                        let mut rows_to_delete = vec![];
+                        for (row_index, row) in optimized_table.data.entries.iter().enumerate() {
+                            if vanilla_table.data.entries.contains(row) { rows_to_delete.push(row_index); }
+                        }
+                        for row in rows_to_delete.iter().rev() { optimized_table.data.entries.remove(*row); }
+                    }
+
+                    // Save the table to the PackFile.
+                    update_packed_file_data_db(&optimized_table, &mut pack_file, index);
+
+                    // Delete the table here if it's empty.
+                    if optimized_table.data.entries.is_empty() { files_to_delete.push(packed_file.path.to_vec()); }
+                }
+
+                // Otherwise, we just check if it's empty. In that case, we delete it.
+                else { 
+                    if let Ok(header) = DBHeader::read(&packed_file.data, &mut 0) {
+                        if header.entry_count == 0 { files_to_delete.push(packed_file.path.to_vec()); }
+                    }
+                }
+            }
+        }
+    }
+
+    // If there are files to delete, we delete them.
+    if !files_to_delete.is_empty() {
+        for tree_path in &mut files_to_delete {
+
+            // Due to the rework of the "delete_from_packfile" function, we need to give it a complete
+            // path to delete, so we "complete" his path before deleting.
+            let file_name = vec![pack_file.extra_data.file_name.to_owned()];
+            tree_path.splice(0..0, file_name.iter().cloned());
+
+            // Get his type before deleting it.
+            deleted_files_type.push(get_type_of_selected_path(&tree_path, &pack_file));
+
+            // Delete the PackedFile.
+            delete_from_packfile(pack_file, tree_path);
+        }
+    }
+
+    // Return the deleted file's types.
+    deleted_files_type
+}

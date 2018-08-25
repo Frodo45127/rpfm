@@ -69,7 +69,7 @@ pub struct DBData {
 }
 
 /// `DecodedData`: This enum is used to store the data from the different fields of a row of a DB PackedFile.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub enum DecodedData {
     Boolean(bool),
     Float(f32),

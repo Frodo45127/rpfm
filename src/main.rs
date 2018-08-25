@@ -202,6 +202,7 @@ pub enum Commands {
     GetPackedFile,
     GetTableListFromDependencyPackFile,
     GetTableVersionFromDependencyPackFile,
+    OptimizePackFile,
 }
 
 /// This struct contains all the "Special Stuff" Actions, so we can pass all of them to functions at once.
@@ -263,10 +264,18 @@ pub struct AppUI {
     // Warhammer 2's actions.
     pub wh2_patch_siege_ai: *mut Action,
     pub wh2_create_prefab: *mut Action,
+    pub wh2_optimize_packfile: *mut Action,
 
     // Warhammer's actions.
     pub wh_patch_siege_ai: *mut Action,
     pub wh_create_prefab: *mut Action,
+    pub wh_optimize_packfile: *mut Action,
+    
+    // Attila's actions.
+    pub att_optimize_packfile: *mut Action,
+    
+    // Rome 2's actions.
+    pub rom2_optimize_packfile: *mut Action,
 
     //-------------------------------------------------------------------------------//
     // "About" menu.
@@ -419,8 +428,12 @@ fn main() {
 
         let menu_warhammer_2;
         let menu_warhammer;
+        let menu_attila;
+        let menu_rome_2;
         unsafe { menu_warhammer_2 = menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("&Warhammer 2")); }
-        unsafe { menu_warhammer = menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("&Warhammer")); }
+        unsafe { menu_warhammer = menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("War&hammer")); }
+        unsafe { menu_attila = menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("&Attila")); }
+        unsafe { menu_rome_2 = menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("&Rome 2")); }
 
         // Contextual Menu for the TreeView.
         let mut folder_tree_view_context_menu = Menu::new(());
@@ -488,10 +501,18 @@ fn main() {
                 // Warhammer 2's actions.
                 wh2_patch_siege_ai: menu_warhammer_2.as_mut().unwrap().add_action(&QString::from_std_str("&Patch Siege AI")),
                 wh2_create_prefab: menu_warhammer_2.as_mut().unwrap().add_action(&QString::from_std_str("&Create Prefab")),
+                wh2_optimize_packfile: menu_warhammer_2.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
 
                 // Warhammer's actions.
                 wh_patch_siege_ai: menu_warhammer.as_mut().unwrap().add_action(&QString::from_std_str("&Patch Siege AI")),
                 wh_create_prefab: menu_warhammer.as_mut().unwrap().add_action(&QString::from_std_str("&Create Prefab")),
+                wh_optimize_packfile: menu_warhammer.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
+                
+                // Attila's actions.
+                att_optimize_packfile: menu_attila.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
+                
+                // Rome 2'a actions.
+                rom2_optimize_packfile: menu_rome_2.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
 
                 //-------------------------------------------------------------------------------//
                 // "About" menu.
@@ -1520,7 +1541,7 @@ fn main() {
         //-----------------------------------------------------//
         // "Special Stuff" Menu...
         //-----------------------------------------------------//
-        // TODO: Separate the "save" process from this. It's already not included in the Error checking, so this has priority.
+
         // What happens when we trigger the "Patch Siege AI" action.
         let slot_patch_siege_ai = SlotBool::new(clone!(
             rpfm_path,
@@ -1614,9 +1635,94 @@ fn main() {
             }
         ));
 
-        // "Special Stuff" Menu Actions.
+        // What happens when we trigger the "Optimize PackFile" action.
+        let slot_optimize_packfile = SlotBool::new(clone!(
+            rpfm_path,
+            is_packedfile_opened,
+            receiver_qt,
+            sender_qt,
+            sender_qt_data => move |_| {
+
+                // This cannot be done if there is a PackedFile open.
+                if *is_packedfile_opened.borrow() { return show_dialog(app_ui.window, false, ErrorKind::OperationNotAllowedWithPackedFileOpen); }
+            
+                // Ask the background loop to create the Dependency PackFile.
+                sender_qt.send(Commands::OptimizePackFile).unwrap();
+
+                // Disable the Main Window (so we can't do other stuff).
+                unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+
+                // Prepare the event loop, so we don't hang the UI while the background thread is working.
+                let mut event_loop = EventLoop::new();
+
+                // Until we receive a response from the worker thread...
+                loop {
+
+                    // Get the response from the other thread.
+                    let response: Result<Vec<TreePathType>> = check_message_validity_tryrecv(&receiver_qt);
+
+                    // Check what response we got.
+                    match response {
+
+                        // If we got a message....
+                        Ok(result) => {
+
+                            // Get the success message and show it.
+                            show_dialog(app_ui.window, true, "PackFile optimized and saved.");
+
+                            // For each file to delete...
+                            for item_type in result {
+
+                                // Remove it from the TreeView.
+                                update_treeview(
+                                    &rpfm_path,
+                                    &sender_qt,
+                                    &sender_qt_data,
+                                    receiver_qt.clone(),
+                                    app_ui.window,
+                                    app_ui.folder_tree_view,
+                                    app_ui.folder_tree_model,
+                                    TreeViewOperation::DeleteUnselected(item_type),
+                                );
+                            }
+
+                            // Trigger a save and break the loop.
+                            unsafe { Action::trigger(app_ui.save_packfile.as_mut().unwrap()); }
+                            break;
+                        }
+
+                        // If we got an error...
+                        Err(error) => {
+
+                            // We must check what kind of error it's.
+                            match error.kind() {
+
+                                // If it's "Message Empty", do nothing.
+                                ErrorKind::MessageSystemEmpty => {},
+
+                                // In ANY other situation, it's a message problem.
+                                _ => panic!(THREADS_MESSAGE_ERROR)
+                            }
+                        }
+                    }
+
+                    // Keep the UI responsive.
+                    event_loop.process_events(());
+                }
+
+                // Re-enable the Main Window.
+                unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
+            }
+        ));
+
+        // "Special Stuff" Menu Actions.        
         unsafe { app_ui.wh2_patch_siege_ai.as_ref().unwrap().signals().triggered().connect(&slot_patch_siege_ai); }
         unsafe { app_ui.wh_patch_siege_ai.as_ref().unwrap().signals().triggered().connect(&slot_patch_siege_ai); }
+
+        unsafe { app_ui.wh2_optimize_packfile.as_ref().unwrap().signals().triggered().connect(&slot_optimize_packfile); }
+        unsafe { app_ui.wh_optimize_packfile.as_ref().unwrap().signals().triggered().connect(&slot_optimize_packfile); }
+        unsafe { app_ui.att_optimize_packfile.as_ref().unwrap().signals().triggered().connect(&slot_optimize_packfile); }
+        unsafe { app_ui.rom2_optimize_packfile.as_ref().unwrap().signals().triggered().connect(&slot_optimize_packfile); }
 
         //-----------------------------------------------------//
         // "About" Menu...
@@ -4885,6 +4991,12 @@ fn background_loop(
                             None => sender.send(Err(Error::from(ErrorKind::SchemaNotFound))).unwrap(),
                         }
                     }
+
+                    // In case we want to optimize our PackFile...
+                    Commands::OptimizePackFile => {
+                        let deleted_packed_files = packfile::optimize_packfile(&mut pack_file_decoded, &dependency_database, &schema);
+                        sender.send(serde_json::to_vec(&deleted_packed_files).map_err(From::from)).unwrap();
+                    }
                 }
             }
 
@@ -4957,10 +5069,18 @@ fn enable_packfile_actions(
             "warhammer_2" => {
                 unsafe { app_ui.wh2_patch_siege_ai.as_mut().unwrap().set_enabled(true); }
                 unsafe { app_ui.wh2_create_prefab.as_mut().unwrap().set_enabled(true); }
+                unsafe { app_ui.wh2_optimize_packfile.as_mut().unwrap().set_enabled(true); }
             },
             "warhammer" => {
                 unsafe { app_ui.wh_patch_siege_ai.as_mut().unwrap().set_enabled(true); }
                 unsafe { app_ui.wh_create_prefab.as_mut().unwrap().set_enabled(true); }
+                unsafe { app_ui.wh_optimize_packfile.as_mut().unwrap().set_enabled(true); }
+            },
+            "attila" => {
+                unsafe { app_ui.att_optimize_packfile.as_mut().unwrap().set_enabled(true); }
+            },
+            "rome_2" => {
+                unsafe { app_ui.rom2_optimize_packfile.as_mut().unwrap().set_enabled(true); }
             },
             _ => {},
         }
@@ -4972,10 +5092,18 @@ fn enable_packfile_actions(
         // Disable Warhammer 2 actions...
         unsafe { app_ui.wh2_patch_siege_ai.as_mut().unwrap().set_enabled(false); }
         unsafe { app_ui.wh2_create_prefab.as_mut().unwrap().set_enabled(false); }
+        unsafe { app_ui.wh2_optimize_packfile.as_mut().unwrap().set_enabled(false); }
 
         // Disable Warhammer actions...
         unsafe { app_ui.wh_patch_siege_ai.as_mut().unwrap().set_enabled(false); }
         unsafe { app_ui.wh_create_prefab.as_mut().unwrap().set_enabled(false); }
+        unsafe { app_ui.wh_optimize_packfile.as_mut().unwrap().set_enabled(false); }
+
+        // Disable Attila actions...
+        unsafe { app_ui.att_optimize_packfile.as_mut().unwrap().set_enabled(false); }
+
+        // Disable Rome 2 actions...
+        unsafe { app_ui.rom2_optimize_packfile.as_mut().unwrap().set_enabled(false); }
     }
 }
 
