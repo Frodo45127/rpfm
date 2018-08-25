@@ -1,14 +1,17 @@
 // In this module should be everything related to the settings stuff.
 extern crate serde_json;
 
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::fs::File;
 use std::io::Write;
-use std::io::BufReader;
+use std::io::{BufReader, BufWriter};
 
-use error::{ErrorKind, Result};
+use error::Result;
 
 pub mod shortcuts;
+
+const SETTINGS_FILE: &str = "settings.json";
 
 /// `GameInfo`: This struct holds all the info needed for a game to be "supported" by RPFM features.
 /// It's stores the following data:
@@ -29,27 +32,9 @@ pub struct GameInfo {
 /// This struct hold every setting of the program, and it's the one that we are going to serialize.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Settings {
-    pub paths: Paths,
-    pub default_game: String,
-    pub adjust_columns_to_content: bool,
-    pub allow_editing_of_ca_packfiles: bool,
-    pub check_updates_on_start: bool,
-    pub check_schema_updates_on_start: bool,
-    pub use_pfm_extracting_behavior: bool,
-}
-
-/// This struct should hold any path we need to store in the settings.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Paths {
-    pub my_mods_base_path: Option<PathBuf>,
-    pub game_paths: Vec<GamePath>,
-}
-
-/// This struct should hold the name of a game (folder_name from GameInfo) and his path, if configured.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct GamePath {
-    pub game: String,
-    pub path: Option<PathBuf>,
+    pub paths: BTreeMap<String, Option<PathBuf>>,
+    pub settings_string: BTreeMap<String, String>,
+    pub settings_bool: BTreeMap<String, bool>,
 }
 
 /// This struct holds the data needed for the Game Selected.
@@ -142,96 +127,82 @@ impl Settings {
     /// Should be run if no settings file has been found at the start of the program. It requires
     /// the list of supported games, so it can store the game paths properly.
     pub fn new(supported_games: &[GameInfo]) -> Self {
+
+        // Create the maps to hold the settings.
+        let mut paths = BTreeMap::new();
+        let mut settings_string = BTreeMap::new();
+        let mut settings_bool = BTreeMap::new();
+
+        // Populate the maps with the default shortcuts. New settings MUST BE ADDED HERE.
+        paths.insert("mymods_base_path".to_owned(), None);
+        
+        for game in supported_games {
+            paths.insert(game.folder_name.to_owned(), None);
+        }
+
+        settings_string.insert("default_game".to_owned(), "warhammer_2".to_owned());
+
+        settings_bool.insert("adjust_columns_to_content".to_owned(), false);
+        settings_bool.insert("allow_editing_of_ca_packfiles".to_owned(), false);
+        settings_bool.insert("check_updates_on_start".to_owned(), true);
+        settings_bool.insert("check_schema_updates_on_start".to_owned(), true);
+        settings_bool.insert("use_pfm_extracting_behavior".to_owned(), false);
+
+        // Return it.
         Self {
-            paths: Paths::new(supported_games),
-            default_game: "warhammer_2".to_owned(),
-            adjust_columns_to_content: false,
-            allow_editing_of_ca_packfiles: false,
-            check_updates_on_start: true,
-            check_schema_updates_on_start: true,
-            use_pfm_extracting_behavior: false,
+            paths,
+            settings_string,
+            settings_bool,
         }
     }
 
     /// This function takes a settings.json file and reads it into a "Settings" object.
-    pub fn load(path: &PathBuf, supported_games: &[GameInfo]) -> Result<Self> {
-        let settings_path = path.to_path_buf().join(PathBuf::from("settings.json"));
-        let settings_file = BufReader::new(File::open(settings_path)?);
-        let mut settings: Self = serde_json::from_reader(settings_file)?;
+    pub fn load(rpfm_path: &PathBuf, supported_games: &[GameInfo]) -> Result<Self> {
 
-        // We need to make sure here that we have entries in `game_paths` for every supported game.
-        // Otherwise, it'll crash when trying to open the "Preferences" window.
-        if settings.paths.game_paths.len() < supported_games.len() {
-            for (index, game) in supported_games.iter().enumerate() {
-                if settings.paths.game_paths.get(index).is_some() {
-                    if settings.paths.game_paths[index].game != game.folder_name {
+        let path = rpfm_path.to_path_buf().join(PathBuf::from(SETTINGS_FILE));
+        let file = BufReader::new(File::open(path)?);
 
-                        // Something has changed the order of the Games, so we wipe all `GamePath`s
-                        // if we hit this, as some of them will be misplaced.
-                        settings.paths.game_paths = GamePath::new(supported_games);
-                    }
-                }
-                else {
-                    settings.paths.game_paths.push(
-                        GamePath {
-                            game: game.folder_name.to_owned(),
-                            path: None,
-                        }
-                    );
-                }
-            }
+        let mut settings: Self = serde_json::from_reader(file)?;
+
+        // Add/Remove settings missing/no-longer-needed for keeping it update friendly. First, remove the outdated ones, then add the new ones.
+        let defaults = Self::new(supported_games);
+
+        {          
+            let mut keys_to_delete = vec![];
+            for (key, _) in settings.paths.clone() { if let None = defaults.paths.get(&*key) { keys_to_delete.push(key); } }
+            for key in &keys_to_delete { settings.paths.remove(key); }
+
+            let mut keys_to_delete = vec![];
+            for (key, _) in settings.settings_string.clone() { if let None = defaults.settings_string.get(&*key) { keys_to_delete.push(key); } }
+            for key in &keys_to_delete { settings.settings_string.remove(key); }
+
+            let mut keys_to_delete = vec![];
+            for (key, _) in settings.settings_bool.clone() { if let None = defaults.settings_bool.get(&*key) { keys_to_delete.push(key); } }
+            for key in &keys_to_delete { settings.settings_bool.remove(key); }
+        }
+
+        {          
+            for (key, value) in defaults.paths { if let None = settings.paths.get(&*key) { settings.paths.insert(key, value);  } }
+            for (key, value) in defaults.settings_string { if let None = settings.settings_string.get(&*key) { settings.settings_string.insert(key, value);  } }
+            for (key, value) in defaults.settings_bool { if let None = settings.settings_bool.get(&*key) { settings.settings_bool.insert(key, value);  } }
         }
 
         Ok(settings)
     }
 
     /// This function takes the Settings object and saves it into a settings.json file.
-    pub fn save(&self, path: &PathBuf) -> Result<()> {
-        let mut settings_path = path.clone();
-        settings_path.push("settings.json");
+    pub fn save(&self, rpfm_path: &PathBuf) -> Result<()> {
 
-        let settings_json = serde_json::to_string_pretty(self);
-        match File::create(settings_path.to_path_buf()) {
-            Ok(mut file) => {
-                match file.write_all(settings_json.unwrap().as_bytes()) {
-                    Ok(_) => Ok(()),
-                    Err(_) => Err(ErrorKind::IOSaveSettings)?
-                }
-            },
-            Err(_) => Err(ErrorKind::IOSaveSettings)?
-        }
-    }
-}
+        // Try to open the settings file.
+        let path = rpfm_path.to_path_buf().join(PathBuf::from(SETTINGS_FILE));
+        let mut file = BufWriter::new(File::create(path)?);
 
-/// Implementation of `Paths`.
-impl Paths {
+        // Try to save the file, and return the result.
+        let shortcuts = serde_json::to_string_pretty(self);
+        file.write_all(shortcuts.unwrap().as_bytes())?;
 
-    /// This function creates a set of empty paths. Just for the initial creation of the settings file.
-    pub fn new(supported_games: &[GameInfo]) -> Paths {
-        Paths {
-            my_mods_base_path: None,
-            game_paths: GamePath::new(supported_games)
-        }
-    }
-}
-
-/// Implementation of `GamePath`.
-impl GamePath {
-
-    /// This function returns a vector of GamePaths for supported Games.
-    pub fn new(supported_games: &[GameInfo]) -> Vec<Self> {
-
-        let mut game_paths = vec![];
-        for game in supported_games {
-            game_paths.push(
-                Self {
-                    game: game.folder_name.to_owned(),
-                    path: None,
-                }
-            )
-        }
-
-        game_paths
+        // Return success.
+        Ok(())
     }
 }
 
@@ -242,8 +213,8 @@ impl GameSelected {
     pub fn new(settings: &Settings, supported_games: &[GameInfo]) -> Self {
 
         // Get the stuff we need from the settings and the supported games list.
-        let game = settings.default_game.to_owned();
-        let game_path = settings.paths.game_paths.iter().filter(|x| x.game == game).map(|x| x.path.clone()).collect::<Option<PathBuf>>();
+        let game = settings.settings_string.get("default_game").unwrap().to_owned();
+        let game_path = settings.paths.get(&game).unwrap().clone();
 
         // The data path may be not configured, so we check if it exists in the settings, or not.
         let game_data_path = match game_path {

@@ -1051,7 +1051,7 @@ fn build_columns(
     unsafe { model.as_mut().unwrap().set_header_data((2, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Tooltip")))); }
 
     // If we want to let the columns resize themselfs...
-    if settings.adjust_columns_to_content {
+    if *settings.settings_bool.get("adjust_columns_to_content").unwrap() {
         unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().resize_sections(ResizeMode::ResizeToContents); }
     }
 

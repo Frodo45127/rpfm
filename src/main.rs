@@ -1435,7 +1435,7 @@ fn main() {
                         Ok(_) => {
 
                             // If we changed the "MyMod's Folder" path...
-                            if settings.paths.my_mods_base_path != old_settings.paths.my_mods_base_path {
+                            if settings.paths.get("mymods_base_path").unwrap() != old_settings.paths.get("mymods_base_path").unwrap() {
 
                                 // We disable the "MyMod" mode, but leave the PackFile open, so the user doesn't lose any unsaved change.
                                 set_my_mod_mode(&mymod_stuff, &mode, None);
@@ -1446,9 +1446,14 @@ fn main() {
 
                             // If we have changed the path of any of the games, and that game is the current `GameSelected`,
                             // update the current `GameSelected`.
-                            let new_game_paths = settings.paths.game_paths.clone();
-                            let game_paths = new_game_paths.iter().zip(old_settings.paths.game_paths.iter());
-                            let games_with_changed_paths = game_paths.filter(|x| x.0.path != x.1.path).map(|x| x.0.game.to_owned()).collect::<Vec<String>>();
+                            let mut games_with_changed_paths = vec![];
+                            for (key, value) in settings.paths.iter() {
+                                if key != "mymods_base_path" {
+                                    if old_settings.paths.get(key).unwrap() != value {
+                                        games_with_changed_paths.push(key.to_owned());
+                                    }
+                                }
+                            } 
 
                             // If our current `GameSelected` is in the `games_with_changed_paths` list...
                             if games_with_changed_paths.contains(&game_selected.game) {
@@ -1465,7 +1470,7 @@ fn main() {
                             match error.kind() {
 
                                 // If there was and IO error while saving the settings, report it.
-                                ErrorKind::IOSaveSettings => show_dialog(app_ui.window, false, error.kind()),
+                                ErrorKind::IOPermissionDenied | ErrorKind::IOFileNotFound | ErrorKind::IOGeneric => show_dialog(app_ui.window, false, error.kind()),
 
                                 // In ANY other situation, it's a message problem.
                                 _ => panic!(THREADS_MESSAGE_ERROR)
@@ -1864,10 +1869,10 @@ fn main() {
                         };
 
                         // In theory, if we reach this line this should always exist. In theory I should be rich.
-                        if let Some(ref my_mods_base_path) = settings.paths.my_mods_base_path {
+                        if let Some(ref mymods_base_path) = settings.paths.get("mymods_base_path").unwrap() {
 
                             // We get the assets folder of our mod (without .pack extension).
-                            let mut assets_folder = my_mods_base_path.to_path_buf();
+                            let mut assets_folder = mymods_base_path.to_path_buf();
                             assets_folder.push(&game_folder_name);
                             assets_folder.push(Path::new(&mod_name).file_stem().unwrap().to_string_lossy().as_ref().to_owned());
 
@@ -2115,10 +2120,10 @@ fn main() {
                         };
 
                         // In theory, if we reach this line this should always exist. In theory I should be rich.
-                        if let Some(ref my_mods_base_path) = settings.paths.my_mods_base_path {
+                        if let Some(ref mymods_base_path) = settings.paths.get("mymods_base_path").unwrap() {
 
                             // We get the assets folder of our mod (without .pack extension).
-                            let mut assets_folder = my_mods_base_path.to_path_buf();
+                            let mut assets_folder = mymods_base_path.to_path_buf();
                             assets_folder.push(&game_folder_name);
                             assets_folder.push(Path::new(&mod_name).file_stem().unwrap().to_string_lossy().as_ref().to_owned());
 
@@ -3006,10 +3011,10 @@ fn main() {
                     Mode::MyMod {ref game_folder_name, ref mod_name} => {
 
                         // In theory, if we reach this line this should always exist. In theory I should be rich.
-                        if let Some(ref my_mods_base_path) = settings.paths.my_mods_base_path {
+                        if let Some(ref mymods_base_path) = settings.paths.get("mymods_base_path").unwrap() {
 
                             // We get the assets folder of our mod (without .pack extension).
-                            let mut assets_folder = my_mods_base_path.to_path_buf();
+                            let mut assets_folder = mymods_base_path.to_path_buf();
                             assets_folder.push(&game_folder_name);
                             assets_folder.push(Path::new(&mod_name).file_stem().unwrap().to_string_lossy().as_ref().to_owned());
 
@@ -3110,7 +3115,7 @@ fn main() {
                     Mode::Normal => {
 
                         // If we want the old PFM behavior (extract full path)...
-                        if settings.use_pfm_extracting_behavior {
+                        if *settings.settings_bool.get("use_pfm_extracting_behavior").unwrap() {
 
                             // Get a "Folder-only" FileDialog.
                             let extraction_path;
@@ -3736,10 +3741,10 @@ fn main() {
         };
 
         // If we have it enabled in the prefs, check if there are updates.
-        if settings.check_updates_on_start { check_updates(&app_ui, false) };
+        if *settings.settings_bool.get("check_updates_on_start").unwrap() { check_updates(&app_ui, false) };
 
         // If we have it enabled in the prefs, check if there are schema updates.
-        if settings.check_schema_updates_on_start { check_schema_updates(&app_ui, false, &rpfm_path, &sender_qt, &sender_qt_data, &receiver_qt) };
+        if *settings.settings_bool.get("check_schema_updates_on_start").unwrap() { check_schema_updates(&app_ui, false, &rpfm_path, &sender_qt, &sender_qt_data, &receiver_qt) };
 
         // If we have an argument (we open RPFM by clicking in a PackFile directly)...
         if arguments.len() > 1 {
@@ -3935,7 +3940,7 @@ fn background_loop(
                     Commands::SavePackFile => {
 
                         // If it's of a type we can edit...
-                        if pack_file_decoded.is_editable(settings.allow_editing_of_ca_packfiles) {
+                        if pack_file_decoded.is_editable(*settings.settings_bool.get("allow_editing_of_ca_packfiles").unwrap()) {
 
                             // Check if it already exist in the disk.
                             if pack_file_decoded.extra_data.file_path.is_file() {
@@ -3959,7 +3964,7 @@ fn background_loop(
                     Commands::SavePackFileAs => {
 
                         // If it's of a type we can edit...
-                        if pack_file_decoded.is_editable(settings.allow_editing_of_ca_packfiles) {
+                        if pack_file_decoded.is_editable(*settings.settings_bool.get("allow_editing_of_ca_packfiles").unwrap()) {
 
                             // If it's editable, we send the UI the "Extra data" of the PackFile, as the UI needs it for some stuff.
                             sender.send(serde_json::to_vec(&pack_file_decoded.extra_data).map_err(From::from)).unwrap();
@@ -4117,7 +4122,7 @@ fn background_loop(
                         };
 
                         // Get the new Game Selected, and set it.
-                        game_selected.change_game_selected(&game_name, &settings.paths.game_paths.iter().filter(|x| x.game == game_name).map(|x| x.path.clone()).collect::<Option<PathBuf>>(), &supported_games);
+                        game_selected.change_game_selected(&game_name, &settings.paths.get(&game_name).unwrap(), &supported_games);
 
                         // Try to load the Schema for this game.
                         schema = Schema::load(&rpfm_path, &supported_games.iter().filter(|x| x.folder_name == *game_selected.game).map(|x| x.schema.to_owned()).collect::<String>()).ok();
@@ -4890,7 +4895,7 @@ fn enable_packfile_actions(
         unsafe { app_ui.save_packfile_as.as_mut().unwrap().set_enabled(enable); }
 
         // If there is a "MyMod" path set in the settings...
-        if let Some(ref path) = settings.paths.my_mods_base_path {
+        if let Some(ref path) = settings.paths.get("mymods_base_path").unwrap() {
 
             // And it's a valid directory, enable the "New MyMod" button.
             if path.is_dir() { unsafe { mymod_stuff.borrow().new_mymod.as_mut().unwrap().set_enabled(true); }}
@@ -5240,7 +5245,7 @@ fn build_my_mod_menu(
                         }
 
                         // Get his new path from the base "MyMod" path + `mod_game`.
-                        let mut mymod_path = settings.paths.my_mods_base_path.clone().unwrap();
+                        let mut mymod_path = settings.paths.get("mymods_base_path").unwrap().clone().unwrap();
                         mymod_path.push(&mod_game);
 
                         // Just in case the folder doesn't exist, we try to create it.
@@ -5404,7 +5409,7 @@ fn build_my_mod_menu(
                             old_mod_name = mod_name.to_owned();
 
                             // And the "MyMod" path is configured...
-                            if let Some(ref mymods_base_path) = settings.paths.my_mods_base_path {
+                            if let Some(ref mymods_base_path) = settings.paths.get("mymods_base_path").unwrap() {
 
                                 // We get his path.
                                 let mut mymod_path = mymods_base_path.to_path_buf();
@@ -5504,7 +5509,7 @@ fn build_my_mod_menu(
                     Mode::MyMod {ref game_folder_name, ref mod_name} => {
 
                         // And the "MyMod" path is configured...
-                        if let Some(ref mymods_base_path) = settings.paths.my_mods_base_path {
+                        if let Some(ref mymods_base_path) = settings.paths.get("mymods_base_path").unwrap() {
 
                             // Get the Game Selected.
                             sender_qt.send(Commands::GetGameSelected).unwrap();
@@ -5628,10 +5633,10 @@ fn build_my_mod_menu(
     unsafe { menu_bar_mymod.as_mut().unwrap().add_separator(); }
 
     // If we have the "MyMod" path configured...
-    if let Some(ref my_mod_base_path) = settings.paths.my_mods_base_path {
+    if let Some(ref mymod_base_path) = settings.paths.get("mymods_base_path").unwrap() {
 
         // And can get without errors the folders in that path...
-        if let Ok(game_folder_list) = my_mod_base_path.read_dir() {
+        if let Ok(game_folder_list) = mymod_base_path.read_dir() {
 
             // We get all the games that have mods created (Folder exists and has at least a *.pack file inside).
             for game_folder in game_folder_list {
@@ -5726,7 +5731,7 @@ fn build_my_mod_menu(
     }
 
     // If there is a "MyMod" path set in the settings...
-    if let Some(ref path) = settings.paths.my_mods_base_path {
+    if let Some(ref path) = settings.paths.get("mymods_base_path").unwrap() {
 
         // And it's a valid directory, enable the "New MyMod" button.
         if path.is_dir() { unsafe { mymod_stuff.new_mymod.as_mut().unwrap().set_enabled(true); }}

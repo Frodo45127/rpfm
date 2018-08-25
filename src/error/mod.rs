@@ -64,9 +64,6 @@ pub enum ErrorKind {
     // Error for IO errors when using "read_dir()".
     IOReadFolder(PathBuf),
 
-    // Error for IO errors when saving the settings.
-    IOSaveSettings,
-
     //-----------------------------------------------------//
     //                TSV-related Errors
     //-----------------------------------------------------//
@@ -334,8 +331,6 @@ impl Display for ErrorKind {
             ErrorKind::IOCreateAssetFolder => write!(f, "<p>The MyMod's asset folder does not exists and it cannot be created.</p>"),
             ErrorKind::IOCreateNestedAssetFolder => write!(f, "<p>The folder does not exists and it cannot be created.</p>"),
             ErrorKind::IOReadFolder(path) => write!(f, "<p>Error while trying to read the following folder:</p><p>{:?}</p>", path),
-            ErrorKind::IOSaveSettings => write!(f, "<p>Error while trying to save the new settings to a file.</p><p>Please check that you can create files in RPFM folder and try again.</p>"),
-
             //-----------------------------------------------------//
             //                TSV-related Errors
             //-----------------------------------------------------//

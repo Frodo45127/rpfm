@@ -3555,7 +3555,7 @@ fn build_columns(
         unsafe { model.as_mut().unwrap().set_header_data((index as i32, Orientation::Horizontal, &Variant::new0(&QString::from_std_str(&new_name)))); }
 
         // If we want to let the columns resize themselfs...
-        if settings.adjust_columns_to_content {
+        if *settings.settings_bool.get("adjust_columns_to_content").unwrap() {
             unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().resize_sections(ResizeMode::ResizeToContents); }
         }
 
