@@ -200,6 +200,8 @@ pub enum Commands {
     DecodePackedFileImage,
     RenamePackedFile,
     GetPackedFile,
+    GetTableListFromDependencyPackFile,
+    GetTableVersionFromDependencyPackFile,
 }
 
 /// This struct contains all the "Special Stuff" Actions, so we can pass all of them to functions at once.
@@ -2498,7 +2500,7 @@ fn main() {
             receiver_qt => move |_| {
 
                 // Create the "New PackedFile" dialog and wait for his data (or a cancelation).
-                if let Some(packed_file_type) = create_new_packed_file_dialog(&app_ui, &sender_qt, &receiver_qt, PackedFileType::DB("".to_owned(), "".to_owned(), 0)) {
+                if let Some(packed_file_type) = create_new_packed_file_dialog(&app_ui, &sender_qt, &sender_qt_data, &receiver_qt, PackedFileType::DB("".to_owned(), "".to_owned(), 0)) {
 
                     // Check what we got to create....
                     match packed_file_type {
@@ -2572,7 +2574,7 @@ fn main() {
 
                 // TODO: Replace this with a result.
                 // Create the "New PackedFile" dialog and wait for his data (or a cancelation).
-                if let Some(packed_file_type) = create_new_packed_file_dialog(&app_ui, &sender_qt, &receiver_qt, PackedFileType::Loc("".to_owned())) {
+                if let Some(packed_file_type) = create_new_packed_file_dialog(&app_ui, &sender_qt, &sender_qt_data, &receiver_qt, PackedFileType::Loc("".to_owned())) {
 
                     // Check what we got to create....
                     match packed_file_type {
@@ -2653,7 +2655,7 @@ fn main() {
             receiver_qt => move |_| {
 
                 // Create the "New PackedFile" dialog and wait for his data (or a cancelation).
-                if let Some(packed_file_type) = create_new_packed_file_dialog(&app_ui, &sender_qt, &receiver_qt, PackedFileType::Text("".to_owned())) {
+                if let Some(packed_file_type) = create_new_packed_file_dialog(&app_ui, &sender_qt, &sender_qt_data, &receiver_qt, PackedFileType::Text("".to_owned())) {
 
                     // Check what we got to create....
                     match packed_file_type {
@@ -4847,6 +4849,34 @@ fn background_loop(
 
                         // Send back the PackedFile.
                         sender.send(serde_json::to_vec(&pack_file_decoded.data.packed_files[index]).map_err(From::from)).unwrap();
+                    }
+
+                    // In case we want to get the list of tables in the dependency database...
+                    Commands::GetTableListFromDependencyPackFile => {
+
+                        let tables = dependency_database.iter().filter(|x| x.path.len() > 2).filter(|x| x.path[1].ends_with("_tables")).map(|x| x.path[1].to_owned()).collect::<Vec<String>>();
+                        sender.send(serde_json::to_vec(&tables).map_err(From::from)).unwrap();
+                    }
+
+                    // In case we want to get the version of an specific table from the dependency database...
+                    Commands::GetTableVersionFromDependencyPackFile => {
+
+                        // Wait until we get the needed data from the UI thread.
+                        let table_name: String = match check_message_validity_recv_background(&receiver_data) {
+                            Ok(data) => data,
+                            Err(_) => panic!(THREADS_MESSAGE_ERROR),
+                        };
+
+                        let table_data = dependency_database.iter().filter(|x| x.path.len() > 2).filter(|x| x.path[1] == table_name).map(|x| x.data.to_vec()).collect::<Vec<Vec<u8>>>();
+                        match schema {
+                            Some(ref schema) => {
+                                match DB::read(&table_data[0], &table_name, &schema) {
+                                    Ok(table) => sender.send(serde_json::to_vec(&table.header.version).map_err(From::from)).unwrap(),
+                                    Err(error) => sender.send(Err(error)).unwrap(),
+                                }
+                            }
+                            None => sender.send(Err(Error::from(ErrorKind::SchemaNotFound))).unwrap(),
+                        }
                     }
                 }
             }

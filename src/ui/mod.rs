@@ -396,6 +396,7 @@ pub fn create_new_folder_dialog(app_ui: &AppUI) -> Option<String> {
 pub fn create_new_packed_file_dialog(
     app_ui: &AppUI,
     sender: &Sender<Commands>,
+    sender_data: &Sender<Result<Vec<u8>>>,
     receiver: &Rc<RefCell<Receiver<Result<Vec<u8>>>>>,
     packed_file_type: PackedFileType
 ) -> Option<Result<PackedFileType>> {
@@ -448,6 +449,13 @@ pub fn create_new_packed_file_dialog(
     // If it's a DB Table...
     if let PackedFileType::DB(_,_,_) = packed_file_type {
 
+        // Get a list of all the tables currently in use by the selected game.
+        sender.send(Commands::GetTableListFromDependencyPackFile).unwrap();
+        let tables: Vec<String> = match check_message_validity_recv(&receiver) {
+            Ok(data) => data,
+            Err(_) => panic!(THREADS_MESSAGE_ERROR),
+        };
+
         // Get the current schema.
         sender.send(Commands::GetSchema).unwrap();
         let schema: Option<Schema> = match check_message_validity_recv(&receiver) {
@@ -461,8 +469,8 @@ pub fn create_new_packed_file_dialog(
             // If we have an schema...
             Some(schema) => {
 
-                // Add every table to the dropdown.
-                schema.tables_definitions.iter().for_each(|x| table_dropdown.add_item(&QString::from_std_str(&x.name)));
+                // Add every table to the dropdown if exists in the dependency database.
+                schema.tables_definitions.iter().filter(|x| tables.contains(&x.name)).for_each(|x| table_dropdown.add_item(&QString::from_std_str(&x.name)));
 
                 // Add the dropdown to the dialog.
                 unsafe { main_grid.as_mut().unwrap().add_widget((table_dropdown.static_cast_mut() as *mut Widget, 1, 0, 1, 1)); }
@@ -506,12 +514,22 @@ pub fn create_new_packed_file_dialog(
 
                         // Get the table and his version.
                         let table = table_dropdown.current_text().to_std_string();
-                        let table_schema = schema.tables_definitions.iter().filter(|x| x.name == table).cloned().collect::<Vec<TableDefinitions>>();
-                        let mut versions = table_schema[0].versions.iter().map(|x| x.version).collect::<Vec<u32>>();
-                        versions.sort();
-                        let version = versions[0];
 
-                        Some(Ok(PackedFileType::DB(packed_file_name, table, version)))
+                        // Get the data of the table used in the dependency database.
+                        sender.send(Commands::GetTableVersionFromDependencyPackFile).unwrap();
+                        sender_data.send(serde_json::to_vec(&table).map_err(From::from)).unwrap();
+                        let version: u32 = match check_message_validity_recv(&receiver) {
+                            Ok(data) => data,
+                            Err(_) => panic!(THREADS_MESSAGE_ERROR),
+                        };
+
+                        let table_schema = schema.tables_definitions.iter().filter(|x| x.name == table).cloned().collect::<Vec<TableDefinitions>>();
+                        let valid_versions = table_schema[0].versions.iter().map(|x| x.version).collect::<Vec<u32>>();
+
+                        if valid_versions.contains(&version) {
+                            Some(Ok(PackedFileType::DB(packed_file_name, table, version)))
+                        }
+                        else { return Some(Err(Error::from(ErrorKind::SchemaTableDefinitionNotFound))) }
                     }
 
                     // If we don't have an schema, return Some(Error).
