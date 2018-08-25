@@ -8,6 +8,8 @@ use std::io::BufReader;
 
 use error::{ErrorKind, Result};
 
+pub mod shortcuts;
+
 /// `GameInfo`: This struct holds all the info needed for a game to be "supported" by RPFM features.
 /// It's stores the following data:
 /// - `display_name`: This is the name it'll show up in the UI. For example, in a dropdown (Warhammer 2).

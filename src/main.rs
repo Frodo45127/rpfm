@@ -79,6 +79,7 @@ use packedfile::db::schemas::*;
 use packedfile::db::schemas_importer::*;
 use packedfile::rigidmodel::*;
 use settings::*;
+use settings::shortcuts::Shortcuts;
 use updater::*;
 use ui::*;
 use ui::packedfile_db::*;
@@ -158,6 +159,8 @@ pub enum Commands {
     SaveSchema,
     GetSettings,
     SetSettings,
+    GetShortcuts,
+    SetShortcuts,
     GetGameSelected,
     SetGameSelected,
     GetPackFileHeader,
@@ -593,13 +596,25 @@ fn main() {
         // Shortcuts for the Menu Bar...
         //---------------------------------------------------------------------------------------//
 
+        // Get the current shortcuts.
+        sender_qt.send(Commands::GetShortcuts).unwrap();
+        let shortcuts: Shortcuts = match check_message_validity_recv_background(&receiver_qt) {
+            Ok(data) => data,
+            Err(_) => panic!(THREADS_MESSAGE_ERROR)
+        };
+
         // Set the shortcuts for these actions.
-        unsafe { app_ui.new_packfile.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+n"))); }
-        unsafe { app_ui.open_packfile.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+o"))); }
-        unsafe { app_ui.save_packfile.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+s"))); }
-        unsafe { app_ui.save_packfile_as.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+shift+s"))); }
-        unsafe { app_ui.preferences.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+p"))); }
-        unsafe { app_ui.quit.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+q"))); }
+        unsafe { app_ui.new_packfile.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.menu_bar_packfile.get("new_packfile").unwrap()))); }
+        unsafe { app_ui.open_packfile.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.menu_bar_packfile.get("open_packfile").unwrap()))); }
+        unsafe { app_ui.save_packfile.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.menu_bar_packfile.get("save_packfile").unwrap()))); }
+        unsafe { app_ui.save_packfile_as.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.menu_bar_packfile.get("save_packfile_as").unwrap()))); }
+        unsafe { app_ui.preferences.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.menu_bar_packfile.get("preferences").unwrap()))); }
+        unsafe { app_ui.quit.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.menu_bar_packfile.get("quit").unwrap()))); }
+
+        unsafe { app_ui.about_qt.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.menu_bar_about.get("about_qt").unwrap()))); }
+        unsafe { app_ui.about_rpfm.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.menu_bar_about.get("about_rpfm").unwrap()))); }
+        unsafe { app_ui.check_updates.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.menu_bar_about.get("check_updates").unwrap()))); }
+        unsafe { app_ui.check_schema_updates.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.menu_bar_about.get("check_schema_updates").unwrap()))); }
 
         // Set the shortcuts to only trigger in the TreeView.
         unsafe { app_ui.new_packfile.as_mut().unwrap().set_shortcut_context(ShortcutContext::Application); }
@@ -608,6 +623,11 @@ fn main() {
         unsafe { app_ui.save_packfile_as.as_mut().unwrap().set_shortcut_context(ShortcutContext::Application); }
         unsafe { app_ui.preferences.as_mut().unwrap().set_shortcut_context(ShortcutContext::Application); }
         unsafe { app_ui.quit.as_mut().unwrap().set_shortcut_context(ShortcutContext::Application); }
+
+        unsafe { app_ui.about_qt.as_mut().unwrap().set_shortcut_context(ShortcutContext::Application); }
+        unsafe { app_ui.about_rpfm.as_mut().unwrap().set_shortcut_context(ShortcutContext::Application); }
+        unsafe { app_ui.check_updates.as_mut().unwrap().set_shortcut_context(ShortcutContext::Application); }
+        unsafe { app_ui.check_schema_updates.as_mut().unwrap().set_shortcut_context(ShortcutContext::Application); }
 
         //---------------------------------------------------------------------------------------//
         // Preparing initial state of the Main Window...
@@ -670,19 +690,19 @@ fn main() {
         }
 
         // Set the shortcuts for these actions.
-        unsafe { app_ui.context_menu_add_file.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+shift+a"))); }
-        unsafe { app_ui.context_menu_add_folder.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+shift+f"))); }
-        unsafe { app_ui.context_menu_add_from_packfile.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+shift+p"))); }
-        unsafe { app_ui.context_menu_create_folder.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+l"))); }
-        unsafe { app_ui.context_menu_create_db.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+b"))); }
-        unsafe { app_ui.context_menu_create_loc.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+n"))); }
-        unsafe { app_ui.context_menu_create_text.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+m"))); }
-        unsafe { app_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+."))); }
-        unsafe { app_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+,"))); }
-        unsafe { app_ui.context_menu_delete.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+del"))); }
-        unsafe { app_ui.context_menu_extract.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+e"))); }
-        unsafe { app_ui.context_menu_rename.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+r"))); }
-        unsafe { app_ui.context_menu_open_decoder.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("ctrl+j"))); }
+        unsafe { app_ui.context_menu_add_file.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("add_file").unwrap()))); }
+        unsafe { app_ui.context_menu_add_folder.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("add_folder").unwrap()))); }
+        unsafe { app_ui.context_menu_add_from_packfile.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("add_from_packfile").unwrap()))); }
+        unsafe { app_ui.context_menu_create_folder.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("create_folder").unwrap()))); }
+        unsafe { app_ui.context_menu_create_db.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("create_db").unwrap()))); }
+        unsafe { app_ui.context_menu_create_loc.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("create_loc").unwrap()))); }
+        unsafe { app_ui.context_menu_create_text.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("create_text").unwrap()))); }
+        unsafe { app_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("mass_import_tsv").unwrap()))); }
+        unsafe { app_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("mass_export_tsv").unwrap()))); }
+        unsafe { app_ui.context_menu_delete.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("delete").unwrap()))); }
+        unsafe { app_ui.context_menu_extract.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("extract").unwrap()))); }
+        unsafe { app_ui.context_menu_rename.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("rename").unwrap()))); }
+        unsafe { app_ui.context_menu_open_decoder.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("open_in_decoder").unwrap()))); }
 
         // Set the shortcuts to only trigger in the TreeView.
         unsafe { app_ui.context_menu_add_file.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
@@ -1393,7 +1413,7 @@ fn main() {
                 };
 
                 // Create the Settings Dialog. If we got new settings...
-                if let Some(settings) = SettingsDialog::create_settings_dialog(&app_ui, &old_settings, &supported_games) {
+                if let Some(settings) = SettingsDialog::create_settings_dialog(&app_ui, &old_settings, &supported_games, &sender_qt, &sender_qt_data, receiver_qt.clone()) {
 
                     // Send the signal to save them.
                     sender_qt.send(Commands::SetSettings).unwrap();
@@ -3763,6 +3783,9 @@ fn background_loop(
     // We load the settings here, and in case they doesn't exist or they are not valid, we create them.
     let mut settings = Settings::load(&rpfm_path, &supported_games).unwrap_or_else(|_|Settings::new(&supported_games));
 
+    // Same with the shortcuts.
+    let mut shortcuts = Shortcuts::load(&rpfm_path).unwrap_or_else(|_|Shortcuts::new());
+
     // We prepare the schema object to hold an Schema, leaving it as `None` by default.
     let mut schema: Option<Schema> = None;
 
@@ -4021,6 +4044,32 @@ fn background_loop(
 
                         // Save our Settings to a settings file, and report in case of error.
                         match settings.save(&rpfm_path) {
+                            Ok(()) => sender.send(serde_json::to_vec(&()).map_err(From::from)).unwrap(),
+                            Err(error) => sender.send(Err(error)).unwrap(),
+                        }
+                    }
+
+                    // In case we want to get the current shortcuts...
+                    Commands::GetShortcuts => {
+
+                        // Send the current shortcuts back to the UI thread.
+                        sender.send(serde_json::to_vec(&shortcuts).map_err(From::from)).unwrap();
+                    }
+
+                    // In case we want to change the current shortcuts...
+                    Commands::SetShortcuts => {
+
+                        // Wait until we get the needed data from the UI thread.
+                        let new_shortcuts = match check_message_validity_recv_background(&receiver_data) {
+                            Ok(data) => data,
+                            Err(_) => panic!(THREADS_MESSAGE_ERROR),
+                        };
+
+                        // Update our current settings with the ones we received from the UI.
+                        shortcuts = new_shortcuts;
+
+                        // Save our Shortcuts to a shortcuts file, and report in case of error.
+                        match shortcuts.save(&rpfm_path) {
                             Ok(()) => sender.send(serde_json::to_vec(&()).map_err(From::from)).unwrap(),
                             Err(error) => sender.send(Err(error)).unwrap(),
                         }

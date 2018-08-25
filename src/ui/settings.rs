@@ -1,4 +1,5 @@
 // Here it goes all the stuff related with "Settings" and "My Mod" windows.
+extern crate serde_json;
 extern crate qt_widgets;
 extern crate qt_gui;
 extern crate qt_core;
@@ -24,13 +25,21 @@ use qt_core::connection::Signal;
 use qt_core::slots::SlotNoArgs;
 use cpp_utils::StaticCast;
 
+use std::sync::mpsc::{Sender, Receiver};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::path::{Path, PathBuf};
 
+use AppUI;
+use Commands;
+use QString;
+use common::*;
+use error::{ErrorKind, Result};
 use settings::GameInfo;
 use settings::Settings;
-use super::*;
+use settings::shortcuts::Shortcuts;
+use super::shortcuts::ShortcutsDialog;
+use super::show_dialog;
 
 /// `SettingsDialog`: This struct holds all the relevant stuff for the Settings Dialog.
 pub struct SettingsDialog {
@@ -61,7 +70,10 @@ impl SettingsDialog {
     pub fn create_settings_dialog(
         app_ui: &AppUI,
         settings: &Settings,
-        supported_games: &[GameInfo]
+        supported_games: &[GameInfo],
+        sender_qt: &Sender<Commands>,
+        sender_qt_data: &Sender<Result<Vec<u8>>>,
+        receiver_qt: Rc<RefCell<Receiver<Result<Vec<u8>>>>>, 
     ) -> Option<Settings> {
 
         //-------------------------------------------------------------------------------------------//
@@ -134,13 +146,21 @@ impl SettingsDialog {
         let mut adjust_columns_to_content_label = Label::new(&QString::from_std_str("Adjust Columns to Content:"));
         let mut adjust_columns_to_content_checkbox = CheckBox::new(());
 
-        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((adjust_columns_to_content_label.static_cast_mut() as *mut Widget, 0, 0, 1, 1)); }
-        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((adjust_columns_to_content_checkbox.static_cast_mut() as *mut Widget, 0, 1, 1, 1)); }
+        let mut shortcuts_label = Label::new(&QString::from_std_str("See/Change Shortcuts:"));
+        let mut shortcuts_button = PushButton::new(&QString::from_std_str("Shortcuts"));
 
-        // Tip for the checkbox.
+        // Tips for the UI settings.
         let adjust_columns_to_content_tip = QString::from_std_str("If you enable this, when you open a DB Table or Loc File, all columns will be automatically resized depending on their content's size.\nOtherwise, columns will have a predefined size. Either way, you'll be able to resize them manually after the initial resize.\nNOTE: This KILLS PERFORMANCE in very big tables.");
+        let shortcuts_tip = QString::from_std_str("See/change the shortcuts from here if you don't like them. Changes are applied on restart of the program.");
         adjust_columns_to_content_label.set_tool_tip(&adjust_columns_to_content_tip);
         adjust_columns_to_content_checkbox.set_tool_tip(&adjust_columns_to_content_tip);
+        shortcuts_label.set_tool_tip(&shortcuts_tip);
+        shortcuts_button.set_tool_tip(&shortcuts_tip);
+
+        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((adjust_columns_to_content_label.static_cast_mut() as *mut Widget, 0, 0, 1, 1)); }
+        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((adjust_columns_to_content_checkbox.static_cast_mut() as *mut Widget, 0, 1, 1, 1)); }
+        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((shortcuts_label.static_cast_mut() as *mut Widget, 1, 0, 1, 1)); }
+        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((shortcuts_button.static_cast_mut() as *mut Widget, 1, 1, 1, 1)); }
 
         // Create the "Extra Settings" frame and Grid.
         let extra_settings_frame = GroupBox::new(&QString::from_std_str("Extra Settings")).into_raw();
@@ -242,6 +262,46 @@ impl SettingsDialog {
             }));
         }
 
+        // What happens when we hit the "Shortcuts" button.
+        let slot_shortcuts = SlotNoArgs::new(clone!(
+            sender_qt,
+            sender_qt_data,
+            receiver_qt => move || {
+
+                // Try to get the current Shortcuts.
+                sender_qt.send(Commands::GetShortcuts).unwrap();
+                let old_shortcuts: Shortcuts = match check_message_validity_recv(&receiver_qt) {
+                    Ok(data) => data,
+                    Err(_) => panic!(THREADS_MESSAGE_ERROR)
+                };
+
+                // Create the Shortcuts Dialog. If we got new shortcuts...
+                if let Some(shortcuts) = ShortcutsDialog::create_shortcuts_dialog(dialog, &old_shortcuts) {
+
+                    // Send the signal to save them.
+                    sender_qt.send(Commands::SetShortcuts).unwrap();
+                    sender_qt_data.send(serde_json::to_vec(&shortcuts).map_err(From::from)).unwrap();
+
+                    // Wait until you got a response.
+                    let response: Result<()> = check_message_validity_recv(&receiver_qt);
+
+                    // If we got an error...
+                    if let Err(error) = response {
+
+                        // We must check what kind of error it's.
+                        match error.kind() {
+
+                            // If there was and IO error while saving the settings, report it.
+                            ErrorKind::IOPermissionDenied | ErrorKind::IOFileNotFound | ErrorKind::IOGeneric => show_dialog(app_ui.window, false, error.kind()),
+
+                            // In ANY other situation, it's a message problem.
+                            _ => panic!(THREADS_MESSAGE_ERROR)
+                        }
+                    }
+                }
+            }
+        ));
+
         //-------------------------------------------------------------------------------------------//
         // Actions for the Settings Dialog...
         //-------------------------------------------------------------------------------------------//
@@ -253,6 +313,9 @@ impl SettingsDialog {
         for (index, button) in game_buttons.iter().enumerate() {
             unsafe { button.as_mut().unwrap().signals().released().connect(&slots_select_paths[index]); }
         }
+
+        // What happens when we hit the "Shortcuts" button.
+        shortcuts_button.signals().released().connect(&slot_shortcuts);
 
         // What happens when we hit the "Cancel" button.
         unsafe { cancel_button.as_mut().unwrap().signals().released().connect(&dialog.as_mut().unwrap().slots().close()); }
@@ -298,7 +361,6 @@ impl SettingsDialog {
 
         // What happens when we hit the "Restore Default" button.
         unsafe { restore_default_button.as_mut().unwrap().signals().released().connect(&slot_restore_default); }
-
 
         // Show the Dialog, save the current settings, and return them.
         unsafe { if dialog.as_mut().unwrap().exec() == 1 { Some(settings_dialog.borrow().save_from_settings_dialog(supported_games)) }

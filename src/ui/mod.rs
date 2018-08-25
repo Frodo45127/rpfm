@@ -59,6 +59,7 @@ pub mod packedfile_text;
 pub mod packedfile_image;
 pub mod packedfile_rigidmodel;
 pub mod settings;
+pub mod shortcuts;
 pub mod updater;
 
 //----------------------------------------------------------------------------//
