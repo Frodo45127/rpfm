@@ -975,13 +975,9 @@ pub fn purge_them_all(app_ui: &AppUI, is_packedfile_opened: &Rc<RefCell<bool>>) 
 pub fn display_help_tips(app_ui: &AppUI) {
 
     let label = Label::new(&QString::from_std_str("Welcome to Rusted PackFile Manager! Here you have some tips on how to use it:
-    - If you just downloaded, go to 'PackFile/Preferences' and configure there what you need.
-    - Then, open a PackFile of the Games you have, go to 'Special Stuff/YourGames/Generate Dependency PackFile'. Once per game.
-    - Make sure the right game is selected under 'Game Selected' before you do it.
-    - Once you've done that for each game, RPFM will be ready to be used.
-    - Remember to re-generate the 'Dependency PackFiles' once their game is updated.
+    - Read the manual. It's in 'About/Open Manual'. It explains how to configure RPFM and how to use it.
     - To know what each option in 'Preferences' do, left the mouse over the option for one second and a tooltip will pop up.
-    - In the 'About' Menu, in 'About RPFM' you can find links to the Source Code and the Patreon of the Project. Both places are suitable to provide feedback.")).into_raw();
+    - In the 'About' Menu, in 'About RPFM' you can find links to the Source Code and the Patreon of the Project.")).into_raw();
 
     unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((label as *mut Widget, 0, 0, 1, 1)); }
 }
