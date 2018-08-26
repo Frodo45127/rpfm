@@ -103,12 +103,9 @@ impl ShortcutsDialog {
         let menu_bar_packfile_model = StandardItemModel::new(()).into_raw();
         unsafe { menu_bar_packfile_table.as_mut().unwrap().set_model(menu_bar_packfile_model as *mut AbstractItemModel); }
 
-        // Disable sorting the columns.
+        // Disable sorting the columns and enlarge the last column.
         unsafe { menu_bar_packfile_table.as_mut().unwrap().set_sorting_enabled(false); }
-
-        // Rename the columns.
-        unsafe { menu_bar_packfile_model.as_mut().unwrap().set_header_data((0, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Action")))); }
-        unsafe { menu_bar_packfile_model.as_mut().unwrap().set_header_data((1, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Shortcut")))); }
+        unsafe { menu_bar_packfile_table.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_stretch_last_section(true); }
 
         // Add all the Lists to their respective grids.
         unsafe { packfile_grid.add_widget((menu_bar_packfile_table as *mut Widget, 0, 0, 1, 1)); }
@@ -128,12 +125,9 @@ impl ShortcutsDialog {
         let menu_bar_about_model = StandardItemModel::new(()).into_raw();
         unsafe { menu_bar_about_table.as_mut().unwrap().set_model(menu_bar_about_model as *mut AbstractItemModel); }
 
-        // Disable sorting the columns.
+        // Disable sorting the columns and enlarge the last column.
         unsafe { menu_bar_about_table.as_mut().unwrap().set_sorting_enabled(false); }
-
-        // Rename the columns.
-        unsafe { menu_bar_about_model.as_mut().unwrap().set_header_data((0, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Action")))); }
-        unsafe { menu_bar_about_model.as_mut().unwrap().set_header_data((1, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Shortcut")))); }
+        unsafe { menu_bar_about_table.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_stretch_last_section(true); }
 
         // Add all the Lists to their respective grids.
         unsafe { about_grid.add_widget((menu_bar_about_table as *mut Widget, 0, 0, 1, 1)); }
@@ -148,12 +142,9 @@ impl ShortcutsDialog {
         let tree_view_context_menu_model = StandardItemModel::new(()).into_raw();
         unsafe { tree_view_context_menu_table.as_mut().unwrap().set_model(tree_view_context_menu_model as *mut AbstractItemModel); }
 
-        // Disable sorting the columns.
+        // Disable sorting the columns and enlarge the last column.
         unsafe { tree_view_context_menu_table.as_mut().unwrap().set_sorting_enabled(false); }
-
-        // Rename the columns.
-        unsafe { tree_view_context_menu_model.as_mut().unwrap().set_header_data((0, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Action")))); }
-        unsafe { tree_view_context_menu_model.as_mut().unwrap().set_header_data((1, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Shortcut")))); }
+        unsafe { tree_view_context_menu_table.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_stretch_last_section(true); }
 
         // Add all the Lists to their respective grids.
         unsafe { tree_view_context_menu_grid.add_widget((tree_view_context_menu_table as *mut Widget, 0, 0, 1, 1)); }
@@ -172,12 +163,9 @@ impl ShortcutsDialog {
         let db_context_menu_model = StandardItemModel::new(()).into_raw();
         unsafe { db_context_menu_table.as_mut().unwrap().set_model(db_context_menu_model as *mut AbstractItemModel); }
 
-        // Disable sorting the columns.
+        // Disable sorting the columns and enlarge the last column.
         unsafe { db_context_menu_table.as_mut().unwrap().set_sorting_enabled(false); }
-
-        // Rename the columns.
-        unsafe { db_context_menu_model.as_mut().unwrap().set_header_data((0, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Action")))); }
-        unsafe { db_context_menu_model.as_mut().unwrap().set_header_data((1, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Shortcut")))); }
+        unsafe { db_context_menu_table.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_stretch_last_section(true); }
 
         // Add all the Lists to their respective grids.
         unsafe { db_grid.add_widget((db_context_menu_table as *mut Widget, 0, 0, 1, 1)); }
@@ -197,12 +185,9 @@ impl ShortcutsDialog {
         let loc_context_menu_model = StandardItemModel::new(()).into_raw();
         unsafe { loc_context_menu_table.as_mut().unwrap().set_model(loc_context_menu_model as *mut AbstractItemModel); }
 
-        // Disable sorting the columns.
+        // Disable sorting the columns and enlarge the last column.
         unsafe { loc_context_menu_table.as_mut().unwrap().set_sorting_enabled(false); }
-
-          // Rename the columns.
-        unsafe { loc_context_menu_model.as_mut().unwrap().set_header_data((0, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Action")))); }
-        unsafe { loc_context_menu_model.as_mut().unwrap().set_header_data((1, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Shortcut")))); }
+        unsafe { loc_context_menu_table.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_stretch_last_section(true); }
 
         // Add all the Lists to their respective grids.
         unsafe { loc_grid.add_widget((loc_context_menu_table as *mut Widget, 0, 0, 1, 1)); }
@@ -222,12 +207,9 @@ impl ShortcutsDialog {
         let fields_context_menu_model = StandardItemModel::new(()).into_raw();
         unsafe { fields_context_menu_table.as_mut().unwrap().set_model(fields_context_menu_model as *mut AbstractItemModel); }
 
-        // Disable sorting the columns.
+        // Disable sorting the columns and enlarge the last column.
         unsafe { fields_context_menu_table.as_mut().unwrap().set_sorting_enabled(false); }
-
-        // Rename the columns.
-        unsafe { fields_context_menu_model.as_mut().unwrap().set_header_data((0, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Action")))); }
-        unsafe { fields_context_menu_model.as_mut().unwrap().set_header_data((1, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Shortcut")))); }
+        unsafe { fields_context_menu_table.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_stretch_last_section(true); }
 
         // Add all the Lists to their respective grids.
         unsafe { fields_grid.add_widget((fields_context_menu_table as *mut Widget, 0, 0, 1, 1)); }
@@ -247,12 +229,9 @@ impl ShortcutsDialog {
         let versions_context_menu_model = StandardItemModel::new(()).into_raw();
         unsafe { versions_context_menu_table.as_mut().unwrap().set_model(versions_context_menu_model as *mut AbstractItemModel); }
 
-        // Disable sorting the columns.
+        // Disable sorting the columns and enlarge the last column.
         unsafe { versions_context_menu_table.as_mut().unwrap().set_sorting_enabled(false); }
-
-        // Rename the columns.
-        unsafe { versions_context_menu_model.as_mut().unwrap().set_header_data((0, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Action")))); }
-        unsafe { versions_context_menu_model.as_mut().unwrap().set_header_data((1, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Shortcut")))); }
+        unsafe { versions_context_menu_table.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_stretch_last_section(true); }
 
         // Add all the Lists to their respective grids.
         unsafe { versions_grid.add_widget((versions_context_menu_table as *mut Widget, 0, 0, 1, 1)); }
@@ -405,6 +384,28 @@ impl ShortcutsDialog {
             unsafe { row_list.at(0).as_mut().unwrap().set_editable(false); }
             unsafe { self.db_decoder_definitions.as_mut().unwrap().append_row(&row_list); }
         }
+
+        // Rename the columns.
+        unsafe { self.menu_bar_packfile.as_mut().unwrap().set_header_data((0, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Action")))); }
+        unsafe { self.menu_bar_packfile.as_mut().unwrap().set_header_data((1, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Shortcut")))); }
+
+        unsafe { self.menu_bar_about.as_mut().unwrap().set_header_data((0, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Action")))); }
+        unsafe { self.menu_bar_about.as_mut().unwrap().set_header_data((1, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Shortcut")))); }
+        
+        unsafe { self.tree_view.as_mut().unwrap().set_header_data((0, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Action")))); }
+        unsafe { self.tree_view.as_mut().unwrap().set_header_data((1, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Shortcut")))); }
+        
+        unsafe { self.packed_files_db.as_mut().unwrap().set_header_data((0, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Action")))); }
+        unsafe { self.packed_files_db.as_mut().unwrap().set_header_data((1, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Shortcut")))); }
+        
+        unsafe { self.packed_files_loc.as_mut().unwrap().set_header_data((0, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Action")))); }
+        unsafe { self.packed_files_loc.as_mut().unwrap().set_header_data((1, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Shortcut")))); }
+        
+        unsafe { self.db_decoder_fields.as_mut().unwrap().set_header_data((0, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Action")))); }
+        unsafe { self.db_decoder_fields.as_mut().unwrap().set_header_data((1, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Shortcut")))); }
+        
+        unsafe { self.db_decoder_definitions.as_mut().unwrap().set_header_data((0, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Action")))); }
+        unsafe { self.db_decoder_definitions.as_mut().unwrap().set_header_data((1, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Shortcut")))); }
     }
 
     /// This function gets the data from the `ShortcutsDialog` and returns a `Shortcuts` struct with that data in it.
