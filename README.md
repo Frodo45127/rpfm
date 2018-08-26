@@ -24,7 +24,7 @@ RPFM currently supports:
 - **TW: Rome 2**.
 - **TW: Arena** (Read-Only and not complete table support).
 
-It can do more or less what PFM can do, but faster and, in some times, even better. If you want to know all the features RPFM has to offer, you can check the manual that it comes with it. It's included in RPFM release since 1.0, and you can open it by going to ***"About/Open Manual"***.
+It can do more or less what PFM can do, but faster and, in some times, even better. If you want to know all the features RPFM has to offer, you can check the manual that it comes with it. It's included in RPFM release since 1.0, and you can open it by going to ***About/Open Manual***.
 
 # Requirements (to use)
 To use the ***Windows*** version, there are no requirements. Just extract it somewhere and execute it. After that, you need to go to settings, configure the paths of the games you have installed there. Otherwise, many features will not work.
