@@ -1,28 +1,20 @@
 // In this file are all the functions that the UI needs to interact with the PackFile logic.
-// As a rule, there should be no GTK-related stuff in this module or his childrens.
+// As a rule, there should be no UI-related stuff in this module or his childrens.
 
-extern crate failure;
-
-use std::fs::{
-    File, DirBuilder, copy,
-};
-use std::io::{
-    Read, Write
-};
-
-use std::cell::RefCell;
-use std::rc::Rc;
+// use std::fs::{File, DirBuilder, copy};
+use std::fs::{File, DirBuilder};
+use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::io::BufReader;
 use std::io::BufWriter;
 use std::io::prelude::*;
 use std::io::SeekFrom;
 
-use failure::Error;
-
 use common::*;
+use error::{ErrorKind, Result};
 use packedfile::loc::Loc;
-use packedfile::db::DB;
+use packedfile::db::{DB, DBHeader};
+use packedfile::db::schemas::Schema;
 use packedfile::rigidmodel::RigidModel;
 
 pub mod packfile;
@@ -38,10 +30,9 @@ pub fn new_packfile(file_name: String, packfile_id: &str) -> packfile::PackFile 
     packfile::PackFile::new_with_name(file_name, packfile_id)
 }
 
-
 /// This function is used to open the PackFiles. It requires the path of the PackFile to open, and
 /// it returns the PackFile decoded (if success) or an error message (if error).
-pub fn open_packfile(pack_file_path: PathBuf) -> Result<packfile::PackFile, Error> {
+pub fn open_packfile(pack_file_path: PathBuf) -> Result<packfile::PackFile> {
 
     // First, we get his name.
     let pack_file_name = pack_file_path.file_name().unwrap().to_str().unwrap().to_string();
@@ -57,12 +48,12 @@ pub fn open_packfile(pack_file_path: PathBuf) -> Result<packfile::PackFile, Erro
     }
 
     // Otherwise, return an error.
-    else { Err(format_err!("A valid PackFile name needs to end in \".pack\". Otherwise, RPFM will not open it.")) }
+    else { Err(ErrorKind::OpenPackFileInvalidExtension)? }
 }
 
 /// This function is used to open the PackFiles. It requires the path of the PackFile to open, and
 /// it returns the PackFile decoded (if success) or an error message (if error).
-pub fn open_packfile_with_bufreader(pack_file_path: PathBuf) -> Result<(packfile::PackFile, BufReader<File>), Error> {
+pub fn open_packfile_with_bufreader(pack_file_path: PathBuf) -> Result<(packfile::PackFile, BufReader<File>)> {
 
     // First, we get his name.
     let pack_file_name = pack_file_path.file_name().unwrap().to_str().unwrap().to_string();
@@ -78,7 +69,7 @@ pub fn open_packfile_with_bufreader(pack_file_path: PathBuf) -> Result<(packfile
     }
 
     // Otherwise, return an error.
-    else { Err(format_err!("A valid PackFile name needs to end in \".pack\". Otherwise, RPFM will not open it.")) }
+    else { Err(ErrorKind::OpenPackFileInvalidExtension)? }
 }
 
 /// This function is used to take an open PackFile, encode it and save it into the disk. We return
@@ -88,9 +79,9 @@ pub fn open_packfile_with_bufreader(pack_file_path: PathBuf) -> Result<(packfile
 /// - new_path: an Option<PathBuf> with the path were we are going to save the PackFile. None if we
 ///   are saving it in the same path it's when we opened it.
 pub fn save_packfile(
-    pack_file: &mut packfile::PackFile,
+    mut pack_file: &mut packfile::PackFile,
     new_path: Option<PathBuf>
-) -> Result<(), Error> {
+) -> Result<()> {
 
     // If we haven't received a new_path, we assume the path is the original path of the file.
     // If that one is empty too (should never happen), we panic and cry.
@@ -102,7 +93,7 @@ pub fn save_packfile(
             // Update the data of the PackFile's path.
             pack_file.extra_data.file_name = new_path.file_name().unwrap().to_string_lossy().as_ref().to_owned();
             pack_file.extra_data.file_path = new_path;
-            &pack_file.extra_data.file_path
+            pack_file.extra_data.file_path.to_path_buf()
         },
 
         // If we haven't received a new path...
@@ -110,21 +101,20 @@ pub fn save_packfile(
 
             // If the current path exists, use it.
             if pack_file.extra_data.file_path.exists() {
-                &pack_file.extra_data.file_path
+                pack_file.extra_data.file_path.to_path_buf()
             }
 
-            // Otherwise, return error.
-            else { return Err( format_err!("Saving a PackFile with an empty path is almost as bad as dividing by 0. Almost.")) }
+            // Unless I fuck up the code in an impressive way, this is unreachable.
+            else { unreachable!() }
         }
     };
 
     // We try to create the File.
-    let mut file = BufWriter::new(File::create(&pack_file_path)?);
+    let mut file = BufWriter::new(File::create(pack_file_path)?);
 
     // And we try to save it.
-    packfile::PackFile::save(&pack_file, &mut file)
+    packfile::PackFile::save(&mut pack_file, &mut file)
 }
-
 
 /// This function is used to add a file to a PackFile, processing it and turning it into a PackedFile.
 /// It returns a success or error message, depending on whether the file has been added, or not.
@@ -136,10 +126,35 @@ pub fn add_file_to_packfile(
     pack_file: &mut packfile::PackFile,
     file_path: &PathBuf,
     tree_path: Vec<String>
-) -> Result<String, Error> {
+) -> Result<()> {
 
-    // Before anything, check for duplicates.
-    if !pack_file.data.packedfile_exists(&tree_path) {
+    // If there is already a PackedFile in that path...
+    if pack_file.data.packedfile_exists(&tree_path) {
+
+        // Create the theorical path of the PackedFile.
+        let mut theorical_path = tree_path.to_vec();
+        theorical_path.insert(0, pack_file.extra_data.file_name.to_owned());
+
+        // Get the destination PackedFile. If it fails, CTD because it's a code problem.
+        let packed_file = if let TreePathType::File((_, index)) = get_type_of_selected_path(&theorical_path, pack_file) {
+            &mut pack_file.data.packed_files[index]
+        } else { unreachable!() };
+
+        // We get the data and his size...
+        packed_file.data = vec![];
+        let mut file = BufReader::new(File::open(&file_path)?);
+        file.read_to_end(&mut packed_file.data)?;
+        packed_file.size = packed_file.data.len() as u32;
+
+        // Change his last modified time.
+        packed_file.timestamp = get_last_modified_time_from_file(&file.get_ref());
+
+        // And then, return sucess.
+        Ok(())
+    }
+
+    // Otherwise, we add it as a new PackedFile.
+    else {
 
         // We get the data and his size...
         let mut file_data = vec![];
@@ -148,13 +163,11 @@ pub fn add_file_to_packfile(
         let file_size = file_data.len() as u32;
 
         // And then we make a PackedFile with it and save it.
-        let packed_files = vec![packfile::PackedFile::read(file_size, tree_path, file_data); 1];
+        let packed_files = vec![packfile::PackedFile::read(file_size, get_last_modified_time_from_file(&file.get_ref()), tree_path, file_data); 1];
         pack_file.add_packedfiles(packed_files);
-        Ok(format!("File added."))
+        Ok(())
     }
-    else { Err(format_err!("The PackedFile \"{}\" already exist. Ignored.", tree_path.last().unwrap())) }
 }
-
 
 /// This function is used to add one or many PackedFiles to a PackFile (from another PackFile).
 /// It returns a success or error message, depending on whether the PackedFile has been added, or not.
@@ -162,252 +175,165 @@ pub fn add_file_to_packfile(
 /// - pack_file_source_buffer: &mut BufReader<File>, over the source PackFile.
 /// - pack_file_source: a &pack_file::PackFile. It's the PackFile from we are going to take the PackedFile.
 /// - pack_file_destination: a &mut pack_file::PackFile. It's the Destination PackFile for the PackedFile.
-/// - tree_path_source: the TreePath of the PackedFile or PackedFiles we want to add. A Vec<String> It is.
-/// - tree_path_destination: the Destination TreePath of the PackedFile/s we want to add.
+/// - complete_tree_path: the complete path (with PackFile) of the PackedFile or PackedFiles we want to add. A &[String] it is.
 pub fn add_packedfile_to_packfile(
     pack_file_source_buffer: &mut BufReader<File>,
     pack_file_source: &packfile::PackFile,
     pack_file_destination: &mut packfile::PackFile,
-    tree_path_source: &[String],
-    tree_path_destination: &[String],
-) -> Result<String, Error> {
+    complete_path: &[String],
+) -> Result<()> {
 
-    // First we need to make some checks to ensure we can add the PackedFile/s to the selected destination.
-    let tree_path_source_type = get_type_of_selected_path(tree_path_source, pack_file_source);
-    let tree_path_destination_type = get_type_of_selected_path(tree_path_destination, pack_file_destination);
+    // Get the type of whatever we want to add.
+    let path_type = get_type_of_selected_path(complete_path, pack_file_source);
 
-    let is_source_tree_path_valid = match tree_path_source_type {
-        TreePathType::None => false,
-        _ => true,
-    };
+    // Get the real path (without PackFile).
+    let real_path = if complete_path.len() > 1 { &complete_path[1..] } else { &[] };
 
-    let is_destination_tree_path_valid = match tree_path_destination_type {
-        TreePathType::None | TreePathType::File(_) => false,
-        _ => true,
-    };
+    // Act depending on the PackedFile type.
+    match path_type {
 
-    // If both paths are valid paths...
-    if is_source_tree_path_valid && is_destination_tree_path_valid {
-        match tree_path_destination_type {
+        // If the path is a file...
+        TreePathType::File((_, index)) => {
 
-            // If the destination is the PackFile itself, we just move all the selected stuff from the
-            // extra PackFile to the main one.
-            TreePathType::PackFile => {
-                match tree_path_source_type {
+            // Check if the PackedFile already exists in the destination.
+            if pack_file_destination.data.packedfile_exists(real_path) {
 
-                    // If the source is the PackFile itself, we just copy every PackedFile from one
-                    // PackFile to the other.
-                    TreePathType::PackFile => {
+                // Get the destination PackedFile. If it fails, CTD because it's a code problem.
+                let mut packed_file = if let TreePathType::File((_, index)) = get_type_of_selected_path(complete_path, pack_file_destination) {
+                    &mut pack_file_destination.data.packed_files[index]
+                } else { unreachable!() };
 
-                        // Get a copy of all the PackedFiles.
-                        let mut new_packed_files = pack_file_source.data.packed_files.to_vec();
+                // Then, we get his data.
+                packed_file.data = vec![0; pack_file_source.data.packed_files[index].size as usize];
+                pack_file_source_buffer.seek(SeekFrom::Start(pack_file_source.packed_file_indexes[index]))?;
+                pack_file_source_buffer.read_exact(&mut packed_file.data)?;
 
-                        // Get the data of all the files.
-                        for (index, packed_file) in new_packed_files.iter_mut().enumerate() {
-                            packed_file.data = vec![0; packed_file.size as usize];
-                            pack_file_source_buffer.seek(SeekFrom::Start(pack_file_source.packed_file_indexes[index]))?;
-                            pack_file_source_buffer.read_exact(&mut packed_file.data)?;
-                        }
-
-                        // Here we check for duplicates before adding the files
-                        for packed_file in &new_packed_files {
-                            if pack_file_destination.data.packedfile_exists(&packed_file.path) {
-                                return Err(format_err!("One or more of the files we want to add already exists in the Destination PackFile. Aborted."))
-                            }
-                        }
-
-                        // If they passed the checks, add them and return success.
-                        pack_file_destination.add_packedfiles(new_packed_files);
-                        Ok(format!("The entire PackFile \"{}\" has been added successfully to \"{}\"", tree_path_source[0], tree_path_destination[0]))
-                    },
-
-                    // If the source is a single PackedFile, we add it to the PackFile and replace his
-                    // path with his name, making it as direct child of our PackFile.
-                    TreePathType::File(packed_file_data) => {
-
-                        // We get the PackedFile.
-                        let mut new_packed_file = pack_file_source.data.packed_files[packed_file_data.1].clone();
-
-                        // Then, we get his data.
-                        new_packed_file.data = vec![0; new_packed_file.size as usize];
-                        pack_file_source_buffer.seek(SeekFrom::Start(pack_file_source.packed_file_indexes[packed_file_data.1]))?;
-                        pack_file_source_buffer.read_exact(&mut new_packed_file.data)?;
-
-                        // Then, his path.
-                        new_packed_file.path = vec![new_packed_file.path.last().unwrap().clone(); 1];
-
-                        // Here we check for duplicates before adding the file.
-                        if pack_file_destination.data.packedfile_exists(&new_packed_file.path) {
-                            return Err(format_err!("A PackedFile with the same name already exist in the destination. Aborted."))
-                        }
-
-                        // If they passed the checks, add them and return success.
-                        pack_file_destination.add_packedfiles(vec![new_packed_file; 1]);
-                        Ok(format!("The PackedFile \"{}\" has been added successfully to \"{}\"", tree_path_source.last().unwrap(), tree_path_destination[0]))
-                    }
-
-                    // If the source is a folder, we get all the PackedFiles inside that folder into
-                    // a Vec<PackedFile>, we change their TreePath and then we append that Vector to
-                    // the main PackFile.
-                    TreePathType::Folder(tree_path_source) => {
-
-                        // For each PackedFile in our source PackFile...
-                        let mut new_packed_files = vec![];
-                        for (index, packed_file) in pack_file_source.data.packed_files.iter().enumerate() {
-
-                            // If it's one of the PackedFiles we want...
-                            if packed_file.path.starts_with(&tree_path_source) {
-
-                                // We clone it.
-                                let mut packed_file = packed_file.clone();
-
-                                // Change his path.
-                                packed_file.path.drain(..(tree_path_source.len() - 1));
-
-                                // Get his data.
-                                packed_file.data = vec![0; packed_file.size as usize];
-                                pack_file_source_buffer.seek(SeekFrom::Start(pack_file_source.packed_file_indexes[index]))?;
-                                pack_file_source_buffer.read_exact(&mut packed_file.data)?;
-
-                                // And add it to the vector.
-                                new_packed_files.push(packed_file);
-                            }
-                        }
-
-                        // Here we check for duplicates before adding the files
-                        for packed_file in &new_packed_files {
-                            if pack_file_destination.data.packedfile_exists(&packed_file.path) {
-                                return Err(format_err!("One or more of the files we want to add already exists in the Destination PackFile. Aborted."))
-                            }
-                        }
-
-                        // If they passed the checks, add them and return success.
-                        pack_file_destination.add_packedfiles(new_packed_files);
-                        Ok(format!("The folder \"{}\" has been added successfully to \"{}\"", tree_path_source.last().unwrap(), tree_path_destination[0]))
-                    },
-
-                    // If the source is not selected (this should really never happen).
-                    _ => Err(format_err!("This situation shouldn't happen, but the compiler will complain otherwise.")),
-                }
+                // Return success.
+                Ok(())
             }
 
-            // If the destination is a folder.
-            TreePathType::Folder(tree_path_destination) => {
-                match tree_path_source_type {
+            // Otherwise...
+            else {
 
-                    // If the source is the PackFile itself, we just copy every PackedFile from one
-                    // PackFile to the other and update his TreePath.
-                    TreePathType::PackFile => {
+                // We get the PackedFile.
+                let mut packed_file = pack_file_source.data.packed_files[index].clone();
 
-                        // Get a copy of all the PackedFiles.
-                        let mut new_packed_files = pack_file_source.data.packed_files.to_vec();
+                // Then, we get his data.
+                packed_file.data = vec![0; packed_file.size as usize];
+                pack_file_source_buffer.seek(SeekFrom::Start(pack_file_source.packed_file_indexes[index]))?;
+                pack_file_source_buffer.read_exact(&mut packed_file.data)?;
 
-                        // Get the data of all the files and change their path.
-                        for (index, packed_file) in new_packed_files.iter_mut().enumerate() {
-                            packed_file.data = vec![0; packed_file.size as usize];
-                            pack_file_source_buffer.seek(SeekFrom::Start(pack_file_source.packed_file_indexes[index]))?;
-                            pack_file_source_buffer.read_exact(&mut packed_file.data)?;
-                            packed_file.path.splice(0..0, tree_path_destination.iter().cloned());
-                        }
+                // Add it to the PackFile.
+                pack_file_destination.add_packedfiles(vec![packed_file; 1]);
 
-                        // Here we check for duplicates before adding the files
-                        for packed_file in &new_packed_files {
-                            if pack_file_destination.data.packedfile_exists(&packed_file.path) {
-                                return Err(format_err!("One or more of the files we want to add already exists in the Destination PackFile. Aborted."))
-                            }
-                        }
-
-                        // If they passed the checks, add them and return success.
-                        pack_file_destination.add_packedfiles(new_packed_files);
-                        Ok(format!("The entire PackFile \"{}\" has been added sucessfully to \"{}\"", tree_path_source[0], tree_path_destination[0]))
-                    },
-
-                    // If the source is a folder, we get all the PackedFiles inside that folder into
-                    // a Vec<PackedFile>, we change their TreePath and then we append that Vector to
-                    // the main PackFile.
-                    TreePathType::Folder(tree_path_source) => {
-
-                        // For each PackedFile in our source PackFile...
-                        let mut new_packed_files = vec![];
-                        for (index, packed_file) in pack_file_source.data.packed_files.iter().enumerate() {
-
-                            // If it's one of the PackedFiles we want...
-                            if packed_file.path.starts_with(&tree_path_source) {
-
-                                // We clone it.
-                                let mut packed_file = packed_file.clone();
-
-                                // Change his path.
-                                packed_file.path.drain(..(tree_path_source.len() - 1));
-                                packed_file.path.splice(0..0, tree_path_destination.iter().cloned());
-
-                                // Get his data.
-                                packed_file.data = vec![0; packed_file.size as usize];
-                                pack_file_source_buffer.seek(SeekFrom::Start(pack_file_source.packed_file_indexes[index]))?;
-                                pack_file_source_buffer.read_exact(&mut packed_file.data)?;
-
-                                // And add it to the vector.
-                                new_packed_files.push(packed_file);
-                            }
-                        }
-
-                        // Here we check for duplicates before adding the files
-                        for packed_file in &new_packed_files {
-                            if pack_file_destination.data.packedfile_exists(&packed_file.path) {
-                                return Err(format_err!("One or more of the files we want to add already exists in the Destination PackFile. Aborted."))
-                            }
-                        }
-
-                        // If they passed the checks, add them and return success.
-                        pack_file_destination.add_packedfiles(new_packed_files);
-                        Ok(format!("The folder \"{}\" has been added sucessfully to \"{}\"", tree_path_source.last().unwrap(), tree_path_destination[0]))
-                    },
-
-                    // If the source is a single PackedFile, we add it to the PackFile and replace his
-                    // path with his new TreePath, making it as direct child of our destination folder.
-                    TreePathType::File(packed_file_data) => {
-
-                        // We get the PackedFile.
-                        let mut new_packed_file = pack_file_source.data.packed_files[packed_file_data.1].clone();
-
-                        // Then, we get his data.
-                        new_packed_file.data = vec![0; new_packed_file.size as usize];
-                        pack_file_source_buffer.seek(SeekFrom::Start(pack_file_source.packed_file_indexes[packed_file_data.1]))?;
-                        pack_file_source_buffer.read_exact(&mut new_packed_file.data)?;
-
-                        // Then, his path.
-                        new_packed_file.path = vec![new_packed_file.path.last().unwrap().clone()];
-                        new_packed_file.path.splice(0..0, tree_path_destination.iter().cloned());
-
-                        // Here we check for duplicates before adding the file.
-                        if pack_file_destination.data.packedfile_exists(&new_packed_file.path) {
-                            return Err(format_err!("A PackedFile with the same name already exist in the destination. Aborted."))
-                        }
-
-                        // If they passed the checks, add them and return success.
-                        pack_file_destination.add_packedfiles(vec![new_packed_file; 1]);
-                        Ok(format!("The PackedFile \"{}\" has been added sucessfully to \"{}\"", tree_path_source.last().unwrap(), tree_path_destination[0]))
-                    }
-
-                    // If the source is not selected (this should really never happen).
-                    _ => Err(format_err!("This situation shouldn't happen, but the compiler will complain otherwise.")),
-
-                }
+                // Return success.
+                Ok(())
             }
-            // If the destination is not selected, or it's a file (this should really never happen).
-            _ => Err(format_err!("This situation shouldn't happen, but the compiler will complain otherwise.")),
         }
-    }
-    else { Err(format_err!("You need to select what and where you want to import BEFORE pressing the button.")) }
-}
 
+        // If the path is a folder...
+        TreePathType::Folder(_) => {
+
+            // For each PackedFile inside the folder...
+            for (index, packed_file) in pack_file_source.data.packed_files.iter().enumerate() {
+
+                // If it's one of the PackedFiles we want...
+                if packed_file.path.starts_with(real_path) {
+
+                    // Check if the PackedFile already exists in the destination.
+                    if pack_file_destination.data.packedfile_exists(&packed_file.path) {
+
+                        // Create the theorical path of the PackedFile.
+                        let mut theorical_path = packed_file.path.to_vec();
+                        theorical_path.insert(0, pack_file_source.extra_data.file_name.to_owned());
+
+                        // Get the destination PackedFile. If it fails, CTD because it's a code problem.
+                        let mut packed_file = if let TreePathType::File((_, index)) = get_type_of_selected_path(&theorical_path, pack_file_destination) {
+                            &mut pack_file_destination.data.packed_files[index]
+                        } else { unreachable!() };
+
+                        // Then, we get his data.
+                        packed_file.data = vec![0; pack_file_source.data.packed_files[index].size as usize];
+                        pack_file_source_buffer.seek(SeekFrom::Start(pack_file_source.packed_file_indexes[index]))?;
+                        pack_file_source_buffer.read_exact(&mut packed_file.data)?;
+                    }
+
+                    // Otherwise...
+                    else {
+
+                        // We get the PackedFile.
+                        let mut packed_file = packed_file.clone();
+
+                        // Then, we get his data.
+                        packed_file.data = vec![0; packed_file.size as usize];
+                        pack_file_source_buffer.seek(SeekFrom::Start(pack_file_source.packed_file_indexes[index]))?;
+                        pack_file_source_buffer.read_exact(&mut packed_file.data)?;
+
+                        // Add it to the PackFile.
+                        pack_file_destination.add_packedfiles(vec![packed_file; 1]);
+                    }
+                }
+            }
+
+            // Return success.
+            Ok(())
+        },
+
+        // If the path is the PackFile...
+        TreePathType::PackFile => {
+
+            // For each PackedFile inside the folder...
+            for (index, packed_file) in pack_file_source.data.packed_files.iter().enumerate() {
+
+                // Check if the PackedFile already exists in the destination.
+                if pack_file_destination.data.packedfile_exists(&packed_file.path) {
+
+                    // Create the theorical path of the PackedFile.
+                    let mut theorical_path = packed_file.path.to_vec();
+                    theorical_path.insert(0, pack_file_source.extra_data.file_name.to_owned());
+
+                    // Get the destination PackedFile. If it fails, CTD because it's a code problem.
+                    let mut packed_file = if let TreePathType::File((_, index)) = get_type_of_selected_path(&theorical_path, pack_file_destination) {
+                        &mut pack_file_destination.data.packed_files[index]
+                    } else { unreachable!() };
+
+                    // Then, we get his data.
+                    packed_file.data = vec![0; pack_file_source.data.packed_files[index].size as usize];
+                    pack_file_source_buffer.seek(SeekFrom::Start(pack_file_source.packed_file_indexes[index]))?;
+                    pack_file_source_buffer.read_exact(&mut packed_file.data)?;
+                }
+
+                // Otherwise...
+                else {
+
+                    // We get the PackedFile.
+                    let mut packed_file = packed_file.clone();
+
+                    // Then, we get his data.
+                    packed_file.data = vec![0; packed_file.size as usize];
+                    pack_file_source_buffer.seek(SeekFrom::Start(pack_file_source.packed_file_indexes[index]))?;
+                    pack_file_source_buffer.read_exact(&mut packed_file.data)?;
+
+                    // Add it to the PackFile.
+                    pack_file_destination.add_packedfiles(vec![packed_file; 1]);
+                }
+            }
+
+            // Return success.
+            Ok(())
+        },
+
+        // In any other case, there is a problem somewhere. Otherwise, this is unreachable.
+        _ => unreachable!()
+    }
+}
 
 /// This function is used to delete a PackedFile or a group of PackedFiles under the same tree_path
 /// from the PackFile. We just need the open PackFile and the tree_path of the file/folder to delete.
 pub fn delete_from_packfile(
     pack_file: &mut packfile::PackFile,
     tree_path: &[String]
-) -> Result<(), Error> {
+) {
 
     // Get what it's what we want to delete.
     match get_type_of_selected_path(tree_path, pack_file) {
@@ -438,11 +364,9 @@ pub fn delete_from_packfile(
 
         // If it's a PackFile, easy job. For non-existant files, return an error.
         TreePathType::PackFile => pack_file.remove_all_packedfiles(),
-        TreePathType::None => return Err(format_err!("How the hell did you managed to try to delete a non-existent file?")),
+        TreePathType::None => unreachable!(),
     }
-    Ok(())
 }
-
 
 /// This function is used to extract a PackedFile or a folder from the PackFile.
 /// It requires:
@@ -453,7 +377,7 @@ pub fn extract_from_packfile(
     pack_file: &packfile::PackFile,
     tree_path: &[String],
     extracted_path: &PathBuf
-) -> Result<String, Error> {
+) -> Result<String> {
 
     // Get what it's what we want to extract.
     match get_type_of_selected_path(tree_path, pack_file) {
@@ -467,7 +391,7 @@ pub fn extract_from_packfile(
             // And try to write it.
             match file.write_all(&pack_file.data.packed_files[packed_file_data.1].data){
                 Ok(_) => Ok(format!("File extracted successfully:\n{}", extracted_path.display())),
-                Err(_) => Err(format_err!("Error while writing the following file to disk:\n{}", extracted_path.display()))
+                Err(_) => Err(ErrorKind::ExtractError(vec![format!("<li>{}</li>", extracted_path.display().to_string());1]))?
             }
         },
 
@@ -504,7 +428,7 @@ pub fn extract_from_packfile(
                     let mut file = BufWriter::new(File::create(&current_path)?);
 
                     // And try to write it. If any of the files throws an error, add it to the list and continue.
-                    match file.write_all(&packed_file.data){
+                    match file.write_all(&packed_file.data) {
                         Ok(_) => files_extracted += 1,
                         Err(_) => error_files.push(format!("{:?}", current_path)),
                     }
@@ -512,7 +436,10 @@ pub fn extract_from_packfile(
             }
 
             // If there is any error in the list, report it.
-            if !error_files.is_empty() { return Err(format_err!("There has been a problem extracting the following files: {:#?}", error_files)) }
+            if !error_files.is_empty() {
+                let error_files_string = error_files.iter().map(|x| format!("<li>{}</li>", x)).collect::<Vec<String>>();
+                return Err(ErrorKind::ExtractError(error_files_string))?
+            }
 
             // If we reach this, return success.
             Ok(format!("{} files extracted. No errors detected.", files_extracted))
@@ -554,17 +481,19 @@ pub fn extract_from_packfile(
             }
 
             // If there is any error in the list, report it.
-            if !error_files.is_empty() { return Err(format_err!("There has been a problem extracting the following files: {:#?}", error_files)) }
+            if !error_files.is_empty() {
+                let error_files_string = error_files.iter().map(|x| format!("<li>{}</li>", x)).collect::<Vec<String>>();
+                return Err(ErrorKind::ExtractError(error_files_string))?
+            }
 
             // If we reach this, return success.
             Ok(format!("{} files extracted. No errors detected.", files_extracted))
         }
 
         // If it doesn't exist, there has been a bug somewhere else. Otherwise, this situation will never happen.
-        TreePathType::None => Err(format_err!("How the hell did you managed to try to delete a non-existant file?")),
+        TreePathType::None => unreachable!(),
     }
 }
-
 
 /// This function is used to rename anything in the TreeView (yes, PackFile included).
 /// It requires:
@@ -575,17 +504,17 @@ pub fn rename_packed_file(
     pack_file: &mut packfile::PackFile,
     tree_path: &[String],
     new_name: &str
-) -> Result<(), Error> {
+) -> Result<()> {
 
     // First we check if the name is valid, and return an error if the new name is invalid.
     if new_name == tree_path.last().unwrap() {
-        Err(format_err!("New name is the same as old name."))
+        Err(ErrorKind::UnchangedInput)?
     }
     else if new_name.is_empty() {
-        Err(format_err!("Only my hearth can be empty."))
+        Err(ErrorKind::EmptyInput)?
     }
     else if new_name.contains(' ') {
-        Err(format_err!("Spaces are not valid characters."))
+        Err(ErrorKind::InvalidInput)?
     }
 
     // If we reach this point, we can rename the file/folder.
@@ -605,7 +534,7 @@ pub fn rename_packed_file(
                     Ok(())
                 }
                 else {
-                    Err(format_err!("This name is already being used by another file in this path."))
+                    Err(ErrorKind::NameAlreadyInUseInThisPath)?
                 }
             }
             TreePathType::Folder(tree_path) => {
@@ -626,11 +555,11 @@ pub fn rename_packed_file(
                     Ok(())
                 }
                 else {
-                    Err(format_err!("This name is already being used by another folder in this path."))
+                    Err(ErrorKind::NameAlreadyInUseInThisPath)?
                 }
             }
             TreePathType::PackFile |
-            TreePathType::None => Err(format_err!("This should never happen.")),
+            TreePathType::None => unreachable!(),
         }
     }
 }
@@ -656,7 +585,6 @@ pub fn update_packed_file_data_loc(
     pack_file.data.packed_files[index].data.append(&mut packed_file_data_encoded);
     pack_file.data.packed_files[index].size = packed_file_data_encoded_size;
 }
-
 
 /// This function saves the data of the edited DB PackedFile in the main PackFile after a change has
 /// been done by the user. Checking for valid characters is done before this, so be careful to not break it.
@@ -697,7 +625,7 @@ pub fn update_packed_file_data_rigid(
     packed_file_data_decoded: &RigidModel,
     pack_file: &mut packfile::PackFile,
     index: usize,
-) -> Result<String, Error> {
+) -> Result<String> {
     let mut packed_file_data_encoded = RigidModel::save(packed_file_data_decoded)?.to_vec();
     let packed_file_data_encoded_size = packed_file_data_encoded.len() as u32;
 
@@ -719,7 +647,7 @@ pub fn update_packed_file_data_rigid(
 /// It requires a mut ref to a decoded PackFile, and returns an String and the list of removed PackedFiles.
 pub fn patch_siege_ai (
     pack_file: &mut packfile::PackFile
-) -> Result<(String, Vec<TreePathType>), Error> {
+) -> Result<(String, Vec<TreePathType>)> {
 
     let mut files_patched = 0;
     let mut files_deleted = 0;
@@ -787,7 +715,6 @@ pub fn patch_siege_ai (
     if !files_to_delete.is_empty() {
         for tree_path in &mut files_to_delete {
 
-            // TODO: Fix this shit.
             // Due to the rework of the "delete_from_packfile" function, we need to give it a complete
             // path to delete, so we "complete" his path before deleting.
             let file_name = vec![pack_file.extra_data.file_name.to_owned()];
@@ -797,17 +724,17 @@ pub fn patch_siege_ai (
             deleted_files_type.push(get_type_of_selected_path(&tree_path, &pack_file));
 
             // Delete the PackedFile.
-            delete_from_packfile(pack_file, tree_path)?;
+            delete_from_packfile(pack_file, tree_path);
             files_deleted += 1;
         }
     }
 
     // And now we return success or error depending on what happened during the patching process.
     if packfile_is_empty {
-        Err(format_err!("This packfile is empty, so we can't patch it."))
+        Err(ErrorKind::PatchSiegeAIEmptyPackFile)?
     }
     else if files_patched == 0 && files_deleted == 0 {
-        Err(format_err!("There are not files in this Packfile that could be patched/deleted."))
+        Err(ErrorKind::PatchSiegeAINoPatchableFiles)?
     }
     else if files_patched >= 0 || files_deleted >= 0 {
         if files_patched == 0 {
@@ -844,9 +771,7 @@ pub fn patch_siege_ai (
             Ok((format!("{} files patched.\n{} files deleted.", files_patched, files_deleted), deleted_files_type))
         }
     }
-    else {
-        Err(format_err!("This should never happen."))
-    }
+    else { unreachable!() }
 }
 
 /// This function is used to patch a RigidModel 3D model from Total War: Attila to work in Total War:
@@ -859,7 +784,7 @@ pub fn patch_siege_ai (
 /// It requires a mut ref to a decoded PackFile, and returns an String (Result<Success, Error>).
 pub fn patch_rigid_model_attila_to_warhammer (
     rigid_model: &mut RigidModel
-) -> Result<String, Error> {
+) -> Result<String> {
 
     // If the RigidModel is an Attila RigidModel, we continue. Otherwise, return Error.
     match rigid_model.packed_file_header.packed_file_header_model_type {
@@ -875,11 +800,12 @@ pub fn patch_rigid_model_attila_to_warhammer (
             }
             Ok(format!("RigidModel patched succesfully."))
         },
-        7 => Err(format_err!("This is not an Attila's RigidModel, but a Warhammer one.")),
-        _ => Err(format_err!("I don't even know from what game is this RigidModel.")),
+        7 => Err(ErrorKind::RigidModelPatchToWarhammer("This is not an Attila's RigidModel, but a Warhammer one.".to_owned()))?,
+        _ => Err(ErrorKind::RigidModelPatchToWarhammer("I don't even know from what game is this RigidModel.".to_owned()))?,
     }
 }
 
+/*
 /// This function is used to turn a bunch of catchment files into Prefabs. It requires:
 /// - name_list: the list of names for the new prefabs.
 /// - game_path: the base path of our game, to know where to put the xml files for the prefabs.
@@ -890,7 +816,7 @@ pub fn create_prefab_from_catchment(
     game_path: &PathBuf,
     catchment_indexes: &[usize],
     pack_file: &Rc<RefCell<packfile::PackFile>>,
-) -> Result<String, Error> {
+) -> Result<String> {
 
     // Create a new PackFile to store all the new prefabs, and make it "Movie" type.
     let mut prefab_pack_file = new_packfile(format!("_prefab_{}", &pack_file.borrow().extra_data.file_name), &pack_file.borrow().header.id);
@@ -993,4 +919,115 @@ pub fn create_prefab_from_catchment(
 
     // If nothing failed, return success.
     Ok("Prefabs successfully created.".to_owned())
+}
+*/
+
+/// This function is used to optimize the size of a PackFile. It does two things: removes unchanged rows
+/// from tables (and if the table is empty, it removes it too) and it cleans the PackFile of extra .xml files 
+/// often created by map editors. It requires just the PackFile to optimize and the dependency PackFile.
+pub fn optimize_packfile(
+    mut pack_file: &mut packfile::PackFile,
+    original_tables: &[packfile::PackedFile],
+    schema: &Option<Schema>
+) -> Vec<TreePathType> {
+
+    // List of PackedFiles to delete. This includes empty tables and xml files.
+    let mut files_to_delete: Vec<Vec<String>> = vec![];
+    let mut deleted_files_type: Vec<TreePathType> = vec![];
+
+    // TODO: Fix this clone.
+    // For each PackedFile we have...
+    for (index, packed_file) in pack_file.data.packed_files.clone().iter().enumerate() {
+
+
+        // If it's a DB table...
+        if packed_file.path.len() == 3 {
+            if packed_file.path[0] == "db" {
+
+                // If we have an schema we optimize DB tables. Otherwise ignore this.
+                if let Some(schema) = schema {
+
+                    // Get the tables if exists from the dependency database.
+                    let mut dep_tables = vec![];
+                    for vanilla_packed_file in original_tables {
+                        if vanilla_packed_file.path.len() == 3 {
+                            if vanilla_packed_file.path[0] == "db" && vanilla_packed_file.path[1] == packed_file.path[1] {
+                                dep_tables.push(vanilla_packed_file);
+                            }
+                        }
+                    }
+
+                    // If there are no tables, we cannot optimize that PackedFile.
+                    if dep_tables.is_empty() { continue }
+
+                    // If the table is empty, add it to the deletion list and continue.
+                    if let Ok(header) = DBHeader::read(&packed_file.data, &mut 0) {
+                        if header.entry_count == 0 { 
+                            files_to_delete.push(packed_file.path.to_vec());
+                            continue;
+                        }
+                    }
+
+                    // Try to decode our table.
+                    let mut optimized_table = match DB::read(&packed_file.data, &packed_file.path[1], &schema) {
+                        Ok(table) => table,
+                        Err(error) => {
+                            if error.kind() == ErrorKind::DBTableContainsListField { files_to_delete.push(packed_file.path.to_vec()); } 
+                            continue;
+                        }
+                    };
+
+                    // For each table we got...
+                    for table in &dep_tables {
+
+                        // Try to decode the vanilla table.
+                        let mut vanilla_table = match DB::read(&table.data, &table.path[1], &schema) {
+                            Ok(table) => table,
+                            Err(_) => continue,
+                        };
+
+                        // For each row we have in our table (in reverse) check if it exists in the vanilla table, and delete it if it does.
+                        let mut rows_to_delete = vec![];
+                        for (row_index, row) in optimized_table.data.entries.iter().enumerate() {
+                            if vanilla_table.data.entries.contains(row) { rows_to_delete.push(row_index); }
+                        }
+                        for row in rows_to_delete.iter().rev() { optimized_table.data.entries.remove(*row); }
+                    }
+
+                    // Save the table to the PackFile.
+                    update_packed_file_data_db(&optimized_table, &mut pack_file, index);
+
+                    // Delete the table here if it's empty.
+                    if optimized_table.data.entries.is_empty() { files_to_delete.push(packed_file.path.to_vec()); }
+                }
+
+                // Otherwise, we just check if it's empty. In that case, we delete it.
+                else { 
+                    if let Ok(header) = DBHeader::read(&packed_file.data, &mut 0) {
+                        if header.entry_count == 0 { files_to_delete.push(packed_file.path.to_vec()); }
+                    }
+                }
+            }
+        }
+    }
+
+    // If there are files to delete, we delete them.
+    if !files_to_delete.is_empty() {
+        for tree_path in &mut files_to_delete {
+
+            // Due to the rework of the "delete_from_packfile" function, we need to give it a complete
+            // path to delete, so we "complete" his path before deleting.
+            let file_name = vec![pack_file.extra_data.file_name.to_owned()];
+            tree_path.splice(0..0, file_name.iter().cloned());
+
+            // Get his type before deleting it.
+            deleted_files_type.push(get_type_of_selected_path(&tree_path, &pack_file));
+
+            // Delete the PackedFile.
+            delete_from_packfile(pack_file, tree_path);
+        }
+    }
+
+    // Return the deleted file's types.
+    deleted_files_type
 }

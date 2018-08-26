@@ -1,4 +1,5 @@
 // Here it goes all the stuff related with "Settings" and "My Mod" windows.
+extern crate serde_json;
 extern crate qt_widgets;
 extern crate qt_gui;
 extern crate qt_core;
@@ -24,18 +25,27 @@ use qt_core::connection::Signal;
 use qt_core::slots::SlotNoArgs;
 use cpp_utils::StaticCast;
 
+use std::collections::BTreeMap;
+use std::sync::mpsc::{Sender, Receiver};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::path::{Path, PathBuf};
 
+use AppUI;
+use Commands;
+use QString;
+use common::*;
+use error::{ErrorKind, Result};
 use settings::GameInfo;
 use settings::Settings;
-use super::*;
+use settings::shortcuts::Shortcuts;
+use super::shortcuts::ShortcutsDialog;
+use super::show_dialog;
 
 /// `SettingsDialog`: This struct holds all the relevant stuff for the Settings Dialog.
 pub struct SettingsDialog {
     pub paths_mymod_line_edit: *mut LineEdit,
-    pub paths_games_line_edits: Vec<*mut LineEdit>,
+    pub paths_games_line_edits: BTreeMap<String, *mut LineEdit>,
     pub ui_adjust_columns_to_content: *mut CheckBox,
     pub extra_default_game_combobox: *mut ComboBox,
     pub extra_allow_editing_of_ca_packfiles: *mut CheckBox,
@@ -61,7 +71,10 @@ impl SettingsDialog {
     pub fn create_settings_dialog(
         app_ui: &AppUI,
         settings: &Settings,
-        supported_games: &[GameInfo]
+        supported_games: &[GameInfo],
+        sender_qt: &Sender<Commands>,
+        sender_qt_data: &Sender<Result<Vec<u8>>>,
+        receiver_qt: Rc<RefCell<Receiver<Result<Vec<u8>>>>>, 
     ) -> Option<Settings> {
 
         //-------------------------------------------------------------------------------------------//
@@ -103,8 +116,8 @@ impl SettingsDialog {
         unsafe { paths_grid.add_widget((mymod_button as *mut Widget, 0, 2, 1, 1)); }
 
         // For each game supported...
-        let mut game_paths = vec![];
-        let mut game_buttons = vec![];
+        let mut game_paths = BTreeMap::new();
+        let mut game_buttons = BTreeMap::new();
         for (index, game_supported) in supported_games.iter().enumerate() {
 
             // Create his fields.
@@ -121,8 +134,8 @@ impl SettingsDialog {
             unsafe { paths_grid.add_widget((game_button as *mut Widget, (index + 1) as i32, 2, 1, 1)); }
 
             // Add the LineEdit and Button to the list.
-            game_paths.push(game_line_edit);
-            game_buttons.push(game_button);
+            game_paths.insert(game_supported.folder_name.to_owned(), game_line_edit);
+            game_buttons.insert(game_supported.folder_name.to_owned(), game_button);
         }
 
         // Create the "UI Settings" frame and Grid.
@@ -134,13 +147,21 @@ impl SettingsDialog {
         let mut adjust_columns_to_content_label = Label::new(&QString::from_std_str("Adjust Columns to Content:"));
         let mut adjust_columns_to_content_checkbox = CheckBox::new(());
 
-        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((adjust_columns_to_content_label.static_cast_mut() as *mut Widget, 0, 0, 1, 1)); }
-        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((adjust_columns_to_content_checkbox.static_cast_mut() as *mut Widget, 0, 1, 1, 1)); }
+        let mut shortcuts_label = Label::new(&QString::from_std_str("See/Change Shortcuts:"));
+        let mut shortcuts_button = PushButton::new(&QString::from_std_str("Shortcuts"));
 
-        // Tip for the checkbox.
-        let adjust_columns_to_content_tip = QString::from_std_str("If you enable this, when you open a DB Table or Loc File, all columns will be automatically resized depending on their content's size.\nOtherwise, columns will have a predefined size. Either way, you'll be able to resize them manually after the initial resize.\nNOTE: This KILLS PERFORMANCE in very big tables.");
+        // Tips for the UI settings.
+        let adjust_columns_to_content_tip = QString::from_std_str("If you enable this, when you open a DB Table or Loc File, all columns will be automatically resized depending on their content's size.\nOtherwise, columns will have a predefined size. Either way, you'll be able to resize them manually after the initial resize.\nNOTE: This can make very big tables take more time to load.");
+        let shortcuts_tip = QString::from_std_str("See/change the shortcuts from here if you don't like them. Changes are applied on restart of the program.");
         adjust_columns_to_content_label.set_tool_tip(&adjust_columns_to_content_tip);
         adjust_columns_to_content_checkbox.set_tool_tip(&adjust_columns_to_content_tip);
+        shortcuts_label.set_tool_tip(&shortcuts_tip);
+        shortcuts_button.set_tool_tip(&shortcuts_tip);
+
+        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((adjust_columns_to_content_label.static_cast_mut() as *mut Widget, 0, 0, 1, 1)); }
+        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((adjust_columns_to_content_checkbox.static_cast_mut() as *mut Widget, 0, 1, 1, 1)); }
+        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((shortcuts_label.static_cast_mut() as *mut Widget, 1, 0, 1, 1)); }
+        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((shortcuts_button.static_cast_mut() as *mut Widget, 1, 1, 1, 1)); }
 
         // Create the "Extra Settings" frame and Grid.
         let extra_settings_frame = GroupBox::new(&QString::from_std_str("Extra Settings")).into_raw();
@@ -235,12 +256,52 @@ impl SettingsDialog {
         });
 
         // What happens when we hit any of the "..." buttons for the games.
-        let mut slots_select_paths = vec![];
-        for path in &game_paths {
-            slots_select_paths.push(SlotNoArgs::new(move || {
+        let mut slots_select_paths = BTreeMap::new();
+        for (key, path) in &game_paths {
+            slots_select_paths.insert(key, SlotNoArgs::new(move || {
                 update_entry_path(*path, dialog);
             }));
         }
+
+        // What happens when we hit the "Shortcuts" button.
+        let slot_shortcuts = SlotNoArgs::new(clone!(
+            sender_qt,
+            sender_qt_data,
+            receiver_qt => move || {
+
+                // Try to get the current Shortcuts.
+                sender_qt.send(Commands::GetShortcuts).unwrap();
+                let old_shortcuts: Shortcuts = match check_message_validity_recv(&receiver_qt) {
+                    Ok(data) => data,
+                    Err(_) => panic!(THREADS_MESSAGE_ERROR)
+                };
+
+                // Create the Shortcuts Dialog. If we got new shortcuts...
+                if let Some(shortcuts) = ShortcutsDialog::create_shortcuts_dialog(dialog, &old_shortcuts) {
+
+                    // Send the signal to save them.
+                    sender_qt.send(Commands::SetShortcuts).unwrap();
+                    sender_qt_data.send(serde_json::to_vec(&shortcuts).map_err(From::from)).unwrap();
+
+                    // Wait until you got a response.
+                    let response: Result<()> = check_message_validity_recv(&receiver_qt);
+
+                    // If we got an error...
+                    if let Err(error) = response {
+
+                        // We must check what kind of error it's.
+                        match error.kind() {
+
+                            // If there was and IO error while saving the shortcuts, report it.
+                            ErrorKind::IOPermissionDenied | ErrorKind::IOFileNotFound | ErrorKind::IOGeneric => show_dialog(app_ui.window, false, error.kind()),
+
+                            // In ANY other situation, it's a message problem.
+                            _ => panic!(THREADS_MESSAGE_ERROR)
+                        }
+                    }
+                }
+            }
+        ));
 
         //-------------------------------------------------------------------------------------------//
         // Actions for the Settings Dialog...
@@ -250,9 +311,12 @@ impl SettingsDialog {
         unsafe { mymod_button.as_mut().unwrap().signals().released().connect(&slot_select_mymod_path); }
 
         // What happens when we hit the "..." button for Games.
-        for (index, button) in game_buttons.iter().enumerate() {
-            unsafe { button.as_mut().unwrap().signals().released().connect(&slots_select_paths[index]); }
+        for (key, button) in game_buttons.iter() {
+            unsafe { button.as_mut().unwrap().signals().released().connect(slots_select_paths.get(key).unwrap()); }
         }
+
+        // What happens when we hit the "Shortcuts" button.
+        shortcuts_button.signals().released().connect(&slot_shortcuts);
 
         // What happens when we hit the "Cancel" button.
         unsafe { cancel_button.as_mut().unwrap().signals().released().connect(&dialog.as_mut().unwrap().slots().close()); }
@@ -266,7 +330,7 @@ impl SettingsDialog {
 
         let mut settings_dialog = Self {
             paths_mymod_line_edit: mymod_line_edit,
-            paths_games_line_edits: game_paths.to_vec(),
+            paths_games_line_edits: game_paths.clone(),
             ui_adjust_columns_to_content: adjust_columns_to_content_checkbox.into_raw(),
             extra_default_game_combobox: default_game_combobox.into_raw(),
             extra_allow_editing_of_ca_packfiles: allow_editing_of_ca_packfiles_checkbox.into_raw(),
@@ -299,7 +363,6 @@ impl SettingsDialog {
         // What happens when we hit the "Restore Default" button.
         unsafe { restore_default_button.as_mut().unwrap().signals().released().connect(&slot_restore_default); }
 
-
         // Show the Dialog, save the current settings, and return them.
         unsafe { if dialog.as_mut().unwrap().exec() == 1 { Some(settings_dialog.borrow().save_from_settings_dialog(supported_games)) }
 
@@ -315,29 +378,30 @@ impl SettingsDialog {
     ) {
 
         // Load the MyMod Path, if exists.
-        unsafe { self.paths_mymod_line_edit.as_mut().unwrap().set_text(&QString::from_std_str(&settings.paths.my_mods_base_path.clone().unwrap_or_else(||PathBuf::new()).to_string_lossy())); }
+        unsafe { self.paths_mymod_line_edit.as_mut().unwrap().set_text(&QString::from_std_str(settings.paths.get("mymods_base_path").unwrap().clone().unwrap_or_else(||PathBuf::new()).to_string_lossy())); }
 
         // Load the Game Paths, if they exists.
-        for (index, path) in self.paths_games_line_edits.iter_mut().enumerate() {
-            unsafe { path.as_mut().unwrap().set_text(&QString::from_std_str(&settings.paths.game_paths[index].path.clone().unwrap_or_else(||PathBuf::new()).to_string_lossy())); }
+        for (key, path) in self.paths_games_line_edits.iter_mut() {
+            unsafe { path.as_mut().unwrap().set_text(&QString::from_std_str(&settings.paths.get(key).unwrap().clone().unwrap_or_else(||PathBuf::new()).to_string_lossy())); }
         }
 
+        // TODO: Move GameSupported to BTreeMap and improve this.
         // Get the Default Game.
         for (index, game) in supported_games.iter().enumerate() {
-            if game.folder_name == settings.default_game {
+            if game.folder_name == *settings.settings_string.get("default_game").unwrap() {
                 unsafe { self.extra_default_game_combobox.as_mut().unwrap().set_current_index(index as i32); }
                 break;
             }
         }
 
         // Load the UI Stuff.
-        unsafe { self.ui_adjust_columns_to_content.as_mut().unwrap().set_checked(settings.adjust_columns_to_content); }
+        unsafe { self.ui_adjust_columns_to_content.as_mut().unwrap().set_checked(*settings.settings_bool.get("adjust_columns_to_content").unwrap()); }
 
         // Load the Extra Stuff.
-        unsafe { self.extra_allow_editing_of_ca_packfiles.as_mut().unwrap().set_checked(settings.allow_editing_of_ca_packfiles); }
-        unsafe { self.extra_check_updates_on_start.as_mut().unwrap().set_checked(settings.check_updates_on_start); }
-        unsafe { self.extra_check_schema_updates_on_start.as_mut().unwrap().set_checked(settings.check_schema_updates_on_start); }
-        unsafe { self.extra_use_pfm_extracting_behavior.as_mut().unwrap().set_checked(settings.use_pfm_extracting_behavior); }
+        unsafe { self.extra_allow_editing_of_ca_packfiles.as_mut().unwrap().set_checked(*settings.settings_bool.get("allow_editing_of_ca_packfiles").unwrap()); }
+        unsafe { self.extra_check_updates_on_start.as_mut().unwrap().set_checked(*settings.settings_bool.get("check_updates_on_start").unwrap()); }
+        unsafe { self.extra_check_schema_updates_on_start.as_mut().unwrap().set_checked(*settings.settings_bool.get("check_schema_updates_on_start").unwrap()); }
+        unsafe { self.extra_use_pfm_extracting_behavior.as_mut().unwrap().set_checked(*settings.settings_bool.get("use_pfm_extracting_behavior").unwrap()); }
     }
 
     /// This function gets the data from the Settings Dialog and returns a Settings struct with that
@@ -348,36 +412,36 @@ impl SettingsDialog {
         let mut settings = Settings::new(supported_games);
 
         // Only if we have a valid directory, we save it. Otherwise we wipe it out.
-        let my_mod_new_path;
-        unsafe { my_mod_new_path = PathBuf::from(self.paths_mymod_line_edit.as_mut().unwrap().text().to_std_string()); }
-        settings.paths.my_mods_base_path = match my_mod_new_path.is_dir() {
-            true => Some(my_mod_new_path),
+        let mymod_new_path;
+        unsafe { mymod_new_path = PathBuf::from(self.paths_mymod_line_edit.as_mut().unwrap().text().to_std_string()); }
+        settings.paths.insert("mymods_base_path".to_owned(), match mymod_new_path.is_dir() {
+            true => Some(mymod_new_path),
             false => None,
-        };
+        });
 
-        // For each entry, we get check if it's a valid directory and save it into Settings.
-        for (index, game) in self.paths_games_line_edits.iter().enumerate() {
+        // For each entry, we check if it's a valid directory and save it into Settings.
+        for (key, line_edit) in self.paths_games_line_edits.iter() {
             let new_path;
-            unsafe { new_path = PathBuf::from(game.as_mut().unwrap().text().to_std_string()); }
-            settings.paths.game_paths[index].path = match new_path.is_dir() {
+            unsafe { new_path = PathBuf::from(line_edit.as_mut().unwrap().text().to_std_string()); }
+            settings.paths.insert(key.to_owned(), match new_path.is_dir() {
                 true => Some(new_path),
                 false => None,
-            };
+            });
         }
 
         // We get his game's folder, depending on the selected game.
         let index;
         unsafe { index = self.extra_default_game_combobox.as_mut().unwrap().current_index() as usize; }
-        settings.default_game = supported_games[index].folder_name.to_owned();
+        settings.settings_string.insert("default_game".to_owned(), supported_games[index].folder_name.to_owned());
 
         // Get the UI Settings.
-        unsafe { settings.adjust_columns_to_content = self.ui_adjust_columns_to_content.as_mut().unwrap().is_checked(); }
+        unsafe { settings.settings_bool.insert("adjust_columns_to_content".to_owned(), self.ui_adjust_columns_to_content.as_mut().unwrap().is_checked()); }
 
         // Get the Extra Settings.
-        unsafe { settings.allow_editing_of_ca_packfiles = self.extra_allow_editing_of_ca_packfiles.as_mut().unwrap().is_checked(); }
-        unsafe { settings.check_updates_on_start = self.extra_check_updates_on_start.as_mut().unwrap().is_checked(); }
-        unsafe { settings.check_schema_updates_on_start = self.extra_check_schema_updates_on_start.as_mut().unwrap().is_checked(); }
-        unsafe { settings.use_pfm_extracting_behavior = self.extra_use_pfm_extracting_behavior.as_mut().unwrap().is_checked(); }
+        unsafe { settings.settings_bool.insert("allow_editing_of_ca_packfiles".to_owned(), self.extra_allow_editing_of_ca_packfiles.as_mut().unwrap().is_checked()); }
+        unsafe { settings.settings_bool.insert("check_updates_on_start".to_owned(), self.extra_check_updates_on_start.as_mut().unwrap().is_checked()); }
+        unsafe { settings.settings_bool.insert("check_schema_updates_on_start".to_owned(), self.extra_check_schema_updates_on_start.as_mut().unwrap().is_checked()); }
+        unsafe { settings.settings_bool.insert("use_pfm_extracting_behavior".to_owned(), self.extra_use_pfm_extracting_behavior.as_mut().unwrap().is_checked()); }
 
         // Return the new Settings.
         settings
@@ -453,7 +517,7 @@ impl NewMyModDialog {
         unsafe { mymod_game_combobox.as_mut().unwrap().set_model(mymod_game_model.static_cast_mut()); }
 
         // Add the games to the ComboBox.
-        unsafe { for game in supported_games { mymod_game_combobox.as_mut().unwrap().add_item(&QString::from_std_str(&game.display_name)); } }
+        unsafe { for game in supported_games { if game.display_name != "Arena" { mymod_game_combobox.as_mut().unwrap().add_item(&QString::from_std_str(&game.display_name)); }} }
 
         // Add all the widgets to the main grid.
         unsafe { main_grid.as_mut().unwrap().add_widget((mymod_name_label as *mut Widget, 1, 0, 1, 1)); }
@@ -604,7 +668,7 @@ fn check_my_mod_validity(
     if !mod_name.is_empty() && !mod_name.contains(' ') {
 
         // If we have "MyMod" path configured (we SHOULD have it to access this window, but just in case...).
-        if let Some(ref mod_path) = settings.paths.my_mods_base_path {
+        if let Some(ref mod_path) = settings.paths.get("mymods_base_path").unwrap() {
             let mut mod_path = mod_path.clone();
             mod_path.push(mod_game);
             mod_path.push(format!("{}.pack", mod_name));
@@ -843,13 +907,13 @@ impl NewPrefabWindow {
                             &catchment_indexes,
                             &pack_file_decoded,
                         ) {
-                            Ok(result) => show_dialog(&app_ui.window, true, result),
-                            Err(error) => show_dialog(&app_ui.window, false, error),
+                            Ok(result) => show_dialog(app_ui.window, true, result),
+                            Err(error) => show_dialog(app_ui.window, false, error),
                         };
                     }
 
                     // If there is no game_path, stop and report error.
-                    None => show_dialog(&app_ui.window, false, "The selected Game Selected doesn't have a path specified in the Settings."),
+                    None => show_dialog(app_ui.window, false, "The selected Game Selected doesn't have a path specified in the Settings."),
                 }
 
                 // Destroy the "New Prefab" window,

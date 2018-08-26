@@ -1,6 +1,6 @@
 [package]
 name = "rpfm-code"
-version = "0.9.4"
+version = "1.0.0"
 authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
 build = "build.rs"
 description = "A modding tool for Total War games."
@@ -8,8 +8,8 @@ description = "A modding tool for Total War games."
 [dependencies]
 byteorder = "1.2"
 encoding = "0.2.33"
-num = "0.1"
-csv = "1.0.0-beta.5"
+num = "0.2"
+csv = "1.0"
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"
@@ -20,8 +20,11 @@ uuid = { version = "0.6", features = ["v4"] }
 restson = "0.2"
 futures = "0.1"
 hyper = "0.11"
-hyper-tls = "0.1"
+hyper-tls = "0.1.4"
 tokio-core = "0.1"
+open = "*"
+
+sentry = "0.7"
 
 qt_widgets = "0.2"
 qt_gui = "0.2"
@@ -29,8 +32,11 @@ qt_core = "0.2"
 
 cpp_utils = "*"
 
-[target.x86_64-pc-windows-gnu.build-dependencies]
+twa_table_decrypt_lib = "*"
+
+[target.'cfg(windows)'.build-dependencies]
 winres = "0.1.5"
 
 [profile.release]
 lto = true
+debug = true

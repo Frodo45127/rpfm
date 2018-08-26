@@ -1,13 +1,13 @@
 // In this file are all the Fn, Structs and Impls common to at least 2 PackedFile types.
 extern crate csv;
-extern crate failure;
 
-use failure::Error;
 use std::io::{ BufReader, Read };
 use std::fs::File;
 use std::path::PathBuf;
 
+use common::*;
 use common::coding_helpers::*;
+use error::{ErrorKind, Result};
 use packfile::packfile::PackFile;
 use packfile::packfile::PackedFile;
 use packedfile::loc::*;
@@ -44,12 +44,18 @@ pub trait SerializableToTSV {
 
     /// `import_tsv`: Requires `&mut self`, a `&PathBuf` with the path of the TSV file and the name of our PackedFile.
     /// Returns success or an error.
-    fn import_tsv(&mut self, tsv_file_path: &PathBuf, packed_file_type: &str) -> Result<(), Error>;
+    fn import_tsv(&mut self, tsv_file_path: &PathBuf, packed_file_type: &str) -> Result<()>;
 
     /// `export_tsv`: Requires `&self`, the destination path for the TSV file and a name and a number (version)
     /// to put in the header of the TSV file. Returns a success message, or an error.
-    fn export_tsv(&self, tsv_file_path: &PathBuf, extra_data: (&str, u32)) -> Result<String, Error>;
+    fn export_tsv(&self, tsv_file_path: &PathBuf, extra_data: (&str, u32)) -> Result<String>;
 }
+
+/*
+--------------------------------------------------
+           Functions for PackedFiles
+--------------------------------------------------
+*/
 
 /// This function is used to create a PackedFile outtanowhere. It returns his new path.
 pub fn create_packed_file(
@@ -57,7 +63,7 @@ pub fn create_packed_file(
     packed_file_type: PackedFileType,
     path: Vec<String>,
     schema: &Option<Schema>,
-) -> Result<(), Error> {
+) -> Result<()> {
 
     // Depending on their type, we do different things to prepare the PackedFile and get his data.
     let data = match packed_file_type {
@@ -71,13 +77,13 @@ pub fn create_packed_file(
             // Try to get his table definition.
             let table_definition = match schema {
                 Some(schema) => DB::get_schema(&table, version, &schema),
-                None => return Err(format_err!("There is no schema loaded for this game."))
+                None => return Err(ErrorKind::SchemaNotFound)?
             };
 
             // If there is a table definition, create the new table. Otherwise, return error.
             match table_definition {
                 Some(table_definition) => DB::new(&table, version, table_definition).save(),
-                None => return Err(format_err!("We don't have a table definition for this table/version of the table, so we can neither decode it nor create it."))
+                None => return Err(ErrorKind::SchemaTableDefinitionNotFound)?
             }
         }
 
@@ -86,7 +92,7 @@ pub fn create_packed_file(
     };
 
     // Create and add the new PackedFile to the PackFile.
-    pack_file.add_packedfiles(vec![PackedFile::read(data.len() as u32, path, data); 1]);
+    pack_file.add_packedfiles(vec![PackedFile::read(data.len() as u32, get_current_time(), path, data); 1]);
 
     // Return the path to update the UI.
     Ok(())
@@ -99,7 +105,7 @@ pub fn tsv_mass_import(
     name: &str,
     schema: &Option<Schema>,
     pack_file: &mut PackFile
-) -> Result<(Vec<Vec<String>>, Vec<Vec<String>>), Error> {
+) -> Result<(Vec<Vec<String>>, Vec<Vec<String>>)> {
 
     // Create a list of PackedFiles succesfully imported, and another for the ones that didn't work.
     let mut packed_files: Vec<PackedFile> = vec![];
@@ -149,7 +155,7 @@ pub fn tsv_mass_import(
                             if pack_file.data.packedfile_exists(&path) { packed_files_to_remove.push(path.to_vec()) }
 
                             // Create and add the new PackedFile to the PackFile.
-                            packed_files.push(PackedFile::read(data.len() as u32, path, data));
+                            packed_files.push(PackedFile::read(data.len() as u32, get_current_time(), path, data));
                         }
 
                         // In case of error, add it to the error list.
@@ -197,7 +203,7 @@ pub fn tsv_mass_import(
                             if pack_file.data.packedfile_exists(&path) { packed_files_to_remove.push(path.to_vec()) }
 
                             // Create and add the new PackedFile to the PackFile.
-                            packed_files.push(PackedFile::read(data.len() as u32, path, data));
+                            packed_files.push(PackedFile::read(data.len() as u32, get_current_time(), path, data));
                         }
 
                         // In case of error, add it to the error list.
@@ -216,7 +222,8 @@ pub fn tsv_mass_import(
 
     // If any of the files returned error, return error.
     if !error_files.is_empty() {
-        return Err(format_err!("<p>The following files returned error when trying to import them:</p><p>{:#?}</p><p>No files have been imported.</p>", error_files))
+        let error_files_string = error_files.iter().map(|x| format!("<li>{}</li>", x.display().to_string())).collect::<Vec<String>>();
+        return Err(ErrorKind::MassImport(error_files_string))?
     }
 
     // Get the "TreePath" of the new PackFiles to return them.
@@ -239,4 +246,148 @@ pub fn tsv_mass_import(
 
     // And return success.
     Ok((packed_files_to_remove, tree_path))
+}
+
+/// This function is used to Mass-Export TSV files from a PackFile. Note that this will OVERWRITE any
+/// existing file that has a name conflict with the TSV files provided.
+pub fn tsv_mass_export(
+    export_path: &PathBuf,
+    schema: &Option<Schema>,
+    pack_file: &PackFile
+) -> Result<String> {
+
+    // List of PackedFiles that couldn't be exported for one thing or another.
+    let mut error_list = vec![];
+
+    // List of exported file's names, so we don't overwrite them one with another.
+    let mut exported_files = vec![];
+
+    // For each PackedFile we have...
+    for packed_file in &pack_file.data.packed_files {
+
+        // Check if it's "valid for exportation". We check if his path is empty first to avoid false
+        // positives related with "starts_with" function.
+        if !packed_file.path.is_empty() {
+
+            // If the PackedFile is a DB Table...
+            if packed_file.path.starts_with(&["db".to_owned()]) && packed_file.path.len() == 3 {
+
+                // Check if we have an schema for the game.
+                match schema {
+
+                    // If we have it...
+                    Some(schema) => {
+
+                        // Try to decode the data of the PackedFile.
+                        match DB::read(&packed_file.data, &packed_file.path[1], &schema) {
+
+                            // In case of success...
+                            Ok(db) => {
+
+                                // Get his name to add it to the path.
+                                let mut name = format!("{}_{}.tsv", packed_file.path[1], packed_file.path.last().unwrap().to_owned());
+
+                                // Get the final exported path.
+                                let mut export_path = export_path.to_path_buf();
+
+                                // Create the index for the duplicate checks.
+                                let mut index = 1;
+
+                                // Checks to avoid overwriting exported files go here, in an infinite loop of life and death.
+                                loop {
+
+                                    // If the name is not in the exported list, is valid.
+                                    if !exported_files.contains(&name) { break; }
+
+                                    // If the name was invalid, add to it the index.
+                                    else { name = format!("{}_{}_{}.tsv", packed_file.path[1], packed_file.path.last().unwrap().to_owned(), index); }
+
+                                    // Increase the index.
+                                    index += 1;
+                                }
+
+                                // Add whatever name we got to the path.
+                                export_path.push(name.to_owned());
+
+                                // Try to export it to the provided path.
+                                match db.data.export_tsv(&export_path, (&packed_file.path[1], db.header.version)) {
+
+                                    // If success, add it to the exported files list.
+                                    Ok(_) => exported_files.push(name.to_owned()),
+
+                                    // In case of error, add it to the error list.
+                                    Err(_) => error_list.push(packed_file.path.to_vec()),
+                                }
+                            }
+
+                            // In case of error, add it to the error list.
+                            Err(_) => error_list.push(packed_file.path.to_vec()),
+                        }
+                    }
+
+                    // If we don't have it, add the PackedFile to the error list.
+                    None => error_list.push(packed_file.path.to_vec()),
+                }
+            }
+
+            // Otherwise, we check if it's a Loc PackedFile.
+            else if packed_file.path.last().unwrap().ends_with(".loc") {
+
+                // Try to decode the data of the PackedFile.
+                match Loc::read(&packed_file.data) {
+
+                    // In case of success...
+                    Ok(loc) => {
+
+                        // Get his name to add it to the path.
+                        let mut name = format!("{}.tsv", packed_file.path.last().unwrap().to_owned());
+
+                        // Get the final exported path.
+                        let mut export_path = export_path.to_path_buf();
+
+                        // Create the index for the duplicate checks.
+                        let mut index = 1;
+
+                        // Checks to avoid overwriting exported files go here, in an infinite loop of life and death.
+                        loop {
+
+                            // If the name is not in the exported list, is valid.
+                            if !exported_files.contains(&name) { break; }
+
+                            // If the name was invalid, add to it the index.
+                            else { name = format!("{}_{}.tsv", packed_file.path.last().unwrap().to_owned(), index); }
+
+                            // Increase the index.
+                            index += 1;
+                        }
+
+                        // Add whatever name we got to the path.
+                        export_path.push(name.to_owned());
+
+                        // Try to export it to the provided path.
+                        match loc.data.export_tsv(&export_path, ("Loc PackedFile", 9001)) {
+
+                            // If success, add it to the exported files list.
+                            Ok(_) => exported_files.push(name.to_owned()),
+
+                            // In case of error, add it to the error list.
+                            Err(_) => error_list.push(packed_file.path.to_vec()),
+                        }
+                    }
+
+                    // In case of error, add it to the error list.
+                    Err(_) => error_list.push(packed_file.path.to_vec()),
+                }
+            }
+        }
+    }
+
+    // If there has been errors, return ok with the list of errors.
+    if !error_list.is_empty() {
+        let error_files_string = error_list.iter().map(|x| format!("<li>{:#?}</li>", x)).collect::<String>();
+        Ok(format!("<p>All exportable files have been exported, except the following ones:</p><ul>{}</ul>", error_files_string))
+    }
+
+    // Otherwise, just return success and an empty error list.
+    else { Ok("<p>All exportable files have been exported.</p>".to_owned()) }
 }

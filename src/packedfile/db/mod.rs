@@ -9,7 +9,6 @@
 // 1 misteryous byte
 // 4 bytes for the entry count, in u32 reversed.
 
-extern crate failure;
 extern crate csv;
 extern crate uuid;
 
@@ -18,11 +17,11 @@ use std::io::Write;
 use std::path::PathBuf;
 
 use self::uuid::Uuid;
-use failure::Error;
 use self::csv::{ ReaderBuilder, WriterBuilder, QuoteStyle };
 use common::coding_helpers::*;
 use super::SerializableToTSV;
 use self::schemas::*;
+use error::{Error, ErrorKind, Result};
 
 pub mod schemas;
 pub mod schemas_importer;
@@ -70,7 +69,7 @@ pub struct DBData {
 }
 
 /// `DecodedData`: This enum is used to store the data from the different fields of a row of a DB PackedFile.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub enum DecodedData {
     Boolean(bool),
     Float(f32),
@@ -100,57 +99,55 @@ impl DB {
         packed_file_data: &[u8],
         db_type: &str,
         master_schema: &schemas::Schema
-    ) -> Result<Self, Error> {
+    ) -> Result<Self> {
 
         // Create the index that we'll use to decode the entire table.
         let mut index = 0;
 
         // We try to read the header.
-        match DBHeader::read(packed_file_data, &mut index) {
+        let header = DBHeader::read(packed_file_data, &mut index)?;
 
-            // If the header was read without errors...
-            Ok(header) => {
+        // These tables use the not-yet-implemented type "List" in the following versions:
+        // - models_artillery: 0
+        // - models_building: 3, 7.
+        // - models_naval: 11.
+        // - models_sieges: 2, 3.
+        // So we disable everything for any problematic version of these tables.
+        // TODO: Implement the needed type for these tables.
+        if (db_type == "models_artillery_tables" && header.version == 0) ||
+            (db_type == "models_building_tables" && (header.version == 3 ||
+                                                    header.version == 7)) ||
+            (db_type == "models_naval_tables" && header.version == 11) ||
+            (db_type == "models_sieges_tables" && (header.version == 2 ||
+                                                    header.version == 3))
+        { return Err(ErrorKind::DBTableContainsListField)? }
 
-                // These tables use the not-yet-implemented type "List" in the following versions:
-                // - models_artillery: 0
-                // - models_building: 3, 7.
-                // - models_naval: 11.
-                // - models_sieges: 2, 3.
-                // So we disable everything for any problematic version of these tables.
-                // TODO: Implement the needed type for these tables.
-                if (db_type == "models_artillery_tables" && header.version == 0) ||
-                    (db_type == "models_building_tables" && (header.version == 3 ||
-                                                            header.version == 7)) ||
-                    (db_type == "models_naval_tables" && header.version == 11) ||
-                    (db_type == "models_sieges_tables" && (header.version == 2 ||
-                                                            header.version == 3))
-                { return Err(format_err!("This specific table version use an unimplemented type (List), so is undecodeable, for now.")) }
+        // Then, we try to get the schema for our table, if exists.
+        match Self::get_schema(db_type, header.version, master_schema) {
 
-                // Then, we try to get the schema for our table, if exists.
-                match Self::get_schema(db_type, header.version, master_schema) {
+            // If we got an schema...
+            Some(table_definition) => {
 
-                    // If we got an schema...
-                    Some(table_definition) => {
+                // We try to decode his rows.
+                let data = DBData::read(&packed_file_data, table_definition, &header, &mut index)?;
 
-                        // We try to decode his rows. If it works, we return the decoded DB file.
-                        match DBData::read(&packed_file_data, table_definition, &header, &mut index) {
-                            Ok(data) => {
-                                Ok(Self {
-                                    db_type: db_type.to_owned(),
-                                    header,
-                                    data,
-                                })
-                            }
-
-                            // Otherwise. return error.
-                            Err(error) => Err(error)
-                        }
-                    }
-                    None => Err(format_err!("Schema for this DB Table not found"))
-                }
-
+                // Return the decoded DB file.
+                Ok(Self {
+                    db_type: db_type.to_owned(),
+                    header,
+                    data,
+                })
             }
-            Err(error) => Err(error)
+
+            // If we got nothing...
+            None => {
+
+                // If the table is empty, return his specific error.
+                if header.entry_count == 0 { Err(ErrorKind::DBTableEmptyWithNoTableDefinition)? }
+
+                // Otherwise, return the generic "No Table Definition" error.
+                else { Err(ErrorKind::SchemaTableDefinitionNotFound)? }
+            }
         }
     }
 
@@ -203,7 +200,7 @@ impl DB {
     }
 
     /// This function removes from the schema the version of a table with the provided version.
-    pub fn remove_table_version(table_name: &str, version: u32, schema: &mut schemas::Schema) -> Result<(), Error>{
+    pub fn remove_table_version(table_name: &str, version: u32, schema: &mut schemas::Schema) -> Result<()> {
 
         // If we find our table in the TableDefinitions vector...
         if let Some(index_table_definitions) = schema.get_table_definitions(table_name) {
@@ -213,15 +210,15 @@ impl DB {
 
                 // We remove that version and return success.
                 schema.tables_definitions[index_table_definitions].versions.remove(index_table_versions);
-                Ok(())
+                return Ok(())
             }
 
-            // If the table doesn't have the version we asked for...
-            else { return Err(format_err!("Error while deleting the definition for version {} of table {}:\nThis table doesn't have this version decoded.", version, table_name)); }
+            // Unless we break some code, this should never happen. If it does, crash so we can check it with Sentry.
+            unreachable!();
         }
 
-        // If the table hasn't been found in the Schema...
-        else { return Err(format_err!("Error while deleting the definition for version {} of table {}:\nThis table is not in the currently loaded Schema.", version, table_name)); }
+        // Unless we break some code, this should never happen. If it does, crash so we can check it with Sentry.
+        unreachable!();
     }
 }
 
@@ -244,7 +241,7 @@ impl DBHeader {
 
     /// This function creates a decoded DBHeader from a encoded PackedFile. It also return an index,
     /// to know where the body starts.
-    pub fn read(packed_file_header: &[u8], mut index: &mut usize) -> Result<Self, Error> {
+    pub fn read(packed_file_header: &[u8], mut index: &mut usize) -> Result<Self> {
 
         // Create the default header and set the index to 0.
         let mut header = Self::new(0);
@@ -329,7 +326,7 @@ impl DBData {
         table_definition: TableDefinition,
         header: &DBHeader,
         mut index: &mut usize,
-    ) -> Result<Self, Error> {
+    ) -> Result<Self> {
 
         // Create the new DBData.
         let mut data = Self::new(table_definition);
@@ -360,7 +357,7 @@ impl DBData {
         packed_file_data: &[u8],
         field_list: &[Field],
         mut index: &mut usize,
-    ) -> Result<Vec<DecodedData>, Error> {
+    ) -> Result<Vec<DecodedData>> {
 
         // First, we get the amount of columns we have.
         let column_amount = field_list.len();
@@ -391,7 +388,7 @@ impl DBData {
                     }
 
                     // Otherwise, return error.
-                    else { return Err(format_err!("Error: trying to decode a bool without a byte.")) }
+                    else { return Err(ErrorKind::HelperDecodingEncodingError("<p>Error trying to decode a boolean value: insufficient bytes to decode.</p>".to_owned()))? }
                 }
 
                 // If it's a float field...
@@ -409,7 +406,7 @@ impl DBData {
                     }
 
                     // Otherwise, return error.
-                    else { return Err(format_err!("Error: trying to decode a Float without enough bytes.")) }
+                    else { return Err(ErrorKind::HelperDecodingEncodingError("<p>Error trying to decode an f32 number: insufficient bytes to decode.</p>".to_owned()))? }
                 }
 
                 // If it's an integer field...
@@ -426,7 +423,7 @@ impl DBData {
                     }
 
                     // Otherwise, return error.
-                    else { return Err(format_err!("Error: trying to decode a signed Integer without enough bytes.")) }
+                    else { return Err(ErrorKind::HelperDecodingEncodingError("<p>Error trying to decode an i32 number: insufficient bytes to decode.</p>".to_owned()))? }
                 }
 
                 // If it's a long integer (i64)...
@@ -443,7 +440,7 @@ impl DBData {
                     }
 
                     // Otherwise, return error.
-                    else { return Err(format_err!("Error: trying to decode a signed Long Integer without enough bytes.")) }
+                    else { return Err(ErrorKind::HelperDecodingEncodingError("<p>Error trying to decode an i64 number: insufficient bytes to decode.</p>".to_owned()))? }
                 }
 
                 // If it's a common StringU8...
@@ -460,7 +457,7 @@ impl DBData {
                     }
 
                     // Otherwise, return error.
-                    else { return Err(format_err!("Error: trying to decode a StringU8 without enought bytes.")) }
+                    else { return Err(ErrorKind::HelperDecodingEncodingError("<p>Error trying to decode an UTF-8 string: insufficient bytes to decode.</p>".to_owned()))? }
                 }
 
                 // If it's a StringU16...
@@ -477,7 +474,7 @@ impl DBData {
                     }
 
                     // Otherwise, return error.
-                    else { return Err(format_err!("Error: trying to decode a StringU16 without enought bytes.")) }
+                    else { return Err(ErrorKind::HelperDecodingEncodingError("<p>Error trying to decode an UTF-16 string: insufficient bytes to decode.</p>".to_owned()))? }
                 }
 
                 // If it's an optional StringU8...
@@ -492,7 +489,7 @@ impl DBData {
                             Err(error) => return Err(error)
                         };
                     }
-                    else { return Err(format_err!("Error: trying to decode an OptionalStringU8 without enought bytes.")) }
+                    else { return Err(ErrorKind::HelperDecodingEncodingError("<p>Error trying to decode an optional UTF-8 string: insufficient bytes to decode.</p>".to_owned()))? }
                 }
 
                 // If it's an optional StringU16...
@@ -507,7 +504,7 @@ impl DBData {
                             Err(error) => return Err(error)
                         };
                     }
-                    else { return Err(format_err!("Error: trying to decode an OptionalStringU16 without enought bytes.")) }
+                    else { return Err(ErrorKind::HelperDecodingEncodingError("<p>Error trying to decode an optional UTF-16 string: insufficient bytes to decode.</p>".to_owned()))? }
                 }
             }
         }
@@ -553,7 +550,7 @@ impl DBData {
 impl SerializableToTSV for DBData {
 
     /// This function imports a TSV file and loads his contents into a DB Table.
-    fn import_tsv(&mut self, tsv_file_path: &PathBuf, packed_file_type: &str) -> Result<(), Error> {
+    fn import_tsv(&mut self, tsv_file_path: &PathBuf, packed_file_type: &str) -> Result<()> {
 
         // We want the reader to have no quotes, tab as delimiter and custom headers, because otherwise
         // Excel, Libreoffice and all the programs that edit this kind of files break them on save.
@@ -584,17 +581,17 @@ impl SerializableToTSV for DBData {
 
                                 // If the name or version are the defaults, return error.
                                 if table_name == "error" || table_version == 99999 {
-                                    return Err(format_err!("This TSV file's first line is incorrect."));
+                                    return Err(ErrorKind::ImportTSVIncorrectFirstRow)?;
                                 }
 
                                 // If any of them doesn't match the name and version of the table we are importing to, return error.
                                 if table_name != packed_file_type || table_version != self.table_definition.version {
-                                    return Err(format_err!("This TSV file belongs to another table/version."));
+                                    return Err(ErrorKind::ImportTSVWrongType)?;
                                 }
                             }
 
                             // If it fails, return error.
-                            Err(_) => return Err(format_err!("This TSV file's first row doesn't contain the name of the table and his version.")),
+                            Err(_) => return Err(ErrorKind::ImportTSVIncorrectFirstRow)?,
                         }
                     }
 
@@ -612,10 +609,10 @@ impl SerializableToTSV for DBData {
                                     let mut entry_complete = vec![];
                                     for (index, field) in entry.iter().enumerate() {
                                         match self.table_definition.fields[index].field_type {
-                                            FieldType::Boolean => entry_complete.push(DecodedData::Boolean(field.parse::<bool>()?)),
-                                            FieldType::Float => entry_complete.push(DecodedData::Float(field.parse::<f32>()?)),
-                                            FieldType::Integer => entry_complete.push(DecodedData::Integer(field.parse::<i32>()?)),
-                                            FieldType::LongInteger => entry_complete.push(DecodedData::LongInteger(field.parse::<i64>()?)),
+                                            FieldType::Boolean => entry_complete.push(DecodedData::Boolean(field.parse::<bool>().map_err(|_| Error::from(ErrorKind::DBTableParse))?)),
+                                            FieldType::Float => entry_complete.push(DecodedData::Float(field.parse::<f32>().map_err(|_| Error::from(ErrorKind::DBTableParse))?)),
+                                            FieldType::Integer => entry_complete.push(DecodedData::Integer(field.parse::<i32>().map_err(|_| Error::from(ErrorKind::DBTableParse))?)),
+                                            FieldType::LongInteger => entry_complete.push(DecodedData::LongInteger(field.parse::<i64>().map_err(|_| Error::from(ErrorKind::DBTableParse))?)),
                                             FieldType::StringU8 => entry_complete.push(DecodedData::StringU8(field.to_owned())),
                                             FieldType::StringU16 => entry_complete.push(DecodedData::StringU16(field.to_owned())),
                                             FieldType::OptionalStringU8 => entry_complete.push(DecodedData::OptionalStringU8(field.to_owned())),
@@ -627,12 +624,12 @@ impl SerializableToTSV for DBData {
 
                                 // If the entry lenght doesn't match with the one of the current table, return error.
                                 else {
-                                    return Err(format_err!("Error while trying import the TSV file:\n{}\n\nIf you see this message, you probably tried to import a .tsv file into a table with different structure.", &tsv_file_path.display()));
+                                    return Err(ErrorKind::ImportTSVIncompatibleFile)?;
                                 }
                             }
 
                             // If it fails, return error.
-                            Err(_) => return Err(format_err!("Error while trying import the TSV file:\n{}", &tsv_file_path.display())),
+                            Err(error) => return Err(Error::from(error))
                         }
                     }
                 }
@@ -645,12 +642,12 @@ impl SerializableToTSV for DBData {
             }
 
             // If we couldn't read the TSV file, return error.
-            Err(_) => Err(format_err!("Error while trying to read the TSV file:\n{}.", &tsv_file_path.display()))
+            Err(error) => Err(Error::from(error))
         }
     }
 
     /// This function creates a TSV file with the contents of the DB Table.
-    fn export_tsv(&self, packed_file_path: &PathBuf, table_info: (&str, u32)) -> Result<String, Error> {
+    fn export_tsv(&self, packed_file_path: &PathBuf, table_info: (&str, u32)) -> Result<String> {
 
         // We want the writer to have no quotes, tab as delimiter and custom headers, because otherwise
         // Excel, Libreoffice and all the programs that edit this kind of files break them on save.
@@ -674,12 +671,12 @@ impl SerializableToTSV for DBData {
         // Then, we try to write it on disk. If there is an error, report it.
         match File::create(&packed_file_path) {
             Ok(mut file) => {
-                match file.write_all(String::from_utf8(writer.into_inner()?)?.as_bytes()) {
-                    Ok(_) => Ok(format!("DB PackedFile successfully exported:\n{}", packed_file_path.display())),
-                    Err(_) => Err(format_err!("Error while writing the following file to disk:\n{}", packed_file_path.display()))
+                match file.write_all(String::from_utf8(writer.into_inner().unwrap())?.as_bytes()) {
+                    Ok(_) => Ok(format!("<p>DB PackedFile successfully exported:</p><ul><li>{}</li></ul>", packed_file_path.display())),
+                    Err(_) => Err(ErrorKind::IOGenericWrite(vec![packed_file_path.display().to_string();1]))?
                 }
             }
-            Err(_) => Err(format_err!("Error while trying to write the following file to disk:\n{}", packed_file_path.display()))
+            Err(_) => Err(ErrorKind::IOGenericWrite(vec![packed_file_path.display().to_string();1]))?
         }
     }
 }

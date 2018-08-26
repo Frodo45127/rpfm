@@ -1,16 +1,14 @@
 // In this file we define the PackedFile type Loc for decoding and encoding it.
 // This is the type used by localisation files.
-extern crate failure;
 extern crate csv;
 
 use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
-
-use self::failure::Error;
 use self::csv::{ ReaderBuilder, WriterBuilder, QuoteStyle };
 
 use common::coding_helpers::*;
+use error::{Error, ErrorKind, Result};
 use super::SerializableToTSV;
 
 /// `Loc`: This stores the data of a decoded Localisation PackedFile in memory.
@@ -69,7 +67,7 @@ impl Loc {
 
     /// This function creates a new decoded Loc from the data of a PackedFile. Note that this assume
     /// the file is a loc. It'll crash otherwise.
-    pub fn read(packed_file_data: &[u8]) -> Result<Self, Error> {
+    pub fn read(packed_file_data: &[u8]) -> Result<Self> {
         match LocHeader::read(&packed_file_data[..14]) {
             Ok(header) => {
                 match LocData::read(&packed_file_data[14..], &header) {
@@ -115,7 +113,7 @@ impl LocHeader {
 
     /// This function creates a new decoded LocHeader from the data of a PackedFile. To see what are
     /// these values, check the LocHeader struct.
-    pub fn read(packed_file_header: &[u8]) -> Result<Self, Error> {
+    pub fn read(packed_file_header: &[u8]) -> Result<Self> {
 
         // Create a new header.
         let mut header = Self::new();
@@ -159,7 +157,7 @@ impl LocData {
 
     /// This function creates a new decoded LocData from the data of a PackedFile. This pass through
     /// all the data of the Loc PackedFile and decodes every entry.
-    pub fn read(packed_file_data: &[u8], header: &LocHeader) -> Result<Self, Error> {
+    pub fn read(packed_file_data: &[u8], header: &LocHeader) -> Result<Self> {
 
         // Create a new list of entries.
         let mut entries = vec![];
@@ -214,7 +212,7 @@ impl LocEntry {
 impl SerializableToTSV for LocData {
 
     /// This function imports a TSV file and loads his contents into a Loc PackedFile.
-    fn import_tsv(&mut self, tsv_file_path: &PathBuf, packed_file_type: &str) -> Result<(), Error> {
+    fn import_tsv(&mut self, tsv_file_path: &PathBuf, packed_file_type: &str) -> Result<()> {
 
         // We want the reader to have no quotes, tab as delimiter and custom headers, because otherwise
         // Excel, Libreoffice and all the programs that edit this kind of files break them on save.
@@ -241,12 +239,12 @@ impl SerializableToTSV for LocData {
 
                         // If it's not of type "Loc PackedFile" or not over 9000, it's not Goku.
                         if tsv_type != packed_file_type || its_over_9000 != 9001 {
-                            return Err(format_err!("This TSV file it's not from a Loc PackedFile."));
+                            return Err(ErrorKind::ImportTSVWrongType)?;
                         }
                     }
 
                     // If it fails, return error.
-                    Err(_) => return Err(format_err!("This TSV file's doesn't have a header.")),
+                    Err(_) => return Err(ErrorKind::ImportTSVIncorrectFirstRow)?,
                 }
 
                 // Then we add the new entries to the decoded entry list, or return error if any of the entries is invalid.
@@ -256,7 +254,7 @@ impl SerializableToTSV for LocData {
                     if index > 0 {
                         match reader_entry {
                             Ok(entry) => packed_file_data.push(entry),
-                            Err(_) => return Err(format_err!("Error while trying import the TSV file:\n{}", &tsv_file_path.display()))
+                            Err(error) => return Err(Error::from(error))
                         }
                     }
                 }
@@ -269,12 +267,12 @@ impl SerializableToTSV for LocData {
             }
 
             // If we couldn't read the TSV file, return error.
-            Err(_) => Err(format_err!("Error while trying to read the TSV file:\n{}.", &tsv_file_path.display()))
+            Err(error) => Err(Error::from(error))
         }
     }
 
     /// This function creates a TSV file with the contents of a Loc PackedFile.
-    fn export_tsv(&self, packed_file_path: &PathBuf, extra_info: (&str, u32)) -> Result<String, Error> {
+    fn export_tsv(&self, packed_file_path: &PathBuf, extra_info: (&str, u32)) -> Result<String> {
 
         // We want the writer to have no quotes, tab as delimiter and custom headers, because otherwise
         // Excel, Libreoffice and all the programs that edit this kind of files break them on save.
@@ -298,12 +296,12 @@ impl SerializableToTSV for LocData {
         // Then, we try to write it on disk. If there is an error, report it.
         match File::create(&packed_file_path) {
             Ok(mut file) => {
-                match file.write_all(String::from_utf8(writer.into_inner()?)?.as_bytes()) {
-                    Ok(_) => Ok(format!("DB PackedFile successfully exported:\n{}", packed_file_path.display())),
-                    Err(_) => Err(format_err!("Error while writing the following file to disk:\n{}", packed_file_path.display()))
+                match file.write_all(String::from_utf8(writer.into_inner().unwrap())?.as_bytes()) {
+                    Ok(_) => Ok(format!("<p>Loc PackedFile successfully exported:</p><ul><li>{}</li></ul>", packed_file_path.display())),
+                    Err(_) => Err(ErrorKind::IOGenericWrite(vec![packed_file_path.display().to_string();1]))?
                 }
             }
-            Err(_) => Err(format_err!("Error while trying to write the following file to disk:\n{}", packed_file_path.display()))
+            Err(_) => Err(ErrorKind::IOGenericWrite(vec![packed_file_path.display().to_string();1]))?
         }
     }
 }

@@ -1,5 +1,4 @@
 // In this file are all the helper functions used by the UI when editing Text PackedFiles.
-extern crate failure;
 extern crate qt_widgets;
 extern crate qt_gui;
 extern crate qt_core;
@@ -11,10 +10,11 @@ use qt_core::connection::Signal;
 
 use std::cell::RefCell;
 use std::rc::Rc;
-use failure::Error;
 
 use AppUI;
+use Commands;
 use ui::*;
+use error::Result;
 
 /// Struct `PackedFileTextView`: contains all the stuff we need to give to the program to show a
 /// `PlainTextEdit` with the data of a plain text PackedFile, allowing us to manipulate it.
@@ -37,75 +37,68 @@ impl PackedFileTextView {
     /// This function creates a new TreeView with the PackedFile's View as father and returns a
     /// `PackedFileLocTreeView` with all his data.
     pub fn create_text_view(
-        sender_qt: Sender<&'static str>,
-        sender_qt_data: &Sender<Result<Vec<u8>, Error>>,
-        receiver_qt: &Rc<RefCell<Receiver<Result<Vec<u8>, Error>>>>,
+        sender_qt: Sender<Commands>,
+        sender_qt_data: &Sender<Result<Vec<u8>>>,
+        receiver_qt: &Rc<RefCell<Receiver<Result<Vec<u8>>>>>,
         is_modified: &Rc<RefCell<bool>>,
         app_ui: &AppUI,
         packed_file_index: &usize,
-    ) -> Result<Self, Error> {
+    ) -> Result<Self> {
 
         // Get the text of the PackedFile.
-        sender_qt.send("decode_packed_file_text").unwrap();
+        sender_qt.send(Commands::DecodePackedFileText).unwrap();
         sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
-        let response = receiver_qt.borrow().recv().unwrap();
 
-        // Check if we could get the text or not.
-        match response {
+        // Get the response from the other thread.
+        let text: String = match check_message_validity_recv(&receiver_qt) {
+            Ok(data) => data,
+            Err(error) => return Err(error)
+        };
 
-            // In case of success...
-            Ok(response) => {
+        // Create the PlainTextEdit.
+        let plain_text_edit = PlainTextEdit::new(&QString::from_std_str(&text)).into_raw();
 
-                // Get the text.
-                let text: String = serde_json::from_slice(&response).unwrap();
+        // Add it to the view.
+        unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((plain_text_edit as *mut Widget, 0, 0, 1, 1)); }
 
-                // Create the PlainTextEdit.
-                let mut plain_text_edit = PlainTextEdit::new(&QString::from_std_str(&text)).into_raw();
+        // Create the stuff needed for this to work.
+        let stuff = Self {
+            save_changes: SlotNoArgs::new(clone!(
+                packed_file_index,
+                app_ui,
+                is_modified,
+                sender_qt,
+                sender_qt_data,
+                receiver_qt => move || {
 
-                // Add it to the view.
-                unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((plain_text_edit as *mut Widget, 0, 0, 1, 1)); }
+                    // Tell the background thread to start saving the PackedFile.
+                    sender_qt.send(Commands::EncodePackedFileText).unwrap();
 
-                // Create the stuff needed for this to work.
-                let stuff = Self {
-                    save_changes: SlotNoArgs::new(clone!(
-                        packed_file_index,
-                        app_ui,
-                        is_modified,
-                        sender_qt,
-                        sender_qt_data,
-                        receiver_qt => move || {
+                    // Get the text from the PlainTextEdit.
+                    let text;
+                    unsafe { text = plain_text_edit.as_mut().unwrap().to_plain_text().to_std_string(); }
 
-                            // Tell the background thread to start saving the PackedFile.
-                            sender_qt.send("encode_packed_file_text").unwrap();
+                    // Send the new text.
+                    sender_qt_data.send(serde_json::to_vec(&(text, packed_file_index)).map_err(From::from)).unwrap();
 
-                            // Get the text from the PlainTextEdit.
-                            let text;
-                            unsafe { text = plain_text_edit.as_mut().unwrap().to_plain_text().to_std_string(); }
+                    // Get the incomplete path of the edited PackedFile.
+                    sender_qt.send(Commands::GetPackedFilePath).unwrap();
+                    sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
+                    let path: Vec<String> = match check_message_validity_recv(&receiver_qt) {
+                        Ok(data) => data,
+                        Err(_) => panic!(THREADS_MESSAGE_ERROR)
+                    };
 
-                            // Send the new text.
-                            sender_qt_data.send(serde_json::to_vec(&(text, packed_file_index)).map_err(From::from)).unwrap();
+                    // Set the mod as "Modified".
+                    *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(path));
+                }
+            )),
+        };
 
-                            // Get the incomplete path of the edited PackedFile.
-                            sender_qt.send("get_packed_file_path").unwrap();
-                            sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
-                            let response = receiver_qt.borrow().recv().unwrap().unwrap();
-                            let path: Vec<String> = serde_json::from_slice(&response).unwrap();
+        // Action to trigger a save on edit.
+        unsafe { plain_text_edit.as_ref().unwrap().signals().text_changed().connect(&stuff.save_changes); }
 
-                            // Set the mod as "Modified".
-                            *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(path));
-                        }
-                    )),
-                };
-
-                // Action to trigger a save on edit.
-                unsafe { plain_text_edit.as_ref().unwrap().signals().text_changed().connect(&stuff.save_changes); }
-
-                // Return the slots.
-                Ok(stuff)
-            }
-
-            // In case of error, return it.
-            Err(error) => Err(error),
-        }
+        // Return the slots.
+        Ok(stuff)
     }
 }

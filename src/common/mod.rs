@@ -1,20 +1,32 @@
-// In this file are all the helper functions used by the code (no GTK here)
+// In this file are all the "Generic" helper functions used by RPFM (no UI code here).
 // As we may or may not use them, all functions here should have the "#[allow(dead_code)]"
 // var set, so the compiler doesn't spam us every time we try to compile.
-extern crate failure;
+extern crate chrono;
+extern crate serde;
+extern crate serde_json;
 
-use std::fs;
-use std::path::Path;
-use std::path::PathBuf;
+use chrono::{Utc, DateTime};
 
-use self::failure::Error;
+use std::cell::RefCell;
+use std::rc::Rc;
+use std::sync::mpsc::{Receiver, TryRecvError};
+use std::fs::{File, read_dir};
+use std::path::{Path, PathBuf};
+
+use error::{ErrorKind, Result};
 use packfile::packfile::PackFile;
 
 pub mod coding_helpers;
 
-// This tells the compiler to only compile this mod when testing... I think.
+// This tells the compiler to only compile this mod when testing. It's just to make sure the "coders" don't break.
 #[cfg(test)]
 pub mod tests;
+
+/// This const is the standard message in case of message deserializing error. If this happens, crash the program and send a report to Sentry.
+pub const THREADS_MESSAGE_ERROR: &str = "Error in thread messages system.";
+
+/// This const is the standard message in case of message communication error. If this happens, crash the program and send a report to Sentry.
+pub const THREADS_COMMUNICATION_ERROR: &str = "Error in thread communication system.";
 
 /// This enum has the different types of selected items in a TreeView. File has (tree_path without
 /// the mod's name, index in PackFile). Folder has the tree_path without the mod's name.
@@ -26,8 +38,8 @@ pub enum TreePathType {
     None,
 }
 
-
-/// Custom implementation of `PartialEq` for `TreePathType`.
+/// Custom implementation of "PartialEq" for "TreePathType", so we don't need to match each time while
+/// want to compare two TreePathType.
 impl PartialEq for TreePathType {
     fn eq(&self, other: &TreePathType) -> bool {
         match (self, other) {
@@ -97,51 +109,63 @@ pub fn get_type_of_selected_path(
     }
 }
 
-/// This function takes a &Path and returns a Vec<PathBuf> with the paths of every file under the
-/// original &Path.
+/// This function takes a &Path and returns a Vec<PathBuf> with the paths of every file under the &Path.
 #[allow(dead_code)]
-pub fn get_files_from_subdir(current_path: &Path) -> Result<Vec<PathBuf>, Error> {
+pub fn get_files_from_subdir(current_path: &Path) -> Result<Vec<PathBuf>> {
 
+    // Create the list of files.
     let mut file_list: Vec<PathBuf> = vec![];
 
-    // For every file in this folder
-    match fs::read_dir(current_path) {
+    // Get everything from the path we have.
+    match read_dir(current_path) {
+
+        // If we don't have any problems reading it...
         Ok(files_in_current_path) => {
+
+            // For each thing in the current path...
             for file in files_in_current_path {
 
                 // Get his path
                 let file_path = file.unwrap().path().clone();
 
                 // If it's a file, to the file_list it goes
-                if file_path.is_file() {
-                    file_list.push(file_path);
-                }
+                if file_path.is_file() { file_list.push(file_path); }
 
-                // If it's a folder, get all the files from it and his subfolders recursively
+                // If it's a folder...
                 else if file_path.is_dir() {
+
+                    // Get the list of files inside of the folder...
                     let mut subfolder_files_path = get_files_from_subdir(&file_path).unwrap();
+
+                    // ... and append it to the file list.
                     file_list.append(&mut subfolder_files_path);
                 }
             }
         }
-        Err(error) => return Err(From::from(error)),
+
+        // In case of reading error, report it.
+        Err(_) => return Err(ErrorKind::IOReadFolder(current_path.to_path_buf()))?,
     }
 
-    // Return the list of paths
+    // Return the list of paths.
     Ok(file_list)
 }
 
-/// This function takes a &Path and returns a Vec<PathBuf> with the paths of every file under the
-/// original &Path. This is a modification of the normal "get_files_from_subdir" where we only get
-/// the files in the current folder and with a special beginning.
+/// This is a modification of the normal "get_files_from_subdir" used to get a list with the path of
+/// every table definition from the assembly kit. Well, from the folder you tell it to search.
 #[allow(dead_code)]
-pub fn get_assembly_kit_schemas(current_path: &Path) -> Result<Vec<PathBuf>, Error> {
+pub fn get_assembly_kit_schemas(current_path: &Path) -> Result<Vec<PathBuf>> {
 
+    // Create the list of files.
     let mut file_list: Vec<PathBuf> = vec![];
 
-    // For every file in this folder
-    match fs::read_dir(current_path) {
+    // Get everything from the path we have.
+    match read_dir(current_path) {
+
+        // If we don't have any problems reading it...
         Ok(files_in_current_path) => {
+
+            // For each thing in the current path...
             for file in files_in_current_path {
 
                 // Get his path
@@ -159,9 +183,217 @@ pub fn get_assembly_kit_schemas(current_path: &Path) -> Result<Vec<PathBuf>, Err
                 }
             }
         }
-        Err(error) => return Err(From::from(error)),
+
+        // In case of reading error, report it.
+        Err(_) => return Err(ErrorKind::IOReadFolder(current_path.to_path_buf()))?,
     }
-    // Return the list of paths ordered alphabetically
+
+    // Sort the files alphabetically.
     file_list.sort();
+
+    // Return the list of paths.
     Ok(file_list)
+}
+
+/// Get the current date and return it, as a decoded u32.
+#[allow(dead_code)]
+pub fn get_current_time() -> u32 {
+
+    // Get the current time as an encoded i64.
+    let mut creation_time = coding_helpers::encode_integer_i64(Utc::now().naive_utc().timestamp());
+
+    // Truncate it, so we got just the four bytes we need.
+    creation_time.truncate(4);
+
+    // Decode it as an u32.
+    coding_helpers::decode_integer_u32(&creation_time).unwrap()
+}
+
+/// Get the last modified date from a file and return it, as a decoded u32.
+#[allow(dead_code)]
+pub fn get_last_modified_time_from_file(file: &File) -> u32 {
+
+    // Translate the SystemTime to DateTime<Utc>, so we can use it.
+    let last_modified_time: DateTime<Utc> = DateTime::from(file.metadata().unwrap().modified().unwrap());
+
+    // Get the current time as an encoded i64.
+    let mut last_modified_time = coding_helpers::encode_integer_i64(last_modified_time.naive_utc().timestamp());
+
+    // Truncate it, so we got just the four bytes we need.
+    last_modified_time.truncate(4);
+
+    // Decode it as an u32.
+    coding_helpers::decode_integer_u32(&last_modified_time).unwrap()
+}
+
+/// This functions serves as "message checker" for the communication between threads, for situations where we can hang the thread.
+/// It's used to ensure what you receive is what you should receive. In case of error, it'll throw you a panic.
+#[allow(dead_code)]
+pub fn check_message_validity_recv<T: serde::de::DeserializeOwned>(receiver: &Rc<RefCell<Receiver<Result<Vec<u8>>>>>) -> Result<T> {
+
+    // Wait until you get something in the receiver...
+    match receiver.borrow().recv() {
+
+        // In case of success...
+        Ok(data) => {
+
+            // We check if the serialization was successful.
+            match data {
+
+                // In case of success...
+                Ok(data) => {
+
+                    // Try to deserialize it.
+                    match serde_json::from_slice(&data) {
+
+                        // If it can be deserialized as the type we want, do it and return the data.
+                        Ok(data) => Ok(data),
+
+                        // If error, there are problems with the messages between threads. CTD and send the error to Sentry.
+                        Err(_) => panic!(THREADS_MESSAGE_ERROR),
+                    }
+                }
+
+                // In case of error, there was a problem during the process. Return it.
+                Err(error) => Err(error),
+            }
+        }
+
+        // In case of error, there has been a problem with thread communication. This usually happen
+        // when one of the threads has gone kaput. CTD and send the error to Sentry.
+        Err(_) => panic!(THREADS_COMMUNICATION_ERROR)
+    }
+}
+
+/// This functions serves as "message checker" for the communication between threads, for situations where we can hang the thread.
+/// It's used to ensure what you receive is what you should receive. In case of error, it'll throw you a panic. Same as the normal one,
+/// but it doesn't require you to have an Rc<RefCell<>> around the receiver.
+#[allow(dead_code)]
+pub fn check_message_validity_recv_background<T: serde::de::DeserializeOwned>(receiver: &Receiver<Result<Vec<u8>>>) -> Result<T> {
+
+    // Wait until you get something in the receiver...
+    match receiver.recv() {
+
+        // In case of success...
+        Ok(data) => {
+
+            // We check if the serialization was successful.
+            match data {
+
+                // In case of success...
+                Ok(data) => {
+
+                    // Try to deserialize it.
+                    match serde_json::from_slice(&data) {
+
+                        // If it can be deserialized as the type we want, do it and return the data.
+                        Ok(data) => Ok(data),
+
+                        // If error, there are problems with the messages between threads. CTD and send the error to Sentry.
+                        Err(_) => panic!(THREADS_MESSAGE_ERROR),
+                    }
+                }
+
+                // In case of error, there was a problem during the process. Return it.
+                Err(error) => Err(error),
+            }
+        }
+
+        // In case of error, there has been a problem with thread communication. This usually happen
+        // when one of the threads has gone kaput. CTD and send the error to Sentry.
+        Err(_) => panic!(THREADS_COMMUNICATION_ERROR)
+    }
+}
+
+/// This functions serves as "message checker" for the communication between threads, for situations where we can't hang the thread.
+/// It's used to ensure what you receive is what you should receive. In case of error, it'll throw you one of the two errors:
+/// - TryRecvError::Disconnected: For when the other channel dies.
+/// - TryRecvError::Empty: For where no message has been received.
+#[allow(dead_code)]
+pub fn check_message_validity_tryrecv<T: serde::de::DeserializeOwned>(receiver: &Rc<RefCell<Receiver<Result<Vec<u8>>>>>) -> Result<T> {
+
+    // Wait until you get something in the receiver...
+    match receiver.borrow().try_recv() {
+
+        // In case of success...
+        Ok(data) => {
+
+            // We check if the serialization was successful.
+            match data {
+
+                // In case of success...
+                Ok(data) => {
+
+                    // Try to deserialize it.
+                    match serde_json::from_slice(&data) {
+
+                        // If it can be deserialized as the type we want, do it and return the data.
+                        Ok(data) => Ok(data),
+
+                        // If error, there are problems with the messages between threads. CTD and send the error to Sentry.
+                        Err(_) => panic!(THREADS_MESSAGE_ERROR),
+                    }
+                }
+
+                // In case of error, there was a problem during the process. Return it.
+                Err(error) => Err(error),
+            }
+        }
+
+        // In case of error, there has been a problem with thread communication. It can be two things: the other thread
+        // has gone kaput, or no message was found. In case of the former, panic. Return an error when the later shows up.
+        Err(error) => {
+            match error {
+                TryRecvError::Empty => Err(ErrorKind::MessageSystemEmpty)?,
+                TryRecvError::Disconnected => panic!(THREADS_COMMUNICATION_ERROR)
+            }
+        }
+    }
+}
+
+/// This functions serves as "message checker" for the communication between threads, for situations where we can't hang the thread.
+/// It's used to ensure what you receive is what you should receive. In case of error, it'll throw you one of the two errors:
+/// - TryRecvError::Disconnected: For when the other channel dies.
+/// - TryRecvError::Empty: For where no message has been received.
+/// Same as the normal one, but it doesn't require you to have an Rc<RefCell<>> around the receiver.
+#[allow(dead_code)]
+pub fn check_message_validity_tryrecv_background<T: serde::de::DeserializeOwned>(receiver: &Receiver<Result<Vec<u8>>>) -> Result<T> {
+
+    // Wait until you get something in the receiver...
+    match receiver.try_recv() {
+
+        // In case of success...
+        Ok(data) => {
+
+            // We check if the serialization was successful.
+            match data {
+
+                // In case of success...
+                Ok(data) => {
+
+                    // Try to deserialize it.
+                    match serde_json::from_slice(&data) {
+
+                        // If it can be deserialized as the type we want, do it and return the data.
+                        Ok(data) => Ok(data),
+
+                        // If error, there are problems with the messages between threads. CTD and send the error to Sentry.
+                        Err(_) => panic!(THREADS_MESSAGE_ERROR),
+                    }
+                }
+
+                // In case of error, there was a problem during the process. Return it.
+                Err(error) => Err(error),
+            }
+        }
+
+        // In case of error, there has been a problem with thread communication. It can be two things: the other thread
+        // has gone kaput, or no message was found. In case of the former, panic. Return an error when the later shows up.
+        Err(error) => {
+            match error {
+                TryRecvError::Empty => Err(ErrorKind::MessageSystemEmpty)?,
+                TryRecvError::Disconnected => panic!(THREADS_COMMUNICATION_ERROR)
+            }
+        }
+    }
 }
