@@ -75,6 +75,7 @@ impl Shortcuts {
         packed_files_db.insert("paste_as_new_row".to_owned(), "Ctrl+Shift+V".to_owned());
         packed_files_db.insert("import_tsv".to_owned(), "Ctrl+W".to_owned());
         packed_files_db.insert("export_tsv".to_owned(), "Ctrl+E".to_owned());
+        packed_files_db.insert("smart_delete".to_owned(), "Del".to_owned());
         
         packed_files_loc.insert("add_row".to_owned(), "Ctrl+A".to_owned());
         packed_files_loc.insert("insert_row".to_owned(), "Ctrl+I".to_owned());
@@ -84,6 +85,7 @@ impl Shortcuts {
         packed_files_loc.insert("paste_as_new_row".to_owned(), "Ctrl+Shift+V".to_owned());
         packed_files_loc.insert("import_tsv".to_owned(), "Ctrl+W".to_owned());
         packed_files_loc.insert("export_tsv".to_owned(), "Ctrl+E".to_owned());
+        packed_files_loc.insert("smart_delete".to_owned(), "Del".to_owned());
         
         db_decoder_fields.insert("move_up".to_owned(), "Ctrl+Up".to_owned());
         db_decoder_fields.insert("move_down".to_owned(), "Ctrl+Down".to_owned());

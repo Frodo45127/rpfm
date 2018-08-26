@@ -3,6 +3,7 @@ extern crate qt_widgets;
 extern crate qt_gui;
 extern crate qt_core;
 
+use qt_widgets::action::Action;
 use qt_widgets::combo_box::ComboBox;
 use qt_widgets::header_view::ResizeMode;
 use qt_widgets::file_dialog::FileDialog;
@@ -29,12 +30,14 @@ use qt_core::slots::{SlotBool, SlotCInt, SlotStringRef, SlotItemSelectionRefItem
 use qt_core::reg_exp::RegExp;
 use qt_core::qt::{Orientation, CheckState, ContextMenuPolicy, ShortcutContext, SortOrder, CaseSensitivity, GlobalColor};
 
+use std::collections::BTreeMap;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::mpsc::{Sender, Receiver};
 
 use AppUI;
 use Commands;
+use QString;
 use common::*;
 use error::Result;
 use ui::*;
@@ -59,6 +62,7 @@ pub struct PackedFileLocTreeView {
     pub slot_context_menu_paste_as_new_lines: SlotBool<'static>,
     pub slot_context_menu_import: SlotBool<'static>,
     pub slot_context_menu_export: SlotBool<'static>,
+    pub slot_smart_delete: SlotBool<'static>,
 }
 
 /// Implementation of PackedFileLocTreeView.
@@ -84,6 +88,7 @@ impl PackedFileLocTreeView {
             slot_context_menu_paste_as_new_lines: SlotBool::new(|_| {}),
             slot_context_menu_import: SlotBool::new(|_| {}),
             slot_context_menu_export: SlotBool::new(|_| {}),
+            slot_smart_delete: SlotBool::new(|_| {}),
         }
     }
 
@@ -166,6 +171,9 @@ impl PackedFileLocTreeView {
             unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().resize_sections(ResizeMode::ResizeToContents); }
         }
 
+        // Action to make the delete button delete contents.
+        let smart_delete = Action::new(()).into_raw();
+
         // Create the Contextual Menu for the TableView.
         let mut context_menu = Menu::new(());
         let context_menu_add = context_menu.add_action(&QString::from_std_str("&Add Row"));
@@ -196,6 +204,7 @@ impl PackedFileLocTreeView {
         unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("paste_as_new_row").unwrap()))); }
         unsafe { context_menu_import.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("import_tsv").unwrap()))); }
         unsafe { context_menu_export.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("export_tsv").unwrap()))); }
+        unsafe { smart_delete.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("smart_delete").unwrap()))); }
 
         // Set the shortcuts to only trigger in the Table.
         unsafe { context_menu_add.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
@@ -206,6 +215,7 @@ impl PackedFileLocTreeView {
         unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_import.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_export.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+        unsafe { smart_delete.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
 
         // Add the actions to the TableView, so the shortcuts work.
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_add); }
@@ -216,6 +226,7 @@ impl PackedFileLocTreeView {
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_paste_as_new_lines); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_import); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_export); }
+        unsafe { table_view.as_mut().unwrap().add_action(smart_delete); }
 
         // Status Tips for the actions.
         unsafe { context_menu_add.as_mut().unwrap().set_status_tip(&QString::from_std_str("Add an empty row at the end of the table.")); }
@@ -921,6 +932,86 @@ impl PackedFileLocTreeView {
                     }
                 }
             )),
+            slot_smart_delete: SlotBool::new(clone!(
+                packed_file_index,
+                app_ui,
+                is_modified,
+                sender_qt,
+                sender_qt_data,
+                receiver_qt => move |_| {
+
+                    // Get the current selection.
+                    let selection;
+                    unsafe { selection = table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection(); }
+                    let indexes = selection.indexes();
+
+                    // Get all the cells selected, separated by rows.
+                    let mut cells: BTreeMap<i32, Vec<i32>> = BTreeMap::new();
+                    for index in 0..indexes.size() {
+
+                        // Get the ModelIndex.
+                        let model_index = indexes.at(index);
+
+                        // Check if the ModelIndex is valid. Otherwise this can crash.
+                        if model_index.is_valid() {
+
+                            // Get the source ModelIndex for our filtered ModelIndex.
+                            let model_index_source;
+                            unsafe {model_index_source = filter_model.as_mut().unwrap().map_to_source(&model_index); }
+
+                            // Get the current row and column.
+                            let row = model_index_source.row();
+                            let column = model_index_source.column();
+
+                            // Check if we have any cell in that row and add/insert the new one.
+                            let mut x = false;
+                            match cells.get_mut(&row) {
+                                Some(cells) => cells.push(column),
+                                None => { x = true },
+                            }
+                            if x { cells.insert(row, vec![column]); }
+                        }
+                    }
+
+                    for (key, values) in cells.iter().rev() {
+                        if values.len() == 3 { unsafe { model.as_mut().unwrap().remove_rows((*key, 1)); } }
+                        else { 
+                            for column in values {
+
+                                let item;
+                                unsafe { item = model.as_mut().unwrap().item((*key, *column)); }
+
+                                unsafe { if item.as_mut().unwrap().is_checkable() { item.as_mut().unwrap().set_check_state(CheckState::Unchecked); }
+                                else { item.as_mut().unwrap().set_text(&QString::from_std_str("")); } }
+                            }
+                        }
+                    }
+
+                    // If we deleted anything, save the data.
+                    if !cells.is_empty() {
+
+                        // Tell the background thread to start saving the PackedFile.
+                        sender_qt.send(Commands::EncodePackedFileLoc).unwrap();
+
+                        // Get the new LocData to send.
+                        let new_loc_data = Self::return_data_from_tree_view(model);
+
+                        // Send the new LocData.
+                        sender_qt_data.send(serde_json::to_vec(&(new_loc_data, packed_file_index)).map_err(From::from)).unwrap();
+
+                        // Get the incomplete path of the edited PackedFile.
+                        sender_qt.send(Commands::GetPackedFilePath).unwrap();
+                        sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
+                        let path: Vec<String> = match check_message_validity_recv(&receiver_qt) {
+                            Ok(data) => data,
+                            Err(_) => panic!(THREADS_MESSAGE_ERROR)
+                        };
+
+                        // Set the mod as "Modified".
+                        *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(path));
+                    }
+                }
+            )),
         };
 
         // Actions for the TableView...
@@ -935,6 +1026,8 @@ impl PackedFileLocTreeView {
         unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_paste_as_new_lines); }
         unsafe { context_menu_import.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_import); }
         unsafe { context_menu_export.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_export); }
+
+        unsafe { smart_delete.as_mut().unwrap().signals().triggered().connect(&slots.slot_smart_delete); }
 
         // Trigger the filter whenever the "filtered" text changes, the "filtered" column changes or the "Case Sensitive" button changes.
         unsafe { row_filter_line_edit.as_mut().unwrap().signals().text_changed().connect(&slots.slot_row_filter_change_text); }
