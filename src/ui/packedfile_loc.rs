@@ -1105,6 +1105,9 @@ impl PackedFileLocTreeView {
 
             // Just append a new row.
             unsafe { model.as_mut().unwrap().append_row(&qlist); }
+
+            // Remove the row, so the columns stay.
+            unsafe { model.as_mut().unwrap().remove_rows((0, 1)); }
         }
     }
 
