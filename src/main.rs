@@ -1775,7 +1775,7 @@ fn main() {
         // What happens when we trigger the "Open Manual" action.
         let slot_open_manual = SlotBool::new(clone!(
             rpfm_path => move |_| { 
-                let mut manual_path = format!("{:?}", rpfm_path.to_path_buf().join(PathBuf::from("LICENSE")));
+                let mut manual_path = format!("{:?}", rpfm_path.to_path_buf().join(PathBuf::from("rpfm_manual.pdf")));
 
                 // In linux we have to remove the commas.
                 if cfg!(target_os = "linux") { 
