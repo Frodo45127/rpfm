@@ -1,4 +1,6 @@
-# Road to 1.0:
+Keep in mind this is orientative. The TODO list was moved to GitKraken Glo and, as far as I know, there is no way to get it public.
+
+# Things to do:
 ### PackFile Management:
   - [x] Add File/Folder.
   - [x] Add File/Folder from PackFile.
@@ -73,7 +75,7 @@
     - [x] Warhammer 2.
     - [x] Warhammer.
     - [x] Attila.
-    - [ ] Rome 2.
+    - [x] Rome 2.
     - [ ] Thrones of Britannia (if 1.0 is not done when it gets released).
 
 ### Extra Improvements (Not needed for 1.0, but want to have them done at some point):
