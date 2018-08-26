@@ -151,7 +151,7 @@ impl SettingsDialog {
         let mut shortcuts_button = PushButton::new(&QString::from_std_str("Shortcuts"));
 
         // Tips for the UI settings.
-        let adjust_columns_to_content_tip = QString::from_std_str("If you enable this, when you open a DB Table or Loc File, all columns will be automatically resized depending on their content's size.\nOtherwise, columns will have a predefined size. Either way, you'll be able to resize them manually after the initial resize.\nNOTE: This KILLS PERFORMANCE in very big tables.");
+        let adjust_columns_to_content_tip = QString::from_std_str("If you enable this, when you open a DB Table or Loc File, all columns will be automatically resized depending on their content's size.\nOtherwise, columns will have a predefined size. Either way, you'll be able to resize them manually after the initial resize.\nNOTE: This can make very big tables take more time to load.");
         let shortcuts_tip = QString::from_std_str("See/change the shortcuts from here if you don't like them. Changes are applied on restart of the program.");
         adjust_columns_to_content_label.set_tool_tip(&adjust_columns_to_content_tip);
         adjust_columns_to_content_checkbox.set_tool_tip(&adjust_columns_to_content_tip);

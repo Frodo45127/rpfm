@@ -142,7 +142,7 @@ impl Settings {
 
         settings_string.insert("default_game".to_owned(), "warhammer_2".to_owned());
 
-        settings_bool.insert("adjust_columns_to_content".to_owned(), false);
+        settings_bool.insert("adjust_columns_to_content".to_owned(), true);
         settings_bool.insert("allow_editing_of_ca_packfiles".to_owned(), false);
         settings_bool.insert("check_updates_on_start".to_owned(), true);
         settings_bool.insert("check_schema_updates_on_start".to_owned(), true);
