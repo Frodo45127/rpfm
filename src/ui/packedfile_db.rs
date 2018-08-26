@@ -222,6 +222,9 @@ impl PackedFileDBTreeView {
         let filter_model = SortFilterProxyModel::new().into_raw();
         let model = StandardItemModel::new(()).into_raw();
 
+        // Make the last column fill all the available space.
+        unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_stretch_last_section(true); }
+
         // Create the filter's LineEdit.
         let row_filter_line_edit = LineEdit::new(()).into_raw();
         unsafe { row_filter_line_edit.as_mut().unwrap().set_placeholder_text(&QString::from_std_str("Type here to filter the rows in the table. Works with Regex too!")); }
@@ -1730,6 +1733,7 @@ impl PackedFileDBDecoder {
         let table_model = StandardItemModel::new(()).into_raw();
         unsafe { table_view.as_mut().unwrap().set_model(table_model as *mut AbstractItemModel); }
         unsafe { table_view.as_mut().unwrap().set_context_menu_policy(ContextMenuPolicy::Custom); }
+        unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_stretch_last_section(true); }
 
         // Create the Contextual Menu for the TableView.
         let mut table_view_context_menu = Menu::new(());
