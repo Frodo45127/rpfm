@@ -39364,7 +39364,7 @@
             },
             {
               "field_name": "relations_modifier",
-              "field_type": "Float",
+              "field_type": "Integer",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
