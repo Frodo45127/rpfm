@@ -10,7 +10,7 @@
         },
         {
             "schema_file": "schema_rom2.json",
-            "version": 1
+            "version": 2
         },
         {
             "schema_file": "schema_are.json",
