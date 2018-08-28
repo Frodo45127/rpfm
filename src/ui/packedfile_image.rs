@@ -20,16 +20,15 @@ use error::Result;
 /// This function creates a new TreeView with the PackedFile's View as father and returns a
 /// `PackedFileLocTreeView` with all his data.
 pub fn create_image_view(
-    sender_qt: Sender<Commands>,
-    sender_qt_data: &Sender<Result<Vec<u8>>>,
+    ui_message_sender: Sender<Commands>,
     receiver_qt: &Rc<RefCell<Receiver<Result<Vec<u8>>>>>,
     app_ui: &AppUI,
     packed_file_index: &usize,
 ) -> Result<()> {
 
     // Get the path of the extracted Image.
-    sender_qt.send(Commands::DecodePackedFileImage).unwrap();
-    sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
+    ui_message_sender.send(Commands::DecodePackedFileImage).unwrap();
+    //TODO sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
 
     // Get the response from the other thread.
     let path: PathBuf = match check_message_validity_recv(&receiver_qt) {

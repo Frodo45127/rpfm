@@ -72,8 +72,7 @@ impl SettingsDialog {
         app_ui: &AppUI,
         settings: &Settings,
         supported_games: &[GameInfo],
-        sender_qt: &Sender<Commands>,
-        sender_qt_data: &Sender<Result<Vec<u8>>>,
+        ui_message_sender: &Sender<Commands>,
         receiver_qt: Rc<RefCell<Receiver<Result<Vec<u8>>>>>, 
     ) -> Option<Settings> {
 
@@ -265,12 +264,11 @@ impl SettingsDialog {
 
         // What happens when we hit the "Shortcuts" button.
         let slot_shortcuts = SlotNoArgs::new(clone!(
-            sender_qt,
-            sender_qt_data,
+            ui_message_sender,
             receiver_qt => move || {
 
                 // Try to get the current Shortcuts.
-                sender_qt.send(Commands::GetShortcuts).unwrap();
+                ui_message_sender.send(Commands::GetShortcuts).unwrap();
                 let old_shortcuts: Shortcuts = match check_message_validity_recv(&receiver_qt) {
                     Ok(data) => data,
                     Err(_) => panic!(THREADS_MESSAGE_ERROR)
@@ -280,8 +278,8 @@ impl SettingsDialog {
                 if let Some(shortcuts) = ShortcutsDialog::create_shortcuts_dialog(dialog, &old_shortcuts) {
 
                     // Send the signal to save them.
-                    sender_qt.send(Commands::SetShortcuts).unwrap();
-                    sender_qt_data.send(serde_json::to_vec(&shortcuts).map_err(From::from)).unwrap();
+                    ui_message_sender.send(Commands::SetShortcuts).unwrap();
+                    //TODO sender_qt_data.send(serde_json::to_vec(&shortcuts).map_err(From::from)).unwrap();
 
                     // Wait until you got a response.
                     let response: Result<()> = check_message_validity_recv(&receiver_qt);

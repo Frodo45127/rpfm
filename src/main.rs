@@ -10,7 +10,7 @@
 #![allow(doc_markdown,useless_format,match_bool,redundant_closure)]
 
 // This disables the terminal window, so it doesn't show up when executing RPFM in Windows.
-#![windows_subsystem = "windows"]
+//TODO #![windows_subsystem = "windows"]
 
 #[macro_use]
 extern crate serde_derive;
@@ -20,6 +20,8 @@ extern crate serde_json;
 extern crate failure;
 extern crate num;
 extern crate chrono;
+#[macro_use]
+extern crate lazy_static;
 
 #[macro_use]
 extern crate sentry;
@@ -61,6 +63,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::thread;
 use std::sync::mpsc::{channel, Sender, Receiver};
+use std::sync::Mutex;
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::fs::{File, DirBuilder, copy, remove_file, remove_dir_all};
@@ -89,6 +92,8 @@ use ui::packedfile_text::*;
 use ui::packedfile_rigidmodel::*;
 use ui::settings::*;
 use ui::updater::*;
+use communication::Commands;
+use communication::BackgroundMessage;
 
 /// This macro is used to clone the variables into the closures without the compiler complaining.
 /// This should be BEFORE the `mod xxx` stuff, so submodules can use it too.
@@ -116,6 +121,7 @@ mod packedfile;
 mod settings;
 mod updater;
 mod ui;
+mod communication;
 
 /// This constant gets RPFM's version from the `Cargo.toml` file, so we don't have to change it
 /// in two different places in every update.
@@ -143,66 +149,13 @@ enum Mode {
     Normal,
 }
 
-/// This enum is meant for sending commands from the UI Thread to the Background thread.
-/// If you want to know what each command do, check the `background_loop` function.
-/// If you need to send data, DO NOT USE THIS. Serialize it to Vec<u8> with serde and send it.
-pub enum Commands {
-    ResetPackFile,
-    ResetPackFileExtra,
-    NewPackFile,
-    OpenPackFile,
-    OpenPackFileExtra,
-    SavePackFile,
-    SavePackFileAs,
-    SetPackFileType,
-    ChangeIndexIncludesTimestamp,
-    GetSchema,
-    SaveSchema,
-    GetSettings,
-    SetSettings,
-    GetShortcuts,
-    SetShortcuts,
-    GetGameSelected,
-    SetGameSelected,
-    GetPackFileHeader,
-    GetPackedFilePath,
-    IsThereADependencyDatabase,
-    IsThereASchema,
-    PatchSiegeAI,
-    UpdateSchemas,
-    AddPackedFile,
-    DeletePackedFile,
-    ExtractPackedFile,
-    GetTypeOfPath,
-    PackedFileExists,
-    FolderExists,
-    CreatePackedFile,
-    CreateFolder,
-    UpdateEmptyFolders,
-    GetPackFileDataForTreeView,
-    GetPackFileExtraDataForTreeView,
-    AddPackedFileFromPackFile,
-    MassImportTSV,
-    MassExportTSV,
-    DecodePackedFileLoc,
-    EncodePackedFileLoc,
-    ImportTSVPackedFileLoc,
-    ExportTSVPackedFileLoc,
-    DecodePackedFileDB,
-    EncodePackedFileDB,
-    ImportTSVPackedFileDB,
-    ExportTSVPackedFileDB,
-    DecodePackedFileText,
-    EncodePackedFileText,
-    DecodePackedFileRigidModel,
-    EncodePackedFileRigidModel,
-    PatchAttilaRigidModelToWarhammer,
-    DecodePackedFileImage,
-    RenamePackedFile,
-    GetPackedFile,
-    GetTableListFromDependencyPackFile,
-    GetTableVersionFromDependencyPackFile,
-    OptimizePackFile,
+struct UIContext {
+    bg_message_receiver: Receiver<BackgroundMessage>,
+    ui_message_sender: Sender<Commands>
+}
+
+lazy_static! {
+    static ref UI_CONTEXT: Mutex<Option<UIContext>> = Mutex::new(None);
 }
 
 /// This struct contains all the "Special Stuff" Actions, so we can pass all of them to functions at once.
@@ -351,12 +304,11 @@ fn main() {
         // - `sender_qt, receiver_rust`: used for sending the current action to the background thread.
         // - `sender_qt_data, receiver_rust_data`: used for sending the data to the background thread.
         //   The data sended and received in the last one should be always be serialized into Vec<u8>.
-        let (sender_rust, receiver_qt) = channel();
-        let (sender_qt, receiver_rust) = channel();
-        let (sender_qt_data, receiver_rust_data) = channel();
+        let (bg_message_sender, bg_message_receiver) = channel::<BackgroundMessage>();
+        let (ui_message_sender, ui_message_receiver) = channel();
 
         // Create the background thread.
-        thread::spawn(clone!(rpfm_path => move || { background_loop(&rpfm_path, sender_rust, receiver_rust, receiver_rust_data); }));
+        thread::spawn(clone!(rpfm_path => move || { background_loop(&rpfm_path, bg_message_sender, ui_message_receiver); }));
 
         //---------------------------------------------------------------------------------------//
         // Creating the UI...
@@ -623,10 +575,10 @@ fn main() {
         //---------------------------------------------------------------------------------------//
 
         // Get the current shortcuts.
-        sender_qt.send(Commands::GetShortcuts).unwrap();
-        let shortcuts: Shortcuts = match check_message_validity_recv_background(&receiver_qt) {
-            Ok(data) => data,
-            Err(_) => panic!(THREADS_MESSAGE_ERROR)
+        ui_message_sender.send(Commands::GetShortcuts).unwrap();
+        let shortcuts: Shortcuts = match communication::receive_background_message_responsive(&bg_message_receiver) {
+            BackgroundMessage::GetShortcutsResponse(shortcuts) => shortcuts,
+            _ => panic!(THREADS_MESSAGE_ERROR)
         };
 
         // Set the shortcuts for these actions.
@@ -662,7 +614,6 @@ fn main() {
         //---------------------------------------------------------------------------------------//
 
         // Put the stuff we need to move to the slots in Rc<Refcell<>>, so we can clone it without issues.
-        let receiver_qt = Rc::new(RefCell::new(receiver_qt));
         let is_modified = Rc::new(RefCell::new(set_modified(false, &app_ui, None)));
         let is_packedfile_opened = Rc::new(RefCell::new(false));
         let is_folder_tree_view_locked = Rc::new(RefCell::new(false));
@@ -685,9 +636,8 @@ fn main() {
         // Build the entire "MyMod" Menu.
         let result = build_my_mod_menu(
             rpfm_path.to_path_buf(),
-            sender_qt.clone(),
-            &sender_qt_data,
-            receiver_qt.clone(),
+            ui_message_sender.clone(),
+            &bg_message_receiver,
             app_ui.clone(),
             &menu_bar_mymod,
             is_modified.clone(),
@@ -763,6 +713,7 @@ fn main() {
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_open_decoder); }
 
         // Set the current "Operational Mode" to `Normal`.
+        
         set_my_mod_mode(&mymod_stuff, &mode, None);
 
         //---------------------------------------------------------------------------------------//
@@ -836,10 +787,15 @@ fn main() {
         let slot_change_game_selected = SlotBool::new(clone!(
             mode,
             mymod_stuff,
-            supported_games,
-            sender_qt,
-            sender_qt_data,
-            receiver_qt => move |_| {
+            supported_games => move |_| {
+                let mutex_guard = match UI_CONTEXT.try_lock() {
+                    Ok(mutex_guard) => mutex_guard,
+                    Err(_) => {
+                        eprintln!("failed to get ui lock");
+                        return;
+                    }
+                };
+                let ui_context: &UIContext = &mutex_guard.as_ref().unwrap();
 
                 // Get the new Game Selected.
                 let mut new_game_selected;
@@ -850,8 +806,8 @@ fn main() {
                 let new_game_selected_folder_name = supported_games.iter().filter(|x| x.display_name == new_game_selected).map(|x| x.folder_name.to_owned()).collect::<String>();
 
                 // Change the Game Selected in the Background Thread.
-                sender_qt.send(Commands::SetGameSelected).unwrap();
-                sender_qt_data.send(serde_json::to_vec(&new_game_selected_folder_name).map_err(From::from)).unwrap();
+                ui_context.ui_message_sender.send(Commands::SetGameSelected).unwrap();
+                /*//TODO sender_qt_data.send(serde_json::to_vec(&new_game_selected_folder_name).map_err(From::from)).unwrap();
 
                 // Disable the Main Window (so we can't do other stuff).
                 unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
@@ -872,7 +828,7 @@ fn main() {
                         Ok(response) => {
 
                             // Get the current settings.
-                            sender_qt.send(Commands::GetSettings).unwrap();
+                            ui_message_sender.send(Commands::GetSettings).unwrap();
 
                             // Try to get the settings. This should never fail, so CTD if it does it.
                             let settings: Settings = match check_message_validity_recv(&receiver_qt) {
@@ -911,6 +867,7 @@ fn main() {
                     // Keep the UI responsive.
                     event_loop.process_events(());
                 }
+                */
 
                 // Re-enable the Main Window.
                 unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
@@ -925,12 +882,13 @@ fn main() {
         unsafe { app_ui.arena.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
 
         // Try to get the Game Selected. This should never fail, so CTD if it does it.
-        sender_qt.send(Commands::GetGameSelected).unwrap();
-        let game_selected: GameSelected = match check_message_validity_recv(&receiver_qt) {
-            Ok(data) => data,
-            Err(_) => panic!(THREADS_MESSAGE_ERROR)
+        ui_message_sender.send(Commands::GetGameSelected).unwrap();
+        let game_selected: GameSelected = match communication::receive_background_message_responsive(&bg_message_receiver) {
+            BackgroundMessage::GetGameSelectedResponse(game_selected) => game_selected,
+            _ => panic!(THREADS_MESSAGE_ERROR)
         };
 
+        /*//TODO this requires an unlocked ui context to be available
         // Update the "Game Selected" here, so we can skip some steps when initializing.
         match &*game_selected.game {
             "warhammer_2" => unsafe { app_ui.warhammer_2.as_mut().unwrap().trigger(); }
@@ -939,6 +897,9 @@ fn main() {
             "arena" => unsafe { app_ui.arena.as_mut().unwrap().trigger(); }
             "rome_2" | _ => unsafe { app_ui.rome_2.as_mut().unwrap().trigger(); }
         }
+        */
+        eprintln!("###!");
+        /*//TODO
 
         //-----------------------------------------------------//
         // "PackFile" Menu...
@@ -951,8 +912,7 @@ fn main() {
             mymod_stuff,
             mode,
             is_packedfile_opened,
-            sender_qt,
-            sender_qt_data,
+            ui_message_sender,
             receiver_qt => move |_| {
 
                 // Check first if there has been changes in the PackFile.
@@ -965,7 +925,7 @@ fn main() {
                     display_help_tips(&app_ui);
 
                     // Tell the Background Thread to create a new PackFile.
-                    sender_qt.send(Commands::NewPackFile).unwrap();
+                    ui_message_sender.send(Commands::NewPackFile).unwrap();
 
                     // Disable the Main Window (so we can't do other stuff).
                     unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
@@ -1004,8 +964,7 @@ fn main() {
                                 // Update the TreeView.
                                 update_treeview(
                                     &rpfm_path,
-                                    &sender_qt,
-                                    &sender_qt_data,
+                                    &ui_message_sender,
                                     receiver_qt.clone(),
                                     app_ui.window,
                                     app_ui.folder_tree_view,
@@ -1043,14 +1002,14 @@ fn main() {
                     *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
 
                     // Try to get the Game Selected. This should never fail, so CTD if it does it.
-                    sender_qt.send(Commands::GetGameSelected).unwrap();
+                    ui_message_sender.send(Commands::GetGameSelected).unwrap();
                     let game_selected: GameSelected = match check_message_validity_recv(&receiver_qt) {
                         Ok(data) => data,
                         Err(_) => panic!(THREADS_MESSAGE_ERROR)
                     };
 
                     // Try to get the settings.
-                    sender_qt.send(Commands::GetSettings).unwrap();
+                    ui_message_sender.send(Commands::GetSettings).unwrap();
                     let settings: Settings = match check_message_validity_recv(&receiver_qt) {
                         Ok(data) => data,
                         Err(_) => panic!(THREADS_MESSAGE_ERROR)
@@ -1071,8 +1030,7 @@ fn main() {
             is_modified,
             mode,
             mymod_stuff,
-            sender_qt,
-            sender_qt_data,
+            ui_message_sender,
             is_packedfile_opened,
             receiver_qt => move |_| {
 
@@ -1090,7 +1048,7 @@ fn main() {
                     file_dialog.set_name_filter(&QString::from_std_str("PackFiles (*.pack)"));
 
                     // Try to get the Game Selected. This should never fail, so CTD if it does it.
-                    sender_qt.send(Commands::GetGameSelected).unwrap();
+                    ui_message_sender.send(Commands::GetGameSelected).unwrap();
                     let game_selected: GameSelected = match check_message_validity_recv(&receiver_qt) {
                         Ok(data) => data,
                         Err(_) => panic!(THREADS_MESSAGE_ERROR)
@@ -1112,8 +1070,7 @@ fn main() {
                         // Try to open it, and report it case of error.
                         if let Err(error) = open_packfile(
                             &rpfm_path,
-                            &sender_qt,
-                            &sender_qt_data,
+                            &ui_message_sender,
                             &receiver_qt,
                             path,
                             &app_ui,
@@ -1131,11 +1088,11 @@ fn main() {
         // What happens when we trigger the "Save PackFile" action.
         let slot_save_packfile = SlotBool::new(clone!(
             is_modified,
-            sender_qt,
+            ui_message_sender,
             receiver_qt => move |_| {
 
                 // Tell the Background Thread to save the PackFile.
-                sender_qt.send(Commands::SavePackFile).unwrap();
+                ui_message_sender.send(Commands::SavePackFile).unwrap();
 
                 // Disable the Main Window (so we can't do other stuff).
                 unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
@@ -1207,19 +1164,18 @@ fn main() {
             is_modified,
             mode,
             mymod_stuff,
-            sender_qt,
-            sender_qt_data,
+            ui_message_sender,
             receiver_qt => move |_| {
 
                 // Try to get the Game Selected. This should never fail, so CTD if it does it.
-                sender_qt.send(Commands::GetGameSelected).unwrap();
+                ui_message_sender.send(Commands::GetGameSelected).unwrap();
                 let game_selected: GameSelected = match check_message_validity_recv(&receiver_qt) {
                     Ok(data) => data,
                     Err(_) => panic!(THREADS_MESSAGE_ERROR)
                 };
 
                 // Tell the Background Thread that we want to save the PackFile, and wait for confirmation.
-                sender_qt.send(Commands::SavePackFileAs).unwrap();
+                ui_message_sender.send(Commands::SavePackFileAs).unwrap();
                 let extra_data: Result<PackFileExtraData> = check_message_validity_recv(&receiver_qt);
 
                 // Check what response we got.
@@ -1274,7 +1230,7 @@ fn main() {
                             let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
 
                             // Pass it to the worker thread.
-                            sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
+                            //TODO sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
 
                             // Disable the Main Window (so we can't do other stuff).
                             unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
@@ -1309,8 +1265,7 @@ fn main() {
                                         // Rename it with the new name.
                                         update_treeview(
                                             &rpfm_path,
-                                            &sender_qt,
-                                            &sender_qt_data,
+                                            &ui_message_sender,
                                             receiver_qt.clone(),
                                             app_ui.window,
                                             app_ui.folder_tree_view,
@@ -1362,7 +1317,9 @@ fn main() {
 
                         // Otherwise, we take it as we canceled the save in some way, so we tell the
                         // Background Loop to stop waiting.
-                        else { sender_qt_data.send(Err(Error::from(ErrorKind::CancelOperation))).unwrap(); }
+                        else {
+                            //TODO sender_qt_data.send(Err(Error::from(ErrorKind::CancelOperation))).unwrap(); 
+                        }
                     }
 
                     // If there was an error...
@@ -1385,8 +1342,7 @@ fn main() {
         // What happens when we trigger the "Change PackFile Type" action.
         let slot_change_packfile_type = SlotBool::new(clone!(
             is_modified,
-            sender_qt,
-            sender_qt_data => move |_| {
+            ui_message_sender => move |_| {
 
                 // Get the currently selected PackFile's Type.
                 let packfile_type;
@@ -1400,8 +1356,8 @@ fn main() {
                 }; }
 
                 // Send the type to the Background Thread.
-                sender_qt.send(Commands::SetPackFileType).unwrap();
-                sender_qt_data.send(serde_json::to_vec(&packfile_type).map_err(From::from)).unwrap();
+                ui_message_sender.send(Commands::SetPackFileType).unwrap();
+                //TODO sender_qt_data.send(serde_json::to_vec(&packfile_type).map_err(From::from)).unwrap();
 
                 // TODO: Make the PackFile become Yellow.
                 // Set the mod as "Modified".
@@ -1411,16 +1367,15 @@ fn main() {
 
         // What happens when we change the value of "Include Last Modified Date" action.
         let slot_index_includes_timestamp = SlotBool::new(clone!(
-            sender_qt,
-            sender_qt_data => move |_| {
+            ui_message_sender => move |_| {
 
                 // Get the current value of the action.
                 let state;
                 unsafe { state = app_ui.change_packfile_type_index_includes_timestamp.as_ref().unwrap().is_checked(); }
 
                 // Send the new state to the background thread.
-                sender_qt.send(Commands::ChangeIndexIncludesTimestamp).unwrap();
-                sender_qt_data.send(serde_json::to_vec(&state).map_err(From::from)).unwrap();
+                ui_message_sender.send(Commands::ChangeIndexIncludesTimestamp).unwrap();
+                //TODO sender_qt_data.send(serde_json::to_vec(&state).map_err(From::from)).unwrap();
             }
         ));
 
@@ -1428,25 +1383,24 @@ fn main() {
         let slot_preferences = SlotBool::new(clone!(
             mode,
             supported_games,
-            sender_qt,
-            sender_qt_data,
+            ui_message_sender,
             receiver_qt,
             mymod_stuff,
             mymod_menu_needs_rebuild => move |_| {
 
                 // Try to get the current Settings. This should never fail, so CTD if it does it.
-                sender_qt.send(Commands::GetSettings).unwrap();
+                ui_message_sender.send(Commands::GetSettings).unwrap();
                 let old_settings: Settings = match check_message_validity_recv(&receiver_qt) {
                     Ok(data) => data,
                     Err(_) => panic!(THREADS_MESSAGE_ERROR)
                 };
 
                 // Create the Settings Dialog. If we got new settings...
-                if let Some(settings) = SettingsDialog::create_settings_dialog(&app_ui, &old_settings, &supported_games, &sender_qt, &sender_qt_data, receiver_qt.clone()) {
+                if let Some(settings) = SettingsDialog::create_settings_dialog(&app_ui, &old_settings, &supported_games, &ui_message_sender, receiver_qt.clone()) {
 
                     // Send the signal to save them.
-                    sender_qt.send(Commands::SetSettings).unwrap();
-                    sender_qt_data.send(serde_json::to_vec(&settings).map_err(From::from)).unwrap();
+                    ui_message_sender.send(Commands::SetSettings).unwrap();
+                    //TODO sender_qt_data.send(serde_json::to_vec(&settings).map_err(From::from)).unwrap();
 
                     // Wait until you got a response.
                     let response: Result<()> = check_message_validity_recv(&receiver_qt);
@@ -1479,7 +1433,7 @@ fn main() {
                             } 
 
                             // Get the current GameSelected.
-                            sender_qt.send(Commands::GetGameSelected).unwrap();
+                            ui_message_sender.send(Commands::GetGameSelected).unwrap();
                             let game_selected: GameSelected = match check_message_validity_recv(&receiver_qt) {
                                 Ok(data) => data,
                                 Err(_) => panic!(THREADS_MESSAGE_ERROR)
@@ -1547,11 +1501,10 @@ fn main() {
             rpfm_path,
             is_modified,
             receiver_qt,
-            sender_qt,
-            sender_qt_data => move |_| {
+            ui_message_sender => move |_| {
 
                 // Ask the background loop to create the Dependency PackFile.
-                sender_qt.send(Commands::PatchSiegeAI).unwrap();
+                ui_message_sender.send(Commands::PatchSiegeAI).unwrap();
 
                 // Disable the Main Window (so we can't do other stuff).
                 unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
@@ -1580,8 +1533,7 @@ fn main() {
                                 // Remove it from the TreeView.
                                 update_treeview(
                                     &rpfm_path,
-                                    &sender_qt,
-                                    &sender_qt_data,
+                                    &ui_message_sender,
                                     receiver_qt.clone(),
                                     app_ui.window,
                                     app_ui.folder_tree_view,
@@ -1640,14 +1592,13 @@ fn main() {
             rpfm_path,
             is_packedfile_opened,
             receiver_qt,
-            sender_qt,
-            sender_qt_data => move |_| {
+            ui_message_sender => move |_| {
 
                 // This cannot be done if there is a PackedFile open.
                 if *is_packedfile_opened.borrow() { return show_dialog(app_ui.window, false, ErrorKind::OperationNotAllowedWithPackedFileOpen); }
             
                 // Ask the background loop to create the Dependency PackFile.
-                sender_qt.send(Commands::OptimizePackFile).unwrap();
+                ui_message_sender.send(Commands::OptimizePackFile).unwrap();
 
                 // Disable the Main Window (so we can't do other stuff).
                 unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
@@ -1676,8 +1627,7 @@ fn main() {
                                 // Remove it from the TreeView.
                                 update_treeview(
                                     &rpfm_path,
-                                    &sender_qt,
-                                    &sender_qt_data,
+                                    &ui_message_sender,
                                     receiver_qt.clone(),
                                     app_ui.window,
                                     app_ui.folder_tree_view,
@@ -1798,10 +1748,9 @@ fn main() {
 
         // What happens when we trigger the "Check Schema Updates" action.
         let slot_check_schema_updates = SlotBool::new(clone!(
-            sender_qt,
-            sender_qt_data,
+            ui_message_sender,
             receiver_qt,
-            rpfm_path => move |_| { check_schema_updates(&app_ui, true, &rpfm_path, &sender_qt, &sender_qt_data, &receiver_qt) }));
+            rpfm_path => move |_| { check_schema_updates(&app_ui, true, &rpfm_path, &ui_message_sender, &receiver_qt) }));
 
         // "About" Menu Actions.
         unsafe { app_ui.about_qt.as_ref().unwrap().signals().triggered().connect(&slot_about_qt); }
@@ -1817,16 +1766,15 @@ fn main() {
 
         // Slot to enable/disable contextual actions depending on the selected item.
         let slot_contextual_menu_enabler = SlotItemSelectionRefItemSelectionRef::new(clone!(
-            sender_qt,
-            sender_qt_data,
+            ui_message_sender,
             receiver_qt => move |selection,_| {
 
                 // Get the path of the selected item.
                 let path = get_path_from_item_selection(app_ui.folder_tree_model, &selection, true);
 
                 // Try to get the TreePathType. This should never fail, so CTD if it does it.
-                sender_qt.send(Commands::GetTypeOfPath).unwrap();
-                sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
+                ui_message_sender.send(Commands::GetTypeOfPath).unwrap();
+                //TODO sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
                 let item_type: TreePathType = match check_message_validity_recv(&receiver_qt) {
                     Ok(data) => data,
                     Err(_) => panic!(THREADS_MESSAGE_ERROR)
@@ -1917,14 +1865,14 @@ fn main() {
                 }
 
                 // Ask the other thread if there is a Dependency Database loaded.
-                sender_qt.send(Commands::IsThereADependencyDatabase).unwrap();
+                ui_message_sender.send(Commands::IsThereADependencyDatabase).unwrap();
                 let is_there_a_dependency_database: bool = match check_message_validity_recv(&receiver_qt) {
                     Ok(data) => data,
                     Err(_) => panic!(THREADS_MESSAGE_ERROR)
                 };
 
                 // Ask the other thread if there is a Schema loaded.
-                sender_qt.send(Commands::IsThereASchema).unwrap();
+                ui_message_sender.send(Commands::IsThereASchema).unwrap();
                 let is_there_a_schema: bool = match check_message_validity_recv(&receiver_qt) {
                     Ok(data) => data,
                     Err(_) => panic!(THREADS_MESSAGE_ERROR)
@@ -1953,8 +1901,7 @@ fn main() {
         // What happens when we trigger the "Add File/s" action in the Contextual Menu.
         let slot_contextual_menu_add_file = SlotBool::new(clone!(
             rpfm_path,
-            sender_qt,
-            sender_qt_data,
+            ui_message_sender,
             receiver_qt,
             is_modified,
             mode,
@@ -1977,7 +1924,7 @@ fn main() {
                     Mode::MyMod {ref game_folder_name, ref mod_name} => {
 
                         // Get the settings.
-                        sender_qt.send(Commands::GetSettings).unwrap();
+                        ui_message_sender.send(Commands::GetSettings).unwrap();
                         let settings: Settings = match check_message_validity_recv(&receiver_qt) {
                             Ok(data) => data,
                             Err(_) => panic!(THREADS_MESSAGE_ERROR)
@@ -2037,8 +1984,8 @@ fn main() {
                                 };
 
                                 // Tell the Background Thread to add the files.
-                                sender_qt.send(Commands::AddPackedFile).unwrap();
-                                sender_qt_data.send(serde_json::to_vec(&(paths.to_vec(), paths_packedfile.to_vec())).map_err(From::from)).unwrap();
+                                ui_message_sender.send(Commands::AddPackedFile).unwrap();
+                                //TODO sender_qt_data.send(serde_json::to_vec(&(paths.to_vec(), paths_packedfile.to_vec())).map_err(From::from)).unwrap();
 
                                 // Disable the Main Window (so we can't do other stuff).
                                 unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
@@ -2061,8 +2008,7 @@ fn main() {
                                             // Update the TreeView.
                                             update_treeview(
                                                 &rpfm_path,
-                                                &sender_qt,
-                                                &sender_qt_data,
+                                                &ui_message_sender,
                                                 receiver_qt.clone(),
                                                 app_ui.window,
                                                 app_ui.folder_tree_view,
@@ -2127,8 +2073,8 @@ fn main() {
                             for path in &paths { paths_packedfile.append(&mut get_path_from_pathbuf(&app_ui, &path, true)); }
 
                             // Tell the Background Thread to add the files.
-                            sender_qt.send(Commands::AddPackedFile).unwrap();
-                            sender_qt_data.send(serde_json::to_vec(&(paths.to_vec(), paths_packedfile.to_vec())).map_err(From::from)).unwrap();
+                            ui_message_sender.send(Commands::AddPackedFile).unwrap();
+                            //TODO sender_qt_data.send(serde_json::to_vec(&(paths.to_vec(), paths_packedfile.to_vec())).map_err(From::from)).unwrap();
 
                             // Disable the Main Window (so we can't do other stuff).
                             unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
@@ -2151,8 +2097,7 @@ fn main() {
                                         // Update the TreeView.
                                         update_treeview(
                                             &rpfm_path,
-                                            &sender_qt,
-                                            &sender_qt_data,
+                                            &ui_message_sender,
                                             receiver_qt.clone(),
                                             app_ui.window,
                                             app_ui.folder_tree_view,
@@ -2203,8 +2148,7 @@ fn main() {
         // What happens when we trigger the "Add Folder/s" action in the Contextual Menu.
         let slot_contextual_menu_add_folder = SlotBool::new(clone!(
             rpfm_path,
-            sender_qt,
-            sender_qt_data,
+            ui_message_sender,
             receiver_qt,
             is_modified,
             mode,
@@ -2228,7 +2172,7 @@ fn main() {
                     Mode::MyMod {ref game_folder_name, ref mod_name} => {
 
                         // Get the settings.
-                        sender_qt.send(Commands::GetSettings).unwrap();
+                        ui_message_sender.send(Commands::GetSettings).unwrap();
                         let settings: Settings = match check_message_validity_recv(&receiver_qt) {
                             Ok(data) => data,
                             Err(_) => panic!(THREADS_MESSAGE_ERROR)
@@ -2292,8 +2236,8 @@ fn main() {
                                 };
 
                                 // Tell the Background Thread to add the files.
-                                sender_qt.send(Commands::AddPackedFile).unwrap();
-                                sender_qt_data.send(serde_json::to_vec(&(paths.to_vec(), paths_packedfile.to_vec())).map_err(From::from)).unwrap();
+                                ui_message_sender.send(Commands::AddPackedFile).unwrap();
+                                //TODO sender_qt_data.send(serde_json::to_vec(&(paths.to_vec(), paths_packedfile.to_vec())).map_err(From::from)).unwrap();
 
                                 // Disable the Main Window (so we can't do other stuff).
                                 unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
@@ -2316,8 +2260,7 @@ fn main() {
                                             // Update the TreeView.
                                             update_treeview(
                                                 &rpfm_path,
-                                                &sender_qt,
-                                                &sender_qt_data,
+                                                &ui_message_sender,
                                                 receiver_qt.clone(),
                                                 app_ui.window,
                                                 app_ui.folder_tree_view,
@@ -2386,8 +2329,8 @@ fn main() {
                             for path in &folder_paths { paths_packedfile.append(&mut get_path_from_pathbuf(&app_ui, &path, false)); }
 
                             // Tell the Background Thread to add the files.
-                            sender_qt.send(Commands::AddPackedFile).unwrap();
-                            sender_qt_data.send(serde_json::to_vec(&(paths.to_vec(), paths_packedfile.to_vec())).map_err(From::from)).unwrap();
+                            ui_message_sender.send(Commands::AddPackedFile).unwrap();
+                            //TODO sender_qt_data.send(serde_json::to_vec(&(paths.to_vec(), paths_packedfile.to_vec())).map_err(From::from)).unwrap();
 
                             // Prepare the event loop, so we don't hang the UI while the background thread is working.
                             let mut event_loop = EventLoop::new();
@@ -2410,8 +2353,7 @@ fn main() {
                                         // Update the TreeView.
                                         update_treeview(
                                             &rpfm_path,
-                                            &sender_qt,
-                                            &sender_qt_data,
+                                            &ui_message_sender,
                                             receiver_qt.clone(),
                                             app_ui.window,
                                             app_ui.folder_tree_view,
@@ -2462,8 +2404,7 @@ fn main() {
         // What happens when we trigger the "Add from PackFile" action in the Contextual Menu.
         let slot_contextual_menu_add_from_packfile = SlotBool::new(clone!(
             rpfm_path,
-            sender_qt,
-            sender_qt_data,
+            ui_message_sender,
             receiver_qt,
             is_packedfile_opened,
             is_folder_tree_view_locked,
@@ -2488,8 +2429,8 @@ fn main() {
                     let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
 
                     // Tell the Background Thread to open the secondary PackFile.
-                    sender_qt.send(Commands::OpenPackFileExtra).unwrap();
-                    sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
+                    ui_message_sender.send(Commands::OpenPackFileExtra).unwrap();
+                    //TODO sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
 
                     // Disable the Main Window (so we can't do other stuff).
                     unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
@@ -2543,8 +2484,7 @@ fn main() {
                     // Build the TreeView to hold all the Extra PackFile's data and save his slots.
                     *add_from_packfile_slots.borrow_mut() = AddFromPackFileSlots::new_with_grid(
                         rpfm_path.to_path_buf(),
-                        sender_qt.clone(),
-                        &sender_qt_data,
+                        ui_message_sender.clone(),
                         &receiver_qt,
                         app_ui,
                         &is_folder_tree_view_locked,
@@ -2561,8 +2501,7 @@ fn main() {
         // What happens when we trigger the "Create Folder" Action.
         let slot_contextual_menu_create_folder = SlotBool::new(clone!(
             rpfm_path,
-            sender_qt,
-            sender_qt_data,
+            ui_message_sender,
             receiver_qt => move |_| {
 
                 // Create the "New Folder" dialog and wait for a new name (or a cancelation).
@@ -2575,8 +2514,8 @@ fn main() {
                     complete_path.push(new_folder_name);
 
                     // Check if the folder exists.
-                    sender_qt.send(Commands::FolderExists).unwrap();
-                    sender_qt_data.send(serde_json::to_vec(&complete_path).map_err(From::from)).unwrap();
+                    ui_message_sender.send(Commands::FolderExists).unwrap();
+                    //TODO sender_qt_data.send(serde_json::to_vec(&complete_path).map_err(From::from)).unwrap();
                     let folder_exists: bool = match check_message_validity_recv(&receiver_qt) {
                         Ok(data) => data,
                         Err(_) => panic!(THREADS_MESSAGE_ERROR)
@@ -2586,14 +2525,13 @@ fn main() {
                     if folder_exists { return show_dialog(app_ui.window, false, ErrorKind::FolderAlreadyInPackFile)}
 
                     // Add it to the PackFile.
-                    sender_qt.send(Commands::CreateFolder).unwrap();
-                    sender_qt_data.send(serde_json::to_vec(&complete_path).map_err(From::from)).unwrap();
+                    ui_message_sender.send(Commands::CreateFolder).unwrap();
+                    //TODO sender_qt_data.send(serde_json::to_vec(&complete_path).map_err(From::from)).unwrap();
 
                     // Add the new Folder to the TreeView.
                     update_treeview(
                         &rpfm_path,
-                        &sender_qt,
-                        &sender_qt_data,
+                        &ui_message_sender,
                         receiver_qt.clone(),
                         app_ui.window,
                         app_ui.folder_tree_view,
@@ -2608,12 +2546,11 @@ fn main() {
         let slot_contextual_menu_create_packed_file_db = SlotBool::new(clone!(
             rpfm_path,
             is_modified,
-            sender_qt,
-            sender_qt_data,
+            ui_message_sender,
             receiver_qt => move |_| {
 
                 // Create the "New PackedFile" dialog and wait for his data (or a cancelation).
-                if let Some(packed_file_type) = create_new_packed_file_dialog(&app_ui, &sender_qt, &sender_qt_data, &receiver_qt, PackedFileType::DB("".to_owned(), "".to_owned(), 0)) {
+                if let Some(packed_file_type) = create_new_packed_file_dialog(&app_ui, &ui_message_sender, &receiver_qt, PackedFileType::DB("".to_owned(), "".to_owned(), 0)) {
 
                     // Check what we got to create....
                     match packed_file_type {
@@ -2631,8 +2568,8 @@ fn main() {
                                     let mut complete_path = vec!["db".to_owned(), table, name];
 
                                     // Check if the PackedFile already exists.
-                                    sender_qt.send(Commands::PackedFileExists).unwrap();
-                                    sender_qt_data.send(serde_json::to_vec(&complete_path).map_err(From::from)).unwrap();
+                                    ui_message_sender.send(Commands::PackedFileExists).unwrap();
+                                    //TODO sender_qt_data.send(serde_json::to_vec(&complete_path).map_err(From::from)).unwrap();
                                     let exists: bool = match check_message_validity_recv(&receiver_qt) {
                                         Ok(data) => data,
                                         Err(_) => panic!(THREADS_MESSAGE_ERROR)
@@ -2642,8 +2579,8 @@ fn main() {
                                     if exists { return show_dialog(app_ui.window, false, ErrorKind::FileAlreadyInPackFile)}
 
                                     // Add it to the PackFile.
-                                    sender_qt.send(Commands::CreatePackedFile).unwrap();
-                                    sender_qt_data.send(serde_json::to_vec(&(complete_path.to_vec(), packed_file_type.clone())).map_err(From::from)).unwrap();
+                                    ui_message_sender.send(Commands::CreatePackedFile).unwrap();
+                                    //TODO sender_qt_data.send(serde_json::to_vec(&(complete_path.to_vec(), packed_file_type.clone())).map_err(From::from)).unwrap();
 
                                     // Get the response, just in case it failed.
                                     let response: Result<()> = check_message_validity_recv(&receiver_qt);
@@ -2652,8 +2589,7 @@ fn main() {
                                     // Add the new Folder to the TreeView.
                                     update_treeview(
                                         &rpfm_path,
-                                        &sender_qt,
-                                        &sender_qt_data,
+                                        &ui_message_sender,
                                         receiver_qt.clone(),
                                         app_ui.window,
                                         app_ui.folder_tree_view,
@@ -2681,13 +2617,12 @@ fn main() {
         let slot_contextual_menu_create_packed_file_loc = SlotBool::new(clone!(
             rpfm_path,
             is_modified,
-            sender_qt,
-            sender_qt_data,
+            ui_message_sender,
             receiver_qt => move |_| {
 
                 // TODO: Replace this with a result.
                 // Create the "New PackedFile" dialog and wait for his data (or a cancelation).
-                if let Some(packed_file_type) = create_new_packed_file_dialog(&app_ui, &sender_qt, &sender_qt_data, &receiver_qt, PackedFileType::Loc("".to_owned())) {
+                if let Some(packed_file_type) = create_new_packed_file_dialog(&app_ui, &ui_message_sender, &receiver_qt, PackedFileType::Loc("".to_owned())) {
 
                     // Check what we got to create....
                     match packed_file_type {
@@ -2713,8 +2648,8 @@ fn main() {
                                     complete_path.push(name);
 
                                     // Check if the PackedFile already exists.
-                                    sender_qt.send(Commands::PackedFileExists).unwrap();
-                                    sender_qt_data.send(serde_json::to_vec(&complete_path).map_err(From::from)).unwrap();
+                                    ui_message_sender.send(Commands::PackedFileExists).unwrap();
+                                    //TODO sender_qt_data.send(serde_json::to_vec(&complete_path).map_err(From::from)).unwrap();
                                     let exists: bool = match check_message_validity_recv(&receiver_qt) {
                                         Ok(data) => data,
                                         Err(_) => panic!(THREADS_MESSAGE_ERROR)
@@ -2724,8 +2659,8 @@ fn main() {
                                     if exists { return show_dialog(app_ui.window, false, ErrorKind::FileAlreadyInPackFile)}
 
                                     // Add it to the PackFile.
-                                    sender_qt.send(Commands::CreatePackedFile).unwrap();
-                                    sender_qt_data.send(serde_json::to_vec(&(complete_path.to_vec(), packed_file_type.clone())).map_err(From::from)).unwrap();
+                                    ui_message_sender.send(Commands::CreatePackedFile).unwrap();
+                                    //TODO sender_qt_data.send(serde_json::to_vec(&(complete_path.to_vec(), packed_file_type.clone())).map_err(From::from)).unwrap();
 
                                     // Get the response, just in case it failed. This CANNOT FAIL IN ANY WAY. If it fails, it's a message problem.
                                     let response: Result<()> = check_message_validity_recv(&receiver_qt);
@@ -2734,8 +2669,7 @@ fn main() {
                                     // Add the new Folder to the TreeView.
                                     update_treeview(
                                         &rpfm_path,
-                                        &sender_qt,
-                                        &sender_qt_data,
+                                        &ui_message_sender,
                                         receiver_qt.clone(),
                                         app_ui.window,
                                         app_ui.folder_tree_view,
@@ -2763,12 +2697,11 @@ fn main() {
         let slot_contextual_menu_create_packed_file_text = SlotBool::new(clone!(
             rpfm_path,
             is_modified,
-            sender_qt,
-            sender_qt_data,
+            ui_message_sender,
             receiver_qt => move |_| {
 
                 // Create the "New PackedFile" dialog and wait for his data (or a cancelation).
-                if let Some(packed_file_type) = create_new_packed_file_dialog(&app_ui, &sender_qt, &sender_qt_data, &receiver_qt, PackedFileType::Text("".to_owned())) {
+                if let Some(packed_file_type) = create_new_packed_file_dialog(&app_ui, &ui_message_sender, &receiver_qt, PackedFileType::Text("".to_owned())) {
 
                     // Check what we got to create....
                     match packed_file_type {
@@ -2809,8 +2742,8 @@ fn main() {
                                     complete_path.push(name);
 
                                     // Check if the PackedFile already exists.
-                                    sender_qt.send(Commands::PackedFileExists).unwrap();
-                                    sender_qt_data.send(serde_json::to_vec(&complete_path).map_err(From::from)).unwrap();
+                                    ui_message_sender.send(Commands::PackedFileExists).unwrap();
+                                    //sender_qt_data.send(serde_json::to_vec(&complete_path).map_err(From::from)).unwrap();
                                     let exists: bool = match check_message_validity_recv(&receiver_qt) {
                                         Ok(data) => data,
                                         Err(_) => panic!(THREADS_MESSAGE_ERROR)
@@ -2820,8 +2753,8 @@ fn main() {
                                     if exists { return show_dialog(app_ui.window, false, ErrorKind::FileAlreadyInPackFile)}
 
                                     // Add it to the PackFile.
-                                    sender_qt.send(Commands::CreatePackedFile).unwrap();
-                                    sender_qt_data.send(serde_json::to_vec(&(complete_path.to_vec(), packed_file_type.clone())).map_err(From::from)).unwrap();
+                                    ui_message_sender.send(Commands::CreatePackedFile).unwrap();
+                                    //sender_qt_data.send(serde_json::to_vec(&(complete_path.to_vec(), packed_file_type.clone())).map_err(From::from)).unwrap();
 
                                     // Get the response, just in case it failed. This CANNOT FAIL IN ANY WAY. If it fails, it's a message problem.
                                     let response: Result<()> = check_message_validity_recv(&receiver_qt);
@@ -2830,8 +2763,7 @@ fn main() {
                                     // Add the new Folder to the TreeView.
                                     update_treeview(
                                         &rpfm_path,
-                                        &sender_qt,
-                                        &sender_qt_data,
+                                        &ui_message_sender,
                                         receiver_qt.clone(),
                                         app_ui.window,
                                         app_ui.folder_tree_view,
@@ -2859,8 +2791,7 @@ fn main() {
         let slot_contextual_menu_mass_import_tsv = SlotBool::new(clone!(
             rpfm_path,
             is_modified,
-            sender_qt,
-            sender_qt_data,
+            ui_message_sender,
             receiver_qt => move |_| {
 
                 // Create the "Mass-Import TSV" dialog and wait for his data (or a cancelation).
@@ -2876,8 +2807,8 @@ fn main() {
                     else {
 
                         // Try to import them.
-                        sender_qt.send(Commands::MassImportTSV).unwrap();
-                        sender_qt_data.send(serde_json::to_vec(&data).map_err(From::from)).unwrap();
+                        ui_message_sender.send(Commands::MassImportTSV).unwrap();
+                        //sender_qt_data.send(serde_json::to_vec(&data).map_err(From::from)).unwrap();
 
                         // Disable the Main Window (so we can't do other stuff).
                         unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
@@ -2904,8 +2835,7 @@ fn main() {
                                     // Update the TreeView.
                                     update_treeview(
                                         &rpfm_path,
-                                        &sender_qt,
-                                        &sender_qt_data,
+                                        &ui_message_sender,
                                         receiver_qt.clone(),
                                         app_ui.window,
                                         app_ui.folder_tree_view,
@@ -2960,8 +2890,7 @@ fn main() {
 
         // What happens when we trigger the "Mass-Export TSV" Action.
         let slot_contextual_menu_mass_export_tsv = SlotBool::new(clone!(
-            sender_qt,
-            sender_qt_data,
+            ui_message_sender,
             receiver_qt => move |_| {
 
                 // Get a "Folder-only" FileDialog.
@@ -2981,8 +2910,8 @@ fn main() {
                     if export_path.is_dir() {
 
                         // Tell the Background Thread to export all the tables and loc files there.
-                        sender_qt.send(Commands::MassExportTSV).unwrap();
-                        sender_qt_data.send(serde_json::to_vec(&export_path).map_err(From::from)).unwrap();
+                        ui_message_sender.send(Commands::MassExportTSV).unwrap();
+                        //sender_qt_data.send(serde_json::to_vec(&export_path).map_err(From::from)).unwrap();
 
                         // Disable the Main Window (so we can't do other stuff).
                         unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
@@ -3044,8 +2973,7 @@ fn main() {
         // What happens when we trigger the "Delete" action in the Contextual Menu.
         let slot_contextual_menu_delete = SlotBool::new(clone!(
             rpfm_path,
-            sender_qt,
-            sender_qt_data,
+            ui_message_sender,
             receiver_qt,
             is_packedfile_opened,
             is_modified,
@@ -3064,8 +2992,8 @@ fn main() {
                     let path = get_path_from_selection(&app_ui, true);
 
                     // Tell the Background Thread to delete the selected stuff.
-                    sender_qt.send(Commands::DeletePackedFile).unwrap();
-                    sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
+                    ui_message_sender.send(Commands::DeletePackedFile).unwrap();
+                    //sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
 
                     // Get the response from the other thread.
                     let path_type: TreePathType = match check_message_validity_recv(&receiver_qt) {
@@ -3076,8 +3004,7 @@ fn main() {
                     // Update the TreeView.
                     update_treeview(
                         &rpfm_path,
-                        &sender_qt,
-                        &sender_qt_data,
+                        &ui_message_sender,
                         receiver_qt.clone(),
                         app_ui.window,
                         app_ui.folder_tree_view,
@@ -3093,8 +3020,7 @@ fn main() {
 
         // What happens when we trigger the "Extract" action in the Contextual Menu.
         let slot_contextual_menu_extract = SlotBool::new(clone!(
-            sender_qt,
-            sender_qt_data,
+            ui_message_sender,
             receiver_qt,
             mode => move |_| {
 
@@ -3105,15 +3031,15 @@ fn main() {
                 let path = get_path_from_selection(&app_ui, true);
 
                 // Send the Path to the Background Thread, and get the type of the item.
-                sender_qt.send(Commands::GetTypeOfPath).unwrap();
-                sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
+                ui_message_sender.send(Commands::GetTypeOfPath).unwrap();
+                //TODO sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
                 let item_type: TreePathType = match check_message_validity_recv(&receiver_qt) {
                     Ok(data) => data,
                     Err(_) => panic!(THREADS_MESSAGE_ERROR)
                 };
 
                 // Get the settings.
-                sender_qt.send(Commands::GetSettings).unwrap();
+                ui_message_sender.send(Commands::GetSettings).unwrap();
                 let settings: Settings = match check_message_validity_recv(&receiver_qt) {
                     Ok(data) => data,
                     Err(_) => panic!(THREADS_MESSAGE_ERROR)
@@ -3165,8 +3091,8 @@ fn main() {
                             }
 
                             // Tell the Background Thread to delete the selected stuff.
-                            sender_qt.send(Commands::ExtractPackedFile).unwrap();
-                            sender_qt_data.send(serde_json::to_vec(&(path.to_vec(), assets_folder.to_path_buf())).map_err(From::from)).unwrap();
+                            ui_message_sender.send(Commands::ExtractPackedFile).unwrap();
+                            //TODO sender_qt_data.send(serde_json::to_vec(&(path.to_vec(), assets_folder.to_path_buf())).map_err(From::from)).unwrap();
 
                             // Disable the Main Window (so we can't do other stuff).
                             unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
@@ -3279,8 +3205,8 @@ fn main() {
                                 };
 
                                 // Tell the Background Thread to delete the selected stuff.
-                                sender_qt.send(Commands::ExtractPackedFile).unwrap();
-                                sender_qt_data.send(serde_json::to_vec(&(path.to_vec(), final_extraction_path.to_path_buf())).map_err(From::from)).unwrap();
+                                ui_message_sender.send(Commands::ExtractPackedFile).unwrap();
+                                //TODO sender_qt_data.send(serde_json::to_vec(&(path.to_vec(), final_extraction_path.to_path_buf())).map_err(From::from)).unwrap();
 
                                 // Disable the Main Window (so we can't do other stuff).
                                 unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
@@ -3377,8 +3303,8 @@ fn main() {
                                 let mut extraction_path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
 
                                 // Tell the Background Thread to delete the selected stuff.
-                                sender_qt.send(Commands::ExtractPackedFile).unwrap();
-                                sender_qt_data.send(serde_json::to_vec(&(path.to_vec(), extraction_path.to_path_buf())).map_err(From::from)).unwrap();
+                                ui_message_sender.send(Commands::ExtractPackedFile).unwrap();
+                                //TODO sender_qt_data.send(serde_json::to_vec(&(path.to_vec(), extraction_path.to_path_buf())).map_err(From::from)).unwrap();
 
                                 // Disable the Main Window (so we can't do other stuff).
                                 unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
@@ -3441,8 +3367,7 @@ fn main() {
 
         // What happens when we trigger the "Open in decoder" action in the Contextual Menu.
         let slot_contextual_menu_open_decoder = SlotBool::new(clone!(
-            sender_qt,
-            sender_qt_data,
+            ui_message_sender,
             receiver_qt,
             is_packedfile_opened => move |_| {
 
@@ -3450,8 +3375,8 @@ fn main() {
                 let path = get_path_from_selection(&app_ui, true);
 
                 // Send the Path to the Background Thread, and get the type of the item.
-                sender_qt.send(Commands::GetTypeOfPath).unwrap();
-                sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
+                ui_message_sender.send(Commands::GetTypeOfPath).unwrap();
+                //TODO sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
                 let item_type: TreePathType = match check_message_validity_recv(&receiver_qt) {
                     Ok(data) => data,
                     Err(_) => panic!(THREADS_MESSAGE_ERROR)
@@ -3465,8 +3390,7 @@ fn main() {
 
                     // We try to open it in the decoder.
                     if let Ok(result) = PackedFileDBDecoder::create_decoder_view(
-                        sender_qt.clone(),
-                        &sender_qt_data,
+                        ui_message_sender.clone(),
                         &receiver_qt,
                         &app_ui,
                         &index
@@ -3506,16 +3430,15 @@ fn main() {
         let slot_contextual_menu_rename = SlotBool::new(clone!(
             rpfm_path,
             is_modified,
-            sender_qt,
-            sender_qt_data,
+            ui_message_sender,
             receiver_qt => move |_| {
 
                 // Get his Path, including the name of the PackFile.
                 let complete_path = get_path_from_selection(&app_ui, true);
 
                 // Send the Path to the Background Thread, and get the type of the item.
-                sender_qt.send(Commands::GetTypeOfPath).unwrap();
-                sender_qt_data.send(serde_json::to_vec(&complete_path).map_err(From::from)).unwrap();
+                ui_message_sender.send(Commands::GetTypeOfPath).unwrap();
+                //TODO sender_qt_data.send(serde_json::to_vec(&complete_path).map_err(From::from)).unwrap();
                 let item_type: TreePathType = match check_message_validity_recv(&receiver_qt) {
                     Ok(data) => data,
                     Err(_) => panic!(THREADS_MESSAGE_ERROR)
@@ -3534,8 +3457,8 @@ fn main() {
                         if let Some(new_name) = create_rename_dialog(&app_ui, &current_name) {
 
                             // Send the New Name to the Background Thread, wait for a response.
-                            sender_qt.send(Commands::RenamePackedFile).unwrap();
-                            sender_qt_data.send(serde_json::to_vec(&(complete_path, &new_name)).map_err(From::from)).unwrap();
+                            ui_message_sender.send(Commands::RenamePackedFile).unwrap();
+                            //sender_qt_data.send(serde_json::to_vec(&(complete_path, &new_name)).map_err(From::from)).unwrap();
 
                             // Get the response and check what we got.
                             let response: Result<()> = check_message_validity_recv(&receiver_qt);
@@ -3547,8 +3470,7 @@ fn main() {
                                     // Update the TreeView.
                                     update_treeview(
                                         &rpfm_path,
-                                        &sender_qt,
-                                        &sender_qt_data,
+                                        &ui_message_sender,
                                         receiver_qt.clone(),
                                         app_ui.window,
                                         app_ui.folder_tree_view,
@@ -3601,8 +3523,7 @@ fn main() {
 
         // What happens when we try to open a PackedFile...
         let slot_open_packedfile = SlotNoArgs::new(clone!(
-            sender_qt,
-            sender_qt_data,
+            ui_message_sender,
             receiver_qt,
             is_modified,
             is_folder_tree_view_locked,
@@ -3622,8 +3543,8 @@ fn main() {
                     let path = get_path_from_item_selection(app_ui.folder_tree_model, &selection, true);
 
                     // Send the Path to the Background Thread, and get the type of the item.
-                    sender_qt.send(Commands::GetTypeOfPath).unwrap();
-                    sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
+                    ui_message_sender.send(Commands::GetTypeOfPath).unwrap();
+                    //sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
                     let item_type: TreePathType = match check_message_validity_recv(&receiver_qt) {
                         Ok(data) => data,
                         Err(_) => panic!(THREADS_MESSAGE_ERROR)
@@ -3688,8 +3609,7 @@ fn main() {
 
                                     // Try to get the view build, or return error.
                                     match PackedFileLocTreeView::create_tree_view(
-                                        sender_qt.clone(),
-                                        &sender_qt_data,
+                                        ui_message_sender.clone(),
                                         &receiver_qt,
                                         &is_modified,
                                         &app_ui,
@@ -3708,8 +3628,7 @@ fn main() {
 
                                     // Try to get the view build, or return error.
                                     match PackedFileDBTreeView::create_table_view(
-                                        sender_qt.clone(),
-                                        &sender_qt_data,
+                                        ui_message_sender.clone(),
                                         &receiver_qt,
                                         &is_modified,
                                         &app_ui,
@@ -3731,8 +3650,7 @@ fn main() {
 
                                     // Try to get the view build, or return error.
                                     match PackedFileTextView::create_text_view(
-                                        sender_qt.clone(),
-                                        &sender_qt_data,
+                                        ui_message_sender.clone(),
                                         &receiver_qt,
                                         &is_modified,
                                         &app_ui,
@@ -3751,8 +3669,7 @@ fn main() {
 
                                     // Try to get the view build, or return error.
                                     match PackedFileRigidModelDataView::create_data_view(
-                                        sender_qt.clone(),
-                                        &sender_qt_data,
+                                        ui_message_sender.clone(),
                                         &receiver_qt,
                                         &is_modified,
                                         &app_ui,
@@ -3771,8 +3688,7 @@ fn main() {
 
                                     // Try to get the view build, or return error.
                                     if let Err(error) = ui::packedfile_image::create_image_view(
-                                        sender_qt.clone(),
-                                        &sender_qt_data,
+                                        ui_message_sender.clone(),
                                         &receiver_qt,
                                         &app_ui,
                                         &index
@@ -3808,9 +3724,8 @@ fn main() {
             rpfm_path,
             mymod_stuff,
             mymod_stuff_slots,
-            sender_qt,
+            ui_message_sender,
             is_packedfile_opened,
-            sender_qt_data,
             receiver_qt,
             is_modified,
             mode,
@@ -3822,8 +3737,7 @@ fn main() {
                     // Then rebuild it.
                     let result = build_my_mod_menu(
                         rpfm_path.to_path_buf(),
-                        sender_qt.clone(),
-                        &sender_qt_data,
+                        ui_message_sender.clone(),
                         receiver_qt.clone(),
                         app_ui.clone(),
                         &menu_bar_mymod,
@@ -3849,7 +3763,7 @@ fn main() {
         unsafe { app_ui.window.as_mut().unwrap().show(); }
 
         // Get the settings.
-        sender_qt.send(Commands::GetSettings).unwrap();
+        ui_message_sender.send(Commands::GetSettings).unwrap();
         let settings: Settings = match check_message_validity_recv(&receiver_qt) {
             Ok(data) => data,
             Err(_) => panic!(THREADS_MESSAGE_ERROR)
@@ -3859,7 +3773,7 @@ fn main() {
         if *settings.settings_bool.get("check_updates_on_start").unwrap() { check_updates(&app_ui, false) };
 
         // If we have it enabled in the prefs, check if there are schema updates.
-        if *settings.settings_bool.get("check_schema_updates_on_start").unwrap() { check_schema_updates(&app_ui, false, &rpfm_path, &sender_qt, &sender_qt_data, &receiver_qt) };
+        if *settings.settings_bool.get("check_schema_updates_on_start").unwrap() { check_schema_updates(&app_ui, false, &rpfm_path, &ui_message_sender, &receiver_qt) };
 
         // If we have an argument (we open RPFM by clicking in a PackFile directly)...
         if arguments.len() > 1 {
@@ -3873,8 +3787,7 @@ fn main() {
                 // Try to open it, and report it case of error.
                 if let Err(error) = open_packfile(
                     &rpfm_path,
-                    &sender_qt,
-                    &sender_qt_data,
+                    &ui_message_sender,
                     &receiver_qt,
                     path,
                     &app_ui,
@@ -3886,6 +3799,13 @@ fn main() {
                 ) { show_dialog(app_ui.window, false, error); }
             }
         }
+        */
+        
+        let mut ui_context = UI_CONTEXT.lock().unwrap();
+        *ui_context = Some(UIContext {
+            bg_message_receiver: bg_message_receiver,
+            ui_message_sender: ui_message_sender
+        });
 
         // And launch it.
         Application::exec()
@@ -3898,9 +3818,8 @@ fn main() {
 /// The receiver_data is to receive data (whatever data is needed) encoded with serde_json from the UI Thread.
 fn background_loop(
     rpfm_path: &PathBuf,
-    sender: Sender<Result<Vec<u8>>>,
-    receiver: Receiver<Commands>,
-    receiver_data: Receiver<Result<Vec<u8>>>
+    bg_message_sender: Sender<BackgroundMessage>,
+    ui_message_receiver: Receiver<Commands>
 ) {
 
     //---------------------------------------------------------------------------------------//
@@ -3949,14 +3868,13 @@ fn background_loop(
 
         // Wait until you get something through the channel. This hangs the thread until we got something,
         // so it doesn't use processing power until we send it a message.
-        match receiver.recv() {
+        match ui_message_receiver.recv() {
 
             // If you got a message...
             Ok(data) => {
 
                 // Act depending on what that message is.
                 match data {
-
                     // In case we want to reset the PackFile to his original state (dummy)...
                     Commands::ResetPackFile => {
 
@@ -3970,6 +3888,7 @@ fn background_loop(
                         // Create the new PackFile.
                         pack_file_decoded_extra = PackFile::new();
                     }
+                    
 
                     // In case we want to create a "New PackFile"...
                     Commands::NewPackFile => {
@@ -3984,12 +3903,9 @@ fn background_loop(
                         schema = Schema::load(&rpfm_path, &supported_games.iter().filter(|x| x.folder_name == *game_selected.game).map(|x| x.schema.to_owned()).collect::<String>()).ok();
 
                         // Get the PackFile's Type we must return to the UI thread and serialize it.
-                        let data = serde_json::to_vec(&pack_file_decoded.header.pack_file_type).map_err(From::from);
-
-                        // Send a response to the UI thread.
-                        sender.send(data).unwrap();
+                        bg_message_sender.send(BackgroundMessage::NewPackFileResponse(pack_file_decoded.header.pack_file_type)).unwrap();
                     }
-
+                    /*//TODO
                     // In case we want to "Open a PackFile"...
                     Commands::OpenPackFile => {
 
@@ -4167,14 +4083,16 @@ fn background_loop(
                             Err(error) => sender.send(Err(error)).unwrap()
                         }
                     }
+                    */
 
                     // In case we want to get the current settings...
                     Commands::GetSettings => {
 
                         // Send the current settings back to the UI thread.
-                        sender.send(serde_json::to_vec(&settings).map_err(From::from)).unwrap();
-                    }
+                        bg_message_sender.send(BackgroundMessage::GetSettingsResponse(settings.clone())).unwrap();
+                    },
 
+                    /*//TODO
                     // In case we want to change the current settings...
                     Commands::SetSettings => {
 
@@ -4195,11 +4113,13 @@ fn background_loop(
                     }
 
                     // In case we want to get the current shortcuts...
+                    */
                     Commands::GetShortcuts => {
 
                         // Send the current shortcuts back to the UI thread.
-                        sender.send(serde_json::to_vec(&shortcuts).map_err(From::from)).unwrap();
+                        bg_message_sender.send(BackgroundMessage::GetShortcutsResponse(shortcuts.clone())).unwrap();
                     }
+                    /*//TODO
 
                     // In case we want to change the current shortcuts...
                     Commands::SetShortcuts => {
@@ -4220,12 +4140,14 @@ fn background_loop(
                         }
                     }
 
+                    */
                     // In case we want get our current Game Selected...
                     Commands::GetGameSelected => {
 
                         // Send the current Game Selected back to the UI thread.
-                        sender.send(serde_json::to_vec(&game_selected).map_err(From::from)).unwrap();
+                        bg_message_sender.send(BackgroundMessage::GetGameSelectedResponse(game_selected.clone())).unwrap();
                     }
+                    /*//TODO
 
                     // In case we want to change the current Game Selected...
                     Commands::SetGameSelected => {
@@ -4997,6 +4919,11 @@ fn background_loop(
                         let deleted_packed_files = packfile::optimize_packfile(&mut pack_file_decoded, &dependency_database, &schema);
                         sender.send(serde_json::to_vec(&deleted_packed_files).map_err(From::from)).unwrap();
                     }
+                    */
+                    x =>  {
+                        eprintln!("bg loop received unexpected {:?}", x);
+                        panic!()
+                    },
                 }
             }
 
@@ -5159,9 +5086,8 @@ fn set_my_mod_mode(
 /// normal mod, pass an empty &str there.
 fn open_packfile(
     rpfm_path: &PathBuf,
-    sender_qt: &Sender<Commands>,
-    sender_qt_data: &Sender<Result<Vec<u8>>>,
-    receiver_qt: &Rc<RefCell<Receiver<Result<Vec<u8>>>>>,
+    ui_message_sender: &Sender<Commands>,
+    receiver_qt: Receiver<BackgroundMessage>,
     pack_file_path: PathBuf,
     app_ui: &AppUI,
     mymod_stuff: &Rc<RefCell<MyModStuff>>,
@@ -5170,10 +5096,10 @@ fn open_packfile(
     game_folder: &str,
     is_packedfile_opened: &Rc<RefCell<bool>>,
 ) -> Result<()> {
-
+    /*//TODO
     // Tell the Background Thread to create a new PackFile.
-    sender_qt.send(Commands::OpenPackFile).unwrap();
-    sender_qt_data.send(serde_json::to_vec(&pack_file_path).map_err(From::from)).unwrap();
+    ui_message_sender.send(Commands::OpenPackFile).unwrap();
+    //TODO sender_qt_data.send(serde_json::to_vec(&pack_file_path).map_err(From::from)).unwrap();
 
     // Disable the Main Window (so we can't do other stuff).
     unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
@@ -5212,8 +5138,7 @@ fn open_packfile(
                 // Update the TreeView.
                 update_treeview(
                     &rpfm_path,
-                    sender_qt,
-                    sender_qt_data,
+                    ui_message_sender,
                     receiver_qt.clone(),
                     app_ui.window,
                     app_ui.folder_tree_view,
@@ -5260,7 +5185,7 @@ fn open_packfile(
                         "PFH4" | _ => {
 
                             // Get the Game Selected.
-                            sender_qt.send(Commands::GetGameSelected).unwrap();
+                            ui_message_sender.send(Commands::GetGameSelected).unwrap();
                             let game_selected: GameSelected = match check_message_validity_recv(&receiver_qt) {
                                 Ok(data) => data,
                                 Err(_) => panic!(THREADS_MESSAGE_ERROR)
@@ -5317,6 +5242,7 @@ fn open_packfile(
         // Keep the UI responsive.
         event_loop.process_events(());
     }
+    */
 
     // Return success.
     Ok(())
@@ -5330,9 +5256,8 @@ fn open_packfile(
 /// We need to return a tuple with the actions (for further manipulation) and the slots (to keep them alive).
 fn build_my_mod_menu(
     rpfm_path: PathBuf,
-    sender_qt: Sender<Commands>,
-    sender_qt_data: &Sender<Result<Vec<u8>>>,
-    receiver_qt: Rc<RefCell<Receiver<Result<Vec<u8>>>>>,
+    ui_message_sender: Sender<Commands>,
+    bg_message_receiver: &Receiver<BackgroundMessage>,
     app_ui: AppUI,
     menu_bar_mymod: &*mut Menu,
     is_modified: Rc<RefCell<bool>>,
@@ -5343,10 +5268,10 @@ fn build_my_mod_menu(
 ) -> (MyModStuff, MyModSlots) {
 
     // Get the current Settings, as we are going to need them later.
-    sender_qt.send(Commands::GetSettings).unwrap();
-    let settings: Settings = match check_message_validity_recv(&receiver_qt) {
-        Ok(data) => data,
-        Err(_) => panic!(THREADS_MESSAGE_ERROR)
+    ui_message_sender.send(Commands::GetSettings).unwrap();
+    let settings: Settings = match communication::receive_background_message_responsive(bg_message_receiver) {
+        BackgroundMessage::GetSettingsResponse(settings) => settings,
+        _ => panic!(THREADS_MESSAGE_ERROR)
     };
 
     //---------------------------------------------------------------------------------------//
@@ -5376,9 +5301,6 @@ fn build_my_mod_menu(
         // This slot is used for the "New MyMod" action.
         new_mymod: SlotBool::new(clone!(
             rpfm_path,
-            sender_qt,
-            sender_qt_data,
-            receiver_qt,
             is_packedfile_opened,
             app_ui,
             mode,
@@ -5386,6 +5308,14 @@ fn build_my_mod_menu(
             is_modified,
             needs_rebuild,
             supported_games => move |_| {
+                let mutex_guard = match UI_CONTEXT.try_lock() {
+                    Ok(mutex_guard) => mutex_guard,
+                    Err(_) => {
+                        eprintln!("failed to get ui lock");
+                        return;
+                    }
+                };
+                let ui_context: &UIContext = &mutex_guard.as_ref().unwrap();
 
                 // Create the "New MyMod" Dialog, and get the result.
                 match NewMyModDialog::create_new_mymod_dialog(&app_ui, &supported_games, &settings) {
@@ -5429,117 +5359,95 @@ fn build_my_mod_menu(
                         mymod_path.push(&full_mod_name);
 
                         // Tell the Background Thread to create a new PackFile.
-                        sender_qt.send(Commands::NewPackFile).unwrap();
-                        let _confirmation: u32 = match check_message_validity_recv(&receiver_qt) {
-                            Ok(data) => data,
-                            Err(_) => panic!(THREADS_MESSAGE_ERROR)
+                        ui_message_sender.send(Commands::NewPackFile).unwrap();
+                        let _confirmation: u32 = match communication::receive_background_message_responsive(&ui_context.bg_message_receiver) {
+                            BackgroundMessage::NewPackFileResponse(file_type) => file_type,
+                            _ => panic!(THREADS_MESSAGE_ERROR)
                         };
 
                         // Tell the Background Thread to create a new PackFile.
-                        sender_qt.send(Commands::SavePackFileAs).unwrap();
-                        let _confirmation: PackFileExtraData = match check_message_validity_recv(&receiver_qt) {
-                            Ok(data) => data,
-                            Err(_) => panic!(THREADS_MESSAGE_ERROR)
+                        ui_message_sender.send(Commands::SavePackFileAs(mymod_path.clone())).unwrap();
+                        let save_pack_result = match communication::receive_background_message_responsive(&ui_context.bg_message_receiver) {
+                            BackgroundMessage::SavePackFileAsResponse(result) => result,
+                            _ => panic!(THREADS_MESSAGE_ERROR)
                         };
 
-                        // Pass the new PackFile's Path to the worker thread.
-                        sender_qt_data.send(serde_json::to_vec(&mymod_path).map_err(From::from)).unwrap();
+                        
 
-                        // Prepare the event loop, so we don't hang the UI while the background thread is working.
-                        let mut event_loop = EventLoop::new();
+                        // Check what response we got.
+                        match save_pack_result {
 
-                        // Until we receive a response from the worker thread...
-                        loop {
+                            // If we got a message....
+                            Ok(_) => {
 
-                            // Get the response from the other thread.
-                            let response: Result<u32> = check_message_validity_tryrecv(&receiver_qt);
+                                // Destroy whatever it's in the PackedFile's view, to avoid data corruption.
+                                purge_them_all(&app_ui, &is_packedfile_opened);
 
-                            // Check what response we got.
-                            match response {
+                                // Show the "Tips".
+                                display_help_tips(&app_ui);
 
-                                // If we got a message....
-                                Ok(_) => {
+                                // Update the TreeView.
+                                update_treeview(
+                                    &rpfm_path,
+                                    &ui_message_sender,
+                                    &ui_context.bg_message_receiver,
+                                    app_ui.window,
+                                    app_ui.folder_tree_view,
+                                    app_ui.folder_tree_model,
+                                    TreeViewOperation::Build(false),
+                                );
 
-                                    // Destroy whatever it's in the PackedFile's view, to avoid data corruption.
-                                    purge_them_all(&app_ui, &is_packedfile_opened);
+                                // Mark it as "Mod" in the UI.
+                                unsafe { app_ui.change_packfile_type_mod.as_mut().unwrap().set_checked(true); }
 
-                                    // Show the "Tips".
-                                    display_help_tips(&app_ui);
+                                // By default, the four bitmask should be false.
+                                unsafe { app_ui.change_packfile_type_data_is_encrypted.as_mut().unwrap().set_checked(false); }
+                                unsafe { app_ui.change_packfile_type_index_includes_timestamp.as_mut().unwrap().set_checked(false); }
+                                unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_checked(false); }
+                                unsafe { app_ui.change_packfile_type_header_is_extended.as_mut().unwrap().set_checked(false); }
 
-                                    // Update the TreeView.
-                                    update_treeview(
-                                        &rpfm_path,
-                                        &sender_qt,
-                                        &sender_qt_data,
-                                        receiver_qt.clone(),
-                                        app_ui.window,
-                                        app_ui.folder_tree_view,
-                                        app_ui.folder_tree_model,
-                                        TreeViewOperation::Build(false),
-                                    );
+                                // Set the new "MyMod" as "Not modified".
+                                *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
 
-                                    // Mark it as "Mod" in the UI.
-                                    unsafe { app_ui.change_packfile_type_mod.as_mut().unwrap().set_checked(true); }
+                                // Get the Game Selected.
+                                ui_message_sender.send(Commands::GetGameSelected).unwrap();
+                                let game_selected: GameSelected = match communication::receive_background_message_responsive(&ui_context.bg_message_receiver) {
+                                    BackgroundMessage::GetGameSelectedResponse(game_selected) => game_selected,
+                                    _ => panic!(THREADS_MESSAGE_ERROR)
+                                };
 
-                                    // By default, the four bitmask should be false.
-                                    unsafe { app_ui.change_packfile_type_data_is_encrypted.as_mut().unwrap().set_checked(false); }
-                                    unsafe { app_ui.change_packfile_type_index_includes_timestamp.as_mut().unwrap().set_checked(false); }
-                                    unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_checked(false); }
-                                    unsafe { app_ui.change_packfile_type_header_is_extended.as_mut().unwrap().set_checked(false); }
+                                // Try to get the settings.
+                                ui_message_sender.send(Commands::GetSettings).unwrap();
+                                let settings: Settings = match communication::receive_background_message_responsive(&ui_context.bg_message_receiver) {
+                                    BackgroundMessage::GetSettingsResponse(settings) => settings,
+                                    _ => panic!(THREADS_MESSAGE_ERROR)
+                                };
 
-                                    // Set the new "MyMod" as "Not modified".
-                                    *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
+                                // Enable the actions available for the PackFile from the `MenuBar`.
+                                enable_packfile_actions(&app_ui, &game_selected, &Rc::new(RefCell::new(mymod_stuff.clone())), settings, true);
 
-                                    // Get the Game Selected.
-                                    sender_qt.send(Commands::GetGameSelected).unwrap();
-                                    let game_selected: GameSelected = match check_message_validity_recv(&receiver_qt) {
-                                        Ok(data) => data,
-                                        Err(_) => panic!(THREADS_MESSAGE_ERROR)
-                                    };
+                                // Set the current "Operational Mode" to `MyMod`.
+                                set_my_mod_mode(&Rc::new(RefCell::new(mymod_stuff.clone())), &mode, Some(mymod_path));
 
-                                    // Try to get the settings.
-                                    sender_qt.send(Commands::GetSettings).unwrap();
-                                    let settings: Settings = match check_message_validity_recv(&receiver_qt) {
-                                        Ok(data) => data,
-                                        Err(_) => panic!(THREADS_MESSAGE_ERROR)
-                                    };
-
-                                    // Enable the actions available for the PackFile from the `MenuBar`.
-                                    enable_packfile_actions(&app_ui, &game_selected, &Rc::new(RefCell::new(mymod_stuff.clone())), settings, true);
-
-                                    // Set the current "Operational Mode" to `MyMod`.
-                                    set_my_mod_mode(&Rc::new(RefCell::new(mymod_stuff.clone())), &mode, Some(mymod_path));
-
-                                    // Set it to rebuild next time we try to open the "MyMod" Menu.
-                                    *needs_rebuild.borrow_mut() = true;
-
-                                    // Break the loop.
-                                    break;
-                                }
-
-                                // In case of error...
-                                Err(error) => {
-
-                                    // We must check what kind of error it's.
-                                    match error.kind() {
-
-                                        // If it's "Message Empty", do nothing.
-                                        ErrorKind::MessageSystemEmpty => {},
-
-                                        // If there was any other error while saving the PackFile, report it and break the loop.
-                                        ErrorKind::SavePackFileGeneric(_) => {
-                                            show_dialog(app_ui.window, false, error);
-                                            break;
-                                        }
-
-                                        // In ANY other situation, it's a message problem.
-                                        _ => panic!(THREADS_MESSAGE_ERROR)
-                                    }
-                                }
+                                // Set it to rebuild next time we try to open the "MyMod" Menu.
+                                *needs_rebuild.borrow_mut() = true;
                             }
 
-                            // Keep the UI responsive.
-                            event_loop.process_events(());
+                            // In case of error...
+                            Err(error) => {
+
+                                // We must check what kind of error it's.
+                                match error.kind() {
+
+                                    // If there was any other error while saving the PackFile, report it and break the loop.
+                                    ErrorKind::SavePackFileGeneric(_) => {
+                                        show_dialog(app_ui.window, false, error);
+                                    }
+
+                                    // In ANY other situation, it's a message problem.
+                                    _ => panic!(THREADS_MESSAGE_ERROR)
+                                }
+                            }
                         }
                     }
 
@@ -5551,12 +5459,18 @@ fn build_my_mod_menu(
 
         // This slot is used for the "Delete Selected MyMod" action.
         delete_selected_mymod: SlotBool::new(clone!(
-            sender_qt,
-            receiver_qt,
             settings,
             mode,
             is_modified,
             app_ui => move |_| {
+                let mutex_guard = match UI_CONTEXT.try_lock() {
+                    Ok(mutex_guard) => mutex_guard,
+                    Err(_) => {
+                        eprintln!("failed to get ui lock");
+                        return;
+                    }
+                };
+                let ui_context: &UIContext = &mutex_guard.as_ref().unwrap();
 
                 // Ask before doing it, as this will permanently delete the mod from the Disk.
                 if are_you_sure(&app_ui, &is_modified, true) {
@@ -5624,20 +5538,20 @@ fn build_my_mod_menu(
                         set_my_mod_mode(&Rc::new(RefCell::new(mymod_stuff.clone())), &mode, None);
 
                         // Create a "dummy" PackFile, effectively closing the currently open PackFile.
-                        sender_qt.send(Commands::ResetPackFile).unwrap();
+                        ui_context.ui_message_sender.send(Commands::ResetPackFile).unwrap();
 
                         // Get the Game Selected.
-                        sender_qt.send(Commands::GetGameSelected).unwrap();
-                        let game_selected: GameSelected = match check_message_validity_recv(&receiver_qt) {
-                            Ok(data) => data,
-                            Err(_) => panic!(THREADS_MESSAGE_ERROR)
+                        ui_context.ui_message_sender.send(Commands::GetGameSelected).unwrap();
+                        let game_selected: GameSelected = match communication::receive_background_message_responsive(&ui_context.bg_message_receiver) {
+                            BackgroundMessage::GetGameSelectedResponse(game_selected) => game_selected,
+                            _ => panic!(THREADS_MESSAGE_ERROR)
                         };
 
                         // Try to get the settings.
-                        sender_qt.send(Commands::GetSettings).unwrap();
-                        let settings: Settings = match check_message_validity_recv(&receiver_qt) {
-                            Ok(data) => data,
-                            Err(_) => panic!(THREADS_MESSAGE_ERROR)
+                        ui_context.ui_message_sender.send(Commands::GetSettings).unwrap();
+                        let settings: Settings = match communication::receive_background_message_responsive(&ui_context.bg_message_receiver) {
+                            BackgroundMessage::GetSettingsResponse(settings) => settings,
+                            _ => panic!(THREADS_MESSAGE_ERROR)
                         };
 
                         // Disable the actions available for the PackFile from the `MenuBar`.
@@ -5661,11 +5575,17 @@ fn build_my_mod_menu(
 
         // This slot is used for the "Install MyMod" action.
         install_mymod: SlotBool::new(clone!(
-            sender_qt,
-            receiver_qt,
             settings,
             mode,
             app_ui => move |_| {
+                let mutex_guard = match UI_CONTEXT.try_lock() {
+                    Ok(mutex_guard) => mutex_guard,
+                    Err(_) => {
+                        eprintln!("failed to get ui lock");
+                        return;
+                    }
+                };
+                let ui_context: &UIContext = &mutex_guard.as_ref().unwrap();
 
                 // Depending on our current "Mode", we choose what to do.
                 match *mode.borrow() {
@@ -5677,10 +5597,10 @@ fn build_my_mod_menu(
                         if let Some(ref mymods_base_path) = settings.paths.get("mymods_base_path").unwrap() {
 
                             // Get the Game Selected.
-                            sender_qt.send(Commands::GetGameSelected).unwrap();
-                            let game_selected: GameSelected = match check_message_validity_recv(&receiver_qt) {
-                                Ok(data) => data,
-                                Err(_) => panic!(THREADS_MESSAGE_ERROR)
+                            ui_context.ui_message_sender.send(Commands::GetGameSelected).unwrap();
+                            let game_selected: GameSelected = match communication::receive_background_message_responsive(&ui_context.bg_message_receiver) {
+                                BackgroundMessage::GetGameSelectedResponse(game_selected) => game_selected,
+                                _ => panic!(THREADS_MESSAGE_ERROR)
                             };
 
                             // Get the `game_data_path` of the game.
@@ -5728,10 +5648,16 @@ fn build_my_mod_menu(
 
         // This slot is used for the "Uninstall MyMod" action.
         uninstall_mymod: SlotBool::new(clone!(
-            sender_qt,
-            receiver_qt,
             mode,
             app_ui => move |_| {
+                let mutex_guard = match UI_CONTEXT.try_lock() {
+                    Ok(mutex_guard) => mutex_guard,
+                    Err(_) => {
+                        eprintln!("failed to get ui lock");
+                        return;
+                    }
+                };
+                let ui_context: &UIContext = &mutex_guard.as_ref().unwrap();
 
                 // Depending on our current "Mode", we choose what to do.
                 match *mode.borrow() {
@@ -5740,10 +5666,10 @@ fn build_my_mod_menu(
                     Mode::MyMod {ref mod_name,..} => {
 
                         // Get the Game Selected.
-                        sender_qt.send(Commands::GetGameSelected).unwrap();
-                        let game_selected: GameSelected = match check_message_validity_recv(&receiver_qt) {
-                            Ok(data) => data,
-                            Err(_) => panic!(THREADS_MESSAGE_ERROR)
+                        ui_context.ui_message_sender.send(Commands::GetGameSelected).unwrap();
+                        let game_selected: GameSelected = match communication::receive_background_message_responsive(&ui_context.bg_message_receiver) {
+                            BackgroundMessage::GetGameSelectedResponse(game_selected) => game_selected,
+                            _ => panic!(THREADS_MESSAGE_ERROR)
                         };
 
                         // Get the `game_data_path` of the game.
@@ -5850,20 +5776,17 @@ fn build_my_mod_menu(
                                         mode,
                                         mymod_stuff,
                                         pack_file,
-                                        is_packedfile_opened,
-                                        sender_qt,
-                                        sender_qt_data,
-                                        receiver_qt => move |_| {
+                                        is_packedfile_opened => move |_| {
 
                                             // Check first if there has been changes in the PackFile.
                                             if are_you_sure(&app_ui, &is_modified, false) {
 
                                                 // Open the PackFile (or die trying it!).
+                                                /*//TODO
                                                 if let Err(error) = open_packfile(
                                                     &rpfm_path,
-                                                    &sender_qt,
-                                                    &sender_qt_data,
-                                                    &receiver_qt,
+                                                    &ui_message_sender,
+                                                    &bg_message_receiver,
                                                     pack_file.to_path_buf(),
                                                     &app_ui,
                                                     &mymod_stuff,
@@ -5872,6 +5795,7 @@ fn build_my_mod_menu(
                                                     &game_folder_name,
                                                     &is_packedfile_opened,
                                                 ) { show_dialog(app_ui.window, false, error) }
+                                                */
                                             }
                                         }
                                     ));

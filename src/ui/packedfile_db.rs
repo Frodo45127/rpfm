@@ -199,8 +199,7 @@ impl PackedFileDBTreeView {
     /// This function creates a new Table with the PackedFile's View as father and returns a
     /// `PackedFileDBTreeView` with all his data.
     pub fn create_table_view(
-        sender_qt: Sender<Commands>,
-        sender_qt_data: &Sender<Result<Vec<u8>>>,
+        ui_message_sender: Sender<Commands>,
         receiver_qt: &Rc<RefCell<Receiver<Result<Vec<u8>>>>>,
         is_modified: &Rc<RefCell<bool>>,
         app_ui: &AppUI,
@@ -208,8 +207,8 @@ impl PackedFileDBTreeView {
     ) -> Result<Self> {
 
         // Send the index back to the background thread, and wait until we get a response.
-        sender_qt.send(Commands::DecodePackedFileDB).unwrap();
-        sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
+        ui_message_sender.send(Commands::DecodePackedFileDB).unwrap();
+        //TODO sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
 
         // Get the DB's data from the other thread.
         let packed_file_data: DBData = match check_message_validity_recv(&receiver_qt) {
@@ -269,7 +268,7 @@ impl PackedFileDBTreeView {
         unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_visible(true); }
 
         // Get the settings.
-        sender_qt.send(Commands::GetSettings).unwrap();
+        ui_message_sender.send(Commands::GetSettings).unwrap();
         let settings: Settings = match check_message_validity_recv(&receiver_qt) {
             Ok(data) => data,
             Err(_) => panic!(THREADS_MESSAGE_ERROR)
@@ -299,7 +298,7 @@ impl PackedFileDBTreeView {
         let context_menu_export = context_menu.add_action(&QString::from_std_str("&Export"));
 
         // Get the current shortcuts.
-        sender_qt.send(Commands::GetShortcuts).unwrap();
+        ui_message_sender.send(Commands::GetShortcuts).unwrap();
         let shortcuts: Shortcuts = match check_message_validity_recv(&receiver_qt) {
             Ok(data) => data,
             Err(_) => panic!(THREADS_MESSAGE_ERROR)
@@ -392,8 +391,7 @@ impl PackedFileDBTreeView {
                 app_ui,
                 is_modified,
                 packed_file_data,
-                sender_qt,
-                sender_qt_data,
+                ui_message_sender,
                 receiver_qt => move |_,_,_| {
 
                     // Get a local copy of the data.
@@ -405,12 +403,12 @@ impl PackedFileDBTreeView {
                     };
 
                     // Tell the background thread to start saving the PackedFile.
-                    sender_qt.send(Commands::EncodePackedFileDB).unwrap();
-                    sender_qt_data.send(serde_json::to_vec(&(data, packed_file_index)).map_err(From::from)).unwrap();
+                    ui_message_sender.send(Commands::EncodePackedFileDB).unwrap();
+                    //TODO sender_qt_data.send(serde_json::to_vec(&(data, packed_file_index)).map_err(From::from)).unwrap();
 
                     // Get the incomplete path of the edited PackedFile.
-                    sender_qt.send(Commands::GetPackedFilePath).unwrap();
-                    sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
+                    ui_message_sender.send(Commands::GetPackedFilePath).unwrap();
+                    //TODO sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
                     let path: Vec<String> = match check_message_validity_recv(&receiver_qt) {
                         Ok(data) => data,
                         Err(_) => panic!(THREADS_MESSAGE_ERROR)
@@ -646,8 +644,7 @@ impl PackedFileDBTreeView {
                 app_ui,
                 is_modified,
                 packed_file_data,
-                sender_qt,
-                sender_qt_data,
+                ui_message_sender,
                 receiver_qt => move |_| {
 
                     // Get the current selection.
@@ -698,12 +695,12 @@ impl PackedFileDBTreeView {
                         };
 
                         // Tell the background thread to start saving the PackedFile.
-                        sender_qt.send(Commands::EncodePackedFileDB).unwrap();
-                        sender_qt_data.send(serde_json::to_vec(&(data, packed_file_index)).map_err(From::from)).unwrap();
+                        ui_message_sender.send(Commands::EncodePackedFileDB).unwrap();
+                        //TODO sender_qt_data.send(serde_json::to_vec(&(data, packed_file_index)).map_err(From::from)).unwrap();
 
                         // Get the incomplete path of the edited PackedFile.
-                        sender_qt.send(Commands::GetPackedFilePath).unwrap();
-                        sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
+                        ui_message_sender.send(Commands::GetPackedFilePath).unwrap();
+                        //TODO sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
                         let path: Vec<String> = match check_message_validity_recv(&receiver_qt) {
                             Ok(data) => data,
                             Err(_) => panic!(THREADS_MESSAGE_ERROR)
@@ -719,8 +716,7 @@ impl PackedFileDBTreeView {
                 app_ui,
                 is_modified,
                 packed_file_data,
-                sender_qt,
-                sender_qt_data,
+                ui_message_sender,
                 receiver_qt => move |_| {
 
                     // Get the current selection.
@@ -811,12 +807,12 @@ impl PackedFileDBTreeView {
                         };
 
                         // Tell the background thread to start saving the PackedFile.
-                        sender_qt.send(Commands::EncodePackedFileDB).unwrap();
-                        sender_qt_data.send(serde_json::to_vec(&(data, packed_file_index)).map_err(From::from)).unwrap();
+                        ui_message_sender.send(Commands::EncodePackedFileDB).unwrap();
+                        //TODO sender_qt_data.send(serde_json::to_vec(&(data, packed_file_index)).map_err(From::from)).unwrap();
 
                         // Get the incomplete path of the edited PackedFile.
-                        sender_qt.send(Commands::GetPackedFilePath).unwrap();
-                        sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
+                        ui_message_sender.send(Commands::GetPackedFilePath).unwrap();
+                        //TODO sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
                         let path: Vec<String> = match check_message_validity_recv(&receiver_qt) {
                             Ok(data) => data,
                             Err(_) => panic!(THREADS_MESSAGE_ERROR)
@@ -904,8 +900,7 @@ impl PackedFileDBTreeView {
                 app_ui,
                 is_modified,
                 packed_file_data,
-                sender_qt,
-                sender_qt_data,
+                ui_message_sender,
                 receiver_qt => move |_| {
 
                     // If whatever it's in the Clipboard is pasteable in our selection...
@@ -990,12 +985,12 @@ impl PackedFileDBTreeView {
                             };
 
                             // Tell the background thread to start saving the PackedFile.
-                            sender_qt.send(Commands::EncodePackedFileDB).unwrap();
-                            sender_qt_data.send(serde_json::to_vec(&(data, packed_file_index)).map_err(From::from)).unwrap();
+                            ui_message_sender.send(Commands::EncodePackedFileDB).unwrap();
+                            //TODO sender_qt_data.send(serde_json::to_vec(&(data, packed_file_index)).map_err(From::from)).unwrap();
 
                             // Get the incomplete path of the edited PackedFile.
-                            sender_qt.send(Commands::GetPackedFilePath).unwrap();
-                            sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
+                            ui_message_sender.send(Commands::GetPackedFilePath).unwrap();
+                            //TODO sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
                             let path: Vec<String> = match check_message_validity_recv(&receiver_qt) {
                                 Ok(data) => data,
                                 Err(_) => panic!(THREADS_MESSAGE_ERROR)
@@ -1013,8 +1008,7 @@ impl PackedFileDBTreeView {
                 app_ui,
                 is_modified,
                 packed_file_data,
-                sender_qt,
-                sender_qt_data,
+                ui_message_sender,
                 receiver_qt => move |_| {
 
                     // If whatever it's in the Clipboard is pasteable in our selection...
@@ -1198,12 +1192,12 @@ impl PackedFileDBTreeView {
                             };
 
                             // Tell the background thread to start saving the PackedFile.
-                            sender_qt.send(Commands::EncodePackedFileDB).unwrap();
-                            sender_qt_data.send(serde_json::to_vec(&(data, packed_file_index)).map_err(From::from)).unwrap();
+                            ui_message_sender.send(Commands::EncodePackedFileDB).unwrap();
+                            //TODO sender_qt_data.send(serde_json::to_vec(&(data, packed_file_index)).map_err(From::from)).unwrap();
 
                             // Get the incomplete path of the edited PackedFile.
-                            sender_qt.send(Commands::GetPackedFilePath).unwrap();
-                            sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
+                            ui_message_sender.send(Commands::GetPackedFilePath).unwrap();
+                            //TODO sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
                             let path: Vec<String> = match check_message_validity_recv(&receiver_qt) {
                                 Ok(data) => data,
                                 Err(_) => panic!(THREADS_MESSAGE_ERROR)
@@ -1221,8 +1215,7 @@ impl PackedFileDBTreeView {
                 app_ui,
                 is_modified,
                 packed_file_data,
-                sender_qt,
-                sender_qt_data,
+                ui_message_sender,
                 receiver_qt => move |_| {
 
                     // Create the FileDialog to get the PackFile to open.
@@ -1242,8 +1235,8 @@ impl PackedFileDBTreeView {
                         let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
 
                         // Tell the background thread to start importing the TSV.
-                        sender_qt.send(Commands::ImportTSVPackedFileDB).unwrap();
-                        sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
+                        ui_message_sender.send(Commands::ImportTSVPackedFileDB).unwrap();
+                        //TODO sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
 
                         // Receive the new data to load in the TableView, or an error.
                         match check_message_validity_recv(&receiver_qt) {
@@ -1259,7 +1252,7 @@ impl PackedFileDBTreeView {
                         build_columns(&packed_file_data.table_definition, table_view, model);
 
                         // Get the settings.
-                        sender_qt.send(Commands::GetSettings).unwrap();
+                        ui_message_sender.send(Commands::GetSettings).unwrap();
                         let settings: Settings = match check_message_validity_recv(&receiver_qt) {
                             Ok(data) => data,
                             Err(_) => panic!(THREADS_MESSAGE_ERROR)
@@ -1279,12 +1272,12 @@ impl PackedFileDBTreeView {
                         };
 
                         // Tell the background thread to start saving the PackedFile.
-                        sender_qt.send(Commands::EncodePackedFileDB).unwrap();
-                        sender_qt_data.send(serde_json::to_vec(&(data, packed_file_index)).map_err(From::from)).unwrap();
+                        ui_message_sender.send(Commands::EncodePackedFileDB).unwrap();
+                        //TODO sender_qt_data.send(serde_json::to_vec(&(data, packed_file_index)).map_err(From::from)).unwrap();
 
                         // Get the incomplete path of the edited PackedFile.
-                        sender_qt.send(Commands::GetPackedFilePath).unwrap();
-                        sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
+                        ui_message_sender.send(Commands::GetPackedFilePath).unwrap();
+                        //TODO sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
                         let path: Vec<String> = match check_message_validity_recv(&receiver_qt) {
                             Ok(data) => data,
                             Err(_) => panic!(THREADS_MESSAGE_ERROR)
@@ -1297,8 +1290,7 @@ impl PackedFileDBTreeView {
             )),
             slot_context_menu_export: SlotBool::new(clone!(
                 app_ui,
-                sender_qt,
-                sender_qt_data,
+                ui_message_sender,
                 receiver_qt => move |_| {
 
                     // Create a File Chooser to get the destination path.
@@ -1327,8 +1319,8 @@ impl PackedFileDBTreeView {
                         let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
 
                         // Tell the background thread to start exporting the TSV.
-                        sender_qt.send(Commands::ExportTSVPackedFileDB).unwrap();
-                        sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
+                        ui_message_sender.send(Commands::ExportTSVPackedFileDB).unwrap();
+                        //TODO sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
 
                         // Receive the result of the exporting.
                         match check_message_validity_recv(&receiver_qt) {
@@ -1349,8 +1341,7 @@ impl PackedFileDBTreeView {
                 packed_file_index,
                 app_ui,
                 is_modified,
-                sender_qt,
-                sender_qt_data,
+                ui_message_sender,
                 receiver_qt => move |_| {
 
                     // Get the current selection.
@@ -1412,12 +1403,12 @@ impl PackedFileDBTreeView {
                         };
 
                         // Tell the background thread to start saving the PackedFile.
-                        sender_qt.send(Commands::EncodePackedFileDB).unwrap();
-                        sender_qt_data.send(serde_json::to_vec(&(data, packed_file_index)).map_err(From::from)).unwrap();
+                        ui_message_sender.send(Commands::EncodePackedFileDB).unwrap();
+                        //TODO sender_qt_data.send(serde_json::to_vec(&(data, packed_file_index)).map_err(From::from)).unwrap();
 
                         // Get the incomplete path of the edited PackedFile.
-                        sender_qt.send(Commands::GetPackedFilePath).unwrap();
-                        sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
+                        ui_message_sender.send(Commands::GetPackedFilePath).unwrap();
+                        //TODO sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
                         let path: Vec<String> = match check_message_validity_recv(&receiver_qt) {
                             Ok(data) => data,
                             Err(_) => panic!(THREADS_MESSAGE_ERROR)
@@ -1693,8 +1684,7 @@ impl PackedFileDBDecoder {
     /// This function creates the "Decoder View" with all the stuff needed to decode a table, and it
     /// returns it if it succeed. It can fail if the provided PackedFile is not a DB Table.
     pub fn create_decoder_view(
-        sender_qt: Sender<Commands>,
-        sender_qt_data: &Sender<Result<Vec<u8>>>,
+        ui_message_sender: Sender<Commands>,
         receiver_qt: &Rc<RefCell<Receiver<Result<Vec<u8>>>>>,
         app_ui: &AppUI,
         packed_file_index: &usize,
@@ -1744,7 +1734,7 @@ impl PackedFileDBDecoder {
         let table_view_context_menu_delete = table_view_context_menu.add_action(&QString::from_std_str("&Delete"));
 
         // Get the current shortcuts.
-        sender_qt.send(Commands::GetShortcuts).unwrap();
+        ui_message_sender.send(Commands::GetShortcuts).unwrap();
         let shortcuts: Shortcuts = match check_message_validity_recv(&receiver_qt) {
             Ok(data) => data,
             Err(_) => panic!(THREADS_MESSAGE_ERROR)
@@ -1974,15 +1964,15 @@ impl PackedFileDBDecoder {
         //---------------------------------------------------------------------------------------//
 
         // Get the PackedFile.
-        sender_qt.send(Commands::GetPackedFile).unwrap();
-        sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
+        ui_message_sender.send(Commands::GetPackedFile).unwrap();
+        //TODO sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
         let packed_file: PackedFile = match check_message_validity_recv(&receiver_qt) {
             Ok(data) => data,
             Err(_) => panic!(THREADS_MESSAGE_ERROR)
         };
 
         // Get the schema of the Game Selected.
-        sender_qt.send(Commands::GetSchema).unwrap();
+        ui_message_sender.send(Commands::GetSchema).unwrap();
         let schema: Option<Schema> = match check_message_validity_recv(&receiver_qt) {
             Ok(data) => data,
             Err(_) => panic!(THREADS_MESSAGE_ERROR)
@@ -2465,8 +2455,7 @@ impl PackedFileDBDecoder {
 
                                     // Slot for the "Finish it!" button.
                                     slot_save_definition: SlotNoArgs::new(clone!(
-                                        sender_qt,
-                                        sender_qt_data,
+                                        ui_message_sender,
                                         receiver_qt,
                                         table_definition,
                                         schema,
@@ -2499,8 +2488,8 @@ impl PackedFileDBDecoder {
                                             schema.borrow_mut().tables_definitions[table_definitions_index as usize].add_table_definition(table_definition.borrow().clone());
 
                                             // Send it back to the background thread for saving it.
-                                            sender_qt.send(Commands::SaveSchema).unwrap();
-                                            sender_qt_data.send(serde_json::to_vec(&*schema.borrow()).map_err(From::from)).unwrap();
+                                            ui_message_sender.send(Commands::SaveSchema).unwrap();
+                                            //TODO sender_qt_data.send(serde_json::to_vec(&*schema.borrow()).map_err(From::from)).unwrap();
 
                                             // Report success while saving it, or an error.
                                             match check_message_validity_recv(&receiver_qt) {

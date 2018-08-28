@@ -44,8 +44,7 @@ impl PackedFileRigidModelDataView {
     /// This function creates a "view" with the PackedFile's View as father and returns a
     /// `PackedFileRigidModelDataView` with all his slots.
     pub fn create_data_view(
-        sender_qt: Sender<Commands>,
-        sender_qt_data: &Sender<Result<Vec<u8>>>,
+        ui_message_sender: Sender<Commands>,
         receiver_qt: &Rc<RefCell<Receiver<Result<Vec<u8>>>>>,
         is_modified: &Rc<RefCell<bool>>,
         app_ui: &AppUI,
@@ -53,8 +52,8 @@ impl PackedFileRigidModelDataView {
     ) -> Result<Self> {
 
         // Get the data of the PackedFile.
-        sender_qt.send(Commands::DecodePackedFileRigidModel).unwrap();
-        sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
+        ui_message_sender.send(Commands::DecodePackedFileRigidModel).unwrap();
+        //TODO sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
 
         // Get the response from the other thread.
         let packed_file: RigidModel = match check_message_validity_recv(&receiver_qt) {
@@ -282,8 +281,7 @@ impl PackedFileRigidModelDataView {
                 packed_file,
                 is_modified,
                 app_ui,
-                sender_qt,
-                sender_qt_data,
+                ui_message_sender,
                 receiver_qt => move || {
 
                     // Try to update the RigidModel's data from the LineEdits.
@@ -298,12 +296,12 @@ impl PackedFileRigidModelDataView {
                     }
 
                     // Tell the background thread to start saving the PackedFile.
-                    sender_qt.send(Commands::EncodePackedFileRigidModel).unwrap();
-                    sender_qt_data.send(serde_json::to_vec(&(&*packed_file.borrow(), packed_file_index)).map_err(From::from)).unwrap();
+                    ui_message_sender.send(Commands::EncodePackedFileRigidModel).unwrap();
+                    //TODO sender_qt_data.send(serde_json::to_vec(&(&*packed_file.borrow(), packed_file_index)).map_err(From::from)).unwrap();
 
                     // Get the incomplete path of the edited PackedFile.
-                    sender_qt.send(Commands::GetPackedFilePath).unwrap();
-                    sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
+                    ui_message_sender.send(Commands::GetPackedFilePath).unwrap();
+                    //TODO sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
 
                     // Get the response from the other thread.
                     let path: Vec<String> = match check_message_validity_recv(&receiver_qt) {
@@ -322,13 +320,12 @@ impl PackedFileRigidModelDataView {
                 packed_file,
                 is_modified,
                 app_ui,
-                sender_qt,
-                sender_qt_data,
+                ui_message_sender,
                 receiver_qt => move || {
 
                     // Send the data to the background to try to patch the rigidmodel.
-                    sender_qt.send(Commands::PatchAttilaRigidModelToWarhammer).unwrap();
-                    sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
+                    ui_message_sender.send(Commands::PatchAttilaRigidModelToWarhammer).unwrap();
+                    //TODO sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
 
                     // Disable the Main Window (so we can't do other stuff).
                     unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
@@ -357,8 +354,8 @@ impl PackedFileRigidModelDataView {
                                 unsafe { patch_attila_to_warhammer_button.as_mut().unwrap().set_enabled(false); }
 
                                 // Get the incomplete path of the edited PackedFile.
-                                sender_qt.send(Commands::GetPackedFilePath).unwrap();
-                                sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
+                                ui_message_sender.send(Commands::GetPackedFilePath).unwrap();
+                                //TODO sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
 
                                 // Get the response from the other thread.
                                 let path: Vec<String> = match check_message_validity_recv(&receiver_qt) {

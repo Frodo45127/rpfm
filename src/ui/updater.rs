@@ -202,7 +202,6 @@ pub fn check_schema_updates(
     use_dialog: bool,
     rpfm_path: &PathBuf,
     sender_qt: &Sender<Commands>,
-    sender_qt_data: &Sender<Result<Vec<u8>>>,
     receiver_qt: &Rc<RefCell<Receiver<Result<Vec<u8>>>>>,
 ) {
 
@@ -314,7 +313,7 @@ pub fn check_schema_updates(
 
                 // Sent to the background thread the order to download the lastest schemas.
                 sender_qt.send(Commands::UpdateSchemas).unwrap();
-                sender_qt_data.send(serde_json::to_vec(&(local_versions, current_versions)).map_err(From::from)).unwrap();
+                //TODO sender_qt_data.send(serde_json::to_vec(&(local_versions, current_versions)).map_err(From::from)).unwrap();
 
                 // Change the text of the dialog and disable the update button.
                 dialog.show();
@@ -446,7 +445,7 @@ pub fn check_schema_updates(
 
                             // Sent to the background thread the order to download the lastest schemas.
                             sender_qt.send(Commands::UpdateSchemas).unwrap();
-                            sender_qt_data.send(serde_json::to_vec(&(local_versions, current_versions)).map_err(From::from)).unwrap();
+                            //TODO sender_qt_data.send(serde_json::to_vec(&(local_versions, current_versions)).map_err(From::from)).unwrap();
 
                             // Change the text of the dialog and disable the update button.
                             dialog.show();
