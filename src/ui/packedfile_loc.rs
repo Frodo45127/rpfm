@@ -37,12 +37,12 @@ use std::sync::mpsc::{Sender, Receiver};
 
 use AppUI;
 use Commands;
+use Data;
 use QString;
 use common::*;
+use common::communications::*;
 use error::Result;
 use ui::*;
-use settings::Settings;
-use settings::shortcuts::Shortcuts;
 
 /// Struct `PackedFileLocTreeView`: contains all the stuff we need to give to the program to show a
 /// `TreeView` with the data of a Loc PackedFile, allowing us to manipulate it.
@@ -96,8 +96,8 @@ impl PackedFileLocTreeView {
     /// `PackedFileLocTreeView` with all his data.
     pub fn create_tree_view(
         sender_qt: Sender<Commands>,
-        sender_qt_data: &Sender<Result<Vec<u8>>>,
-        receiver_qt: &Rc<RefCell<Receiver<Result<Vec<u8>>>>>,
+        sender_qt_data: &Sender<Data>,
+        receiver_qt: &Rc<RefCell<Receiver<Data>>>,
         is_modified: &Rc<RefCell<bool>>,
         app_ui: &AppUI,
         packed_file_index: &usize,
@@ -105,12 +105,11 @@ impl PackedFileLocTreeView {
 
         // Send the index back to the background thread, and wait until we get a response.
         sender_qt.send(Commands::DecodePackedFileLoc).unwrap();
-        sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
-
-        // Get the Loc's data from the other thread.
-        let packed_file_data: LocData = match check_message_validity_recv(&receiver_qt) {
-            Ok(data) => data,
-            Err(error) => return Err(error)
+        sender_qt_data.send(Data::Usize(*packed_file_index)).unwrap();
+        let packed_file_data = match check_message_validity_recv2(&receiver_qt) { 
+            Data::LocData(data) => data,
+            Data::Error(error) => return Err(error),
+            _ => panic!(THREADS_MESSAGE_ERROR), 
         };
 
         // Create the TableView.
@@ -164,10 +163,7 @@ impl PackedFileLocTreeView {
 
         // Get the settings.
         sender_qt.send(Commands::GetSettings).unwrap();
-        let settings: Settings = match check_message_validity_recv(&receiver_qt) {
-            Ok(data) => data,
-            Err(_) => panic!(THREADS_MESSAGE_ERROR)
-        };
+        let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
         // If we want to let the columns resize themselfs...
         if *settings.settings_bool.get("adjust_columns_to_content").unwrap() {
@@ -193,10 +189,7 @@ impl PackedFileLocTreeView {
 
         // Get the current shortcuts.
         sender_qt.send(Commands::GetShortcuts).unwrap();
-        let shortcuts: Shortcuts = match check_message_validity_recv(&receiver_qt) {
-            Ok(data) => data,
-            Err(_) => panic!(THREADS_MESSAGE_ERROR)
-        };
+        let shortcuts = if let Data::Shortcuts(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
         // Set the shortcuts for these actions.
         unsafe { context_menu_add.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("add_row").unwrap()))); }
@@ -282,22 +275,17 @@ impl PackedFileLocTreeView {
                 sender_qt_data,
                 receiver_qt => move |_,_,_| {
 
-                    // Tell the background thread to start saving the PackedFile.
-                    sender_qt.send(Commands::EncodePackedFileLoc).unwrap();
-
                     // Get the new LocData to send.
                     let new_loc_data = Self::return_data_from_tree_view(model);
 
-                    // Send the new LocData.
-                    sender_qt_data.send(serde_json::to_vec(&(new_loc_data, packed_file_index)).map_err(From::from)).unwrap();
+                    // Tell the background thread to start saving the PackedFile.
+                    sender_qt.send(Commands::EncodePackedFileLoc).unwrap();
+                    sender_qt_data.send(Data::LocDataUsize((new_loc_data, packed_file_index))).unwrap();
 
                     // Get the incomplete path of the edited PackedFile.
                     sender_qt.send(Commands::GetPackedFilePath).unwrap();
-                    sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
-                    let path: Vec<String> = match check_message_validity_recv(&receiver_qt) {
-                        Ok(data) => data,
-                        Err(_) => panic!(THREADS_MESSAGE_ERROR)
-                    };
+                    sender_qt_data.send(Data::Usize(packed_file_index)).unwrap();
+                    let path = if let Data::VecString(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                     // Set the mod as "Modified".
                     *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(path));
@@ -480,22 +468,17 @@ impl PackedFileLocTreeView {
                     // If we deleted anything, save the data.
                     if rows.len() > 0 {
 
-                        // Tell the background thread to start saving the PackedFile.
-                        sender_qt.send(Commands::EncodePackedFileLoc).unwrap();
-
                         // Get the new LocData to send.
                         let new_loc_data = Self::return_data_from_tree_view(model);
 
-                        // Send the new LocData.
-                        sender_qt_data.send(serde_json::to_vec(&(new_loc_data, packed_file_index)).map_err(From::from)).unwrap();
+                        // Tell the background thread to start saving the PackedFile.
+                        sender_qt.send(Commands::EncodePackedFileLoc).unwrap();
+                        sender_qt_data.send(Data::LocDataUsize((new_loc_data, packed_file_index))).unwrap();
 
                         // Get the incomplete path of the edited PackedFile.
                         sender_qt.send(Commands::GetPackedFilePath).unwrap();
-                        sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
-                        let path: Vec<String> = match check_message_validity_recv(&receiver_qt) {
-                            Ok(data) => data,
-                            Err(_) => panic!(THREADS_MESSAGE_ERROR)
-                        };
+                        sender_qt_data.send(Data::Usize(packed_file_index)).unwrap();
+                        let path = if let Data::VecString(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                         // Set the mod as "Modified".
                         *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(path));
@@ -650,22 +633,18 @@ impl PackedFileLocTreeView {
                         // If we pasted anything, save.
                         if data.count() > 0 {
 
-                            // Tell the background thread to start saving the PackedFile.
-                            sender_qt.send(Commands::EncodePackedFileLoc).unwrap();
-
                             // Get the new LocData to send.
                             let new_loc_data = Self::return_data_from_tree_view(model);
 
-                            // Send the new LocData.
-                            sender_qt_data.send(serde_json::to_vec(&(new_loc_data, packed_file_index)).map_err(From::from)).unwrap();
+                            // Tell the background thread to start saving the PackedFile.
+                            sender_qt.send(Commands::EncodePackedFileLoc).unwrap();
+                            sender_qt_data.send(Data::LocDataUsize((new_loc_data, packed_file_index))).unwrap();
 
                             // Get the incomplete path of the edited PackedFile.
                             sender_qt.send(Commands::GetPackedFilePath).unwrap();
-                            sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
-                            let path: Vec<String> = match check_message_validity_recv(&receiver_qt) {
-                                Ok(data) => data,
-                                Err(_) => panic!(THREADS_MESSAGE_ERROR)
-                            };
+                            sender_qt_data.send(Data::Usize(packed_file_index)).unwrap();
+                            let path = if let Data::VecString(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+
 
                             // Set the mod as "Modified".
                             *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(path));
@@ -786,22 +765,17 @@ impl PackedFileLocTreeView {
                         // If we pasted anything, save.
                         if !text.is_empty() {
 
-                            // Tell the background thread to start saving the PackedFile.
-                            sender_qt.send(Commands::EncodePackedFileLoc).unwrap();
-
                             // Get the new LocData to send.
                             let new_loc_data = Self::return_data_from_tree_view(model);
 
-                            // Send the new LocData.
-                            sender_qt_data.send(serde_json::to_vec(&(new_loc_data, packed_file_index)).map_err(From::from)).unwrap();
+                            // Tell the background thread to start saving the PackedFile.
+                            sender_qt.send(Commands::EncodePackedFileLoc).unwrap();
+                            sender_qt_data.send(Data::LocDataUsize((new_loc_data, packed_file_index))).unwrap();
 
                             // Get the incomplete path of the edited PackedFile.
                             sender_qt.send(Commands::GetPackedFilePath).unwrap();
-                            sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
-                            let path: Vec<String> = match check_message_validity_recv(&receiver_qt) {
-                                Ok(data) => data,
-                                Err(_) => panic!(THREADS_MESSAGE_ERROR)
-                            };
+                            sender_qt_data.send(Data::Usize(packed_file_index)).unwrap();
+                            let path = if let Data::VecString(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                             // Set the mod as "Modified".
                             *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(path));
@@ -836,16 +810,17 @@ impl PackedFileLocTreeView {
 
                         // Tell the background thread to start importing the TSV.
                         sender_qt.send(Commands::ImportTSVPackedFileLoc).unwrap();
-                        sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
+                        sender_qt_data.send(Data::PathBuf(path)).unwrap();
 
                         // Receive the new data to load in the TableView, or an error.
-                        match check_message_validity_recv(&receiver_qt) {
+                        match check_message_validity_recv2(&receiver_qt) {
 
                             // If the importing was succesful, load the data into the Table.
-                            Ok(new_loc_data) => Self::load_data_to_tree_view(&new_loc_data, model),
+                            Data::LocData(new_loc_data) => Self::load_data_to_tree_view(&new_loc_data, model),
 
                             // If there was an error, report it.
-                            Err(error) => return show_dialog(app_ui.window, false, error.kind()),
+                            Data::Error(error) => return show_dialog(app_ui.window, false, error),
+                            _ => panic!(THREADS_MESSAGE_ERROR),
                         }
 
                         // Build the columns.
@@ -853,32 +828,24 @@ impl PackedFileLocTreeView {
 
                         // Get the settings.
                         sender_qt.send(Commands::GetSettings).unwrap();
-                        let settings: Settings = match check_message_validity_recv(&receiver_qt) {
-                            Ok(data) => data,
-                            Err(_) => panic!(THREADS_MESSAGE_ERROR)
-                        };
+                        let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                         // If we want to let the columns resize themselfs...
                         if *settings.settings_bool.get("adjust_columns_to_content").unwrap() {
                             unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().resize_sections(ResizeMode::ResizeToContents); }
                         }
 
-                        // Tell the background thread to start saving the PackedFile.
-                        sender_qt.send(Commands::EncodePackedFileLoc).unwrap();
-
                         // Get the new LocData to send.
                         let new_loc_data = Self::return_data_from_tree_view(model);
 
-                        // Send the new LocData.
-                        sender_qt_data.send(serde_json::to_vec(&(new_loc_data, packed_file_index)).map_err(From::from)).unwrap();
+                        // Tell the background thread to start saving the PackedFile.
+                        sender_qt.send(Commands::EncodePackedFileLoc).unwrap();
+                        sender_qt_data.send(Data::LocDataUsize((new_loc_data, packed_file_index))).unwrap();
 
                         // Get the incomplete path of the edited PackedFile.
                         sender_qt.send(Commands::GetPackedFilePath).unwrap();
-                        sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
-                        let path: Vec<String> = match check_message_validity_recv(&receiver_qt) {
-                            Ok(data) => data,
-                            Err(_) => panic!(THREADS_MESSAGE_ERROR)
-                        };
+                        sender_qt_data.send(Data::Usize(packed_file_index)).unwrap();
+                        let path = if let Data::VecString(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                         // Set the mod as "Modified".
                         *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(path));
@@ -918,19 +885,13 @@ impl PackedFileLocTreeView {
 
                         // Tell the background thread to start exporting the TSV.
                         sender_qt.send(Commands::ExportTSVPackedFileLoc).unwrap();
-                        sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
+                        sender_qt_data.send(Data::PathBuf(path)).unwrap();
 
                         // Receive the result of the exporting.
-                        match check_message_validity_recv(&receiver_qt) {
-
-                            // If the exporting was succesful, report it.
-                            Ok(success) => {
-                                let success: String = success;
-                                return show_dialog(app_ui.window, true, success);
-                            }
-
-                            // If there was an error, report it.
-                            Err(error) => return show_dialog(app_ui.window, false, error.kind()),
+                        match check_message_validity_recv2(&receiver_qt) {
+                            Data::String(data) => return show_dialog(app_ui.window, true, data),
+                            Data::Error(error) => return show_dialog(app_ui.window, false, error),
+                            _ => panic!(THREADS_MESSAGE_ERROR),
                         }
                     }
                 }
@@ -993,22 +954,17 @@ impl PackedFileLocTreeView {
                     // If we deleted anything, save the data.
                     if !cells.is_empty() {
 
-                        // Tell the background thread to start saving the PackedFile.
-                        sender_qt.send(Commands::EncodePackedFileLoc).unwrap();
-
                         // Get the new LocData to send.
                         let new_loc_data = Self::return_data_from_tree_view(model);
 
-                        // Send the new LocData.
-                        sender_qt_data.send(serde_json::to_vec(&(new_loc_data, packed_file_index)).map_err(From::from)).unwrap();
+                        // Tell the background thread to start saving the PackedFile.
+                        sender_qt.send(Commands::EncodePackedFileLoc).unwrap();
+                        sender_qt_data.send(Data::LocDataUsize((new_loc_data, packed_file_index))).unwrap();
 
                         // Get the incomplete path of the edited PackedFile.
                         sender_qt.send(Commands::GetPackedFilePath).unwrap();
-                        sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
-                        let path: Vec<String> = match check_message_validity_recv(&receiver_qt) {
-                            Ok(data) => data,
-                            Err(_) => panic!(THREADS_MESSAGE_ERROR)
-                        };
+                        sender_qt_data.send(Data::Usize(packed_file_index)).unwrap();
+                        let path = if let Data::VecString(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                         // Set the mod as "Modified".
                         *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(path));

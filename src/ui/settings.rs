@@ -33,12 +33,13 @@ use std::path::{Path, PathBuf};
 
 use AppUI;
 use Commands;
+use Data;
 use QString;
 use common::*;
-use error::{ErrorKind, Result};
+use common::communications::*;
+use error::ErrorKind;
 use settings::GameInfo;
 use settings::Settings;
-use settings::shortcuts::Shortcuts;
 use super::shortcuts::ShortcutsDialog;
 use super::show_dialog;
 
@@ -73,8 +74,8 @@ impl SettingsDialog {
         settings: &Settings,
         supported_games: &[GameInfo],
         sender_qt: &Sender<Commands>,
-        sender_qt_data: &Sender<Result<Vec<u8>>>,
-        receiver_qt: Rc<RefCell<Receiver<Result<Vec<u8>>>>>, 
+        sender_qt_data: &Sender<Data>,
+        receiver_qt: Rc<RefCell<Receiver<Data>>>, 
     ) -> Option<Settings> {
 
         //-------------------------------------------------------------------------------------------//
@@ -271,23 +272,17 @@ impl SettingsDialog {
 
                 // Try to get the current Shortcuts.
                 sender_qt.send(Commands::GetShortcuts).unwrap();
-                let old_shortcuts: Shortcuts = match check_message_validity_recv(&receiver_qt) {
-                    Ok(data) => data,
-                    Err(_) => panic!(THREADS_MESSAGE_ERROR)
-                };
+                let old_shortcuts = if let Data::Shortcuts(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                 // Create the Shortcuts Dialog. If we got new shortcuts...
                 if let Some(shortcuts) = ShortcutsDialog::create_shortcuts_dialog(dialog, &old_shortcuts) {
 
                     // Send the signal to save them.
                     sender_qt.send(Commands::SetShortcuts).unwrap();
-                    sender_qt_data.send(serde_json::to_vec(&shortcuts).map_err(From::from)).unwrap();
+                    sender_qt_data.send(Data::Shortcuts(shortcuts)).unwrap();
 
-                    // Wait until you got a response.
-                    let response: Result<()> = check_message_validity_recv(&receiver_qt);
-
-                    // If we got an error...
-                    if let Err(error) = response {
+                    // If there was an error.
+                    if let Data::Error(error) = check_message_validity_recv2(&receiver_qt) { 
 
                         // We must check what kind of error it's.
                         match error.kind() {
@@ -298,6 +293,7 @@ impl SettingsDialog {
                             // In ANY other situation, it's a message problem.
                             _ => panic!(THREADS_MESSAGE_ERROR)
                         }
+
                     }
                 }
             }

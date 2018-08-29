@@ -7,7 +7,6 @@ use qt_widgets::widget::Widget;
 use qt_widgets::group_box::GroupBox;
 use qt_widgets::tab_widget::TabWidget;
 
-use qt_core::event_loop::EventLoop;
 use qt_core::connection::Signal;
 
 use std::cell::RefCell;
@@ -16,10 +15,11 @@ use std::sync::mpsc::{Sender, Receiver};
 
 use AppUI;
 use Commands;
+use Data;
+use common::coding_helpers::*;
+use common::communications::*;
 use ui::*;
 use error::{ErrorKind, Result};
-use packedfile::rigidmodel::*;
-use common::coding_helpers::*;
 
 /// Struct PackedFileRigidModelDataView: contains all the stuff we need to give to the program to
 /// show a TreeView with the data of a RigidModel file, allowing us to manipulate it.
@@ -45,8 +45,8 @@ impl PackedFileRigidModelDataView {
     /// `PackedFileRigidModelDataView` with all his slots.
     pub fn create_data_view(
         sender_qt: Sender<Commands>,
-        sender_qt_data: &Sender<Result<Vec<u8>>>,
-        receiver_qt: &Rc<RefCell<Receiver<Result<Vec<u8>>>>>,
+        sender_qt_data: &Sender<Data>,
+        receiver_qt: &Rc<RefCell<Receiver<Data>>>,
         is_modified: &Rc<RefCell<bool>>,
         app_ui: &AppUI,
         packed_file_index: &usize,
@@ -54,13 +54,8 @@ impl PackedFileRigidModelDataView {
 
         // Get the data of the PackedFile.
         sender_qt.send(Commands::DecodePackedFileRigidModel).unwrap();
-        sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
-
-        // Get the response from the other thread.
-        let packed_file: RigidModel = match check_message_validity_recv(&receiver_qt) {
-            Ok(data) => data,
-            Err(error) => return Err(error)
-        };
+        sender_qt_data.send(Data::Usize(*packed_file_index)).unwrap();
+        let packed_file = if let Data::RigidModel(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
         // Create the "Info" Frame.
         let info_frame = GroupBox::new(&QString::from_std_str("RigidModel's Info")).into_raw();
@@ -299,17 +294,12 @@ impl PackedFileRigidModelDataView {
 
                     // Tell the background thread to start saving the PackedFile.
                     sender_qt.send(Commands::EncodePackedFileRigidModel).unwrap();
-                    sender_qt_data.send(serde_json::to_vec(&(&*packed_file.borrow(), packed_file_index)).map_err(From::from)).unwrap();
+                    sender_qt_data.send(Data::RigidModelUsize((packed_file.borrow().clone(), packed_file_index))).unwrap();
 
                     // Get the incomplete path of the edited PackedFile.
                     sender_qt.send(Commands::GetPackedFilePath).unwrap();
-                    sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
-
-                    // Get the response from the other thread.
-                    let path: Vec<String> = match check_message_validity_recv(&receiver_qt) {
-                        Ok(data) => data,
-                        Err(_) => panic!(THREADS_MESSAGE_ERROR)
-                    };
+                    sender_qt_data.send(Data::Usize(packed_file_index)).unwrap();
+                    let path = if let Data::VecString(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                     // Set the mod as "Modified".
                     *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(path));
@@ -328,74 +318,50 @@ impl PackedFileRigidModelDataView {
 
                     // Send the data to the background to try to patch the rigidmodel.
                     sender_qt.send(Commands::PatchAttilaRigidModelToWarhammer).unwrap();
-                    sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
+                    sender_qt_data.send(Data::Usize(packed_file_index)).unwrap();
 
                     // Disable the Main Window (so we can't do other stuff).
                     unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
 
-                    // Prepare the event loop, so we don't hang the UI while the background thread is working.
-                    let mut event_loop = EventLoop::new();
+                    // Check what response we got.
+                    match check_message_validity_tryrecv(&receiver_qt) {
+                    
+                        // If it's success....
+                        Data::RigidModel(response) => {
 
-                    // Until we receive a response from the worker thread...
-                    loop {
+                            // Get the RigidModel data.
+                            *packed_file.borrow_mut() = response;
 
-                        // Get the response from the other thread.
-                        let response: Result<RigidModel> = check_message_validity_tryrecv(&receiver_qt);
+                            // Reflect the changes in the UI.
+                            unsafe { rigid_model_version_decoded_label.as_mut().unwrap().set_text(&QString::from_std_str("7")); }
+                            unsafe { rigid_model_compatible_decoded_label.as_mut().unwrap().set_text(&QString::from_std_str("Warhammer 1&2")); }
+                            unsafe { patch_attila_to_warhammer_button.as_mut().unwrap().set_enabled(false); }
 
-                        // Check what response we got.
-                        match response {
+                            // Get the incomplete path of the edited PackedFile.
+                            sender_qt.send(Commands::GetPackedFilePath).unwrap();
+                            sender_qt_data.send(Data::Usize(packed_file_index)).unwrap();
+                            let path = if let Data::VecString(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
-                            // If we got a message....
-                            Ok(response) => {
+                            // Set the mod as "Modified".
+                            *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(path));
+                        }
 
-                                // Get the RigidModel data.
-                                *packed_file.borrow_mut() = response;
+                        // If we got an error...
+                        Data::Error(error) => {
 
-                                // Reflect the changes in the UI.
-                                unsafe { rigid_model_version_decoded_label.as_mut().unwrap().set_text(&QString::from_std_str("7")); }
-                                unsafe { rigid_model_compatible_decoded_label.as_mut().unwrap().set_text(&QString::from_std_str("Warhammer 1&2")); }
-                                unsafe { patch_attila_to_warhammer_button.as_mut().unwrap().set_enabled(false); }
+                            // We must check what kind of error it's.
+                            match error.kind() {
 
-                                // Get the incomplete path of the edited PackedFile.
-                                sender_qt.send(Commands::GetPackedFilePath).unwrap();
-                                sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
+                                // If the patching process failed, report it and break the loop.
+                                ErrorKind::RigidModelPatchToWarhammer(_) => show_dialog(app_ui.window, false, error.kind()),
 
-                                // Get the response from the other thread.
-                                let path: Vec<String> = match check_message_validity_recv(&receiver_qt) {
-                                    Ok(data) => data,
-                                    Err(_) => panic!(THREADS_MESSAGE_ERROR)
-                                };
-
-                                // Set the mod as "Modified".
-                                *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(path));
-
-                                // Break the loop.
-                                break;
-                            }
-
-                            // If we got an error...
-                            Err(error) => {
-
-                                // We must check what kind of error it's.
-                                match error.kind() {
-
-                                    // If it's "Message Empty", do nothing.
-                                    ErrorKind::MessageSystemEmpty => {},
-
-                                    // If the patching process failed, report it and break the loop.
-                                    ErrorKind::RigidModelPatchToWarhammer(_) => {
-                                        show_dialog(app_ui.window, false, error.kind());
-                                        break;
-                                    }
-
-                                    // In ANY other situation, it's a message problem.
-                                    _ => panic!(THREADS_MESSAGE_ERROR)
-                                }
+                                // In ANY other situation, it's a message problem.
+                                _ => panic!(THREADS_MESSAGE_ERROR)
                             }
                         }
 
-                        // Keep the UI responsive.
-                        event_loop.process_events(());
+                        // In ANY other situation, it's a message problem.
+                        _ => panic!(THREADS_MESSAGE_ERROR),
                     }
 
                     // Re-enable the Main Window.

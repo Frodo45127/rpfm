@@ -72,6 +72,48 @@ pub fn open_packfile_with_bufreader(pack_file_path: PathBuf) -> Result<(packfile
     else { Err(ErrorKind::OpenPackFileInvalidExtension)? }
 }
 
+/// This function is a special open function, to open ONLY the dependency PackFile when we change the
+/// current Game Selected. It returns all the PackedFiles from the DB directory.
+pub fn open_dependency_packfile(data_packfile_path: &Option<PathBuf>) -> Vec<packfile::PackedFile> {
+
+    // Create the empty list.
+    let mut packed_files = vec![];
+
+    // Check if we have a data.pack for the GameSelected.
+    if let Some(data_packfile_path) = data_packfile_path {
+
+        // Try to open it...
+        if let Ok(data_packfile) = open_packfile_with_bufreader(data_packfile_path.to_path_buf()) {
+
+            // Get the PackFile and the BufReader.
+            let pack_file = data_packfile.0;
+            let mut reader = data_packfile.1;
+
+            // For each PackFile in the data.pack...
+            for (index, packed_file) in pack_file.data.packed_files.iter().enumerate() {
+
+                // If it's a DB file...
+                if packed_file.path.starts_with(&["db".to_owned()]) {
+
+                    // Clone the PackedFile.
+                    let mut packed_file = packed_file.clone();
+
+                    // Read it.
+                    packed_file.data = vec![0; packed_file.size as usize];
+                    reader.seek(SeekFrom::Start(pack_file.packed_file_indexes[index])).unwrap();
+                    reader.read_exact(&mut packed_file.data).unwrap();
+
+                    // Add it to the PackedFiles List.
+                    packed_files.push(packed_file);
+                }
+            }
+        }
+    }
+
+    // Return the new PackedFiles list.
+    packed_files
+}
+
 /// This function is used to take an open PackFile, encode it and save it into the disk. We return
 /// a result with a message of success or error.
 /// It requires:

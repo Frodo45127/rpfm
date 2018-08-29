@@ -14,6 +14,8 @@ use std::rc::Rc;
 
 use AppUI;
 use Commands;
+use Data;
+use common::communications::*;
 use ui::*;
 use error::Result;
 
@@ -21,21 +23,16 @@ use error::Result;
 /// `PackedFileLocTreeView` with all his data.
 pub fn create_image_view(
     sender_qt: Sender<Commands>,
-    sender_qt_data: &Sender<Result<Vec<u8>>>,
-    receiver_qt: &Rc<RefCell<Receiver<Result<Vec<u8>>>>>,
+    sender_qt_data: &Sender<Data>,
+    receiver_qt: &Rc<RefCell<Receiver<Data>>>,
     app_ui: &AppUI,
     packed_file_index: &usize,
 ) -> Result<()> {
 
     // Get the path of the extracted Image.
     sender_qt.send(Commands::DecodePackedFileImage).unwrap();
-    sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
-
-    // Get the response from the other thread.
-    let path: PathBuf = match check_message_validity_recv(&receiver_qt) {
-        Ok(data) => data,
-        Err(error) => return Err(error)
-    };
+    sender_qt_data.send(Data::Usize(*packed_file_index)).unwrap();
+    let path = if let Data::PathBuf(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
     // Get the image's path.
     let path_string = path.to_string_lossy().as_ref().to_string();

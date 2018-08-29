@@ -266,12 +266,6 @@ pub enum ErrorKind {
 
     // Error for unexpected EOF.
     JsonErrorEOF,
-
-    // Error for the Message System between threads. To use when TryRecv returns TryRecvError::Empty.
-    MessageSystemEmpty,
-
-    // Error used for gracefully stopping a process in the background thread, returning it to his "waiting" state.
-    CancelOperation,
 }
 
 /// Implementation of our custom Error Type.
@@ -461,8 +455,6 @@ impl Display for ErrorKind {
             ErrorKind::JsonErrorSyntax => write!(f, "<p>Error while trying to read JSON data:</p><p>Invalid syntax found.</p>"),
             ErrorKind::JsonErrorData => write!(f, "<p>Error while trying to read JSON data:</p><p>Semantically incorrect data found.</p>"),
             ErrorKind::JsonErrorEOF => write!(f,"<p>Error while trying to read JSON data:</p><p>Unexpected EOF found.</p>"),
-            ErrorKind::MessageSystemEmpty => write!(f, "<p>Message not found.</p>"),
-            ErrorKind::CancelOperation => write!(f, "<p>Operation cancelled. Returning to a waiting state.</p"),
         }
     }
 }

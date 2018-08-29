@@ -13,6 +13,8 @@ use std::rc::Rc;
 
 use AppUI;
 use Commands;
+use Data;
+use common::communications::*;
 use ui::*;
 use error::Result;
 
@@ -38,8 +40,8 @@ impl PackedFileTextView {
     /// `PackedFileLocTreeView` with all his data.
     pub fn create_text_view(
         sender_qt: Sender<Commands>,
-        sender_qt_data: &Sender<Result<Vec<u8>>>,
-        receiver_qt: &Rc<RefCell<Receiver<Result<Vec<u8>>>>>,
+        sender_qt_data: &Sender<Data>,
+        receiver_qt: &Rc<RefCell<Receiver<Data>>>,
         is_modified: &Rc<RefCell<bool>>,
         app_ui: &AppUI,
         packed_file_index: &usize,
@@ -47,13 +49,8 @@ impl PackedFileTextView {
 
         // Get the text of the PackedFile.
         sender_qt.send(Commands::DecodePackedFileText).unwrap();
-        sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
-
-        // Get the response from the other thread.
-        let text: String = match check_message_validity_recv(&receiver_qt) {
-            Ok(data) => data,
-            Err(error) => return Err(error)
-        };
+        sender_qt_data.send(Data::Usize(*packed_file_index)).unwrap();
+        let text = if let Data::String(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
         // Create the PlainTextEdit.
         let plain_text_edit = PlainTextEdit::new(&QString::from_std_str(&text)).into_raw();
@@ -71,23 +68,18 @@ impl PackedFileTextView {
                 sender_qt_data,
                 receiver_qt => move || {
 
-                    // Tell the background thread to start saving the PackedFile.
-                    sender_qt.send(Commands::EncodePackedFileText).unwrap();
-
                     // Get the text from the PlainTextEdit.
                     let text;
                     unsafe { text = plain_text_edit.as_mut().unwrap().to_plain_text().to_std_string(); }
 
-                    // Send the new text.
-                    sender_qt_data.send(serde_json::to_vec(&(text, packed_file_index)).map_err(From::from)).unwrap();
+                    // Tell the background thread to start saving the PackedFile.
+                    sender_qt.send(Commands::EncodePackedFileText).unwrap();
+                    sender_qt_data.send(Data::StringUsize((text, packed_file_index))).unwrap();
 
                     // Get the incomplete path of the edited PackedFile.
                     sender_qt.send(Commands::GetPackedFilePath).unwrap();
-                    sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
-                    let path: Vec<String> = match check_message_validity_recv(&receiver_qt) {
-                        Ok(data) => data,
-                        Err(_) => panic!(THREADS_MESSAGE_ERROR)
-                    };
+                    sender_qt_data.send(Data::Usize(packed_file_index)).unwrap();
+                    let path = if let Data::VecString(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                     // Set the mod as "Modified".
                     *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(path));
