@@ -1560,9 +1560,6 @@ fn main() {
                 // Get the path of the selected item.
                 let path = get_path_from_item_selection(app_ui.folder_tree_model, &selection, true);
 
-                // In case there is nothing selected, don't try to delete.
-                if path.is_empty() { return }
-
                 // Try to get the TreePathType. This should never fail, so CTD if it does it.
                 sender_qt.send(Commands::GetTypeOfPath).unwrap();
                 sender_qt_data.send(Data::VecString(path)).unwrap();
