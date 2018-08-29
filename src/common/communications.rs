@@ -23,6 +23,7 @@ use super::THREADS_COMMUNICATION_ERROR;
 /// This enum is meant for sending commands from the UI Thread to the Background thread.
 /// If you want to know what each command do, check the `background_loop` function.
 /// If you need to send data, DO NOT USE THIS. Use the `Data` enum.
+#[derive(Debug)]
 pub enum Commands {
     ResetPackFile,
     ResetPackFileExtra,
@@ -85,6 +86,7 @@ pub enum Commands {
 /// This enum is meant to send data back and forward between threads. Variants here are 
 /// defined by type. For example, if you want to send two different datas of the same type, 
 // you use the same variant. It's like that because otherwise this'll be a variant chaos.
+#[derive(Debug)]
 pub enum Data {
     Success,
     Cancel,
