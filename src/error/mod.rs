@@ -30,6 +30,9 @@ pub struct Error {
 #[derive(Clone, Eq, PartialEq, Debug, Fail)]
 pub enum ErrorKind {
 
+    // Generic error. For a situation where you just need to throw an error, doesn't matter what kind of error.
+    Generic,
+
     //-----------------------------------------------------//
     //                  Network Errors
     //-----------------------------------------------------//
@@ -310,6 +313,7 @@ impl Display for Error {
 impl Display for ErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            ErrorKind::Generic => write!(f, "<p>Generic error. You should never read this.</p>"),
 
             //-----------------------------------------------------//
             //                  Network Errors

@@ -375,7 +375,7 @@ pub fn add_packedfile_to_packfile(
 pub fn delete_from_packfile(
     pack_file: &mut packfile::PackFile,
     tree_path: &[String]
-) {
+) -> Result<()> {
 
     // Get what it's what we want to delete.
     match get_type_of_selected_path(tree_path, pack_file) {
@@ -404,10 +404,13 @@ pub fn delete_from_packfile(
             indexes.iter().rev().for_each(|index| pack_file.remove_packedfile(*index));
         },
 
-        // If it's a PackFile, easy job. For non-existant files, return an error.
+        // If it's a PackFile, easy job. For non-existant files, return an error so the UI does nothing.
         TreePathType::PackFile => pack_file.remove_all_packedfiles(),
-        TreePathType::None => unreachable!(),
+        TreePathType::None => Err(ErrorKind::Generic)?,
     }
+
+    // Return success.
+    Ok(())
 }
 
 /// This function is used to extract a PackedFile or a folder from the PackFile.
@@ -765,8 +768,8 @@ pub fn patch_siege_ai (
             // Get his type before deleting it.
             deleted_files_type.push(get_type_of_selected_path(&tree_path, &pack_file));
 
-            // Delete the PackedFile.
-            delete_from_packfile(pack_file, tree_path);
+            // Delete the PackedFile. This cannot really fail during this process, so we can ignore this result.
+            delete_from_packfile(pack_file, tree_path).unwrap();
             files_deleted += 1;
         }
     }
@@ -1066,7 +1069,7 @@ pub fn optimize_packfile(
             deleted_files_type.push(get_type_of_selected_path(&tree_path, &pack_file));
 
             // Delete the PackedFile.
-            delete_from_packfile(pack_file, tree_path);
+            delete_from_packfile(pack_file, tree_path).unwrap();
         }
     }
 

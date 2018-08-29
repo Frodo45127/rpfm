@@ -461,10 +461,10 @@ pub fn background_loop(
                         let path_type = get_type_of_selected_path(&path, &pack_file_decoded);
 
                         // Delete the PackedFiles from the PackFile, changing his return in case of success.
-                        packfile::delete_from_packfile(&mut pack_file_decoded, &path);
-
-                        // Send back the type of the deleted path.
-                        sender.send(Data::TreePathType(path_type)).unwrap();
+                        match packfile::delete_from_packfile(&mut pack_file_decoded, &path) {
+                            Ok(_) => sender.send(Data::TreePathType(path_type)).unwrap(),
+                            Err(error) => sender.send(Data::Error(error)).unwrap(),
+                        }
                     }
 
                     // In case we want to extract PackedFiles from a PackFile...

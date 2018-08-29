@@ -1560,6 +1560,9 @@ fn main() {
                 // Get the path of the selected item.
                 let path = get_path_from_item_selection(app_ui.folder_tree_model, &selection, true);
 
+                // In case there is nothing selected, don't try to delete.
+                if path.is_empty() { return }
+
                 // Try to get the TreePathType. This should never fail, so CTD if it does it.
                 sender_qt.send(Commands::GetTypeOfPath).unwrap();
                 sender_qt_data.send(Data::VecString(path)).unwrap();
@@ -2670,22 +2673,34 @@ fn main() {
                     sender_qt_data.send(Data::VecString(path)).unwrap();
 
                     // Get the response from the other thread.
-                    let path_type = if let Data::TreePathType(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                    match check_message_validity_recv2(&receiver_qt) {
 
-                    // Update the TreeView.
-                    update_treeview(
-                        &rpfm_path,
-                        &sender_qt,
-                        &sender_qt_data,
-                        receiver_qt.clone(),
-                        app_ui.window,
-                        app_ui.folder_tree_view,
-                        app_ui.folder_tree_model,
-                        TreeViewOperation::DeleteSelected(path_type),
-                    );
+                        // Only if the deletion was successful, we update the UI.
+                        Data::TreePathType(path_type) => {
 
-                    // Set the mod as "Modified". For now, we don't paint deletions.
-                    *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
+                            // Update the TreeView.
+                            update_treeview(
+                                &rpfm_path,
+                                &sender_qt,
+                                &sender_qt_data,
+                                receiver_qt.clone(),
+                                app_ui.window,
+                                app_ui.folder_tree_view,
+                                app_ui.folder_tree_model,
+                                TreeViewOperation::DeleteSelected(path_type),
+                            );
+
+                            // Set the mod as "Modified". For now, we don't paint deletions.
+                            *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
+
+                        }
+
+                        // This can fail if, for some reason, the command gets resended for one file.
+                        Data::Error(error) => {
+                            if error.kind() != ErrorKind::Generic { panic!(THREADS_MESSAGE_ERROR); }
+                        }
+                        _ => panic!(THREADS_MESSAGE_ERROR),
+                    }
                 }
             }
         ));
