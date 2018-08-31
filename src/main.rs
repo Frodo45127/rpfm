@@ -3081,6 +3081,9 @@ fn main() {
             is_modified,
             is_packedfile_opened => move |_| {
 
+                // Destroy any children that the PackedFile's View we use may have, cleaning it.
+                purge_them_all(&app_ui, &is_packedfile_opened);
+
                 // Build the UI and save the slots.
                 *packfiles_list_slots.borrow_mut() = DependencyTableView::create_table_view(
                     sender_qt.clone(),
