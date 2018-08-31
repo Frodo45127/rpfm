@@ -43,6 +43,7 @@ use std::path::PathBuf;
 use std::fmt::Display;
 
 use RPFM_PATH;
+use TREEVIEW_ICONS;
 use QString;
 use AppUI;
 use Commands;
@@ -705,7 +706,7 @@ enum IconType {
 
 /// Struct `Icons`. This struct is used to hold all the Qt Icons used by the TreeView. This is generated
 /// everytime we call "update_treeview", but ideally we should move it to on start.
-struct Icons {
+pub struct Icons {
     pub packfile_editable: icon::Icon,
     pub packfile_locked: icon::Icon,
     pub folder: icon::Icon,
@@ -736,7 +737,7 @@ struct Icons {
 impl Icons {
 
     /// This function creates a list of Icons from certain paths in disk.
-    fn new() -> Self {
+    pub fn new() -> Self {
 
         // Get the Path as a String, so Qt can understand it.
         let rpfm_path_string = RPFM_PATH.to_string_lossy().as_ref().to_string();
@@ -1422,7 +1423,6 @@ pub fn clean_treeview(
 /// - icon_type: the type of icon needed for this file.
 fn set_icon_to_item(
     item: *mut StandardItem,
-    icons: &Icons,
     icon_type: IconType,
 ) {
 
@@ -1431,12 +1431,12 @@ fn set_icon_to_item(
 
         // For PackFiles.
         IconType::PackFile(editable) => {
-            if editable { unsafe { item.as_mut().unwrap().set_icon(&icons.packfile_editable); } }
-            else { unsafe { item.as_mut().unwrap().set_icon(&icons.packfile_locked); } }
+            if editable { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.packfile_editable); } }
+            else { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.packfile_locked); } }
         },
 
         // For folders.
-        IconType::Folder => unsafe { item.as_mut().unwrap().set_icon(&icons.folder); },
+        IconType::Folder => unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.folder); },
 
         // For files.
         IconType::File(path) => {
@@ -1445,42 +1445,42 @@ fn set_icon_to_item(
             let packed_file_name = path.last().unwrap();
 
             // If it's in the "db" folder, it's a DB PackedFile (or you put something were it shouldn't be).
-            if path[0] == "db" { unsafe { item.as_mut().unwrap().set_icon(&icons.table); } }
+            if path[0] == "db" { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.table); } }
 
             // If it ends in ".loc", it's a localisation PackedFile.
-            else if packed_file_name.ends_with(".loc") { unsafe { item.as_mut().unwrap().set_icon(&icons.table); } }
+            else if packed_file_name.ends_with(".loc") { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.table); } }
 
             // If it ends in ".rigid_model_v2", it's a RigidModel PackedFile.
-            else if packed_file_name.ends_with(".rigid_model_v2") { unsafe { item.as_mut().unwrap().set_icon(&icons.rigid_model); } }
+            else if packed_file_name.ends_with(".rigid_model_v2") { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.rigid_model); } }
 
             // If it ends in any of these, it's a plain text PackedFile.
-            else if packed_file_name.ends_with(".lua") { unsafe { item.as_mut().unwrap().set_icon(&icons.text_generic); } }
-            else if packed_file_name.ends_with(".xml") { unsafe { item.as_mut().unwrap().set_icon(&icons.text_xml); } }
-            else if packed_file_name.ends_with(".xml.shader") { unsafe { item.as_mut().unwrap().set_icon(&icons.text_xml); } }
-            else if packed_file_name.ends_with(".xml.material") { unsafe { item.as_mut().unwrap().set_icon(&icons.text_xml); } }
-            else if packed_file_name.ends_with(".variantmeshdefinition") { unsafe { item.as_mut().unwrap().set_icon(&icons.text_xml); } }
-            else if packed_file_name.ends_with(".environment") { unsafe { item.as_mut().unwrap().set_icon(&icons.text_xml); } }
-            else if packed_file_name.ends_with(".lighting") { unsafe { item.as_mut().unwrap().set_icon(&icons.text_generic); } }
-            else if packed_file_name.ends_with(".wsmodel") { unsafe { item.as_mut().unwrap().set_icon(&icons.text_generic); } }
-            else if packed_file_name.ends_with(".csv") { unsafe { item.as_mut().unwrap().set_icon(&icons.text_csv); } }
-            else if packed_file_name.ends_with(".tsv") { unsafe { item.as_mut().unwrap().set_icon(&icons.text_csv); } }
-            else if packed_file_name.ends_with(".inl") { unsafe { item.as_mut().unwrap().set_icon(&icons.text_generic); } }
-            else if packed_file_name.ends_with(".battle_speech_camera") { unsafe { item.as_mut().unwrap().set_icon(&icons.text_generic); } }
-            else if packed_file_name.ends_with(".bob") { unsafe { item.as_mut().unwrap().set_icon(&icons.text_generic); } }
-            else if packed_file_name.ends_with(".cindyscene") { unsafe { item.as_mut().unwrap().set_icon(&icons.text_generic); } }
-            else if packed_file_name.ends_with(".cindyscenemanager") { unsafe { item.as_mut().unwrap().set_icon(&icons.text_generic); } }
+            else if packed_file_name.ends_with(".lua") { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.text_generic); } }
+            else if packed_file_name.ends_with(".xml") { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.text_xml); } }
+            else if packed_file_name.ends_with(".xml.shader") { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.text_xml); } }
+            else if packed_file_name.ends_with(".xml.material") { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.text_xml); } }
+            else if packed_file_name.ends_with(".variantmeshdefinition") { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.text_xml); } }
+            else if packed_file_name.ends_with(".environment") { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.text_xml); } }
+            else if packed_file_name.ends_with(".lighting") { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.text_generic); } }
+            else if packed_file_name.ends_with(".wsmodel") { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.text_generic); } }
+            else if packed_file_name.ends_with(".csv") { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.text_csv); } }
+            else if packed_file_name.ends_with(".tsv") { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.text_csv); } }
+            else if packed_file_name.ends_with(".inl") { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.text_generic); } }
+            else if packed_file_name.ends_with(".battle_speech_camera") { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.text_generic); } }
+            else if packed_file_name.ends_with(".bob") { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.text_generic); } }
+            else if packed_file_name.ends_with(".cindyscene") { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.text_generic); } }
+            else if packed_file_name.ends_with(".cindyscenemanager") { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.text_generic); } }
             //else if packed_file_name.ends_with(".benchmark") || // This one needs special decoding/encoding.
-            else if packed_file_name.ends_with(".txt") { unsafe { item.as_mut().unwrap().set_icon(&icons.text_txt); } }
+            else if packed_file_name.ends_with(".txt") { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.text_txt); } }
 
             // If it ends in any of these, it's an image.
-            else if packed_file_name.ends_with(".jpg") { unsafe { item.as_mut().unwrap().set_icon(&icons.image_jpg); } }
-            else if packed_file_name.ends_with(".jpeg") { unsafe { item.as_mut().unwrap().set_icon(&icons.image_jpg); } }
-            else if packed_file_name.ends_with(".tga") { unsafe { item.as_mut().unwrap().set_icon(&icons.image_generic); } }
-            else if packed_file_name.ends_with(".dds") { unsafe { item.as_mut().unwrap().set_icon(&icons.image_generic); } }
-            else if packed_file_name.ends_with(".png") { unsafe { item.as_mut().unwrap().set_icon(&icons.image_png); } }
+            else if packed_file_name.ends_with(".jpg") { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.image_jpg); } }
+            else if packed_file_name.ends_with(".jpeg") { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.image_jpg); } }
+            else if packed_file_name.ends_with(".tga") { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.image_generic); } }
+            else if packed_file_name.ends_with(".dds") { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.image_generic); } }
+            else if packed_file_name.ends_with(".png") { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.image_png); } }
 
             // Otherwise, it's a generic file.
-            else { unsafe { item.as_mut().unwrap().set_icon(&icons.file); } }
+            else { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.file); } }
         }
     }
 }
@@ -1496,10 +1496,6 @@ pub fn update_treeview(
     model: *mut StandardItemModel,
     operation: TreeViewOperation,
 ) {
-
-    // Get the Icons for the TreeView.
-    // TODO: Move this to const fn when it reaches stable in rust.
-    let icons = Icons::new();
 
     // We act depending on the operation requested.
     match operation {
@@ -1529,7 +1525,7 @@ pub fn update_treeview(
             unsafe { model.as_mut().unwrap().append_row_unsafe(big_parent); }
 
             // Give it an Icon.
-            set_icon_to_item(big_parent, &icons, IconType::PackFile(is_extra_packfile));
+            set_icon_to_item(big_parent, IconType::PackFile(is_extra_packfile));
 
             // We get all the paths of the PackedFiles inside the Packfile in a Vector.
             let mut sorted_path_list = pack_file_data.2;
@@ -1610,7 +1606,7 @@ pub fn update_treeview(
                         let path = get_path_from_item(model, file, false);
 
                         // Give it an icon.
-                        set_icon_to_item(file, &icons, IconType::File(path));
+                        set_icon_to_item(file, IconType::File(path));
                     }
 
                     // If it's a folder, we check first if it's already in the TreeStore using the following
@@ -1666,7 +1662,7 @@ pub fn update_treeview(
                                     parent.as_mut().unwrap().append_row_unsafe(folder);
 
                                     // Give it an Icon.
-                                    set_icon_to_item(folder, &icons, IconType::Folder);
+                                    set_icon_to_item(folder, IconType::Folder);
 
                                     // This is our parent now.
                                     let index = parent.as_ref().unwrap().row_count() - 1;
@@ -1687,7 +1683,7 @@ pub fn update_treeview(
                                 parent.as_mut().unwrap().append_row_unsafe(folder);
 
                                 // Give it an Icon.
-                                set_icon_to_item(folder, &icons, IconType::Folder);
+                                set_icon_to_item(folder, IconType::Folder);
 
                                 // This is our parent now.
                                 let index = parent.as_ref().unwrap().row_count() - 1;
@@ -1750,10 +1746,10 @@ pub fn update_treeview(
                             match item_type {
 
                                 // If it's a folder, give it an Icon.
-                                TreePathType::Folder(_) => set_icon_to_item(item, &icons, IconType::Folder),
+                                TreePathType::Folder(_) => set_icon_to_item(item, IconType::Folder),
 
                                 // If it's a folder, give it an Icon.
-                                TreePathType::File((ref path,_)) => set_icon_to_item(item, &icons, IconType::File(path.to_vec())),
+                                TreePathType::File((ref path,_)) => set_icon_to_item(item, IconType::File(path.to_vec())),
 
                                 // Any other type, ignore it.
                                 _ => {},
@@ -1818,7 +1814,7 @@ pub fn update_treeview(
                                     parent.as_mut().unwrap().append_row_unsafe(folder);
 
                                     // Give it an icon.
-                                    set_icon_to_item(folder, &icons, IconType::Folder);
+                                    set_icon_to_item(folder, IconType::Folder);
 
                                     // This is our parent now.
                                     let index = parent.as_ref().unwrap().row_count() - 1;
@@ -1847,7 +1843,7 @@ pub fn update_treeview(
                                 parent.as_mut().unwrap().append_row_unsafe(folder);
 
                                 // Give it an icon.
-                                set_icon_to_item(folder, &icons, IconType::Folder);
+                                set_icon_to_item(folder, IconType::Folder);
 
                                 // This is our parent now.
                                 let index = parent.as_ref().unwrap().row_count() - 1;

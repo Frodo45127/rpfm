@@ -188,6 +188,9 @@ lazy_static! {
         path.pop();
         path
     };
+
+    /// Icons for the PackFile TreeView.
+    static ref TREEVIEW_ICONS: Icons = Icons::new();
 }
 
 /// This constant gets RPFM's version from the `Cargo.toml` file, so we don't have to change it
