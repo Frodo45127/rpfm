@@ -31,6 +31,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::path::{Path, PathBuf};
 
+use SUPPORTED_GAMES;
 use AppUI;
 use Commands;
 use Data;
@@ -38,7 +39,6 @@ use QString;
 use common::*;
 use common::communications::*;
 use error::ErrorKind;
-use settings::GameInfo;
 use settings::Settings;
 use super::shortcuts::ShortcutsDialog;
 use super::show_dialog;
@@ -72,7 +72,6 @@ impl SettingsDialog {
     pub fn create_settings_dialog(
         app_ui: &AppUI,
         settings: &Settings,
-        supported_games: &[GameInfo],
         sender_qt: &Sender<Commands>,
         sender_qt_data: &Sender<Data>,
         receiver_qt: Rc<RefCell<Receiver<Data>>>, 
@@ -119,7 +118,7 @@ impl SettingsDialog {
         // For each game supported...
         let mut game_paths = BTreeMap::new();
         let mut game_buttons = BTreeMap::new();
-        for (index, game_supported) in supported_games.iter().enumerate() {
+        for (index, (folder_name, game_supported)) in SUPPORTED_GAMES.iter().enumerate() {
 
             // Create his fields.
             let game_label = Label::new(&QString::from_std_str(&format!("TW: {} folder", game_supported.display_name))).into_raw();
@@ -135,8 +134,8 @@ impl SettingsDialog {
             unsafe { paths_grid.add_widget((game_button as *mut Widget, (index + 1) as i32, 2, 1, 1)); }
 
             // Add the LineEdit and Button to the list.
-            game_paths.insert(game_supported.folder_name.to_owned(), game_line_edit);
-            game_buttons.insert(game_supported.folder_name.to_owned(), game_button);
+            game_paths.insert(folder_name.to_string(), game_line_edit);
+            game_buttons.insert(folder_name.to_string(), game_button);
         }
 
         // Create the "UI Settings" frame and Grid.
@@ -176,7 +175,7 @@ impl SettingsDialog {
         unsafe { default_game_combobox.set_model(default_game_model.static_cast_mut()); }
 
         // Add the games to the ComboBox.
-        for game in supported_games { default_game_combobox.add_item(&QString::from_std_str(&game.display_name)); }
+        for (_, game) in SUPPORTED_GAMES.iter() { default_game_combobox.add_item(&QString::from_std_str(&game.display_name)); }
 
         // Create the aditional CheckBoxes.
         let mut allow_editing_of_ca_packfiles_label = Label::new(&QString::from_std_str("Allow Editing of CA PackFiles:"));
@@ -340,7 +339,7 @@ impl SettingsDialog {
         //-------------------------------------------------------------------------------------------//
 
         // Load the MyMod Path, if exists.
-        settings_dialog.load_to_settings_dialog(&settings, supported_games);
+        settings_dialog.load_to_settings_dialog(&settings);
 
         //-------------------------------------------------------------------------------------------//
         // Actions that must exectute at the end...
@@ -351,8 +350,8 @@ impl SettingsDialog {
         let slot_restore_default = SlotNoArgs::new(clone!(
             settings_dialog => move || {
 
-                let new_settings = Settings::new(supported_games);
-                (*settings_dialog.borrow_mut()).load_to_settings_dialog(&new_settings, supported_games)
+                let new_settings = Settings::new();
+                (*settings_dialog.borrow_mut()).load_to_settings_dialog(&new_settings)
             }
         ));
 
@@ -360,7 +359,7 @@ impl SettingsDialog {
         unsafe { restore_default_button.as_mut().unwrap().signals().released().connect(&slot_restore_default); }
 
         // Show the Dialog, save the current settings, and return them.
-        unsafe { if dialog.as_mut().unwrap().exec() == 1 { Some(settings_dialog.borrow().save_from_settings_dialog(supported_games)) }
+        unsafe { if dialog.as_mut().unwrap().exec() == 1 { Some(settings_dialog.borrow().save_from_settings_dialog()) }
 
         // Otherwise, return None.
         else { None } }
@@ -370,7 +369,6 @@ impl SettingsDialog {
     pub fn load_to_settings_dialog(
         &mut self,
         settings: &Settings,
-        supported_games: &[GameInfo]
     ) {
 
         // Load the MyMod Path, if exists.
@@ -381,10 +379,9 @@ impl SettingsDialog {
             unsafe { path.as_mut().unwrap().set_text(&QString::from_std_str(&settings.paths.get(key).unwrap().clone().unwrap_or_else(||PathBuf::new()).to_string_lossy())); }
         }
 
-        // TODO: Move GameSupported to BTreeMap and improve this.
         // Get the Default Game.
-        for (index, game) in supported_games.iter().enumerate() {
-            if game.folder_name == *settings.settings_string.get("default_game").unwrap() {
+        for (index, (folder_name,_)) in SUPPORTED_GAMES.iter().enumerate() {
+            if folder_name.to_string() == *settings.settings_string.get("default_game").unwrap() {
                 unsafe { self.extra_default_game_combobox.as_mut().unwrap().set_current_index(index as i32); }
                 break;
             }
@@ -402,10 +399,10 @@ impl SettingsDialog {
 
     /// This function gets the data from the Settings Dialog and returns a Settings struct with that
     /// data in it.
-    pub fn save_from_settings_dialog(&self, supported_games: &[GameInfo]) -> Settings {
+    pub fn save_from_settings_dialog(&self) -> Settings {
 
         // Create a new Settings.
-        let mut settings = Settings::new(supported_games);
+        let mut settings = Settings::new();
 
         // Only if we have a valid directory, we save it. Otherwise we wipe it out.
         let mymod_new_path;
@@ -426,9 +423,11 @@ impl SettingsDialog {
         }
 
         // We get his game's folder, depending on the selected game.
-        let index;
-        unsafe { index = self.extra_default_game_combobox.as_mut().unwrap().current_index() as usize; }
-        settings.settings_string.insert("default_game".to_owned(), supported_games[index].folder_name.to_owned());
+        let mut game;
+        unsafe { game = self.extra_default_game_combobox.as_mut().unwrap().current_text().to_std_string(); }
+        if let Some(index) = game.find('&') { game.remove(index); }
+        game = game.replace(' ', "_").to_lowercase();
+        settings.settings_string.insert("default_game".to_owned(), game);
 
         // Get the UI Settings.
         unsafe { settings.settings_bool.insert("adjust_columns_to_content".to_owned(), self.ui_adjust_columns_to_content.as_mut().unwrap().is_checked()); }
@@ -451,7 +450,6 @@ impl NewMyModDialog {
     /// folder_name of the game.
     pub fn create_new_mymod_dialog(
         app_ui: &AppUI,
-        supported_games: &[GameInfo],
         settings: &Settings,
     ) -> Option<(String, String)> {
 
@@ -513,7 +511,7 @@ impl NewMyModDialog {
         unsafe { mymod_game_combobox.as_mut().unwrap().set_model(mymod_game_model.static_cast_mut()); }
 
         // Add the games to the ComboBox.
-        unsafe { for game in supported_games { if game.display_name != "Arena" { mymod_game_combobox.as_mut().unwrap().add_item(&QString::from_std_str(&game.display_name)); }} }
+        unsafe { for (_, game) in SUPPORTED_GAMES.iter() { if game.supports_editing { mymod_game_combobox.as_mut().unwrap().add_item(&QString::from_std_str(&game.display_name)); }} }
 
         // Add all the widgets to the main grid.
         unsafe { main_grid.as_mut().unwrap().add_widget((mymod_name_label as *mut Widget, 1, 0, 1, 1)); }
@@ -555,14 +553,14 @@ impl NewMyModDialog {
         // What happens when we change the name of the mod.
         let slot_mymod_line_edit_change = SlotNoArgs::new(clone!(
             new_mymod_dialog => move || {
-                check_my_mod_validity(&new_mymod_dialog, &settings, &supported_games);
+                check_my_mod_validity(&new_mymod_dialog, &settings);
             }
         ));
 
         // What happens when we change the game of the mod.
         let slot_mymod_combobox_change = SlotNoArgs::new(clone!(
             new_mymod_dialog => move || {
-                check_my_mod_validity(&new_mymod_dialog, &settings, &supported_games);
+                check_my_mod_validity(&new_mymod_dialog, &settings);
             }
         ));
 
@@ -591,9 +589,10 @@ impl NewMyModDialog {
             unsafe { mod_name = QString::to_std_string(&new_mymod_dialog.mymod_name_line_edit.as_mut().unwrap().text()); }
 
             // Get the Game Selected in the ComboBox.
-            let index;
-            unsafe { index = new_mymod_dialog.mymod_game_combobox.as_mut().unwrap().current_index(); }
-            let mod_game = supported_games[index as usize].folder_name.to_owned();
+            let mut game;
+            unsafe { game = new_mymod_dialog.mymod_game_combobox.as_mut().unwrap().current_text().to_std_string(); }
+            if let Some(index) = game.find('&') { game.remove(index); }
+            let mod_game = game.replace(' ', "_").to_lowercase();
 
             // Return it.
             Some((mod_name, mod_game))
@@ -648,7 +647,6 @@ fn update_entry_path(
 fn check_my_mod_validity(
     mymod_dialog: &NewMyModDialog,
     settings: &Settings,
-    supported_games: &[GameInfo],
 ) {
 
     // Get the text from the LineEdit.
@@ -656,9 +654,11 @@ fn check_my_mod_validity(
     unsafe { mod_name = mymod_dialog.mymod_name_line_edit.as_mut().unwrap().text().to_std_string(); }
 
     // Get the Game Selected in the ComboBox.
-    let index;
-    unsafe { index = mymod_dialog.mymod_game_combobox.as_mut().unwrap().current_index(); }
-    let mod_game = supported_games[index as usize].folder_name.to_owned();
+    let mut game;
+    unsafe { game = mymod_dialog.mymod_game_combobox.as_mut().unwrap().current_text().to_std_string(); }
+    if let Some(index) = game.find('&') { game.remove(index); }
+    game = game.replace(' ', "_");
+    let mod_game = game.to_lowercase();
 
     // If there is text and it doesn't have whitespaces...
     if !mod_name.is_empty() && !mod_name.contains(' ') {

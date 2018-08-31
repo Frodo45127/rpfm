@@ -29,6 +29,10 @@ extern crate qt_gui;
 extern crate qt_core;
 extern crate cpp_utils;
 
+#[macro_use]
+extern crate lazy_static;
+extern crate indexmap;
+
 use qt_widgets::action::Action;
 use qt_widgets::action_group::ActionGroup;
 use qt_widgets::application::Application;
@@ -64,6 +68,7 @@ use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::fs::{DirBuilder, copy, remove_file, remove_dir_all};
 
+use indexmap::map::IndexMap;
 use chrono::NaiveDateTime;
 use sentry::integrations::panic::register_panic_handler;
 
@@ -108,6 +113,71 @@ mod packedfile;
 mod settings;
 mod updater;
 mod ui;
+
+// Statics, so we don't need to pass them everywhere to use them.
+lazy_static! {
+
+    /// List of supported games and their configuration. Their key is what we know as `folder_name`, used to identify the game and
+    /// for "MyMod" folders.
+    #[derive(Debug)]
+    static ref SUPPORTED_GAMES: IndexMap<&'static str, GameInfo> = {
+        let mut map = IndexMap::new();
+
+        // Warhammer 2
+        map.insert("warhammer_2", GameInfo {
+            display_name: "Warhammer 2".to_owned(),
+            id: "PFH5".to_owned(),
+            schema: "schema_wh.json".to_owned(),
+            db_pack: "data.pack".to_owned(),
+            loc_pack: "local_en.pack".to_owned(),
+            supports_editing: true,
+        });
+
+        // Warhammer
+        map.insert("warhammer", GameInfo {
+            display_name: "Warhammer".to_owned(),
+            id: "PFH4".to_owned(),
+            schema: "schema_wh.json".to_owned(),
+            db_pack: "data.pack".to_owned(),
+            loc_pack: "local_en.pack".to_owned(),
+            supports_editing: true,
+        });
+
+        // Attila
+        map.insert("attila", GameInfo {
+            display_name: "Attila".to_owned(),
+            id: "PFH4".to_owned(),
+            schema: "schema_att.json".to_owned(),
+            db_pack: "data.pack".to_owned(),
+            loc_pack: "local_en.pack".to_owned(),
+            supports_editing: true,
+        });
+
+        // Rome 2
+        map.insert("rome_2", GameInfo {
+            display_name: "Rome 2".to_owned(),
+            id: "PFH4".to_owned(),
+            schema: "schema_rom2.json".to_owned(),
+            db_pack: "data_rome2.pack".to_owned(),
+            loc_pack: "local_en.pack".to_owned(),
+            supports_editing: true,
+        });
+
+        // NOTE: There are things that depend on the order of this list, and this game must ALWAYS be the last one.
+        // Otherwise, stuff that uses this list will probably break.
+        // Arena
+        map.insert("arena", GameInfo {
+            display_name: "Arena".to_owned(),
+            id: "PFH5".to_owned(),
+            schema: "schema_are.json".to_owned(),
+            db_pack: "wad.pack".to_owned(),
+            loc_pack: "local_ex.pack".to_owned(),
+            supports_editing: false,
+        });
+
+        map
+    };
+}
 
 /// This constant gets RPFM's version from the `Cargo.toml` file, so we don't have to change it
 /// in two different places in every update.
@@ -271,10 +341,6 @@ fn main() {
             path.pop();
             path
         };
-
-        // We load the list of Supported Games here.
-        // TODO: Move this to a const when const fn reach stable in Rust.
-        let supported_games = GameInfo::new();
 
         // Create the channels to communicate the threads. The channels are:
         // - `sender_rust, receiver_qt`: used for returning info from the background thread, serialized in Vec<u8>.
@@ -619,7 +685,6 @@ fn main() {
             &menu_bar_mymod,
             is_modified.clone(),
             mode.clone(),
-            supported_games.to_vec(),
             mymod_menu_needs_rebuild.clone(),
             &is_packedfile_opened
         );
@@ -763,7 +828,6 @@ fn main() {
         let slot_change_game_selected = SlotBool::new(clone!(
             mode,
             mymod_stuff,
-            supported_games,
             sender_qt,
             sender_qt_data,
             receiver_qt => move |_| {
@@ -772,9 +836,9 @@ fn main() {
                 let mut new_game_selected;
                 unsafe { new_game_selected = QString::to_std_string(&app_ui.game_selected_group.as_mut().unwrap().checked_action().as_mut().unwrap().text()); }
 
-                // Remove the '&' from the game's name, and get his folder name.
+                // Remove the '&' from the game's name, and turn it into a `folder_name`.
                 if let Some(index) = new_game_selected.find('&') { new_game_selected.remove(index); }
-                let new_game_selected_folder_name = supported_games.iter().filter(|x| x.display_name == new_game_selected).map(|x| x.folder_name.to_owned()).collect::<String>();
+                let new_game_selected_folder_name = new_game_selected.replace(' ', "_").to_lowercase();
 
                 // Change the Game Selected in the Background Thread.
                 sender_qt.send(Commands::SetGameSelected).unwrap();
@@ -1219,7 +1283,6 @@ fn main() {
         // What happens when we trigger the "Preferences" action.
         let slot_preferences = SlotBool::new(clone!(
             mode,
-            supported_games,
             sender_qt,
             sender_qt_data,
             receiver_qt,
@@ -1231,7 +1294,7 @@ fn main() {
                 let old_settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                 // Create the Settings Dialog. If we got new settings...
-                if let Some(settings) = SettingsDialog::create_settings_dialog(&app_ui, &old_settings, &supported_games, &sender_qt, &sender_qt_data, receiver_qt.clone()) {
+                if let Some(settings) = SettingsDialog::create_settings_dialog(&app_ui, &old_settings, &sender_qt, &sender_qt_data, receiver_qt.clone()) {
 
                     // Send the signal to save them.
                     sender_qt.send(Commands::SetSettings).unwrap();
@@ -3379,7 +3442,6 @@ fn main() {
                         &menu_bar_mymod,
                         is_modified.clone(),
                         mode.clone(),
-                        supported_games.to_vec(),
                         mymod_menu_needs_rebuild.clone(),
                         &is_packedfile_opened
                     );
@@ -3745,7 +3807,6 @@ fn build_my_mod_menu(
     menu_bar_mymod: &*mut Menu,
     is_modified: Rc<RefCell<bool>>,
     mode: Rc<RefCell<Mode>>,
-    supported_games: Vec<GameInfo>,
     needs_rebuild: Rc<RefCell<bool>>,
     is_packedfile_opened: &Rc<RefCell<bool>>
 ) -> (MyModStuff, MyModSlots) {
@@ -3789,11 +3850,10 @@ fn build_my_mod_menu(
             mode,
             settings,
             is_modified,
-            needs_rebuild,
-            supported_games => move |_| {
+            needs_rebuild => move |_| {
 
                 // Create the "New MyMod" Dialog, and get the result.
-                match NewMyModDialog::create_new_mymod_dialog(&app_ui, &supported_games, &settings) {
+                match NewMyModDialog::create_new_mymod_dialog(&app_ui, &settings) {
 
                     // If we accepted...
                     Some(data) => {
@@ -4172,14 +4232,15 @@ fn build_my_mod_menu(
                 if let Ok(game_folder) = game_folder {
 
                     // Get the list of supported games folders.
-                    let supported_folders = supported_games.iter().map(|x| x.folder_name.to_owned()).collect::<Vec<String>>();
+                    let supported_folders = SUPPORTED_GAMES.iter().filter(|(_, x)| x.supports_editing == true).map(|(folder_name,_)| folder_name.to_string()).collect::<Vec<String>>();
 
                     // If it's a valid folder, and it's in our supported games list...
                     if game_folder.path().is_dir() && supported_folders.contains(&game_folder.file_name().to_string_lossy().as_ref().to_owned()) {
 
                         // We create that game's menu here.
                         let game_folder_name = game_folder.file_name().to_string_lossy().as_ref().to_owned();
-                        let game_display_name = supported_games.iter().filter(|x| x.folder_name == game_folder_name).map(|x| x.display_name.to_owned()).collect::<String>();
+                        let game_display_name = &SUPPORTED_GAMES.get(&*game_folder_name).unwrap().display_name;
+
                         let mut game_submenu = Menu::new(&QString::from_std_str(&game_display_name));
 
                         // If there were no errors while reading the path...

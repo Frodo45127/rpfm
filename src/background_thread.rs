@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use std::fs::File;
 use std::io::{BufReader, Write};
 
+use SUPPORTED_GAMES;
 use common::*;
 use common::coding_helpers::*;
 use common::communications::*;
@@ -48,12 +49,8 @@ pub fn background_loop(
     let mut packed_file_db = DB::new("", 0, TableDefinition::new(0));
     let mut packed_file_rigid_model = RigidModel::new();
 
-    // We load the list of Supported Games here.
-    // TODO: Move this to a const when const fn reach stable in Rust.
-    let supported_games = GameInfo::new();
-
     // We load the settings here, and in case they doesn't exist or they are not valid, we create them.
-    let mut settings = Settings::load(&rpfm_path, &supported_games).unwrap_or_else(|_|Settings::new(&supported_games));
+    let mut settings = Settings::load(&rpfm_path).unwrap_or_else(|_|Settings::new());
 
     // Same with the shortcuts.
     let mut shortcuts = Shortcuts::load(&rpfm_path).unwrap_or_else(|_|Shortcuts::new());
@@ -62,7 +59,7 @@ pub fn background_loop(
     let mut schema: Option<Schema> = None;
 
     // And we prepare the stuff for the default game (paths, and those things).
-    let mut game_selected = GameSelected::new(&settings, &supported_games);
+    let mut game_selected = GameSelected::new(&settings);
 
     // Try to open the dependency PackFile of our `game_selected`.
     let mut dependency_database = packfile::open_dependency_packfile(&game_selected.game_dependency_packfile_path);
@@ -102,13 +99,13 @@ pub fn background_loop(
                     Commands::NewPackFile => {
 
                         // Get the ID for the new PackFile.
-                        let pack_file_id = supported_games.iter().filter(|x| x.folder_name == game_selected.game).map(|x| x.id.to_owned()).collect::<String>();
+                        let pack_file_id = &SUPPORTED_GAMES.get(&*game_selected.game).unwrap().id;
 
                         // Create the new PackFile.
                         pack_file_decoded = packfile::new_packfile("unknown.pack".to_string(), &pack_file_id);
 
                         // Try to load the Schema for this PackFile's game.
-                        schema = Schema::load(&rpfm_path, &supported_games.iter().filter(|x| x.folder_name == *game_selected.game).map(|x| x.schema.to_owned()).collect::<String>()).ok();
+                        schema = Schema::load(&rpfm_path, &SUPPORTED_GAMES.get(&*game_selected.game).unwrap().schema).ok();
 
                         // Send a response with the PackFile's type to the UI thread.
                         sender.send(Data::U32(pack_file_decoded.header.pack_file_type)).unwrap();
@@ -248,7 +245,7 @@ pub fn background_loop(
                         let new_schema: Schema = if let Data::Schema(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                         // Try to save it to disk.
-                        match Schema::save(&new_schema, &rpfm_path, &supported_games.iter().filter(|x| x.folder_name == game_selected.game).map(|x| x.schema.to_owned()).collect::<String>()) {
+                        match Schema::save(&new_schema, &rpfm_path, &SUPPORTED_GAMES.get(&*game_selected.game).unwrap().schema) {
 
                             // If we managed to save it...
                             Ok(_) => {
@@ -325,16 +322,16 @@ pub fn background_loop(
                         let game_name = if let Data::String(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                         // Get the new Game Selected, and set it.
-                        game_selected.change_game_selected(&game_name, &settings.paths.get(&game_name).unwrap(), &supported_games);
+                        game_selected.change_game_selected(&game_name, &settings.paths.get(&game_name).unwrap());
 
                         // Try to load the Schema for this game.
-                        schema = Schema::load(&rpfm_path, &supported_games.iter().filter(|x| x.folder_name == *game_selected.game).map(|x| x.schema.to_owned()).collect::<String>()).ok();
+                        schema = Schema::load(&rpfm_path, &SUPPORTED_GAMES.get(&*game_selected.game).unwrap().schema).ok();
 
                         // Change the `dependency_database` for that game.
                         dependency_database = packfile::open_dependency_packfile(&game_selected.game_dependency_packfile_path);
 
                         // If there is a PackFile open, change his id to match the one of the new GameSelected.
-                        if !pack_file_decoded.extra_data.file_name.is_empty() { pack_file_decoded.header.id = supported_games.iter().filter(|x| x.folder_name == *game_selected.game).map(|x| x.id.to_owned()).collect::<String>(); }
+                        if !pack_file_decoded.extra_data.file_name.is_empty() { pack_file_decoded.header.id = SUPPORTED_GAMES.get(&*game_selected.game).unwrap().id.to_owned(); }
 
                         // Send back the new Game Selected, and a bool indicating if there is a PackFile open.
                         sender.send(Data::GameSelectedBool((game_selected.clone(), pack_file_decoded.extra_data.file_name.is_empty()))).unwrap();
@@ -420,7 +417,7 @@ pub fn background_loop(
                             Ok(_) => {
 
                                 // Reload the currently loaded schema, just in case it was updated.
-                                schema = Schema::load(rpfm_path, &supported_games.iter().filter(|x| x.folder_name == game_selected.game).map(|x| x.schema.to_owned()).collect::<String>()).ok();
+                                schema = Schema::load(rpfm_path, &SUPPORTED_GAMES.get(&*game_selected.game).unwrap().schema).ok();
 
                                 // Return success.
                                 sender.send(Data::Success).unwrap();
