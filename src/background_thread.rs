@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use std::fs::File;
 use std::io::{BufReader, Write};
 
+use RPFM_PATH;
 use SUPPORTED_GAMES;
 use common::*;
 use common::coding_helpers::*;
@@ -25,7 +26,6 @@ use updater::*;
 /// The receiver is to receive orders to execute from the loop.
 /// The receiver_data is to receive data (whatever data is needed) inside a Data variant from the UI Thread.
 pub fn background_loop(
-    rpfm_path: &PathBuf,
     sender: Sender<Data>,
     receiver: Receiver<Commands>,
     receiver_data: Receiver<Data>
@@ -42,7 +42,7 @@ pub fn background_loop(
     let mut pack_file_decoded_extra = PackFile::new();
 
     // The extra PackFile needs to keep a BufReader to not destroy the Ram.
-    let mut pack_file_decoded_extra_buffer = BufReader::new(File::open(rpfm_path.join(PathBuf::from("LICENSE"))).unwrap());
+    let mut pack_file_decoded_extra_buffer = BufReader::new(File::open(RPFM_PATH.join(PathBuf::from("LICENSE"))).unwrap());
 
     // These are a list of empty PackedFiles, used to store data of the open PackedFile.
     let mut packed_file_loc = Loc::new();
@@ -50,10 +50,10 @@ pub fn background_loop(
     let mut packed_file_rigid_model = RigidModel::new();
 
     // We load the settings here, and in case they doesn't exist or they are not valid, we create them.
-    let mut settings = Settings::load(&rpfm_path).unwrap_or_else(|_|Settings::new());
+    let mut settings = Settings::load().unwrap_or_else(|_|Settings::new());
 
     // Same with the shortcuts.
-    let mut shortcuts = Shortcuts::load(&rpfm_path).unwrap_or_else(|_|Shortcuts::new());
+    let mut shortcuts = Shortcuts::load().unwrap_or_else(|_|Shortcuts::new());
 
     // We prepare the schema object to hold an Schema, leaving it as `None` by default.
     let mut schema: Option<Schema> = None;
@@ -105,7 +105,7 @@ pub fn background_loop(
                         pack_file_decoded = packfile::new_packfile("unknown.pack".to_string(), &pack_file_id);
 
                         // Try to load the Schema for this PackFile's game.
-                        schema = Schema::load(&rpfm_path, &SUPPORTED_GAMES.get(&*game_selected.game).unwrap().schema).ok();
+                        schema = Schema::load(&SUPPORTED_GAMES.get(&*game_selected.game).unwrap().schema).ok();
 
                         // Send a response with the PackFile's type to the UI thread.
                         sender.send(Data::U32(pack_file_decoded.header.pack_file_type)).unwrap();
@@ -245,7 +245,7 @@ pub fn background_loop(
                         let new_schema: Schema = if let Data::Schema(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                         // Try to save it to disk.
-                        match Schema::save(&new_schema, &rpfm_path, &SUPPORTED_GAMES.get(&*game_selected.game).unwrap().schema) {
+                        match Schema::save(&new_schema, &SUPPORTED_GAMES.get(&*game_selected.game).unwrap().schema) {
 
                             // If we managed to save it...
                             Ok(_) => {
@@ -279,7 +279,7 @@ pub fn background_loop(
                         settings = new_settings;
 
                         // Save our Settings to a settings file, and report in case of error.
-                        match settings.save(&rpfm_path) {
+                        match settings.save() {
                             Ok(()) => sender.send(Data::Success).unwrap(),
                             Err(error) => sender.send(Data::Error(error)).unwrap(),
                         }
@@ -302,7 +302,7 @@ pub fn background_loop(
                         shortcuts = new_shortcuts;
 
                         // Save our Shortcuts to a shortcuts file, and report in case of error.
-                        match shortcuts.save(&rpfm_path) {
+                        match shortcuts.save() {
                             Ok(()) => sender.send(Data::Success).unwrap(),
                             Err(error) => sender.send(Data::Error(error)).unwrap(),
                         }
@@ -325,7 +325,7 @@ pub fn background_loop(
                         game_selected.change_game_selected(&game_name, &settings.paths.get(&game_name).unwrap());
 
                         // Try to load the Schema for this game.
-                        schema = Schema::load(&rpfm_path, &SUPPORTED_GAMES.get(&*game_selected.game).unwrap().schema).ok();
+                        schema = Schema::load(&SUPPORTED_GAMES.get(&*game_selected.game).unwrap().schema).ok();
 
                         // Change the `dependency_database` for that game.
                         dependency_database = packfile::open_dependency_packfile(&game_selected.game_dependency_packfile_path);
@@ -411,13 +411,13 @@ pub fn background_loop(
                         let data = if let Data::VersionsVersions(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                         // Try to update the schemas...
-                        match update_schemas(data.0, data.1, rpfm_path) {
+                        match update_schemas(data.0, data.1) {
 
                             // If there is success...
                             Ok(_) => {
 
                                 // Reload the currently loaded schema, just in case it was updated.
-                                schema = Schema::load(rpfm_path, &SUPPORTED_GAMES.get(&*game_selected.game).unwrap().schema).ok();
+                                schema = Schema::load(&SUPPORTED_GAMES.get(&*game_selected.game).unwrap().schema).ok();
 
                                 // Return success.
                                 sender.send(Data::Success).unwrap();

@@ -7,6 +7,7 @@ use std::fs::File;
 use std::io::Write;
 use std::io::{BufReader, BufWriter};
 
+use RPFM_PATH;
 use error::Result;
 
 const SHORTCUTS_FILE: &str = "shortcuts.json";
@@ -107,10 +108,10 @@ impl Shortcuts {
     }
 
     /// This function takes a shortcuts.json file and reads it into a `Shortcuts` object. It has to receive the RPFM's path.
-    pub fn load(rpfm_path: &PathBuf) -> Result<Self> {
+    pub fn load() -> Result<Self> {
 
     	// Try to open the shortcuts file.
-        let path = rpfm_path.to_path_buf().join(PathBuf::from(SHORTCUTS_FILE));
+        let path = RPFM_PATH.to_path_buf().join(PathBuf::from(SHORTCUTS_FILE));
         let file = BufReader::new(File::open(path)?);
 
         // Try to get the shortcuts. This can fail because the file is changed or damaged, or because there is no file, so we need to deal with this later. 
@@ -164,10 +165,10 @@ impl Shortcuts {
     }
 
     /// This function takes the `Shortcuts` object and saves it into a shortcuts.json file.
-    pub fn save(&self, rpfm_path: &PathBuf) -> Result<()> {
+    pub fn save(&self) -> Result<()> {
        
         // Try to open the shortcuts file.
-        let path = rpfm_path.to_path_buf().join(PathBuf::from(SHORTCUTS_FILE));
+        let path = RPFM_PATH.to_path_buf().join(PathBuf::from(SHORTCUTS_FILE));
         let mut file = BufWriter::new(File::create(path)?);
 
         // Try to save the file, and return the result.

@@ -42,6 +42,7 @@ use std::cmp::Ordering;
 use std::path::PathBuf;
 use std::fmt::Display;
 
+use RPFM_PATH;
 use QString;
 use AppUI;
 use Commands;
@@ -113,7 +114,6 @@ impl AddFromPackFileSlots {
 
     /// This function creates a new "Add From PackFile" struct and returns it.
     pub fn new_with_grid(
-        rpfm_path: PathBuf,
         sender_qt: Sender<Commands>,
         sender_qt_data: &Sender<Data>,
         receiver_qt: &Rc<RefCell<Receiver<Data>>>,
@@ -142,7 +142,6 @@ impl AddFromPackFileSlots {
 
             // This slot is used to copy something from one PackFile to the other when pressing the "<=" button.
             copy: SlotModelIndexRef::new(clone!(
-                rpfm_path,
                 is_modified,
                 sender_qt,
                 sender_qt_data,
@@ -170,7 +169,6 @@ impl AddFromPackFileSlots {
 
                             // Update the TreeView.
                             update_treeview(
-                                &rpfm_path,
                                 &sender_qt,
                                 &sender_qt_data,
                                 receiver_qt.clone(),
@@ -223,7 +221,6 @@ impl AddFromPackFileSlots {
 
         // Update the new TreeView.
         update_treeview(
-            &rpfm_path,
             &sender_qt,
             &sender_qt_data,
             receiver_qt.clone(),
@@ -739,10 +736,10 @@ struct Icons {
 impl Icons {
 
     /// This function creates a list of Icons from certain paths in disk.
-    fn new(rpfm_path: &PathBuf) -> Self {
+    fn new() -> Self {
 
         // Get the Path as a String, so Qt can understand it.
-        let rpfm_path_string = rpfm_path.to_string_lossy().as_ref().to_string();
+        let rpfm_path_string = RPFM_PATH.to_string_lossy().as_ref().to_string();
 
         // Prepare the path for the icons of the TreeView.
         let mut icon_packfile_editable_path = rpfm_path_string.to_owned();
@@ -1491,7 +1488,6 @@ fn set_icon_to_item(
 /// This function takes care of EVERY operation that manipulates the provided TreeView.
 /// It does one thing or another, depending on the operation we provide it.
 pub fn update_treeview(
-    rpfm_path: &PathBuf,
     sender_qt: &Sender<Commands>,
     sender_qt_data: &Sender<Data>,
     receiver_qt_data: Rc<RefCell<Receiver<Data>>>,
@@ -1503,7 +1499,7 @@ pub fn update_treeview(
 
     // Get the Icons for the TreeView.
     // TODO: Move this to const fn when it reaches stable in rust.
-    let icons = Icons::new(&rpfm_path);
+    let icons = Icons::new();
 
     // We act depending on the operation requested.
     match operation {
@@ -1920,7 +1916,6 @@ pub fn update_treeview(
 
                     // Rebuild the TreeView.
                     update_treeview(
-                        &rpfm_path,
                         &sender_qt,
                         &sender_qt_data,
                         receiver_qt_data.clone(),

@@ -177,6 +177,17 @@ lazy_static! {
 
         map
     };
+
+    /// Path were the stuff used by RPFM (settings, schemas,...) is. In debug mode, we just take the current path
+    /// (so we don't break debug builds). In Release mode, we take the `.exe` path.
+    #[derive(Debug)]
+    static ref RPFM_PATH: PathBuf = if cfg!(debug_assertions) {
+        std::env::current_dir().unwrap()
+    } else {
+        let mut path = std::env::current_exe().unwrap();
+        path.pop();
+        path
+    };
 }
 
 /// This constant gets RPFM's version from the `Cargo.toml` file, so we don't have to change it
@@ -324,24 +335,6 @@ fn main() {
         // Preparing the Program...
         //---------------------------------------------------------------------------------------//
 
-        // We get all the Arguments provided when starting RPFM. Why? If we are opening a PackFile by
-        // double-clicking on it (for example, with file asociation in windows) our current dir is the
-        // one where the PackFile is, not where the `rpfm-code.exe` is. So RPFM gets confused and it
-        // doesn't find his settings, his schemas,... To fix this, we need to get the folder where the
-        // executable is and use it as a base for all the path stuff. Note that this should only work on
-        // release, as the way it works it's used by cargo to run the debug builds.
-        let arguments = args().collect::<Vec<String>>();
-
-        // In debug mode, we just take the current path (so we don't break debug builds). In Release mode,
-        // we take the `.exe` path. We use unwrap here because in case of fail, we want to crash RPFM.
-        let rpfm_path: PathBuf = if cfg!(debug_assertions) {
-            std::env::current_dir().unwrap()
-        } else {
-            let mut path = std::env::current_exe().unwrap();
-            path.pop();
-            path
-        };
-
         // Create the channels to communicate the threads. The channels are:
         // - `sender_rust, receiver_qt`: used for returning info from the background thread, serialized in Vec<u8>.
         // - `sender_qt, receiver_rust`: used for sending the current action to the background thread.
@@ -352,14 +345,14 @@ fn main() {
         let (sender_qt_data, receiver_rust_data) = channel();
 
         // Create the background thread.
-        thread::spawn(clone!(rpfm_path => move || { background_thread::background_loop(&rpfm_path, sender_rust, receiver_rust, receiver_rust_data); }));
+        thread::spawn(move || { background_thread::background_loop(sender_rust, receiver_rust, receiver_rust_data); });
 
         //---------------------------------------------------------------------------------------//
         // Creating the UI...
         //---------------------------------------------------------------------------------------//
 
         // Set the RPFM Icon.
-        let icon = Icon::new(&QString::from_std_str(format!("{}/img/rpfm.png", rpfm_path.to_string_lossy())));
+        let icon = Icon::new(&QString::from_std_str(format!("{}/img/rpfm.png", RPFM_PATH.to_string_lossy())));
         Application::set_window_icon(&icon);
 
         // Create the main window of the program.
@@ -605,7 +598,7 @@ fn main() {
             // The second one should contain all the tables of the game, extracted directly from `data.pack`.
             let assembly_kit_schemas_path: PathBuf = PathBuf::from("/home/frodo45127/schema_stuff/db_schemas/");
             let testing_tables_path: PathBuf = PathBuf::from("/home/frodo45127/schema_stuff/db_tables/");
-            match import_schema(&assembly_kit_schemas_path, &testing_tables_path, &rpfm_path) {
+            match import_schema(&assembly_kit_schemas_path, &testing_tables_path) {
                 Ok(_) => show_dialog(app_ui.window, true, "Schema successfully created."),
                 Err(error) => show_dialog(app_ui.window, false, error),
             }
@@ -677,7 +670,6 @@ fn main() {
 
         // Build the entire "MyMod" Menu.
         let result = build_my_mod_menu(
-            rpfm_path.to_path_buf(),
             sender_qt.clone(),
             &sender_qt_data,
             receiver_qt.clone(),
@@ -894,7 +886,6 @@ fn main() {
 
         // What happens when we trigger the "New PackFile" action.
         let slot_new_packfile = SlotBool::new(clone!(
-            rpfm_path,
             is_modified,
             mymod_stuff,
             mode,
@@ -939,7 +930,6 @@ fn main() {
 
                     // Update the TreeView.
                     update_treeview(
-                        &rpfm_path,
                         &sender_qt,
                         &sender_qt_data,
                         receiver_qt.clone(),
@@ -974,7 +964,6 @@ fn main() {
 
         // What happens when we trigger the "Open PackFile" action.
         let slot_open_packfile = SlotBool::new(clone!(
-            rpfm_path,
             is_modified,
             mode,
             mymod_stuff,
@@ -1015,7 +1004,6 @@ fn main() {
 
                         // Try to open it, and report it case of error.
                         if let Err(error) = open_packfile(
-                            &rpfm_path,
                             &sender_qt,
                             &sender_qt_data,
                             &receiver_qt,
@@ -1085,7 +1073,6 @@ fn main() {
 
         // What happens when we trigger the "Save PackFile As" action.
         let slot_save_packfile_as = SlotBool::new(clone!(
-            rpfm_path,
             is_modified,
             mode,
             mymod_stuff,
@@ -1177,7 +1164,6 @@ fn main() {
 
                                     // Rename it with the new name.
                                     update_treeview(
-                                        &rpfm_path,
                                         &sender_qt,
                                         &sender_qt_data,
                                         receiver_qt.clone(),
@@ -1393,7 +1379,6 @@ fn main() {
 
         // What happens when we trigger the "Patch Siege AI" action.
         let slot_patch_siege_ai = SlotBool::new(clone!(
-            rpfm_path,
             is_modified,
             receiver_qt,
             sender_qt,
@@ -1417,7 +1402,6 @@ fn main() {
 
                             // Remove it from the TreeView.
                             update_treeview(
-                                &rpfm_path,
                                 &sender_qt,
                                 &sender_qt_data,
                                 receiver_qt.clone(),
@@ -1463,7 +1447,6 @@ fn main() {
 
         // What happens when we trigger the "Optimize PackFile" action.
         let slot_optimize_packfile = SlotBool::new(clone!(
-            rpfm_path,
             is_packedfile_opened,
             receiver_qt,
             sender_qt,
@@ -1490,7 +1473,6 @@ fn main() {
 
                             // Remove it from the TreeView.
                             update_treeview(
-                                &rpfm_path,
                                 &sender_qt,
                                 &sender_qt_data,
                                 receiver_qt.clone(),
@@ -1572,9 +1554,8 @@ fn main() {
         );
 
         // What happens when we trigger the "Open Manual" action.
-        let slot_open_manual = SlotBool::new(clone!(
-            rpfm_path => move |_| { 
-                let mut manual_path = format!("{:?}", rpfm_path.to_path_buf().join(PathBuf::from("rpfm_manual.pdf")));
+        let slot_open_manual = SlotBool::new(move |_| { 
+                let mut manual_path = format!("{:?}", RPFM_PATH.to_path_buf().join(PathBuf::from("rpfm_manual.pdf")));
 
                 // In linux we have to remove the commas.
                 if cfg!(target_os = "linux") { 
@@ -1587,7 +1568,7 @@ fn main() {
                     show_dialog(app_ui.window, false, error);
                 }
             }
-        ));
+        );
 
         // What happens when we trigger the "Support me on Patreon" action.
         let slot_patreon_link = SlotBool::new(|_| { DesktopServices::open_url(&qt_core::url::Url::new(&QString::from_std_str("https://www.patreon.com/RPFM"))); });
@@ -1599,8 +1580,7 @@ fn main() {
         let slot_check_schema_updates = SlotBool::new(clone!(
             sender_qt,
             sender_qt_data,
-            receiver_qt,
-            rpfm_path => move |_| { check_schema_updates(&app_ui, true, &rpfm_path, &sender_qt, &sender_qt_data, &receiver_qt) }));
+            receiver_qt => move |_| { check_schema_updates(&app_ui, true, &sender_qt, &sender_qt_data, &receiver_qt) }));
 
         // "About" Menu Actions.
         unsafe { app_ui.about_qt.as_ref().unwrap().signals().triggered().connect(&slot_about_qt); }
@@ -1742,13 +1722,11 @@ fn main() {
 
         // What happens when we trigger the "Add File/s" action in the Contextual Menu.
         let slot_contextual_menu_add_file = SlotBool::new(clone!(
-            rpfm_path,
             sender_qt,
             sender_qt_data,
             receiver_qt,
             is_modified,
-            mode,
-            rpfm_path => move |_| {
+            mode => move |_| {
 
                 // Create the FileDialog to get the file/s to add.
                 let mut file_dialog;
@@ -1836,7 +1814,6 @@ fn main() {
 
                                         // Update the TreeView.
                                         update_treeview(
-                                            &rpfm_path,
                                             &sender_qt,
                                             &sender_qt_data,
                                             receiver_qt.clone(),
@@ -1907,7 +1884,6 @@ fn main() {
 
                                     // Update the TreeView.
                                     update_treeview(
-                                        &rpfm_path,
                                         &sender_qt,
                                         &sender_qt_data,
                                         receiver_qt.clone(),
@@ -1951,13 +1927,11 @@ fn main() {
 
         // What happens when we trigger the "Add Folder/s" action in the Contextual Menu.
         let slot_contextual_menu_add_folder = SlotBool::new(clone!(
-            rpfm_path,
             sender_qt,
             sender_qt_data,
             receiver_qt,
             is_modified,
-            mode,
-            rpfm_path => move |_| {
+            mode => move |_| {
 
                 // Create the FileDialog to get the folder/s to add.
                 let mut file_dialog;
@@ -2050,7 +2024,6 @@ fn main() {
 
                                         // Update the TreeView.
                                         update_treeview(
-                                            &rpfm_path,
                                             &sender_qt,
                                             &sender_qt_data,
                                             receiver_qt.clone(),
@@ -2125,7 +2098,6 @@ fn main() {
 
                                     // Update the TreeView.
                                     update_treeview(
-                                        &rpfm_path,
                                         &sender_qt,
                                         &sender_qt_data,
                                         receiver_qt.clone(),
@@ -2169,15 +2141,13 @@ fn main() {
 
         // What happens when we trigger the "Add from PackFile" action in the Contextual Menu.
         let slot_contextual_menu_add_from_packfile = SlotBool::new(clone!(
-            rpfm_path,
             sender_qt,
             sender_qt_data,
             receiver_qt,
             is_packedfile_opened,
             is_folder_tree_view_locked,
             is_modified,
-            add_from_packfile_slots,
-            rpfm_path => move |_| {
+            add_from_packfile_slots => move |_| {
 
                 // Create the FileDialog to get the PackFile to open.
                 let mut file_dialog;
@@ -2216,7 +2186,6 @@ fn main() {
 
                             // Build the TreeView to hold all the Extra PackFile's data and save his slots.
                             *add_from_packfile_slots.borrow_mut() = AddFromPackFileSlots::new_with_grid(
-                                rpfm_path.to_path_buf(),
                                 sender_qt.clone(),
                                 &sender_qt_data,
                                 &receiver_qt,
@@ -2255,7 +2224,6 @@ fn main() {
 
         // What happens when we trigger the "Create Folder" Action.
         let slot_contextual_menu_create_folder = SlotBool::new(clone!(
-            rpfm_path,
             sender_qt,
             sender_qt_data,
             receiver_qt => move |_| {
@@ -2283,7 +2251,6 @@ fn main() {
 
                     // Add the new Folder to the TreeView.
                     update_treeview(
-                        &rpfm_path,
                         &sender_qt,
                         &sender_qt_data,
                         receiver_qt.clone(),
@@ -2298,7 +2265,6 @@ fn main() {
 
         // What happens when we trigger the "Create DB PackedFile" Action.
         let slot_contextual_menu_create_packed_file_db = SlotBool::new(clone!(
-            rpfm_path,
             is_modified,
             sender_qt,
             sender_qt_data,
@@ -2339,7 +2305,6 @@ fn main() {
                                         Data::Success => {
                                             // Add the new Folder to the TreeView.
                                             update_treeview(
-                                                &rpfm_path,
                                                 &sender_qt,
                                                 &sender_qt_data,
                                                 receiver_qt.clone(),
@@ -2374,7 +2339,6 @@ fn main() {
 
         // What happens when we trigger the "Create Loc PackedFile" Action.
         let slot_contextual_menu_create_packed_file_loc = SlotBool::new(clone!(
-            rpfm_path,
             is_modified,
             sender_qt,
             sender_qt_data,
@@ -2424,7 +2388,6 @@ fn main() {
                                         Data::Success => {
                                             // Add the new Folder to the TreeView.
                                             update_treeview(
-                                                &rpfm_path,
                                                 &sender_qt,
                                                 &sender_qt_data,
                                                 receiver_qt.clone(),
@@ -2459,7 +2422,6 @@ fn main() {
 
         // What happens when we trigger the "Create Text PackedFile" Action.
         let slot_contextual_menu_create_packed_file_text = SlotBool::new(clone!(
-            rpfm_path,
             is_modified,
             sender_qt,
             sender_qt_data,
@@ -2523,7 +2485,6 @@ fn main() {
                                         Data::Success => {
                                             // Add the new Folder to the TreeView.
                                             update_treeview(
-                                                &rpfm_path,
                                                 &sender_qt,
                                                 &sender_qt_data,
                                                 receiver_qt.clone(),
@@ -2558,7 +2519,6 @@ fn main() {
 
         // What happens when we trigger the "Mass-Import TSV" Action.
         let slot_contextual_menu_mass_import_tsv = SlotBool::new(clone!(
-            rpfm_path,
             is_modified,
             sender_qt,
             sender_qt_data,
@@ -2595,7 +2555,6 @@ fn main() {
 
                                 // Update the TreeView.
                                 update_treeview(
-                                    &rpfm_path,
                                     &sender_qt,
                                     &sender_qt_data,
                                     receiver_qt.clone(),
@@ -2705,13 +2664,11 @@ fn main() {
 
         // What happens when we trigger the "Delete" action in the Contextual Menu.
         let slot_contextual_menu_delete = SlotBool::new(clone!(
-            rpfm_path,
             sender_qt,
             sender_qt_data,
             receiver_qt,
             is_packedfile_opened,
-            is_modified,
-            rpfm_path => move |_| {
+            is_modified => move |_| {
 
                 // If there is a PackedFile opened, we show a message with the explanation of why
                 // we can't delete the selected file/folder.
@@ -2740,7 +2697,6 @@ fn main() {
 
                             // Update the TreeView.
                             update_treeview(
-                                &rpfm_path,
                                 &sender_qt,
                                 &sender_qt_data,
                                 receiver_qt.clone(),
@@ -3121,7 +3077,6 @@ fn main() {
 
         // What happens when we trigger the "Rename" Action.
         let slot_contextual_menu_rename = SlotBool::new(clone!(
-            rpfm_path,
             is_modified,
             sender_qt,
             sender_qt_data,
@@ -3159,7 +3114,6 @@ fn main() {
 
                                     // Update the TreeView.
                                     update_treeview(
-                                        &rpfm_path,
                                         &sender_qt,
                                         &sender_qt_data,
                                         receiver_qt.clone(),
@@ -3418,7 +3372,6 @@ fn main() {
 
         // We need to rebuild the MyMod menu while opening it if the variable for it is true.
         let slot_rebuild_mymod_menu = SlotNoArgs::new(clone!(
-            rpfm_path,
             mymod_stuff,
             mymod_stuff_slots,
             sender_qt,
@@ -3434,7 +3387,6 @@ fn main() {
 
                     // Then rebuild it.
                     let result = build_my_mod_menu(
-                        rpfm_path.to_path_buf(),
                         sender_qt.clone(),
                         &sender_qt_data,
                         receiver_qt.clone(),
@@ -3460,6 +3412,9 @@ fn main() {
         // Show the Main Window...
         unsafe { app_ui.window.as_mut().unwrap().show(); }
 
+        // We get all the Arguments provided when starting RPFM, just in case we passed it a path.
+        let arguments = args().collect::<Vec<String>>();
+
         // If we have an argument (we open RPFM by clicking in a PackFile directly)...
         if arguments.len() > 1 {
 
@@ -3471,7 +3426,6 @@ fn main() {
 
                 // Try to open it, and report it case of error.
                 if let Err(error) = open_packfile(
-                    &rpfm_path,
                     &sender_qt,
                     &sender_qt_data,
                     &receiver_qt,
@@ -3494,7 +3448,7 @@ fn main() {
         if *settings.settings_bool.get("check_updates_on_start").unwrap() { check_updates(&app_ui, false) };
 
         // If we have it enabled in the prefs, check if there are schema updates.
-        if *settings.settings_bool.get("check_schema_updates_on_start").unwrap() { check_schema_updates(&app_ui, false, &rpfm_path, &sender_qt, &sender_qt_data, &receiver_qt) };
+        if *settings.settings_bool.get("check_schema_updates_on_start").unwrap() { check_schema_updates(&app_ui, false, &sender_qt, &sender_qt_data, &receiver_qt) };
 
         // And launch it.
         Application::exec()
@@ -3646,7 +3600,6 @@ fn set_my_mod_mode(
 /// NOTE: The `game_folder` &str is for when using this function with "MyMods". If you're opening a
 /// normal mod, pass an empty &str there.
 fn open_packfile(
-    rpfm_path: &PathBuf,
     sender_qt: &Sender<Commands>,
     sender_qt_data: &Sender<Data>,
     receiver_qt: &Rc<RefCell<Receiver<Data>>>,
@@ -3690,7 +3643,6 @@ fn open_packfile(
 
             // Update the TreeView.
             update_treeview(
-                &rpfm_path,
                 sender_qt,
                 sender_qt_data,
                 receiver_qt.clone(),
@@ -3799,7 +3751,6 @@ fn open_packfile(
 /// - At the end of settings update.
 /// We need to return a tuple with the actions (for further manipulation) and the slots (to keep them alive).
 fn build_my_mod_menu(
-    rpfm_path: PathBuf,
     sender_qt: Sender<Commands>,
     sender_qt_data: &Sender<Data>,
     receiver_qt: Rc<RefCell<Receiver<Data>>>,
@@ -3841,7 +3792,6 @@ fn build_my_mod_menu(
 
         // This slot is used for the "New MyMod" action.
         new_mymod: SlotBool::new(clone!(
-            rpfm_path,
             sender_qt,
             sender_qt_data,
             receiver_qt,
@@ -3918,7 +3868,6 @@ fn build_my_mod_menu(
 
                                 // Update the TreeView.
                                 update_treeview(
-                                    &rpfm_path,
                                     &sender_qt,
                                     &sender_qt_data,
                                     receiver_qt.clone(),
@@ -4267,7 +4216,6 @@ fn build_my_mod_menu(
 
                                     // Create the slot for that action.
                                     let slot_open_mod = SlotBool::new(clone!(
-                                        rpfm_path,
                                         game_folder_name,
                                         is_modified,
                                         mode,
@@ -4283,7 +4231,6 @@ fn build_my_mod_menu(
 
                                                 // Open the PackFile (or die trying it!).
                                                 if let Err(error) = open_packfile(
-                                                    &rpfm_path,
                                                     &sender_qt,
                                                     &sender_qt_data,
                                                     &receiver_qt,

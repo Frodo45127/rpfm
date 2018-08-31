@@ -8,6 +8,7 @@ use std::io::Write;
 use std::io::{BufReader, BufWriter};
 
 use error::Result;
+use RPFM_PATH;
 use SUPPORTED_GAMES;
 
 pub mod shortcuts;
@@ -87,9 +88,9 @@ impl Settings {
     }
 
     /// This function takes a settings.json file and reads it into a "Settings" object.
-    pub fn load(rpfm_path: &PathBuf) -> Result<Self> {
+    pub fn load() -> Result<Self> {
 
-        let path = rpfm_path.to_path_buf().join(PathBuf::from(SETTINGS_FILE));
+        let path = RPFM_PATH.to_path_buf().join(PathBuf::from(SETTINGS_FILE));
         let file = BufReader::new(File::open(path)?);
 
         let mut settings: Self = serde_json::from_reader(file)?;
@@ -121,10 +122,10 @@ impl Settings {
     }
 
     /// This function takes the Settings object and saves it into a settings.json file.
-    pub fn save(&self, rpfm_path: &PathBuf) -> Result<()> {
+    pub fn save(&self) -> Result<()> {
 
         // Try to open the settings file.
-        let path = rpfm_path.to_path_buf().join(PathBuf::from(SETTINGS_FILE));
+        let path = RPFM_PATH.to_path_buf().join(PathBuf::from(SETTINGS_FILE));
         let mut file = BufWriter::new(File::create(path)?);
 
         // Try to save the file, and return the result.

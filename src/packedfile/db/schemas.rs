@@ -6,6 +6,7 @@ use std::fs::File;
 use std::io::Write;
 use std::io::BufReader;
 
+use RPFM_PATH;
 use error::{ErrorKind, Result};
 use super::schemas_importer;
 
@@ -112,9 +113,9 @@ impl Schema {
     }
 
     /// This function takes an schema file and reads it into a "Schema" object.
-    pub fn load(rpfm_path: &PathBuf, schema_file: &str) -> Result<Schema> {
+    pub fn load(schema_file: &str) -> Result<Schema> {
 
-        let mut schemas_path = rpfm_path.clone();
+        let mut schemas_path = RPFM_PATH.to_path_buf();
         schemas_path.push("schemas");
 
         // We load the provided schema file.
@@ -125,10 +126,10 @@ impl Schema {
     }
 
     /// This function takes an "Schema" object and saves it into a schema file.
-    pub fn save(schema: &Schema, rpfm_path: &PathBuf, schema_file: &str) -> Result<()> {
+    pub fn save(schema: &Schema, schema_file: &str) -> Result<()> {
 
         let schema_json = serde_json::to_string_pretty(schema);
-        let mut schema_path = rpfm_path.clone();
+        let mut schema_path = RPFM_PATH.to_path_buf();
         schema_path.push("schemas");
         schema_path.push(schema_file);
 

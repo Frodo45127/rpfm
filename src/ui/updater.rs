@@ -19,6 +19,7 @@ use std::path::PathBuf;
 use std::fs::File;
 use std::io::BufReader;
 
+use RPFM_PATH;
 use VERSION;
 use AppUI;
 use QString;
@@ -57,9 +58,8 @@ pub fn check_updates(
     // Create a channel to comunicate with the "Network" thread.
     let (sender_net, receiver_ui) = channel();
 
-    // Create the network thread with the "check_update" operation. We pass an empty PathBuf, because we
-    // don't really need to the rpfm_path here.
-    thread::spawn(move || { network_thread(sender_net, "check_updates", PathBuf::new()); });
+    // Create the network thread with the "check_update" operation.
+    thread::spawn(move || { network_thread(sender_net, "check_updates"); });
 
     // If we want to use a Dialog to show the full searching process (clicking in the menu button)...
     if use_dialog {
@@ -125,7 +125,6 @@ pub fn check_updates(
 pub fn check_schema_updates(
     app_ui: &AppUI,
     use_dialog: bool,
-    rpfm_path: &PathBuf,
     sender_qt: &Sender<Commands>,
     sender_qt_data: &Sender<Data>,
     receiver_qt: &Rc<RefCell<Receiver<Data>>>,
@@ -135,7 +134,7 @@ pub fn check_schema_updates(
     let (sender_net, receiver_ui) = channel();
 
     // Create the network thread with the "check_schema_update" operation.
-    thread::spawn(clone!(rpfm_path => move || { network_thread(sender_net, "check_schema_updates", rpfm_path); }));
+    thread::spawn(move || { network_thread(sender_net, "check_schema_updates"); });
 
     // Create this here so we can later access again to the response from the server.
     let response: (APIResponse, APIResponseSchema);
@@ -338,7 +337,6 @@ pub fn check_schema_updates(
 fn network_thread(
     sender: Sender<(APIResponse, APIResponseSchema)>,
     operation: &str,
-    rpfm_path: PathBuf,
 ) {
     // Act depending on what that message is.
     match operation {
@@ -461,7 +459,7 @@ fn network_thread(
                     let current_versions: Versions = current_versions;
 
                     // Get the local versions.
-                    let local_versions: Versions = serde_json::from_reader(BufReader::new(File::open(rpfm_path.to_path_buf().join(PathBuf::from("schemas/versions.json"))).unwrap())).unwrap();
+                    let local_versions: Versions = serde_json::from_reader(BufReader::new(File::open(RPFM_PATH.to_path_buf().join(PathBuf::from("schemas/versions.json"))).unwrap())).unwrap();
 
                     // If both versions are equal, we have no updates.
                     if current_versions == local_versions { APIResponseSchema::SuccessNoUpdate }
