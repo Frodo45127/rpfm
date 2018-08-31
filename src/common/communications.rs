@@ -81,6 +81,8 @@ pub enum Commands {
     GetTableListFromDependencyPackFile,
     GetTableVersionFromDependencyPackFile,
     OptimizePackFile,
+    GetPackFilesList,
+    SetPackFilesList,
 }
 
 /// This enum is meant to send data back and forward between threads. Variants here are 

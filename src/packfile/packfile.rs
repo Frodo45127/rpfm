@@ -152,6 +152,16 @@ impl PackFile {
         }
     }
 
+    /// This function replaces the current `PackFile List` with a new one.
+    ///
+    /// It requires:
+    /// - `&mut self`: the PackFile we are going to manipulate.
+    /// - `pack_files`: a Vec<String> we are going to use as new list.
+    pub fn save_packfiles_list(&mut self, pack_files: Vec<String>) {
+        self.header.pack_file_count = pack_files.len() as u32;
+        self.data.pack_files = pack_files;
+    }
+
     /// This function adds one or more `PackedFiles` to an existing `PackFile`.
     ///
     /// It requires:

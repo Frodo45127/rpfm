@@ -18,6 +18,7 @@ pub struct Shortcuts {
     pub menu_bar_packfile: BTreeMap<String, String>,
     pub menu_bar_about: BTreeMap<String, String>,
     pub tree_view: BTreeMap<String, String>,
+    pub pack_files_list: BTreeMap<String, String>,
     pub packed_files_db: BTreeMap<String, String>,
     pub packed_files_loc: BTreeMap<String, String>,
     pub db_decoder_fields: BTreeMap<String, String>,
@@ -34,6 +35,7 @@ impl Shortcuts {
         let mut menu_bar_packfile = BTreeMap::new();
         let mut menu_bar_about = BTreeMap::new();
         let mut tree_view = BTreeMap::new();
+        let mut pack_files_list = BTreeMap::new();
         let mut packed_files_db = BTreeMap::new(); 
         let mut packed_files_loc = BTreeMap::new();
         let mut db_decoder_fields = BTreeMap::new();
@@ -66,6 +68,14 @@ impl Shortcuts {
         tree_view.insert("extract".to_owned(), "Ctrl+E".to_owned());
         tree_view.insert("rename".to_owned(), "Ctrl+R".to_owned());
         tree_view.insert("open_in_decoder".to_owned(), "Ctrl+J".to_owned());
+        tree_view.insert("open_packfiles_list".to_owned(), "Ctrl+M".to_owned());
+
+        pack_files_list.insert("add_row".to_owned(), "Ctrl+A".to_owned());
+        pack_files_list.insert("insert_row".to_owned(), "Ctrl+I".to_owned());
+        pack_files_list.insert("delete_row".to_owned(), "Ctrl+Del".to_owned());
+        pack_files_list.insert("copy".to_owned(), "Ctrl+C".to_owned());
+        pack_files_list.insert("paste".to_owned(), "Ctrl+V".to_owned());
+        pack_files_list.insert("paste_as_new_row".to_owned(), "Ctrl+Shift+V".to_owned());
         
         packed_files_db.insert("add_row".to_owned(), "Ctrl+A".to_owned());
         packed_files_db.insert("insert_row".to_owned(), "Ctrl+I".to_owned());
@@ -100,6 +110,7 @@ impl Shortcuts {
             menu_bar_packfile,
             menu_bar_about,
             tree_view,
+            pack_files_list,
             packed_files_db,
             packed_files_loc,
             db_decoder_fields,
@@ -114,8 +125,8 @@ impl Shortcuts {
         let path = RPFM_PATH.to_path_buf().join(PathBuf::from(SHORTCUTS_FILE));
         let file = BufReader::new(File::open(path)?);
 
-        // Try to get the shortcuts. This can fail because the file is changed or damaged, or because there is no file, so we need to deal with this later. 
-        let mut shortcuts: Self = serde_json::from_reader(file)?;
+        // Try to get the shortcuts. This can fail because the file is changed or damaged, or because there is no file. If it fails, create a new one. 
+        let mut shortcuts: Self = serde_json::from_reader(file).unwrap_or_else(|_| Self::new());
 
         // Add/Remove shortcuts missing/no-longer-needed for keeping it update friendly. First, remove the outdated ones, then add the new ones.
         let defaults = Self::new();
@@ -132,6 +143,10 @@ impl Shortcuts {
             let mut keys_to_delete = vec![];
             for (key, _) in shortcuts.tree_view.clone() { if let None = defaults.tree_view.get(&*key) { keys_to_delete.push(key); } }
             for key in &keys_to_delete { shortcuts.tree_view.remove(key); }
+
+            let mut keys_to_delete = vec![];
+            for (key, _) in shortcuts.pack_files_list.clone() { if let None = defaults.pack_files_list.get(&*key) { keys_to_delete.push(key); } }
+            for key in &keys_to_delete { shortcuts.pack_files_list.remove(key); }
 
             let mut keys_to_delete = vec![];
             for (key, _) in shortcuts.packed_files_db.clone() { if let None = defaults.packed_files_db.get(&*key) { keys_to_delete.push(key); } }
@@ -154,6 +169,7 @@ impl Shortcuts {
             for (key, value) in defaults.menu_bar_packfile { if let None = shortcuts.menu_bar_packfile.get(&*key) { shortcuts.menu_bar_packfile.insert(key, value);  } }
             for (key, value) in defaults.menu_bar_about { if let None = shortcuts.menu_bar_about.get(&*key) { shortcuts.menu_bar_about.insert(key, value);  } }
             for (key, value) in defaults.tree_view { if let None = shortcuts.tree_view.get(&*key) { shortcuts.tree_view.insert(key, value);  } }
+            for (key, value) in defaults.pack_files_list { if let None = shortcuts.pack_files_list.get(&*key) { shortcuts.pack_files_list.insert(key, value);  } }
             for (key, value) in defaults.packed_files_db { if let None = shortcuts.packed_files_db.get(&*key) { shortcuts.packed_files_db.insert(key, value);  } }
             for (key, value) in defaults.packed_files_loc { if let None = shortcuts.packed_files_loc.get(&*key) { shortcuts.packed_files_loc.insert(key, value);  } }
             for (key, value) in defaults.db_decoder_fields { if let None = shortcuts.db_decoder_fields.get(&*key) { shortcuts.db_decoder_fields.insert(key, value);  } }

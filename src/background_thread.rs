@@ -975,6 +975,19 @@ pub fn background_loop(
                         let deleted_packed_files = packfile::optimize_packfile(&mut pack_file_decoded, &dependency_database, &schema);
                         sender.send(Data::VecTreePathType(deleted_packed_files)).unwrap();
                     }
+
+                    // In case we want to get the PackFiles List of our PackFile...
+                    Commands::GetPackFilesList => {
+                        sender.send(Data::VecString(pack_file_decoded.data.pack_files.to_vec())).unwrap();
+                    }
+
+                    // In case we want to save the PackFiles List of our PackFile...
+                    Commands::SetPackFilesList => {
+                       
+                        // Wait until we get the needed data from the UI thread.
+                        let list = if let Data::VecString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
+                        pack_file_decoded.save_packfiles_list(list);
+                    }
                 }
             }
 

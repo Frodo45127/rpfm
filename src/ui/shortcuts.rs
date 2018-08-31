@@ -33,6 +33,7 @@ pub struct ShortcutsDialog {
     menu_bar_packfile: *mut StandardItemModel,
     menu_bar_about: *mut StandardItemModel,
     tree_view: *mut StandardItemModel,
+    pack_files_list: *mut StandardItemModel,
     packed_files_db: *mut StandardItemModel,
     packed_files_loc: *mut StandardItemModel,
     db_decoder_fields: *mut StandardItemModel,
@@ -78,6 +79,11 @@ impl ShortcutsDialog {
         let tree_view_context_menu_frame = GroupBox::new(&QString::from_std_str("TreeView's Context Menu")).into_raw();
         let mut tree_view_context_menu_grid = GridLayout::new();
         unsafe { tree_view_context_menu_frame.as_mut().unwrap().set_layout(tree_view_context_menu_grid.static_cast_mut() as *mut Layout); }
+
+        // Create the PackFiles List Context Menu Frame.
+        let pack_files_list_context_menu_frame = GroupBox::new(&QString::from_std_str("PackFiles List Context Menu")).into_raw();
+        let mut pack_files_list_context_menu_grid = GridLayout::new();
+        unsafe { pack_files_list_context_menu_frame.as_mut().unwrap().set_layout(pack_files_list_context_menu_grid.static_cast_mut() as *mut Layout); }
 
         // Create the PackedFile Context Menu Frame.
         let packed_file_context_menu_frame = GroupBox::new(&QString::from_std_str("PackedFile's Context Menu")).into_raw();
@@ -148,6 +154,22 @@ impl ShortcutsDialog {
 
         // Add all the Lists to their respective grids.
         unsafe { tree_view_context_menu_grid.add_widget((tree_view_context_menu_table as *mut Widget, 0, 0, 1, 1)); }
+
+        //-------------------------------------------------------------------------------------------//
+        // Creating the PackFiles List Context Menu List...
+        //-------------------------------------------------------------------------------------------//
+
+        // Create the `PackFiles List Context Menu` list.
+        let pack_files_list_context_menu_table = TableView::new().into_raw();
+        let pack_files_list_context_menu_model = StandardItemModel::new(()).into_raw();
+        unsafe { pack_files_list_context_menu_table.as_mut().unwrap().set_model(pack_files_list_context_menu_model as *mut AbstractItemModel); }
+
+        // Disable sorting the columns and enlarge the last column.
+        unsafe { pack_files_list_context_menu_table.as_mut().unwrap().set_sorting_enabled(false); }
+        unsafe { pack_files_list_context_menu_table.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_stretch_last_section(true); }
+
+        // Add all the Lists to their respective grids.
+        unsafe { pack_files_list_context_menu_grid.add_widget((pack_files_list_context_menu_table as *mut Widget, 0, 0, 1, 1)); }
 
         //-------------------------------------------------------------------------------------------//
         // Creating the DB Context Menu List...
@@ -244,8 +266,9 @@ impl ShortcutsDialog {
         // Add everything to the Window.
         unsafe { main_grid.as_mut().unwrap().add_widget((menu_bar_frame as *mut Widget, 0, 0, 1, 1)); }
         unsafe { main_grid.as_mut().unwrap().add_widget((tree_view_context_menu_frame as *mut Widget, 0, 1, 1, 1)); }
+        unsafe { main_grid.as_mut().unwrap().add_widget((pack_files_list_context_menu_frame as *mut Widget, 0, 2, 1, 1)); }
         unsafe { main_grid.as_mut().unwrap().add_widget((packed_file_context_menu_frame as *mut Widget, 1, 0, 1, 1)); }
-        unsafe { main_grid.as_mut().unwrap().add_widget((db_decoder_context_menu_frame as *mut Widget, 1, 1, 1, 1)); }
+        unsafe { main_grid.as_mut().unwrap().add_widget((db_decoder_context_menu_frame as *mut Widget, 1, 1, 1, 2)); }
 
         // Create the bottom ButtonBox.
         let mut button_box = DialogButtonBox::new(());
@@ -269,6 +292,7 @@ impl ShortcutsDialog {
             menu_bar_packfile: menu_bar_packfile_model,
             menu_bar_about: menu_bar_about_model,
             tree_view: tree_view_context_menu_model,
+            pack_files_list: pack_files_list_context_menu_model,
             packed_files_db: db_context_menu_model,
             packed_files_loc: loc_context_menu_model,
             db_decoder_fields: fields_context_menu_model,
@@ -353,6 +377,14 @@ impl ShortcutsDialog {
             unsafe { self.tree_view.as_mut().unwrap().append_row(&row_list); }
         }
 
+        for (key, value) in shortcuts.pack_files_list.iter() {
+            let mut row_list = ListStandardItemMutPtr::new(());
+            unsafe { row_list.append_unsafe(&StandardItem::new(&QString::from_std_str(key)).into_raw()); }
+            unsafe { row_list.append_unsafe(&StandardItem::new(&QString::from_std_str(value)).into_raw()); }
+            unsafe { row_list.at(0).as_mut().unwrap().set_editable(false); }
+            unsafe { self.pack_files_list.as_mut().unwrap().append_row(&row_list); }
+        }
+
         for (key, value) in shortcuts.packed_files_db.iter() {
             let mut row_list = ListStandardItemMutPtr::new(());
             unsafe { row_list.append_unsafe(&StandardItem::new(&QString::from_std_str(key)).into_raw()); }
@@ -394,6 +426,9 @@ impl ShortcutsDialog {
         
         unsafe { self.tree_view.as_mut().unwrap().set_header_data((0, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Action")))); }
         unsafe { self.tree_view.as_mut().unwrap().set_header_data((1, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Shortcut")))); }
+        
+        unsafe { self.pack_files_list.as_mut().unwrap().set_header_data((0, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Action")))); }
+        unsafe { self.pack_files_list.as_mut().unwrap().set_header_data((1, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Shortcut")))); }
         
         unsafe { self.packed_files_db.as_mut().unwrap().set_header_data((0, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Action")))); }
         unsafe { self.packed_files_db.as_mut().unwrap().set_header_data((1, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Shortcut")))); }
@@ -444,6 +479,15 @@ impl ShortcutsDialog {
             unsafe { shortcuts.tree_view.insert(
                 QString::to_std_string(&self.tree_view.as_mut().unwrap().item((row as i32, 0)).as_mut().unwrap().text()),
                 QString::to_std_string(&self.tree_view.as_mut().unwrap().item((row as i32, 1)).as_mut().unwrap().text())
+            ); }
+        }
+
+        let pack_files_list_rows;
+        unsafe { pack_files_list_rows = self.pack_files_list.as_mut().unwrap().row_count(()); }
+        for row in 0..pack_files_list_rows {
+            unsafe { shortcuts.pack_files_list.insert(
+                QString::to_std_string(&self.pack_files_list.as_mut().unwrap().item((row as i32, 0)).as_mut().unwrap().text()),
+                QString::to_std_string(&self.pack_files_list.as_mut().unwrap().item((row as i32, 1)).as_mut().unwrap().text())
             ); }
         }
 

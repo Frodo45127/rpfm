@@ -79,6 +79,7 @@ use packedfile::*;
 use packedfile::db::schemas_importer::*;
 use settings::*;
 use ui::*;
+use ui::dependency_manager::*;
 use ui::packedfile_db::*;
 use ui::packedfile_loc::*;
 use ui::packedfile_text::*;
@@ -317,6 +318,7 @@ pub struct AppUI {
     pub context_menu_extract: *mut Action,
     pub context_menu_rename: *mut Action,
     pub context_menu_open_decoder: *mut Action,
+    pub context_menu_open_packfiles_list: *mut Action,
 }
 
 /// Main function.
@@ -537,6 +539,7 @@ fn main() {
                 context_menu_rename: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Rename")),
 
                 context_menu_open_decoder: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open with Decoder")),
+                context_menu_open_packfiles_list: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open PackFiles List")),
             };
         }
 
@@ -660,6 +663,7 @@ fn main() {
 
         // Build the empty structs we need for certain features.
         let add_from_packfile_slots = Rc::new(RefCell::new(AddFromPackFileSlots::new()));
+        let packfiles_list_slots = Rc::new(RefCell::new(DependencyTableView::new()));
         let db_slots = Rc::new(RefCell::new(PackedFileDBTreeView::new()));
         let loc_slots = Rc::new(RefCell::new(PackedFileLocTreeView::new()));
         let text_slots = Rc::new(RefCell::new(PackedFileTextView::new()));
@@ -702,6 +706,7 @@ fn main() {
             app_ui.context_menu_extract.as_mut().unwrap().set_enabled(false);
             app_ui.context_menu_rename.as_mut().unwrap().set_enabled(false);
             app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(false);
+            app_ui.context_menu_open_packfiles_list.as_mut().unwrap().set_enabled(false);
         }
 
         // Set the shortcuts for these actions.
@@ -718,6 +723,7 @@ fn main() {
         unsafe { app_ui.context_menu_extract.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("extract").unwrap()))); }
         unsafe { app_ui.context_menu_rename.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("rename").unwrap()))); }
         unsafe { app_ui.context_menu_open_decoder.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("open_in_decoder").unwrap()))); }
+        unsafe { app_ui.context_menu_open_packfiles_list.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("open_packfiles_list").unwrap()))); }
 
         // Set the shortcuts to only trigger in the TreeView.
         unsafe { app_ui.context_menu_add_file.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
@@ -733,6 +739,7 @@ fn main() {
         unsafe { app_ui.context_menu_extract.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_rename.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_open_decoder.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+        unsafe { app_ui.context_menu_open_packfiles_list.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
 
         // Add the actions to the TreeView, so the shortcuts work.
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_add_file); }
@@ -748,6 +755,7 @@ fn main() {
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_extract); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_rename); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_open_decoder); }
+        unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_open_packfiles_list); }
 
         // Set the current "Operational Mode" to `Normal`.
         set_my_mod_mode(&mymod_stuff, &mode, None);
@@ -810,6 +818,7 @@ fn main() {
         unsafe { app_ui.context_menu_extract.as_mut().unwrap().set_status_tip(&QString::from_std_str("Extract the selected File/Folder from the PackFile.")); }
         unsafe { app_ui.context_menu_rename.as_mut().unwrap().set_status_tip(&QString::from_std_str("Rename a File/Folder. Remember, whitespaces are NOT ALLOWED.")); }
         unsafe { app_ui.context_menu_open_decoder.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the selected table in the DB Decoder. To create/update schemas.")); }
+        unsafe { app_ui.context_menu_open_packfiles_list.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the list of PackFiles referenced from this PackFile.")); }
 
         //---------------------------------------------------------------------------------------//
         // What should happend when we press buttons and stuff...
@@ -1629,6 +1638,7 @@ fn main() {
                             app_ui.context_menu_delete.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_extract.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_rename.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_open_packfiles_list.as_mut().unwrap().set_enabled(false);
                         }
 
                         // If it's a DB, we should enable this too.
@@ -1653,6 +1663,7 @@ fn main() {
                             app_ui.context_menu_extract.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_rename.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_open_packfiles_list.as_mut().unwrap().set_enabled(false);
                         }
                     },
 
@@ -1672,6 +1683,7 @@ fn main() {
                             app_ui.context_menu_extract.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_rename.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_open_packfiles_list.as_mut().unwrap().set_enabled(true);
                         }
                     },
 
@@ -1691,6 +1703,7 @@ fn main() {
                             app_ui.context_menu_extract.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_rename.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_open_packfiles_list.as_mut().unwrap().set_enabled(false);
                         }
                     },
                 }
@@ -3059,6 +3072,29 @@ fn main() {
             }
         ));
 
+        // What happens when we trigger the "Open PackFiles List" action in the Contextual Menu.
+        let slot_contextual_menu_open_packfiles_list = SlotBool::new(clone!(
+            sender_qt,
+            sender_qt_data,
+            receiver_qt,
+            packfiles_list_slots,
+            is_modified,
+            is_packedfile_opened => move |_| {
+
+                // Build the UI and save the slots.
+                *packfiles_list_slots.borrow_mut() = DependencyTableView::create_table_view(
+                    sender_qt.clone(),
+                    &sender_qt_data,
+                    &receiver_qt,
+                    &is_modified,
+                    &app_ui,
+                );
+
+                // Tell the program there is an open PackedFile.
+                *is_packedfile_opened.borrow_mut() = true;
+            }
+        ));
+
         // Contextual Menu Actions.
         unsafe { app_ui.context_menu_add_file.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_add_file); }
         unsafe { app_ui.context_menu_add_folder.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_add_folder); }
@@ -3072,6 +3108,7 @@ fn main() {
         unsafe { app_ui.context_menu_delete.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_delete); }
         unsafe { app_ui.context_menu_extract.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_extract); }
         unsafe { app_ui.context_menu_open_decoder.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_open_decoder); }
+        unsafe { app_ui.context_menu_open_packfiles_list.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_open_packfiles_list); }
 
         //-----------------------------------------------------------------------------------------//
         // Rename Action. Due to me not understanding how the edition of a TreeView works, we do it
