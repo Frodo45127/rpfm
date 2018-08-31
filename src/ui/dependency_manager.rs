@@ -206,7 +206,7 @@ impl DependencyTableView {
                     sender_qt_data.send(Data::VecString(list)).unwrap();
 
                     // Set the mod as "Modified".
-                    *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
+                    unsafe { *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(vec![app_ui.folder_tree_model.as_ref().unwrap().item(0).as_ref().unwrap().text().to_std_string()])); }
                 }
             )),
             slot_item_changed: SlotStandardItemMutPtr::new(|item| {
