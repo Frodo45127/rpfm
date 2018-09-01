@@ -255,6 +255,23 @@ pub fn get_game_selected_loc_pack_path(game_selected: &str, settings: &Settings)
     Some(path)
 }
 
+/// Get a list of all the PackFiles in the `/data` folder of the game straighoutta settings, if it's configured.
+#[allow(dead_code)]
+pub fn get_game_selected_data_packfiles_paths(game_selected: &str, settings: &Settings) -> Option<Vec<PathBuf>> {
+
+    let mut paths = vec![];
+    let data_path = get_game_selected_data_path(game_selected, settings)?;
+
+    for path in get_files_from_subdir(&data_path).ok()?.iter() {
+        match path.extension() {
+            Some(extension) => if extension == "pack" { paths.push(path.to_path_buf()); }
+            None => continue,
+        }
+    }
+
+    Some(paths)
+}
+
 /// Get a list of all the PackFiles in the `content` folder of the game straighoutta settings, if it's configured.
 #[allow(dead_code)]
 pub fn get_game_selected_content_packfiles_paths(game_selected: &str, settings: &Settings) -> Option<Vec<PathBuf>> {

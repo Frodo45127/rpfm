@@ -61,8 +61,8 @@ pub fn background_loop(
     // And we prepare the stuff for the default game (paths, and those things).
     let mut game_selected = settings.settings_string.get("default_game").unwrap().to_owned();
 
-    // Try to open the dependency PackFile of our `game_selected`.
-    let mut dependency_database = packfile::open_dependency_packfile(&get_game_selected_db_pack_path(&game_selected, &settings));
+    // This will be populated once the program tries to select the default game, so leave it empty here.
+    let mut dependency_database = vec![];
 
     //---------------------------------------------------------------------------------------//
     // Looping forever and ever...
@@ -328,7 +328,7 @@ pub fn background_loop(
                         schema = Schema::load(&SUPPORTED_GAMES.get(&*game_selected).unwrap().schema).ok();
 
                         // Change the `dependency_database` for that game.
-                        dependency_database = packfile::open_dependency_packfile(&get_game_selected_db_pack_path(&game_selected, &settings));
+                        dependency_database = packfile::load_dependency_packfiles(&game_selected, &settings, &pack_file_decoded.data.pack_files);
 
                         // If there is a PackFile open, change his id to match the one of the new GameSelected.
                         if !pack_file_decoded.extra_data.file_name.is_empty() { pack_file_decoded.header.id = SUPPORTED_GAMES.get(&*game_selected).unwrap().id.to_owned(); }
