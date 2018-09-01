@@ -125,8 +125,8 @@ impl Shortcuts {
         let path = RPFM_PATH.to_path_buf().join(PathBuf::from(SHORTCUTS_FILE));
         let file = BufReader::new(File::open(path)?);
 
-        // Try to get the shortcuts. This can fail because the file is changed or damaged, or because there is no file. If it fails, create a new one. 
-        let mut shortcuts: Self = serde_json::from_reader(file).unwrap_or_else(|_| Self::new());
+        // Try to get the shortcuts. This can fail because the file is changed or damaged, or because there is no file.
+        let mut shortcuts: Self = serde_json::from_reader(file)?;
 
         // Add/Remove shortcuts missing/no-longer-needed for keeping it update friendly. First, remove the outdated ones, then add the new ones.
         let defaults = Self::new();
