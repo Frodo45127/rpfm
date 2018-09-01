@@ -131,6 +131,7 @@ lazy_static! {
             schema: "schema_wh.json".to_owned(),
             db_pack: "data.pack".to_owned(),
             loc_pack: "local_en.pack".to_owned(),
+            steam_id: Some(594570),
             supports_editing: true,
         });
 
@@ -141,6 +142,7 @@ lazy_static! {
             schema: "schema_wh.json".to_owned(),
             db_pack: "data.pack".to_owned(),
             loc_pack: "local_en.pack".to_owned(),
+            steam_id: Some(364360),
             supports_editing: true,
         });
 
@@ -151,6 +153,7 @@ lazy_static! {
             schema: "schema_att.json".to_owned(),
             db_pack: "data.pack".to_owned(),
             loc_pack: "local_en.pack".to_owned(),
+            steam_id: Some(325610),
             supports_editing: true,
         });
 
@@ -161,6 +164,7 @@ lazy_static! {
             schema: "schema_rom2.json".to_owned(),
             db_pack: "data_rome2.pack".to_owned(),
             loc_pack: "local_en.pack".to_owned(),
+            steam_id: Some(214950),
             supports_editing: true,
         });
 
@@ -173,6 +177,7 @@ lazy_static! {
             schema: "schema_are.json".to_owned(),
             db_pack: "wad.pack".to_owned(),
             loc_pack: "local_ex.pack".to_owned(),
+            steam_id: None,
             supports_editing: false,
         });
 

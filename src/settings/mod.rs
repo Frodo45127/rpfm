@@ -22,6 +22,7 @@ const SETTINGS_FILE: &str = "settings.json";
 /// - `schema`: This is the name of the schema file used for the game. (wh2.json)
 /// - `db_pack`: This is the PackFile from where we load the data for db references. Since 1.0, we use data.pack or equivalent for this.
 /// - `loc_pack`: This is the PackFile from where we load the data for loc special stuff. This should be the one for english. For other languages, we'll have to search it.
+/// - `steam_id`: This is the "SteamID" used by the game, if it's on steam. If not, it's just None.
 /// - `supports_editing`: True if we can save PackFiles for this game. False if we cannot (Arena). This also affect if we can use this game for "MyMod" stuff.
 #[derive(Clone, Debug)]
 pub struct GameInfo {
@@ -30,6 +31,7 @@ pub struct GameInfo {
     pub schema: String,
     pub db_pack: String,
     pub loc_pack: String,
+    pub steam_id: Option<u64>,
     pub supports_editing: bool,
 }
 
