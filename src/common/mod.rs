@@ -10,8 +10,10 @@ use chrono::{Utc, DateTime};
 use std::fs::{File, read_dir};
 use std::path::{Path, PathBuf};
 
+use SUPPORTED_GAMES;
 use error::{ErrorKind, Result};
 use packfile::packfile::PackFile;
+use settings::Settings;
 
 pub mod coding_helpers;
 pub mod communications;
@@ -222,4 +224,58 @@ pub fn get_last_modified_time_from_file(file: &File) -> u32 {
 
     // Decode it as an u32.
     coding_helpers::decode_integer_u32(&last_modified_time).unwrap()
+}
+
+/// Get the `/data` path of the game selected, straighoutta settings, if it's configured.
+#[allow(dead_code)]
+pub fn get_game_selected_data_path(game_selected: &str, settings: &Settings) -> Option<PathBuf> {
+
+    let mut path = settings.paths.get(game_selected).unwrap().clone()?;
+    path.push("data");
+    Some(path)
+}
+
+/// Get the `/data/xxx.pack` path of the PackFile with db tables of the game selected, straighoutta settings, if it's configured.
+#[allow(dead_code)]
+pub fn get_game_selected_db_pack_path(game_selected: &str, settings: &Settings) -> Option<PathBuf> {
+
+    let mut path = settings.paths.get(game_selected).unwrap().clone()?;
+    path.push("data");
+    path.push(&SUPPORTED_GAMES.get(game_selected).unwrap().db_pack);
+    Some(path)
+}
+
+/// Get the `/data/xxx.pack` path of the PackFile with the english loc files of the game selected, straighoutta settings, if it's configured.
+#[allow(dead_code)]
+pub fn get_game_selected_loc_pack_path(game_selected: &str, settings: &Settings) -> Option<PathBuf> {
+
+    let mut path = settings.paths.get(game_selected).unwrap().clone()?;
+    path.push("data");
+    path.push(&SUPPORTED_GAMES.get(game_selected).unwrap().loc_pack);
+    Some(path)
+}
+
+/// Get a list of all the PackFiles in the `content` folder of the game straighoutta settings, if it's configured.
+#[allow(dead_code)]
+pub fn get_game_selected_content_packfiles_paths(game_selected: &str, settings: &Settings) -> Option<Vec<PathBuf>> {
+
+    let mut path = settings.paths.get(game_selected).unwrap().clone()?;
+    let id = SUPPORTED_GAMES.get(game_selected).unwrap().steam_id?.to_string();
+
+    path.pop();
+    path.pop();
+    path.push("workshop");
+    path.push("content");
+    path.push(id);
+
+    let mut paths = vec![];
+
+    for path in get_files_from_subdir(&path).ok()?.iter() {
+        match path.extension() {
+            Some(extension) => if extension == "pack" { paths.push(path.to_path_buf()); }
+            None => continue,
+        }
+    }
+
+    Some(paths)
 }

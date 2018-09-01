@@ -99,6 +99,7 @@ pub enum Data {
     Usize(usize),
 
     String(String),
+    StringBool((String, bool)),
     StringUsize((String, usize)),
     PathBuf(PathBuf),
     
@@ -106,8 +107,6 @@ pub enum Data {
     Shortcuts(Shortcuts),
     Schema(Schema),
     OptionSchema(Option<Schema>),
-    GameSelected(GameSelected),
-    GameSelectedBool((GameSelected, bool)),
 
     PackFileHeader(PackFileHeader),
     PackFileExtraData(PackFileExtraData),

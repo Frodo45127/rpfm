@@ -857,7 +857,7 @@ fn main() {
                 unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
 
                 // Get the response from the background thread.
-                let response = if let Data::GameSelectedBool(data) = check_message_validity_tryrecv(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                let response = if let Data::StringBool(data) = check_message_validity_tryrecv(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                 // Get the current settings.
                 sender_qt.send(Commands::GetSettings).unwrap();
@@ -886,10 +886,10 @@ fn main() {
 
         // Try to get the Game Selected. This should never fail, so CTD if it does it.
         sender_qt.send(Commands::GetGameSelected).unwrap();
-        let game_selected = if let Data::GameSelected(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+        let game_selected = if let Data::String(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
         // Update the "Game Selected" here, so we can skip some steps when initializing.
-        match &*game_selected.game {
+        match &*game_selected {
             "warhammer_2" => unsafe { app_ui.warhammer_2.as_mut().unwrap().trigger(); }
             "warhammer" => unsafe { app_ui.warhammer.as_mut().unwrap().trigger(); }
             "attila" => unsafe { app_ui.attila.as_mut().unwrap().trigger(); }
@@ -964,7 +964,7 @@ fn main() {
 
                     // Try to get the Game Selected. This should never fail, so CTD if it does it.
                     sender_qt.send(Commands::GetGameSelected).unwrap();
-                    let game_selected = if let Data::GameSelected(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                    let game_selected = if let Data::String(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                     // Try to get the settings.
                     sender_qt.send(Commands::GetSettings).unwrap();
@@ -1004,10 +1004,14 @@ fn main() {
 
                     // Try to get the Game Selected. This should never fail, so CTD if it does it.
                     sender_qt.send(Commands::GetGameSelected).unwrap();
-                    let game_selected = if let Data::GameSelected(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                    let game_selected = if let Data::String(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+
+                    // Try to get the settings.
+                    sender_qt.send(Commands::GetSettings).unwrap();
+                    let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                     // In case we have a default path for the Game Selected, we use it as base path for opening files.
-                    if let Some(ref path) = game_selected.game_data_path {
+                    if let Some(ref path) = get_game_selected_data_path(&game_selected, &settings) {
 
                         // We check that actually exists before setting it.
                         if path.is_dir() { file_dialog.set_directory(&QString::from_std_str(&path.to_string_lossy().as_ref().to_owned())); }
@@ -1099,7 +1103,11 @@ fn main() {
 
                 // Try to get the Game Selected. This should never fail, so CTD if it does it.
                 sender_qt.send(Commands::GetGameSelected).unwrap();
-                let game_selected = if let Data::GameSelected(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                let game_selected = if let Data::String(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+
+                // Try to get the settings.
+                sender_qt.send(Commands::GetSettings).unwrap();
+                let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                 // Tell the Background Thread that we want to save the PackFile, and wait for confirmation.
                 sender_qt.send(Commands::SavePackFileAs).unwrap();
@@ -1141,7 +1149,7 @@ fn main() {
 
                         // In case we have a default path for the Game Selected and that path is valid,
                         // we use his data folder as base path for saving our PackFile.
-                        else if let Some(ref path) = game_selected.game_data_path {
+                        else if let Some(ref path) = get_game_selected_data_path(&game_selected, &settings) {
 
                             // We check it actually exists before setting it.
                             if path.is_dir() {
@@ -1331,10 +1339,10 @@ fn main() {
 
                             // Get the current GameSelected.
                             sender_qt.send(Commands::GetGameSelected).unwrap();
-                            let game_selected = if let Data::GameSelected(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                            let game_selected = if let Data::String(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                             // If our current `GameSelected` is in the `games_with_changed_paths` list...
-                            if games_with_changed_paths.contains(&game_selected.game) {
+                            if games_with_changed_paths.contains(&game_selected) {
 
                                 // Re-select the same game, so `GameSelected` update his paths.
                                 unsafe { Action::trigger(app_ui.game_selected_group.as_mut().unwrap().checked_action().as_mut().unwrap()); }
@@ -3506,14 +3514,14 @@ fn main() {
 /// NOTE: To disable the "Special Stuff" actions, we use `enable` => false.
 fn enable_packfile_actions(
     app_ui: &AppUI,
-    game_selected: &GameSelected,
+    game_selected: &str,
     mymod_stuff: &Rc<RefCell<MyModStuff>>,
     settings: Settings,
     enable: bool
 ) {
 
     // If the game is Arena, no matter what we're doing, these ones ALWAYS have to be disabled.
-    if game_selected.game == "arena" {
+    if game_selected == "arena" {
 
         // Disable the actions that allow to create and save PackFiles.
         unsafe { app_ui.new_packfile.as_mut().unwrap().set_enabled(false); }
@@ -3554,7 +3562,7 @@ fn enable_packfile_actions(
     if enable {
 
         // Check the Game Selected and enable the actions corresponding to out game.
-        match &*game_selected.game {
+        match game_selected {
             "warhammer_2" => {
                 unsafe { app_ui.wh2_patch_siege_ai.as_mut().unwrap().set_enabled(true); }
                 unsafe { app_ui.wh2_create_prefab.as_mut().unwrap().set_enabled(true); }
@@ -3739,11 +3747,11 @@ fn open_packfile(
 
                         // Get the Game Selected.
                         sender_qt.send(Commands::GetGameSelected).unwrap();
-                        let game_selected = if let Data::GameSelected(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                        let game_selected = if let Data::String(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                         // If we have Warhammer selected, we keep Warhammer. If we have Attila, we keep Attila.
                         // In any other case, we select Rome 2 by default.
-                        match &*game_selected.game {
+                        match &*game_selected {
                             "warhammer" => unsafe { app_ui.warhammer.as_mut().unwrap().trigger(); },
                             "attila" => unsafe { app_ui.attila.as_mut().unwrap().trigger(); }
                             "rome_2" | _ => unsafe { app_ui.rome_2.as_mut().unwrap().trigger(); }
@@ -3938,7 +3946,7 @@ fn build_my_mod_menu(
 
                                 // Get the Game Selected.
                                 sender_qt.send(Commands::GetGameSelected).unwrap();
-                                let game_selected = if let Data::GameSelected(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                                let game_selected = if let Data::String(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                                 // Try to get the settings.
                                 sender_qt.send(Commands::GetSettings).unwrap();
@@ -4058,7 +4066,7 @@ fn build_my_mod_menu(
 
                         // Get the Game Selected.
                         sender_qt.send(Commands::GetGameSelected).unwrap();
-                        let game_selected = if let Data::GameSelected(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                        let game_selected = if let Data::String(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                         // Try to get the settings.
                         sender_qt.send(Commands::GetSettings).unwrap();
@@ -4102,13 +4110,14 @@ fn build_my_mod_menu(
 
                             // Get the Game Selected.
                             sender_qt.send(Commands::GetGameSelected).unwrap();
-                            let game_selected = if let Data::GameSelected(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                            let game_selected = if let Data::String(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
-                            // Get the `game_data_path` of the game.
-                            let game_data_path = game_selected.game_data_path.clone();
+                            // Try to get the settings.
+                            sender_qt.send(Commands::GetSettings).unwrap();
+                            let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                             // If we have a `game_data_path` for the current `GameSelected`...
-                            if let Some(mut game_data_path) = game_data_path {
+                            if let Some(mut game_data_path) = get_game_selected_data_path(&game_selected, &settings) {
 
                                 // We get the "MyMod"s PackFile path.
                                 let mut mymod_path = mymods_base_path.to_path_buf();
@@ -4162,13 +4171,14 @@ fn build_my_mod_menu(
 
                         // Get the Game Selected.
                         sender_qt.send(Commands::GetGameSelected).unwrap();
-                        let game_selected = if let Data::GameSelected(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                        // Get the `game_data_path` of the game.
-                        let game_data_path = game_selected.game_data_path.clone();
+                        let game_selected = if let Data::String(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                       
+                        // Try to get the settings.
+                        sender_qt.send(Commands::GetSettings).unwrap();
+                        let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                         // If we have a `game_data_path` for the current `GameSelected`...
-                        if let Some(mut game_data_path) = game_data_path {
+                        if let Some(mut game_data_path) = get_game_selected_data_path(&game_selected, &settings) {
 
                             // Get the destination path for the PackFile with the PackFile included.
                             game_data_path.push(&mod_name);
