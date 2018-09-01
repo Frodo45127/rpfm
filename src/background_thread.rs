@@ -987,6 +987,9 @@ pub fn background_loop(
                         // Wait until we get the needed data from the UI thread.
                         let list = if let Data::VecString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
                         pack_file_decoded.save_packfiles_list(list);
+
+                        // Update the dependency database.
+                        dependency_database = packfile::load_dependency_packfiles(&game_selected, &settings, &pack_file_decoded.data.pack_files);
                     }
                 }
             }

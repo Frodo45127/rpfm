@@ -196,20 +196,25 @@ impl DependencyTableView {
                 app_ui,
                 is_modified,
                 sender_qt,
-                sender_qt_data => move |_,_,_| {
+                sender_qt_data => move |_,_,roles| {
 
-                    // Check for errors.
-                    Self::check_errors(model);
-                	
-                    // Get the new LocData to send.
-                    let list = Self::return_data_from_table_view(model);
+                    // To avoid doing this multiple times due to the cell painting stuff, we need to check the role.
+                    // This has to be allowed ONLY if the role is 0 (DisplayText) or 2 (EditorText).
+                    if roles.contains(&0) || roles.contains(&2) {                    
 
-                    // Tell the background thread to start saving the PackedFile.
-                    sender_qt.send(Commands::SetPackFilesList).unwrap();
-                    sender_qt_data.send(Data::VecString(list)).unwrap();
+                        // Check for errors.
+                        Self::check_errors(model);
+                        
+                        // Get the new LocData to send.
+                        let list = Self::return_data_from_table_view(model);
 
-                    // Set the mod as "Modified".
-                    unsafe { *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(vec![app_ui.folder_tree_model.as_ref().unwrap().item(0).as_ref().unwrap().text().to_std_string()])); }
+                        // Tell the background thread to start saving the PackedFile.
+                        sender_qt.send(Commands::SetPackFilesList).unwrap();
+                        sender_qt_data.send(Data::VecString(list)).unwrap();
+
+                        // Set the mod as "Modified".
+                        unsafe { *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(vec![app_ui.folder_tree_model.as_ref().unwrap().item(0).as_ref().unwrap().text().to_std_string()])); }
+                    }
                 }
             )),
             slot_item_changed: SlotStandardItemMutPtr::new(|item| {
