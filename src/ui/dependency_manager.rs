@@ -197,6 +197,9 @@ impl DependencyTableView {
                 is_modified,
                 sender_qt,
                 sender_qt_data => move |_,_,_| {
+
+                    // Check for errors.
+                    Self::check_errors(model);
                 	
                     // Get the new LocData to send.
                     let list = Self::return_data_from_table_view(model);
@@ -574,6 +577,9 @@ impl DependencyTableView {
             // Remove the row, so the columns stay.
             unsafe { model.as_mut().unwrap().remove_rows((0, 1)); }
         }
+
+        // Check for errors.
+        Self::check_errors(model);
     }
 
     /// This function returns a Vec<String> with all the stuff in the table.
@@ -590,5 +596,27 @@ impl DependencyTableView {
         }
 
         data
+    }
+
+    /// This function checks if the PackFiles in the model are valid, and paints as red the invalid ones.
+    pub fn check_errors( model: *mut StandardItemModel) {
+
+        // For each row...
+        let rows;
+        unsafe { rows = model.as_mut().unwrap().row_count(()); }
+        for row in 0..rows {
+
+            // Get the item on the row.
+            let item;
+            unsafe { item = model.as_mut().unwrap().item((row as i32, 0)); }
+
+            // Get the PackFile's name.
+            let packfile;
+            unsafe { packfile = item.as_mut().unwrap().text().to_std_string(); }
+
+            // We paint it depending on if it's a valid PackFile or not.
+            if !packfile.is_empty() && packfile.ends_with(".pack") && !packfile.contains(' ') { unsafe { item.as_mut().unwrap().set_foreground(&Brush::new(GlobalColor::Black)); } }
+            else { unsafe { item.as_mut().unwrap().set_foreground(&Brush::new(GlobalColor::Red)); } }
+        }  
     }
 }
