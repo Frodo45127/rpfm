@@ -81,7 +81,7 @@ impl ShortcutsDialog {
         unsafe { tree_view_context_menu_frame.as_mut().unwrap().set_layout(tree_view_context_menu_grid.static_cast_mut() as *mut Layout); }
 
         // Create the PackFiles List Context Menu Frame.
-        let pack_files_list_context_menu_frame = GroupBox::new(&QString::from_std_str("PackFiles List Context Menu")).into_raw();
+        let pack_files_list_context_menu_frame = GroupBox::new(&QString::from_std_str("Dependency Manager's Context Menu")).into_raw();
         let mut pack_files_list_context_menu_grid = GridLayout::new();
         unsafe { pack_files_list_context_menu_frame.as_mut().unwrap().set_layout(pack_files_list_context_menu_grid.static_cast_mut() as *mut Layout); }
 
