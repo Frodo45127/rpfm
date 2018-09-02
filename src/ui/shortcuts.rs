@@ -272,7 +272,7 @@ impl ShortcutsDialog {
 
         // Create the bottom ButtonBox.
         let mut button_box = DialogButtonBox::new(());
-        unsafe { main_grid.as_mut().unwrap().add_widget((button_box.static_cast_mut() as *mut Widget, 2, 0, 1, 2)); }
+        unsafe { main_grid.as_mut().unwrap().add_widget((button_box.static_cast_mut() as *mut Widget, 2, 0, 1, 3)); }
 
         // Create the bottom Buttons.
         let restore_default_button;
