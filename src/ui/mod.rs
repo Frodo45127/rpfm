@@ -56,6 +56,7 @@ use packedfile::db::*;
 use packedfile::db::schemas::*;
 use packedfile::loc::*;
 
+pub mod dependency_manager;
 pub mod packedfile_db;
 pub mod packedfile_loc;
 pub mod packedfile_text;

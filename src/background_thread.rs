@@ -59,10 +59,10 @@ pub fn background_loop(
     let mut schema: Option<Schema> = None;
 
     // And we prepare the stuff for the default game (paths, and those things).
-    let mut game_selected = GameSelected::new(&settings);
+    let mut game_selected = settings.settings_string.get("default_game").unwrap().to_owned();
 
-    // Try to open the dependency PackFile of our `game_selected`.
-    let mut dependency_database = packfile::open_dependency_packfile(&game_selected.game_dependency_packfile_path);
+    // This will be populated once the program tries to select the default game, so leave it empty here.
+    let mut dependency_database = vec![];
 
     //---------------------------------------------------------------------------------------//
     // Looping forever and ever...
@@ -99,13 +99,13 @@ pub fn background_loop(
                     Commands::NewPackFile => {
 
                         // Get the ID for the new PackFile.
-                        let pack_file_id = &SUPPORTED_GAMES.get(&*game_selected.game).unwrap().id;
+                        let pack_file_id = &SUPPORTED_GAMES.get(&*game_selected).unwrap().id;
 
                         // Create the new PackFile.
                         pack_file_decoded = packfile::new_packfile("unknown.pack".to_string(), &pack_file_id);
 
                         // Try to load the Schema for this PackFile's game.
-                        schema = Schema::load(&SUPPORTED_GAMES.get(&*game_selected.game).unwrap().schema).ok();
+                        schema = Schema::load(&SUPPORTED_GAMES.get(&*game_selected).unwrap().schema).ok();
 
                         // Send a response with the PackFile's type to the UI thread.
                         sender.send(Data::U32(pack_file_decoded.header.pack_file_type)).unwrap();
@@ -245,7 +245,7 @@ pub fn background_loop(
                         let new_schema: Schema = if let Data::Schema(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                         // Try to save it to disk.
-                        match Schema::save(&new_schema, &SUPPORTED_GAMES.get(&*game_selected.game).unwrap().schema) {
+                        match Schema::save(&new_schema, &SUPPORTED_GAMES.get(&*game_selected).unwrap().schema) {
 
                             // If we managed to save it...
                             Ok(_) => {
@@ -312,7 +312,7 @@ pub fn background_loop(
                     Commands::GetGameSelected => {
 
                         // Send the current Game Selected back to the UI thread.
-                        sender.send(Data::GameSelected(game_selected.clone())).unwrap();
+                        sender.send(Data::String(game_selected.to_owned())).unwrap();
                     }
 
                     // In case we want to change the current Game Selected...
@@ -322,19 +322,19 @@ pub fn background_loop(
                         let game_name = if let Data::String(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                         // Get the new Game Selected, and set it.
-                        game_selected.change_game_selected(&game_name, &settings.paths.get(&game_name).unwrap());
+                        game_selected = game_name;
 
                         // Try to load the Schema for this game.
-                        schema = Schema::load(&SUPPORTED_GAMES.get(&*game_selected.game).unwrap().schema).ok();
+                        schema = Schema::load(&SUPPORTED_GAMES.get(&*game_selected).unwrap().schema).ok();
 
                         // Change the `dependency_database` for that game.
-                        dependency_database = packfile::open_dependency_packfile(&game_selected.game_dependency_packfile_path);
+                        dependency_database = packfile::load_dependency_packfiles(&game_selected, &settings, &pack_file_decoded.data.pack_files);
 
                         // If there is a PackFile open, change his id to match the one of the new GameSelected.
-                        if !pack_file_decoded.extra_data.file_name.is_empty() { pack_file_decoded.header.id = SUPPORTED_GAMES.get(&*game_selected.game).unwrap().id.to_owned(); }
+                        if !pack_file_decoded.extra_data.file_name.is_empty() { pack_file_decoded.header.id = SUPPORTED_GAMES.get(&*game_selected).unwrap().id.to_owned(); }
 
                         // Send back the new Game Selected, and a bool indicating if there is a PackFile open.
-                        sender.send(Data::GameSelectedBool((game_selected.clone(), pack_file_decoded.extra_data.file_name.is_empty()))).unwrap();
+                        sender.send(Data::StringBool((game_selected.to_owned(), pack_file_decoded.extra_data.file_name.is_empty()))).unwrap();
 
                         // Test to see if every DB Table can be decoded. This is slow and only useful when
                         // a new patch lands and you want to know what tables you need to decode. So, unless that,
@@ -417,7 +417,7 @@ pub fn background_loop(
                             Ok(_) => {
 
                                 // Reload the currently loaded schema, just in case it was updated.
-                                schema = Schema::load(&SUPPORTED_GAMES.get(&*game_selected.game).unwrap().schema).ok();
+                                schema = Schema::load(&SUPPORTED_GAMES.get(&*game_selected).unwrap().schema).ok();
 
                                 // Return success.
                                 sender.send(Data::Success).unwrap();
@@ -974,6 +974,22 @@ pub fn background_loop(
                     Commands::OptimizePackFile => {
                         let deleted_packed_files = packfile::optimize_packfile(&mut pack_file_decoded, &dependency_database, &schema);
                         sender.send(Data::VecTreePathType(deleted_packed_files)).unwrap();
+                    }
+
+                    // In case we want to get the PackFiles List of our PackFile...
+                    Commands::GetPackFilesList => {
+                        sender.send(Data::VecString(pack_file_decoded.data.pack_files.to_vec())).unwrap();
+                    }
+
+                    // In case we want to save the PackFiles List of our PackFile...
+                    Commands::SetPackFilesList => {
+                       
+                        // Wait until we get the needed data from the UI thread.
+                        let list = if let Data::VecString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
+                        pack_file_decoded.save_packfiles_list(list);
+
+                        // Update the dependency database.
+                        dependency_database = packfile::load_dependency_packfiles(&game_selected, &settings, &pack_file_decoded.data.pack_files);
                     }
                 }
             }

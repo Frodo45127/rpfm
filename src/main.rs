@@ -79,6 +79,7 @@ use packedfile::*;
 use packedfile::db::schemas_importer::*;
 use settings::*;
 use ui::*;
+use ui::dependency_manager::*;
 use ui::packedfile_db::*;
 use ui::packedfile_loc::*;
 use ui::packedfile_text::*;
@@ -130,6 +131,7 @@ lazy_static! {
             schema: "schema_wh.json".to_owned(),
             db_pack: "data.pack".to_owned(),
             loc_pack: "local_en.pack".to_owned(),
+            steam_id: Some(594570),
             supports_editing: true,
         });
 
@@ -140,6 +142,7 @@ lazy_static! {
             schema: "schema_wh.json".to_owned(),
             db_pack: "data.pack".to_owned(),
             loc_pack: "local_en.pack".to_owned(),
+            steam_id: Some(364360),
             supports_editing: true,
         });
 
@@ -150,6 +153,7 @@ lazy_static! {
             schema: "schema_att.json".to_owned(),
             db_pack: "data.pack".to_owned(),
             loc_pack: "local_en.pack".to_owned(),
+            steam_id: Some(325610),
             supports_editing: true,
         });
 
@@ -160,6 +164,7 @@ lazy_static! {
             schema: "schema_rom2.json".to_owned(),
             db_pack: "data_rome2.pack".to_owned(),
             loc_pack: "local_en.pack".to_owned(),
+            steam_id: Some(214950),
             supports_editing: true,
         });
 
@@ -172,6 +177,7 @@ lazy_static! {
             schema: "schema_are.json".to_owned(),
             db_pack: "wad.pack".to_owned(),
             loc_pack: "local_ex.pack".to_owned(),
+            steam_id: None,
             supports_editing: false,
         });
 
@@ -317,6 +323,7 @@ pub struct AppUI {
     pub context_menu_extract: *mut Action,
     pub context_menu_rename: *mut Action,
     pub context_menu_open_decoder: *mut Action,
+    pub context_menu_open_dependency_manager: *mut Action,
 }
 
 /// Main function.
@@ -537,6 +544,7 @@ fn main() {
                 context_menu_rename: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Rename")),
 
                 context_menu_open_decoder: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open with Decoder")),
+                context_menu_open_dependency_manager: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open Dependency Manager")),
             };
         }
 
@@ -660,6 +668,7 @@ fn main() {
 
         // Build the empty structs we need for certain features.
         let add_from_packfile_slots = Rc::new(RefCell::new(AddFromPackFileSlots::new()));
+        let packfiles_list_slots = Rc::new(RefCell::new(DependencyTableView::new()));
         let db_slots = Rc::new(RefCell::new(PackedFileDBTreeView::new()));
         let loc_slots = Rc::new(RefCell::new(PackedFileLocTreeView::new()));
         let text_slots = Rc::new(RefCell::new(PackedFileTextView::new()));
@@ -702,6 +711,7 @@ fn main() {
             app_ui.context_menu_extract.as_mut().unwrap().set_enabled(false);
             app_ui.context_menu_rename.as_mut().unwrap().set_enabled(false);
             app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(false);
+            app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(false);
         }
 
         // Set the shortcuts for these actions.
@@ -718,6 +728,7 @@ fn main() {
         unsafe { app_ui.context_menu_extract.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("extract").unwrap()))); }
         unsafe { app_ui.context_menu_rename.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("rename").unwrap()))); }
         unsafe { app_ui.context_menu_open_decoder.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("open_in_decoder").unwrap()))); }
+        unsafe { app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("open_packfiles_list").unwrap()))); }
 
         // Set the shortcuts to only trigger in the TreeView.
         unsafe { app_ui.context_menu_add_file.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
@@ -733,6 +744,7 @@ fn main() {
         unsafe { app_ui.context_menu_extract.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_rename.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_open_decoder.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+        unsafe { app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
 
         // Add the actions to the TreeView, so the shortcuts work.
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_add_file); }
@@ -748,6 +760,7 @@ fn main() {
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_extract); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_rename); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_open_decoder); }
+        unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_open_dependency_manager); }
 
         // Set the current "Operational Mode" to `Normal`.
         set_my_mod_mode(&mymod_stuff, &mode, None);
@@ -810,6 +823,7 @@ fn main() {
         unsafe { app_ui.context_menu_extract.as_mut().unwrap().set_status_tip(&QString::from_std_str("Extract the selected File/Folder from the PackFile.")); }
         unsafe { app_ui.context_menu_rename.as_mut().unwrap().set_status_tip(&QString::from_std_str("Rename a File/Folder. Remember, whitespaces are NOT ALLOWED.")); }
         unsafe { app_ui.context_menu_open_decoder.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the selected table in the DB Decoder. To create/update schemas.")); }
+        unsafe { app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the list of PackFiles referenced from this PackFile.")); }
 
         //---------------------------------------------------------------------------------------//
         // What should happend when we press buttons and stuff...
@@ -843,7 +857,7 @@ fn main() {
                 unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
 
                 // Get the response from the background thread.
-                let response = if let Data::GameSelectedBool(data) = check_message_validity_tryrecv(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                let response = if let Data::StringBool(data) = check_message_validity_tryrecv(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                 // Get the current settings.
                 sender_qt.send(Commands::GetSettings).unwrap();
@@ -872,10 +886,10 @@ fn main() {
 
         // Try to get the Game Selected. This should never fail, so CTD if it does it.
         sender_qt.send(Commands::GetGameSelected).unwrap();
-        let game_selected = if let Data::GameSelected(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+        let game_selected = if let Data::String(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
         // Update the "Game Selected" here, so we can skip some steps when initializing.
-        match &*game_selected.game {
+        match &*game_selected {
             "warhammer_2" => unsafe { app_ui.warhammer_2.as_mut().unwrap().trigger(); }
             "warhammer" => unsafe { app_ui.warhammer.as_mut().unwrap().trigger(); }
             "attila" => unsafe { app_ui.attila.as_mut().unwrap().trigger(); }
@@ -950,7 +964,7 @@ fn main() {
 
                     // Try to get the Game Selected. This should never fail, so CTD if it does it.
                     sender_qt.send(Commands::GetGameSelected).unwrap();
-                    let game_selected = if let Data::GameSelected(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                    let game_selected = if let Data::String(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                     // Try to get the settings.
                     sender_qt.send(Commands::GetSettings).unwrap();
@@ -990,10 +1004,14 @@ fn main() {
 
                     // Try to get the Game Selected. This should never fail, so CTD if it does it.
                     sender_qt.send(Commands::GetGameSelected).unwrap();
-                    let game_selected = if let Data::GameSelected(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                    let game_selected = if let Data::String(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+
+                    // Try to get the settings.
+                    sender_qt.send(Commands::GetSettings).unwrap();
+                    let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                     // In case we have a default path for the Game Selected, we use it as base path for opening files.
-                    if let Some(ref path) = game_selected.game_data_path {
+                    if let Some(ref path) = get_game_selected_data_path(&game_selected, &settings) {
 
                         // We check that actually exists before setting it.
                         if path.is_dir() { file_dialog.set_directory(&QString::from_std_str(&path.to_string_lossy().as_ref().to_owned())); }
@@ -1085,7 +1103,11 @@ fn main() {
 
                 // Try to get the Game Selected. This should never fail, so CTD if it does it.
                 sender_qt.send(Commands::GetGameSelected).unwrap();
-                let game_selected = if let Data::GameSelected(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                let game_selected = if let Data::String(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+
+                // Try to get the settings.
+                sender_qt.send(Commands::GetSettings).unwrap();
+                let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                 // Tell the Background Thread that we want to save the PackFile, and wait for confirmation.
                 sender_qt.send(Commands::SavePackFileAs).unwrap();
@@ -1127,7 +1149,7 @@ fn main() {
 
                         // In case we have a default path for the Game Selected and that path is valid,
                         // we use his data folder as base path for saving our PackFile.
-                        else if let Some(ref path) = game_selected.game_data_path {
+                        else if let Some(ref path) = get_game_selected_data_path(&game_selected, &settings) {
 
                             // We check it actually exists before setting it.
                             if path.is_dir() {
@@ -1248,9 +1270,8 @@ fn main() {
                 sender_qt.send(Commands::SetPackFileType).unwrap();
                 sender_qt_data.send(Data::U32(packfile_type)).unwrap();
 
-                // TODO: Make the PackFile become Yellow.
                 // Set the mod as "Modified".
-                *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
+                unsafe { *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(vec![app_ui.folder_tree_model.as_ref().unwrap().item(0).as_ref().unwrap().text().to_std_string()])); }
             }
         ));
 
@@ -1318,10 +1339,10 @@ fn main() {
 
                             // Get the current GameSelected.
                             sender_qt.send(Commands::GetGameSelected).unwrap();
-                            let game_selected = if let Data::GameSelected(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                            let game_selected = if let Data::String(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                             // If our current `GameSelected` is in the `games_with_changed_paths` list...
-                            if games_with_changed_paths.contains(&game_selected.game) {
+                            if games_with_changed_paths.contains(&game_selected) {
 
                                 // Re-select the same game, so `GameSelected` update his paths.
                                 unsafe { Action::trigger(app_ui.game_selected_group.as_mut().unwrap().checked_action().as_mut().unwrap()); }
@@ -1629,6 +1650,7 @@ fn main() {
                             app_ui.context_menu_delete.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_extract.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_rename.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(false);
                         }
 
                         // If it's a DB, we should enable this too.
@@ -1653,6 +1675,7 @@ fn main() {
                             app_ui.context_menu_extract.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_rename.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(false);
                         }
                     },
 
@@ -1672,6 +1695,7 @@ fn main() {
                             app_ui.context_menu_extract.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_rename.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(true);
                         }
                     },
 
@@ -1691,6 +1715,7 @@ fn main() {
                             app_ui.context_menu_extract.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_rename.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(false);
                         }
                     },
                 }
@@ -3059,6 +3084,32 @@ fn main() {
             }
         ));
 
+        // What happens when we trigger the "Open PackFiles List" action in the Contextual Menu.
+        let slot_context_menu_open_dependency_manager = SlotBool::new(clone!(
+            sender_qt,
+            sender_qt_data,
+            receiver_qt,
+            packfiles_list_slots,
+            is_modified,
+            is_packedfile_opened => move |_| {
+
+                // Destroy any children that the PackedFile's View we use may have, cleaning it.
+                purge_them_all(&app_ui, &is_packedfile_opened);
+
+                // Build the UI and save the slots.
+                *packfiles_list_slots.borrow_mut() = DependencyTableView::create_table_view(
+                    sender_qt.clone(),
+                    &sender_qt_data,
+                    &receiver_qt,
+                    &is_modified,
+                    &app_ui,
+                );
+
+                // Tell the program there is an open PackedFile.
+                *is_packedfile_opened.borrow_mut() = true;
+            }
+        ));
+
         // Contextual Menu Actions.
         unsafe { app_ui.context_menu_add_file.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_add_file); }
         unsafe { app_ui.context_menu_add_folder.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_add_folder); }
@@ -3072,6 +3123,7 @@ fn main() {
         unsafe { app_ui.context_menu_delete.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_delete); }
         unsafe { app_ui.context_menu_extract.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_extract); }
         unsafe { app_ui.context_menu_open_decoder.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_open_decoder); }
+        unsafe { app_ui.context_menu_open_dependency_manager.as_ref().unwrap().signals().triggered().connect(&slot_context_menu_open_dependency_manager); }
 
         //-----------------------------------------------------------------------------------------//
         // Rename Action. Due to me not understanding how the edition of a TreeView works, we do it
@@ -3462,14 +3514,14 @@ fn main() {
 /// NOTE: To disable the "Special Stuff" actions, we use `enable` => false.
 fn enable_packfile_actions(
     app_ui: &AppUI,
-    game_selected: &GameSelected,
+    game_selected: &str,
     mymod_stuff: &Rc<RefCell<MyModStuff>>,
     settings: Settings,
     enable: bool
 ) {
 
     // If the game is Arena, no matter what we're doing, these ones ALWAYS have to be disabled.
-    if game_selected.game == "arena" {
+    if game_selected == "arena" {
 
         // Disable the actions that allow to create and save PackFiles.
         unsafe { app_ui.new_packfile.as_mut().unwrap().set_enabled(false); }
@@ -3510,7 +3562,7 @@ fn enable_packfile_actions(
     if enable {
 
         // Check the Game Selected and enable the actions corresponding to out game.
-        match &*game_selected.game {
+        match game_selected {
             "warhammer_2" => {
                 unsafe { app_ui.wh2_patch_siege_ai.as_mut().unwrap().set_enabled(true); }
                 unsafe { app_ui.wh2_create_prefab.as_mut().unwrap().set_enabled(true); }
@@ -3695,11 +3747,11 @@ fn open_packfile(
 
                         // Get the Game Selected.
                         sender_qt.send(Commands::GetGameSelected).unwrap();
-                        let game_selected = if let Data::GameSelected(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                        let game_selected = if let Data::String(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                         // If we have Warhammer selected, we keep Warhammer. If we have Attila, we keep Attila.
                         // In any other case, we select Rome 2 by default.
-                        match &*game_selected.game {
+                        match &*game_selected {
                             "warhammer" => unsafe { app_ui.warhammer.as_mut().unwrap().trigger(); },
                             "attila" => unsafe { app_ui.attila.as_mut().unwrap().trigger(); }
                             "rome_2" | _ => unsafe { app_ui.rome_2.as_mut().unwrap().trigger(); }
@@ -3894,7 +3946,7 @@ fn build_my_mod_menu(
 
                                 // Get the Game Selected.
                                 sender_qt.send(Commands::GetGameSelected).unwrap();
-                                let game_selected = if let Data::GameSelected(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                                let game_selected = if let Data::String(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                                 // Try to get the settings.
                                 sender_qt.send(Commands::GetSettings).unwrap();
@@ -4014,7 +4066,7 @@ fn build_my_mod_menu(
 
                         // Get the Game Selected.
                         sender_qt.send(Commands::GetGameSelected).unwrap();
-                        let game_selected = if let Data::GameSelected(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                        let game_selected = if let Data::String(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                         // Try to get the settings.
                         sender_qt.send(Commands::GetSettings).unwrap();
@@ -4058,13 +4110,14 @@ fn build_my_mod_menu(
 
                             // Get the Game Selected.
                             sender_qt.send(Commands::GetGameSelected).unwrap();
-                            let game_selected = if let Data::GameSelected(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                            let game_selected = if let Data::String(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
-                            // Get the `game_data_path` of the game.
-                            let game_data_path = game_selected.game_data_path.clone();
+                            // Try to get the settings.
+                            sender_qt.send(Commands::GetSettings).unwrap();
+                            let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                             // If we have a `game_data_path` for the current `GameSelected`...
-                            if let Some(mut game_data_path) = game_data_path {
+                            if let Some(mut game_data_path) = get_game_selected_data_path(&game_selected, &settings) {
 
                                 // We get the "MyMod"s PackFile path.
                                 let mut mymod_path = mymods_base_path.to_path_buf();
@@ -4118,13 +4171,14 @@ fn build_my_mod_menu(
 
                         // Get the Game Selected.
                         sender_qt.send(Commands::GetGameSelected).unwrap();
-                        let game_selected = if let Data::GameSelected(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                        // Get the `game_data_path` of the game.
-                        let game_data_path = game_selected.game_data_path.clone();
+                        let game_selected = if let Data::String(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                       
+                        // Try to get the settings.
+                        sender_qt.send(Commands::GetSettings).unwrap();
+                        let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                         // If we have a `game_data_path` for the current `GameSelected`...
-                        if let Some(mut game_data_path) = game_data_path {
+                        if let Some(mut game_data_path) = get_game_selected_data_path(&game_selected, &settings) {
 
                             // Get the destination path for the PackFile with the PackFile included.
                             game_data_path.push(&mod_name);

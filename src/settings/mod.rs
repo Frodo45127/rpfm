@@ -7,9 +7,9 @@ use std::fs::File;
 use std::io::Write;
 use std::io::{BufReader, BufWriter};
 
-use error::Result;
 use RPFM_PATH;
 use SUPPORTED_GAMES;
+use error::Result;
 
 pub mod shortcuts;
 
@@ -22,6 +22,7 @@ const SETTINGS_FILE: &str = "settings.json";
 /// - `schema`: This is the name of the schema file used for the game. (wh2.json)
 /// - `db_pack`: This is the PackFile from where we load the data for db references. Since 1.0, we use data.pack or equivalent for this.
 /// - `loc_pack`: This is the PackFile from where we load the data for loc special stuff. This should be the one for english. For other languages, we'll have to search it.
+/// - `steam_id`: This is the "SteamID" used by the game, if it's on steam. If not, it's just None.
 /// - `supports_editing`: True if we can save PackFiles for this game. False if we cannot (Arena). This also affect if we can use this game for "MyMod" stuff.
 #[derive(Clone, Debug)]
 pub struct GameInfo {
@@ -30,6 +31,7 @@ pub struct GameInfo {
     pub schema: String,
     pub db_pack: String,
     pub loc_pack: String,
+    pub steam_id: Option<u64>,
     pub supports_editing: bool,
 }
 
@@ -39,16 +41,6 @@ pub struct Settings {
     pub paths: BTreeMap<String, Option<PathBuf>>,
     pub settings_string: BTreeMap<String, String>,
     pub settings_bool: BTreeMap<String, bool>,
-}
-
-/// This struct holds the data needed for the Game Selected.
-/// NOTE: `game` is in this format: `warhammer_2`.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct GameSelected {
-    pub game: String,
-    pub game_path: Option<PathBuf>,
-    pub game_data_path: Option<PathBuf>,
-    pub game_dependency_packfile_path: Option<PathBuf>,
 }
 
 /// Implementation of `Settings`.
@@ -134,71 +126,5 @@ impl Settings {
 
         // Return success.
         Ok(())
-    }
-}
-
-/// Implementation of `GameSelected`.
-impl GameSelected {
-
-    /// This functions returns a `GameSelected` populated with his default values.
-    pub fn new(settings: &Settings) -> Self {
-
-        // Get the stuff we need from the settings and the supported games list.
-        let game = settings.settings_string.get("default_game").unwrap().to_owned();
-        let game_path = settings.paths.get(&game).unwrap().clone();
-
-        // The data path may be not configured, so we check if it exists in the settings, or not.
-        let game_data_path = match game_path {
-            Some(ref game_path) => {
-                let mut game_data_path = game_path.to_path_buf();
-                game_data_path.push("data");
-                Some(game_data_path)
-            },
-            None => None,
-        };
-
-        // Same with the data.pack or equivalent.
-        let game_dependency_packfile_path = match game_data_path {
-            Some(ref game_data_path) => {
-                let mut game_db_pack_path = game_data_path.to_path_buf();
-                game_db_pack_path.push(SUPPORTED_GAMES.get(&*game).unwrap().db_pack.to_owned());
-                Some(game_db_pack_path)
-            },
-            None => None,
-        };
-
-        // Return the final GameSelected.
-        Self {
-            game,
-            game_path,
-            game_data_path,
-            game_dependency_packfile_path,
-        }
-    }
-
-    /// This functions just changes the values in `GameSelected`.
-    pub fn change_game_selected(&mut self, game: &str, game_path: &Option<PathBuf>) {
-        self.game = game.to_owned();
-        self.game_path = game_path.clone();
-
-        // Get the data path, if exists.
-        if let Some(ref game_path) = self.game_path {
-            let mut data_path = game_path.to_path_buf();
-            data_path.push("data");
-            self.game_data_path = Some(data_path);
-        }
-
-        // Otherwise, set it as None.
-        else { self.game_data_path = None }
-
-        // Get the data.pack PackFile's path, if exists.
-        if let Some(ref game_data_path) = self.game_data_path {
-            let mut db_pack_path = game_data_path.to_path_buf();
-            db_pack_path.push(SUPPORTED_GAMES.get(&*self.game).unwrap().db_pack.to_owned());
-            self.game_dependency_packfile_path = Some(db_pack_path);
-        }
-
-        // Otherwise, set it as None.
-        else { self.game_dependency_packfile_path = None }
     }
 }

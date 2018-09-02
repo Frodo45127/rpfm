@@ -16,6 +16,7 @@ use packedfile::loc::Loc;
 use packedfile::db::{DB, DBHeader};
 use packedfile::db::schemas::Schema;
 use packedfile::rigidmodel::RigidModel;
+use settings::Settings;
 
 pub mod packfile;
 
@@ -72,28 +73,33 @@ pub fn open_packfile_with_bufreader(pack_file_path: PathBuf) -> Result<(packfile
     else { Err(ErrorKind::OpenPackFileInvalidExtension)? }
 }
 
-/// This function is a special open function, to open ONLY the dependency PackFile when we change the
-/// current Game Selected. It returns all the PackedFiles from the DB directory.
-pub fn open_dependency_packfile(data_packfile_path: &Option<PathBuf>) -> Vec<packfile::PackedFile> {
+/// This function is a special open function, to get all the DB and LOC PackedFiles for a game, and a mod if that mode requires another mod.
+/// It returns all the PackedFiles in a big Vec<PackedFile>.
+pub fn load_dependency_packfiles(game_selected: &str, settings: &Settings, dependencies: &[String]) -> Vec<packfile::PackedFile> {
 
     // Create the empty list.
     let mut packed_files = vec![];
 
-    // Check if we have a data.pack for the GameSelected.
-    if let Some(data_packfile_path) = data_packfile_path {
+    // Get all the paths we need.
+    let main_db_pack_path = get_game_selected_db_pack_path(game_selected, settings);
+    let main_loc_pack_path = get_game_selected_loc_pack_path(game_selected, settings);
 
-        // Try to open it...
-        if let Ok(data_packfile) = open_packfile_with_bufreader(data_packfile_path.to_path_buf()) {
+    let data_packs_paths = get_game_selected_data_packfiles_paths(game_selected, settings);
+    let content_packs_paths = get_game_selected_content_packfiles_paths(game_selected, settings);
+
+    // Get all the DB Tables from the main DB PackFile, if it's configured.
+    if let Some(path) = main_db_pack_path {
+        if let Ok(packfile) = open_packfile_with_bufreader(path.to_path_buf()) {
 
             // Get the PackFile and the BufReader.
-            let pack_file = data_packfile.0;
-            let mut reader = data_packfile.1;
+            let pack_file = packfile.0;
+            let mut reader = packfile.1;
 
             // For each PackFile in the data.pack...
             for (index, packed_file) in pack_file.data.packed_files.iter().enumerate() {
 
                 // If it's a DB file...
-                if packed_file.path.starts_with(&["db".to_owned()]) {
+                if !packed_file.path.is_empty() && packed_file.path.starts_with(&["db".to_owned()]) {
 
                     // Clone the PackedFile.
                     let mut packed_file = packed_file.clone();
@@ -107,6 +113,163 @@ pub fn open_dependency_packfile(data_packfile_path: &Option<PathBuf>) -> Vec<pac
                     packed_files.push(packed_file);
                 }
             }
+        }
+    }
+
+    // Get all the Loc PackedFiles from the main Loc PackFile, if it's configured.
+    if let Some(path) = main_loc_pack_path {
+        if let Ok(packfile) = open_packfile_with_bufreader(path.to_path_buf()) {
+
+            // Get the PackFile and the BufReader.
+            let pack_file = packfile.0;
+            let mut reader = packfile.1;
+
+            // For each PackFile in the data.pack...
+            for (index, packed_file) in pack_file.data.packed_files.iter().enumerate() {
+
+                // If it's a Loc file...
+                if !packed_file.path.is_empty() && packed_file.path.last().unwrap().ends_with(".loc") {
+
+                    // Clone the PackedFile.
+                    let mut packed_file = packed_file.clone();
+
+                    // Read it.
+                    packed_file.data = vec![0; packed_file.size as usize];
+                    reader.seek(SeekFrom::Start(pack_file.packed_file_indexes[index])).unwrap();
+                    reader.read_exact(&mut packed_file.data).unwrap();
+
+                    // Add it to the PackedFiles List.
+                    packed_files.push(packed_file);
+                }
+            }
+        }
+    }
+
+    // Get all the DB and Loc files from any of the dependencies, searching in both, /data and /content.
+    for packfile in dependencies {
+
+        // If the dependency PackFile is in the data folder...
+        if let Some(ref paths) = data_packs_paths {
+            for path in paths {
+                if path.file_name().unwrap().to_string_lossy().as_ref().to_owned() == *packfile {
+
+                    // Get all the DB Tables from the main DB PackFile, if it's configured.
+                    if let Ok(packfile) = open_packfile_with_bufreader(path.to_path_buf()) {
+
+                        // Get the PackFile and the BufReader.
+                        let pack_file = packfile.0;
+                        let mut reader = packfile.1;
+
+                        // For each PackFile in the data.pack...
+                        for (index, packed_file) in pack_file.data.packed_files.iter().enumerate() {
+
+                            // If it's a DB file...
+                            if !packed_file.path.is_empty() && packed_file.path.starts_with(&["db".to_owned()]) {
+
+                                // Clone the PackedFile.
+                                let mut packed_file = packed_file.clone();
+
+                                // Read it.
+                                packed_file.data = vec![0; packed_file.size as usize];
+                                reader.seek(SeekFrom::Start(pack_file.packed_file_indexes[index])).unwrap();
+                                reader.read_exact(&mut packed_file.data).unwrap();
+
+                                // Add it to the PackedFiles List.
+                                packed_files.push(packed_file);
+                            }
+                        }
+                    }
+
+                    // Get all the Loc PackedFiles from the main Loc PackFile, if it's configured.
+                    if let Ok(packfile) = open_packfile_with_bufreader(path.to_path_buf()) {
+
+                        // Get the PackFile and the BufReader.
+                        let pack_file = packfile.0;
+                        let mut reader = packfile.1;
+
+                        // For each PackFile in the data.pack...
+                        for (index, packed_file) in pack_file.data.packed_files.iter().enumerate() {
+
+                            // If it's a Loc file...
+                            if !packed_file.path.is_empty() && packed_file.path.last().unwrap().ends_with(".loc") {
+
+                                // Clone the PackedFile.
+                                let mut packed_file = packed_file.clone();
+
+                                // Read it.
+                                packed_file.data = vec![0; packed_file.size as usize];
+                                reader.seek(SeekFrom::Start(pack_file.packed_file_indexes[index])).unwrap();
+                                reader.read_exact(&mut packed_file.data).unwrap();
+
+                                // Add it to the PackedFiles List.
+                                packed_files.push(packed_file);
+                            }
+                        }
+                    }
+                }
+            } 
+        }
+
+        // If the dependency PackFile is in the content folder...
+        if let Some(ref paths) = content_packs_paths {
+            for path in paths {
+                if path.file_name().unwrap().to_string_lossy().as_ref().to_owned() == *packfile {
+
+                    // Get all the DB Tables from the main DB PackFile, if it's configured.
+                    if let Ok(packfile) = open_packfile_with_bufreader(path.to_path_buf()) {
+
+                        // Get the PackFile and the BufReader.
+                        let pack_file = packfile.0;
+                        let mut reader = packfile.1;
+
+                        // For each PackFile in the data.pack...
+                        for (index, packed_file) in pack_file.data.packed_files.iter().enumerate() {
+
+                            // If it's a DB file...
+                            if !packed_file.path.is_empty() && packed_file.path.starts_with(&["db".to_owned()]) {
+
+                                // Clone the PackedFile.
+                                let mut packed_file = packed_file.clone();
+
+                                // Read it.
+                                packed_file.data = vec![0; packed_file.size as usize];
+                                reader.seek(SeekFrom::Start(pack_file.packed_file_indexes[index])).unwrap();
+                                reader.read_exact(&mut packed_file.data).unwrap();
+
+                                // Add it to the PackedFiles List.
+                                packed_files.push(packed_file);
+                            }
+                        }
+                    }
+
+                    // Get all the Loc PackedFiles from the main Loc PackFile, if it's configured.
+                    if let Ok(packfile) = open_packfile_with_bufreader(path.to_path_buf()) {
+
+                        // Get the PackFile and the BufReader.
+                        let pack_file = packfile.0;
+                        let mut reader = packfile.1;
+
+                        // For each PackFile in the data.pack...
+                        for (index, packed_file) in pack_file.data.packed_files.iter().enumerate() {
+
+                            // If it's a Loc file...
+                            if !packed_file.path.is_empty() && packed_file.path.last().unwrap().ends_with(".loc") {
+
+                                // Clone the PackedFile.
+                                let mut packed_file = packed_file.clone();
+
+                                // Read it.
+                                packed_file.data = vec![0; packed_file.size as usize];
+                                reader.seek(SeekFrom::Start(pack_file.packed_file_indexes[index])).unwrap();
+                                reader.read_exact(&mut packed_file.data).unwrap();
+
+                                // Add it to the PackedFiles List.
+                                packed_files.push(packed_file);
+                            }
+                        }
+                    }
+                }
+            } 
         }
     }
 
