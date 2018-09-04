@@ -53,6 +53,7 @@ pub struct SettingsDialog {
     pub extra_check_updates_on_start: *mut CheckBox,
     pub extra_check_schema_updates_on_start: *mut CheckBox,
     pub extra_use_pfm_extracting_behavior: *mut CheckBox,
+    pub extra_use_dependency_checker: *mut CheckBox,
 }
 
 /// `MyModNewWindow`: This struct holds all the relevant stuff for "My Mod"'s New Mod Window.
@@ -182,29 +183,34 @@ impl SettingsDialog {
         let mut check_updates_on_start_label = Label::new(&QString::from_std_str("Check Updates on Start:"));
         let mut check_schema_updates_on_start_label = Label::new(&QString::from_std_str("Check Schema Updates on Start:"));
         let mut use_pfm_extracting_behavior_label = Label::new(&QString::from_std_str("Use PFM Extracting Behavior:"));
+        let mut use_dependency_checker_label = Label::new(&QString::from_std_str("Enable Dependency Checker for DB Tables:"));
 
         let mut allow_editing_of_ca_packfiles_checkbox = CheckBox::new(());
         let mut check_updates_on_start_checkbox = CheckBox::new(());
         let mut check_schema_updates_on_start_checkbox = CheckBox::new(());
         let mut use_pfm_extracting_behavior_checkbox = CheckBox::new(());
+        let mut use_dependency_checker_checkbox = CheckBox::new(());
 
         // Tips.
         let allow_editing_of_ca_packfiles_tip = QString::from_std_str("By default, only PackFiles of Type 'Mod' and 'Movie' are editables, as those are the only ones used for modding.\nIf you enable this, you'll be able to edit 'Boot', 'Release' and 'Patch' PackFiles too. Just be careful of not writing over one of the game's original PackFiles!");
         let check_updates_on_start_tip = QString::from_std_str("If you enable this, RPFM will check for updates at the start of the program, and inform you if there is any update available.\nWhether download it or not is up to you.");
         let check_schema_updates_on_start_tip = QString::from_std_str("If you enable this, RPFM will check for schema updates at the start of the program,\nand allow you to automatically download it if there is any update available.");
         let use_pfm_extracting_behavior_tip = QString::from_std_str("By default, extracting a file/folder extracts just the file to wherever you want.\nIf you enable this, the file/folder will be extracted wherever you want UNDER HIS ENTIRE PATH.\nThat means that extracting a table go from 'myfolder/table_file' to 'myfolder/db/main_units_tables/table_file'.");
+        let use_dependency_checker_tip = QString::from_std_str("If you enable this, when opening a DB Table RPFM will try to get his dependencies and mark all cells with a reference to another table as 'Not Found In Table' (Red), 'Referenced Table Not Found' (Blue) or 'Correct Reference' (Black). It makes opening a big table a bit slower.");
 
         // Tips for the checkboxes.
         allow_editing_of_ca_packfiles_checkbox.set_tool_tip(&allow_editing_of_ca_packfiles_tip);
         check_updates_on_start_checkbox.set_tool_tip(&check_updates_on_start_tip);
         check_schema_updates_on_start_checkbox.set_tool_tip(&check_schema_updates_on_start_tip);
         use_pfm_extracting_behavior_checkbox.set_tool_tip(&use_pfm_extracting_behavior_tip);
+        use_dependency_checker_checkbox.set_tool_tip(&use_dependency_checker_tip);
 
         // Also, for their labels.
         allow_editing_of_ca_packfiles_label.set_tool_tip(&allow_editing_of_ca_packfiles_tip);
         check_updates_on_start_label.set_tool_tip(&check_updates_on_start_tip);
         check_schema_updates_on_start_label.set_tool_tip(&check_schema_updates_on_start_tip);
         use_pfm_extracting_behavior_label.set_tool_tip(&use_pfm_extracting_behavior_tip);
+        use_dependency_checker_label.set_tool_tip(&use_dependency_checker_tip);
 
         // Add the "Default Game" stuff to the Grid.
         unsafe { extra_settings_grid.as_mut().unwrap().add_widget((default_game_label as *mut Widget, 0, 0, 1, 1)); }
@@ -221,6 +227,9 @@ impl SettingsDialog {
 
         unsafe { extra_settings_grid.as_mut().unwrap().add_widget((use_pfm_extracting_behavior_label.into_raw() as *mut Widget, 4, 0, 1, 1)); }
         unsafe { extra_settings_grid.as_mut().unwrap().add_widget((use_pfm_extracting_behavior_checkbox.static_cast_mut() as *mut Widget, 4, 1, 1, 1)); }
+
+        unsafe { extra_settings_grid.as_mut().unwrap().add_widget((use_dependency_checker_label.into_raw() as *mut Widget, 5, 0, 1, 1)); }
+        unsafe { extra_settings_grid.as_mut().unwrap().add_widget((use_dependency_checker_checkbox.static_cast_mut() as *mut Widget, 5, 1, 1, 1)); }
 
         // Add the Path's grid to his Frame, and his Frame to the Main Grid.
         unsafe { paths_frame.as_mut().unwrap().set_layout(paths_grid.static_cast_mut() as *mut Layout); }
@@ -332,6 +341,7 @@ impl SettingsDialog {
             extra_check_updates_on_start: check_updates_on_start_checkbox.into_raw(),
             extra_check_schema_updates_on_start: check_schema_updates_on_start_checkbox.into_raw(),
             extra_use_pfm_extracting_behavior: use_pfm_extracting_behavior_checkbox.into_raw(),
+            extra_use_dependency_checker: use_dependency_checker_checkbox.into_raw(),
         };
 
         //-------------------------------------------------------------------------------------------//
@@ -395,6 +405,7 @@ impl SettingsDialog {
         unsafe { self.extra_check_updates_on_start.as_mut().unwrap().set_checked(*settings.settings_bool.get("check_updates_on_start").unwrap()); }
         unsafe { self.extra_check_schema_updates_on_start.as_mut().unwrap().set_checked(*settings.settings_bool.get("check_schema_updates_on_start").unwrap()); }
         unsafe { self.extra_use_pfm_extracting_behavior.as_mut().unwrap().set_checked(*settings.settings_bool.get("use_pfm_extracting_behavior").unwrap()); }
+        unsafe { self.extra_use_dependency_checker.as_mut().unwrap().set_checked(*settings.settings_bool.get("use_dependency_checker").unwrap()); }
     }
 
     /// This function gets the data from the Settings Dialog and returns a Settings struct with that
@@ -437,6 +448,7 @@ impl SettingsDialog {
         unsafe { settings.settings_bool.insert("check_updates_on_start".to_owned(), self.extra_check_updates_on_start.as_mut().unwrap().is_checked()); }
         unsafe { settings.settings_bool.insert("check_schema_updates_on_start".to_owned(), self.extra_check_schema_updates_on_start.as_mut().unwrap().is_checked()); }
         unsafe { settings.settings_bool.insert("use_pfm_extracting_behavior".to_owned(), self.extra_use_pfm_extracting_behavior.as_mut().unwrap().is_checked()); }
+        unsafe { settings.settings_bool.insert("use_dependency_checker".to_owned(), self.extra_use_dependency_checker.as_mut().unwrap().is_checked()); }
 
         // Return the new Settings.
         settings

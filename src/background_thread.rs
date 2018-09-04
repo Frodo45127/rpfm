@@ -1027,6 +1027,66 @@ pub fn background_loop(
                         // Update the dependency database.
                         dependency_database = packfile::load_dependency_packfiles(&game_selected, &settings, &pack_file_decoded.data.pack_files);
                     }
+
+                    // In case we want to get the dependency data for a table's column....
+                    Commands::DecodeDependencyDB => {
+                       
+                        // Wait until we get the needed data from the UI thread.
+                        let dependency_data = if let Data::StringString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
+                        let mut data = vec![];
+                        let mut iter = dependency_database.iter();
+                        if !dependency_data.0.is_empty() && !dependency_data.1.is_empty() {
+                            while let Some(packed_file) = iter.find(|x| x.path.starts_with(&["db".to_owned(), format!("{}_tables", dependency_data.0)])) {
+                                if let Some(ref schema) = schema {
+                                    if let Ok(table) = DB::read(&packed_file.data, &format!("{}_tables", dependency_data.0), &schema) {
+                                        if let Some(column_index) = table.data.table_definition.fields.iter().position(|x| x.field_name == dependency_data.1) {
+                                            for row in table.data.entries.iter() {
+
+                                                // For now we assume any dependency is a string.
+                                                match row[column_index] { 
+                                                    DecodedData::StringU8(ref entry) |
+                                                    DecodedData::StringU16(ref entry) |
+                                                    DecodedData::OptionalStringU8(ref entry) |
+                                                    DecodedData::OptionalStringU16(ref entry) => data.push(entry.to_owned()),
+                                                    _ => {}
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // The same for our own PackFile.
+                        let mut iter = pack_file_decoded.data.packed_files.iter();
+                        if !dependency_data.0.is_empty() && !dependency_data.1.is_empty() {
+                            while let Some(packed_file) = iter.find(|x| x.path.starts_with(&["db".to_owned(), format!("{}_tables", dependency_data.0)])) {
+                                if let Some(ref schema) = schema {
+                                    if let Ok(table) = DB::read(&packed_file.data, &format!("{}_tables", dependency_data.0), &schema) {
+                                        if let Some(column_index) = table.data.table_definition.fields.iter().position(|x| x.field_name == dependency_data.1) {
+                                            for row in table.data.entries.iter() {
+
+                                                // For now we assume any dependency is a string.
+                                                match row[column_index] { 
+                                                    DecodedData::StringU8(ref entry) |
+                                                    DecodedData::StringU16(ref entry) |
+                                                    DecodedData::OptionalStringU8(ref entry) |
+                                                    DecodedData::OptionalStringU16(ref entry) => data.push(entry.to_owned()),
+                                                    _ => {}
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Sort and dedup the data found.
+                        data.sort_unstable_by(|a, b| a.cmp(&b));
+                        data.dedup();
+
+                        sender.send(Data::VecString(data)).unwrap();
+                    }
                 }
             }
 

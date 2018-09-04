@@ -82,6 +82,7 @@ pub enum Commands {
     OptimizePackFile,
     GetPackFilesList,
     SetPackFilesList,
+    DecodeDependencyDB,
 }
 
 /// This enum is meant to send data back and forward between threads. Variants here are 
@@ -98,6 +99,7 @@ pub enum Data {
 
     String(String),
     StringBool((String, bool)),
+    StringString((String, String)),
     StringVecString((String, Vec<String>)),
     PathBuf(PathBuf),
     

@@ -3,18 +3,18 @@ extern crate qt_widgets;
 extern crate qt_gui;
 extern crate qt_core;
 
+use qt_widgets::abstract_item_view::{EditTrigger, SelectionMode};
 use qt_widgets::action::Action;
-use qt_widgets::widget::Widget;
-use qt_widgets::table_view::TableView;
-use qt_widgets::menu::Menu;
-use qt_widgets::slots::SlotQtCorePointRef;
 use qt_widgets::file_dialog::FileDialog;
-use qt_widgets::text_edit::TextEdit;
 use qt_widgets::frame::Frame;
 use qt_widgets::group_box::GroupBox;
 use qt_widgets::header_view::ResizeMode;
-use qt_widgets::abstract_item_view::{EditTrigger, SelectionMode};
+use qt_widgets::menu::Menu;
+use qt_widgets::slots::SlotQtCorePointRef;
 use qt_widgets::splitter::Splitter;
+use qt_widgets::text_edit::TextEdit;
+use qt_widgets::table_view::TableView;
+use qt_widgets::widget::Widget;
 
 use qt_gui::cursor::Cursor;
 use qt_gui::font::{Font, StyleHint };
@@ -50,6 +50,7 @@ use QString;
 use common::*;
 use common::communications::*;
 use error::{Error, ErrorKind, Result};
+use settings::Settings;
 use ui::*;
 use packfile::packfile::PackedFile;
 
@@ -207,6 +208,10 @@ impl PackedFileDBTreeView {
         packed_file_path: Vec<String>,
     ) -> Result<Self> {
 
+        // Get the settings.
+        sender_qt.send(Commands::GetSettings).unwrap();
+        let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+
         // Send the index back to the background thread, and wait until we get a response.
         sender_qt.send(Commands::DecodePackedFileDB).unwrap();
         sender_qt_data.send(Data::VecString(packed_file_path.to_vec())).unwrap();
@@ -215,6 +220,28 @@ impl PackedFileDBTreeView {
             Data::Error(error) => return Err(error),
             _ => panic!(THREADS_MESSAGE_ERROR), 
         };
+
+        // Create the dependency data for this table and populate it.
+        let mut dependency_data: BTreeMap<i32, Vec<String>> = BTreeMap::new();
+        
+        // If we have the dependency stuff enabled...
+        if *settings.settings_bool.get("use_dependency_checker").unwrap() {
+
+            // For each field we have in the table...
+            for (index, field) in packed_file_data.table_definition.fields.iter().enumerate() {
+                if let Some(ref dependency) = field.field_is_reference {
+
+                    // Send the index back to the background thread, and wait until we get a response.
+                    sender_qt.send(Commands::DecodeDependencyDB).unwrap();
+                    sender_qt_data.send(Data::StringString(dependency.clone())).unwrap();
+                    match check_message_validity_recv2(&receiver_qt) { 
+                        Data::VecString(data) => { dependency_data.insert(index as i32, data); },
+                        Data::Error(_) => {},
+                        _ => panic!(THREADS_MESSAGE_ERROR), 
+                    }
+                }
+            }
+        }
 
         // Create the TableView.
         let table_view = TableView::new().into_raw();
@@ -250,7 +277,7 @@ impl PackedFileDBTreeView {
 
         // Load the data to the Table. For some reason, if we do this after setting the titles of
         // the columns, the titles will be reseted to 1, 2, 3,... so we do this here.
-        Self::load_data_to_table_view(&packed_file_data, model);
+        Self::load_data_to_table_view(&dependency_data, &packed_file_data, model, &settings);
 
         // Add Table to the Grid.
         unsafe { filter_model.as_mut().unwrap().set_source_model(model as *mut AbstractItemModel); }
@@ -266,10 +293,6 @@ impl PackedFileDBTreeView {
         // Set both headers visible.
         unsafe { table_view.as_mut().unwrap().vertical_header().as_mut().unwrap().set_visible(true); }
         unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_visible(true); }
-
-        // Get the settings.
-        sender_qt.send(Commands::GetSettings).unwrap();
-        let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
         // If we want to let the columns resize themselfs...
         if *settings.settings_bool.get("adjust_columns_to_content").unwrap() {
@@ -406,9 +429,25 @@ impl PackedFileDBTreeView {
                 }
             )),
 
-            slot_item_changed: SlotStandardItemMutPtr::new(|item| {
-                unsafe { item.as_mut().unwrap().set_background(&Brush::new(GlobalColor::Yellow)); }
-            }),
+            slot_item_changed: SlotStandardItemMutPtr::new(clone!(
+                settings,
+                dependency_data,
+                packed_file_data => move |item| {
+                    unsafe { item.as_mut().unwrap().set_background(&Brush::new(GlobalColor::Yellow)); }
+                    
+                    // If we have the dependency stuff enabled...
+                    if *settings.settings_bool.get("use_dependency_checker").unwrap() {
+
+                        // Check if it's a valid reference.
+                        let column;
+                        unsafe { column = item.as_mut().unwrap().column(); }
+
+                        if packed_file_data.table_definition.fields[column as usize].field_is_reference.is_some() {
+                            check_references(&dependency_data, column, item);
+                        }
+                    }
+                }
+            )),
 
             slot_row_filter_change_text: SlotStringRef::new(move |filter_text| {
 
@@ -932,6 +971,8 @@ impl PackedFileDBTreeView {
             )),
 
             slot_context_menu_paste_as_new_lines: SlotBool::new(clone!(
+                settings,
+                dependency_data,
                 packed_file_path,
                 app_ui,
                 is_modified,
@@ -1017,6 +1058,13 @@ impl PackedFileDBTreeView {
 
                             // Set the tooltip for the item.
                             item.set_tool_tip(&QString::from_std_str(&tooltip_text));
+
+                            // If we have the dependency stuff enabled, check if it's a valid reference.
+                            if *settings.settings_bool.get("use_dependency_checker").unwrap() {
+                                if field.field_is_reference.is_some() {
+                                    check_references(&dependency_data, column as i32, item.as_mut_ptr());
+                                }
+                            }
 
                             // Add the cell to the list.
                             unsafe { qlist.append_unsafe(&item.into_raw()); }
@@ -1125,12 +1173,14 @@ impl PackedFileDBTreeView {
             )),
 
             slot_context_menu_import: SlotBool::new(clone!(
+                settings,
                 app_ui,
                 is_modified,
                 packed_file_data,
                 packed_file_path,
                 sender_qt,
                 sender_qt_data,
+                dependency_data,
                 receiver_qt => move |_| {
 
                     // Create the FileDialog to get the PackFile to open.
@@ -1157,7 +1207,7 @@ impl PackedFileDBTreeView {
                         match check_message_validity_recv2(&receiver_qt) {
 
                             // If the importing was succesful, load the data into the Table.
-                            Data::DBData(new_db_data) => Self::load_data_to_table_view(&new_db_data, model),
+                            Data::DBData(new_db_data) => Self::load_data_to_table_view(&dependency_data, &new_db_data, model, &settings),
 
                             // If there was an error, report it.
                             Data::Error(error) => return show_dialog(app_ui.window, false, error),
@@ -1347,8 +1397,10 @@ impl PackedFileDBTreeView {
 
     /// This function loads the data from a LocData into a TableView.
     pub fn load_data_to_table_view(
+        dependency_data: &BTreeMap<i32, Vec<String>>,
         packed_file_data: &DBData,
         model: *mut StandardItemModel,
+        settings: &Settings,
     ) {
         // First, we delete all the data from the `ListStore`. Just in case there is something there.
         unsafe { model.as_mut().unwrap().clear(); }
@@ -1386,16 +1438,16 @@ impl PackedFileDBTreeView {
                 };
 
                 // Get the new field.
-                let field = &packed_file_data.table_definition.fields[index];
+                let field_def = &packed_file_data.table_definition.fields[index];
 
                 // Create the text for the tooltip.
                 let tooltip_text: String =
 
                     // If it's a reference, we put to what cell is referencing in the tooltip.
-                    if let Some(ref reference) = field.field_is_reference {
-                        if !field.field_description.is_empty() {
+                    if let Some(ref reference) = field_def.field_is_reference {
+                        if !field_def.field_description.is_empty() {
                             format!("{}\n\nThis column is a reference to \"{}/{}\".",
-                                field.field_description,
+                                field_def.field_description,
                                 reference.0,
                                 reference.1
                             )
@@ -1410,10 +1462,17 @@ impl PackedFileDBTreeView {
                     }
 
                     // Otherwise, use the text from the description of that field.
-                    else { field.field_description.to_owned() };
+                    else { field_def.field_description.to_owned() };
 
                 // Set the tooltip for the item.
                 item.set_tool_tip(&QString::from_std_str(&tooltip_text));
+
+                // If we have the dependency stuff enabled, check if it's a valid reference.
+                if *settings.settings_bool.get("use_dependency_checker").unwrap() {
+                    if field_def.field_is_reference.is_some() {
+                        check_references(dependency_data, index as i32, item.as_mut_ptr());
+                    }
+                }
 
                 // Add the item to the list.
                 unsafe { qlist.append_unsafe(&item.into_raw()); }
@@ -3540,7 +3599,6 @@ fn clean_column_names(field_name: &str) -> String {
     new_name
 }
 
-
 /// This function is meant to be used to prepare and build the column headers, and the column-related stuff.
 /// His intended use is for just after we reload the data to the table.
 fn build_columns(
@@ -3589,6 +3647,24 @@ fn build_columns(
             // Move the column to the begining.
             unsafe { header.as_mut().unwrap().move_section(*column as i32, position as i32); }
         }
+    }
+}
+
+// Function to check if an specific field's data is in their references.
+fn check_references(
+    dependency_data: &BTreeMap<i32, Vec<String>>,
+    column: i32,
+    item: *mut StandardItem,
+) {
+    // Check if it's a valid reference.
+    if let Some(ref_data) = dependency_data.get(&column) {
+
+        let text;
+        unsafe { text = item.as_mut().unwrap().text().to_std_string(); }
+
+        if ref_data.contains(&text) { unsafe { item.as_mut().unwrap().set_foreground(&Brush::new(GlobalColor::Black)); } }
+        else if ref_data.is_empty() { unsafe { item.as_mut().unwrap().set_foreground(&Brush::new(GlobalColor::Blue)); } }
+        else { unsafe { item.as_mut().unwrap().set_foreground(&Brush::new(GlobalColor::Red)); } }
     }
 }
 
