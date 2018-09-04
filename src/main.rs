@@ -1754,6 +1754,7 @@ fn main() {
             sender_qt_data,
             receiver_qt,
             is_modified,
+            is_packedfile_opened,
             mode => move |_| {
 
                 // Create the FileDialog to get the file/s to add.
@@ -1829,6 +1830,11 @@ fn main() {
                                     paths_packedfile
                                 };
 
+                                // If we have a PackedFile open and it's on the adding list, stop.
+                                if let Some(ref open_path) = *is_packedfile_opened.borrow() {
+                                    if paths_packedfile.contains(open_path) { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
+                                }
+
                                 // Tell the Background Thread to add the files.
                                 sender_qt.send(Commands::AddPackedFile).unwrap();
                                 sender_qt_data.send(Data::VecPathBufVecVecString((paths.to_vec(), paths_packedfile.to_vec()))).unwrap();
@@ -1855,21 +1861,8 @@ fn main() {
                                         *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
                                     }
 
-                                    // If we got an error...
-                                    Data::Error(error) => {
-
-                                        // We must check what kind of error it's.
-                                        match error.kind() {
-
-                                            // If it's an IO error, report it and break the loop.
-                                            ErrorKind::IOGeneric | ErrorKind::IOPermissionDenied | ErrorKind::IOFileNotFound => {
-                                                show_dialog(app_ui.window, false, error);
-                                            }
-
-                                            // In ANY other situation, it's a message problem.
-                                            _ => panic!(THREADS_MESSAGE_ERROR)
-                                        }
-                                    }
+                                    // If we got an error, just show it.
+                                    Data::Error(error) => show_dialog(app_ui.window, false, error),
 
                                     // In ANY other situation, it's a message problem.
                                     _ => panic!(THREADS_MESSAGE_ERROR),
@@ -1899,6 +1892,11 @@ fn main() {
                             let mut paths_packedfile: Vec<Vec<String>> = vec![];
                             for path in &paths { paths_packedfile.append(&mut get_path_from_pathbuf(&app_ui, &path, true)); }
 
+                            // If we have a PackedFile open and it's on the adding list, stop.
+                            if let Some(ref open_path) = *is_packedfile_opened.borrow() {
+                                if paths_packedfile.contains(open_path) { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
+                            }
+
                             // Tell the Background Thread to add the files.
                             sender_qt.send(Commands::AddPackedFile).unwrap();
                             sender_qt_data.send(Data::VecPathBufVecVecString((paths.to_vec(), paths_packedfile.to_vec()))).unwrap();
@@ -1925,21 +1923,8 @@ fn main() {
                                     *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
                                 }
 
-                                // If we got an error...
-                                Data::Error(error) => {
-
-                                    // We must check what kind of error it's.
-                                    match error.kind() {
-
-                                        // If it's an IO error, report it and break the loop.
-                                        ErrorKind::IOGeneric | ErrorKind::IOPermissionDenied | ErrorKind::IOFileNotFound => {
-                                            show_dialog(app_ui.window, false, error);
-                                        }
-
-                                        // In ANY other situation, it's a message problem.
-                                        _ => panic!(THREADS_MESSAGE_ERROR)
-                                    }
-                                }
+                                // If we got an error, just show it.
+                                Data::Error(error) => show_dialog(app_ui.window, false, error),
 
                                 // In ANY other situation, it's a message problem.
                                 _ => panic!(THREADS_MESSAGE_ERROR),
@@ -1959,6 +1944,7 @@ fn main() {
             sender_qt_data,
             receiver_qt,
             is_modified,
+            is_packedfile_opened,
             mode => move |_| {
 
                 // Create the FileDialog to get the folder/s to add.
@@ -2039,6 +2025,11 @@ fn main() {
                                     paths_packedfile
                                 };
 
+                                // If we have a PackedFile open and it's on the adding list, stop.
+                                if let Some(ref open_path) = *is_packedfile_opened.borrow() {
+                                    if paths_packedfile.contains(open_path) { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
+                                }
+
                                 // Tell the Background Thread to add the files.
                                 sender_qt.send(Commands::AddPackedFile).unwrap();
                                 sender_qt_data.send(Data::VecPathBufVecVecString((paths.to_vec(), paths_packedfile.to_vec()))).unwrap();
@@ -2065,21 +2056,8 @@ fn main() {
                                         *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
                                     }
 
-                                    // If we got an error...
-                                    Data::Error(error) => {
-
-                                        // We must check what kind of error it's.
-                                        match error.kind() {
-
-                                            // If it's an IO error, report it and break the loop.
-                                            ErrorKind::IOGeneric | ErrorKind::IOPermissionDenied | ErrorKind::IOFileNotFound => {
-                                                show_dialog(app_ui.window, false, error);
-                                            }
-
-                                            // In ANY other situation, it's a message problem.
-                                            _ => panic!(THREADS_MESSAGE_ERROR)
-                                        }
-                                    }
+                                    // If we got an error, just show it.
+                                    Data::Error(error) => show_dialog(app_ui.window, false, error),
 
                                     // In ANY other situation, it's a message problem.
                                     _ => panic!(THREADS_MESSAGE_ERROR),
@@ -2113,6 +2091,11 @@ fn main() {
                             let mut paths_packedfile: Vec<Vec<String>> = vec![];
                             for path in &folder_paths { paths_packedfile.append(&mut get_path_from_pathbuf(&app_ui, &path, false)); }
 
+                            // If we have a PackedFile open and it's on the adding list, stop.
+                            if let Some(ref open_path) = *is_packedfile_opened.borrow() {
+                                if paths_packedfile.contains(open_path) { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
+                            }
+
                             // Tell the Background Thread to add the files.
                             sender_qt.send(Commands::AddPackedFile).unwrap();
                             sender_qt_data.send(Data::VecPathBufVecVecString((paths.to_vec(), paths_packedfile.to_vec()))).unwrap();
@@ -2139,21 +2122,8 @@ fn main() {
                                     *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
                                 }
 
-                                // If we got an error...
-                                Data::Error(error) => {
-
-                                    // We must check what kind of error it's.
-                                    match error.kind() {
-
-                                        // If it's an IO error, report it and break the loop.
-                                        ErrorKind::IOGeneric | ErrorKind::IOPermissionDenied | ErrorKind::IOFileNotFound => {
-                                            show_dialog(app_ui.window, false, error);
-                                        }
-
-                                        // In ANY other situation, it's a message problem.
-                                        _ => panic!(THREADS_MESSAGE_ERROR)
-                                    }
-                                }
+                                // If we got an error, just show it.
+                                Data::Error(error) => show_dialog(app_ui.window, false, error),
 
                                 // In ANY other situation, it's a message problem.
                                 _ => panic!(THREADS_MESSAGE_ERROR),
