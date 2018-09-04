@@ -347,6 +347,7 @@ impl ShortcutsDialog {
         unsafe { self.menu_bar_packfile.as_mut().unwrap().clear(); }
         unsafe { self.menu_bar_about.as_mut().unwrap().clear(); }
         unsafe { self.tree_view.as_mut().unwrap().clear(); }
+        unsafe { self.pack_files_list.as_mut().unwrap().clear(); }
         unsafe { self.packed_files_db.as_mut().unwrap().clear(); }
         unsafe { self.packed_files_loc.as_mut().unwrap().clear(); }
         unsafe { self.db_decoder_fields.as_mut().unwrap().clear(); }
