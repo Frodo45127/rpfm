@@ -103,6 +103,10 @@ impl PackedFileLocTreeView {
         packed_file_path: Vec<String>,
     ) -> Result<Self> {
 
+        // Get the settings.
+        sender_qt.send(Commands::GetSettings).unwrap();
+        let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+
         // Send the index back to the background thread, and wait until we get a response.
         sender_qt.send(Commands::DecodePackedFileLoc).unwrap();
         sender_qt_data.send(Data::VecString(packed_file_path.to_vec())).unwrap();
@@ -117,8 +121,10 @@ impl PackedFileLocTreeView {
         let filter_model = SortFilterProxyModel::new().into_raw();
         let model = StandardItemModel::new(()).into_raw();
 
-        // Make the last column fill all the available space.
-        unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_stretch_last_section(true); }
+        // Make the last column fill all the available space, if the setting says so.
+        if *settings.settings_bool.get("extend_last_column_on_tables").unwrap() { 
+            unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_stretch_last_section(true); }
+        }
 
         // Create the filter's LineEdit.
         let row_filter_line_edit = LineEdit::new(()).into_raw();
@@ -160,10 +166,6 @@ impl PackedFileLocTreeView {
 
         // Build the columns.
         build_columns(table_view, model);
-
-        // Get the settings.
-        sender_qt.send(Commands::GetSettings).unwrap();
-        let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
         // If we want to let the columns resize themselfs...
         if *settings.settings_bool.get("adjust_columns_to_content").unwrap() {

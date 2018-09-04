@@ -248,8 +248,10 @@ impl PackedFileDBTreeView {
         let filter_model = SortFilterProxyModel::new().into_raw();
         let model = StandardItemModel::new(()).into_raw();
 
-        // Make the last column fill all the available space.
-        unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_stretch_last_section(true); }
+        // Make the last column fill all the available space, if the setting says so.
+        if *settings.settings_bool.get("extend_last_column_on_tables").unwrap() { 
+            unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_stretch_last_section(true); }
+        }
 
         // Create the filter's LineEdit.
         let row_filter_line_edit = LineEdit::new(()).into_raw();

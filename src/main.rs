@@ -55,7 +55,7 @@ use qt_gui::standard_item_model::StandardItemModel;
 
 use qt_core::connection::Signal;
 use qt_core::flags::Flags;
-use qt_core::qt::{ContextMenuPolicy, ShortcutContext};
+use qt_core::qt::{ContextMenuPolicy, ShortcutContext, WindowState};
 use qt_core::slots::{SlotBool, SlotNoArgs, SlotItemSelectionRefItemSelectionRef};
 use cpp_utils::StaticCast;
 
@@ -3492,6 +3492,9 @@ fn main() {
         // Get the settings.
         sender_qt.send(Commands::GetSettings).unwrap();
         let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+
+        // If we want the window to start maximized...
+        if *settings.settings_bool.get("start_maximized").unwrap() { unsafe { (app_ui.window as *mut Widget).as_mut().unwrap().set_window_state(Flags::from_enum(WindowState::Maximized)); } }
 
         // If we have it enabled in the prefs, check if there are updates.
         if *settings.settings_bool.get("check_updates_on_start").unwrap() { check_updates(&app_ui, false) };
