@@ -343,8 +343,8 @@ pub fn background_loop(
                         // for i in pack_file_decoded.data.packed_files.iter() {
                         //     if i.path.starts_with(&["db".to_owned()]) {
                         //         if let Some(ref schema) = schema {
-                        //             if let Err(_) = packedfile::db::DB::read(&i.data, &i.path[1], &schema) {
-                        //                 match packedfile::db::DBHeader::read(&i.data, &mut 0) {
+                        //             if let Err(_) = db::DB::read(&i.data, &i.path[1], &schema) {
+                        //                 match db::DBHeader::read(&i.data, &mut 0) {
                         //                     Ok(db_header) => {
                         //                         if db_header.entry_count > 0 {
                         //                             counter += 1;
