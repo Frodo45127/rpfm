@@ -546,7 +546,8 @@ fn main() {
                 context_menu_rename: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Rename")),
 
                 context_menu_open_decoder: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open with Decoder")),
-                context_menu_open_dependency_manager: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open Dependency Manager")),
+                //context_menu_open_dependency_manager: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open Dependency Manager")),
+                context_menu_open_dependency_manager: Action::new(&QString::from_std_str("&Open Dependency Manager")).into_raw(),
             };
         }
 
