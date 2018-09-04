@@ -7,16 +7,16 @@ extern crate serde_json;
 
 use chrono::{Utc, DateTime};
 
-use std::cell::RefCell;
-use std::rc::Rc;
-use std::sync::mpsc::{Receiver, TryRecvError};
 use std::fs::{File, read_dir};
 use std::path::{Path, PathBuf};
 
+use SUPPORTED_GAMES;
 use error::{ErrorKind, Result};
 use packfile::packfile::PackFile;
+use settings::Settings;
 
 pub mod coding_helpers;
+pub mod communications;
 
 // This tells the compiler to only compile this mod when testing. It's just to make sure the "coders" don't break.
 #[cfg(test)]
@@ -28,11 +28,11 @@ pub const THREADS_MESSAGE_ERROR: &str = "Error in thread messages system.";
 /// This const is the standard message in case of message communication error. If this happens, crash the program and send a report to Sentry.
 pub const THREADS_COMMUNICATION_ERROR: &str = "Error in thread communication system.";
 
-/// This enum has the different types of selected items in a TreeView. File has (tree_path without
-/// the mod's name, index in PackFile). Folder has the tree_path without the mod's name.
+/// This enum has the different types of selected items in a TreeView. File and Folder have their tree_path without
+/// the mod's name.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum TreePathType {
-    File((Vec<String>, usize)),
+    File(Vec<String>),
     Folder(Vec<String>),
     PackFile,
     None,
@@ -43,7 +43,7 @@ pub enum TreePathType {
 impl PartialEq for TreePathType {
     fn eq(&self, other: &TreePathType) -> bool {
         match (self, other) {
-            (&TreePathType::File((_,_)), &TreePathType::File((_,_))) |
+            (&TreePathType::File(_), &TreePathType::File(_)) |
             (&TreePathType::Folder(_), &TreePathType::Folder(_)) |
             (&TreePathType::PackFile, &TreePathType::PackFile) |
             (&TreePathType::None, &TreePathType::None) => true,
@@ -76,23 +76,20 @@ pub fn get_type_of_selected_path(
     else {
 
         // We remove his first field, as our PackedFiles's paths don't have it.
-        tree_path.reverse();
-        tree_path.pop();
-        tree_path.reverse();
+        tree_path.remove(0);
 
         // Now we check if it's a file or a folder.
         let mut is_a_file = false;
-        let mut index = 0;
+
         for i in &pack_file_decoded.data.packed_files {
             if i.path == tree_path {
                 is_a_file = true;
                 break;
             }
-            index += 1;
         }
 
         // If is a file, we return it.
-        if is_a_file { return TreePathType::File((tree_path, index)) }
+        if is_a_file { return TreePathType::File(tree_path) }
 
         // Otherwise, we assume it's a folder. This is not bulletproof so FIXME: find a way to make this more solid.
         else {
@@ -226,174 +223,73 @@ pub fn get_last_modified_time_from_file(file: &File) -> u32 {
     coding_helpers::decode_integer_u32(&last_modified_time).unwrap()
 }
 
-/// This functions serves as "message checker" for the communication between threads, for situations where we can hang the thread.
-/// It's used to ensure what you receive is what you should receive. In case of error, it'll throw you a panic.
+/// Get the `/data` path of the game selected, straighoutta settings, if it's configured.
 #[allow(dead_code)]
-pub fn check_message_validity_recv<T: serde::de::DeserializeOwned>(receiver: &Rc<RefCell<Receiver<Result<Vec<u8>>>>>) -> Result<T> {
+pub fn get_game_selected_data_path(game_selected: &str, settings: &Settings) -> Option<PathBuf> {
 
-    // Wait until you get something in the receiver...
-    match receiver.borrow().recv() {
-
-        // In case of success...
-        Ok(data) => {
-
-            // We check if the serialization was successful.
-            match data {
-
-                // In case of success...
-                Ok(data) => {
-
-                    // Try to deserialize it.
-                    match serde_json::from_slice(&data) {
-
-                        // If it can be deserialized as the type we want, do it and return the data.
-                        Ok(data) => Ok(data),
-
-                        // If error, there are problems with the messages between threads. CTD and send the error to Sentry.
-                        Err(_) => panic!(THREADS_MESSAGE_ERROR),
-                    }
-                }
-
-                // In case of error, there was a problem during the process. Return it.
-                Err(error) => Err(error),
-            }
-        }
-
-        // In case of error, there has been a problem with thread communication. This usually happen
-        // when one of the threads has gone kaput. CTD and send the error to Sentry.
-        Err(_) => panic!(THREADS_COMMUNICATION_ERROR)
-    }
+    let mut path = settings.paths.get(game_selected).unwrap().clone()?;
+    path.push("data");
+    Some(path)
 }
 
-/// This functions serves as "message checker" for the communication between threads, for situations where we can hang the thread.
-/// It's used to ensure what you receive is what you should receive. In case of error, it'll throw you a panic. Same as the normal one,
-/// but it doesn't require you to have an Rc<RefCell<>> around the receiver.
+/// Get the `/data/xxx.pack` path of the PackFile with db tables of the game selected, straighoutta settings, if it's configured.
 #[allow(dead_code)]
-pub fn check_message_validity_recv_background<T: serde::de::DeserializeOwned>(receiver: &Receiver<Result<Vec<u8>>>) -> Result<T> {
+pub fn get_game_selected_db_pack_path(game_selected: &str, settings: &Settings) -> Option<PathBuf> {
 
-    // Wait until you get something in the receiver...
-    match receiver.recv() {
-
-        // In case of success...
-        Ok(data) => {
-
-            // We check if the serialization was successful.
-            match data {
-
-                // In case of success...
-                Ok(data) => {
-
-                    // Try to deserialize it.
-                    match serde_json::from_slice(&data) {
-
-                        // If it can be deserialized as the type we want, do it and return the data.
-                        Ok(data) => Ok(data),
-
-                        // If error, there are problems with the messages between threads. CTD and send the error to Sentry.
-                        Err(_) => panic!(THREADS_MESSAGE_ERROR),
-                    }
-                }
-
-                // In case of error, there was a problem during the process. Return it.
-                Err(error) => Err(error),
-            }
-        }
-
-        // In case of error, there has been a problem with thread communication. This usually happen
-        // when one of the threads has gone kaput. CTD and send the error to Sentry.
-        Err(_) => panic!(THREADS_COMMUNICATION_ERROR)
-    }
+    let mut path = settings.paths.get(game_selected).unwrap().clone()?;
+    path.push("data");
+    path.push(&SUPPORTED_GAMES.get(game_selected).unwrap().db_pack);
+    Some(path)
 }
 
-/// This functions serves as "message checker" for the communication between threads, for situations where we can't hang the thread.
-/// It's used to ensure what you receive is what you should receive. In case of error, it'll throw you one of the two errors:
-/// - TryRecvError::Disconnected: For when the other channel dies.
-/// - TryRecvError::Empty: For where no message has been received.
+/// Get the `/data/xxx.pack` path of the PackFile with the english loc files of the game selected, straighoutta settings, if it's configured.
 #[allow(dead_code)]
-pub fn check_message_validity_tryrecv<T: serde::de::DeserializeOwned>(receiver: &Rc<RefCell<Receiver<Result<Vec<u8>>>>>) -> Result<T> {
+pub fn get_game_selected_loc_pack_path(game_selected: &str, settings: &Settings) -> Option<PathBuf> {
 
-    // Wait until you get something in the receiver...
-    match receiver.borrow().try_recv() {
-
-        // In case of success...
-        Ok(data) => {
-
-            // We check if the serialization was successful.
-            match data {
-
-                // In case of success...
-                Ok(data) => {
-
-                    // Try to deserialize it.
-                    match serde_json::from_slice(&data) {
-
-                        // If it can be deserialized as the type we want, do it and return the data.
-                        Ok(data) => Ok(data),
-
-                        // If error, there are problems with the messages between threads. CTD and send the error to Sentry.
-                        Err(_) => panic!(THREADS_MESSAGE_ERROR),
-                    }
-                }
-
-                // In case of error, there was a problem during the process. Return it.
-                Err(error) => Err(error),
-            }
-        }
-
-        // In case of error, there has been a problem with thread communication. It can be two things: the other thread
-        // has gone kaput, or no message was found. In case of the former, panic. Return an error when the later shows up.
-        Err(error) => {
-            match error {
-                TryRecvError::Empty => Err(ErrorKind::MessageSystemEmpty)?,
-                TryRecvError::Disconnected => panic!(THREADS_COMMUNICATION_ERROR)
-            }
-        }
-    }
+    let mut path = settings.paths.get(game_selected).unwrap().clone()?;
+    path.push("data");
+    path.push(&SUPPORTED_GAMES.get(game_selected).unwrap().loc_pack);
+    Some(path)
 }
 
-/// This functions serves as "message checker" for the communication between threads, for situations where we can't hang the thread.
-/// It's used to ensure what you receive is what you should receive. In case of error, it'll throw you one of the two errors:
-/// - TryRecvError::Disconnected: For when the other channel dies.
-/// - TryRecvError::Empty: For where no message has been received.
-/// Same as the normal one, but it doesn't require you to have an Rc<RefCell<>> around the receiver.
+/// Get a list of all the PackFiles in the `/data` folder of the game straighoutta settings, if it's configured.
 #[allow(dead_code)]
-pub fn check_message_validity_tryrecv_background<T: serde::de::DeserializeOwned>(receiver: &Receiver<Result<Vec<u8>>>) -> Result<T> {
+pub fn get_game_selected_data_packfiles_paths(game_selected: &str, settings: &Settings) -> Option<Vec<PathBuf>> {
 
-    // Wait until you get something in the receiver...
-    match receiver.try_recv() {
+    let mut paths = vec![];
+    let data_path = get_game_selected_data_path(game_selected, settings)?;
 
-        // In case of success...
-        Ok(data) => {
-
-            // We check if the serialization was successful.
-            match data {
-
-                // In case of success...
-                Ok(data) => {
-
-                    // Try to deserialize it.
-                    match serde_json::from_slice(&data) {
-
-                        // If it can be deserialized as the type we want, do it and return the data.
-                        Ok(data) => Ok(data),
-
-                        // If error, there are problems with the messages between threads. CTD and send the error to Sentry.
-                        Err(_) => panic!(THREADS_MESSAGE_ERROR),
-                    }
-                }
-
-                // In case of error, there was a problem during the process. Return it.
-                Err(error) => Err(error),
-            }
-        }
-
-        // In case of error, there has been a problem with thread communication. It can be two things: the other thread
-        // has gone kaput, or no message was found. In case of the former, panic. Return an error when the later shows up.
-        Err(error) => {
-            match error {
-                TryRecvError::Empty => Err(ErrorKind::MessageSystemEmpty)?,
-                TryRecvError::Disconnected => panic!(THREADS_COMMUNICATION_ERROR)
-            }
+    for path in get_files_from_subdir(&data_path).ok()?.iter() {
+        match path.extension() {
+            Some(extension) => if extension == "pack" { paths.push(path.to_path_buf()); }
+            None => continue,
         }
     }
+
+    Some(paths)
+}
+
+/// Get a list of all the PackFiles in the `content` folder of the game straighoutta settings, if it's configured.
+#[allow(dead_code)]
+pub fn get_game_selected_content_packfiles_paths(game_selected: &str, settings: &Settings) -> Option<Vec<PathBuf>> {
+
+    let mut path = settings.paths.get(game_selected).unwrap().clone()?;
+    let id = SUPPORTED_GAMES.get(game_selected).unwrap().steam_id?.to_string();
+
+    path.pop();
+    path.pop();
+    path.push("workshop");
+    path.push("content");
+    path.push(id);
+
+    let mut paths = vec![];
+
+    for path in get_files_from_subdir(&path).ok()?.iter() {
+        match path.extension() {
+            Some(extension) => if extension == "pack" { paths.push(path.to_path_buf()); }
+            None => continue,
+        }
+    }
+
+    Some(paths)
 }

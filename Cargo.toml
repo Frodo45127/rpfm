@@ -1,6 +1,6 @@
 [package]
 name = "rpfm-code"
-version = "1.0.0"
+version = "1.0.1"
 authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
 build = "build.rs"
 description = "A modding tool for Total War games."
@@ -23,6 +23,7 @@ hyper = "0.11"
 hyper-tls = "0.1.4"
 tokio-core = "0.1"
 open = "*"
+indexmap = "1.0"
 
 sentry = "0.7"
 
@@ -33,6 +34,8 @@ qt_core = "0.2"
 cpp_utils = "*"
 
 twa_table_decrypt_lib = "*"
+
+lazy_static = "*"
 
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1.5"

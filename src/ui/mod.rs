@@ -27,7 +27,6 @@ use qt_gui::standard_item_model::StandardItemModel;
 
 use qt_core::abstract_item_model::AbstractItemModel;
 use qt_core::connection::Signal;
-use qt_core::event_loop::EventLoop;
 use qt_core::flags::Flags;
 use qt_core::item_selection::ItemSelection;
 use qt_core::qt::GlobalColor;
@@ -43,16 +42,21 @@ use std::cmp::Ordering;
 use std::path::PathBuf;
 use std::fmt::Display;
 
+use RPFM_PATH;
+use TREEVIEW_ICONS;
 use QString;
 use AppUI;
 use Commands;
+use Data;
 use common::*;
+use common::communications::*;
 use error::{Error, ErrorKind, Result};
 use packedfile::*;
 use packedfile::db::*;
 use packedfile::db::schemas::*;
 use packedfile::loc::*;
 
+pub mod dependency_manager;
 pub mod packedfile_db;
 pub mod packedfile_loc;
 pub mod packedfile_text;
@@ -112,14 +116,13 @@ impl AddFromPackFileSlots {
 
     /// This function creates a new "Add From PackFile" struct and returns it.
     pub fn new_with_grid(
-        rpfm_path: PathBuf,
         sender_qt: Sender<Commands>,
-        sender_qt_data: &Sender<Result<Vec<u8>>>,
-        receiver_qt: &Rc<RefCell<Receiver<Result<Vec<u8>>>>>,
+        sender_qt_data: &Sender<Data>,
+        receiver_qt: &Rc<RefCell<Receiver<Data>>>,
         app_ui: AppUI,
         is_folder_tree_view_locked: &Rc<RefCell<bool>>,
         is_modified: &Rc<RefCell<bool>>,
-        is_packedfile_opened: &Rc<RefCell<bool>>
+        is_packedfile_opened: &Rc<RefCell<Option<Vec<String>>>>
     ) -> Self {
 
         // Create the stuff.
@@ -141,7 +144,6 @@ impl AddFromPackFileSlots {
 
             // This slot is used to copy something from one PackFile to the other when pressing the "<=" button.
             copy: SlotModelIndexRef::new(clone!(
-                rpfm_path,
                 is_modified,
                 sender_qt,
                 sender_qt_data,
@@ -156,66 +158,37 @@ impl AddFromPackFileSlots {
 
                     // Ask the Background Thread to move the files, and send him the path.
                     sender_qt.send(Commands::AddPackedFileFromPackFile).unwrap();
-                    sender_qt_data.send(serde_json::to_vec(&item_path).map_err(From::from)).unwrap();
+                    sender_qt_data.send(Data::VecString(item_path)).unwrap();
 
                     // Disable the Main Window (so we can't do other stuff).
                     unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
 
-                    // Prepare the event loop, so we don't hang the UI while the background thread is working.
-                    let mut event_loop = EventLoop::new();
+                    // Check what response we got.
+                    match check_message_validity_tryrecv(&receiver_qt) {
+                    
+                        // If it's success....
+                        Data::VecVecString(paths) => {
 
-                    // Until we receive a response from the worker thread...
-                    loop {
+                            // Update the TreeView.
+                            update_treeview(
+                                &sender_qt,
+                                &sender_qt_data,
+                                receiver_qt.clone(),
+                                app_ui.window,
+                                app_ui.folder_tree_view,
+                                app_ui.folder_tree_model,
+                                TreeViewOperation::Add(paths),
+                            );
 
-                        // Get the response from the other thread.
-                        let response: Result<(Vec<Vec<String>>)> = check_message_validity_tryrecv(&receiver_qt);
-
-                        // Check what response we got.
-                        match response {
-
-                            // If we got a message...
-                            Ok(paths) => {
-
-                                // Update the TreeView.
-                                update_treeview(
-                                    &rpfm_path,
-                                    &sender_qt,
-                                    &sender_qt_data,
-                                    receiver_qt.clone(),
-                                    app_ui.window,
-                                    app_ui.folder_tree_view,
-                                    app_ui.folder_tree_model,
-                                    TreeViewOperation::Add(paths),
-                                );
-
-                                // Set the mod as "Modified". This is an exception for the path, as it'll be painted later on.
-                                *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
-
-                                // Break the loop.
-                                break;
-                            }
-
-                            // If we got an error...
-                            Err(error) => {
-
-                                // We must check what kind of error it's.
-                                match error.kind() {
-
-                                    // If it's "Message Empty", do nothing.
-                                    ErrorKind::MessageSystemEmpty => {},
-
-                                    // TODO: Depurate this into multiple errors.
-                                    // If there is any other error, report it and break the loop.
-                                    _ => {
-                                        show_dialog(app_ui.window, true, error.kind());
-                                        break;
-                                    }
-                                }
-                            }
+                            // Set the mod as "Modified". This is an exception for the path, as it'll be painted later on.
+                            *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
                         }
 
-                        // Keep the UI responsive.
-                        event_loop.process_events(());
+                        // If we got an error...
+                        Data::Error(error) => show_dialog(app_ui.window, true, error),
+
+                        // In ANY other situation, it's a message problem.
+                        _ => panic!(THREADS_MESSAGE_ERROR),
                     }
 
                     // Re-enable the Main Window.
@@ -250,7 +223,6 @@ impl AddFromPackFileSlots {
 
         // Update the new TreeView.
         update_treeview(
-            &rpfm_path,
             &sender_qt,
             &sender_qt_data,
             receiver_qt.clone(),
@@ -396,8 +368,8 @@ pub fn create_new_folder_dialog(app_ui: &AppUI) -> Option<String> {
 pub fn create_new_packed_file_dialog(
     app_ui: &AppUI,
     sender: &Sender<Commands>,
-    sender_data: &Sender<Result<Vec<u8>>>,
-    receiver: &Rc<RefCell<Receiver<Result<Vec<u8>>>>>,
+    sender_data: &Sender<Data>,
+    receiver: &Rc<RefCell<Receiver<Data>>>,
     packed_file_type: PackedFileType
 ) -> Option<Result<PackedFileType>> {
 
@@ -451,17 +423,11 @@ pub fn create_new_packed_file_dialog(
 
         // Get a list of all the tables currently in use by the selected game.
         sender.send(Commands::GetTableListFromDependencyPackFile).unwrap();
-        let tables: Vec<String> = match check_message_validity_recv(&receiver) {
-            Ok(data) => data,
-            Err(_) => panic!(THREADS_MESSAGE_ERROR),
-        };
+        let tables = if let Data::VecString(data) = check_message_validity_recv2(&receiver) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
         // Get the current schema.
         sender.send(Commands::GetSchema).unwrap();
-        let schema: Option<Schema> = match check_message_validity_recv(&receiver) {
-            Ok(data) => data,
-            Err(_) => panic!(THREADS_MESSAGE_ERROR),
-        };
+        let schema = if let Data::OptionSchema(data) = check_message_validity_recv2(&receiver) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
         // Check if we actually have an schema.
         match schema {
@@ -499,12 +465,10 @@ pub fn create_new_packed_file_dialog(
             PackedFileType::Loc(_) => Some(Ok(PackedFileType::Loc(packed_file_name))),
             PackedFileType::DB(_,_,_) => {
 
+                // TODO: Dedup this.
                 // Get the current schema.
                 sender.send(Commands::GetSchema).unwrap();
-                let schema: Option<Schema> = match check_message_validity_recv(&receiver) {
-                    Ok(data) => data,
-                    Err(_) => panic!(THREADS_MESSAGE_ERROR),
-                };
+                let schema = if let Data::OptionSchema(data) = check_message_validity_recv2(&receiver) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                 // Check if we actually have an schema.
                 match schema {
@@ -517,11 +481,8 @@ pub fn create_new_packed_file_dialog(
 
                         // Get the data of the table used in the dependency database.
                         sender.send(Commands::GetTableVersionFromDependencyPackFile).unwrap();
-                        sender_data.send(serde_json::to_vec(&table).map_err(From::from)).unwrap();
-                        let version: u32 = match check_message_validity_recv(&receiver) {
-                            Ok(data) => data,
-                            Err(_) => panic!(THREADS_MESSAGE_ERROR),
-                        };
+                        sender_data.send(Data::String(table.to_owned())).unwrap();
+                        let version = if let Data::U32(data) = check_message_validity_recv2(&receiver) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                         let table_schema = schema.tables_definitions.iter().filter(|x| x.name == table).cloned().collect::<Vec<TableDefinitions>>();
                         let valid_versions = table_schema[0].versions.iter().map(|x| x.version).collect::<Vec<u32>>();
@@ -746,7 +707,7 @@ enum IconType {
 
 /// Struct `Icons`. This struct is used to hold all the Qt Icons used by the TreeView. This is generated
 /// everytime we call "update_treeview", but ideally we should move it to on start.
-struct Icons {
+pub struct Icons {
     pub packfile_editable: icon::Icon,
     pub packfile_locked: icon::Icon,
     pub folder: icon::Icon,
@@ -777,10 +738,10 @@ struct Icons {
 impl Icons {
 
     /// This function creates a list of Icons from certain paths in disk.
-    fn new(rpfm_path: &PathBuf) -> Self {
+    pub fn new() -> Self {
 
         // Get the Path as a String, so Qt can understand it.
-        let rpfm_path_string = rpfm_path.to_string_lossy().as_ref().to_string();
+        let rpfm_path_string = RPFM_PATH.to_string_lossy().as_ref().to_string();
 
         // Prepare the path for the icons of the TreeView.
         let mut icon_packfile_editable_path = rpfm_path_string.to_owned();
@@ -948,7 +909,7 @@ pub fn set_modified(
 
 /// This function deletes whatever it's in the right side of the screen, leaving it empty.
 /// Also, each time this triggers we consider there is no PackedFile open.
-pub fn purge_them_all(app_ui: &AppUI, is_packedfile_opened: &Rc<RefCell<bool>>) {
+pub fn purge_them_all(app_ui: &AppUI, is_packedfile_opened: &Rc<RefCell<Option<Vec<String>>>>) {
 
     // Black magic.
     unsafe {
@@ -960,7 +921,7 @@ pub fn purge_them_all(app_ui: &AppUI, is_packedfile_opened: &Rc<RefCell<bool>>) 
     }
 
     // Set it as not having an opened PackedFile, just in case.
-    *is_packedfile_opened.borrow_mut() = false;
+    *is_packedfile_opened.borrow_mut() = None;
 
     // Just in case what was open before this was a DB Table, make sure the "Game Selected" menu is re-enabled.
     unsafe { app_ui.game_selected_group.as_mut().unwrap().set_enabled(true); }
@@ -1463,7 +1424,6 @@ pub fn clean_treeview(
 /// - icon_type: the type of icon needed for this file.
 fn set_icon_to_item(
     item: *mut StandardItem,
-    icons: &Icons,
     icon_type: IconType,
 ) {
 
@@ -1472,12 +1432,12 @@ fn set_icon_to_item(
 
         // For PackFiles.
         IconType::PackFile(editable) => {
-            if editable { unsafe { item.as_mut().unwrap().set_icon(&icons.packfile_editable); } }
-            else { unsafe { item.as_mut().unwrap().set_icon(&icons.packfile_locked); } }
+            if editable { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.packfile_editable); } }
+            else { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.packfile_locked); } }
         },
 
         // For folders.
-        IconType::Folder => unsafe { item.as_mut().unwrap().set_icon(&icons.folder); },
+        IconType::Folder => unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.folder); },
 
         // For files.
         IconType::File(path) => {
@@ -1486,42 +1446,42 @@ fn set_icon_to_item(
             let packed_file_name = path.last().unwrap();
 
             // If it's in the "db" folder, it's a DB PackedFile (or you put something were it shouldn't be).
-            if path[0] == "db" { unsafe { item.as_mut().unwrap().set_icon(&icons.table); } }
+            if path[0] == "db" { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.table); } }
 
             // If it ends in ".loc", it's a localisation PackedFile.
-            else if packed_file_name.ends_with(".loc") { unsafe { item.as_mut().unwrap().set_icon(&icons.table); } }
+            else if packed_file_name.ends_with(".loc") { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.table); } }
 
             // If it ends in ".rigid_model_v2", it's a RigidModel PackedFile.
-            else if packed_file_name.ends_with(".rigid_model_v2") { unsafe { item.as_mut().unwrap().set_icon(&icons.rigid_model); } }
+            else if packed_file_name.ends_with(".rigid_model_v2") { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.rigid_model); } }
 
             // If it ends in any of these, it's a plain text PackedFile.
-            else if packed_file_name.ends_with(".lua") { unsafe { item.as_mut().unwrap().set_icon(&icons.text_generic); } }
-            else if packed_file_name.ends_with(".xml") { unsafe { item.as_mut().unwrap().set_icon(&icons.text_xml); } }
-            else if packed_file_name.ends_with(".xml.shader") { unsafe { item.as_mut().unwrap().set_icon(&icons.text_xml); } }
-            else if packed_file_name.ends_with(".xml.material") { unsafe { item.as_mut().unwrap().set_icon(&icons.text_xml); } }
-            else if packed_file_name.ends_with(".variantmeshdefinition") { unsafe { item.as_mut().unwrap().set_icon(&icons.text_xml); } }
-            else if packed_file_name.ends_with(".environment") { unsafe { item.as_mut().unwrap().set_icon(&icons.text_xml); } }
-            else if packed_file_name.ends_with(".lighting") { unsafe { item.as_mut().unwrap().set_icon(&icons.text_generic); } }
-            else if packed_file_name.ends_with(".wsmodel") { unsafe { item.as_mut().unwrap().set_icon(&icons.text_generic); } }
-            else if packed_file_name.ends_with(".csv") { unsafe { item.as_mut().unwrap().set_icon(&icons.text_csv); } }
-            else if packed_file_name.ends_with(".tsv") { unsafe { item.as_mut().unwrap().set_icon(&icons.text_csv); } }
-            else if packed_file_name.ends_with(".inl") { unsafe { item.as_mut().unwrap().set_icon(&icons.text_generic); } }
-            else if packed_file_name.ends_with(".battle_speech_camera") { unsafe { item.as_mut().unwrap().set_icon(&icons.text_generic); } }
-            else if packed_file_name.ends_with(".bob") { unsafe { item.as_mut().unwrap().set_icon(&icons.text_generic); } }
-            else if packed_file_name.ends_with(".cindyscene") { unsafe { item.as_mut().unwrap().set_icon(&icons.text_generic); } }
-            else if packed_file_name.ends_with(".cindyscenemanager") { unsafe { item.as_mut().unwrap().set_icon(&icons.text_generic); } }
+            else if packed_file_name.ends_with(".lua") { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.text_generic); } }
+            else if packed_file_name.ends_with(".xml") { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.text_xml); } }
+            else if packed_file_name.ends_with(".xml.shader") { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.text_xml); } }
+            else if packed_file_name.ends_with(".xml.material") { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.text_xml); } }
+            else if packed_file_name.ends_with(".variantmeshdefinition") { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.text_xml); } }
+            else if packed_file_name.ends_with(".environment") { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.text_xml); } }
+            else if packed_file_name.ends_with(".lighting") { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.text_generic); } }
+            else if packed_file_name.ends_with(".wsmodel") { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.text_generic); } }
+            else if packed_file_name.ends_with(".csv") { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.text_csv); } }
+            else if packed_file_name.ends_with(".tsv") { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.text_csv); } }
+            else if packed_file_name.ends_with(".inl") { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.text_generic); } }
+            else if packed_file_name.ends_with(".battle_speech_camera") { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.text_generic); } }
+            else if packed_file_name.ends_with(".bob") { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.text_generic); } }
+            else if packed_file_name.ends_with(".cindyscene") { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.text_generic); } }
+            else if packed_file_name.ends_with(".cindyscenemanager") { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.text_generic); } }
             //else if packed_file_name.ends_with(".benchmark") || // This one needs special decoding/encoding.
-            else if packed_file_name.ends_with(".txt") { unsafe { item.as_mut().unwrap().set_icon(&icons.text_txt); } }
+            else if packed_file_name.ends_with(".txt") { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.text_txt); } }
 
             // If it ends in any of these, it's an image.
-            else if packed_file_name.ends_with(".jpg") { unsafe { item.as_mut().unwrap().set_icon(&icons.image_jpg); } }
-            else if packed_file_name.ends_with(".jpeg") { unsafe { item.as_mut().unwrap().set_icon(&icons.image_jpg); } }
-            else if packed_file_name.ends_with(".tga") { unsafe { item.as_mut().unwrap().set_icon(&icons.image_generic); } }
-            else if packed_file_name.ends_with(".dds") { unsafe { item.as_mut().unwrap().set_icon(&icons.image_generic); } }
-            else if packed_file_name.ends_with(".png") { unsafe { item.as_mut().unwrap().set_icon(&icons.image_png); } }
+            else if packed_file_name.ends_with(".jpg") { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.image_jpg); } }
+            else if packed_file_name.ends_with(".jpeg") { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.image_jpg); } }
+            else if packed_file_name.ends_with(".tga") { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.image_generic); } }
+            else if packed_file_name.ends_with(".dds") { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.image_generic); } }
+            else if packed_file_name.ends_with(".png") { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.image_png); } }
 
             // Otherwise, it's a generic file.
-            else { unsafe { item.as_mut().unwrap().set_icon(&icons.file); } }
+            else { unsafe { item.as_mut().unwrap().set_icon(&TREEVIEW_ICONS.file); } }
         }
     }
 }
@@ -1529,19 +1489,14 @@ fn set_icon_to_item(
 /// This function takes care of EVERY operation that manipulates the provided TreeView.
 /// It does one thing or another, depending on the operation we provide it.
 pub fn update_treeview(
-    rpfm_path: &PathBuf,
     sender_qt: &Sender<Commands>,
-    sender_qt_data: &Sender<Result<Vec<u8>>>,
-    receiver_qt: Rc<RefCell<Receiver<Result<Vec<u8>>>>>,
+    sender_qt_data: &Sender<Data>,
+    receiver_qt_data: Rc<RefCell<Receiver<Data>>>,
     window: *mut MainWindow,
     tree_view: *mut TreeView,
     model: *mut StandardItemModel,
     operation: TreeViewOperation,
 ) {
-
-    // Get the Icons for the TreeView.
-    // TODO: Move this to const fn when it reaches stable in rust.
-    let icons = Icons::new(&rpfm_path);
 
     // We act depending on the operation requested.
     match operation {
@@ -1552,11 +1507,7 @@ pub fn update_treeview(
             // Depending on the PackFile we want to build the TreeView with, we ask for his data.
             if is_extra_packfile { sender_qt.send(Commands::GetPackFileExtraDataForTreeView).unwrap(); }
             else { sender_qt.send(Commands::GetPackFileDataForTreeView).unwrap(); }
-
-            let pack_file_data: (String, u32, Vec<Vec<String>>)  = match check_message_validity_recv(&receiver_qt) {
-                Ok(data) => data,
-                Err(_) => panic!(THREADS_MESSAGE_ERROR)
-            };
+            let pack_file_data = if let Data::StringU32VecVecString(data) = check_message_validity_recv2(&receiver_qt_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
             // First, we clean the TreeStore and whatever was created in the TreeView.
             unsafe { model.as_mut().unwrap().clear(); }
@@ -1575,7 +1526,7 @@ pub fn update_treeview(
             unsafe { model.as_mut().unwrap().append_row_unsafe(big_parent); }
 
             // Give it an Icon.
-            set_icon_to_item(big_parent, &icons, IconType::PackFile(is_extra_packfile));
+            set_icon_to_item(big_parent, IconType::PackFile(is_extra_packfile));
 
             // We get all the paths of the PackedFiles inside the Packfile in a Vector.
             let mut sorted_path_list = pack_file_data.2;
@@ -1656,7 +1607,7 @@ pub fn update_treeview(
                         let path = get_path_from_item(model, file, false);
 
                         // Give it an icon.
-                        set_icon_to_item(file, &icons, IconType::File(path));
+                        set_icon_to_item(file, IconType::File(path));
                     }
 
                     // If it's a folder, we check first if it's already in the TreeStore using the following
@@ -1712,7 +1663,7 @@ pub fn update_treeview(
                                     parent.as_mut().unwrap().append_row_unsafe(folder);
 
                                     // Give it an Icon.
-                                    set_icon_to_item(folder, &icons, IconType::Folder);
+                                    set_icon_to_item(folder, IconType::Folder);
 
                                     // This is our parent now.
                                     let index = parent.as_ref().unwrap().row_count() - 1;
@@ -1733,7 +1684,7 @@ pub fn update_treeview(
                                 parent.as_mut().unwrap().append_row_unsafe(folder);
 
                                 // Give it an Icon.
-                                set_icon_to_item(folder, &icons, IconType::Folder);
+                                set_icon_to_item(folder, IconType::Folder);
 
                                 // This is our parent now.
                                 let index = parent.as_ref().unwrap().row_count() - 1;
@@ -1789,20 +1740,17 @@ pub fn update_treeview(
 
                             // Send the Path to the Background Thread to get the Item's Type.
                             sender_qt.send(Commands::GetTypeOfPath).unwrap();
-                            sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
-                            let item_type: TreePathType = match check_message_validity_recv(&receiver_qt) {
-                                Ok(data) => data,
-                                Err(_) => panic!(THREADS_MESSAGE_ERROR)
-                            };
+                            sender_qt_data.send(Data::VecString(path)).unwrap();
+                            let item_type = if let Data::TreePathType(data) = check_message_validity_recv2(&receiver_qt_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                             // Act depending on the Type of the Path.
                             match item_type {
 
                                 // If it's a folder, give it an Icon.
-                                TreePathType::Folder(_) => set_icon_to_item(item, &icons, IconType::Folder),
+                                TreePathType::Folder(_) => set_icon_to_item(item, IconType::Folder),
 
                                 // If it's a folder, give it an Icon.
-                                TreePathType::File((ref path,_)) => set_icon_to_item(item, &icons, IconType::File(path.to_vec())),
+                                TreePathType::File(ref path) => set_icon_to_item(item, IconType::File(path.to_vec())),
 
                                 // Any other type, ignore it.
                                 _ => {},
@@ -1815,7 +1763,7 @@ pub fn update_treeview(
                             sort_item_in_tree_view(
                                 sender_qt,
                                 sender_qt_data,
-                                receiver_qt.clone(),
+                                receiver_qt_data.clone(),
                                 model,
                                 item,
                                 item_type
@@ -1867,7 +1815,7 @@ pub fn update_treeview(
                                     parent.as_mut().unwrap().append_row_unsafe(folder);
 
                                     // Give it an icon.
-                                    set_icon_to_item(folder, &icons, IconType::Folder);
+                                    set_icon_to_item(folder, IconType::Folder);
 
                                     // This is our parent now.
                                     let index = parent.as_ref().unwrap().row_count() - 1;
@@ -1877,7 +1825,7 @@ pub fn update_treeview(
                                     sort_item_in_tree_view(
                                         sender_qt,
                                         sender_qt_data,
-                                        receiver_qt.clone(),
+                                        receiver_qt_data.clone(),
                                         model,
                                         folder,
                                         TreePathType::Folder(vec![String::new()])
@@ -1896,7 +1844,7 @@ pub fn update_treeview(
                                 parent.as_mut().unwrap().append_row_unsafe(folder);
 
                                 // Give it an icon.
-                                set_icon_to_item(folder, &icons, IconType::Folder);
+                                set_icon_to_item(folder, IconType::Folder);
 
                                 // This is our parent now.
                                 let index = parent.as_ref().unwrap().row_count() - 1;
@@ -1906,7 +1854,7 @@ pub fn update_treeview(
                                 sort_item_in_tree_view(
                                     sender_qt,
                                     sender_qt_data,
-                                    receiver_qt.clone(),
+                                    receiver_qt_data.clone(),
                                     model,
                                     folder,
                                     TreePathType::Folder(vec![String::new()])
@@ -1965,10 +1913,9 @@ pub fn update_treeview(
 
                     // Rebuild the TreeView.
                     update_treeview(
-                        &rpfm_path,
                         &sender_qt,
                         &sender_qt_data,
-                        receiver_qt.clone(),
+                        receiver_qt_data.clone(),
                         window,
                         tree_view,
                         model,
@@ -1988,7 +1935,7 @@ pub fn update_treeview(
             match path_type {
 
                 // If it's a PackedFile or a Folder...
-                TreePathType::File((path,_)) => {
+                TreePathType::File(path) => {
 
                     // Get the PackFile's item.
                     let packfile;
@@ -2154,7 +2101,7 @@ pub fn update_treeview(
             match path_type {
 
                 // If it's a folder or a File, give it an Icon.
-                TreePathType::Folder(_) | TreePathType::File((_,_)) => {
+                TreePathType::Folder(_) | TreePathType::File(_) => {
 
                     // Get the item.
                     let item;
@@ -2167,7 +2114,7 @@ pub fn update_treeview(
                     sort_item_in_tree_view(
                         sender_qt,
                         sender_qt_data,
-                        receiver_qt.clone(),
+                        receiver_qt_data.clone(),
                         model,
                         item,
                         path_type
@@ -2197,8 +2144,8 @@ pub fn update_treeview(
 #[allow(dead_code)]
 fn sort_item_in_tree_view(
     sender_qt: &Sender<Commands>,
-    sender_qt_data: &Sender<Result<Vec<u8>>>,
-    receiver_qt: Rc<RefCell<Receiver<Result<Vec<u8>>>>>,
+    sender_qt_data: &Sender<Data>,
+    receiver_qt: Rc<RefCell<Receiver<Data>>>,
     model: *mut StandardItemModel,
     mut item: *mut StandardItem,
     item_type: TreePathType,
@@ -2232,11 +2179,8 @@ fn sort_item_in_tree_view(
 
         // Send the Path to the Background Thread, and get the type of the item.
         sender_qt.send(Commands::GetTypeOfPath).unwrap();
-        sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
-        match check_message_validity_recv(&receiver_qt) {
-            Ok(data) => data,
-            Err(_) => panic!(THREADS_MESSAGE_ERROR)
-        }
+        sender_qt_data.send(Data::VecString(path)).unwrap();
+        if let Data::TreePathType(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); }
     }
 
     // Otherwise, return the type as `None`.
@@ -2254,11 +2198,8 @@ fn sort_item_in_tree_view(
 
         // Send the Path to the Background Thread, and get the type of the item.
         sender_qt.send(Commands::GetTypeOfPath).unwrap();
-        sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
-        match check_message_validity_recv(&receiver_qt) {
-            Ok(data) => data,
-            Err(_) => panic!(THREADS_MESSAGE_ERROR)
-        }
+        sender_qt_data.send(Data::VecString(path)).unwrap();
+        if let Data::TreePathType(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); }
     }
 
     // Otherwise, return the type as `None`.
@@ -2275,7 +2216,7 @@ fn sort_item_in_tree_view(
     else if item_type_prev != TreePathType::None && item_type_next == TreePathType::None { true }
 
     // If the top one is a folder, and the bottom one is a file, get the type of our iter.
-    else if item_type_prev == TreePathType::Folder(vec![String::new()]) && item_type_next == TreePathType::File((vec![String::new()], 1)) {
+    else if item_type_prev == TreePathType::Folder(vec![String::new()]) && item_type_next == TreePathType::File(vec![String::new()]) {
         if item_type == TreePathType::Folder(vec![String::new()]) { true } else { false }
     }
 
@@ -2336,11 +2277,8 @@ fn sort_item_in_tree_view(
 
             // Send the Path to the Background Thread, and get the type of the item.
             sender_qt.send(Commands::GetTypeOfPath).unwrap();
-            sender_qt_data.send(serde_json::to_vec(&path).map_err(From::from)).unwrap();
-            let item_sibling_type: TreePathType = match check_message_validity_recv(&receiver_qt) {
-                Ok(data) => data,
-                Err(_) => panic!(THREADS_MESSAGE_ERROR)
-            };
+            sender_qt_data.send(Data::VecString(path)).unwrap();
+            let item_sibling_type = if let Data::TreePathType(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
             // If both are of the same type...
             if item_type == item_sibling_type {
@@ -2396,7 +2334,7 @@ fn sort_item_in_tree_view(
             }
 
             // If the top one is a File and the bottom one a Folder, it's an special situation. Just swap them.
-            else if item_type == TreePathType::Folder(vec![String::new()]) && item_sibling_type == TreePathType::File((vec![String::new()], 1)) {
+            else if item_type == TreePathType::Folder(vec![String::new()]) && item_sibling_type == TreePathType::File(vec![String::new()]) {
 
                 // We swap them, and update them for the next loop.
                 let item_x;

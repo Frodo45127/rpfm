@@ -13,6 +13,8 @@ use std::rc::Rc;
 
 use AppUI;
 use Commands;
+use Data;
+use common::communications::*;
 use ui::*;
 use error::Result;
 
@@ -38,21 +40,20 @@ impl PackedFileTextView {
     /// `PackedFileLocTreeView` with all his data.
     pub fn create_text_view(
         sender_qt: Sender<Commands>,
-        sender_qt_data: &Sender<Result<Vec<u8>>>,
-        receiver_qt: &Rc<RefCell<Receiver<Result<Vec<u8>>>>>,
+        sender_qt_data: &Sender<Data>,
+        receiver_qt: &Rc<RefCell<Receiver<Data>>>,
         is_modified: &Rc<RefCell<bool>>,
         app_ui: &AppUI,
-        packed_file_index: &usize,
+        packed_file_path: Vec<String>,
     ) -> Result<Self> {
 
         // Get the text of the PackedFile.
         sender_qt.send(Commands::DecodePackedFileText).unwrap();
-        sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
-
-        // Get the response from the other thread.
-        let text: String = match check_message_validity_recv(&receiver_qt) {
-            Ok(data) => data,
-            Err(error) => return Err(error)
+        sender_qt_data.send(Data::VecString(packed_file_path.to_vec())).unwrap();
+        let text = match check_message_validity_recv2(&receiver_qt) { 
+            Data::String(data) => data,
+            Data::Error(error) => return Err(error),
+            _ => panic!(THREADS_MESSAGE_ERROR), 
         };
 
         // Create the PlainTextEdit.
@@ -64,33 +65,22 @@ impl PackedFileTextView {
         // Create the stuff needed for this to work.
         let stuff = Self {
             save_changes: SlotNoArgs::new(clone!(
-                packed_file_index,
+                packed_file_path,
                 app_ui,
                 is_modified,
                 sender_qt,
-                sender_qt_data,
-                receiver_qt => move || {
-
-                    // Tell the background thread to start saving the PackedFile.
-                    sender_qt.send(Commands::EncodePackedFileText).unwrap();
+                sender_qt_data => move || {
 
                     // Get the text from the PlainTextEdit.
                     let text;
                     unsafe { text = plain_text_edit.as_mut().unwrap().to_plain_text().to_std_string(); }
 
-                    // Send the new text.
-                    sender_qt_data.send(serde_json::to_vec(&(text, packed_file_index)).map_err(From::from)).unwrap();
-
-                    // Get the incomplete path of the edited PackedFile.
-                    sender_qt.send(Commands::GetPackedFilePath).unwrap();
-                    sender_qt_data.send(serde_json::to_vec(&packed_file_index).map_err(From::from)).unwrap();
-                    let path: Vec<String> = match check_message_validity_recv(&receiver_qt) {
-                        Ok(data) => data,
-                        Err(_) => panic!(THREADS_MESSAGE_ERROR)
-                    };
+                    // Tell the background thread to start saving the PackedFile.
+                    sender_qt.send(Commands::EncodePackedFileText).unwrap();
+                    sender_qt_data.send(Data::StringVecString((text, packed_file_path.to_vec()))).unwrap();
 
                     // Set the mod as "Modified".
-                    *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(path));
+                    *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(packed_file_path.to_vec()));
                 }
             )),
         };

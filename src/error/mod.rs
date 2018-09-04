@@ -30,6 +30,9 @@ pub struct Error {
 #[derive(Clone, Eq, PartialEq, Debug, Fail)]
 pub enum ErrorKind {
 
+    // Generic error. For a situation where you just need to throw an error, doesn't matter what kind of error.
+    Generic,
+
     //-----------------------------------------------------//
     //                  Network Errors
     //-----------------------------------------------------//
@@ -102,6 +105,12 @@ pub enum ErrorKind {
     //-----------------------------------------------------//
     //                PackedFile Errors
     //-----------------------------------------------------//
+
+    // Error for when the PackedFile we want to get doesn't exists.
+    PackedFileNotFound,
+
+    // Error for when we are trying to do an operation that cannot be done with the PackedFile open.
+    PackedFileIsOpen,
 
     //--------------------------------//
     // DB Table Errors
@@ -233,9 +242,6 @@ pub enum ErrorKind {
     // Errors for when we fail to mass-import/export TSV files.
     MassImport(Vec<String>),
 
-    // Error for when you try to change the order of the PackedFile list with an open PackedFile.
-    DeletePackedFilesWithPackedFileOpen,
-
     // Error for when the introduced input (usually, a name) is empty and it cannot be empty.
     EmptyInput,
 
@@ -266,12 +272,6 @@ pub enum ErrorKind {
 
     // Error for unexpected EOF.
     JsonErrorEOF,
-
-    // Error for the Message System between threads. To use when TryRecv returns TryRecvError::Empty.
-    MessageSystemEmpty,
-
-    // Error used for gracefully stopping a process in the background thread, returning it to his "waiting" state.
-    CancelOperation,
 }
 
 /// Implementation of our custom Error Type.
@@ -316,6 +316,7 @@ impl Display for Error {
 impl Display for ErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            ErrorKind::Generic => write!(f, "<p>Generic error. You should never read this.</p>"),
 
             //-----------------------------------------------------//
             //                  Network Errors
@@ -373,6 +374,8 @@ impl Display for ErrorKind {
             //-----------------------------------------------------//
             //                PackedFile Errors
             //-----------------------------------------------------//
+            ErrorKind::PackedFileNotFound => write!(f, "<p>This PackedFile no longer exists in the PackFile.</p>"),
+            ErrorKind::PackedFileIsOpen => write!(f, "<p>That operation cannot be done while the PackedFile involved on it is open.</p>"),
 
             //--------------------------------//
             // DB Table Errors
@@ -447,7 +450,6 @@ impl Display for ErrorKind {
             ErrorKind::NameAlreadyInUseInThisPath => write!(f, "<p>The provided name is already in use in the current path.</p>"),
             ErrorKind::ExtractError(errors) => write!(f, "<p>There has been a problem extracting the following files:</p><ul>{:#?}</ul>", errors),
             ErrorKind::MassImport(errors) => write!(f, "<p>The following files returned error when trying to import them:</p><ul>{:#?}</ul><p>No files have been imported.</p>", errors),
-            ErrorKind::DeletePackedFilesWithPackedFileOpen => write!(f, "<p>You can't delete a PackedFile/Folder while there is a PackedFile opened in the right side.</p><p>Close it by clicking in a Folder/PackFile before trying to delete it again.</p>"),
             ErrorKind::EmptyInput => write!(f, "<p>Only my hearth can be empty.</p>"),
             ErrorKind::InvalidInput => write!(f, "<p>There are characters that shall never be used.</p>"),
             ErrorKind::UnchangedInput => write!(f, "<p>Like war, nothing changed.</p>"),
@@ -461,8 +463,6 @@ impl Display for ErrorKind {
             ErrorKind::JsonErrorSyntax => write!(f, "<p>Error while trying to read JSON data:</p><p>Invalid syntax found.</p>"),
             ErrorKind::JsonErrorData => write!(f, "<p>Error while trying to read JSON data:</p><p>Semantically incorrect data found.</p>"),
             ErrorKind::JsonErrorEOF => write!(f,"<p>Error while trying to read JSON data:</p><p>Unexpected EOF found.</p>"),
-            ErrorKind::MessageSystemEmpty => write!(f, "<p>Message not found.</p>"),
-            ErrorKind::CancelOperation => write!(f, "<p>Operation cancelled. Returning to a waiting state.</p"),
         }
     }
 }

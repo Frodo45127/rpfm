@@ -152,6 +152,16 @@ impl PackFile {
         }
     }
 
+    /// This function replaces the current `PackFile List` with a new one.
+    ///
+    /// It requires:
+    /// - `&mut self`: the PackFile we are going to manipulate.
+    /// - `pack_files`: a Vec<String> we are going to use as new list.
+    pub fn save_packfiles_list(&mut self, pack_files: Vec<String>) {
+        self.header.pack_file_count = pack_files.len() as u32;
+        self.data.pack_files = pack_files;
+    }
+
     /// This function adds one or more `PackedFiles` to an existing `PackFile`.
     ///
     /// It requires:
@@ -271,6 +281,10 @@ impl PackFile {
 
         // If any of the problematic masks in the header is set, return an error.
         if self.header.data_is_encrypted || self.header.index_is_encrypted || self.header.header_is_extended { return Err(ErrorKind::PackFileIsNonEditable)? }
+
+        // For some bizarre reason, if the PackedFiles are not alphabetically sorted they may or may not crash the game for particular people.
+        // So, to fix it, we have to sort all the PackedFiles here by path.
+        self.data.packed_files.sort_unstable_by(|a, b| a.path.cmp(&b.path));
 
         // We encode the indexes, as we need their final size to encode complete the header.
         let indexes = self.data.save_indexes(&self.header);

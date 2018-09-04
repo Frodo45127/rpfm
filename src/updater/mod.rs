@@ -13,6 +13,7 @@ use self::futures::{Future, Stream};
 use self::hyper::Client;
 use self::tokio_core::reactor::Core;
 
+use RPFM_PATH;
 use error;
 use self::restson::RestPath;
 
@@ -52,14 +53,13 @@ impl RestPath<()> for Versions {
 pub fn update_schemas(
     local_versions: Versions,
     current_versions: Versions,
-    rpfm_path: &PathBuf
 ) -> error::Result<()> {
 
     // For each schema in the repo...
     for (index, schema) in current_versions.schemas.iter().enumerate() {
 
         // Get the local_schema's path.
-        let local_schema_path = rpfm_path.to_path_buf().join(PathBuf::from(format!("schemas/{}", schema.schema_file)));
+        let local_schema_path = RPFM_PATH.to_path_buf().join(PathBuf::from(format!("schemas/{}", schema.schema_file)));
 
         // If the schema exist in our local_versions...
         if let Some(local_schema) = local_versions.schemas.get(index) {
@@ -117,7 +117,7 @@ pub fn update_schemas(
     }
 
     // Get the local "versions.json" path.
-    let versions_path = rpfm_path.to_path_buf().join(PathBuf::from("schemas/versions.json"));
+    let versions_path = RPFM_PATH.to_path_buf().join(PathBuf::from("schemas/versions.json"));
 
     // Update the "versions.json" to reflect the update.
     let mut file = BufWriter::new(File::create(&versions_path)?);
