@@ -1,6 +1,6 @@
 ### Rules for contributing to RPFM.
 You can contribute to RPFM development in multiple ways:
-- **Docs**: These will not be accepted until 1.0 is released, as the program is constantly changing.
+- **Docs**: There is a manual, but tutorials are always welcome.
 - **Schemas**: If you want to update an schema, just send me the edited file and I'll add your changes (or edit it and do a pull request, whatever you want).
 - **Code**: If you want to contribute with some code change, there are two rules: ***explain what your code does*** and ***no black magic code***. The reason for those rules is I'm using this project to learn Rust, so complex code without explanation doesn't help me learn anything.
 
