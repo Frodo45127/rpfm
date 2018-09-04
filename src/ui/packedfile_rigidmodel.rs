@@ -49,13 +49,17 @@ impl PackedFileRigidModelDataView {
         receiver_qt: &Rc<RefCell<Receiver<Data>>>,
         is_modified: &Rc<RefCell<bool>>,
         app_ui: &AppUI,
-        packed_file_index: &usize,
+        packed_file_path: Vec<String>,
     ) -> Result<Self> {
 
         // Get the data of the PackedFile.
         sender_qt.send(Commands::DecodePackedFileRigidModel).unwrap();
-        sender_qt_data.send(Data::Usize(*packed_file_index)).unwrap();
-        let packed_file = if let Data::RigidModel(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+        sender_qt_data.send(Data::VecString(packed_file_path.to_vec())).unwrap();
+        let packed_file = match check_message_validity_recv2(&receiver_qt) { 
+            Data::RigidModel(data) => data,
+            Data::Error(error) => return Err(error),
+            _ => panic!(THREADS_MESSAGE_ERROR), 
+        };
 
         // Create the "Info" Frame.
         let info_frame = GroupBox::new(&QString::from_std_str("RigidModel's Info")).into_raw();
@@ -271,15 +275,14 @@ impl PackedFileRigidModelDataView {
 
             // Slot to save all the changes from the texts.
             save_changes: SlotNoArgs::new(clone!(
-                packed_file_index,
+                packed_file_path,
                 texture_paths,
                 texture_paths_index,
                 packed_file,
                 is_modified,
                 app_ui,
                 sender_qt,
-                sender_qt_data,
-                receiver_qt => move || {
+                sender_qt_data => move || {
 
                     // Try to update the RigidModel's data from the LineEdits.
                     if let Err(error) = Self::return_data_from_data_view(
@@ -294,21 +297,16 @@ impl PackedFileRigidModelDataView {
 
                     // Tell the background thread to start saving the PackedFile.
                     sender_qt.send(Commands::EncodePackedFileRigidModel).unwrap();
-                    sender_qt_data.send(Data::RigidModelUsize((packed_file.borrow().clone(), packed_file_index))).unwrap();
-
-                    // Get the incomplete path of the edited PackedFile.
-                    sender_qt.send(Commands::GetPackedFilePath).unwrap();
-                    sender_qt_data.send(Data::Usize(packed_file_index)).unwrap();
-                    let path = if let Data::VecString(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                    sender_qt_data.send(Data::RigidModelVecString((packed_file.borrow().clone(), packed_file_path.to_vec()))).unwrap();
 
                     // Set the mod as "Modified".
-                    *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(path));
+                    *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(packed_file_path.to_vec()));
                 }
             )),
 
             // Slot to patch the RigidModel for Warhammer.
             patch_rigid_model: SlotNoArgs::new(clone!(
-                packed_file_index,
+                packed_file_path,
                 packed_file,
                 is_modified,
                 app_ui,
@@ -318,7 +316,7 @@ impl PackedFileRigidModelDataView {
 
                     // Send the data to the background to try to patch the rigidmodel.
                     sender_qt.send(Commands::PatchAttilaRigidModelToWarhammer).unwrap();
-                    sender_qt_data.send(Data::Usize(packed_file_index)).unwrap();
+                    sender_qt_data.send(Data::VecString(packed_file_path.to_vec())).unwrap();
 
                     // Disable the Main Window (so we can't do other stuff).
                     unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
@@ -337,13 +335,8 @@ impl PackedFileRigidModelDataView {
                             unsafe { rigid_model_compatible_decoded_label.as_mut().unwrap().set_text(&QString::from_std_str("Warhammer 1&2")); }
                             unsafe { patch_attila_to_warhammer_button.as_mut().unwrap().set_enabled(false); }
 
-                            // Get the incomplete path of the edited PackedFile.
-                            sender_qt.send(Commands::GetPackedFilePath).unwrap();
-                            sender_qt_data.send(Data::Usize(packed_file_index)).unwrap();
-                            let path = if let Data::VecString(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
                             // Set the mod as "Modified".
-                            *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(path));
+                            *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(packed_file_path.to_vec()));
                         }
 
                         // If we got an error...

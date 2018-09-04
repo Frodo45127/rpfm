@@ -282,6 +282,10 @@ impl PackFile {
         // If any of the problematic masks in the header is set, return an error.
         if self.header.data_is_encrypted || self.header.index_is_encrypted || self.header.header_is_extended { return Err(ErrorKind::PackFileIsNonEditable)? }
 
+        // For some bizarre reason, if the PackedFiles are not alphabetically sorted they may or may not crash the game for particular people.
+        // So, to fix it, we have to sort all the PackedFiles here by path.
+        self.data.packed_files.sort_unstable_by(|a, b| a.path.cmp(&b.path));
+
         // We encode the indexes, as we need their final size to encode complete the header.
         let indexes = self.data.save_indexes(&self.header);
 

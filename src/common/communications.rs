@@ -43,7 +43,6 @@ pub enum Commands {
     GetGameSelected,
     SetGameSelected,
     //GetPackFileHeader,
-    GetPackedFilePath,
     IsThereADependencyDatabase,
     IsThereASchema,
     PatchSiegeAI,
@@ -96,11 +95,10 @@ pub enum Data {
 
     Bool(bool),
     U32(u32),
-    Usize(usize),
 
     String(String),
     StringBool((String, bool)),
-    StringUsize((String, usize)),
+    StringVecString((String, Vec<String>)),
     PathBuf(PathBuf),
     
     Settings(Settings),
@@ -115,13 +113,13 @@ pub enum Data {
     TreePathType(TreePathType),
 
     LocData(LocData),
-    LocDataUsize((LocData, usize)),
+    LocDataVecString((LocData, Vec<String>)),
 
     DBData(DBData),
-    DBDataUsize((DBData, usize)),
+    DBDataVecString((DBData, Vec<String>)),
 
     RigidModel(RigidModel),
-    RigidModelUsize((RigidModel, usize)),
+    RigidModelVecString((RigidModel, Vec<String>)),
 
     StringU32VecVecString((String, u32, Vec<Vec<String>>)),
     StringVecPathBuf((String, Vec<PathBuf>)),

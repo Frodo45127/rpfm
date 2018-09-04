@@ -366,16 +366,6 @@ pub fn background_loop(
                     //     sender.send(Data::PackFileHeader(pack_file_decoded.header.clone())).unwrap();
                     // }
 
-                    // In case we want to get the path of a PackedFile...
-                    Commands::GetPackedFilePath => {
-
-                        // Wait until we get the needed data from the UI thread.
-                        let index = if let Data::Usize(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                        // Serialize and send the path of the PackedFile.
-                        sender.send(Data::VecString(pack_file_decoded.data.packed_files[index].path.to_vec())).unwrap();
-                    }
-
                     // In case we want to check if there is a current Dependency Database loaded...
                     Commands::IsThereADependencyDatabase => {
                         if !dependency_database.is_empty() { sender.send(Data::Bool(true)).unwrap(); }
@@ -646,19 +636,26 @@ pub fn background_loop(
                     Commands::DecodePackedFileLoc => {
 
                         // Wait until we get the needed data from the UI thread.
-                        let index = if let Data::Usize(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                        let path = if let Data::VecString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
-                        // We try to decode it as a Loc PackedFile.
-                        match Loc::read(&pack_file_decoded.data.packed_files[index].data) {
+                        // Find the PackedFile we want and send back the response.
+                        match pack_file_decoded.data.packed_files.iter().find(|x| x.path == path) {
+                            Some(packed_file) => {
 
-                            // If we succeed, store it and send it back.
-                            Ok(packed_file_decoded) => {
-                                packed_file_loc = packed_file_decoded;
-                                sender.send(Data::LocData(packed_file_loc.data.clone())).unwrap();
+                                // We try to decode it as a Loc PackedFile.
+                                match Loc::read(&packed_file.data) {
+
+                                    // If we succeed, store it and send it back.
+                                    Ok(packed_file_decoded) => {
+                                        packed_file_loc = packed_file_decoded;
+                                        sender.send(Data::LocData(packed_file_loc.data.clone())).unwrap();
+                                    }
+
+                                    // In case of error, report it.
+                                    Err(error) => sender.send(Data::Error(error)).unwrap(),
+                                }
                             }
-
-                            // In case of error, report it.
-                            Err(error) => sender.send(Data::Error(error)).unwrap(),
+                            None => sender.send(Data::Error(Error::from(ErrorKind::PackedFileNotFound))).unwrap(),
                         }
                     }
 
@@ -666,7 +663,7 @@ pub fn background_loop(
                     Commands::EncodePackedFileLoc => {
 
                         // Wait until we get the needed data from the UI thread.
-                        let data = if let Data::LocDataUsize(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                        let data = if let Data::LocDataVecString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                         // Replace the old encoded data with the new one.
                         packed_file_loc.data = data.0;
@@ -675,7 +672,7 @@ pub fn background_loop(
                         packfile::update_packed_file_data_loc(
                             &packed_file_loc,
                             &mut pack_file_decoded,
-                            data.1
+                            &data.1
                         );
                     }
 
@@ -709,7 +706,7 @@ pub fn background_loop(
                     Commands::DecodePackedFileDB => {
 
                         // Wait until we get the needed data from the UI thread.
-                        let index = if let Data::Usize(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                        let path = if let Data::VecString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                         // Depending if there is an Schema for this game or not...
                         match schema {
@@ -717,22 +714,30 @@ pub fn background_loop(
                             // If there is an Schema loaded for this game...
                             Some(ref schema) => {
 
-                                // We try to decode it as a DB PackedFile.
-                                match DB::read(
-                                    &pack_file_decoded.data.packed_files[index].data,
-                                    &pack_file_decoded.data.packed_files[index].path[1],
-                                    schema,
-                                ) {
+                                // Find the PackedFile we want and send back the response.
+                                match pack_file_decoded.data.packed_files.iter().find(|x| x.path == path) {
+                                    Some(packed_file) => {
 
-                                    // If we succeed, store it and send it back.
-                                    Ok(packed_file_decoded) => {
-                                        packed_file_db = packed_file_decoded;
-                                        sender.send(Data::DBData(packed_file_db.data.clone())).unwrap();
+                                        // We try to decode it as a DB PackedFile.
+                                        match DB::read(
+                                            &packed_file.data,
+                                            &packed_file.path[1],
+                                            schema,
+                                        ) {
+
+                                            // If we succeed, store it and send it back.
+                                            Ok(packed_file_decoded) => {
+                                                packed_file_db = packed_file_decoded;
+                                                sender.send(Data::DBData(packed_file_db.data.clone())).unwrap();
+                                            }
+
+                                            // In case of error, report it.
+                                            Err(error) => sender.send(Data::Error(error)).unwrap(),
+                                        }
                                     }
-
-                                    // In case of error, report it.
-                                    Err(error) => sender.send(Data::Error(error)).unwrap(),
+                                    None => sender.send(Data::Error(Error::from(ErrorKind::PackedFileNotFound))).unwrap(),
                                 }
+
                             }
 
                             // If there is no schema, return an error.
@@ -744,7 +749,7 @@ pub fn background_loop(
                     Commands::EncodePackedFileDB => {
 
                         // Wait until we get the needed data from the UI thread.
-                        let data = if let Data::DBDataUsize(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                        let data = if let Data::DBDataVecString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                         // Replace the old encoded data with the new one.
                         packed_file_db.data = data.0;
@@ -753,7 +758,7 @@ pub fn background_loop(
                         packfile::update_packed_file_data_db(
                             &packed_file_db,
                             &mut pack_file_decoded,
-                            data.1
+                            &data.1
                         );
                     }
 
@@ -790,23 +795,30 @@ pub fn background_loop(
                     Commands::DecodePackedFileText => {
 
                         // Wait until we get the needed data from the UI thread.
-                        let index = if let Data::Usize(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                        let path = if let Data::VecString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
-                        // NOTE: This only works for UTF-8 and ISO_8859_1 encoded files. Check their encoding before adding them here to be decoded.
-                        // Try to decode the PackedFile as a normal UTF-8 string.
-                        let mut decoded_string = decode_string_u8(&pack_file_decoded.data.packed_files[index].data);
+                        // Find the PackedFile we want and send back the response.
+                        match pack_file_decoded.data.packed_files.iter().find(|x| x.path == path) {
+                            Some(packed_file) => {
 
-                        // If there is an error, try again as ISO_8859_1, as there are some text files using that encoding.
-                        if decoded_string.is_err() {
-                            if let Ok(string) = decode_string_u8_iso_8859_1(&pack_file_decoded.data.packed_files[index].data) {
-                                decoded_string = Ok(string);
+                                // NOTE: This only works for UTF-8 and ISO_8859_1 encoded files. Check their encoding before adding them here to be decoded.
+                                // Try to decode the PackedFile as a normal UTF-8 string.
+                                let mut decoded_string = decode_string_u8(&packed_file.data);
+
+                                // If there is an error, try again as ISO_8859_1, as there are some text files using that encoding.
+                                if decoded_string.is_err() {
+                                    if let Ok(string) = decode_string_u8_iso_8859_1(&packed_file.data) {
+                                        decoded_string = Ok(string);
+                                    }
+                                }
+
+                                // Depending if the decoding worked or not, send back the text file or an error.
+                                match decoded_string {
+                                    Ok(text) => sender.send(Data::String(text)).unwrap(),
+                                    Err(error) => sender.send(Data::Error(error)).unwrap(),
+                                }
                             }
-                        }
-
-                        // Depending if the decoding worked or not, send back the text file or an error.
-                        match decoded_string {
-                            Ok(text) => sender.send(Data::String(text)).unwrap(),
-                            Err(error) => sender.send(Data::Error(error)).unwrap(),
+                            None => sender.send(Data::Error(Error::from(ErrorKind::PackedFileNotFound))).unwrap(),
                         }
                     }
 
@@ -814,7 +826,7 @@ pub fn background_loop(
                     Commands::EncodePackedFileText => {
 
                         // Wait until we get the needed data from the UI thread.
-                        let data = if let Data::StringUsize(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                        let data = if let Data::StringVecString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                         // Encode the text.
                         let encoded_text = encode_string_u8(&data.0);
@@ -823,7 +835,7 @@ pub fn background_loop(
                         packfile::update_packed_file_data_text(
                             &encoded_text,
                             &mut pack_file_decoded,
-                            data.1
+                            &data.1
                         );
                     }
 
@@ -831,19 +843,26 @@ pub fn background_loop(
                     Commands::DecodePackedFileRigidModel => {
 
                         // Wait until we get the needed data from the UI thread.
-                        let index = if let Data::Usize(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                        let path = if let Data::VecString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
-                        // We try to decode it as a RigidModel.
-                        match RigidModel::read(&pack_file_decoded.data.packed_files[index].data) {
+                        // Find the PackedFile we want and send back the response.
+                        match pack_file_decoded.data.packed_files.iter().find(|x| x.path == path) {
+                            Some(packed_file) => {
 
-                            // If we succeed, store it and send it back.
-                            Ok(packed_file_decoded) => {
-                                packed_file_rigid_model = packed_file_decoded;
-                                sender.send(Data::RigidModel(packed_file_rigid_model.clone())).unwrap();
+                                // We try to decode it as a RigidModel.
+                                match RigidModel::read(&packed_file.data) {
+
+                                    // If we succeed, store it and send it back.
+                                    Ok(packed_file_decoded) => {
+                                        packed_file_rigid_model = packed_file_decoded;
+                                        sender.send(Data::RigidModel(packed_file_rigid_model.clone())).unwrap();
+                                    }
+
+                                    // In case of error, report it.
+                                    Err(error) => sender.send(Data::Error(error)).unwrap(),
+                                }
                             }
-
-                            // In case of error, report it.
-                            Err(error) => sender.send(Data::Error(error)).unwrap(),
+                            None => sender.send(Data::Error(Error::from(ErrorKind::PackedFileNotFound))).unwrap(),
                         }
                     }
 
@@ -851,7 +870,7 @@ pub fn background_loop(
                     Commands::EncodePackedFileRigidModel => {
 
                         // Wait until we get the needed data from the UI thread.
-                        let data = if let Data::RigidModelUsize(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                        let data = if let Data::RigidModelVecString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                         // Replace the old encoded data with the new one.
                         packed_file_rigid_model = data.0;
@@ -860,7 +879,7 @@ pub fn background_loop(
                         packfile::update_packed_file_data_rigid(
                             &packed_file_rigid_model,
                             &mut pack_file_decoded,
-                            data.1
+                            &data.1
                         );
                     }
 
@@ -868,27 +887,34 @@ pub fn background_loop(
                     Commands::PatchAttilaRigidModelToWarhammer => {
 
                         // Wait until we get the needed data from the UI thread.
-                        let index = if let Data::Usize(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                        let path = if let Data::VecString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
-                        // We try to patch the RigidModel.
-                        match packfile::patch_rigid_model_attila_to_warhammer(&mut packed_file_rigid_model) {
+                        // Find the PackedFile we want and send back the response.
+                        match pack_file_decoded.data.packed_files.iter().find(|x| x.path == path) {
+                            Some(_) => {
 
-                            // If we succeed...
-                            Ok(_) => {
+                                // We try to patch the RigidModel.
+                                match packfile::patch_rigid_model_attila_to_warhammer(&mut packed_file_rigid_model) {
 
-                                // Update the PackFile to reflect the changes.
-                                packfile::update_packed_file_data_rigid(
-                                    &packed_file_rigid_model,
-                                    &mut pack_file_decoded,
-                                    index
-                                );
+                                    // If we succeed...
+                                    Ok(_) => {
 
-                                // Send back the patched PackedFile.
-                                sender.send(Data::RigidModel(packed_file_rigid_model.clone())).unwrap()
+                                        // Update the PackFile to reflect the changes.
+                                        packfile::update_packed_file_data_rigid(
+                                            &packed_file_rigid_model,
+                                            &mut pack_file_decoded,
+                                            &path
+                                        );
+
+                                        // Send back the patched PackedFile.
+                                        sender.send(Data::RigidModel(packed_file_rigid_model.clone())).unwrap()
+                                    }
+
+                                    // In case of error, report it.
+                                    Err(error) => sender.send(Data::Error(error)).unwrap(),
+                                }
                             }
-
-                            // In case of error, report it.
-                            Err(error) => sender.send(Data::Error(error)).unwrap(),
+                            None => sender.send(Data::Error(Error::from(ErrorKind::PackedFileNotFound))).unwrap(),
                         }
                     }
 
@@ -896,29 +922,36 @@ pub fn background_loop(
                     Commands::DecodePackedFileImage => {
 
                         // Wait until we get the needed data from the UI thread.
-                        let index = if let Data::Usize(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
+                        let path = if let Data::VecString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
 
-                        // Get the data of the image we want to open, and his name.
-                        let image_data = &pack_file_decoded.data.packed_files[index].data;
-                        let image_name = &pack_file_decoded.data.packed_files[index].path.last().unwrap().to_owned();
+                        // Find the PackedFile we want and send back the response.
+                        match pack_file_decoded.data.packed_files.iter().find(|x| x.path == path) {
+                            Some(packed_file) => {
 
-                        // Create a temporal file for the image in the TEMP directory of the filesystem.
-                        let mut temporal_file_path = temp_dir();
-                        temporal_file_path.push(image_name);
-                        match File::create(&temporal_file_path) {
-                            Ok(mut temporal_file) => {
+                                // Get the data of the image we want to open, and his name.
+                                let image_data = &packed_file.data;
+                                let image_name = &packed_file.path.last().unwrap().to_owned();
 
-                                // If there is an error while trying to write the image to the TEMP folder, report it.
-                                if temporal_file.write_all(image_data).is_err() {
-                                    sender.send(Data::Error(Error::from(ErrorKind::IOGenericWrite(vec![temporal_file_path.display().to_string();1])))).unwrap();
+                                // Create a temporal file for the image in the TEMP directory of the filesystem.
+                                let mut temporal_file_path = temp_dir();
+                                temporal_file_path.push(image_name);
+                                match File::create(&temporal_file_path) {
+                                    Ok(mut temporal_file) => {
+
+                                        // If there is an error while trying to write the image to the TEMP folder, report it.
+                                        if temporal_file.write_all(image_data).is_err() {
+                                            sender.send(Data::Error(Error::from(ErrorKind::IOGenericWrite(vec![temporal_file_path.display().to_string();1])))).unwrap();
+                                        }
+
+                                        // If it worked, create an Image with the new file and show it inside a ScrolledWindow.
+                                        else { sender.send(Data::PathBuf(temporal_file_path)).unwrap(); }
+                                    }
+
+                                    // If there is an error when trying to create the file into the TEMP folder, report it.
+                                    Err(_) => sender.send(Data::Error(Error::from(ErrorKind::IOGenericWrite(vec![temporal_file_path.display().to_string();1])))).unwrap(),
                                 }
-
-                                // If it worked, create an Image with the new file and show it inside a ScrolledWindow.
-                                else { sender.send(Data::PathBuf(temporal_file_path)).unwrap(); }
                             }
-
-                            // If there is an error when trying to create the file into the TEMP folder, report it.
-                            Err(_) => sender.send(Data::Error(Error::from(ErrorKind::IOGenericWrite(vec![temporal_file_path.display().to_string();1])))).unwrap(),
+                            None => sender.send(Data::Error(Error::from(ErrorKind::PackedFileNotFound))).unwrap(),
                         }
                     }
 
@@ -939,10 +972,13 @@ pub fn background_loop(
                     Commands::GetPackedFile => {
 
                         // Wait until we get the needed data from the UI thread.
-                        let index = if let Data::Usize(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
+                        let path = if let Data::VecString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
 
-                        // Send back the PackedFile.
-                        sender.send(Data::PackedFile(pack_file_decoded.data.packed_files[index].clone())).unwrap();
+                        // Find the PackedFile we want and send back the response.
+                        match pack_file_decoded.data.packed_files.iter().find(|x| x.path == path) {
+                            Some(packed_file) => sender.send(Data::PackedFile(packed_file.clone())).unwrap(),
+                            None => sender.send(Data::Error(Error::from(ErrorKind::PackedFileNotFound))).unwrap(),
+                        }
                     }
 
                     // In case we want to get the list of tables in the dependency database...

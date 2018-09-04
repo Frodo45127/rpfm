@@ -204,12 +204,12 @@ impl PackedFileDBTreeView {
         receiver_qt: &Rc<RefCell<Receiver<Data>>>,
         is_modified: &Rc<RefCell<bool>>,
         app_ui: &AppUI,
-        packed_file_index: &usize,
+        packed_file_path: Vec<String>,
     ) -> Result<Self> {
 
         // Send the index back to the background thread, and wait until we get a response.
         sender_qt.send(Commands::DecodePackedFileDB).unwrap();
-        sender_qt_data.send(Data::Usize(*packed_file_index)).unwrap();
+        sender_qt_data.send(Data::VecString(packed_file_path.to_vec())).unwrap();
         let packed_file_data = match check_message_validity_recv2(&receiver_qt) { 
             Data::DBData(data) => data,
             Data::Error(error) => return Err(error),
@@ -381,33 +381,28 @@ impl PackedFileDBTreeView {
                 }
             ),
             save_changes: SlotModelIndexRefModelIndexRefVectorVectorCIntRef::new(clone!(
-                packed_file_index,
+                packed_file_path,
                 app_ui,
                 is_modified,
                 packed_file_data,
                 sender_qt,
-                sender_qt_data,
-                receiver_qt => move |_,_,_| {
+                sender_qt_data => move |_,_,roles| {
 
-                    // Get a local copy of the data.
-                    let mut data = packed_file_data.clone();
+                    // To avoid doing this multiple times due to the cell painting stuff, we need to check the role.
+                    // This has to be allowed ONLY if the role is 0 (DisplayText), 2 (EditorText) or 10 (CheckStateRole).
+                    if roles.contains(&0) || roles.contains(&2) || roles.contains(&10) {
 
-                    // Update the DBData with the data in the table, or report error if it fails.
-                    if let Err(error) = Self::return_data_from_table_view(&mut data, model) {
-                        return show_dialog(app_ui.window, false, error.kind());
-                    };
-
-                    // Tell the background thread to start saving the PackedFile.
-                    sender_qt.send(Commands::EncodePackedFileDB).unwrap();
-                    sender_qt_data.send(Data::DBDataUsize((data, packed_file_index))).unwrap();
-
-                    // Get the incomplete path of the edited PackedFile.
-                    sender_qt.send(Commands::GetPackedFilePath).unwrap();
-                    sender_qt_data.send(Data::Usize(packed_file_index)).unwrap();
-                    let path = if let Data::VecString(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                    // Set the mod as "Modified".
-                    *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(path));
+                        // Try to save the PackedFile to the main PackFile.
+                        Self::save_to_packed_file(
+                            &sender_qt,
+                            &sender_qt_data,
+                            &is_modified,
+                            &app_ui,
+                            packed_file_data.clone(),
+                            &packed_file_path,
+                            model,
+                        );
+                    }
                 }
             )),
 
@@ -632,13 +627,12 @@ impl PackedFileDBTreeView {
                 }
             )),
             slot_context_menu_delete: SlotBool::new(clone!(
-                packed_file_index,
+                packed_file_path,
                 app_ui,
                 is_modified,
                 packed_file_data,
                 sender_qt,
-                sender_qt_data,
-                receiver_qt => move |_| {
+                sender_qt_data => move |_| {
 
                     // Get the current selection.
                     let selection;
@@ -676,39 +670,27 @@ impl PackedFileDBTreeView {
                     let mut _y = false;
                     unsafe { rows.iter().for_each(|x| _y = model.as_mut().unwrap().remove_rows((*x, 1))); }
 
-                    // If we deleted anything, save the data.
-                    if rows.len() > 0 {
-
-                        // Get a local copy of the data.
-                        let mut data = packed_file_data.clone();
-
-                        // Update the DBData with the data in the table, or report error if it fails.
-                        if let Err(error) = Self::return_data_from_table_view(&mut data, model) {
-                            return show_dialog(app_ui.window, false, error.kind());
-                        };
-
-                        // Tell the background thread to start saving the PackedFile.
-                        sender_qt.send(Commands::EncodePackedFileDB).unwrap();
-                        sender_qt_data.send(Data::DBDataUsize((data, packed_file_index))).unwrap();
-
-                        // Get the incomplete path of the edited PackedFile.
-                        sender_qt.send(Commands::GetPackedFilePath).unwrap();
-                        sender_qt_data.send(Data::Usize(packed_file_index)).unwrap();
-                        let path = if let Data::VecString(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                        // Set the mod as "Modified".
-                        *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(path));
+                    // If we deleted something, try to save the PackedFile to the main PackFile.
+                    if !rows.is_empty() {
+                        Self::save_to_packed_file(
+                            &sender_qt,
+                            &sender_qt_data,
+                            &is_modified,
+                            &app_ui,
+                            packed_file_data.clone(),
+                            &packed_file_path,
+                            model,
+                        );
                     }
                 }
             )),
             slot_context_menu_clone: SlotBool::new(clone!(
-                packed_file_index,
+                packed_file_path,
                 app_ui,
                 is_modified,
                 packed_file_data,
                 sender_qt,
-                sender_qt_data,
-                receiver_qt => move |_| {
+                sender_qt_data => move |_| {
 
                     // Get the current selection.
                     let selection;
@@ -786,28 +768,17 @@ impl PackedFileDBTreeView {
                         unsafe { model.as_mut().unwrap().insert_row((row + 1, &qlist)); }
                     }
 
-                    // If we cloned anything, save the data.
-                    if rows.len() > 0 {
-
-                        // Get a local copy of the data.
-                        let mut data = packed_file_data.clone();
-
-                        // Update the DBData with the data in the table, or report error if it fails.
-                        if let Err(error) = Self::return_data_from_table_view(&mut data, model) {
-                            return show_dialog(app_ui.window, false, error.kind());
-                        };
-
-                        // Tell the background thread to start saving the PackedFile.
-                        sender_qt.send(Commands::EncodePackedFileDB).unwrap();
-                        sender_qt_data.send(Data::DBDataUsize((data, packed_file_index))).unwrap();
-
-                        // Get the incomplete path of the edited PackedFile.
-                        sender_qt.send(Commands::GetPackedFilePath).unwrap();
-                        sender_qt_data.send(Data::Usize(packed_file_index)).unwrap();
-                        let path = if let Data::VecString(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                        // Set the mod as "Modified".
-                        *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(path));
+                    // If we cloned something, try to save the PackedFile to the main PackFile.
+                    if !rows.is_empty() {
+                        Self::save_to_packed_file(
+                            &sender_qt,
+                            &sender_qt_data,
+                            &is_modified,
+                            &app_ui,
+                            packed_file_data.clone(),
+                            &packed_file_path,
+                            model,
+                        );
                     }
                 }
             )),
@@ -883,14 +854,9 @@ impl PackedFileDBTreeView {
                 unsafe { GuiApplication::clipboard().as_mut().unwrap().set_text(&QString::from_std_str(copy)); }
             }),
 
+            // NOTE: Saving is not needed in this slot, as this gets detected by the main saving slot.
             slot_context_menu_paste: SlotBool::new(clone!(
-                packed_file_index,
-                app_ui,
-                is_modified,
-                packed_file_data,
-                sender_qt,
-                sender_qt_data,
-                receiver_qt => move |_| {
+                packed_file_data => move |_| {
 
                     // If whatever it's in the Clipboard is pasteable in our selection...
                     if check_clipboard(&packed_file_data.table_definition, table_view, model, filter_model) {
@@ -961,42 +927,17 @@ impl PackedFileDBTreeView {
                                 cell.0.as_mut().unwrap().set_background(&Brush::new(GlobalColor::Yellow));
                             }
                         }
-
-                        // If we pasted anything, save.
-                        if data.count() > 0 {
-
-                            // Get a local copy of the data.
-                            let mut data = packed_file_data.clone();
-
-                            // Update the DBData with the data in the table, or report error if it fails.
-                            if let Err(error) = Self::return_data_from_table_view(&mut data, model) {
-                                return show_dialog(app_ui.window, false, error.kind());
-                            };
-
-                            // Tell the background thread to start saving the PackedFile.
-                            sender_qt.send(Commands::EncodePackedFileDB).unwrap();
-                            sender_qt_data.send(Data::DBDataUsize((data, packed_file_index))).unwrap();
-
-                            // Get the incomplete path of the edited PackedFile.
-                            sender_qt.send(Commands::GetPackedFilePath).unwrap();
-                            sender_qt_data.send(Data::Usize(packed_file_index)).unwrap();
-                            let path = if let Data::VecString(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                            // Set the mod as "Modified".
-                            *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(path));
-                        }
                     }
                 }
             )),
 
             slot_context_menu_paste_as_new_lines: SlotBool::new(clone!(
-                packed_file_index,
+                packed_file_path,
                 app_ui,
                 is_modified,
                 packed_file_data,
                 sender_qt,
-                sender_qt_data,
-                receiver_qt => move |_| {
+                sender_qt_data => move |_| {
 
                     // If whatever it's in the Clipboard is pasteable in our selection...
                     if check_clipboard_append_rows(&packed_file_data.table_definition) {
@@ -1167,38 +1108,27 @@ impl PackedFileDBTreeView {
                             unsafe { model.as_mut().unwrap().append_row(&qlist); }
                         }
 
-                        // If we pasted anything, save.
+                        // If we pasted something, try to save the PackedFile to the main PackFile.
                         if !text.is_empty() {
-
-                            // Get a local copy of the data.
-                            let mut data = packed_file_data.clone();
-
-                            // Update the DBData with the data in the table, or report error if it fails.
-                            if let Err(error) = Self::return_data_from_table_view(&mut data, model) {
-                                return show_dialog(app_ui.window, false, error.kind());
-                            };
-
-                            // Tell the background thread to start saving the PackedFile.
-                            sender_qt.send(Commands::EncodePackedFileDB).unwrap();
-                            sender_qt_data.send(Data::DBDataUsize((data, packed_file_index))).unwrap();
-
-                            // Get the incomplete path of the edited PackedFile.
-                            sender_qt.send(Commands::GetPackedFilePath).unwrap();
-                            sender_qt_data.send(Data::Usize(packed_file_index)).unwrap();
-                            let path = if let Data::VecString(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                            // Set the mod as "Modified".
-                            *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(path));
+                            Self::save_to_packed_file(
+                                &sender_qt,
+                                &sender_qt_data,
+                                &is_modified,
+                                &app_ui,
+                                packed_file_data.clone(),
+                                &packed_file_path,
+                                model,
+                            );
                         }
                     }
                 }
             )),
 
             slot_context_menu_import: SlotBool::new(clone!(
-                packed_file_index,
                 app_ui,
                 is_modified,
                 packed_file_data,
+                packed_file_path,
                 sender_qt,
                 sender_qt_data,
                 receiver_qt => move |_| {
@@ -1245,26 +1175,17 @@ impl PackedFileDBTreeView {
                         if *settings.settings_bool.get("adjust_columns_to_content").unwrap() {
                             unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().resize_sections(ResizeMode::ResizeToContents); }
                         }
-                        
-                        // Get a local copy of the data.
-                        let mut data = packed_file_data.clone();
 
-                        // Update the DBData with the data in the table, or report error if it fails.
-                        if let Err(error) = Self::return_data_from_table_view(&mut data, model) {
-                            return show_dialog(app_ui.window, false, error.kind());
-                        };
-
-                        // Tell the background thread to start saving the PackedFile.
-                        sender_qt.send(Commands::EncodePackedFileDB).unwrap();
-                        sender_qt_data.send(Data::DBDataUsize((data, packed_file_index))).unwrap();
-
-                        // Get the incomplete path of the edited PackedFile.
-                        sender_qt.send(Commands::GetPackedFilePath).unwrap();
-                        sender_qt_data.send(Data::Usize(packed_file_index)).unwrap();
-                        let path = if let Data::VecString(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                        // Set the mod as "Modified".
-                        *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(path));
+                        // Try to save the PackedFile to the main PackFile.
+                        Self::save_to_packed_file(
+                            &sender_qt,
+                            &sender_qt_data,
+                            &is_modified,
+                            &app_ui,
+                            packed_file_data.clone(),
+                            &packed_file_path,
+                            model,
+                        );
                     }
                 }
             )),
@@ -1313,12 +1234,12 @@ impl PackedFileDBTreeView {
                 }
             )),
             slot_smart_delete: SlotBool::new(clone!(
-                packed_file_index,
                 app_ui,
                 is_modified,
+                packed_file_data,
+                packed_file_path,
                 sender_qt,
-                sender_qt_data,
-                receiver_qt => move |_| {
+                sender_qt_data => move |_| {
 
                     // Get the current selection.
                     let selection;
@@ -1367,28 +1288,17 @@ impl PackedFileDBTreeView {
                         }
                     }
 
-                    // If we deleted anything, save the data.
+                    // When you delete a row, the save has to be triggered manually.
                     if !cells.is_empty() {
-
-                        // Get a local copy of the data.
-                        let mut data = packed_file_data.clone();
-
-                        // Update the DBData with the data in the table, or report error if it fails.
-                        if let Err(error) = Self::return_data_from_table_view(&mut data, model) {
-                            return show_dialog(app_ui.window, false, error.kind());
-                        };
-
-                        // Tell the background thread to start saving the PackedFile.
-                        sender_qt.send(Commands::EncodePackedFileDB).unwrap();
-                        sender_qt_data.send(Data::DBDataUsize((data, packed_file_index))).unwrap();
-
-                        // Get the incomplete path of the edited PackedFile.
-                        sender_qt.send(Commands::GetPackedFilePath).unwrap();
-                        sender_qt_data.send(Data::Usize(packed_file_index)).unwrap();
-                        let path = if let Data::VecString(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                        // Set the mod as "Modified".
-                        *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(path));
+                        Self::save_to_packed_file(
+                            &sender_qt,
+                            &sender_qt_data,
+                            &is_modified,
+                            &app_ui,
+                            packed_file_data.clone(),
+                            &packed_file_path,
+                            model,
+                        );
                     }
                 }
             )),
@@ -1616,6 +1526,30 @@ impl PackedFileDBTreeView {
         // Return success.
         Ok(())
     }
+
+    /// Function to save the data from the current StandardItemModel to the PackFile.
+    pub fn save_to_packed_file(
+        sender_qt: &Sender<Commands>,
+        sender_qt_data: &Sender<Data>,
+        is_modified: &Rc<RefCell<bool>>,
+        app_ui: &AppUI,
+        mut data: DBData,
+        packed_file_path: &[String],
+        model: *mut StandardItemModel,
+    ) {
+
+        // Update the DBData with the data in the table, or report error if it fails.
+        if let Err(error) = Self::return_data_from_table_view(&mut data, model) {
+            return show_dialog(app_ui.window, false, error.kind());
+        };
+
+        // Tell the background thread to start saving the PackedFile.
+        sender_qt.send(Commands::EncodePackedFileDB).unwrap();
+        sender_qt_data.send(Data::DBDataVecString((data, packed_file_path.to_vec()))).unwrap();
+
+        // Set the mod as "Modified".
+        *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(packed_file_path.to_vec()));
+    }
 }
 
 /// Implementation of PackedFileDBDecoder.
@@ -1661,7 +1595,7 @@ impl PackedFileDBDecoder {
         sender_qt_data: &Sender<Data>,
         receiver_qt: &Rc<RefCell<Receiver<Data>>>,
         app_ui: &AppUI,
-        packed_file_index: &usize,
+        packed_file_path: &[String],
     ) -> Result<(Self, Font)> {
 
         //---------------------------------------------------------------------------------------//
@@ -1936,8 +1870,12 @@ impl PackedFileDBDecoder {
 
         // Get the PackedFile.
         sender_qt.send(Commands::GetPackedFile).unwrap();
-        sender_qt_data.send(Data::Usize(*packed_file_index)).unwrap();
-        let packed_file = if let Data::PackedFile(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+        sender_qt_data.send(Data::VecString(packed_file_path.to_vec())).unwrap();
+        let packed_file = match check_message_validity_recv2(&receiver_qt) {
+            Data::PackedFile(data) => data,
+            Data::Error(error) => return Err(error),
+            _ => panic!(THREADS_MESSAGE_ERROR),
+        };
 
         // Get the schema of the Game Selected.
         sender_qt.send(Commands::GetSchema).unwrap();

@@ -28,11 +28,11 @@ pub const THREADS_MESSAGE_ERROR: &str = "Error in thread messages system.";
 /// This const is the standard message in case of message communication error. If this happens, crash the program and send a report to Sentry.
 pub const THREADS_COMMUNICATION_ERROR: &str = "Error in thread communication system.";
 
-/// This enum has the different types of selected items in a TreeView. File has (tree_path without
-/// the mod's name, index in PackFile). Folder has the tree_path without the mod's name.
+/// This enum has the different types of selected items in a TreeView. File and Folder have their tree_path without
+/// the mod's name.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum TreePathType {
-    File((Vec<String>, usize)),
+    File(Vec<String>),
     Folder(Vec<String>),
     PackFile,
     None,
@@ -43,7 +43,7 @@ pub enum TreePathType {
 impl PartialEq for TreePathType {
     fn eq(&self, other: &TreePathType) -> bool {
         match (self, other) {
-            (&TreePathType::File((_,_)), &TreePathType::File((_,_))) |
+            (&TreePathType::File(_), &TreePathType::File(_)) |
             (&TreePathType::Folder(_), &TreePathType::Folder(_)) |
             (&TreePathType::PackFile, &TreePathType::PackFile) |
             (&TreePathType::None, &TreePathType::None) => true,
@@ -76,23 +76,20 @@ pub fn get_type_of_selected_path(
     else {
 
         // We remove his first field, as our PackedFiles's paths don't have it.
-        tree_path.reverse();
-        tree_path.pop();
-        tree_path.reverse();
+        tree_path.remove(0);
 
         // Now we check if it's a file or a folder.
         let mut is_a_file = false;
-        let mut index = 0;
+
         for i in &pack_file_decoded.data.packed_files {
             if i.path == tree_path {
                 is_a_file = true;
                 break;
             }
-            index += 1;
         }
 
         // If is a file, we return it.
-        if is_a_file { return TreePathType::File((tree_path, index)) }
+        if is_a_file { return TreePathType::File(tree_path) }
 
         // Otherwise, we assume it's a folder. This is not bulletproof so FIXME: find a way to make this more solid.
         else {

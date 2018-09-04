@@ -11,7 +11,7 @@ use std::io::prelude::*;
 use std::io::SeekFrom;
 
 use common::*;
-use error::{ErrorKind, Result};
+use error::{Error, ErrorKind, Result};
 use packedfile::loc::Loc;
 use packedfile::db::{DB, DBHeader};
 use packedfile::db::schemas::Schema;
@@ -340,10 +340,8 @@ pub fn add_file_to_packfile(
         let mut theorical_path = tree_path.to_vec();
         theorical_path.insert(0, pack_file.extra_data.file_name.to_owned());
 
-        // Get the destination PackedFile. If it fails, CTD because it's a code problem.
-        let packed_file = if let TreePathType::File((_, index)) = get_type_of_selected_path(&theorical_path, pack_file) {
-            &mut pack_file.data.packed_files[index]
-        } else { unreachable!() };
+        // Get the destination PackedFile.
+        let packed_file = &mut pack_file.data.packed_files.iter_mut().find(|x| x.path == tree_path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?;
 
         // We get the data and his size...
         packed_file.data = vec![];
@@ -398,17 +396,16 @@ pub fn add_packedfile_to_packfile(
     match path_type {
 
         // If the path is a file...
-        TreePathType::File((_, index)) => {
+        TreePathType::File(path) => {
 
             // Check if the PackedFile already exists in the destination.
             if pack_file_destination.data.packedfile_exists(real_path) {
 
                 // Get the destination PackedFile. If it fails, CTD because it's a code problem.
-                let mut packed_file = if let TreePathType::File((_, index)) = get_type_of_selected_path(complete_path, pack_file_destination) {
-                    &mut pack_file_destination.data.packed_files[index]
-                } else { unreachable!() };
+                let packed_file = &mut pack_file_destination.data.packed_files.iter_mut().find(|x| x.path == path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?;
 
                 // Then, we get his data.
+                let index = pack_file_source.data.packed_files.iter().position(|x| x.path == path).unwrap();
                 packed_file.data = vec![0; pack_file_source.data.packed_files[index].size as usize];
                 pack_file_source_buffer.seek(SeekFrom::Start(pack_file_source.packed_file_indexes[index]))?;
                 pack_file_source_buffer.read_exact(&mut packed_file.data)?;
@@ -421,9 +418,10 @@ pub fn add_packedfile_to_packfile(
             else {
 
                 // We get the PackedFile.
-                let mut packed_file = pack_file_source.data.packed_files[index].clone();
+                let mut packed_file = pack_file_source.data.packed_files.iter().find(|x| x.path == path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?.clone();
 
                 // Then, we get his data.
+                let index = pack_file_source.data.packed_files.iter().position(|x| x.path == path).unwrap();
                 packed_file.data = vec![0; packed_file.size as usize];
                 pack_file_source_buffer.seek(SeekFrom::Start(pack_file_source.packed_file_indexes[index]))?;
                 pack_file_source_buffer.read_exact(&mut packed_file.data)?;
@@ -440,24 +438,19 @@ pub fn add_packedfile_to_packfile(
         TreePathType::Folder(_) => {
 
             // For each PackedFile inside the folder...
-            for (index, packed_file) in pack_file_source.data.packed_files.iter().enumerate() {
+            for packed_file in pack_file_source.data.packed_files.iter() {
 
                 // If it's one of the PackedFiles we want...
-                if packed_file.path.starts_with(real_path) {
+                if !packed_file.path.is_empty() && packed_file.path.starts_with(real_path) {
 
                     // Check if the PackedFile already exists in the destination.
                     if pack_file_destination.data.packedfile_exists(&packed_file.path) {
 
-                        // Create the theorical path of the PackedFile.
-                        let mut theorical_path = packed_file.path.to_vec();
-                        theorical_path.insert(0, pack_file_source.extra_data.file_name.to_owned());
-
-                        // Get the destination PackedFile. If it fails, CTD because it's a code problem.
-                        let mut packed_file = if let TreePathType::File((_, index)) = get_type_of_selected_path(&theorical_path, pack_file_destination) {
-                            &mut pack_file_destination.data.packed_files[index]
-                        } else { unreachable!() };
+                        // Get the destination PackedFile.
+                        let packed_file = &mut pack_file_destination.data.packed_files.iter_mut().find(|x| x.path == packed_file.path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?;
 
                         // Then, we get his data.
+                        let index = pack_file_source.data.packed_files.iter().position(|x| x.path == packed_file.path).unwrap();
                         packed_file.data = vec![0; pack_file_source.data.packed_files[index].size as usize];
                         pack_file_source_buffer.seek(SeekFrom::Start(pack_file_source.packed_file_indexes[index]))?;
                         pack_file_source_buffer.read_exact(&mut packed_file.data)?;
@@ -467,9 +460,10 @@ pub fn add_packedfile_to_packfile(
                     else {
 
                         // We get the PackedFile.
-                        let mut packed_file = packed_file.clone();
+                        let mut packed_file = pack_file_source.data.packed_files.iter().find(|x| x.path == packed_file.path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?.clone();
 
                         // Then, we get his data.
+                        let index = pack_file_source.data.packed_files.iter().position(|x| x.path == packed_file.path).unwrap();
                         packed_file.data = vec![0; packed_file.size as usize];
                         pack_file_source_buffer.seek(SeekFrom::Start(pack_file_source.packed_file_indexes[index]))?;
                         pack_file_source_buffer.read_exact(&mut packed_file.data)?;
@@ -488,21 +482,16 @@ pub fn add_packedfile_to_packfile(
         TreePathType::PackFile => {
 
             // For each PackedFile inside the folder...
-            for (index, packed_file) in pack_file_source.data.packed_files.iter().enumerate() {
+            for packed_file in pack_file_source.data.packed_files.iter() {
 
                 // Check if the PackedFile already exists in the destination.
                 if pack_file_destination.data.packedfile_exists(&packed_file.path) {
 
-                    // Create the theorical path of the PackedFile.
-                    let mut theorical_path = packed_file.path.to_vec();
-                    theorical_path.insert(0, pack_file_source.extra_data.file_name.to_owned());
-
-                    // Get the destination PackedFile. If it fails, CTD because it's a code problem.
-                    let mut packed_file = if let TreePathType::File((_, index)) = get_type_of_selected_path(&theorical_path, pack_file_destination) {
-                        &mut pack_file_destination.data.packed_files[index]
-                    } else { unreachable!() };
+                    // Get the destination PackedFile.
+                    let packed_file = &mut pack_file_destination.data.packed_files.iter_mut().find(|x| x.path == packed_file.path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?;
 
                     // Then, we get his data.
+                    let index = pack_file_source.data.packed_files.iter().position(|x| x.path == packed_file.path).unwrap();
                     packed_file.data = vec![0; pack_file_source.data.packed_files[index].size as usize];
                     pack_file_source_buffer.seek(SeekFrom::Start(pack_file_source.packed_file_indexes[index]))?;
                     pack_file_source_buffer.read_exact(&mut packed_file.data)?;
@@ -512,9 +501,10 @@ pub fn add_packedfile_to_packfile(
                 else {
 
                     // We get the PackedFile.
-                    let mut packed_file = packed_file.clone();
+                    let mut packed_file = pack_file_source.data.packed_files.iter().find(|x| x.path == packed_file.path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?.clone();
 
                     // Then, we get his data.
+                    let index = pack_file_source.data.packed_files.iter().position(|x| x.path == packed_file.path).unwrap();
                     packed_file.data = vec![0; packed_file.size as usize];
                     pack_file_source_buffer.seek(SeekFrom::Start(pack_file_source.packed_file_indexes[index]))?;
                     pack_file_source_buffer.read_exact(&mut packed_file.data)?;
@@ -544,7 +534,10 @@ pub fn delete_from_packfile(
     match get_type_of_selected_path(tree_path, pack_file) {
 
         // If it's a file, easy job.
-        TreePathType::File(packed_file_data) => pack_file.remove_packedfile(packed_file_data.1),
+        TreePathType::File(packed_file_path) => {
+            let index = pack_file.data.packed_files.iter().position(|x| x.path == packed_file_path).unwrap();
+            pack_file.remove_packedfile(index);
+        }
 
         // If it's a folder... it's a bit tricky.
         TreePathType::Folder(tree_path) => {
@@ -556,7 +549,7 @@ pub fn delete_from_packfile(
             for (index, packed_file) in pack_file.data.packed_files.iter().enumerate() {
 
                 // If the PackedFile it's in our folder...
-                if packed_file.path.starts_with(&tree_path) {
+                if !packed_file.path.is_empty() && packed_file.path.starts_with(&tree_path) {
 
                     // Add his index to the indexes list.
                     indexes.push(index);
@@ -591,13 +584,13 @@ pub fn extract_from_packfile(
     match get_type_of_selected_path(tree_path, pack_file) {
 
         // If it's a file...
-        TreePathType::File(packed_file_data) => {
+        TreePathType::File(path) => {
 
             // We try to create the File.
             let mut file = BufWriter::new(File::create(&extracted_path)?);
 
             // And try to write it.
-            match file.write_all(&pack_file.data.packed_files[packed_file_data.1].data){
+            match file.write_all(&pack_file.data.packed_files.iter().find(|x| x.path == path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?.data){
                 Ok(_) => Ok(format!("File extracted successfully:\n{}", extracted_path.display())),
                 Err(_) => Err(ErrorKind::ExtractError(vec![format!("<li>{}</li>", extracted_path.display().to_string());1]))?
             }
@@ -728,22 +721,18 @@ pub fn rename_packed_file(
     // If we reach this point, we can rename the file/folder.
     else {
         match get_type_of_selected_path(tree_path, pack_file) {
-            TreePathType::File(packed_file_data) => {
-                // Now we create the new tree_path, while conserving the old one for checks
-                let tree_path = packed_file_data.0;
-                let index = packed_file_data.1;
-                let mut new_tree_path = tree_path.to_owned();
-                new_tree_path.pop();
-                new_tree_path.push(new_name.to_string());
+            TreePathType::File(path) => {
 
-                if !pack_file.data.packedfile_exists(&new_tree_path) {
-                    pack_file.data.packed_files[index as usize].path.pop();
-                    pack_file.data.packed_files[index as usize].path.push(new_name.to_string());
+                // Now we create the new path, while conserving the old one for checks
+                let mut new_path = path.to_owned();
+                new_path.pop();
+                new_path.push(new_name.to_string());
+
+                if !pack_file.data.packedfile_exists(&new_path) {
+                    pack_file.data.packed_files.iter_mut().find(|x| x.path == path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?.path = new_path;
                     Ok(())
                 }
-                else {
-                    Err(ErrorKind::NameAlreadyInUseInThisPath)?
-                }
+                else { Err(ErrorKind::NameAlreadyInUseInThisPath)? }
             }
             TreePathType::Folder(tree_path) => {
                 let mut new_tree_path = tree_path.to_owned();
@@ -783,15 +772,11 @@ pub fn rename_packed_file(
 pub fn update_packed_file_data_loc(
     packed_file_data_decoded: &Loc,
     pack_file: &mut packfile::PackFile,
-    index: usize,
+    path: &[String],
 ) {
-    let mut packed_file_data_encoded = Loc::save(packed_file_data_decoded).to_vec();
-    let packed_file_data_encoded_size = packed_file_data_encoded.len() as u32;
-
-    // Replace the old raw data of the PackedFile with the new one, and update his size.
-    pack_file.data.packed_files[index].data.clear();
-    pack_file.data.packed_files[index].data.append(&mut packed_file_data_encoded);
-    pack_file.data.packed_files[index].size = packed_file_data_encoded_size;
+    let packed_file = &mut pack_file.data.packed_files.iter_mut().find(|x| x.path == path).ok_or(Error::from(ErrorKind::PackedFileNotFound)).unwrap();
+    packed_file.data = Loc::save(packed_file_data_decoded);
+    packed_file.size = packed_file.data.len() as u32;
 }
 
 /// This function saves the data of the edited DB PackedFile in the main PackFile after a change has
@@ -799,15 +784,12 @@ pub fn update_packed_file_data_loc(
 pub fn update_packed_file_data_db(
     packed_file_data_decoded: &DB,
     pack_file: &mut packfile::PackFile,
-    index: usize,
+    path: &[String],
 ) {
-    let mut packed_file_data_encoded = DB::save(packed_file_data_decoded);
-    let packed_file_data_encoded_size = packed_file_data_encoded.len() as u32;
 
-    // Replace the old raw data of the PackedFile with the new one, and update his size.
-    pack_file.data.packed_files[index].data.clear();
-    pack_file.data.packed_files[index].data.append(&mut packed_file_data_encoded);
-    pack_file.data.packed_files[index].size = packed_file_data_encoded_size;
+    let packed_file = &mut pack_file.data.packed_files.iter_mut().find(|x| x.path == path).ok_or(Error::from(ErrorKind::PackedFileNotFound)).unwrap();
+    packed_file.data = DB::save(packed_file_data_decoded);
+    packed_file.size = packed_file.data.len() as u32;
 }
 
 /// This function saves the data of the edited Text PackedFile in the main PackFile after a change has
@@ -815,15 +797,11 @@ pub fn update_packed_file_data_db(
 pub fn update_packed_file_data_text(
     packed_file_data_decoded: &[u8],
     pack_file: &mut packfile::PackFile,
-    index: usize,
+    path: &[String],
 ) {
-    let mut packed_file_data_encoded = packed_file_data_decoded.to_vec();
-    let packed_file_data_encoded_size = packed_file_data_encoded.len() as u32;
-
-    // Replace the old raw data of the PackedFile with the new one, and update his size.
-    pack_file.data.packed_files[index].data.clear();
-    pack_file.data.packed_files[index].data.append(&mut packed_file_data_encoded);
-    pack_file.data.packed_files[index].size = packed_file_data_encoded_size;
+    let packed_file = &mut pack_file.data.packed_files.iter_mut().find(|x| x.path == path).ok_or(Error::from(ErrorKind::PackedFileNotFound)).unwrap();
+    packed_file.data = packed_file_data_decoded.to_vec();
+    packed_file.size = packed_file.data.len() as u32;
 }
 
 /// This function saves the data of the edited RigidModel PackedFile in the main PackFile after a change has
@@ -832,15 +810,12 @@ pub fn update_packed_file_data_text(
 pub fn update_packed_file_data_rigid(
     packed_file_data_decoded: &RigidModel,
     pack_file: &mut packfile::PackFile,
-    index: usize,
+    path: &[String],
 ) -> Result<String> {
-    let mut packed_file_data_encoded = RigidModel::save(packed_file_data_decoded)?.to_vec();
-    let packed_file_data_encoded_size = packed_file_data_encoded.len() as u32;
+    let packed_file = &mut pack_file.data.packed_files.iter_mut().find(|x| x.path == path).ok_or(Error::from(ErrorKind::PackedFileNotFound)).unwrap();
+    packed_file.data = RigidModel::save(packed_file_data_decoded)?;
+    packed_file.size = packed_file.data.len() as u32;
 
-    // Replace the old raw data of the PackedFile with the new one, and update his size.
-    pack_file.data.packed_files[index].data.clear();
-    pack_file.data.packed_files[index].data.append(&mut packed_file_data_encoded);
-    pack_file.data.packed_files[index].size = packed_file_data_encoded_size;
     Ok(format!("RigidModel PackedFile updated successfully."))
 }
 
@@ -1145,8 +1120,7 @@ pub fn optimize_packfile(
 
     // TODO: Fix this clone.
     // For each PackedFile we have...
-    for (index, packed_file) in pack_file.data.packed_files.clone().iter().enumerate() {
-
+    for packed_file in pack_file.data.packed_files.clone().iter() {
 
         // If it's a DB table...
         if packed_file.path.len() == 3 {
@@ -1203,7 +1177,7 @@ pub fn optimize_packfile(
                     }
 
                     // Save the table to the PackFile.
-                    update_packed_file_data_db(&optimized_table, &mut pack_file, index);
+                    update_packed_file_data_db(&optimized_table, &mut pack_file, &packed_file.path);
 
                     // Delete the table here if it's empty.
                     if optimized_table.data.entries.is_empty() { files_to_delete.push(packed_file.path.to_vec()); }

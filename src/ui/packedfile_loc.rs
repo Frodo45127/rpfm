@@ -100,12 +100,12 @@ impl PackedFileLocTreeView {
         receiver_qt: &Rc<RefCell<Receiver<Data>>>,
         is_modified: &Rc<RefCell<bool>>,
         app_ui: &AppUI,
-        packed_file_index: &usize,
+        packed_file_path: Vec<String>,
     ) -> Result<Self> {
 
         // Send the index back to the background thread, and wait until we get a response.
         sender_qt.send(Commands::DecodePackedFileLoc).unwrap();
-        sender_qt_data.send(Data::Usize(*packed_file_index)).unwrap();
+        sender_qt_data.send(Data::VecString(packed_file_path.to_vec())).unwrap();
         let packed_file_data = match check_message_validity_recv2(&receiver_qt) { 
             Data::LocData(data) => data,
             Data::Error(error) => return Err(error),
@@ -268,27 +268,26 @@ impl PackedFileLocTreeView {
                 }
             ),
             save_changes: SlotModelIndexRefModelIndexRefVectorVectorCIntRef::new(clone!(
-                packed_file_index,
+                packed_file_path,
                 app_ui,
                 is_modified,
                 sender_qt,
-                sender_qt_data,
-                receiver_qt => move |_,_,_| {
+                sender_qt_data => move |_,_,roles| {
 
-                    // Get the new LocData to send.
-                    let new_loc_data = Self::return_data_from_tree_view(model);
+                    // To avoid doing this multiple times due to the cell painting stuff, we need to check the role.
+                    // This has to be allowed ONLY if the role is 0 (DisplayText), 2 (EditorText) or 10 (CheckStateRole).
+                    if roles.contains(&0) || roles.contains(&2) || roles.contains(&10) {
 
-                    // Tell the background thread to start saving the PackedFile.
-                    sender_qt.send(Commands::EncodePackedFileLoc).unwrap();
-                    sender_qt_data.send(Data::LocDataUsize((new_loc_data, packed_file_index))).unwrap();
-
-                    // Get the incomplete path of the edited PackedFile.
-                    sender_qt.send(Commands::GetPackedFilePath).unwrap();
-                    sender_qt_data.send(Data::Usize(packed_file_index)).unwrap();
-                    let path = if let Data::VecString(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                    // Set the mod as "Modified".
-                    *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(path));
+                        // Try to save the PackedFile to the main PackFile.
+                        Self::save_to_packed_file(
+                            &sender_qt,
+                            &sender_qt_data,
+                            &is_modified,
+                            &app_ui,
+                            &packed_file_path,
+                            model,
+                        );
+                    }
                 }
             )),
             slot_item_changed: SlotStandardItemMutPtr::new(|item| {
@@ -422,12 +421,11 @@ impl PackedFileLocTreeView {
                 else { unsafe { model.as_mut().unwrap().append_row(&qlist); } }
             }),
             slot_context_menu_delete: SlotBool::new(clone!(
-                packed_file_index,
+                packed_file_path,
                 app_ui,
                 is_modified,
                 sender_qt,
-                sender_qt_data,
-                receiver_qt => move |_| {
+                sender_qt_data => move |_| {
 
                     // Get the current selection.
                     let selection;
@@ -465,23 +463,16 @@ impl PackedFileLocTreeView {
                     let mut _y = false;
                     unsafe { rows.iter().for_each(|x| _y = model.as_mut().unwrap().remove_rows((*x, 1))); }
 
-                    // If we deleted anything, save the data.
-                    if rows.len() > 0 {
-
-                        // Get the new LocData to send.
-                        let new_loc_data = Self::return_data_from_tree_view(model);
-
-                        // Tell the background thread to start saving the PackedFile.
-                        sender_qt.send(Commands::EncodePackedFileLoc).unwrap();
-                        sender_qt_data.send(Data::LocDataUsize((new_loc_data, packed_file_index))).unwrap();
-
-                        // Get the incomplete path of the edited PackedFile.
-                        sender_qt.send(Commands::GetPackedFilePath).unwrap();
-                        sender_qt_data.send(Data::Usize(packed_file_index)).unwrap();
-                        let path = if let Data::VecString(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                        // Set the mod as "Modified".
-                        *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(path));
+                    // If we deleted something, save the PackedFile to the main PackFile.
+                    if !rows.is_empty() {
+                        Self::save_to_packed_file(
+                            &sender_qt,
+                            &sender_qt_data,
+                            &is_modified,
+                            &app_ui,
+                            &packed_file_path,
+                            model,
+                        );
                     }
                 }
             )),
@@ -555,111 +546,85 @@ impl PackedFileLocTreeView {
                 // Put the baby into the oven.
                 unsafe { GuiApplication::clipboard().as_mut().unwrap().set_text(&QString::from_std_str(copy)); }
             }),
-            slot_context_menu_paste: SlotBool::new(clone!(
-                packed_file_index,
-                app_ui,
-                is_modified,
-                sender_qt,
-                sender_qt_data,
-                receiver_qt => move |_| {
 
-                    // If whatever it's in the Clipboard is pasteable in our selection...
-                    if check_clipboard(table_view, model, filter_model) {
+            // NOTE: Saving is not needed in this slot, as this gets detected by the main saving slot.
+            slot_context_menu_paste: SlotBool::new(move |_| {
 
-                        // Get the clipboard.
-                        let clipboard = GuiApplication::clipboard();
+                // If whatever it's in the Clipboard is pasteable in our selection...
+                if check_clipboard(table_view, model, filter_model) {
 
-                        // Get the current selection.
-                        let selection;
-                        unsafe { selection = table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection(); }
-                        let indexes = selection.indexes();
+                    // Get the clipboard.
+                    let clipboard = GuiApplication::clipboard();
 
-                        // Get the text from the clipboard.
-                        let mut text;
-                        unsafe { text = QString::to_std_string(&clipboard.as_mut().unwrap().text(())); }
+                    // Get the current selection.
+                    let selection;
+                    unsafe { selection = table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection(); }
+                    let indexes = selection.indexes();
 
-                        // If the text ends in \n, remove it. Excel things.
-                        if text.ends_with('\n') { text.pop(); }
+                    // Get the text from the clipboard.
+                    let mut text;
+                    unsafe { text = QString::to_std_string(&clipboard.as_mut().unwrap().text(())); }
 
-                        // We don't use newlines, so replace them with '\t'.
-                        let text = text.replace('\n', "\t");
+                    // If the text ends in \n, remove it. Excel things.
+                    if text.ends_with('\n') { text.pop(); }
 
-                        // Split the text into individual strings.
-                        let text = text.split('\t').collect::<Vec<&str>>();
+                    // We don't use newlines, so replace them with '\t'.
+                    let text = text.replace('\n', "\t");
 
-                        // Vector to store the selected items.
-                        let mut items = vec![];
+                    // Split the text into individual strings.
+                    let text = text.split('\t').collect::<Vec<&str>>();
 
-                        // For each selected index...
-                        for index in 0..indexes.count(()) {
+                    // Vector to store the selected items.
+                    let mut items = vec![];
 
-                            // Get the filtered ModelIndex.
-                            let model_index = indexes.at(index);
+                    // For each selected index...
+                    for index in 0..indexes.count(()) {
 
-                            // Check if the ModelIndex is valid. Otherwise this can crash.
-                            if model_index.is_valid() {
+                        // Get the filtered ModelIndex.
+                        let model_index = indexes.at(index);
 
-                                // Get the source ModelIndex for our filtered ModelIndex.
-                                let model_index_source;
-                                unsafe {model_index_source = filter_model.as_mut().unwrap().map_to_source(&model_index); }
+                        // Check if the ModelIndex is valid. Otherwise this can crash.
+                        if model_index.is_valid() {
 
-                                // Get his StandardItem and add it to the Vector.
-                                unsafe { items.push(model.as_mut().unwrap().item_from_index(&model_index_source)); }
-                            }
+                            // Get the source ModelIndex for our filtered ModelIndex.
+                            let model_index_source;
+                            unsafe {model_index_source = filter_model.as_mut().unwrap().map_to_source(&model_index); }
+
+                            // Get his StandardItem and add it to the Vector.
+                            unsafe { items.push(model.as_mut().unwrap().item_from_index(&model_index_source)); }
                         }
+                    }
 
-                        // Zip together both vectors.
-                        let data = items.iter().zip(text);
+                    // Zip together both vectors.
+                    let data = items.iter().zip(text);
 
-                        // For each cell we have...
-                        for cell in data.clone() {
+                    // For each cell we have...
+                    for cell in data.clone() {
 
-                            unsafe {
+                        unsafe {
 
-                                // If it's checkable, we need to check or uncheck the cell.
-                                if cell.0.as_mut().unwrap().is_checkable() {
-                                    if cell.1 == "true" { cell.0.as_mut().unwrap().set_check_state(CheckState::Checked); }
-                                    else { cell.0.as_mut().unwrap().set_check_state(CheckState::Unchecked); }
-                                }
-
-                                // Otherwise, it's just a string.
-                                else { cell.0.as_mut().unwrap().set_text(&QString::from_std_str(cell.1)); }
-
-                                // Paint the cells.
-                                cell.0.as_mut().unwrap().set_background(&Brush::new(GlobalColor::Yellow));
+                            // If it's checkable, we need to check or uncheck the cell.
+                            if cell.0.as_mut().unwrap().is_checkable() {
+                                if cell.1 == "true" { cell.0.as_mut().unwrap().set_check_state(CheckState::Checked); }
+                                else { cell.0.as_mut().unwrap().set_check_state(CheckState::Unchecked); }
                             }
-                        }
 
-                        // If we pasted anything, save.
-                        if data.count() > 0 {
+                            // Otherwise, it's just a string.
+                            else { cell.0.as_mut().unwrap().set_text(&QString::from_std_str(cell.1)); }
 
-                            // Get the new LocData to send.
-                            let new_loc_data = Self::return_data_from_tree_view(model);
-
-                            // Tell the background thread to start saving the PackedFile.
-                            sender_qt.send(Commands::EncodePackedFileLoc).unwrap();
-                            sender_qt_data.send(Data::LocDataUsize((new_loc_data, packed_file_index))).unwrap();
-
-                            // Get the incomplete path of the edited PackedFile.
-                            sender_qt.send(Commands::GetPackedFilePath).unwrap();
-                            sender_qt_data.send(Data::Usize(packed_file_index)).unwrap();
-                            let path = if let Data::VecString(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-
-                            // Set the mod as "Modified".
-                            *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(path));
+                            // Paint the cells.
+                            cell.0.as_mut().unwrap().set_background(&Brush::new(GlobalColor::Yellow));
                         }
                     }
                 }
-            )),
+            }),
 
             slot_context_menu_paste_as_new_lines: SlotBool::new(clone!(
-                packed_file_index,
+                packed_file_path,
                 app_ui,
                 is_modified,
                 sender_qt,
-                sender_qt_data,
-                receiver_qt => move |_| {
+                sender_qt_data => move |_| {
 
                     // If whatever it's in the Clipboard is pasteable i...
                     if check_clipboard_append_rows() {
@@ -762,30 +727,23 @@ impl PackedFileLocTreeView {
                             unsafe { model.as_mut().unwrap().append_row(&qlist); }
                         }
 
-                        // If we pasted anything, save.
+                        // Save the changes if needed.
                         if !text.is_empty() {
-
-                            // Get the new LocData to send.
-                            let new_loc_data = Self::return_data_from_tree_view(model);
-
-                            // Tell the background thread to start saving the PackedFile.
-                            sender_qt.send(Commands::EncodePackedFileLoc).unwrap();
-                            sender_qt_data.send(Data::LocDataUsize((new_loc_data, packed_file_index))).unwrap();
-
-                            // Get the incomplete path of the edited PackedFile.
-                            sender_qt.send(Commands::GetPackedFilePath).unwrap();
-                            sender_qt_data.send(Data::Usize(packed_file_index)).unwrap();
-                            let path = if let Data::VecString(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                            // Set the mod as "Modified".
-                            *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(path));
+                            Self::save_to_packed_file(
+                                &sender_qt,
+                                &sender_qt_data,
+                                &is_modified,
+                                &app_ui,
+                                &packed_file_path,
+                                model,
+                            );
                         }
                     }
                 }
-            )),
+                )),
 
             slot_context_menu_import: SlotBool::new(clone!(
-                packed_file_index,
+                packed_file_path,
                 app_ui,
                 is_modified,
                 sender_qt,
@@ -835,20 +793,15 @@ impl PackedFileLocTreeView {
                             unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().resize_sections(ResizeMode::ResizeToContents); }
                         }
 
-                        // Get the new LocData to send.
-                        let new_loc_data = Self::return_data_from_tree_view(model);
-
-                        // Tell the background thread to start saving the PackedFile.
-                        sender_qt.send(Commands::EncodePackedFileLoc).unwrap();
-                        sender_qt_data.send(Data::LocDataUsize((new_loc_data, packed_file_index))).unwrap();
-
-                        // Get the incomplete path of the edited PackedFile.
-                        sender_qt.send(Commands::GetPackedFilePath).unwrap();
-                        sender_qt_data.send(Data::Usize(packed_file_index)).unwrap();
-                        let path = if let Data::VecString(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                        // Set the mod as "Modified".
-                        *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(path));
+                        // Save the new PackFile's data.
+                        Self::save_to_packed_file(
+                            &sender_qt,
+                            &sender_qt_data,
+                            &is_modified,
+                            &app_ui,
+                            &packed_file_path,
+                            model,
+                        );
                     }
                 }
             )),
@@ -897,12 +850,11 @@ impl PackedFileLocTreeView {
                 }
             )),
             slot_smart_delete: SlotBool::new(clone!(
-                packed_file_index,
+                packed_file_path,
                 app_ui,
                 is_modified,
                 sender_qt,
-                sender_qt_data,
-                receiver_qt => move |_| {
+                sender_qt_data => move |_| {
 
                     // Get the current selection.
                     let selection;
@@ -951,23 +903,16 @@ impl PackedFileLocTreeView {
                         }
                     }
 
-                    // If we deleted anything, save the data.
+                    // If something was deleted, save the changes.
                     if !cells.is_empty() {
-
-                        // Get the new LocData to send.
-                        let new_loc_data = Self::return_data_from_tree_view(model);
-
-                        // Tell the background thread to start saving the PackedFile.
-                        sender_qt.send(Commands::EncodePackedFileLoc).unwrap();
-                        sender_qt_data.send(Data::LocDataUsize((new_loc_data, packed_file_index))).unwrap();
-
-                        // Get the incomplete path of the edited PackedFile.
-                        sender_qt.send(Commands::GetPackedFilePath).unwrap();
-                        sender_qt_data.send(Data::Usize(packed_file_index)).unwrap();
-                        let path = if let Data::VecString(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                        // Set the mod as "Modified".
-                        *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(path));
+                        Self::save_to_packed_file(
+                            &sender_qt,
+                            &sender_qt_data,
+                            &is_modified,
+                            &app_ui,
+                            &packed_file_path,
+                            model,
+                        );
                     }
                 }
             )),
@@ -1099,6 +1044,27 @@ impl PackedFileLocTreeView {
 
         // Return the new LocData.
         loc_data
+    }
+
+    /// Function to save the data from the current StandardItemModel to the PackFile.
+    pub fn save_to_packed_file(
+        sender_qt: &Sender<Commands>,
+        sender_qt_data: &Sender<Data>,
+        is_modified: &Rc<RefCell<bool>>,
+        app_ui: &AppUI,
+        packed_file_path: &[String],
+        model: *mut StandardItemModel,
+    ) {
+
+        // Get the new LocData to send.
+        let data = Self::return_data_from_tree_view(model);
+
+        // Tell the background thread to start saving the PackedFile.
+        sender_qt.send(Commands::EncodePackedFileLoc).unwrap();
+        sender_qt_data.send(Data::LocDataVecString((data, packed_file_path.to_vec()))).unwrap();
+
+        // Set the mod as "Modified".
+        *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(packed_file_path.to_vec()));
     }
 }
 

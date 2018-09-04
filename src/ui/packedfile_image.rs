@@ -26,13 +26,17 @@ pub fn create_image_view(
     sender_qt_data: &Sender<Data>,
     receiver_qt: &Rc<RefCell<Receiver<Data>>>,
     app_ui: &AppUI,
-    packed_file_index: &usize,
+    packed_file_path: Vec<String>,
 ) -> Result<()> {
 
     // Get the path of the extracted Image.
     sender_qt.send(Commands::DecodePackedFileImage).unwrap();
-    sender_qt_data.send(Data::Usize(*packed_file_index)).unwrap();
-    let path = if let Data::PathBuf(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+    sender_qt_data.send(Data::VecString(packed_file_path.to_vec())).unwrap();
+    let path = match check_message_validity_recv2(&receiver_qt) { 
+        Data::PathBuf(data) => data,
+        Data::Error(error) => return Err(error),
+        _ => panic!(THREADS_MESSAGE_ERROR), 
+    };
 
     // Get the image's path.
     let path_string = path.to_string_lossy().as_ref().to_string();

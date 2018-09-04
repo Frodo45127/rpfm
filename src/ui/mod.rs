@@ -122,7 +122,7 @@ impl AddFromPackFileSlots {
         app_ui: AppUI,
         is_folder_tree_view_locked: &Rc<RefCell<bool>>,
         is_modified: &Rc<RefCell<bool>>,
-        is_packedfile_opened: &Rc<RefCell<bool>>
+        is_packedfile_opened: &Rc<RefCell<Option<Vec<String>>>>
     ) -> Self {
 
         // Create the stuff.
@@ -909,7 +909,7 @@ pub fn set_modified(
 
 /// This function deletes whatever it's in the right side of the screen, leaving it empty.
 /// Also, each time this triggers we consider there is no PackedFile open.
-pub fn purge_them_all(app_ui: &AppUI, is_packedfile_opened: &Rc<RefCell<bool>>) {
+pub fn purge_them_all(app_ui: &AppUI, is_packedfile_opened: &Rc<RefCell<Option<Vec<String>>>>) {
 
     // Black magic.
     unsafe {
@@ -921,7 +921,7 @@ pub fn purge_them_all(app_ui: &AppUI, is_packedfile_opened: &Rc<RefCell<bool>>) 
     }
 
     // Set it as not having an opened PackedFile, just in case.
-    *is_packedfile_opened.borrow_mut() = false;
+    *is_packedfile_opened.borrow_mut() = None;
 
     // Just in case what was open before this was a DB Table, make sure the "Game Selected" menu is re-enabled.
     unsafe { app_ui.game_selected_group.as_mut().unwrap().set_enabled(true); }
@@ -1750,7 +1750,7 @@ pub fn update_treeview(
                                 TreePathType::Folder(_) => set_icon_to_item(item, IconType::Folder),
 
                                 // If it's a folder, give it an Icon.
-                                TreePathType::File((ref path,_)) => set_icon_to_item(item, IconType::File(path.to_vec())),
+                                TreePathType::File(ref path) => set_icon_to_item(item, IconType::File(path.to_vec())),
 
                                 // Any other type, ignore it.
                                 _ => {},
@@ -1935,7 +1935,7 @@ pub fn update_treeview(
             match path_type {
 
                 // If it's a PackedFile or a Folder...
-                TreePathType::File((path,_)) => {
+                TreePathType::File(path) => {
 
                     // Get the PackFile's item.
                     let packfile;
@@ -2101,7 +2101,7 @@ pub fn update_treeview(
             match path_type {
 
                 // If it's a folder or a File, give it an Icon.
-                TreePathType::Folder(_) | TreePathType::File((_,_)) => {
+                TreePathType::Folder(_) | TreePathType::File(_) => {
 
                     // Get the item.
                     let item;
@@ -2216,7 +2216,7 @@ fn sort_item_in_tree_view(
     else if item_type_prev != TreePathType::None && item_type_next == TreePathType::None { true }
 
     // If the top one is a folder, and the bottom one is a file, get the type of our iter.
-    else if item_type_prev == TreePathType::Folder(vec![String::new()]) && item_type_next == TreePathType::File((vec![String::new()], 1)) {
+    else if item_type_prev == TreePathType::Folder(vec![String::new()]) && item_type_next == TreePathType::File(vec![String::new()]) {
         if item_type == TreePathType::Folder(vec![String::new()]) { true } else { false }
     }
 
@@ -2334,7 +2334,7 @@ fn sort_item_in_tree_view(
             }
 
             // If the top one is a File and the bottom one a Folder, it's an special situation. Just swap them.
-            else if item_type == TreePathType::Folder(vec![String::new()]) && item_sibling_type == TreePathType::File((vec![String::new()], 1)) {
+            else if item_type == TreePathType::Folder(vec![String::new()]) && item_sibling_type == TreePathType::File(vec![String::new()]) {
 
                 // We swap them, and update them for the next loop.
                 let item_x;

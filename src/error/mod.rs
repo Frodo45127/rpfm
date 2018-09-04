@@ -106,6 +106,12 @@ pub enum ErrorKind {
     //                PackedFile Errors
     //-----------------------------------------------------//
 
+    // Error for when the PackedFile we want to get doesn't exists.
+    PackedFileNotFound,
+
+    // Error for when we are trying to do an operation that cannot be done with the PackedFile open.
+    PackedFileIsOpen,
+
     //--------------------------------//
     // DB Table Errors
     //--------------------------------//
@@ -235,9 +241,6 @@ pub enum ErrorKind {
 
     // Errors for when we fail to mass-import/export TSV files.
     MassImport(Vec<String>),
-
-    // Error for when you try to change the order of the PackedFile list with an open PackedFile.
-    DeletePackedFilesWithPackedFileOpen,
 
     // Error for when the introduced input (usually, a name) is empty and it cannot be empty.
     EmptyInput,
@@ -371,6 +374,8 @@ impl Display for ErrorKind {
             //-----------------------------------------------------//
             //                PackedFile Errors
             //-----------------------------------------------------//
+            ErrorKind::PackedFileNotFound => write!(f, "<p>This PackedFile no longer exists in the PackFile.</p>"),
+            ErrorKind::PackedFileIsOpen => write!(f, "<p>That operation cannot be done while the PackedFile involved on it is open.</p>"),
 
             //--------------------------------//
             // DB Table Errors
@@ -445,7 +450,6 @@ impl Display for ErrorKind {
             ErrorKind::NameAlreadyInUseInThisPath => write!(f, "<p>The provided name is already in use in the current path.</p>"),
             ErrorKind::ExtractError(errors) => write!(f, "<p>There has been a problem extracting the following files:</p><ul>{:#?}</ul>", errors),
             ErrorKind::MassImport(errors) => write!(f, "<p>The following files returned error when trying to import them:</p><ul>{:#?}</ul><p>No files have been imported.</p>", errors),
-            ErrorKind::DeletePackedFilesWithPackedFileOpen => write!(f, "<p>You can't delete a PackedFile/Folder while there is a PackedFile opened in the right side.</p><p>Close it by clicking in a Folder/PackFile before trying to delete it again.</p>"),
             ErrorKind::EmptyInput => write!(f, "<p>Only my hearth can be empty.</p>"),
             ErrorKind::InvalidInput => write!(f, "<p>There are characters that shall never be used.</p>"),
             ErrorKind::UnchangedInput => write!(f, "<p>Like war, nothing changed.</p>"),

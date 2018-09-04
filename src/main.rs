@@ -661,7 +661,7 @@ fn main() {
         // Put the stuff we need to move to the slots in Rc<Refcell<>>, so we can clone it without issues.
         let receiver_qt = Rc::new(RefCell::new(receiver_qt));
         let is_modified = Rc::new(RefCell::new(set_modified(false, &app_ui, None)));
-        let is_packedfile_opened = Rc::new(RefCell::new(false));
+        let is_packedfile_opened = Rc::new(RefCell::new(None));
         let is_folder_tree_view_locked = Rc::new(RefCell::new(false));
         let mymod_menu_needs_rebuild = Rc::new(RefCell::new(false));
         let mode = Rc::new(RefCell::new(Mode::Normal));
@@ -1477,7 +1477,7 @@ fn main() {
             sender_qt_data => move |_| {
 
                 // This cannot be done if there is a PackedFile open.
-                if *is_packedfile_opened.borrow() { return show_dialog(app_ui.window, false, ErrorKind::OperationNotAllowedWithPackedFileOpen); }
+                if is_packedfile_opened.borrow().is_some() { return show_dialog(app_ui.window, false, ErrorKind::OperationNotAllowedWithPackedFileOpen); }
             
                 // Ask the background loop to create the Dependency PackFile.
                 sender_qt.send(Commands::OptimizePackFile).unwrap();
@@ -1654,7 +1654,7 @@ fn main() {
                         }
 
                         // If it's a DB, we should enable this too.
-                        if !data.0.is_empty() && data.0.starts_with(&["db".to_owned()]) && data.0.len() == 3 {
+                        if !data.is_empty() && data.starts_with(&["db".to_owned()]) && data.len() == 3 {
                             unsafe { app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(true); }
                         }
                     },
@@ -2698,53 +2698,62 @@ fn main() {
             is_packedfile_opened,
             is_modified => move |_| {
 
-                // If there is a PackedFile opened, we show a message with the explanation of why
-                // we can't delete the selected file/folder.
-                if *is_packedfile_opened.borrow() {
-                    show_dialog(app_ui.window, false, ErrorKind::DeletePackedFilesWithPackedFileOpen)
+                // Get his Path, including the name of the PackFile.
+                let path = get_path_from_selection(&app_ui, true);
+
+                // In case there is nothing selected, don't try to delete.
+                if path.is_empty() { return }
+
+                // If we have a PackedFile open...
+                if let Some(ref open_path) = *is_packedfile_opened.borrow() {
+
+                    // Send the Path to the Background Thread, and get the type of the item.
+                    sender_qt.send(Commands::GetTypeOfPath).unwrap();
+                    sender_qt_data.send(Data::VecString(path.to_vec())).unwrap();
+                    let item_type = if let Data::TreePathType(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+
+                    // And that PackedFile is the one we want to delete, or it's on the list of paths to delete...
+                    match item_type {
+                        TreePathType::File(item_path) => if *open_path == item_path { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
+                        TreePathType::Folder(item_path) => if !item_path.is_empty() && open_path.starts_with(&item_path) { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
+                        TreePathType::PackFile => return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen),
+                        
+                        // We use this for the Dependency Manager, in which case we can continue.
+                        TreePathType::None => {},
+                    }
                 }
 
-                // Otherwise, we continue the deletion process.
-                else {
+                // Tell the Background Thread to delete the selected stuff.
+                sender_qt.send(Commands::DeletePackedFile).unwrap();
+                sender_qt_data.send(Data::VecString(path)).unwrap();
 
-                    // Get his Path, including the name of the PackFile.
-                    let path = get_path_from_selection(&app_ui, true);
+                // Get the response from the other thread.
+                match check_message_validity_recv2(&receiver_qt) {
 
-                    // In case there is nothing selected, don't try to delete.
-                    if path.is_empty() { return }
+                    // Only if the deletion was successful, we update the UI.
+                    Data::TreePathType(path_type) => {
 
-                    // Tell the Background Thread to delete the selected stuff.
-                    sender_qt.send(Commands::DeletePackedFile).unwrap();
-                    sender_qt_data.send(Data::VecString(path)).unwrap();
+                        // Update the TreeView.
+                        update_treeview(
+                            &sender_qt,
+                            &sender_qt_data,
+                            receiver_qt.clone(),
+                            app_ui.window,
+                            app_ui.folder_tree_view,
+                            app_ui.folder_tree_model,
+                            TreeViewOperation::DeleteSelected(path_type),
+                        );
 
-                    // Get the response from the other thread.
-                    match check_message_validity_recv2(&receiver_qt) {
+                        // Set the mod as "Modified". For now, we don't paint deletions.
+                        *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
 
-                        // Only if the deletion was successful, we update the UI.
-                        Data::TreePathType(path_type) => {
-
-                            // Update the TreeView.
-                            update_treeview(
-                                &sender_qt,
-                                &sender_qt_data,
-                                receiver_qt.clone(),
-                                app_ui.window,
-                                app_ui.folder_tree_view,
-                                app_ui.folder_tree_model,
-                                TreeViewOperation::DeleteSelected(path_type),
-                            );
-
-                            // Set the mod as "Modified". For now, we don't paint deletions.
-                            *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
-
-                        }
-
-                        // This can fail if, for some reason, the command gets resended for one file.
-                        Data::Error(error) => {
-                            if error.kind() != ErrorKind::Generic { panic!(THREADS_MESSAGE_ERROR); }
-                        }
-                        _ => panic!(THREADS_MESSAGE_ERROR),
                     }
+
+                    // This can fail if, for some reason, the command gets resended for one file.
+                    Data::Error(error) => {
+                        if error.kind() != ErrorKind::Generic { panic!(THREADS_MESSAGE_ERROR); }
+                    }
+                    _ => panic!(THREADS_MESSAGE_ERROR),
                 }
             }
         ));
@@ -2796,7 +2805,7 @@ fn main() {
                             path_without_packfile.reverse();
 
                             // If it's a file or a folder...
-                            if item_type == TreePathType::File((vec![String::new()], 1)) || item_type == TreePathType::Folder(vec![String::new()]) {
+                            if item_type == TreePathType::File(vec![String::new()]) || item_type == TreePathType::Folder(vec![String::new()]) {
 
                                 // For each folder in his path...
                                 for (index, folder) in path_without_packfile.iter().enumerate() {
@@ -2975,7 +2984,7 @@ fn main() {
                             match item_type {
 
                                 // If we have selected a file/folder, use his name as default names.
-                                TreePathType::File((path,_)) | TreePathType::Folder(path) => file_dialog.select_file(&QString::from_std_str(&path.last().unwrap())),
+                                TreePathType::File(path) | TreePathType::Folder(path) => file_dialog.select_file(&QString::from_std_str(&path.last().unwrap())),
 
                                 // For the rest, use the name of the PackFile.
                                 _ => {
@@ -3059,7 +3068,7 @@ fn main() {
                 let item_type = if let Data::TreePathType(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                 // If it's a PackedFile...
-                if let TreePathType::File((_, index)) = item_type {
+                if let TreePathType::File(path) = item_type {
 
                     // Remove everything from the PackedFile View.
                     purge_them_all(&app_ui, &is_packedfile_opened);
@@ -3070,7 +3079,7 @@ fn main() {
                         &sender_qt_data,
                         &receiver_qt,
                         &app_ui,
-                        &index
+                        &path
                     ) {
 
                         // Save the monospace font an the slots.
@@ -3106,7 +3115,7 @@ fn main() {
                 );
 
                 // Tell the program there is an open PackedFile.
-                *is_packedfile_opened.borrow_mut() = true;
+                *is_packedfile_opened.borrow_mut() = Some(vec![]);
             }
         ));
 
@@ -3135,6 +3144,7 @@ fn main() {
             is_modified,
             sender_qt,
             sender_qt_data,
+            is_packedfile_opened,
             receiver_qt => move |_| {
 
                 // Get his Path, including the name of the PackFile.
@@ -3145,11 +3155,25 @@ fn main() {
                 sender_qt_data.send(Data::VecString(complete_path.to_vec())).unwrap();
                 let item_type = if let Data::TreePathType(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
+                // If we have a PackedFile open...
+                if let Some(ref open_path) = *is_packedfile_opened.borrow() {
+
+                    // And that PackedFile is the one we want to rename, or it's on the list of paths to rename...
+                    match item_type {
+                        TreePathType::File(ref item_path) => if open_path == item_path { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
+                        TreePathType::Folder(ref item_path) => if !item_path.is_empty() && open_path.starts_with(&item_path) { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
+                        TreePathType::PackFile => return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen),
+                        
+                        // We use this for the Dependency Manager, in which case we can continue.
+                        TreePathType::None => {},
+                    }
+                }
+
                 // Depending on the type of the selection...
-                match item_type.clone() {
+                match item_type {
 
                     // If it's a file or a folder...
-                    TreePathType::File((path,_)) | TreePathType::Folder(path) => {
+                    TreePathType::File(ref path) | TreePathType::Folder(ref path) => {
 
                         // Get the name of the selected item.
                         let current_name = path.last().unwrap();
@@ -3175,7 +3199,7 @@ fn main() {
                                         app_ui.window,
                                         app_ui.folder_tree_view,
                                         app_ui.folder_tree_model,
-                                        TreeViewOperation::Rename(item_type, new_name),
+                                        TreeViewOperation::Rename(item_type.clone(), new_name),
                                     );
 
                                     // Set the mod as "Modified". This is an exception to the paint system.
@@ -3244,27 +3268,27 @@ fn main() {
                     unsafe { selection = app_ui.folder_tree_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection(); }
 
                     // Get the path of the selected item.
-                    let path = get_path_from_item_selection(app_ui.folder_tree_model, &selection, true);
+                    let full_path = get_path_from_item_selection(app_ui.folder_tree_model, &selection, true);
 
                     // Send the Path to the Background Thread, and get the type of the item.
                     sender_qt.send(Commands::GetTypeOfPath).unwrap();
-                    sender_qt_data.send(Data::VecString(path)).unwrap();
+                    sender_qt_data.send(Data::VecString(full_path)).unwrap();
                     let item_type = if let Data::TreePathType(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                     // We act, depending on his type.
                     match item_type {
 
                         // Only in case it's a file, we do something.
-                        TreePathType::File((tree_path, index)) => {
+                        TreePathType::File(path) => {
 
                             // Get the name of the PackedFile (we are going to use it a lot).
-                            let packedfile_name = tree_path.last().unwrap().to_owned();
+                            let packedfile_name = path.last().unwrap().to_owned();
 
                             // We get his type to decode it properly
                             let mut packed_file_type: &str =
 
                                 // If it's in the "db" folder, it's a DB PackedFile (or you put something were it shouldn't be).
-                                if tree_path[0] == "db" { "DB" }
+                                if path[0] == "db" { "DB" }
 
                                 // If it ends in ".loc", it's a localisation PackedFile.
                                 else if packedfile_name.ends_with(".loc") { "LOC" }
@@ -3304,7 +3328,7 @@ fn main() {
                             // Then, depending of his type we decode it properly (if we have it implemented support
                             // for his type).
                             match packed_file_type {
-                                // TODO: Fix all these errors.
+
                                 // If the file is a Loc PackedFile...
                                 "LOC" => {
 
@@ -3315,14 +3339,14 @@ fn main() {
                                         &receiver_qt,
                                         &is_modified,
                                         &app_ui,
-                                        &index
+                                        path.to_vec()
                                     ) {
                                         Ok(new_loc_slots) => *loc_slots.borrow_mut() = new_loc_slots,
                                         Err(error) => return show_dialog(app_ui.window, false, ErrorKind::LocDecode(format!("{}", error))),
                                     }
 
                                     // Tell the program there is an open PackedFile.
-                                    *is_packedfile_opened.borrow_mut() = true;
+                                    *is_packedfile_opened.borrow_mut() = Some(path);
                                 }
 
                                 // If the file is a DB PackedFile...
@@ -3335,14 +3359,14 @@ fn main() {
                                         &receiver_qt,
                                         &is_modified,
                                         &app_ui,
-                                        &index
+                                        path.to_vec()
                                     ) {
                                         Ok(new_db_slots) => *db_slots.borrow_mut() = new_db_slots,
                                         Err(error) => return show_dialog(app_ui.window, false, ErrorKind::DBTableDecode(format!("{}", error))),
                                     }
 
                                     // Tell the program there is an open PackedFile.
-                                    *is_packedfile_opened.borrow_mut() = true;
+                                    *is_packedfile_opened.borrow_mut() = Some(path);
 
                                     // Disable the "Change game selected" function, so we cannot change the current schema with an open table.
                                     unsafe { app_ui.game_selected_group.as_mut().unwrap().set_enabled(false); }
@@ -3358,14 +3382,14 @@ fn main() {
                                         &receiver_qt,
                                         &is_modified,
                                         &app_ui,
-                                        &index
+                                        path.to_vec()
                                     ) {
                                         Ok(new_text_slots) => *text_slots.borrow_mut() = new_text_slots,
                                         Err(error) => return show_dialog(app_ui.window, false, ErrorKind::TextDecode(format!("{}", error))),
                                     }
 
                                     // Tell the program there is an open PackedFile.
-                                    *is_packedfile_opened.borrow_mut() = true;
+                                    *is_packedfile_opened.borrow_mut() = Some(path);
                                 }
 
                                 // If the file is a Text PackedFile...
@@ -3378,14 +3402,14 @@ fn main() {
                                         &receiver_qt,
                                         &is_modified,
                                         &app_ui,
-                                        &index
+                                        path.to_vec()
                                     ) {
                                         Ok(new_rigid_model_slots) => *rigid_model_slots.borrow_mut() = new_rigid_model_slots,
                                         Err(error) => return show_dialog(app_ui.window, false, ErrorKind::RigidModelDecode(format!("{}", error))),
                                     }
 
                                     // Tell the program there is an open PackedFile.
-                                    *is_packedfile_opened.borrow_mut() = true;
+                                    *is_packedfile_opened.borrow_mut() = Some(path);
                                 }
 
                                 // If the file is a Text PackedFile...
@@ -3397,7 +3421,7 @@ fn main() {
                                         &sender_qt_data,
                                         &receiver_qt,
                                         &app_ui,
-                                        &index
+                                        path
                                     ) { return show_dialog(app_ui.window, false, ErrorKind::ImageDecode(format!("{}", error))) }
                                 }
 
@@ -3664,7 +3688,7 @@ fn open_packfile(
     is_modified: &Rc<RefCell<bool>>,
     mode: &Rc<RefCell<Mode>>,
     game_folder: &str,
-    is_packedfile_opened: &Rc<RefCell<bool>>,
+    is_packedfile_opened: &Rc<RefCell<Option<Vec<String>>>>,
 ) -> Result<()> {
 
     // Tell the Background Thread to create a new PackFile.
@@ -3814,7 +3838,7 @@ fn build_my_mod_menu(
     is_modified: Rc<RefCell<bool>>,
     mode: Rc<RefCell<Mode>>,
     needs_rebuild: Rc<RefCell<bool>>,
-    is_packedfile_opened: &Rc<RefCell<bool>>
+    is_packedfile_opened: &Rc<RefCell<Option<Vec<String>>>>
 ) -> (MyModStuff, MyModSlots) {
 
     // Get the current Settings, as we are going to need them later.

@@ -44,13 +44,17 @@ impl PackedFileTextView {
         receiver_qt: &Rc<RefCell<Receiver<Data>>>,
         is_modified: &Rc<RefCell<bool>>,
         app_ui: &AppUI,
-        packed_file_index: &usize,
+        packed_file_path: Vec<String>,
     ) -> Result<Self> {
 
         // Get the text of the PackedFile.
         sender_qt.send(Commands::DecodePackedFileText).unwrap();
-        sender_qt_data.send(Data::Usize(*packed_file_index)).unwrap();
-        let text = if let Data::String(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+        sender_qt_data.send(Data::VecString(packed_file_path.to_vec())).unwrap();
+        let text = match check_message_validity_recv2(&receiver_qt) { 
+            Data::String(data) => data,
+            Data::Error(error) => return Err(error),
+            _ => panic!(THREADS_MESSAGE_ERROR), 
+        };
 
         // Create the PlainTextEdit.
         let plain_text_edit = PlainTextEdit::new(&QString::from_std_str(&text)).into_raw();
@@ -61,12 +65,11 @@ impl PackedFileTextView {
         // Create the stuff needed for this to work.
         let stuff = Self {
             save_changes: SlotNoArgs::new(clone!(
-                packed_file_index,
+                packed_file_path,
                 app_ui,
                 is_modified,
                 sender_qt,
-                sender_qt_data,
-                receiver_qt => move || {
+                sender_qt_data => move || {
 
                     // Get the text from the PlainTextEdit.
                     let text;
@@ -74,15 +77,10 @@ impl PackedFileTextView {
 
                     // Tell the background thread to start saving the PackedFile.
                     sender_qt.send(Commands::EncodePackedFileText).unwrap();
-                    sender_qt_data.send(Data::StringUsize((text, packed_file_index))).unwrap();
-
-                    // Get the incomplete path of the edited PackedFile.
-                    sender_qt.send(Commands::GetPackedFilePath).unwrap();
-                    sender_qt_data.send(Data::Usize(packed_file_index)).unwrap();
-                    let path = if let Data::VecString(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                    sender_qt_data.send(Data::StringVecString((text, packed_file_path.to_vec()))).unwrap();
 
                     // Set the mod as "Modified".
-                    *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(path));
+                    *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(packed_file_path.to_vec()));
                 }
             )),
         };
