@@ -14,7 +14,7 @@
         },
         {
             "schema_file": "schema_are.json",
-            "version": 1
+            "version": 2
         }
     ]
 }
