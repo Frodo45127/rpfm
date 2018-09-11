@@ -262,9 +262,6 @@ pub fn create_rename_dialog(app_ui: &AppUI, name: &str) -> Option<String> {
     // Set it Modal, so you can't touch the Main Window with this dialog open.
     dialog.set_modal(true);
 
-    // Resize the Dialog.
-    dialog.resize((300, 0));
-
     // Create the main Grid.
     let main_grid = GridLayout::new().into_raw();
 
@@ -322,9 +319,6 @@ pub fn create_new_folder_dialog(app_ui: &AppUI) -> Option<String> {
 
     // Set it Modal, so you can't touch the Main Window with this dialog open.
     dialog.set_modal(true);
-
-    // Resize the Dialog.
-    dialog.resize((300, 0));
 
     // Create the main Grid.
     let main_grid = GridLayout::new().into_raw();
@@ -393,9 +387,6 @@ pub fn create_new_packed_file_dialog(
 
     // Set it Modal, so you can't touch the Main Window with this dialog open.
     dialog.set_modal(true);
-
-    // Resize the Dialog.
-    dialog.resize((300, 0));
 
     // Create the main Grid.
     let main_grid = GridLayout::new().into_raw();
