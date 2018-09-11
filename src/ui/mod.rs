@@ -193,6 +193,9 @@ impl AddFromPackFileSlots {
 
                     // Re-enable the Main Window.
                     unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
+
+                    // Set the focus again on the extra Treeview, so we don't need to refocus manually.
+                    unsafe { tree_view.as_mut().unwrap().set_focus(()); }
                 }
             )),
 
