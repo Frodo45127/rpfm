@@ -406,7 +406,8 @@ pub fn add_packedfile_to_packfile(
 
                 // Then, we get his data.
                 let index = pack_file_source.data.packed_files.iter().position(|x| x.path == path).unwrap();
-                packed_file.data = vec![0; pack_file_source.data.packed_files[index].size as usize];
+                packed_file.size = pack_file_source.data.packed_files[index].size;
+                packed_file.data = vec![0; packed_file.size as usize];
                 pack_file_source_buffer.seek(SeekFrom::Start(pack_file_source.packed_file_indexes[index]))?;
                 pack_file_source_buffer.read_exact(&mut packed_file.data)?;
 
@@ -451,7 +452,8 @@ pub fn add_packedfile_to_packfile(
 
                         // Then, we get his data.
                         let index = pack_file_source.data.packed_files.iter().position(|x| x.path == packed_file.path).unwrap();
-                        packed_file.data = vec![0; pack_file_source.data.packed_files[index].size as usize];
+                        packed_file.size = pack_file_source.data.packed_files[index].size;
+                        packed_file.data = vec![0; packed_file.size as usize];
                         pack_file_source_buffer.seek(SeekFrom::Start(pack_file_source.packed_file_indexes[index]))?;
                         pack_file_source_buffer.read_exact(&mut packed_file.data)?;
                     }
@@ -492,7 +494,8 @@ pub fn add_packedfile_to_packfile(
 
                     // Then, we get his data.
                     let index = pack_file_source.data.packed_files.iter().position(|x| x.path == packed_file.path).unwrap();
-                    packed_file.data = vec![0; pack_file_source.data.packed_files[index].size as usize];
+                    packed_file.size = pack_file_source.data.packed_files[index].size;
+                    packed_file.data = vec![0; packed_file.size as usize];
                     pack_file_source_buffer.seek(SeekFrom::Start(pack_file_source.packed_file_indexes[index]))?;
                     pack_file_source_buffer.read_exact(&mut packed_file.data)?;
                 }

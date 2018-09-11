@@ -63,12 +63,12 @@ pub fn get_type_of_selected_path(
 
     // Get a local copy of the Path.
     let mut tree_path = tree_path.to_owned();
-
+    
     // If we don't have anything, it's an invalid path.
     if tree_path.is_empty() { return TreePathType::None }
 
     // If the path is just the PackFile's name, it's the PackFile.
-    else if tree_path.len() == 1 && tree_path[0] == pack_file_decoded.extra_data.file_name {
+    else if tree_path.len() == 1 {
         return TreePathType::PackFile
     }
 

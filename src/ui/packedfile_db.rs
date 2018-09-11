@@ -1428,7 +1428,21 @@ impl PackedFileDBTreeView {
                         item
                     }
 
-                    DecodedData::Float(ref data) => StandardItem::new(&QString::from_std_str(format!("{}", data))),
+                    // Floats need to be tweaked to fix trailing zeroes and precission issues, like turning 0.5000004 into 0.5.
+                    DecodedData::Float(ref data) => {
+                        let data = {
+                            let data_str = format!("{}", data);
+
+                            // If we have more than 3 decimals, we limit it to three, then do magic to remove trailing zeroes.
+                            if let Some(position) = data_str.find('.') {
+                                let decimals = &data_str[position..].len();
+                                if decimals > &3 { format!("{}", format!("{:.3}", data).parse::<f32>().unwrap()) }
+                                else { data_str }
+                            }
+                            else { data_str }
+                        };
+                        StandardItem::new(&QString::from_std_str(data))
+                    },
                     DecodedData::Integer(ref data) => StandardItem::new(&QString::from_std_str(format!("{}", data))),
                     DecodedData::LongInteger(ref data) => StandardItem::new(&QString::from_std_str(format!("{}", data))),
 
