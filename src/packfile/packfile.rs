@@ -1,7 +1,5 @@
 // In this file are all the Structs and Impls required to decode and encode the PackFiles.
 // NOTE: Arena support was implemented thanks to the work of "Trolldemorted" here: https://github.com/TotalWarArena-Modding/twa_pack_lib
-extern crate twa_table_decrypt_lib;
-
 use std::num::Wrapping;
 use std::path::PathBuf;
 use std::io::prelude::*;
@@ -816,7 +814,7 @@ impl PackFileData {
                 data.read_exact(&mut encrypted_data)?;
 
                 // Try to decrypt the data of the PackedFile and store it.
-                packed_file.data = twa_table_decrypt_lib::decrypt_table(&encrypted_data, false);
+                packed_file.data = decrypt_file2(&encrypted_data, false);
             }
 
             // Otherwise, we just read it.
@@ -1072,5 +1070,63 @@ pub fn decrypt_file(ciphertext: &[u8], length: usize, verbose: bool) -> Vec<u8> 
         esi += 8;
     }
     plaintext.truncate(length);
+    plaintext
+}
+
+// Don't make me try to explain this. Is magic for me.
+pub fn decrypt_file2(ciphertext: &[u8], verbose: bool) -> Vec<u8> {
+    let mut plaintext = Vec::with_capacity(ciphertext.len());
+    let mut edi: u32 = 0;
+    let mut esi = 0;
+    let mut eax;
+    let mut edx;
+    for _ in 0..ciphertext.len()/8 {
+        // push 0x8FEB2A67
+        // push 0x40A6920E
+        // mov eax, edi
+        // not eax
+        // push 0
+        // push eax
+        // call multiply
+        let prod = (FILE_KEY * Wrapping((!edi) as u64)).0;
+        if verbose {
+            println!("prod: {:X}", prod);
+        }
+        eax = prod as u32;
+        edx = (prod >> 32) as u32;
+        if verbose {
+            println!("eax: {:X}", eax);
+            println!("edx: {:X}", edx);
+        }
+
+        // xor eax, [ebx+esi]
+        eax ^= decode_integer_u32(&ciphertext[esi..esi + 4]).unwrap();
+        if verbose {
+            println!("eax: {:X}", eax);
+        }
+
+        // add edi, 8
+        edi += 8;
+
+        // xor edx, [ebx+esi+4]
+        let _edx = decode_integer_u32(&ciphertext[esi + 4..esi + 8]).unwrap();
+        if verbose {
+            println!("_edx {:X}", _edx);
+        }
+        edx ^= _edx;
+        if verbose {
+            println!("edx {:X}", edx);
+        }
+
+        // mov [esi], eax
+        plaintext.append(&mut encode_integer_u32(eax));
+
+        // mov [esi+4], edx
+        if verbose {
+            println!("{:X}", edx);
+        }
+        plaintext.append(&mut encode_integer_u32(edx));
+        esi += 8;
+    }
     plaintext
 }

@@ -32,9 +32,6 @@ qt_gui = "0.2"
 qt_core = "0.2"
 
 cpp_utils = "*"
-
-twa_table_decrypt_lib = "*"
-
 lazy_static = "*"
 
 [target.'cfg(windows)'.build-dependencies]
