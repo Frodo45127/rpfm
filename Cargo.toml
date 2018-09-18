@@ -17,15 +17,15 @@ serde-xml-rs = "0.2"
 chrono = "0.4"
 failure = "0.1"
 uuid = { version = "0.6", features = ["v4"] }
-restson = "0.2"
-futures = "0.1"
+restson = "0.3"
+futures = "0.1.24"
 hyper = "0.11"
 hyper-tls = "0.1.4"
 tokio-core = "0.1"
 open = "*"
 indexmap = "1.0"
 
-sentry = "0.7"
+sentry = "0.11"
 
 qt_widgets = "0.2"
 qt_gui = "0.2"
@@ -33,6 +33,8 @@ qt_core = "0.2"
 
 cpp_utils = "*"
 lazy_static = "*"
+
+openssl = {version = "0.10", features = ["vendored"]}
 
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1.5"
