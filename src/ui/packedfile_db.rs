@@ -69,6 +69,7 @@ pub struct PackedFileDBTreeView {
     pub slot_context_menu_delete: SlotBool<'static>,
     pub slot_context_menu_clone: SlotBool<'static>,
     pub slot_context_menu_copy: SlotBool<'static>,
+    pub slot_context_menu_copy_as_lua_table: SlotBool<'static>,
     pub slot_context_menu_paste: SlotBool<'static>,
     pub slot_context_menu_paste_as_new_lines: SlotBool<'static>,
     pub slot_context_menu_import: SlotBool<'static>,
@@ -189,6 +190,7 @@ impl PackedFileDBTreeView {
             slot_context_menu_delete: SlotBool::new(|_| {}),
             slot_context_menu_clone: SlotBool::new(|_| {}),
             slot_context_menu_copy: SlotBool::new(|_| {}),
+            slot_context_menu_copy_as_lua_table: SlotBool::new(|_| {}),
             slot_context_menu_paste: SlotBool::new(|_| {}),
             slot_context_menu_paste_as_new_lines: SlotBool::new(|_| {}),
             slot_context_menu_import: SlotBool::new(|_| {}),
@@ -310,7 +312,10 @@ impl PackedFileDBTreeView {
         let context_menu_insert = context_menu.add_action(&QString::from_std_str("&Insert Row"));
         let context_menu_delete = context_menu.add_action(&QString::from_std_str("&Delete Row"));
         let context_menu_clone = context_menu.add_action(&QString::from_std_str("&Clone"));
-        let context_menu_copy = context_menu.add_action(&QString::from_std_str("&Copy"));
+        
+        let mut context_menu_copy_submenu = Menu::new(&QString::from_std_str("&Copy..."));
+        let context_menu_copy = context_menu_copy_submenu.add_action(&QString::from_std_str("&Copy"));
+        let context_menu_copy_as_lua_table = context_menu_copy_submenu.add_action(&QString::from_std_str("&Copy as LUA Table"));
 
         let mut context_menu_paste_submenu = Menu::new(&QString::from_std_str("&Paste..."));
         let context_menu_paste = context_menu_paste_submenu.add_action(&QString::from_std_str("&Paste in Selection"));
@@ -329,6 +334,7 @@ impl PackedFileDBTreeView {
         unsafe { context_menu_delete.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_db.get("delete_row").unwrap()))); }
         unsafe { context_menu_clone.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_db.get("clone_row").unwrap()))); }
         unsafe { context_menu_copy.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_db.get("copy").unwrap()))); }
+        unsafe { context_menu_copy_as_lua_table.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_db.get("copy_as_lua_table").unwrap()))); }
         unsafe { context_menu_paste.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_db.get("paste").unwrap()))); }
         unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_db.get("paste_as_new_row").unwrap()))); }
         unsafe { context_menu_import.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_db.get("import_tsv").unwrap()))); }
@@ -341,6 +347,7 @@ impl PackedFileDBTreeView {
         unsafe { context_menu_delete.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_clone.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_copy.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+        unsafe { context_menu_copy_as_lua_table.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_paste.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_import.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
@@ -353,6 +360,7 @@ impl PackedFileDBTreeView {
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_delete); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_clone); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_copy); }
+        unsafe { table_view.as_mut().unwrap().add_action(context_menu_copy_as_lua_table); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_paste); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_paste_as_new_lines); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_import); }
@@ -365,6 +373,7 @@ impl PackedFileDBTreeView {
         unsafe { context_menu_delete.as_mut().unwrap().set_status_tip(&QString::from_std_str("Delete all the selected rows.")); }
         unsafe { context_menu_clone.as_mut().unwrap().set_status_tip(&QString::from_std_str("Duplicate the selected rows.")); }
         unsafe { context_menu_copy.as_mut().unwrap().set_status_tip(&QString::from_std_str("Copy whatever is selected to the Clipboard.")); }
+        unsafe { context_menu_copy_as_lua_table.as_mut().unwrap().set_status_tip(&QString::from_std_str("Turns the entire DB Table into a LUA Table and copies it to the clipboard.")); }
         unsafe { context_menu_paste.as_mut().unwrap().set_status_tip(&QString::from_std_str("Try to paste whatever is in the Clipboard. Does nothing if the data is not compatible with the cell.")); }
         unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().set_status_tip(&QString::from_std_str("Try to paste whatever is in the Clipboard as new lines at the end of the table. Does nothing if the data is not compatible with the cell.")); }
         unsafe { context_menu_import.as_mut().unwrap().set_status_tip(&QString::from_std_str("Import a TSV file into this table, replacing all the data.")); }
@@ -372,6 +381,7 @@ impl PackedFileDBTreeView {
 
         // Insert some separators to space the menu, and the paste submenu.
         unsafe { context_menu.insert_separator(context_menu_clone); }
+        unsafe { context_menu.insert_menu(context_menu_import, context_menu_copy_submenu.into_raw()); }
         unsafe { context_menu.insert_menu(context_menu_import, context_menu_paste_submenu.into_raw()); }
         unsafe { context_menu.insert_separator(context_menu_import); }
 
@@ -895,6 +905,123 @@ impl PackedFileDBTreeView {
                 unsafe { GuiApplication::clipboard().as_mut().unwrap().set_text(&QString::from_std_str(copy)); }
             }),
 
+            slot_context_menu_copy_as_lua_table: SlotBool::new(clone!(
+                packed_file_data => move |_| {
+
+                    // Get all the rows into a Vec<String>, so we can deal with them more easely.
+                    let mut entries = vec![];
+                    for row in &packed_file_data.entries {
+                        let mut row_string = vec![];
+                        for cell in row.iter() {
+
+                            // Get the data of the cell as a String.
+                            let cell_data = match cell {
+                                DecodedData::Boolean(ref data) => if *data { "true".to_owned() } else { "false".to_owned() },
+
+                                // Floats need to be tweaked to fix trailing zeroes and precission issues, like turning 0.5000004 into 0.5.
+                                DecodedData::Float(ref data) => {
+                                    let data_str = format!("{}", data);
+
+                                    // If we have more than 3 decimals, we limit it to three, then do magic to remove trailing zeroes.
+                                    if let Some(position) = data_str.find('.') {
+                                        let decimals = &data_str[position..].len();
+                                        if decimals > &3 { format!("{}", format!("{:.3}", data).parse::<f32>().unwrap()) }
+                                        else { data_str }
+                                    }
+                                    else { data_str }
+                                },
+                                DecodedData::Integer(ref data) => format!("{}", data),
+                                DecodedData::LongInteger(ref data) => format!("{}", data),
+
+                                // All these are Strings, so it can be together,
+                                DecodedData::StringU8(ref data) |
+                                DecodedData::StringU16(ref data) |
+                                DecodedData::OptionalStringU8(ref data) |
+                                DecodedData::OptionalStringU16(ref data) => format!("\"{}\"", data),
+                            };
+
+                            // And push it to the list.
+                            row_string.push(cell_data);
+                        }
+                        entries.push(row_string);
+                    }
+
+                    // Get the titles of the columns.
+                    let mut column_names = packed_file_data.table_definition.fields.iter().map(|x| x.field_name.to_owned()).collect::<Vec<String>>();
+
+                    // Try to get the Key column if exists and it doesn't have duplicates.
+                    let key = 
+                        if let Some(column) = packed_file_data.table_definition.fields.iter().position(|x| x.field_is_key) {
+                            let key_column = entries.iter().map(|x| x[column].to_owned()).collect::<Vec<String>>();
+                            let mut key_column_sorted = key_column.to_vec();
+                            key_column_sorted.sort();
+                            key_column_sorted.dedup();
+                            if key_column.len() == key_column_sorted.len() {
+                                Some(key_column)
+                            }
+                            else { None }
+                        }
+
+                        // Otherwise, we return a None.
+                        else { None };
+
+                    // Reorder the entries to get the same column layout as we visually have in the table.
+                    let mut key_columns = vec![];
+
+                    // For each column, if the field is key, add that column to the "Key" list, so we can move them at the begining later.
+                    for (index, field) in packed_file_data.table_definition.fields.iter().enumerate() {
+                        if field.field_is_key { key_columns.push(index); }
+                    }
+
+                    // If we have any "Key" field...
+                    if !key_columns.is_empty() {
+
+                        // For each key column, move the column to the begining.
+                        for (position, column) in key_columns.iter().enumerate() {
+
+                            // We need to do it to the column name list too.
+                            let key = column_names.remove(*column);
+                            column_names.insert(position, key);
+
+                            for row in &mut entries {
+                                let key = row.remove(*column);
+                                row.insert(position, key);
+                            }
+                        }
+                    }
+
+                    // Create a string to keep all the values in a LUA format.
+                    let mut lua_table = String::from("TABLE = {\n");
+
+                    // For each row...
+                    for (index, row) in entries.iter().enumerate() {
+
+                        // Add the "key" of the lua table.
+                        lua_table.push_str(&format!("\t[{}] = {{", if let Some(ref column) = key { column[index].to_owned() } else { format!("{}", index) }));
+
+                        // For each cell in the row...
+                        for (column, cell) in row.iter().enumerate() {
+
+                             // And push it to the LUA Table.
+                            lua_table.push_str(&format!(" [\"{}\"] = {},", column_names[column], cell));
+                        }
+
+                        // Take out the last comma.
+                        lua_table.pop();
+
+                        // Close the row.
+                        if index == entries.len() - 1 { lua_table.push_str(" }\n"); }
+                        else { lua_table.push_str(" },\n"); }
+                    }
+
+                    // Close the table.
+                    lua_table.push_str("}");
+
+                    // Put the baby into the oven.
+                    unsafe { GuiApplication::clipboard().as_mut().unwrap().set_text(&QString::from_std_str(lua_table)); }
+                }
+            )),
+
             // NOTE: Saving is not needed in this slot, as this gets detected by the main saving slot.
             slot_context_menu_paste: SlotBool::new(clone!(
                 packed_file_data => move |_| {
@@ -1365,6 +1492,7 @@ impl PackedFileDBTreeView {
         unsafe { context_menu_delete.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_delete); }
         unsafe { context_menu_clone.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_clone); }
         unsafe { context_menu_copy.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_copy); }
+        unsafe { context_menu_copy_as_lua_table.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_copy_as_lua_table); }
         unsafe { context_menu_paste.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_paste); }
         unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_paste_as_new_lines); }
         unsafe { context_menu_import.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_import); }
@@ -1384,6 +1512,7 @@ impl PackedFileDBTreeView {
             context_menu_delete.as_mut().unwrap().set_enabled(false);
             context_menu_clone.as_mut().unwrap().set_enabled(false);
             context_menu_copy.as_mut().unwrap().set_enabled(false);
+            context_menu_copy_as_lua_table.as_mut().unwrap().set_enabled(true);
             context_menu_paste.as_mut().unwrap().set_enabled(true);
             context_menu_paste_as_new_lines.as_mut().unwrap().set_enabled(true);
             context_menu_import.as_mut().unwrap().set_enabled(true);
