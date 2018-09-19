@@ -423,6 +423,7 @@ fn main() {
         unsafe { menu_bar_about = menu_bar.as_mut().unwrap().add_menu(&QString::from_std_str("&About")); }
 
         // Submenus.
+        let menu_packfile_open = Menu::new(&QString::from_std_str("&Open...")).into_raw();
         let menu_change_packfile_type = Menu::new(&QString::from_std_str("&Change PackFile Type")).into_raw();
 
         let menu_warhammer_2;
@@ -459,7 +460,7 @@ fn main() {
 
                 // Menús.
                 new_packfile: menu_bar_packfile.as_mut().unwrap().add_action(&QString::from_std_str("&New PackFile")),
-                open_packfile: menu_bar_packfile.as_mut().unwrap().add_action(&QString::from_std_str("&Open PackFile")),
+                open_packfile: menu_packfile_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open PackFile")),
                 save_packfile: menu_bar_packfile.as_mut().unwrap().add_action(&QString::from_std_str("&Save PackFile")),
                 save_packfile_as: menu_bar_packfile.as_mut().unwrap().add_action(&QString::from_std_str("Save PackFile &As...")),
                 preferences: menu_bar_packfile.as_mut().unwrap().add_action(&QString::from_std_str("&Preferences")),
@@ -597,8 +598,15 @@ fn main() {
         // Put the Submenus and separators in place.
         unsafe { menu_bar_packfile.as_mut().unwrap().insert_separator(app_ui.preferences); }
         unsafe { menu_bar_packfile.as_mut().unwrap().insert_menu(app_ui.preferences, menu_change_packfile_type); }
+        unsafe { menu_bar_packfile.as_mut().unwrap().insert_menu(app_ui.save_packfile, menu_packfile_open); }
         unsafe { menu_bar_packfile.as_mut().unwrap().insert_separator(app_ui.preferences); }
 
+        // Add the "Open..." submenus. These needs to be here because they have to be appended to the menu.
+        let menu_open_from_content;
+        let menu_open_from_data;
+        unsafe { menu_open_from_content = menu_packfile_open.as_mut().unwrap().add_menu(&QString::from_std_str("Open From Content")); }
+        unsafe { menu_open_from_data = menu_packfile_open.as_mut().unwrap().add_menu(&QString::from_std_str("Open From Data")); }
+        
         // Put a separator in the "Create" contextual menu.
         unsafe { menu_create.as_mut().unwrap().insert_separator(app_ui.context_menu_mass_import_tsv); }
 
@@ -698,6 +706,9 @@ fn main() {
 
         let mymod_stuff = Rc::new(RefCell::new(result.0));
         let mymod_stuff_slots = Rc::new(RefCell::new(result.1));
+
+        // Build the "Open From Content" and "Open From Data" submenus.
+        let open_from_slots = Rc::new(RefCell::new(vec![]));
 
         // Disable all the Contextual Menu actions by default.
         unsafe {
@@ -840,6 +851,10 @@ fn main() {
         let slot_change_game_selected = SlotBool::new(clone!(
             mode,
             mymod_stuff,
+            open_from_slots,
+            is_modified,
+            is_packedfile_opened,
+            mode,
             sender_qt,
             sender_qt_data,
             receiver_qt => move |_| {
@@ -854,7 +869,7 @@ fn main() {
 
                 // Change the Game Selected in the Background Thread.
                 sender_qt.send(Commands::SetGameSelected).unwrap();
-                sender_qt_data.send(Data::String(new_game_selected_folder_name)).unwrap();
+                sender_qt_data.send(Data::String(new_game_selected_folder_name.to_owned())).unwrap();
 
                 // Disable the Main Window (so we can't do other stuff).
                 unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
@@ -874,6 +889,21 @@ fn main() {
 
                 // Set the current "Operational Mode" to `Normal` (In case we were in `MyMod` mode).
                 set_my_mod_mode(&mymod_stuff, &mode, None);
+
+                // Build the "Open from Content" submenu.
+                *open_from_slots.borrow_mut() = build_open_from_submenus(
+                    sender_qt.clone(),
+                    &sender_qt_data,
+                    receiver_qt.clone(),
+                    app_ui,
+                    &menu_open_from_content,
+                    &menu_open_from_data,
+                    &new_game_selected_folder_name,
+                    &is_modified,
+                    &mode,
+                    &is_packedfile_opened,
+                    &mymod_stuff,
+                );
 
                 // Re-enable the Main Window.
                 unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
@@ -4342,4 +4372,146 @@ fn build_my_mod_menu(
 
     // Return the MyModStuff with all the new actions.
     (mymod_stuff, mymod_slots)
+}
+
+
+/// This function takes care of the re-creation of the "Open From Content" and "Open From Data" submenus.
+/// This has to be executed every time we change the Game Selected.
+fn build_open_from_submenus(
+    sender_qt: Sender<Commands>,
+    sender_qt_data: &Sender<Data>,
+    receiver_qt: Rc<RefCell<Receiver<Data>>>,
+    app_ui: AppUI,
+    submenu_open_from_content: &*mut Menu,
+    submenu_open_from_data: &*mut Menu,
+    game_selected: &str,
+    is_modified: &Rc<RefCell<bool>>,
+    mode: &Rc<RefCell<Mode>>,
+    is_packedfile_opened: &Rc<RefCell<Option<Vec<String>>>>,
+    mymod_stuff: &Rc<RefCell<MyModStuff>>,
+) -> Vec<SlotBool<'static>> {
+
+    // Get the current Settings, as we are going to need them later.
+    sender_qt.send(Commands::GetSettings).unwrap();
+    let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+
+    // First, we clear the list, just in case this is a "Rebuild" of the menu.
+    unsafe { submenu_open_from_content.as_mut().unwrap().clear(); }
+    unsafe { submenu_open_from_data.as_mut().unwrap().clear(); }
+
+    // And we create the slots.
+    let mut open_from_slots = vec![];
+
+    //---------------------------------------------------------------------------------------//
+    // Build the menus...
+    //---------------------------------------------------------------------------------------//
+
+    // Get the path of every PackFile in the data folder (if it's configured) and make an action for each one of them.
+    if let Some(ref mut paths) = get_game_selected_content_packfiles_paths(game_selected, &settings) {
+        paths.sort_unstable_by_key(|x| x.file_name().unwrap().to_string_lossy().as_ref().to_owned());
+        for path in paths {
+
+            // That means our file is a valid PackFile and it needs to be added to the menu.
+            let mod_name = path.file_name().unwrap().to_string_lossy().as_ref().to_owned();
+
+            // Create the action for it.
+            let open_mod_action;
+            unsafe { open_mod_action = submenu_open_from_content.as_mut().unwrap().add_action(&QString::from_std_str(mod_name)); }
+
+            // Create the slot for that action.
+            let slot_open_mod = SlotBool::new(clone!(
+                is_modified,
+                mode,
+                mymod_stuff,
+                path,
+                is_packedfile_opened,
+                sender_qt,
+                sender_qt_data,
+                receiver_qt => move |_| {
+
+                    // Check first if there has been changes in the PackFile.
+                    if are_you_sure(&app_ui, &is_modified, false) {
+
+                        // Try to open it, and report it case of error.
+                        if let Err(error) = open_packfile(
+                            &sender_qt,
+                            &sender_qt_data,
+                            &receiver_qt,
+                            path.to_path_buf(),
+                            &app_ui,
+                            &mymod_stuff,
+                            &is_modified,
+                            &mode,
+                            "",
+                            &is_packedfile_opened
+                        ) { show_dialog(app_ui.window, false, error); }
+                    }
+                }
+            ));
+
+            // Add the slot to the list.
+            open_from_slots.push(slot_open_mod);
+
+            // Connect the action to the slot.
+            unsafe { open_mod_action.as_ref().unwrap().signals().triggered().connect(open_from_slots.last().unwrap()); }  
+        }
+    }
+
+    // Get the path of every PackFile in the data folder (if it's configured) and make an action for each one of them.
+    if let Some(ref mut paths) = get_game_selected_data_packfiles_paths(game_selected, &settings) {
+        paths.sort_unstable_by_key(|x| x.file_name().unwrap().to_string_lossy().as_ref().to_owned());
+        for path in paths {
+
+            // That means our file is a valid PackFile and it needs to be added to the menu.
+            let mod_name = path.file_name().unwrap().to_string_lossy().as_ref().to_owned();
+
+            // Create the action for it.
+            let open_mod_action;
+            unsafe { open_mod_action = submenu_open_from_data.as_mut().unwrap().add_action(&QString::from_std_str(mod_name)); }
+
+            // Create the slot for that action.
+            let slot_open_mod = SlotBool::new(clone!(
+                is_modified,
+                mode,
+                mymod_stuff,
+                path,
+                is_packedfile_opened,
+                sender_qt,
+                sender_qt_data,
+                receiver_qt => move |_| {
+
+                    // Check first if there has been changes in the PackFile.
+                    if are_you_sure(&app_ui, &is_modified, false) {
+
+                        // Try to open it, and report it case of error.
+                        if let Err(error) = open_packfile(
+                            &sender_qt,
+                            &sender_qt_data,
+                            &receiver_qt,
+                            path.to_path_buf(),
+                            &app_ui,
+                            &mymod_stuff,
+                            &is_modified,
+                            &mode,
+                            "",
+                            &is_packedfile_opened
+                        ) { show_dialog(app_ui.window, false, error); }
+                    }
+                }
+            ));
+
+            // Add the slot to the list.
+            open_from_slots.push(slot_open_mod);
+
+            // Connect the action to the slot.
+            unsafe { open_mod_action.as_ref().unwrap().signals().triggered().connect(open_from_slots.last().unwrap()); }  
+        }
+    }
+    
+    // Only if the submenu has items, we enable it.
+    unsafe { submenu_open_from_content.as_mut().unwrap().menu_action().as_mut().unwrap().set_visible(!submenu_open_from_content.as_mut().unwrap().actions().is_empty()); }
+    unsafe { submenu_open_from_data.as_mut().unwrap().menu_action().as_mut().unwrap().set_visible(!submenu_open_from_data.as_mut().unwrap().actions().is_empty()); }
+
+    // Return the slots.
+    open_from_slots
 }
