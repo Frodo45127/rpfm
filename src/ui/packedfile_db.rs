@@ -908,7 +908,7 @@ impl PackedFileDBTreeView {
             slot_context_menu_copy_as_lua_table: SlotBool::new(clone!(
                 packed_file_data => move |_| {
 
-                    // Get all the rows into a Vec<String>, so we can deal with them more easely.
+                    // Get all the rows into a Vec<Vec<String>>, so we can deal with them more easely.
                     let mut entries = vec![];
                     for row in &packed_file_data.entries {
                         let mut row_string = vec![];
@@ -933,11 +933,11 @@ impl PackedFileDBTreeView {
                                 DecodedData::Integer(ref data) => format!("{}", data),
                                 DecodedData::LongInteger(ref data) => format!("{}", data),
 
-                                // All these are Strings, so it can be together,
+                                // All these are Strings, so they need to escape certain chars and include commas in Lua.
                                 DecodedData::StringU8(ref data) |
                                 DecodedData::StringU16(ref data) |
                                 DecodedData::OptionalStringU8(ref data) |
-                                DecodedData::OptionalStringU16(ref data) => format!("\"{}\"", data),
+                                DecodedData::OptionalStringU16(ref data) => format!("\"{}\"", data.replace('\\', "\\\\")),
                             };
 
                             // And push it to the list.
@@ -949,7 +949,7 @@ impl PackedFileDBTreeView {
                     // Get the titles of the columns.
                     let mut column_names = packed_file_data.table_definition.fields.iter().map(|x| x.field_name.to_owned()).collect::<Vec<String>>();
 
-                    // Try to get the Key column if exists and it doesn't have duplicates.
+                    // Try to get the Key column number if exists and it doesn't have duplicates.
                     let key = 
                         if let Some(column) = packed_file_data.table_definition.fields.iter().position(|x| x.field_is_key) {
                             let key_column = entries.iter().map(|x| x[column].to_owned()).collect::<Vec<String>>();
@@ -990,32 +990,53 @@ impl PackedFileDBTreeView {
                         }
                     }
 
-                    // Create a string to keep all the values in a LUA format.
-                    let mut lua_table = String::from("TABLE = {\n");
+                    // Create the string of the table.
+                    let mut lua_table = String::new();
 
-                    // For each row...
-                    for (index, row) in entries.iter().enumerate() {
+                    // If we have a "Key" field, we form a "Map<String, Map<String, Any>>". If we don't have it, we form a "Vector<Map<String, Any>>".
+                    match key {
+                        Some(column) => {
 
-                        // Add the "key" of the lua table.
-                        lua_table.push_str(&format!("\t[{}] = {{", if let Some(ref column) = key { column[index].to_owned() } else { format!("{}", index) }));
+                            // Start the table.
+                            lua_table.push_str("TABLE = {\n");
+                            for (index, row) in entries.iter().enumerate() {
 
-                        // For each cell in the row...
-                        for (column, cell) in row.iter().enumerate() {
+                                // Add the "key" of the lua table.
+                                lua_table.push_str(&format!("\t[{}] = {{", column[index].to_owned()));
 
-                             // And push it to the LUA Table.
-                            lua_table.push_str(&format!(" [\"{}\"] = {},", column_names[column], cell));
+                                // For each cell in the row, push it to the LUA Table.
+                                for (column, cell) in row.iter().enumerate() {
+                                    lua_table.push_str(&format!(" [\"{}\"] = {},", column_names[column], cell));
+                                }
+
+                                // Take out the last comma.
+                                lua_table.pop();
+
+                                // Close the row.
+                                if index == entries.len() - 1 { lua_table.push_str(" }\n"); }
+                                else { lua_table.push_str(" },\n"); }
+                            }
+
+                            // Close the table.
+                            lua_table.push_str("}");
                         }
+                        
+                        None => {
+                            for (index, row) in entries.iter().enumerate() {
+                                lua_table.push('{');
+                                for (column, cell) in row.iter().enumerate() {
+                                    lua_table.push_str(&format!(" [\"{}\"] = {},", column_names[column], cell));
+                                }
 
-                        // Take out the last comma.
-                        lua_table.pop();
+                                // Delete the last comma.
+                                lua_table.pop();
 
-                        // Close the row.
-                        if index == entries.len() - 1 { lua_table.push_str(" }\n"); }
-                        else { lua_table.push_str(" },\n"); }
+                                // Close the row.
+                                if index == entries.len() - 1 { lua_table.push_str(" }\n"); }
+                                else { lua_table.push_str(" },\n"); }
+                            }
+                        }
                     }
-
-                    // Close the table.
-                    lua_table.push_str("}");
 
                     // Put the baby into the oven.
                     unsafe { GuiApplication::clipboard().as_mut().unwrap().set_text(&QString::from_std_str(lua_table)); }
