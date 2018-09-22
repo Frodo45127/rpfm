@@ -1,8 +1,9 @@
 use std::env::temp_dir;
 use std::sync::mpsc::{Sender, Receiver};
 use std::path::PathBuf;
-use std::fs::File;
+use std::fs::{DirBuilder, File};
 use std::io::{BufReader, Write};
+use std::process::Command;
 
 use RPFM_PATH;
 use SUPPORTED_GAMES;
@@ -1086,6 +1087,48 @@ pub fn background_loop(
                         data.dedup();
 
                         sender.send(Data::VecString(data)).unwrap();
+                    }
+
+                    // In case we want to use Kailua to check if your script has errors...
+                    Commands::CheckScriptWithKailua => {
+
+                        // This is for storing the results we have to send back.
+                        let mut results = vec![];
+
+                        // Get the paths we need.
+                        let types_path = RPFM_PATH.to_path_buf().join(PathBuf::from("ca_types"));
+                        let mut temp_folder_path = temp_dir().join(PathBuf::from("rpfm/scripts"));
+                        let mut config_path = temp_folder_path.to_path_buf();
+                        config_path.push("kailua.json");
+
+                        // Extract every lua file in the PackFile, respecting his path.
+                        for packed_file in &pack_file_decoded.data.packed_files {
+                            if packed_file.path.last().unwrap().ends_with(".lua") {
+                                let path: PathBuf = temp_folder_path.to_path_buf().join(packed_file.path.iter().collect::<PathBuf>());
+
+                                // If the path doesn't exist, create it.
+                                let mut path_base = path.to_path_buf();
+                                path_base.pop();
+                                if !path_base.is_dir() { DirBuilder::new().recursive(true).create(&path_base).unwrap(); }
+
+                                File::create(&path).unwrap().write_all(&packed_file.data).unwrap();
+                                
+                                // Create the Kailua config file.
+                                let config = format!("
+                                {{
+                                    \"start_path\": [\"{}\"],
+                                    \"preload\": {{
+                                        \"open\": [\"lua51\"],
+                                        \"require\": [\"{}\"]
+                                    }}
+                                }}", path.to_string_lossy(), types_path.to_string_lossy());
+                                File::create(&config_path).unwrap().write_all(&config.as_bytes()).unwrap();
+                                results.push(String::from_utf8_lossy(&Command::new("kailua").arg("check").arg(&config_path.to_string_lossy().as_ref().to_owned()).output().unwrap().stderr).to_string());
+                            }
+                        }
+
+                        // Send back the result.
+                        sender.send(Data::VecString(results)).unwrap();
                     }
                 }
             }

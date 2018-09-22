@@ -83,6 +83,7 @@ pub enum Commands {
     GetPackFilesList,
     SetPackFilesList,
     DecodeDependencyDB,
+    CheckScriptWithKailua,
 }
 
 /// This enum is meant to send data back and forward between threads. Variants here are 
