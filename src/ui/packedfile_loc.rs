@@ -7,6 +7,7 @@ use qt_widgets::action::Action;
 use qt_widgets::combo_box::ComboBox;
 use qt_widgets::header_view::ResizeMode;
 use qt_widgets::file_dialog::FileDialog;
+use qt_widgets::label::Label;
 use qt_widgets::line_edit::LineEdit;
 use qt_widgets::menu::Menu;
 use qt_widgets::slots::SlotQtCorePointRef;
@@ -25,10 +26,11 @@ use qt_gui::standard_item_model::StandardItemModel;
 use qt_core::sort_filter_proxy_model::SortFilterProxyModel;
 use qt_core::abstract_item_model::AbstractItemModel;
 use qt_core::connection::Signal;
+use qt_core::item_selection_model::SelectionFlag;
 use qt_core::variant::Variant;
 use qt_core::slots::{SlotBool, SlotCInt, SlotStringRef, SlotItemSelectionRefItemSelectionRef, SlotModelIndexRefModelIndexRefVectorVectorCIntRef};
 use qt_core::reg_exp::RegExp;
-use qt_core::qt::{Orientation, CheckState, ContextMenuPolicy, ShortcutContext, SortOrder, CaseSensitivity, GlobalColor};
+use qt_core::qt::{Orientation, CheckState, ContextMenuPolicy, ShortcutContext, SortOrder, CaseSensitivity, GlobalColor, MatchFlag};
 
 use std::collections::BTreeMap;
 use std::cell::RefCell;
@@ -60,9 +62,18 @@ pub struct PackedFileLocTreeView {
     pub slot_context_menu_copy: SlotBool<'static>,
     pub slot_context_menu_paste: SlotBool<'static>,
     pub slot_context_menu_paste_as_new_lines: SlotBool<'static>,
+    pub slot_context_menu_search: SlotBool<'static>,
     pub slot_context_menu_import: SlotBool<'static>,
     pub slot_context_menu_export: SlotBool<'static>,
     pub slot_smart_delete: SlotBool<'static>,
+
+    pub slot_update_search_stuff: SlotNoArgs<'static>,
+    pub slot_search: SlotNoArgs<'static>,
+    pub slot_prev_match: SlotNoArgs<'static>,
+    pub slot_next_match: SlotNoArgs<'static>,
+    pub slot_close_search: SlotNoArgs<'static>,
+    pub slot_replace_current: SlotNoArgs<'static>,
+    pub slot_replace_all: SlotNoArgs<'static>,
 }
 
 /// Implementation of PackedFileLocTreeView.
@@ -86,9 +97,18 @@ impl PackedFileLocTreeView {
             slot_context_menu_copy: SlotBool::new(|_| {}),
             slot_context_menu_paste: SlotBool::new(|_| {}),
             slot_context_menu_paste_as_new_lines: SlotBool::new(|_| {}),
+            slot_context_menu_search: SlotBool::new(|_| {}),
             slot_context_menu_import: SlotBool::new(|_| {}),
             slot_context_menu_export: SlotBool::new(|_| {}),
             slot_smart_delete: SlotBool::new(|_| {}),
+
+            slot_update_search_stuff: SlotNoArgs::new(|| {}),
+            slot_search: SlotNoArgs::new(|| {}),
+            slot_prev_match: SlotNoArgs::new(|| {}),
+            slot_next_match: SlotNoArgs::new(|| {}),
+            slot_close_search: SlotNoArgs::new(|| {}),
+            slot_replace_current: SlotNoArgs::new(|| {}),
+            slot_replace_all: SlotNoArgs::new(|| {}),
         }
     }
 
@@ -160,9 +180,85 @@ impl PackedFileLocTreeView {
         unsafe { filter_model.as_mut().unwrap().set_source_model(model as *mut AbstractItemModel); }
         unsafe { table_view.as_mut().unwrap().set_model(filter_model as *mut AbstractItemModel); }
         unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((table_view as *mut Widget, 0, 0, 1, 3)); }
-        unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((row_filter_line_edit as *mut Widget, 1, 0, 1, 1)); }
-        unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((row_filter_case_sensitive_button as *mut Widget, 1, 1, 1, 1)); }
-        unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((row_filter_column_selector as *mut Widget, 1, 2, 1, 1)); }
+        unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((row_filter_line_edit as *mut Widget, 2, 0, 1, 1)); }
+        unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((row_filter_case_sensitive_button as *mut Widget, 2, 1, 1, 1)); }
+        unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((row_filter_column_selector as *mut Widget, 2, 2, 1, 1)); }
+
+        // Create the main search widget.
+        let search_widget = Widget::new().into_raw();
+
+        // Create the "Search" Grid and his internal widgets.
+        let grid = GridLayout::new().into_raw();
+        let matches_label = Label::new(());
+        let search_label = Label::new(&QString::from_std_str("Search Pattern:"));
+        let replace_label = Label::new(&QString::from_std_str("Replace Pattern:"));
+        let mut search_line_edit = LineEdit::new(());
+        let mut replace_line_edit = LineEdit::new(());
+        let mut prev_match_button = PushButton::new(&QString::from_std_str("Prev. Match"));
+        let mut next_match_button = PushButton::new(&QString::from_std_str("Next Match"));
+        let search_button = PushButton::new(&QString::from_std_str("Search"));
+        let mut replace_current_button = PushButton::new(&QString::from_std_str("Replace Current"));
+        let mut replace_all_button = PushButton::new(&QString::from_std_str("Replace All"));
+        let close_button = PushButton::new(&QString::from_std_str("Close"));
+        let mut column_selector = ComboBox::new();
+        let column_list = StandardItemModel::new(());
+        let mut case_sensitive_button = PushButton::new(&QString::from_std_str("Case Sensitive"));
+
+        search_line_edit.set_placeholder_text(&QString::from_std_str("Type here what you want to search. Works with Regex too!"));
+        replace_line_edit.set_placeholder_text(&QString::from_std_str("If you want to replace the searched text with something, type the replacement here."));
+
+        unsafe { column_selector.set_model(column_list.into_raw() as *mut AbstractItemModel); }
+        column_selector.add_item(&QString::from_std_str("* (All Columns)"));
+        column_selector.add_item(&QString::from_std_str("Key"));
+        column_selector.add_item(&QString::from_std_str("Text"));
+        case_sensitive_button.set_checkable(true);
+
+        prev_match_button.set_enabled(false);
+        next_match_button.set_enabled(false);
+        replace_current_button.set_enabled(false);
+        replace_all_button.set_enabled(false);
+
+        let matches_label = matches_label.into_raw();
+        let search_line_edit = search_line_edit.into_raw();
+        let replace_line_edit = replace_line_edit.into_raw();
+        let column_selector = column_selector.into_raw();
+        let case_sensitive_button = case_sensitive_button.into_raw();
+        let prev_match_button = prev_match_button.into_raw();
+        let next_match_button = next_match_button.into_raw();
+        let search_button = search_button.into_raw();
+        let replace_current_button = replace_current_button.into_raw();
+        let replace_all_button = replace_all_button.into_raw();
+        let close_button = close_button.into_raw();
+
+        // Add all the widgets to the search grid.
+        unsafe { grid.as_mut().unwrap().add_widget((search_label.into_raw() as *mut Widget, 0, 0, 1, 1)); }
+        unsafe { grid.as_mut().unwrap().add_widget((search_line_edit as *mut Widget, 0, 1, 1, 1)); }
+        unsafe { grid.as_mut().unwrap().add_widget((prev_match_button as *mut Widget, 0, 2, 1, 1)); }
+        unsafe { grid.as_mut().unwrap().add_widget((next_match_button as *mut Widget, 0, 3, 1, 1)); }
+        unsafe { grid.as_mut().unwrap().add_widget((replace_label.into_raw() as *mut Widget, 1, 0, 1, 1)); }
+        unsafe { grid.as_mut().unwrap().add_widget((replace_line_edit as *mut Widget, 1, 1, 1, 3)); }
+        unsafe { grid.as_mut().unwrap().add_widget((search_button as *mut Widget, 0, 4, 1, 1)); }
+        unsafe { grid.as_mut().unwrap().add_widget((replace_current_button as *mut Widget, 1, 4, 1, 1)); }
+        unsafe { grid.as_mut().unwrap().add_widget((replace_all_button as *mut Widget, 2, 4, 1, 1)); }
+        unsafe { grid.as_mut().unwrap().add_widget((close_button as *mut Widget, 2, 0, 1, 1)); }
+        unsafe { grid.as_mut().unwrap().add_widget((matches_label as *mut Widget, 2, 1, 1, 1)); }
+        unsafe { grid.as_mut().unwrap().add_widget((column_selector as *mut Widget, 2, 2, 1, 1)); }
+        unsafe { grid.as_mut().unwrap().add_widget((case_sensitive_button as *mut Widget, 2, 3, 1, 1)); }
+
+        // Add all the stuff to the main grid and hide the search widget.
+        unsafe { search_widget.as_mut().unwrap().set_layout(grid as *mut Layout); }
+        unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((search_widget as *mut Widget, 1, 0, 1, 3)); }
+        unsafe { search_widget.as_mut().unwrap().hide(); }
+
+        // Store the search results and the currently selected search item.
+        let matches: Rc<RefCell<BTreeMap<ModelIndexWrapped, Option<ModelIndexWrapped>>>> = Rc::new(RefCell::new(BTreeMap::new()));
+        let position: Rc<RefCell<Option<usize>>> = Rc::new(RefCell::new(None));
+
+        // The data here represents "pattern", "flags to search", "column (-1 for all)".
+        let search_data: Rc<RefCell<(String, Flags<MatchFlag>, i32)>> = Rc::new(RefCell::new(("".to_owned(), Flags::from_enum(MatchFlag::Contains), -1)));
+
+        // Action to update the search stuff when needed.
+        let update_search_stuff = Action::new(()).into_raw();
 
         // Build the columns.
         build_columns(table_view, model);
@@ -186,6 +282,8 @@ impl PackedFileLocTreeView {
         let context_menu_paste = context_menu_paste_submenu.add_action(&QString::from_std_str("&Paste in Selection"));
         let context_menu_paste_as_new_lines = context_menu_paste_submenu.add_action(&QString::from_std_str("&Paste as New Rows"));
 
+        let context_menu_search = context_menu.add_action(&QString::from_std_str("&Search"));
+
         let context_menu_import = context_menu.add_action(&QString::from_std_str("&Import"));
         let context_menu_export = context_menu.add_action(&QString::from_std_str("&Export"));
 
@@ -200,6 +298,7 @@ impl PackedFileLocTreeView {
         unsafe { context_menu_copy.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("copy").unwrap()))); }
         unsafe { context_menu_paste.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("paste").unwrap()))); }
         unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("paste_as_new_row").unwrap()))); }
+        unsafe { context_menu_search.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("search").unwrap()))); }
         unsafe { context_menu_import.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("import_tsv").unwrap()))); }
         unsafe { context_menu_export.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("export_tsv").unwrap()))); }
         unsafe { smart_delete.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("smart_delete").unwrap()))); }
@@ -211,6 +310,7 @@ impl PackedFileLocTreeView {
         unsafe { context_menu_copy.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_paste.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+        unsafe { context_menu_search.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_import.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_export.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { smart_delete.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
@@ -222,6 +322,7 @@ impl PackedFileLocTreeView {
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_copy); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_paste); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_paste_as_new_lines); }
+        unsafe { table_view.as_mut().unwrap().add_action(context_menu_search); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_import); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_export); }
         unsafe { table_view.as_mut().unwrap().add_action(smart_delete); }
@@ -233,12 +334,14 @@ impl PackedFileLocTreeView {
         unsafe { context_menu_copy.as_mut().unwrap().set_status_tip(&QString::from_std_str("Copy whatever is selected to the Clipboard.")); }
         unsafe { context_menu_paste.as_mut().unwrap().set_status_tip(&QString::from_std_str("Try to paste whatever is in the Clipboard. Does nothing if the data is not compatible with the cell.")); }
         unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().set_status_tip(&QString::from_std_str("Try to paste whatever is in the Clipboard as new lines at the end of the table. Does nothing if the data is not compatible with the cell.")); }
+        unsafe { context_menu_search.as_mut().unwrap().set_status_tip(&QString::from_std_str("Search what you want in the table. Also allows you to replace coincidences.")); }
         unsafe { context_menu_import.as_mut().unwrap().set_status_tip(&QString::from_std_str("Import a TSV file into this table, replacing all the data.")); }
         unsafe { context_menu_export.as_mut().unwrap().set_status_tip(&QString::from_std_str("Export this table's data into a TSV file.")); }
 
         // Insert some separators to space the menu, and the paste submenu.
         unsafe { context_menu.insert_separator(context_menu_copy); }
-        unsafe { context_menu.insert_menu(context_menu_import, context_menu_paste_submenu.into_raw()); }
+        unsafe { context_menu.insert_menu(context_menu_search, context_menu_paste_submenu.into_raw()); }
+        unsafe { context_menu.insert_separator(context_menu_search); }
         unsafe { context_menu.insert_separator(context_menu_import); }
 
         // Slots for the TableView...
@@ -289,6 +392,9 @@ impl PackedFileLocTreeView {
                             &packed_file_path,
                             model,
                         );
+
+                        // Update the search stuff, if needed.
+                        unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
                     }
                 }
             )),
@@ -311,6 +417,9 @@ impl PackedFileLocTreeView {
 
                 // Filter whatever it's in that column by the text we got.
                 unsafe { filter_model.as_mut().unwrap().set_filter_reg_exp(&reg_exp); }
+
+                // Update the search stuff, if needed.
+                unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
             }),
             slot_row_filter_change_column: SlotCInt::new(move |index| {
 
@@ -329,6 +438,9 @@ impl PackedFileLocTreeView {
 
                 // Filter whatever it's in that column by the text we got.
                 unsafe { filter_model.as_mut().unwrap().set_filter_reg_exp(&reg_exp); }
+
+                // Update the search stuff, if needed.
+                unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
             }),
             slot_row_filter_change_case_sensitive: SlotBool::new(move |case_sensitive| {
 
@@ -343,6 +455,9 @@ impl PackedFileLocTreeView {
 
                 // Filter whatever it's in that column by the text we got.
                 unsafe { filter_model.as_mut().unwrap().set_filter_reg_exp(&reg_exp); }
+
+                // Update the search stuff, if needed.
+                unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
             }),
             slot_context_menu_add: SlotBool::new(move |_| {
 
@@ -475,6 +590,9 @@ impl PackedFileLocTreeView {
                             &packed_file_path,
                             model,
                         );
+
+                        // Update the search stuff, if needed.
+                        unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
                     }
                 }
             )),
@@ -739,10 +857,20 @@ impl PackedFileLocTreeView {
                                 &packed_file_path,
                                 model,
                             );
+
+                            // Update the search stuff, if needed.
+                            unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
                         }
                     }
                 }
-                )),
+            )),
+
+            slot_context_menu_search: SlotBool::new(move |_| {
+                unsafe {
+                    if search_widget.as_mut().unwrap().is_visible() { search_widget.as_mut().unwrap().hide(); } 
+                    else { search_widget.as_mut().unwrap().show(); }
+                }
+            }),
 
             slot_context_menu_import: SlotBool::new(clone!(
                 packed_file_path,
@@ -804,6 +932,9 @@ impl PackedFileLocTreeView {
                             &packed_file_path,
                             model,
                         );
+
+                        // Update the search stuff, if needed.
+                        unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
                     }
                 }
             )),
@@ -916,6 +1047,424 @@ impl PackedFileLocTreeView {
                             model,
                         );
                     }
+
+                    // Update the search stuff, if needed.
+                    unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
+                }
+            )),
+
+            // Slot to close the search widget.
+            slot_update_search_stuff: SlotNoArgs::new(clone!(
+                matches,
+                position,
+                search_data => move || {
+
+                    // Get all the stuff separated, to make it clear.
+                    let text = &search_data.borrow().0;
+                    let flags = &search_data.borrow().1;
+                    let column = search_data.borrow().2;
+
+                    // If there is no text or we don't have the search bar open, return emptyhanded.
+                    unsafe { if text.is_empty() || !search_widget.as_mut().unwrap().is_visible() { return }}
+
+                    // Reset the matches's list.
+                    matches.borrow_mut().clear();
+                    
+                    // Get the column selected, and act depending on it.
+                    match column {
+                        -1 => {
+
+                            // Get all the matches from all the columns.
+                            for index in 0..3 {
+                                let mut matches_unprocessed;
+                                unsafe { matches_unprocessed = model.as_mut().unwrap().find_items((&QString::from_std_str(text), flags.clone(), index)); }
+
+                                // Once you got them, process them and get their ModelIndex.
+                                for index in 0..matches_unprocessed.count() {
+
+                                    let model_index;
+                                    let filter_model_index;
+                                    unsafe { model_index = matches_unprocessed.at(index).as_mut().unwrap().index(); }
+                                    unsafe { filter_model_index = filter_model.as_mut().unwrap().map_from_source(&model_index); }
+                                    matches.borrow_mut().insert(
+                                        ModelIndexWrapped::new(model_index),
+                                        if filter_model_index.is_valid() { Some(ModelIndexWrapped::new(filter_model_index)) } else { None }
+                                    );
+                                }
+                            }
+                        },
+
+                        _ => {
+
+                            let mut matches_unprocessed;
+                            unsafe { matches_unprocessed = model.as_mut().unwrap().find_items((&QString::from_std_str(text), flags.clone(), column)); }
+
+                            // Once you got them, process them and get their ModelIndex.
+                            for index in 0..matches_unprocessed.count() {
+                                let model_index;
+                                let filter_model_index;
+                                unsafe { model_index = matches_unprocessed.at(index).as_mut().unwrap().index(); }
+                                unsafe { filter_model_index = filter_model.as_mut().unwrap().map_from_source(&model_index); }
+                                matches.borrow_mut().insert(
+                                    ModelIndexWrapped::new(model_index),
+                                    if filter_model_index.is_valid() { Some(ModelIndexWrapped::new(filter_model_index)) } else { None }
+                                );
+                            }
+                        }
+                    }
+
+                    // If no matches have been found, report it.
+                    if matches.borrow().is_empty() {
+                        *position.borrow_mut() = None;
+                        unsafe { matches_label.as_mut().unwrap().set_text(&QString::from_std_str("No matches found.")); }
+                        unsafe { prev_match_button.as_mut().unwrap().set_enabled(false); }
+                        unsafe { next_match_button.as_mut().unwrap().set_enabled(false); }
+                        unsafe { replace_current_button.as_mut().unwrap().set_enabled(false); }
+                        unsafe { replace_all_button.as_mut().unwrap().set_enabled(false); }
+                    }
+
+                    // Otherwise...
+                    else {
+
+                        let matches_in_filter = matches.borrow().iter().filter(|x| x.1.is_some()).count();
+
+                        // If no matches have been found in the current filter, but they have been in the model...
+                        if matches_in_filter == 0 {
+                            *position.borrow_mut() = None;
+                            unsafe { matches_label.as_mut().unwrap().set_text(&QString::from_std_str(&format!("{} with current filter ({} in total)", matches_in_filter, matches.borrow().len()))); }
+                            unsafe { prev_match_button.as_mut().unwrap().set_enabled(false); }
+                            unsafe { next_match_button.as_mut().unwrap().set_enabled(false); }
+                            unsafe { replace_current_button.as_mut().unwrap().set_enabled(false); }
+                            unsafe { replace_all_button.as_mut().unwrap().set_enabled(false); }
+                        }
+                        
+                        // Otherwise, matches have been found both, in the model and in the filter.
+                        else {
+
+                            // Calculate the new position to be selected.
+                            let new_position = match *position.borrow() {
+
+                                // If there was a position being used, we need to check if that position is still valid.
+                                Some(pos) => {
+
+                                    // Get the list of all valid ModelIndex for the current filter.
+                                    let matches = matches.borrow();
+                                    let matches_in_filter = matches.iter().filter(|x| x.1.is_some()).map(|x| x.1.as_ref().unwrap().get()).collect::<Vec<&ModelIndex>>();
+                                    
+                                    // If our position is still valid, use it.
+                                    if pos < matches_in_filter.len() - 1 { pos }
+
+                                    // Otherwise, return a 0.
+                                    else { 0 }
+                                }
+
+                                // If there was none, but now there is, use the first match.
+                                None => 0
+                            };
+
+                            *position.borrow_mut() = Some(new_position);
+                            unsafe { matches_label.as_mut().unwrap().set_text(&QString::from_std_str(&format!("{} of {} with current filter ({} in total)", position.borrow().unwrap() + 1, matches_in_filter, matches.borrow().len()))); }
+                            unsafe { prev_match_button.as_mut().unwrap().set_enabled(false); }
+                            if matches_in_filter > 1 { unsafe { next_match_button.as_mut().unwrap().set_enabled(true); }}
+                            else { unsafe { next_match_button.as_mut().unwrap().set_enabled(false); }}
+                            unsafe { replace_current_button.as_mut().unwrap().set_enabled(true); }
+                            unsafe { replace_all_button.as_mut().unwrap().set_enabled(true); }
+                        }
+                    }
+                }
+            )),
+
+            // Slot for the search button.
+            slot_search: SlotNoArgs::new(clone!(
+                matches,
+                position => move || {
+
+                    // Reset the data.
+                    matches.borrow_mut().clear();
+                    *position.borrow_mut() = None;
+
+                    // Get the text.
+                    let text;
+                    unsafe { text = search_line_edit.as_mut().unwrap().text(); }
+                    
+                    // If there is no text, return emptyhanded.
+                    if text.is_empty() { 
+                        *search_data.borrow_mut() = (String::new(), Flags::from_enum(MatchFlag::Contains), -1);
+                        unsafe { matches_label.as_mut().unwrap().set_text(&QString::from_std_str("")); }
+                        unsafe { prev_match_button.as_mut().unwrap().set_enabled(false); }
+                        unsafe { next_match_button.as_mut().unwrap().set_enabled(false); }
+                        unsafe { replace_current_button.as_mut().unwrap().set_enabled(false); }
+                        unsafe { replace_all_button.as_mut().unwrap().set_enabled(false); }
+                        return
+                    }
+
+                    // Create the flags needed for the search.
+                    // TODO: For some reason, if we try to use regexp here, it doesn't find anything. So we need to find out why.
+                    let mut flags = Flags::from_enum(MatchFlag::Contains);
+
+                    // Check if the filter should be "Case Sensitive".
+                    let case_sensitive;
+                    unsafe { case_sensitive = case_sensitive_button.as_mut().unwrap().is_checked(); }
+                    if case_sensitive { flags = flags | Flags::from_enum(MatchFlag::CaseSensitive); }
+                    
+                    // Get the column selected, and act depending on it.
+                    let column;
+                    unsafe { column = column_selector.as_mut().unwrap().current_text().to_std_string().replace(' ', "_").to_lowercase(); }
+                    match &*column {
+                        "*_(all_columns)" => {
+
+                            // Get all the matches from all the columns.
+                            for index in 0..3 {
+                                let mut matches_unprocessed;
+                                unsafe { matches_unprocessed = model.as_mut().unwrap().find_items((&text, flags.clone(), index)); }
+
+                                // Once you got them, process them and get their ModelIndex.
+                                for index in 0..matches_unprocessed.count() {
+
+                                    let model_index;
+                                    let filter_model_index;
+                                    unsafe { model_index = matches_unprocessed.at(index).as_mut().unwrap().index(); }
+                                    unsafe { filter_model_index = filter_model.as_mut().unwrap().map_from_source(&model_index); }
+                                    matches.borrow_mut().insert(
+                                        ModelIndexWrapped::new(model_index),
+                                        if filter_model_index.is_valid() { Some(ModelIndexWrapped::new(filter_model_index)) } else { None }
+                                    );
+                                }
+                            }
+                        },
+
+                        _ => {
+                            let column = match &*column {
+                                "key" => 0,
+                                "text" => 1,
+                                "tooltip" => 2,
+                                _ => unreachable!(),
+                            };
+
+                            let mut matches_unprocessed;
+                            unsafe { matches_unprocessed = model.as_mut().unwrap().find_items((&text, flags.clone(), column)); }
+
+                            // Once you got them, process them and get their ModelIndex.
+                            for index in 0..matches_unprocessed.count() {
+                                let model_index;
+                                let filter_model_index;
+                                unsafe { model_index = matches_unprocessed.at(index).as_mut().unwrap().index(); }
+                                unsafe { filter_model_index = filter_model.as_mut().unwrap().map_from_source(&model_index); }
+                                matches.borrow_mut().insert(
+                                    ModelIndexWrapped::new(model_index),
+                                    if filter_model_index.is_valid() { Some(ModelIndexWrapped::new(filter_model_index)) } else { None }
+                                );
+                            }
+                        }
+                    }
+
+                    // If no matches have been found, report it.
+                    if matches.borrow().is_empty() {
+                        *position.borrow_mut() = None;
+                        unsafe { matches_label.as_mut().unwrap().set_text(&QString::from_std_str("No matches found.")); }
+                        unsafe { prev_match_button.as_mut().unwrap().set_enabled(false); }
+                        unsafe { next_match_button.as_mut().unwrap().set_enabled(false); }
+                        unsafe { replace_current_button.as_mut().unwrap().set_enabled(false); }
+                        unsafe { replace_all_button.as_mut().unwrap().set_enabled(false); }
+                    }
+
+                    // Otherwise...
+                    else {
+
+                        let matches_in_filter = matches.borrow().iter().filter(|x| x.1.is_some()).count();
+
+                        // If no matches have been found in the current filter, but they have been in the model...
+                        if matches_in_filter == 0 {
+                            *position.borrow_mut() = None;
+                            unsafe { matches_label.as_mut().unwrap().set_text(&QString::from_std_str(&format!("{} with current filter ({} in total)", matches_in_filter, matches.borrow().len()))); }
+                            unsafe { prev_match_button.as_mut().unwrap().set_enabled(false); }
+                            unsafe { next_match_button.as_mut().unwrap().set_enabled(false); }
+                            unsafe { replace_current_button.as_mut().unwrap().set_enabled(false); }
+                            unsafe { replace_all_button.as_mut().unwrap().set_enabled(false); }
+                        }
+                        
+                        // Otherwise, matches have been found both, in the model and in the filter.
+                        else {
+
+                            *position.borrow_mut() = Some(0);
+                            unsafe { matches_label.as_mut().unwrap().set_text(&QString::from_std_str(&format!("1 of {} with current filter ({} in total)", matches_in_filter, matches.borrow().len()))); }
+                            unsafe { prev_match_button.as_mut().unwrap().set_enabled(false); }
+                            if matches_in_filter > 1 { unsafe { next_match_button.as_mut().unwrap().set_enabled(true); }}
+                            else { unsafe { next_match_button.as_mut().unwrap().set_enabled(false); }}
+
+                            unsafe { replace_current_button.as_mut().unwrap().set_enabled(true); }
+                            unsafe { replace_all_button.as_mut().unwrap().set_enabled(true); }
+
+                            let selection_model;
+                            unsafe { selection_model = table_view.as_mut().unwrap().selection_model(); }
+                            unsafe { selection_model.as_mut().unwrap().select((
+                                matches.borrow().iter().find(|x| x.1.is_some()).map(|x| x.1.as_ref().unwrap().get()).unwrap(),
+                                Flags::from_enum(SelectionFlag::ClearAndSelect)
+                            )); }
+                        }
+                    }
+
+                    *search_data.borrow_mut() = (text.to_std_string(), flags, 
+                        match &*column {
+                            "*_(all_columns)" => -1,
+                            "key" => 0,
+                            "text" => 1,
+                            "tooltip" => 2,
+                            _ => unreachable!(),
+                        }
+                    );
+                }
+            )),
+
+            // Slots for the prev/next buttons.
+            slot_prev_match: SlotNoArgs::new(clone!(
+                matches,
+                position => move || {
+
+                    // Get the list of all valid ModelIndex for the current filter and the current position.
+                    let matches = matches.borrow();
+                    let matches_in_filter = matches.iter().filter(|x| x.1.is_some()).map(|x| x.1.as_ref().unwrap().get()).collect::<Vec<&ModelIndex>>();
+                    if let Some(ref mut pos) = *position.borrow_mut() { 
+                    
+                        // If we are in an invalid result, return. If it's the first one, disable the button and return.
+                        if *pos > 0 {
+                            *pos -= 1;
+                            if *pos == 0 { unsafe { prev_match_button.as_mut().unwrap().set_enabled(false); }}
+                            else { unsafe { prev_match_button.as_mut().unwrap().set_enabled(true); }}
+                            if *pos >= matches_in_filter.len() - 1 { unsafe { next_match_button.as_mut().unwrap().set_enabled(false); }}
+                            else { unsafe { next_match_button.as_mut().unwrap().set_enabled(true); }}
+
+                            // Select the new cell.
+                            let selection_model;
+                            unsafe { selection_model = table_view.as_mut().unwrap().selection_model(); }
+                            unsafe { selection_model.as_mut().unwrap().select((
+                                matches_in_filter[*pos],
+                                Flags::from_enum(SelectionFlag::ClearAndSelect)
+                            )); }
+
+                            unsafe { matches_label.as_mut().unwrap().set_text(&QString::from_std_str(&format!("{} of {} with current filter ({} in total)", *pos + 1, matches_in_filter.len(), matches.len()))); }
+                        }
+                    }
+                }
+            )),
+            slot_next_match: SlotNoArgs::new(clone!(
+                matches,
+                position => move || {
+
+                    // Get the list of all valid ModelIndex for the current filter and the current position.
+                    let matches = matches.borrow();
+                    let matches_in_filter = matches.iter().filter(|x| x.1.is_some()).map(|x| x.1.as_ref().unwrap().get()).collect::<Vec<&ModelIndex>>();
+                    if let Some(ref mut pos) = *position.borrow_mut() { 
+                    
+                        // If we are in an invalid result, return. If it's the last one, disable the button and return.
+                        if *pos >= matches_in_filter.len() - 1 { unsafe { next_match_button.as_mut().unwrap().set_enabled(false); }}
+                        else {
+                            *pos += 1;
+                            if *pos == 0 { unsafe { prev_match_button.as_mut().unwrap().set_enabled(false); }}
+                            else { unsafe { prev_match_button.as_mut().unwrap().set_enabled(true); }}
+                            if *pos >= matches_in_filter.len() - 1 { unsafe { next_match_button.as_mut().unwrap().set_enabled(false); }}
+                            else { unsafe { next_match_button.as_mut().unwrap().set_enabled(true); }}
+
+                            // Select the new cell.
+                            let selection_model;
+                            unsafe { selection_model = table_view.as_mut().unwrap().selection_model(); }
+                            unsafe { selection_model.as_mut().unwrap().select((
+                                matches_in_filter[*pos],
+                                Flags::from_enum(SelectionFlag::ClearAndSelect)
+                            )); }
+
+                            unsafe { matches_label.as_mut().unwrap().set_text(&QString::from_std_str(&format!("{} of {} with current filter ({} in total)", *pos + 1, matches_in_filter.len(), matches.len()))); }
+                        }
+                    }
+                }
+            )),
+
+            // Slot to close the search widget.
+            slot_close_search: SlotNoArgs::new(move || {
+                unsafe { search_widget.as_mut().unwrap().hide(); }
+                unsafe { table_view.as_mut().unwrap().set_focus(()); }
+            }),
+
+            // Slot for the "Replace Current" button. This triggers the main save function, so we can let that one update the search stuff.
+            slot_replace_current: SlotNoArgs::new(clone!(
+                matches,
+                position => move || {
+                    
+                    // Get the text.
+                    let text_source;
+                    let text_replace;
+                    unsafe { text_source = search_line_edit.as_mut().unwrap().text().to_std_string(); }
+                    unsafe { text_replace = replace_line_edit.as_mut().unwrap().text().to_std_string(); }
+
+                    // Only proceed if the source is not empty.
+                    if !text_source.is_empty() {
+
+                        // This is done like that because problems with borrowing matches and position. We cannot set the new text while
+                        // matches is borrowed, so we have to catch that into his own scope.
+                        let item;
+                        let replaced_text;
+
+                        // And if we got a valid position. 
+                        if let Some(ref position) = *position.borrow() { 
+
+                            // Get the list of all valid ModelIndex for the current filter and the current position.
+                            let matches = matches.borrow();
+                            let matches_original_from_filter = matches.iter().filter(|x| x.1.is_some()).map(|x| x.0.get()).collect::<Vec<&ModelIndex>>();
+                            let model_index = matches_original_from_filter[*position];
+
+                            // If the position is still valid (not required, but just in case)...
+                            if model_index.is_valid() {
+                                let text;
+                                unsafe { item = model.as_mut().unwrap().item_from_index(model_index); }
+                                unsafe { text = item.as_mut().unwrap().text().to_std_string(); }
+                                replaced_text = text.replace(&text_source, &text_replace);
+                            } else { return }
+                        } else { return }
+                        unsafe { item.as_mut().unwrap().set_text(&QString::from_std_str(&replaced_text)); }
+                    }
+                }
+            )),
+
+            // Slot for the "Replace All" button. This triggers the main save function, so we can let that one update the search stuff.
+            slot_replace_all: SlotNoArgs::new(clone!(
+                matches => move || {
+                    
+                    // Get the text.
+                    let text_source;
+                    let text_replace;
+                    unsafe { text_source = search_line_edit.as_mut().unwrap().text().to_std_string(); }
+                    unsafe { text_replace = replace_line_edit.as_mut().unwrap().text().to_std_string(); }
+
+                    // Only proceed if the source is not empty.
+                    if !text_source.is_empty() {
+
+                        // This is done like that because problems with borrowing matches and position. We cannot set the new text while
+                        // matches is borrowed, so we have to catch that into his own scope.
+                        let mut positions_and_texts: Vec<((i32, i32), String)> = vec![];
+                        { 
+                            // Get the list of all valid ModelIndex for the current filter and the current position.
+                            let matches = matches.borrow();
+                            let matches_original_from_filter = matches.iter().filter(|x| x.1.is_some()).map(|x| x.0.get()).collect::<Vec<&ModelIndex>>();
+                            for model_index in &matches_original_from_filter {
+                             
+                                // If the position is still valid (not required, but just in case)...
+                                if model_index.is_valid() {
+                                    let item;
+                                    let text;
+                                    unsafe { item = model.as_mut().unwrap().item_from_index(model_index); }
+                                    unsafe { text = item.as_mut().unwrap().text().to_std_string(); }
+                                    positions_and_texts.push(((model_index.row(), model_index.column()), text.replace(&text_source, &text_replace)));
+                                } else { return }
+                            }
+                        }
+
+                        // For each position, get his item and change his text.
+                        for data in &positions_and_texts {
+                            let item;
+                            unsafe { item = model.as_mut().unwrap().item(((data.0).0, (data.0).1)); }
+                            unsafe { item.as_mut().unwrap().set_text(&QString::from_std_str(&data.1)); }
+                        }
+                    }
                 }
             )),
         };
@@ -930,10 +1479,19 @@ impl PackedFileLocTreeView {
         unsafe { context_menu_copy.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_copy); }
         unsafe { context_menu_paste.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_paste); }
         unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_paste_as_new_lines); }
+        unsafe { context_menu_search.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_search); }
         unsafe { context_menu_import.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_import); }
         unsafe { context_menu_export.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_export); }
 
         unsafe { smart_delete.as_mut().unwrap().signals().triggered().connect(&slots.slot_smart_delete); }
+
+        unsafe { update_search_stuff.as_mut().unwrap().signals().triggered().connect(&slots.slot_update_search_stuff); }
+        unsafe { search_button.as_mut().unwrap().signals().released().connect(&slots.slot_search); }
+        unsafe { prev_match_button.as_mut().unwrap().signals().released().connect(&slots.slot_prev_match); }
+        unsafe { next_match_button.as_mut().unwrap().signals().released().connect(&slots.slot_next_match); }
+        unsafe { close_button.as_mut().unwrap().signals().released().connect(&slots.slot_close_search); }
+        unsafe { replace_current_button.as_mut().unwrap().signals().released().connect(&slots.slot_replace_current); }
+        unsafe { replace_all_button.as_mut().unwrap().signals().released().connect(&slots.slot_replace_all); }
 
         // Trigger the filter whenever the "filtered" text changes, the "filtered" column changes or the "Case Sensitive" button changes.
         unsafe { row_filter_line_edit.as_mut().unwrap().signals().text_changed().connect(&slots.slot_row_filter_change_text); }

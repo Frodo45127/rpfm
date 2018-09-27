@@ -29,6 +29,7 @@ use qt_core::abstract_item_model::AbstractItemModel;
 use qt_core::connection::Signal;
 use qt_core::flags::Flags;
 use qt_core::item_selection::ItemSelection;
+use qt_core::model_index::ModelIndex;
 use qt_core::qt::GlobalColor;
 use qt_core::slots::{SlotBool, SlotNoArgs, SlotModelIndexRef};
 use qt_core::variant::Variant;
@@ -656,6 +657,49 @@ fn create_prefab(
     // If there are not suitable PackedFiles...
     else { show_dialog(app_ui.window, false, "There are no catchment PackedFiles in this PackFile."); }
 }*/
+
+//----------------------------------------------------------------------------//
+//                    Trait Implementations for Qt Stuff
+//----------------------------------------------------------------------------//
+
+/// Rust doesn't allow implementing traits for types you don't own, so we have to wrap ModelIndex for ordering it.
+/// Don't like it a bit.
+pub struct ModelIndexWrapped {
+    pub model_index: ModelIndex
+}
+
+impl ModelIndexWrapped {
+    pub fn new(model_index: ModelIndex) -> Self {
+        ModelIndexWrapped {
+            model_index
+        }
+    }
+
+    pub fn get(&self) -> &ModelIndex {
+        &self.model_index
+    }
+}
+
+impl Ord for ModelIndexWrapped {
+    fn cmp(&self, other: &ModelIndexWrapped) -> Ordering {
+        let order = self.model_index.row().cmp(&other.model_index.row());
+        if order == Ordering::Equal { self.model_index.column().cmp(&other.model_index.column()) }
+        else { order }
+    }
+}
+
+impl PartialOrd for ModelIndexWrapped {
+    fn partial_cmp(&self, other: &ModelIndexWrapped) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Eq for ModelIndexWrapped {}
+impl PartialEq for ModelIndexWrapped {
+    fn eq(&self, other: &ModelIndexWrapped) -> bool {
+        self.model_index.row() == other.model_index.row() && self.model_index.column() == other.model_index.column()
+    }
+}
 
 //----------------------------------------------------------------------------//
 //                    Enums & Structs needed for the UI
