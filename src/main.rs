@@ -423,7 +423,6 @@ fn main() {
         unsafe { menu_bar_about = menu_bar.as_mut().unwrap().add_menu(&QString::from_std_str("&About")); }
 
         // Submenus.
-        let menu_packfile_open = Menu::new(&QString::from_std_str("&Open...")).into_raw();
         let menu_change_packfile_type = Menu::new(&QString::from_std_str("&Change PackFile Type")).into_raw();
 
         let menu_warhammer_2;
@@ -460,7 +459,7 @@ fn main() {
 
                 // Menús.
                 new_packfile: menu_bar_packfile.as_mut().unwrap().add_action(&QString::from_std_str("&New PackFile")),
-                open_packfile: menu_packfile_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open PackFile")),
+                open_packfile: menu_bar_packfile.as_mut().unwrap().add_action(&QString::from_std_str("&Open PackFile")),
                 save_packfile: menu_bar_packfile.as_mut().unwrap().add_action(&QString::from_std_str("&Save PackFile")),
                 save_packfile_as: menu_bar_packfile.as_mut().unwrap().add_action(&QString::from_std_str("Save PackFile &As...")),
                 preferences: menu_bar_packfile.as_mut().unwrap().add_action(&QString::from_std_str("&Preferences")),
@@ -598,14 +597,13 @@ fn main() {
         // Put the Submenus and separators in place.
         unsafe { menu_bar_packfile.as_mut().unwrap().insert_separator(app_ui.preferences); }
         unsafe { menu_bar_packfile.as_mut().unwrap().insert_menu(app_ui.preferences, menu_change_packfile_type); }
-        unsafe { menu_bar_packfile.as_mut().unwrap().insert_menu(app_ui.save_packfile, menu_packfile_open); }
         unsafe { menu_bar_packfile.as_mut().unwrap().insert_separator(app_ui.preferences); }
 
         // Add the "Open..." submenus. These needs to be here because they have to be appended to the menu.
-        let menu_open_from_content;
-        let menu_open_from_data;
-        unsafe { menu_open_from_content = menu_packfile_open.as_mut().unwrap().add_menu(&QString::from_std_str("Open From Content")); }
-        unsafe { menu_open_from_data = menu_packfile_open.as_mut().unwrap().add_menu(&QString::from_std_str("Open From Data")); }
+        let menu_open_from_content = Menu::new(&QString::from_std_str("Open From Content")).into_raw();
+        let menu_open_from_data = Menu::new(&QString::from_std_str("Open From Data")).into_raw();
+        unsafe { menu_bar_packfile.as_mut().unwrap().insert_menu(app_ui.save_packfile, menu_open_from_content); }
+        unsafe { menu_bar_packfile.as_mut().unwrap().insert_menu(app_ui.save_packfile, menu_open_from_data); }
         
         // Put a separator in the "Create" contextual menu.
         unsafe { menu_create.as_mut().unwrap().insert_separator(app_ui.context_menu_mass_import_tsv); }
