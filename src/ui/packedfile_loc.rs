@@ -60,8 +60,9 @@ pub struct PackedFileLocTreeView {
     pub slot_context_menu_insert: SlotBool<'static>,
     pub slot_context_menu_delete: SlotBool<'static>,
     pub slot_context_menu_copy: SlotBool<'static>,
-    pub slot_context_menu_paste: SlotBool<'static>,
+    pub slot_context_menu_paste_in_selection: SlotBool<'static>,
     pub slot_context_menu_paste_as_new_lines: SlotBool<'static>,
+    pub slot_context_menu_paste_to_fill_selection: SlotBool<'static>,
     pub slot_context_menu_search: SlotBool<'static>,
     pub slot_context_menu_import: SlotBool<'static>,
     pub slot_context_menu_export: SlotBool<'static>,
@@ -95,8 +96,9 @@ impl PackedFileLocTreeView {
             slot_context_menu_insert: SlotBool::new(|_| {}),
             slot_context_menu_delete: SlotBool::new(|_| {}),
             slot_context_menu_copy: SlotBool::new(|_| {}),
-            slot_context_menu_paste: SlotBool::new(|_| {}),
+            slot_context_menu_paste_in_selection: SlotBool::new(|_| {}),
             slot_context_menu_paste_as_new_lines: SlotBool::new(|_| {}),
+            slot_context_menu_paste_to_fill_selection: SlotBool::new(|_| {}),
             slot_context_menu_search: SlotBool::new(|_| {}),
             slot_context_menu_import: SlotBool::new(|_| {}),
             slot_context_menu_export: SlotBool::new(|_| {}),
@@ -204,7 +206,7 @@ impl PackedFileLocTreeView {
         let column_list = StandardItemModel::new(());
         let mut case_sensitive_button = PushButton::new(&QString::from_std_str("Case Sensitive"));
 
-        search_line_edit.set_placeholder_text(&QString::from_std_str("Type here what you want to search. Works with Regex too!"));
+        search_line_edit.set_placeholder_text(&QString::from_std_str("Type here what you want to search."));
         replace_line_edit.set_placeholder_text(&QString::from_std_str("If you want to replace the searched text with something, type the replacement here."));
 
         unsafe { column_selector.set_model(column_list.into_raw() as *mut AbstractItemModel); }
@@ -279,8 +281,9 @@ impl PackedFileLocTreeView {
         let context_menu_copy = context_menu.add_action(&QString::from_std_str("&Copy"));
 
         let mut context_menu_paste_submenu = Menu::new(&QString::from_std_str("&Paste..."));
-        let context_menu_paste = context_menu_paste_submenu.add_action(&QString::from_std_str("&Paste in Selection"));
+        let context_menu_paste_in_selection = context_menu_paste_submenu.add_action(&QString::from_std_str("&Paste in Selection"));
         let context_menu_paste_as_new_lines = context_menu_paste_submenu.add_action(&QString::from_std_str("&Paste as New Rows"));
+        let context_menu_paste_to_fill_selection = context_menu_paste_submenu.add_action(&QString::from_std_str("&Paste to Fill Selection"));
 
         let context_menu_search = context_menu.add_action(&QString::from_std_str("&Search"));
 
@@ -296,8 +299,9 @@ impl PackedFileLocTreeView {
         unsafe { context_menu_insert.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("insert_row").unwrap()))); }
         unsafe { context_menu_delete.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("delete_row").unwrap()))); }
         unsafe { context_menu_copy.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("copy").unwrap()))); }
-        unsafe { context_menu_paste.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("paste").unwrap()))); }
+        unsafe { context_menu_paste_in_selection.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("paste_in_selection").unwrap()))); }
         unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("paste_as_new_row").unwrap()))); }
+        unsafe { context_menu_paste_to_fill_selection.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("paste_to_fill_selection").unwrap()))); }
         unsafe { context_menu_search.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("search").unwrap()))); }
         unsafe { context_menu_import.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("import_tsv").unwrap()))); }
         unsafe { context_menu_export.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("export_tsv").unwrap()))); }
@@ -308,8 +312,9 @@ impl PackedFileLocTreeView {
         unsafe { context_menu_insert.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_delete.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_copy.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
-        unsafe { context_menu_paste.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+        unsafe { context_menu_paste_in_selection.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+        unsafe { context_menu_paste_to_fill_selection.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_search.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_import.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_export.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
@@ -320,8 +325,9 @@ impl PackedFileLocTreeView {
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_insert); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_delete); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_copy); }
-        unsafe { table_view.as_mut().unwrap().add_action(context_menu_paste); }
+        unsafe { table_view.as_mut().unwrap().add_action(context_menu_paste_in_selection); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_paste_as_new_lines); }
+        unsafe { table_view.as_mut().unwrap().add_action(context_menu_paste_to_fill_selection); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_search); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_import); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_export); }
@@ -332,8 +338,9 @@ impl PackedFileLocTreeView {
         unsafe { context_menu_insert.as_mut().unwrap().set_status_tip(&QString::from_std_str("Insert an empty row just above the one selected.")); }
         unsafe { context_menu_delete.as_mut().unwrap().set_status_tip(&QString::from_std_str("Delete all the selected rows.")); }
         unsafe { context_menu_copy.as_mut().unwrap().set_status_tip(&QString::from_std_str("Copy whatever is selected to the Clipboard.")); }
-        unsafe { context_menu_paste.as_mut().unwrap().set_status_tip(&QString::from_std_str("Try to paste whatever is in the Clipboard. Does nothing if the data is not compatible with the cell.")); }
+        unsafe { context_menu_paste_in_selection.as_mut().unwrap().set_status_tip(&QString::from_std_str("Try to paste whatever is in the Clipboard. Does nothing if the data is not compatible with the cell.")); }
         unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().set_status_tip(&QString::from_std_str("Try to paste whatever is in the Clipboard as new lines at the end of the table. Does nothing if the data is not compatible with the cell.")); }
+        unsafe { context_menu_paste_to_fill_selection.as_mut().unwrap().set_status_tip(&QString::from_std_str("Try to paste whatever is in the Clipboard in EVERY CELL selected. Does nothing if the data is not compatible with the cell.")); }
         unsafe { context_menu_search.as_mut().unwrap().set_status_tip(&QString::from_std_str("Search what you want in the table. Also allows you to replace coincidences.")); }
         unsafe { context_menu_import.as_mut().unwrap().set_status_tip(&QString::from_std_str("Import a TSV file into this table, replacing all the data.")); }
         unsafe { context_menu_export.as_mut().unwrap().set_status_tip(&QString::from_std_str("Export this table's data into a TSV file.")); }
@@ -668,7 +675,7 @@ impl PackedFileLocTreeView {
             }),
 
             // NOTE: Saving is not needed in this slot, as this gets detected by the main saving slot.
-            slot_context_menu_paste: SlotBool::new(move |_| {
+            slot_context_menu_paste_in_selection: SlotBool::new(move |_| {
 
                 // If whatever it's in the Clipboard is pasteable in our selection...
                 if check_clipboard(table_view, model, filter_model) {
@@ -739,6 +746,57 @@ impl PackedFileLocTreeView {
                 }
             }),
 
+            slot_context_menu_paste_to_fill_selection: SlotBool::new(move |_| {
+
+                // If whatever it's in the Clipboard is pasteable in our selection...
+                if check_clipboard_to_fill_selection(table_view, model, filter_model) {
+
+                    // Get the clipboard.
+                    let clipboard = GuiApplication::clipboard();
+
+                    // Get the current selection.
+                    let selection;
+                    unsafe { selection = table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection(); }
+                    let indexes = selection.indexes();
+
+                    // Get the text from the clipboard.
+                    let text;
+                    unsafe { text = clipboard.as_mut().unwrap().text(()).to_std_string(); }
+
+                    // For each selected index...
+                    for index in 0..indexes.count(()) {
+
+                        // Get the filtered ModelIndex.
+                        let model_index = indexes.at(index);
+
+                        // Check if the ModelIndex is valid. Otherwise this can crash.
+                        if model_index.is_valid() {
+
+                            // Get our item.
+                            let model_index_source;
+                            let item;
+                            unsafe { model_index_source = filter_model.as_mut().unwrap().map_to_source(&model_index); }
+                            unsafe { item = model.as_mut().unwrap().item_from_index(&model_index_source); }
+
+                            unsafe {
+
+                                // If it's checkable, we need to check or uncheck the cell.
+                                if item.as_mut().unwrap().is_checkable() {
+                                    if text == "true" { item.as_mut().unwrap().set_check_state(CheckState::Checked); }
+                                    else { item.as_mut().unwrap().set_check_state(CheckState::Unchecked); }
+                                }
+
+                                // Otherwise, it's just a string.
+                                else { item.as_mut().unwrap().set_text(&QString::from_std_str(&text)); }
+
+                                // Paint the cells.
+                                item.as_mut().unwrap().set_background(&Brush::new(GlobalColor::Yellow));
+                            }
+                        }
+                    }
+                }
+            }),
+
             slot_context_menu_paste_as_new_lines: SlotBool::new(clone!(
                 packed_file_path,
                 app_ui,
@@ -746,7 +804,7 @@ impl PackedFileLocTreeView {
                 sender_qt,
                 sender_qt_data => move |_| {
 
-                    // If whatever it's in the Clipboard is pasteable i...
+                    // If whatever it's in the Clipboard is pasteable...
                     if check_clipboard_append_rows() {
 
                         // Get the clipboard.
@@ -1477,8 +1535,9 @@ impl PackedFileLocTreeView {
         unsafe { context_menu_insert.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_insert); }
         unsafe { context_menu_delete.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_delete); }
         unsafe { context_menu_copy.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_copy); }
-        unsafe { context_menu_paste.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_paste); }
+        unsafe { context_menu_paste_in_selection.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_paste_in_selection); }
         unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_paste_as_new_lines); }
+        unsafe { context_menu_paste_to_fill_selection.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_paste_to_fill_selection); }
         unsafe { context_menu_search.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_search); }
         unsafe { context_menu_import.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_import); }
         unsafe { context_menu_export.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_export); }
@@ -1504,8 +1563,9 @@ impl PackedFileLocTreeView {
             context_menu_insert.as_mut().unwrap().set_enabled(true);
             context_menu_delete.as_mut().unwrap().set_enabled(false);
             context_menu_copy.as_mut().unwrap().set_enabled(false);
-            context_menu_paste.as_mut().unwrap().set_enabled(true);
+            context_menu_paste_in_selection.as_mut().unwrap().set_enabled(true);
             context_menu_paste_as_new_lines.as_mut().unwrap().set_enabled(true);
+            context_menu_paste_to_fill_selection.as_mut().unwrap().set_enabled(true);
             context_menu_import.as_mut().unwrap().set_enabled(true);
             context_menu_export.as_mut().unwrap().set_enabled(true);
         }
@@ -1715,6 +1775,58 @@ fn check_clipboard(
     // If we reach this place, it means none of the cells was incorrect, so we can paste.
     true
 }
+
+/// This function checks if the data in the clipboard is suitable for be pasted in all selected cells.
+fn check_clipboard_to_fill_selection(
+    table_view: *mut TableView,
+    model: *mut StandardItemModel,
+    filter_model: *mut SortFilterProxyModel
+) -> bool {
+
+    // Get the clipboard.
+    let clipboard = GuiApplication::clipboard();
+
+    // Get the current selection.
+    let selection;
+    unsafe { selection = table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection(); }
+    let indexes = selection.indexes();
+
+    // Get the text from the clipboard.
+    let text;
+    unsafe { text = QString::to_std_string(&clipboard.as_mut().unwrap().text(())); }
+
+    // For each selected index...
+    for index in 0..indexes.count(()) {
+
+        // Get the filtered ModelIndex.
+        let model_index = indexes.at(index);
+
+        // Check if the ModelIndex is valid. Otherwise this can crash.
+        if model_index.is_valid() {
+
+            // Get our item.
+            let model_index_source;
+            let item;
+            unsafe { model_index_source = filter_model.as_mut().unwrap().map_to_source(&model_index); }
+            unsafe { item = model.as_mut().unwrap().item_from_index(&model_index_source); }
+            
+            unsafe {
+
+                // If it's checkable, we need to see if his text it's a bool.
+                if item.as_mut().unwrap().is_checkable() {
+                    if text == "true" || text == "false" { continue } else { return false }
+                }
+
+                // Otherwise, it's just a string.
+                else { continue }
+            }            
+        }
+    }
+
+    // If we reach this place, it means none of the cells was incorrect, so we can paste.
+    true
+}
+
 
 /// This function checks if the data in the clipboard is suitable to be appended as rows at the end of the Table.
 fn check_clipboard_append_rows() -> bool {
