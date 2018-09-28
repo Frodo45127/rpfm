@@ -7,6 +7,7 @@ use std::process::Command;
 
 use RPFM_PATH;
 use SUPPORTED_GAMES;
+use SHOW_TABLE_ERRORS;
 use common::*;
 use common::coding_helpers::*;
 use common::communications::*;
@@ -338,26 +339,28 @@ pub fn background_loop(
                         sender.send(Data::StringBool((game_selected.to_owned(), pack_file_decoded.extra_data.file_name.is_empty()))).unwrap();
 
                         // Test to see if every DB Table can be decoded. This is slow and only useful when
-                        // a new patch lands and you want to know what tables you need to decode. So, unless that,
-                        // leave this code commented.
-                        // let mut counter = 0;
-                        // for i in pack_file_decoded.data.packed_files.iter() {
-                        //     if i.path.starts_with(&["db".to_owned()]) {
-                        //         if let Some(ref schema) = schema {
-                        //             if let Err(_) = db::DB::read(&i.data, &i.path[1], &schema) {
-                        //                 match db::DBHeader::read(&i.data, &mut 0) {
-                        //                     Ok(db_header) => {
-                        //                         if db_header.entry_count > 0 {
-                        //                             counter += 1;
-                        //                             println!("{}, {:?}", counter, i.path);
-                        //                         }
-                        //                     }
-                        //                     Err(_) => println!("Error in {:?}", i.path),
-                        //                 }
-                        //             }
-                        //         }
-                        //     }
-                        // }
+                        // a new patch lands and you want to know what tables you need to decode. So, unless you want 
+                        // to decode new tables, leave the const as false
+                        if SHOW_TABLE_ERRORS {
+                            let mut counter = 0;
+                            for i in pack_file_decoded.data.packed_files.iter() {
+                                if i.path.starts_with(&["db".to_owned()]) {
+                                    if let Some(ref schema) = schema {
+                                        if let Err(_) = db::DB::read(&i.data, &i.path[1], &schema) {
+                                            match db::DBHeader::read(&i.data, &mut 0) {
+                                                Ok(db_header) => {
+                                                    if db_header.entry_count > 0 {
+                                                        counter += 1;
+                                                        println!("{}, {:?}", counter, i.path);
+                                                    }
+                                                }
+                                                Err(_) => println!("Error in {:?}", i.path),
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
 
                     // In case we want to get the current PackFile's Header...

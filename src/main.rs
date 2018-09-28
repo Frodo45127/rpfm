@@ -210,6 +210,10 @@ const SENTRY_DSN: &str = "https://a8bf0a98ed43467d841ec433fb3d75a8@sentry.io/120
 /// If you don't want to explicity create a new Schema for a game, leave this disabled.
 const GENERATE_NEW_SCHEMA: bool = false;
 
+/// This constant is used to enable or disable the report of table errors. This is useful for decoding new tables to the schema,
+/// as the program will report you in the terminal what tables cannot be decoded. Slow as hell, so never enable it in a release.
+const SHOW_TABLE_ERRORS: bool = false;
+
 /// Custom type to deal with QStrings more easely.
 type QString = qt_core::string::String;
 
