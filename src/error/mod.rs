@@ -245,7 +245,7 @@ pub enum ErrorKind {
     // Error for when the introduced input (usually, a name) is empty and it cannot be empty.
     EmptyInput,
 
-    // Error for when the introduced input (usually, a name) has invalid characters.
+    // Error for when the introduced input (usually, a name) has invalid characters, or it's invalid for any other reason.
     InvalidInput,
 
     // Error for when the introduced input (usually, a name) hasn't changed.
@@ -375,7 +375,7 @@ impl Display for ErrorKind {
             //                PackedFile Errors
             //-----------------------------------------------------//
             ErrorKind::PackedFileNotFound => write!(f, "<p>This PackedFile no longer exists in the PackFile.</p>"),
-            ErrorKind::PackedFileIsOpen => write!(f, "<p>That operation cannot be done while the PackedFile involved on it is open.</p>"),
+            ErrorKind::PackedFileIsOpen => write!(f, "<p>That operation cannot be done while the PackedFile involved on it is open. Please, close it by selecting a Folder/PackFile in the TreeView and try again.</p>"),
 
             //--------------------------------//
             // DB Table Errors

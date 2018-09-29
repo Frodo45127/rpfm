@@ -325,7 +325,9 @@ pub struct AppUI {
     pub context_menu_mass_export_tsv: *mut Action,
     pub context_menu_delete: *mut Action,
     pub context_menu_extract: *mut Action,
-    pub context_menu_rename: *mut Action,
+    pub context_menu_rename_current: *mut Action,
+    pub context_menu_apply_prefix_to_selected: *mut Action,
+    pub context_menu_apply_prefix_to_all: *mut Action,
     pub context_menu_open_decoder: *mut Action,
     pub context_menu_open_dependency_manager: *mut Action,
 }
@@ -443,6 +445,7 @@ fn main() {
         let menu_add = folder_tree_view_context_menu.add_menu(&QString::from_std_str("&Add..."));
         let menu_create = folder_tree_view_context_menu.add_menu(&QString::from_std_str("&Create..."));
         let menu_open = folder_tree_view_context_menu.add_menu(&QString::from_std_str("&Open..."));
+        let menu_rename = folder_tree_view_context_menu.add_menu(&QString::from_std_str("&Rename..."));
 
         // Da monsta.
         let app_ui;
@@ -547,7 +550,10 @@ fn main() {
 
                 context_menu_delete: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Delete")),
                 context_menu_extract: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Extract")),
-                context_menu_rename: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Rename")),
+                
+                context_menu_rename_current: menu_rename.as_mut().unwrap().add_action(&QString::from_std_str("Rename &Current")),
+                context_menu_apply_prefix_to_selected: menu_rename.as_mut().unwrap().add_action(&QString::from_std_str("Apply Prefix to &Selected")),
+                context_menu_apply_prefix_to_all: menu_rename.as_mut().unwrap().add_action(&QString::from_std_str("Apply Prefix to &All")),
 
                 context_menu_open_decoder: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open with Decoder")),
                 //context_menu_open_dependency_manager: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open Dependency Manager")),
@@ -725,7 +731,9 @@ fn main() {
             app_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_enabled(false);
             app_ui.context_menu_delete.as_mut().unwrap().set_enabled(false);
             app_ui.context_menu_extract.as_mut().unwrap().set_enabled(false);
-            app_ui.context_menu_rename.as_mut().unwrap().set_enabled(false);
+            app_ui.context_menu_rename_current.as_mut().unwrap().set_enabled(false);
+            app_ui.context_menu_apply_prefix_to_selected.as_mut().unwrap().set_enabled(false);
+            app_ui.context_menu_apply_prefix_to_all.as_mut().unwrap().set_enabled(false);
             app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(false);
             app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(false);
         }
@@ -742,7 +750,9 @@ fn main() {
         unsafe { app_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("mass_export_tsv").unwrap()))); }
         unsafe { app_ui.context_menu_delete.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("delete").unwrap()))); }
         unsafe { app_ui.context_menu_extract.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("extract").unwrap()))); }
-        unsafe { app_ui.context_menu_rename.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("rename").unwrap()))); }
+        unsafe { app_ui.context_menu_rename_current.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("rename_current").unwrap()))); }
+        unsafe { app_ui.context_menu_apply_prefix_to_selected.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("apply_prefix_to_selected").unwrap()))); }
+        unsafe { app_ui.context_menu_apply_prefix_to_all.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("apply_prefix_to_all").unwrap()))); }
         unsafe { app_ui.context_menu_open_decoder.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("open_in_decoder").unwrap()))); }
         unsafe { app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("open_packfiles_list").unwrap()))); }
 
@@ -758,7 +768,9 @@ fn main() {
         unsafe { app_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_delete.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_extract.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
-        unsafe { app_ui.context_menu_rename.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+        unsafe { app_ui.context_menu_rename_current.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+        unsafe { app_ui.context_menu_apply_prefix_to_selected.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+        unsafe { app_ui.context_menu_apply_prefix_to_all.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_open_decoder.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
 
@@ -774,7 +786,9 @@ fn main() {
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_mass_export_tsv); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_delete); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_extract); }
-        unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_rename); }
+        unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_rename_current); }
+        unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_apply_prefix_to_selected); }
+        unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_apply_prefix_to_all); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_open_decoder); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_open_dependency_manager); }
 
@@ -844,7 +858,9 @@ fn main() {
         unsafe { app_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_status_tip(&QString::from_std_str("Export every DB Table and Loc PackedFile from this PackFile as TSV files at the same time. Existing files will be overwritten!")); }
         unsafe { app_ui.context_menu_delete.as_mut().unwrap().set_status_tip(&QString::from_std_str("Delete the selected File/Folder.")); }
         unsafe { app_ui.context_menu_extract.as_mut().unwrap().set_status_tip(&QString::from_std_str("Extract the selected File/Folder from the PackFile.")); }
-        unsafe { app_ui.context_menu_rename.as_mut().unwrap().set_status_tip(&QString::from_std_str("Rename a File/Folder. Remember, whitespaces are NOT ALLOWED.")); }
+        unsafe { app_ui.context_menu_rename_current.as_mut().unwrap().set_status_tip(&QString::from_std_str("Rename a File/Folder. Remember, whitespaces are NOT ALLOWED.")); }
+        unsafe { app_ui.context_menu_apply_prefix_to_selected.as_mut().unwrap().set_status_tip(&QString::from_std_str("Add a Prefix to every File inside the selected folder. Remember, whitespaces are NOT ALLOWED.")); }
+        unsafe { app_ui.context_menu_apply_prefix_to_all.as_mut().unwrap().set_status_tip(&QString::from_std_str("Add a Prefix to every File in the PackFile. Remember, whitespaces are NOT ALLOWED.")); }
         unsafe { app_ui.context_menu_open_decoder.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the selected table in the DB Decoder. To create/update schemas.")); }
         unsafe { app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the list of PackFiles referenced from this PackFile.")); }
 
@@ -1691,7 +1707,9 @@ fn main() {
                             app_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_delete.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_extract.as_mut().unwrap().set_enabled(true);
-                            app_ui.context_menu_rename.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_rename_current.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_apply_prefix_to_selected.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_apply_prefix_to_all.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(false);
                         }
 
@@ -1715,7 +1733,9 @@ fn main() {
                             app_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_delete.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_extract.as_mut().unwrap().set_enabled(true);
-                            app_ui.context_menu_rename.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_rename_current.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_apply_prefix_to_selected.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_apply_prefix_to_all.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(false);
                         }
@@ -1735,7 +1755,9 @@ fn main() {
                             app_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_delete.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_extract.as_mut().unwrap().set_enabled(true);
-                            app_ui.context_menu_rename.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_rename_current.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_apply_prefix_to_selected.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_apply_prefix_to_all.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(true);
                         }
@@ -1755,7 +1777,9 @@ fn main() {
                             app_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_delete.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_extract.as_mut().unwrap().set_enabled(false);
-                            app_ui.context_menu_rename.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_rename_current.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_apply_prefix_to_selected.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_apply_prefix_to_all.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(false);
                         }
@@ -3152,7 +3176,7 @@ fn main() {
         //-----------------------------------------------------------------------------------------//
 
         // What happens when we trigger the "Rename" Action.
-        let slot_contextual_menu_rename = SlotBool::new(clone!(
+        let slot_contextual_menu_rename_current = SlotBool::new(clone!(
             is_modified,
             sender_qt,
             sender_qt_data,
@@ -3170,14 +3194,15 @@ fn main() {
                 // If we have a PackedFile open...
                 if let Some(ref open_path) = *is_packedfile_opened.borrow() {
 
-                    // And that PackedFile is the one we want to rename, or it's on the list of paths to rename...
-                    match item_type {
-                        TreePathType::File(ref item_path) => if open_path == item_path { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
-                        TreePathType::Folder(ref item_path) => if !item_path.is_empty() && open_path.starts_with(&item_path) { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
-                        TreePathType::PackFile => return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen),
+                    // If it's empty, it's the dep manager.
+                    if !open_path.is_empty() { 
                         
-                        // We use this for the Dependency Manager, in which case we can continue.
-                        TreePathType::None => {},
+                        // And that PackedFile is the one we want to rename, or it's on the list of paths to rename...
+                        match item_type {
+                            TreePathType::File(ref item_path) => if open_path == item_path { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
+                            TreePathType::Folder(ref item_path) => if !item_path.is_empty() && open_path.starts_with(&item_path) { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
+                            _ => unreachable!(),
+                        }
                     }
                 }
 
@@ -3253,8 +3278,157 @@ fn main() {
             }
         ));
 
-        // Action to start the Renaming Process.
-        unsafe { app_ui.context_menu_rename.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_rename); }
+        let slot_contextual_menu_apply_prefix_to_selected = SlotBool::new(clone!(
+            is_modified,
+            sender_qt,
+            sender_qt_data,
+            is_packedfile_opened,
+            receiver_qt => move |_| {
+
+                // Get his Path, including the name of the PackFile.
+                let complete_path = get_path_from_selection(&app_ui, true);
+
+                // Send the Path to the Background Thread, and get the type of the item.
+                sender_qt.send(Commands::GetTypeOfPath).unwrap();
+                sender_qt_data.send(Data::VecString(complete_path)).unwrap();
+                let item_type = if let Data::TreePathType(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+
+                // If the open PackedFile is inside our folder...
+                if let Some(ref open_path) = *is_packedfile_opened.borrow() {
+
+                    // If it's empty, it's the dep manager.
+                    if !open_path.is_empty() { 
+                        
+                        // And that PackedFile is the one we want to rename, or it's on the list of paths to rename...
+                        match item_type {
+                            TreePathType::Folder(ref item_path) => if !item_path.is_empty() && open_path.starts_with(&item_path) { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
+                            _ => unreachable!(),
+                        }
+                    }
+                }
+
+                // If it's a folder...
+                if let TreePathType::Folder(ref path) = item_type {
+
+                    // Create the "Rename" dialog and wait for a prefix (or a cancelation).
+                    if let Some(prefix) = create_apply_prefix_to_packed_files_dialog(&app_ui) {
+
+                        // Send the New Name to the Background Thread, wait for a response.
+                        sender_qt.send(Commands::ApplyPrefixToPackedFilesInPath).unwrap();
+                        sender_qt_data.send(Data::VecStringString((path.to_vec(), prefix.to_owned()))).unwrap();
+
+                        // Check what response we got.
+                        match check_message_validity_recv2(&receiver_qt) {
+                        
+                            // If it's success....
+                            Data::VecVecString(old_paths) => {
+                                
+                                // Update the TreeView.
+                                update_treeview(
+                                    &sender_qt,
+                                    &sender_qt_data,
+                                    receiver_qt.clone(),
+                                    app_ui.window,
+                                    app_ui.folder_tree_view,
+                                    app_ui.folder_tree_model,
+                                    TreeViewOperation::PrefixFiles(old_paths, prefix),
+                                );
+
+                                // Set the mod as "Modified". This is an exception to the paint system.
+                                *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
+                            }
+
+                            // If we got an error...
+                            Data::Error(error) => {
+
+                                // We must check what kind of error it's.
+                                match error.kind() {
+
+                                    // If the new name is empty, contain invalid characters, is already used, or is unchanged, report it.
+                                    ErrorKind::EmptyInput |
+                                    ErrorKind::InvalidInput => show_dialog(app_ui.window, false, error),
+
+                                    // In ANY other situation, it's a message problem.
+                                    _ => panic!(THREADS_MESSAGE_ERROR)
+                                }
+                            }
+
+                            // In ANY other situation, it's a message problem.
+                            _ => panic!(THREADS_MESSAGE_ERROR),
+                        }
+                    }
+                }
+            }
+        ));
+
+        let slot_contextual_menu_apply_prefix_to_all = SlotBool::new(clone!(
+            is_modified,
+            sender_qt,
+            sender_qt_data,
+            is_packedfile_opened,
+            receiver_qt => move |_| {
+
+                // If there is something open...
+                if let Some(ref open_path) = *is_packedfile_opened.borrow() {
+
+                    // If it's a file, return an error. If it's empty, it's the dep manager.
+                    if !open_path.is_empty() { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
+                }
+
+                // Create the "Rename" dialog and wait for a prefix (or a cancelation).
+                if let Some(prefix) = create_apply_prefix_to_packed_files_dialog(&app_ui) {
+
+                    // Send the New Name to the Background Thread, wait for a response.
+                    sender_qt.send(Commands::ApplyPrefixToPackedFilesInPath).unwrap();
+                    sender_qt_data.send(Data::VecStringString((vec![], prefix.to_owned()))).unwrap();
+
+                    // Check what response we got.
+                    match check_message_validity_recv2(&receiver_qt) {
+                    
+                        // If it's success....
+                        Data::VecVecString(old_paths) => {
+                            
+                            // Update the TreeView.
+                            update_treeview(
+                                &sender_qt,
+                                &sender_qt_data,
+                                receiver_qt.clone(),
+                                app_ui.window,
+                                app_ui.folder_tree_view,
+                                app_ui.folder_tree_model,
+                                TreeViewOperation::PrefixFiles(old_paths, prefix),
+                            );
+
+                            // Set the mod as "Modified". This is an exception to the paint system.
+                            *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
+                        }
+
+                        // If we got an error...
+                        Data::Error(error) => {
+
+                            // We must check what kind of error it's.
+                            match error.kind() {
+
+                                // If the new name is empty, contain invalid characters, is already used, or is unchanged, report it.
+                                ErrorKind::EmptyInput |
+                                ErrorKind::InvalidInput => show_dialog(app_ui.window, false, error),
+
+                                // In ANY other situation, it's a message problem.
+                                _ => panic!(THREADS_MESSAGE_ERROR)
+                            }
+                        }
+
+                        // In ANY other situation, it's a message problem.
+                        _ => panic!(THREADS_MESSAGE_ERROR),
+                    }
+                }
+            }
+        ));
+
+        // Actions to start the Renaming Processes.
+        unsafe { app_ui.context_menu_rename_current.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_rename_current); }
+        unsafe { app_ui.context_menu_apply_prefix_to_selected.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_apply_prefix_to_selected); }
+        unsafe { app_ui.context_menu_apply_prefix_to_all.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_apply_prefix_to_all); }
 
         //-----------------------------------------------------//
         // Special Actions, like opening a PackedFile...

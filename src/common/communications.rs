@@ -76,6 +76,7 @@ pub enum Commands {
     PatchAttilaRigidModelToWarhammer,
     DecodePackedFileImage,
     RenamePackedFile,
+    ApplyPrefixToPackedFilesInPath,
     GetPackedFile,
     GetTableListFromDependencyPackFile,
     GetTableVersionFromDependencyPackFile,

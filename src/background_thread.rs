@@ -972,6 +972,19 @@ pub fn background_loop(
                         }
                     }
 
+                    // In case we want to "Rename multiple PackedFiles" at once...
+                    Commands::ApplyPrefixToPackedFilesInPath => {
+
+                        // Wait until we get the needed data from the UI thread.
+                        let data = if let Data::VecStringString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
+
+                        // Try to rename it and report the result.
+                        match packfile::apply_prefix_to_packed_files(&mut pack_file_decoded, &data.0, &data.1) {
+                            Ok(result) => sender.send(Data::VecVecString(result)).unwrap(),
+                            Err(error) => sender.send(Data::Error(error)).unwrap(),
+                        }
+                    }
+
                     // In case we want to get a PackedFile's data...
                     Commands::GetPackedFile => {
 

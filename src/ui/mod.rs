@@ -246,7 +246,7 @@ impl AddFromPackFileSlots {
 //             UI Creation functions (to build the UI on start)
 //----------------------------------------------------------------------------//
 
-/// This function creates the entire "Rename" dialog. It returns the new name of the Item, or
+/// This function creates the entire "Rename Current" dialog. It returns the new name of the Item, or
 /// None if the dialog is canceled or closed.
 pub fn create_rename_dialog(app_ui: &AppUI, name: &str) -> Option<String> {
 
@@ -304,6 +304,38 @@ pub fn create_rename_dialog(app_ui: &AppUI, name: &str) -> Option<String> {
     else { None }
 }
 
+/// This function creates the entire "Apply Prefix to Selected/All" dialog. It returns the prefix for the items, or
+/// None if the dialog is canceled or closed.
+pub fn create_apply_prefix_to_packed_files_dialog(app_ui: &AppUI) -> Option<String> {
+
+    // Create the Dialog and configure it.
+    let mut dialog;
+    unsafe { dialog = Dialog::new_unsafe(app_ui.window as *mut Widget); }
+    dialog.set_window_title(&QString::from_std_str("Apply Prefix to Selected/All"));
+    dialog.set_modal(true);
+
+    // Create the main Grid.
+    let main_grid = GridLayout::new().into_raw();
+    let mut add_prefix_line_edit = LineEdit::new(());
+    add_prefix_line_edit.set_placeholder_text(&QString::from_std_str("Write a prefix here, like 'mua_'."));
+
+    // Create the "Apply" button.
+    let rename_button = PushButton::new(&QString::from_std_str("Apply Prefix")).into_raw();
+    unsafe { main_grid.as_mut().unwrap().add_widget((add_prefix_line_edit.static_cast_mut() as *mut Widget, 0, 1, 1, 1)); }
+    unsafe { main_grid.as_mut().unwrap().add_widget((rename_button as *mut Widget, 0, 2, 1, 1)); }
+
+    // And the Main Grid to the Dialog...
+    unsafe { dialog.set_layout(main_grid as *mut Layout); }
+
+    // What happens when we hit the "Rename" button.
+    unsafe { rename_button.as_mut().unwrap().signals().released().connect(&dialog.slots().accept()); }
+
+    // Show the Dialog and, if we hit the button, return the prefix.
+    if dialog.exec() == 1 { Some(add_prefix_line_edit.text().to_std_string()) }
+
+    // Otherwise, return None.
+    else { None }
+}
 /// This function creates the entire "New Folder" dialog. It returns the new name of the Folder, or
 /// None if the dialog is canceled or closed.
 pub fn create_new_folder_dialog(app_ui: &AppUI) -> Option<String> {
@@ -712,6 +744,7 @@ impl PartialEq for ModelIndexWrapped {
 /// - `DeleteSelected`: Removes whatever is selected from the TreeView. It requires the TreePathType of whatever you want to delete.
 /// - `DeleteUnselected`: Remove the File/Folder corresponding to the TreePathType we provide from the TreeView. It requires the TreePathType of whatever you want to delete.
 /// - `Rename`: Change the name of a File/Folder from the TreeView. Requires the TreePathType of whatever you want to rename and the new name.
+/// - `PrefixFiles`: Apply a prefix to every file under certain folder. Requires the old paths and the prefix to apply.
 #[derive(Clone, Debug)]
 pub enum TreeViewOperation {
     Build(bool),
@@ -719,6 +752,7 @@ pub enum TreeViewOperation {
     DeleteSelected(TreePathType),
     DeleteUnselected(TreePathType),
     Rename(TreePathType, String),
+    PrefixFiles(Vec<Vec<String>>, String),
 }
 
 /// Enum `ItemVisualStatus`: This enum represents the status of modification of an item in a TreeView.
@@ -2162,6 +2196,39 @@ pub fn update_treeview(
 
                 // In any other case, don't do anything.
                 _ => {},
+            }
+        },
+
+        // If we want to apply a prefix to multiple files...
+        TreeViewOperation::PrefixFiles(old_paths, prefix) => {
+
+            // For each changed path...
+            for path in old_paths {
+
+                // Get the item and the new text.
+                let mut item = get_item_from_incomplete_path(model, &path);
+                let text;
+                unsafe { text = item.as_mut().unwrap().text().to_std_string(); }
+                let new_name = format!("{}{}", prefix, text); 
+                unsafe { item.as_mut().unwrap().set_text(&QString::from_std_str(&new_name)); }
+
+                // Prepare the new path for the sorting function.
+                let mut new_path = path.to_vec();
+                new_path.pop();
+                new_path.push(new_name);
+
+                // Paint it as "modified".
+                paint_treeview(item, model, ItemVisualStatus::Modified);
+
+                // Sort it.
+                sort_item_in_tree_view(
+                    sender_qt,
+                    sender_qt_data,
+                    receiver_qt_data.clone(),
+                    model,
+                    item,
+                    TreePathType::File(new_path)
+                );
             }
         },
     }
