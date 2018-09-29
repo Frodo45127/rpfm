@@ -135,6 +135,7 @@ impl AddFromPackFileSlots {
         unsafe { tree_view.as_mut().unwrap().set_model(tree_model as *mut AbstractItemModel); }
         unsafe { tree_view.as_mut().unwrap().set_header_hidden(true); }
         unsafe { tree_view.as_mut().unwrap().set_expands_on_double_click(false); }
+        unsafe { tree_view.as_mut().unwrap().set_animated(true); }
 
         // Add all the stuff to the Grid.
         unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((exit_button as *mut Widget, 0, 0, 1, 1)); }
