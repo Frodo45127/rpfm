@@ -3,6 +3,7 @@ extern crate qt_widgets;
 extern crate qt_gui;
 extern crate qt_core;
 
+use qt_widgets::abstract_item_view::ScrollMode;
 use qt_widgets::action::Action;
 use qt_widgets::combo_box::ComboBox;
 use qt_widgets::header_view::ResizeMode;
@@ -165,6 +166,7 @@ impl PackedFileLocTreeView {
 
         // Prepare the TableView to have a Contextual Menu.
         unsafe { table_view.as_mut().unwrap().set_context_menu_policy(ContextMenuPolicy::Custom); }
+        unsafe { table_view.as_mut().unwrap().set_horizontal_scroll_mode(ScrollMode::Pixel); }
 
         // Enable sorting the columns.
         unsafe { table_view.as_mut().unwrap().set_sorting_enabled(true); }
