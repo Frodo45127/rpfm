@@ -22,6 +22,7 @@ use qt_widgets::widget::Widget;
 
 use qt_gui::brush::Brush;
 use qt_gui::icon;
+use qt_gui::key_sequence::KeySequence;
 use qt_gui::standard_item::StandardItem;
 use qt_gui::standard_item_model::StandardItemModel;
 
@@ -30,7 +31,7 @@ use qt_core::connection::Signal;
 use qt_core::flags::Flags;
 use qt_core::item_selection::ItemSelection;
 use qt_core::model_index::ModelIndex;
-use qt_core::qt::GlobalColor;
+use qt_core::qt::{GlobalColor, ShortcutContext};
 use qt_core::slots::{SlotBool, SlotNoArgs, SlotModelIndexRef};
 use qt_core::variant::Variant;
 use cpp_utils::StaticCast;
@@ -95,6 +96,8 @@ pub struct MyModSlots {
 pub struct AddFromPackFileSlots {
     pub copy: SlotModelIndexRef<'static>,
     pub exit: SlotNoArgs<'static>,
+    pub slot_tree_view_expand_all: SlotNoArgs<'static>,
+    pub slot_tree_view_collapse_all: SlotNoArgs<'static>,
 }
 
 //----------------------------------------------------------------------------//
@@ -112,6 +115,8 @@ impl AddFromPackFileSlots {
         Self {
             copy: SlotModelIndexRef::new(|_| {}),
             exit: SlotNoArgs::new(|| {}),
+            slot_tree_view_expand_all: SlotNoArgs::new(|| {}),
+            slot_tree_view_collapse_all: SlotNoArgs::new(|| {}),
         }
     }
 
@@ -220,11 +225,33 @@ impl AddFromPackFileSlots {
                     *is_folder_tree_view_locked.borrow_mut() = false;
                 }
             )),
+
+            // Actions without buttons for the TreeView.
+            slot_tree_view_expand_all: SlotNoArgs::new(move || { unsafe { tree_view.as_mut().unwrap().expand_all(); }}),
+            slot_tree_view_collapse_all: SlotNoArgs::new(move || { unsafe { tree_view.as_mut().unwrap().collapse_all(); }}),
         };
 
+        let tree_view_expand_all = Action::new(&QString::from_std_str("&Expand All")).into_raw();
+        let tree_view_collapse_all = Action::new(&QString::from_std_str("&Collapse All")).into_raw();
+
+        // Get the current shortcuts.
+        sender_qt.send(Commands::GetShortcuts).unwrap();
+        let shortcuts = if let Data::Shortcuts(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+        
         // Actions for the slots...
         unsafe { tree_view.as_ref().unwrap().signals().double_clicked().connect(&slots.copy); }
         unsafe { exit_button.as_ref().unwrap().signals().released().connect(&slots.exit); }
+        unsafe { tree_view_expand_all.as_ref().unwrap().signals().triggered().connect(&slots.slot_tree_view_expand_all); }
+        unsafe { tree_view_collapse_all.as_ref().unwrap().signals().triggered().connect(&slots.slot_tree_view_collapse_all); }
+
+        unsafe { tree_view_expand_all.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("expand_all").unwrap()))); }
+        unsafe { tree_view_collapse_all.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("collapse_all").unwrap()))); }
+
+        unsafe { tree_view_expand_all.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+        unsafe { tree_view_collapse_all.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+
+        unsafe { tree_view.as_mut().unwrap().add_action(tree_view_expand_all); }
+        unsafe { tree_view.as_mut().unwrap().add_action(tree_view_collapse_all); }
 
         // Update the new TreeView.
         update_treeview(
