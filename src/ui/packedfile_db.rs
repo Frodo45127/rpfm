@@ -1805,7 +1805,7 @@ impl PackedFileDBTreeView {
                                     let matches_in_filter = matches.iter().filter(|x| x.1.is_some()).map(|x| x.1.as_ref().unwrap().get()).collect::<Vec<&ModelIndex>>();
                                     
                                     // If our position is still valid, use it.
-                                    if pos < matches_in_filter.len() - 1 { pos }
+                                    if pos < matches_in_filter.len() { pos }
 
                                     // Otherwise, return a 0.
                                     else { 0 }
@@ -1817,9 +1817,13 @@ impl PackedFileDBTreeView {
 
                             *position.borrow_mut() = Some(new_position);
                             unsafe { matches_label.as_mut().unwrap().set_text(&QString::from_std_str(&format!("{} of {} with current filter ({} in total)", position.borrow().unwrap() + 1, matches_in_filter, matches.borrow().len()))); }
-                            unsafe { prev_match_button.as_mut().unwrap().set_enabled(false); }
-                            if matches_in_filter > 1 { unsafe { next_match_button.as_mut().unwrap().set_enabled(true); }}
+                            
+                            if position.borrow().unwrap() == 0 { unsafe { prev_match_button.as_mut().unwrap().set_enabled(false); }}
+                            else { unsafe { prev_match_button.as_mut().unwrap().set_enabled(true); }}
+
+                            if matches_in_filter > 1 && position.borrow().unwrap() < (matches_in_filter - 1) { unsafe { next_match_button.as_mut().unwrap().set_enabled(true); }}
                             else { unsafe { next_match_button.as_mut().unwrap().set_enabled(false); }}
+
                             unsafe { replace_current_button.as_mut().unwrap().set_enabled(true); }
                             unsafe { replace_all_button.as_mut().unwrap().set_enabled(true); }
                         }
@@ -2063,6 +2067,18 @@ impl PackedFileDBTreeView {
                             } else { return }
                         } else { return }
                         unsafe { item.as_mut().unwrap().set_text(&QString::from_std_str(&replaced_text)); }
+
+                        // If we still have matches, select the next match, if any, or the first one, if any.
+                        if let Some(pos) = *position.borrow() {
+                            let matches = matches.borrow();
+                            let matches_in_filter = matches.iter().filter(|x| x.1.is_some()).map(|x| x.1.as_ref().unwrap().get()).collect::<Vec<&ModelIndex>>();
+                            let selection_model;
+                            unsafe { selection_model = table_view.as_mut().unwrap().selection_model(); }
+                            unsafe { selection_model.as_mut().unwrap().select((
+                                matches_in_filter[pos],
+                                Flags::from_enum(SelectionFlag::ClearAndSelect)
+                            )); }
+                        }
                     }
                 }
             )),
