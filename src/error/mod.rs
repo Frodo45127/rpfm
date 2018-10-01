@@ -116,6 +116,9 @@ pub enum ErrorKind {
     // DB Table Errors
     //--------------------------------//
 
+    // Error for when we try to open a table with less than 5 bytes.
+    DBTableNotEnoughBytes,
+
     // Error for when we try to open a table with a List field on it.
     DBTableContainsListField,
 
@@ -380,6 +383,7 @@ impl Display for ErrorKind {
             //--------------------------------//
             // DB Table Errors
             //--------------------------------//
+            ErrorKind::DBTableNotEnoughBytes => write!(f, "<p>This table doesn't have enough bytes to be decoded. This error usually happen if this file is not a table or it's broken (sometimes the Assembly Kit exports broken tables).</p><p>If this table was created with the Assembly Kit, re-export it and try again. If it was not exported with the Assembly Kit and you are sure it's a table, it may be a bug so... report it. I guess.</p>"),
             ErrorKind::DBTableContainsListField => write!(f, "<p>This specific table version uses a currently unimplemented type (List), so is undecodeable, for now.</p>"),
             ErrorKind::DBTableNotADBTable => write!(f, "<p>This PackedFile is not a DB Table.</p>"),
             ErrorKind::DBTableParse => write!(f, "<p>Error while trying to save the DB Table.</p><p>This is probably caused by one of the fields you just changed. Please, make sure the data in that field it's of the correct type.</p>"),

@@ -104,6 +104,10 @@ impl DB {
         // Create the index that we'll use to decode the entire table.
         let mut index = 0;
 
+        // Turns out that our dear Dave can export totally empty (0 bytes) tables, so we need to ensure they have
+        // at least 5 bytes (mysterious byte + 4 for the entry count) before trying to decode it.
+        if packed_file_data.len() < 5 { return Err(ErrorKind::DBTableNotEnoughBytes)? }
+
         // We try to read the header.
         let header = DBHeader::read(packed_file_data, &mut index)?;
 
