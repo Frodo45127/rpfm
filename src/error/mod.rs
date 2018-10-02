@@ -73,7 +73,9 @@ pub enum ErrorKind {
 
     // These errors are to be used when importing TSV files. The last one is for any other error it can happen not already covered.
     ImportTSVIncorrectFirstRow,
-    ImportTSVWrongType,
+    ImportTSVWrongTypeTable,
+    ImportTSVWrongTypeLoc,
+    ImportTSVWrongVersion,
     ImportTSVIncompatibleFile,
     TSVErrorGeneric,
 
@@ -342,7 +344,9 @@ impl Display for ErrorKind {
             //                TSV-related Errors
             //-----------------------------------------------------//
             ErrorKind::ImportTSVIncorrectFirstRow => write!(f, "<p>This TSV file's first line is incorrect.</p>"),
-            ErrorKind::ImportTSVWrongType => write!(f, "<p>This TSV file belongs to another table/version, or to a localisation PackedFile.</p>"),
+            ErrorKind::ImportTSVWrongTypeTable => write!(f, "<p>This TSV file belongs to another table, to a localisation PackedFile, or it's incompatible with RPFM.</p>"),
+            ErrorKind::ImportTSVWrongTypeLoc => write!(f, "<p>This TSV file belongs to a DB table, or it's incompatible with RPFM.</p>"),
+            ErrorKind::ImportTSVWrongVersion => write!(f, "<p>This TSV file belongs to another version of this table. If you want to use it, consider creating a new empty table, fill it with enough empty rows, open this file in a TSV editor, like Excel or LibreOffice, and copy column by column.</p><p>A more automatic solution is on the way, but not yet there.</p>"),
             ErrorKind::ImportTSVIncompatibleFile => write!(f, "<p>This TSV file it's not compatible with RPFM.</p>"),
             ErrorKind::TSVErrorGeneric => write!(f, "<p>Error while trying to import/export a TSV file.</p>"),
 

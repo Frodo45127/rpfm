@@ -589,9 +589,8 @@ impl SerializableToTSV for DBData {
                                 }
 
                                 // If any of them doesn't match the name and version of the table we are importing to, return error.
-                                if table_name != packed_file_type || table_version != self.table_definition.version {
-                                    return Err(ErrorKind::ImportTSVWrongType)?;
-                                }
+                                if table_name != packed_file_type { return Err(ErrorKind::ImportTSVWrongTypeTable)?; }
+                                else if table_version != self.table_definition.version { return Err(ErrorKind::ImportTSVWrongVersion)?; }
                             }
 
                             // If it fails, return error.
@@ -627,9 +626,7 @@ impl SerializableToTSV for DBData {
                                 }
 
                                 // If the entry lenght doesn't match with the one of the current table, return error.
-                                else {
-                                    return Err(ErrorKind::ImportTSVIncompatibleFile)?;
-                                }
+                                else { return Err(ErrorKind::ImportTSVIncompatibleFile)?; }
                             }
 
                             // If it fails, return error.
