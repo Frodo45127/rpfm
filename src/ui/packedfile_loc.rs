@@ -2251,16 +2251,3 @@ fn check_clipboard_append_rows() -> bool {
     // If we reach this place, it means none of the cells was incorrect, so we can paste.
     true
 }
-
-/// This function is used to update the background or undo table when a change is made in the main table.
-fn update_undo_model(model: *mut StandardItemModel, undo_model: *mut StandardItemModel) {
-    unsafe {
-        undo_model.as_mut().unwrap().clear();
-        for row in 0..model.as_mut().unwrap().row_count(()) {
-            for column in 0..model.as_mut().unwrap().column_count(()) {
-                let item = &*model.as_mut().unwrap().item((row, column));
-                undo_model.as_mut().unwrap().set_item((row, column, item.clone()));
-            }    
-        }
-    }
-}
