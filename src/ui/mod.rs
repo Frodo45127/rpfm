@@ -23,6 +23,7 @@ use qt_widgets::widget::Widget;
 use qt_gui::brush::Brush;
 use qt_gui::icon;
 use qt_gui::key_sequence::KeySequence;
+use qt_gui::list::ListStandardItemMutPtr;
 use qt_gui::standard_item::StandardItem;
 use qt_gui::standard_item_model::StandardItemModel;
 
@@ -791,6 +792,20 @@ pub enum ItemVisualStatus {
     Untouched,
 }
 
+/// Enum to know what operation was done while editing tables, so we can revert them with undo.
+/// - Editing: Intended for any kind of item editing. Holds ((row, column), *mut item).
+/// - AddRows: Intended for when adding/inserting rows. It holds a list of positions where the rows where inserted.
+/// - RemoveRows: Intended for when removing rows. It holds a list of positions where the rows where deleted and the deleted rows.
+/// - ImportTSVDB: It holds a copy of the entire DBData, before importing.
+/// - ImportTSVLOC: It holds a copy of the entire LocData, before importing.
+pub enum TableOperations {
+    Editing(((i32, i32), *mut StandardItem)),
+    AddRows(Vec<i32>),
+    RemoveRows((Vec<i32>, Vec<ListStandardItemMutPtr>)),
+    ImportTSVDB(DBData),
+    ImportTSVLOC(LocData),
+}
+
 /// Enum `IconType`: This enum holds all the possible Icon Types we can have in the TreeView,
 /// depending on the type of the PackedFiles.
 enum IconType {
@@ -1005,6 +1020,54 @@ pub fn set_modified(
         // And return false.
         false
     }
+}
+
+/// This function is intended to be triggered when we undo all the way to the begining a table or loc.
+/// It "unpaints" it and, checks if the parent should still be painted, and repeats until it finds a parent
+/// that should be painted, or reaches the PackFile. If the PackFile should not be painted,
+/// then sets the PackFile as "not modified". 
+pub fn undo_paint_for_packed_file(
+    app_ui: &AppUI,
+    model: *mut StandardItemModel,
+    path: &[String]
+) {
+
+    // Get the item and paint it transparent.
+    let item = get_item_from_incomplete_path(app_ui.folder_tree_model, &path);
+    unsafe { item.as_mut().unwrap().set_background(&Brush::new(GlobalColor::Transparent)); }
+
+    // Get the full path of the item.
+    let full_path = get_path_from_item(model, item, true);
+
+    // Get the times we must to go up until we reach the parent.
+    let cycles = if full_path.len() > 0 { full_path.len() - 1 } else { 0 };
+
+    // Get his parent.
+    let mut parent;
+    unsafe { parent = item.as_mut().unwrap().parent(); }
+
+    // Unleash hell upon the land.
+    for _ in 0..cycles {
+
+        let childs;
+        unsafe { childs = parent.as_mut().unwrap().row_count(); }
+        for child in 0..childs {
+            let item;
+            let colour;
+            unsafe { item = parent.as_mut().unwrap().child(child); }
+            unsafe { colour = item.as_mut().unwrap().background().color().name(()).to_std_string(); }
+
+            // If it's not transparent, stop.
+            if colour != "#000000" { return }
+        }
+
+        // If no childs were modified, change the parent and try again.
+        unsafe { parent.as_mut().unwrap().set_background(&Brush::new(GlobalColor::Transparent)); }
+        unsafe { parent = parent.as_mut().unwrap().parent(); }
+    }
+
+    // If no more files were modified, set the mod as "not modified".
+    set_modified(false, app_ui, None);
 }
 
 /// This function deletes whatever it's in the right side of the screen, leaving it empty.
