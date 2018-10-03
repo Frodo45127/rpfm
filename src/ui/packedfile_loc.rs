@@ -134,6 +134,7 @@ impl PackedFileLocTreeView {
         packed_file_path: Vec<String>,
         global_search_explicit_paths: &Rc<RefCell<Vec<Vec<String>>>>,
         update_global_search_stuff: *mut Action,
+        filter_history: &Rc<RefCell<BTreeMap<Vec<String>, (QString, i32, bool)>>>,
     ) -> Result<Self> {
 
         // Get the settings.
@@ -547,64 +548,57 @@ impl PackedFileLocTreeView {
                 }
             )),
 
-            slot_row_filter_change_text: SlotStringRef::new(move |filter_text| {
-
-                // Get the column selected.
-                unsafe { filter_model.as_mut().unwrap().set_filter_key_column(row_filter_column_selector.as_mut().unwrap().current_index()); }
-
-                // Check if the filter should be "Case Sensitive".
-                let case_sensitive;
-                unsafe { case_sensitive = row_filter_case_sensitive_button.as_mut().unwrap().is_checked(); }
-
-                // Get the Regex and set his "Case Sensitivity".
-                let mut reg_exp = RegExp::new(filter_text);
-                if case_sensitive { reg_exp.set_case_sensitivity(CaseSensitivity::Sensitive); }
-                else { reg_exp.set_case_sensitivity(CaseSensitivity::Insensitive); }
-
-                // Filter whatever it's in that column by the text we got.
-                unsafe { filter_model.as_mut().unwrap().set_filter_reg_exp(&reg_exp); }
-
-                // Update the search stuff, if needed.
-                unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
-            }),
-            slot_row_filter_change_column: SlotCInt::new(move |index| {
-
-                // Get the column selected.
-                unsafe { filter_model.as_mut().unwrap().set_filter_key_column(index); }
-
-                // Check if the filter should be "Case Sensitive".
-                let case_sensitive;
-                unsafe { case_sensitive = row_filter_case_sensitive_button.as_mut().unwrap().is_checked(); }
-
-                // Get the Regex and set his "Case Sensitivity".
-                let mut reg_exp;
-                unsafe { reg_exp = RegExp::new(&row_filter_line_edit.as_mut().unwrap().text()); }
-                if case_sensitive { reg_exp.set_case_sensitivity(CaseSensitivity::Sensitive); }
-                else { reg_exp.set_case_sensitivity(CaseSensitivity::Insensitive); }
-
-                // Filter whatever it's in that column by the text we got.
-                unsafe { filter_model.as_mut().unwrap().set_filter_reg_exp(&reg_exp); }
-
-                // Update the search stuff, if needed.
-                unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
-            }),
-            slot_row_filter_change_case_sensitive: SlotBool::new(move |case_sensitive| {
-
-                // Get the column selected.
-                unsafe { filter_model.as_mut().unwrap().set_filter_key_column(row_filter_column_selector.as_mut().unwrap().current_index()); }
-
-                // Get the Regex and set his "Case Sensitivity".
-                let mut reg_exp;
-                unsafe { reg_exp = RegExp::new(&row_filter_line_edit.as_mut().unwrap().text()); }
-                if case_sensitive { reg_exp.set_case_sensitivity(CaseSensitivity::Sensitive); }
-                else { reg_exp.set_case_sensitivity(CaseSensitivity::Insensitive); }
-
-                // Filter whatever it's in that column by the text we got.
-                unsafe { filter_model.as_mut().unwrap().set_filter_reg_exp(&reg_exp); }
-
-                // Update the search stuff, if needed.
-                unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
-            }),
+            slot_row_filter_change_text: SlotStringRef::new(clone!(
+                packed_file_path,
+                filter_history => move |filter_text| {
+                    filter_table(
+                        Some(QString::from_std_str(filter_text.to_std_string())),
+                        None,
+                        None,
+                        filter_model,
+                        row_filter_line_edit,
+                        row_filter_column_selector,
+                        row_filter_case_sensitive_button,
+                        update_search_stuff,
+                        &packed_file_path,
+                        &filter_history,
+                    ); 
+                }
+            )),
+            slot_row_filter_change_column: SlotCInt::new(clone!(
+                packed_file_path,
+                filter_history => move |index| {
+                    filter_table(
+                        None,
+                        Some(index),
+                        None,
+                        filter_model,
+                        row_filter_line_edit,
+                        row_filter_column_selector,
+                        row_filter_case_sensitive_button,
+                        update_search_stuff,
+                        &packed_file_path,
+                        &filter_history,
+                    ); 
+                }
+            )),
+            slot_row_filter_change_case_sensitive: SlotBool::new(clone!(
+                packed_file_path,
+                filter_history => move |case_sensitive| {
+                    filter_table(
+                        None,
+                        None,
+                        Some(case_sensitive),
+                        filter_model,
+                        row_filter_line_edit,
+                        row_filter_column_selector,
+                        row_filter_case_sensitive_button,
+                        update_search_stuff,
+                        &packed_file_path,
+                        &filter_history,
+                    ); 
+                }
+            )),
             slot_context_menu_add: SlotBool::new(clone!(
                 history,
                 history_redo => move |_| {
@@ -1819,6 +1813,28 @@ impl PackedFileLocTreeView {
         // Trigger the "Enable/Disable" slot every time we change the selection in the TreeView.
         unsafe { table_view.as_mut().unwrap().selection_model().as_ref().unwrap().signals().selection_changed().connect(&slots.slot_context_menu_enabler); }
 
+        // If we got an entry for this PackedFile in the filter's history, use it.
+        if let Some(filter_data) = filter_history.borrow().get(&packed_file_path) {
+
+            // Block the signals during this, so we don't trigger a borrow error.
+            let mut blocker1;
+            let mut blocker2;
+            let mut blocker3;
+            unsafe { blocker1 = SignalBlocker::new(row_filter_line_edit.as_mut().unwrap().static_cast_mut() as &mut Object); }
+            unsafe { blocker2 = SignalBlocker::new(row_filter_column_selector.as_mut().unwrap().static_cast_mut() as &mut Object); }
+            unsafe { blocker3 = SignalBlocker::new(row_filter_case_sensitive_button.as_mut().unwrap().static_cast_mut() as &mut Object); }
+            unsafe { row_filter_line_edit.as_mut().unwrap().set_text(&filter_data.0); }
+            unsafe { row_filter_column_selector.as_mut().unwrap().set_current_index(filter_data.1); }
+            unsafe { row_filter_case_sensitive_button.as_mut().unwrap().set_checked(filter_data.2); }
+            blocker1.unblock();
+            blocker2.unblock();
+            blocker3.unblock();
+        }
+
+        // Retrigger the filter, so the table get's updated properly.
+        unsafe { row_filter_case_sensitive_button.as_mut().unwrap().set_checked(!row_filter_case_sensitive_button.as_mut().unwrap().is_checked()); }
+        unsafe { row_filter_case_sensitive_button.as_mut().unwrap().set_checked(!row_filter_case_sensitive_button.as_mut().unwrap().is_checked()); }
+
         // Return the slots to keep them as hostages.
         return Ok(slots)
     }
@@ -2289,4 +2305,63 @@ fn check_clipboard_append_rows() -> bool {
 
     // If we reach this place, it means none of the cells was incorrect, so we can paste.
     true
+}
+
+/// Function to filter the table. If a value is not provided by a slot, we get it from the widget itself.
+fn filter_table(
+    pattern: Option<QString>,
+    column: Option<i32>,
+    case_sensitive: Option<bool>,
+    filter_model: *mut SortFilterProxyModel,
+    filter_line_edit: *mut LineEdit,
+    column_selector: *mut ComboBox,
+    case_sensitive_button: *mut PushButton,
+    update_search_stuff: *mut Action,
+    packed_file_path: &[String],
+    filter_history: &Rc<RefCell<BTreeMap<Vec<String>, (QString, i32, bool)>>>, 
+) {
+
+    // Set the pattern to search.
+    let mut pattern = if let Some(pattern) = pattern { RegExp::new(&pattern) }
+    else { 
+        let pattern;
+        unsafe { pattern = RegExp::new(&filter_line_edit.as_mut().unwrap().text()) }
+        pattern
+    };
+
+    // Set the column selected.
+    if let Some(column) = column { unsafe { filter_model.as_mut().unwrap().set_filter_key_column(column); }}
+    else { unsafe { filter_model.as_mut().unwrap().set_filter_key_column(column_selector.as_mut().unwrap().current_index()); }}
+
+    // Check if the filter should be "Case Sensitive".
+    if let Some(case_sensitive) = case_sensitive { 
+        if case_sensitive { pattern.set_case_sensitivity(CaseSensitivity::Sensitive); }
+        else { pattern.set_case_sensitivity(CaseSensitivity::Insensitive); }
+    }
+
+    else {
+        unsafe { 
+            let case_sensitive = case_sensitive_button.as_mut().unwrap().is_checked();
+            if case_sensitive { pattern.set_case_sensitivity(CaseSensitivity::Sensitive); }
+            else { pattern.set_case_sensitivity(CaseSensitivity::Insensitive); }
+        }
+    }
+
+    // Filter whatever it's in that column by the text we got.
+    unsafe { filter_model.as_mut().unwrap().set_filter_reg_exp(&pattern); }
+
+    // Update the search stuff, if needed.
+    unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
+
+    // Add the new filter data to the filter history.
+    unsafe {
+        filter_history.borrow_mut().insert(
+            packed_file_path.to_vec(), 
+            (
+                filter_line_edit.as_mut().unwrap().text(), 
+                column_selector.as_mut().unwrap().current_index(),
+                case_sensitive_button.as_mut().unwrap().is_checked(),
+            )
+        );
+    }
 }
