@@ -1070,34 +1070,23 @@ fn main() {
                 if let Some(index) = new_game_selected.find('&') { new_game_selected.remove(index); }
                 let new_game_selected_folder_name = new_game_selected.replace(' ', "_").to_lowercase();
 
-                // Change the Game Selected in the Background Thread.
-                sender_qt.send(Commands::SetGameSelected).unwrap();
-                sender_qt_data.send(Data::String(new_game_selected_folder_name.to_owned())).unwrap();
-
                 // Disable the Main Window (so we can't do other stuff).
                 unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
-
-                // Get the response from the background thread.
-                let response = if let Data::StringBool(data) = check_message_validity_tryrecv(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                 // Get the current settings.
                 sender_qt.send(Commands::GetSettings).unwrap();
                 let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
-                // Disable the "PackFile Management" actions.
-                enable_packfile_actions(&app_ui, &response.0, &mymod_stuff, settings.clone(), false);
-
-                // If we have a PackFile opened, re-enable the "PackFile Management" actions, so the "Special Stuff" menu gets updated properly.
-                if !response.1 { enable_packfile_actions(&app_ui, &response.0, &mymod_stuff, settings, true); }
-
-                // Set the current "Operational Mode" to `Normal` (In case we were in `MyMod` mode).
-                set_my_mod_mode(&mymod_stuff, &mode, None);
+                // Change the Game Selected in the Background Thread.
+                sender_qt.send(Commands::SetGameSelected).unwrap();
+                sender_qt_data.send(Data::String(new_game_selected_folder_name.to_owned())).unwrap();
 
                 // Build the "Open from Content" submenu.
                 *open_from_slots.borrow_mut() = build_open_from_submenus(
                     sender_qt.clone(),
                     &sender_qt_data,
                     receiver_qt.clone(),
+                    &settings,
                     app_ui,
                     &menu_open_from_content,
                     &menu_open_from_data,
@@ -1110,6 +1099,18 @@ fn main() {
                     &history_filter_db,
                     &history_filter_loc,
                 );
+
+                // Get the response from the background thread.
+                let response = if let Data::StringBool(data) = check_message_validity_tryrecv(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+
+                // Disable the "PackFile Management" actions.
+                enable_packfile_actions(&app_ui, &response.0, &mymod_stuff, settings.clone(), false);
+
+                // If we have a PackFile opened, re-enable the "PackFile Management" actions, so the "Special Stuff" menu gets updated properly.
+                if !response.1 { enable_packfile_actions(&app_ui, &response.0, &mymod_stuff, settings, true); }
+
+                // Set the current "Operational Mode" to `Normal` (In case we were in `MyMod` mode).
+                set_my_mod_mode(&mymod_stuff, &mode, None);
 
                 // Re-enable the Main Window.
                 unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
@@ -5371,6 +5372,7 @@ fn build_open_from_submenus(
     sender_qt: Sender<Commands>,
     sender_qt_data: &Sender<Data>,
     receiver_qt: Rc<RefCell<Receiver<Data>>>,
+    settings: &Settings,
     app_ui: AppUI,
     submenu_open_from_content: &*mut Menu,
     submenu_open_from_data: &*mut Menu,
@@ -5383,10 +5385,6 @@ fn build_open_from_submenus(
     history_filter_db: &Rc<RefCell<BTreeMap<Vec<String>, (QString, i32, bool)>>>,
     history_filter_loc: &Rc<RefCell<BTreeMap<Vec<String>, (QString, i32, bool)>>>,
 ) -> Vec<SlotBool<'static>> {
-
-    // Get the current Settings, as we are going to need them later.
-    sender_qt.send(Commands::GetSettings).unwrap();
-    let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
     // First, we clear the list, just in case this is a "Rebuild" of the menu.
     unsafe { submenu_open_from_content.as_mut().unwrap().clear(); }
