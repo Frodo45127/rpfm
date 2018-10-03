@@ -832,6 +832,15 @@ pub fn update_packed_file_data_db(
     packed_file.size = packed_file.data.len() as u32;
 }
 
+// Same as the other one, but it requires a PackedFile to modify instead the entire PackFile.
+pub fn update_packed_file_data_db_2(
+    packed_file_data_decoded: &DB,
+    packed_file: &mut packfile::PackedFile,
+) {
+    packed_file.data = DB::save(packed_file_data_decoded);
+    packed_file.size = packed_file.data.len() as u32;
+}
+
 /// This function saves the data of the edited Text PackedFile in the main PackFile after a change has
 /// been done by the user. Checking for valid characters is done before this, so be careful to not break it.
 pub fn update_packed_file_data_text(
@@ -1149,7 +1158,7 @@ pub fn create_prefab_from_catchment(
 /// from tables (and if the table is empty, it removes it too) and it cleans the PackFile of extra .xml files 
 /// often created by map editors. It requires just the PackFile to optimize and the dependency PackFile.
 pub fn optimize_packfile(
-    mut pack_file: &mut packfile::PackFile,
+    pack_file: &mut packfile::PackFile,
     original_tables: &[packfile::PackedFile],
     schema: &Option<Schema>
 ) -> Vec<TreePathType> {
@@ -1158,9 +1167,8 @@ pub fn optimize_packfile(
     let mut files_to_delete: Vec<Vec<String>> = vec![];
     let mut deleted_files_type: Vec<TreePathType> = vec![];
 
-    // TODO: Fix this clone.
     // For each PackedFile we have...
-    for packed_file in pack_file.data.packed_files.clone().iter() {
+    for mut packed_file in pack_file.data.packed_files.iter_mut() {
 
         // If it's a DB table...
         if packed_file.path.len() == 3 {
@@ -1217,7 +1225,7 @@ pub fn optimize_packfile(
                     }
 
                     // Save the table to the PackFile.
-                    update_packed_file_data_db(&optimized_table, &mut pack_file, &packed_file.path);
+                    update_packed_file_data_db_2(&optimized_table, &mut packed_file);
 
                     // Delete the table here if it's empty.
                     if optimized_table.data.entries.is_empty() { files_to_delete.push(packed_file.path.to_vec()); }
