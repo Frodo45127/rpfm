@@ -8,6 +8,7 @@ use std::process::Command;
 use RPFM_PATH;
 use SUPPORTED_GAMES;
 use SHOW_TABLE_ERRORS;
+use GlobalMatch;
 use common::*;
 use common::coding_helpers::*;
 use common::communications::*;
@@ -1145,6 +1146,222 @@ pub fn background_loop(
 
                         // Send back the result.
                         sender.send(Data::VecString(results)).unwrap();
+                    }
+
+                    // In case we want to perform a "Global Search"...
+                    Commands::GlobalSearch => {
+                       
+                        // Wait until we get the needed data from the UI thread.
+                        let pattern = if let Data::String(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
+                        let mut matches: Vec<GlobalMatch> = vec![];
+                        for packed_file in &pack_file_decoded.data.packed_files {
+                            let path = &packed_file.path;
+                            let packedfile_name = path.last().unwrap().to_owned();
+                            let mut packed_file_type: &str =
+
+                                // If it's in the "db" folder, it's a DB PackedFile (or you put something were it shouldn't be).
+                                if path[0] == "db" { "DB" }
+
+                                // If it ends in ".loc", it's a localisation PackedFile.
+                                else if packedfile_name.ends_with(".loc") { "LOC" }
+
+                                // If it ends in ".rigid_model_v2", it's a RigidModel PackedFile.
+                                else if packedfile_name.ends_with(".rigid_model_v2") { "RIGIDMODEL" }
+
+                                // If it ends in any of these, it's a plain text PackedFile.
+                                else if packedfile_name.ends_with(".lua") ||
+                                        packedfile_name.ends_with(".xml") ||
+                                        packedfile_name.ends_with(".xml.shader") ||
+                                        packedfile_name.ends_with(".xml.material") ||
+                                        packedfile_name.ends_with(".variantmeshdefinition") ||
+                                        packedfile_name.ends_with(".environment") ||
+                                        packedfile_name.ends_with(".lighting") ||
+                                        packedfile_name.ends_with(".wsmodel") ||
+                                        packedfile_name.ends_with(".csv") ||
+                                        packedfile_name.ends_with(".tsv") ||
+                                        packedfile_name.ends_with(".inl") ||
+                                        packedfile_name.ends_with(".battle_speech_camera") ||
+                                        packedfile_name.ends_with(".bob") ||
+                                        packedfile_name.ends_with(".cindyscene") ||
+                                        packedfile_name.ends_with(".cindyscenemanager") ||
+                                        //packedfile_name.ends_with(".benchmark") || // This one needs special decoding/encoding.
+                                        packedfile_name.ends_with(".txt") { "TEXT" }
+
+                                // If it ends in any of these, it's an image.
+                                else if packedfile_name.ends_with(".jpg") ||
+                                        packedfile_name.ends_with(".jpeg") ||
+                                        packedfile_name.ends_with(".tga") ||
+                                        packedfile_name.ends_with(".dds") ||
+                                        packedfile_name.ends_with(".png") { "IMAGE" }
+
+                                // Otherwise, we don't have a decoder for that PackedFile... yet.
+                                else { "None" };
+
+                            // Then, depending of his type we decode it properly (if we have it implemented support
+                            // for his type).
+                            match packed_file_type {
+
+                                // If the file is a Loc PackedFile, decode it and search in his key and text columns.
+                                "LOC" => {
+
+                                    // We try to decode it as a Loc PackedFile.
+                                    if let Ok(packed_file) = Loc::read(&packed_file.data) {
+
+                                        let mut matches_in_file = vec![];
+                                        for (index, row) in packed_file.data.entries.iter().enumerate() {
+                                            if row.key.contains(&pattern) { matches_in_file.push((0, index as i64, row.key.to_owned())); }
+                                            if row.text.contains(&pattern) { matches_in_file.push((1, index as i64, row.text.to_owned())); }
+                                        }
+
+                                        if !matches_in_file.is_empty() { matches.push(GlobalMatch::Loc((path.to_vec(), matches_in_file))); }
+                                    }
+                                }
+
+                                // If the file is a DB PackedFile...
+                                "DB" => {
+
+                                    if let Some(ref schema) = schema {   
+                                        if let Ok(packed_file) = DB::read(&packed_file.data, &path[1], &schema) {
+
+                                            let mut matches_in_file = vec![];
+                                            for (index, row) in packed_file.data.entries.iter().enumerate() {
+                                                for (column, field) in packed_file.data.table_definition.fields.iter().enumerate() {
+                                                    match row[column] {
+
+                                                        // All these are Strings, so it can be together,
+                                                        DecodedData::StringU8(ref data) |
+                                                        DecodedData::StringU16(ref data) |
+                                                        DecodedData::OptionalStringU8(ref data) |
+                                                        DecodedData::OptionalStringU16(ref data) => if data.contains(&pattern) {
+                                                            matches_in_file.push((field.field_name.to_owned(), column as i32, index as i64, data.to_owned())); 
+                                                        }
+
+                                                        _ => continue
+                                                    }
+                                                }
+                                            }
+
+                                            if !matches_in_file.is_empty() { matches.push(GlobalMatch::DB((path.to_vec(), matches_in_file))); }
+                                        }
+                                    }
+                                }
+
+                                // For any other PackedFile, skip it.
+                                _ => continue,
+                            }
+                        }
+
+                        // Send back the list of matches.
+                        sender.send(Data::VecGlobalMatch(matches)).unwrap();
+                    }
+
+                    // In case we want to perform a "Global Search"...
+                    Commands::UpdateGlobalSearchData => {
+                       
+                        // Wait until we get the needed data from the UI thread.
+                        let (pattern, paths) = if let Data::StringVecVecString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
+                        let mut matches: Vec<GlobalMatch> = vec![];
+                        for packed_file in &pack_file_decoded.data.packed_files {
+                            if paths.contains(&packed_file.path) {
+                                let path = &packed_file.path;
+                                let packedfile_name = path.last().unwrap().to_owned();
+                                let mut packed_file_type: &str =
+
+                                    // If it's in the "db" folder, it's a DB PackedFile (or you put something were it shouldn't be).
+                                    if path[0] == "db" { "DB" }
+
+                                    // If it ends in ".loc", it's a localisation PackedFile.
+                                    else if packedfile_name.ends_with(".loc") { "LOC" }
+
+                                    // If it ends in ".rigid_model_v2", it's a RigidModel PackedFile.
+                                    else if packedfile_name.ends_with(".rigid_model_v2") { "RIGIDMODEL" }
+
+                                    // If it ends in any of these, it's a plain text PackedFile.
+                                    else if packedfile_name.ends_with(".lua") ||
+                                            packedfile_name.ends_with(".xml") ||
+                                            packedfile_name.ends_with(".xml.shader") ||
+                                            packedfile_name.ends_with(".xml.material") ||
+                                            packedfile_name.ends_with(".variantmeshdefinition") ||
+                                            packedfile_name.ends_with(".environment") ||
+                                            packedfile_name.ends_with(".lighting") ||
+                                            packedfile_name.ends_with(".wsmodel") ||
+                                            packedfile_name.ends_with(".csv") ||
+                                            packedfile_name.ends_with(".tsv") ||
+                                            packedfile_name.ends_with(".inl") ||
+                                            packedfile_name.ends_with(".battle_speech_camera") ||
+                                            packedfile_name.ends_with(".bob") ||
+                                            packedfile_name.ends_with(".cindyscene") ||
+                                            packedfile_name.ends_with(".cindyscenemanager") ||
+                                            //packedfile_name.ends_with(".benchmark") || // This one needs special decoding/encoding.
+                                            packedfile_name.ends_with(".txt") { "TEXT" }
+
+                                    // If it ends in any of these, it's an image.
+                                    else if packedfile_name.ends_with(".jpg") ||
+                                            packedfile_name.ends_with(".jpeg") ||
+                                            packedfile_name.ends_with(".tga") ||
+                                            packedfile_name.ends_with(".dds") ||
+                                            packedfile_name.ends_with(".png") { "IMAGE" }
+
+                                    // Otherwise, we don't have a decoder for that PackedFile... yet.
+                                    else { "None" };
+
+                                // Then, depending of his type we decode it properly (if we have it implemented support
+                                // for his type).
+                                match packed_file_type {
+
+                                    // If the file is a Loc PackedFile, decode it and search in his key and text columns.
+                                    "LOC" => {
+
+                                        // We try to decode it as a Loc PackedFile.
+                                        if let Ok(packed_file) = Loc::read(&packed_file.data) {
+
+                                            let mut matches_in_file = vec![];
+                                            for (index, row) in packed_file.data.entries.iter().enumerate() {
+                                                if row.key.contains(&pattern) { matches_in_file.push((0, index as i64, row.key.to_owned())); }
+                                                if row.text.contains(&pattern) { matches_in_file.push((1, index as i64, row.text.to_owned())); }
+                                            }
+
+                                            if !matches_in_file.is_empty() { matches.push(GlobalMatch::Loc((path.to_vec(), matches_in_file))); }
+                                        }
+                                    }
+
+                                    // If the file is a DB PackedFile...
+                                    "DB" => {
+
+                                        if let Some(ref schema) = schema {   
+                                            if let Ok(packed_file) = DB::read(&packed_file.data, &path[1], &schema) {
+
+                                                let mut matches_in_file = vec![];
+                                                for (index, row) in packed_file.data.entries.iter().enumerate() {
+                                                    for (column, field) in packed_file.data.table_definition.fields.iter().enumerate() {
+                                                        match row[column] {
+
+                                                            // All these are Strings, so it can be together,
+                                                            DecodedData::StringU8(ref data) |
+                                                            DecodedData::StringU16(ref data) |
+                                                            DecodedData::OptionalStringU8(ref data) |
+                                                            DecodedData::OptionalStringU16(ref data) => if data.contains(&pattern) {
+                                                                matches_in_file.push((field.field_name.to_owned(), column as i32, index as i64, data.to_owned())); 
+                                                            }
+
+                                                            _ => continue
+                                                        }
+                                                    }
+                                                }
+
+                                                if !matches_in_file.is_empty() { matches.push(GlobalMatch::DB((path.to_vec(), matches_in_file))); }
+                                            }
+                                        }
+                                    }
+
+                                    // For any other PackedFile, skip it.
+                                    _ => continue,
+                                }
+                            }
+                        }
+
+                        // Send back the list of matches.
+                        sender.send(Data::VecGlobalMatch(matches)).unwrap();
                     }
                 }
             }

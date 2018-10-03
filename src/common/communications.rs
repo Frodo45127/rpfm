@@ -6,6 +6,7 @@ use std::rc::Rc;
 use std::path::PathBuf;
 use std::sync::mpsc::{Receiver, TryRecvError};
 
+use GlobalMatch;
 use common::*;
 use error::Error;
 use packfile::packfile::{PackFileExtraData, PackFileHeader, PackedFile};
@@ -85,6 +86,8 @@ pub enum Commands {
     SetPackFilesList,
     DecodeDependencyDB,
     CheckScriptWithKailua,
+    GlobalSearch,
+    UpdateGlobalSearchData,
 }
 
 /// This enum is meant to send data back and forward between threads. Variants here are 
@@ -103,6 +106,7 @@ pub enum Data {
     StringBool((String, bool)),
     StringString((String, String)),
     StringVecString((String, Vec<String>)),
+    StringVecVecString((String, Vec<Vec<String>>)),
     PathBuf(PathBuf),
     
     Settings(Settings),
@@ -137,6 +141,7 @@ pub enum Data {
     VecTreePathType(Vec<TreePathType>),
     VecVecString(Vec<Vec<String>>),
     VecVecStringVecVecString((Vec<Vec<String>>, Vec<Vec<String>>)),
+    VecGlobalMatch(Vec<GlobalMatch>),
     VersionsVersions((Versions, Versions)),
 }
 

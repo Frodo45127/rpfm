@@ -33,16 +33,25 @@ extern crate cpp_utils;
 extern crate lazy_static;
 extern crate indexmap;
 
+use qt_widgets::abstract_item_view::ScrollMode;
 use qt_widgets::action::Action;
 use qt_widgets::action_group::ActionGroup;
 use qt_widgets::application::Application;
-use qt_widgets::grid_layout::GridLayout;
+use qt_widgets::combo_box::ComboBox;
 use qt_widgets::file_dialog::{AcceptMode, FileDialog, FileMode};
+use qt_widgets::grid_layout::GridLayout;
+use qt_widgets::group_box::GroupBox;
+use qt_widgets::header_view::ResizeMode;
+use qt_widgets::layout::Layout;
+use qt_widgets::line_edit::LineEdit;
 use qt_widgets::main_window::MainWindow;
 use qt_widgets::menu::Menu;
+use qt_widgets::message_box;
 use qt_widgets::message_box::MessageBox;
+use qt_widgets::push_button::PushButton;
 use qt_widgets::slots::SlotQtCorePointRef;
 use qt_widgets::splitter::Splitter;
+use qt_widgets::table_view::TableView;
 use qt_widgets::tree_view::TreeView;
 use qt_widgets::widget::Widget;
 
@@ -51,12 +60,19 @@ use qt_gui::desktop_services::DesktopServices;
 use qt_gui::font::Font;
 use qt_gui::icon::Icon;
 use qt_gui::key_sequence::KeySequence;
+use qt_gui::list::ListStandardItemMutPtr;
+use qt_gui::standard_item::StandardItem;
 use qt_gui::standard_item_model::StandardItemModel;
 
+use qt_core::abstract_item_model::AbstractItemModel;
 use qt_core::connection::Signal;
 use qt_core::flags::Flags;
-use qt_core::qt::{ContextMenuPolicy, ShortcutContext, WindowState};
-use qt_core::slots::{SlotBool, SlotNoArgs, SlotItemSelectionRefItemSelectionRef};
+use qt_core::item_selection_model::SelectionFlag;
+use qt_core::qt::{CaseSensitivity, ContextMenuPolicy, Orientation, ShortcutContext, SortOrder, WindowState};
+use qt_core::slots::{SlotBool, SlotNoArgs, SlotStringRef, SlotCInt, SlotModelIndexRef, SlotItemSelectionRefItemSelectionRef};
+use qt_core::sort_filter_proxy_model::SortFilterProxyModel;
+use qt_core::reg_exp::RegExp;
+use qt_core::variant::Variant;
 use cpp_utils::StaticCast;
 
 use std::env::args;
@@ -229,6 +245,15 @@ enum Mode {
     Normal,
 }
 
+/// This enum represents a match when using the "Global Search" feature.
+///  - `DB`: (path, Vec(column_name, column_number, row_number, text).
+///  - `Loc`: (path, Vec(column_name, row_number, text)
+#[derive(Debug, Clone)]
+pub enum GlobalMatch {
+    DB((Vec<String>, Vec<(String, i32, i64, String)>)),
+    Loc((Vec<String>, Vec<(i32, i64, String)>)),
+}
+
 /// This struct contains all the "Special Stuff" Actions, so we can pass all of them to functions at once.
 #[derive(Copy, Clone)]
 pub struct AppUI {
@@ -330,6 +355,7 @@ pub struct AppUI {
     pub context_menu_apply_prefix_to_all: *mut Action,
     pub context_menu_open_decoder: *mut Action,
     pub context_menu_open_dependency_manager: *mut Action,
+    pub context_menu_global_search: *mut Action,
 
     //-------------------------------------------------------------------------------//
     // "Special" actions for the TreeView.
@@ -404,17 +430,109 @@ fn main() {
         let mut packed_file_layout = GridLayout::new();
         unsafe { packed_file_view.set_layout(packed_file_layout.static_cast_mut()); }
 
+        // Create the "Global Search" view.
+        let global_search_widget = Widget::new().into_raw();
+        let global_search_grid = GridLayout::new().into_raw();
+        unsafe { global_search_widget.as_mut().unwrap().set_layout(global_search_grid as *mut Layout); }
+
+        let close_matches_button = PushButton::new(&QString::from_std_str("Close Matches")).into_raw();
+        let table_view_matches_db = TableView::new().into_raw();
+        let table_view_matches_loc = TableView::new().into_raw();
+        let filter_model_matches_db = SortFilterProxyModel::new().into_raw();
+        let filter_model_matches_loc = SortFilterProxyModel::new().into_raw();
+        let model_matches_db = StandardItemModel::new(()).into_raw();
+        let model_matches_loc = StandardItemModel::new(()).into_raw();
+
+        unsafe { filter_model_matches_db.as_mut().unwrap().set_source_model(model_matches_db as *mut AbstractItemModel); }
+        unsafe { table_view_matches_db.as_mut().unwrap().set_model(filter_model_matches_db as *mut AbstractItemModel); }
+        unsafe { table_view_matches_db.as_mut().unwrap().set_horizontal_scroll_mode(ScrollMode::Pixel); }
+        unsafe { table_view_matches_db.as_mut().unwrap().set_sorting_enabled(true); }
+        unsafe { table_view_matches_db.as_mut().unwrap().vertical_header().as_mut().unwrap().set_visible(true); }
+        unsafe { table_view_matches_db.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_visible(true); }
+        unsafe { table_view_matches_db.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_stretch_last_section(true); }
+
+        unsafe { filter_model_matches_loc.as_mut().unwrap().set_source_model(model_matches_loc as *mut AbstractItemModel); }
+        unsafe { table_view_matches_loc.as_mut().unwrap().set_model(filter_model_matches_loc as *mut AbstractItemModel); }
+        unsafe { table_view_matches_loc.as_mut().unwrap().set_horizontal_scroll_mode(ScrollMode::Pixel); }
+        unsafe { table_view_matches_loc.as_mut().unwrap().set_sorting_enabled(true); }
+        unsafe { table_view_matches_loc.as_mut().unwrap().vertical_header().as_mut().unwrap().set_visible(true); }
+        unsafe { table_view_matches_loc.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_visible(true); }
+        unsafe { table_view_matches_loc.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_stretch_last_section(true); }
+
+        // Create the filters for the matches tables.
+        let filter_matches_db_line_edit = LineEdit::new(()).into_raw();
+        unsafe { filter_matches_db_line_edit.as_mut().unwrap().set_placeholder_text(&QString::from_std_str("Type here to filter the rows in the table. Works with Regex too!")); }
+
+        let filter_matches_db_column_selector = ComboBox::new().into_raw();
+        let filter_matches_db_column_list = StandardItemModel::new(()).into_raw();
+        unsafe { filter_matches_db_column_selector.as_mut().unwrap().set_model(filter_matches_db_column_list as *mut AbstractItemModel); }
+        unsafe { filter_matches_db_column_selector.as_mut().unwrap().add_item(&QString::from_std_str("PackedFile")); }
+        unsafe { filter_matches_db_column_selector.as_mut().unwrap().add_item(&QString::from_std_str("Column")); }
+        unsafe { filter_matches_db_column_selector.as_mut().unwrap().add_item(&QString::from_std_str("Row")); }
+        unsafe { filter_matches_db_column_selector.as_mut().unwrap().add_item(&QString::from_std_str("Match")); }
+
+        let filter_matches_db_case_sensitive_button = PushButton::new(&QString::from_std_str("Case Sensitive")).into_raw();
+        unsafe { filter_matches_db_case_sensitive_button.as_mut().unwrap().set_checkable(true); }
+
+        let filter_matches_loc_line_edit = LineEdit::new(()).into_raw();
+        unsafe { filter_matches_loc_line_edit.as_mut().unwrap().set_placeholder_text(&QString::from_std_str("Type here to filter the rows in the table. Works with Regex too!")); }
+
+        let filter_matches_loc_column_selector = ComboBox::new().into_raw();
+        let filter_matches_loc_column_list = StandardItemModel::new(()).into_raw();
+        unsafe { filter_matches_loc_column_selector.as_mut().unwrap().set_model(filter_matches_loc_column_list as *mut AbstractItemModel); }
+        unsafe { filter_matches_loc_column_selector.as_mut().unwrap().add_item(&QString::from_std_str("PackedFile")); }
+        unsafe { filter_matches_loc_column_selector.as_mut().unwrap().add_item(&QString::from_std_str("Column")); }
+        unsafe { filter_matches_loc_column_selector.as_mut().unwrap().add_item(&QString::from_std_str("Row")); }
+        unsafe { filter_matches_loc_column_selector.as_mut().unwrap().add_item(&QString::from_std_str("Match")); }
+
+        let filter_matches_loc_case_sensitive_button = PushButton::new(&QString::from_std_str("Case Sensitive")).into_raw();
+        unsafe { filter_matches_loc_case_sensitive_button.as_mut().unwrap().set_checkable(true); }
+
+        // Create the frames for the matches tables.
+        let db_matches_frame = GroupBox::new(&QString::from_std_str("DB Matches")).into_raw();
+        let db_matches_grid = GridLayout::new().into_raw();
+        unsafe { db_matches_frame.as_mut().unwrap().set_layout(db_matches_grid as *mut Layout); }
+
+        let loc_matches_frame = GroupBox::new(&QString::from_std_str("Loc Matches")).into_raw();
+        let loc_matches_grid = GridLayout::new().into_raw();
+        unsafe { loc_matches_frame.as_mut().unwrap().set_layout(loc_matches_grid as *mut Layout); }
+
+        unsafe { db_matches_grid.as_mut().unwrap().add_widget((table_view_matches_db as *mut Widget, 0, 0, 1, 3)); }
+        unsafe { loc_matches_grid.as_mut().unwrap().add_widget((table_view_matches_loc as *mut Widget, 0, 0, 1, 3)); }
+
+        unsafe { db_matches_grid.as_mut().unwrap().add_widget((filter_matches_db_line_edit as *mut Widget, 1, 0, 1, 1)); }
+        unsafe { db_matches_grid.as_mut().unwrap().add_widget((filter_matches_db_case_sensitive_button as *mut Widget, 1, 1, 1, 1)); }
+        unsafe { db_matches_grid.as_mut().unwrap().add_widget((filter_matches_db_column_selector as *mut Widget, 1, 2, 1, 1)); }
+        
+        unsafe { loc_matches_grid.as_mut().unwrap().add_widget((filter_matches_loc_line_edit as *mut Widget, 1, 0, 1, 1)); }
+        unsafe { loc_matches_grid.as_mut().unwrap().add_widget((filter_matches_loc_case_sensitive_button as *mut Widget, 1, 1, 1, 1)); }
+        unsafe { loc_matches_grid.as_mut().unwrap().add_widget((filter_matches_loc_column_selector as *mut Widget, 1, 2, 1, 1)); }
+
+        unsafe { global_search_grid.as_mut().unwrap().add_widget((db_matches_frame as *mut Widget, 0, 0, 1, 1)); }
+        unsafe { global_search_grid.as_mut().unwrap().add_widget((loc_matches_frame as *mut Widget, 1, 0, 1, 1)); }
+        unsafe { global_search_grid.as_mut().unwrap().add_widget((close_matches_button as *mut Widget, 2, 0, 1, 1)); }
+
+        // Action to update the search stuff when needed.
+        let close_global_search_action = Action::new(()).into_raw();
+        let update_global_search_stuff = Action::new(()).into_raw();
+
         // Add the corresponding widgets to the layout.
         unsafe { central_splitter.add_widget(folder_tree_view.static_cast_mut()); }
         unsafe { central_splitter.add_widget(packed_file_view.as_mut_ptr()); }
+        unsafe { central_splitter.add_widget(global_search_widget); }
 
         // Set the correct proportions for the Splitter.
         let mut clist = qt_core::list::ListCInt::new(());
         clist.append(&300);
         clist.append(&1100);
+        clist.append(&500);
         central_splitter.set_sizes(&clist);
         central_splitter.set_stretch_factor(0, 0);
         central_splitter.set_stretch_factor(1, 10);
+        central_splitter.set_stretch_factor(2, 8);
+
+        // Hide this widget by default.
+        unsafe { global_search_widget.as_mut().unwrap().hide(); }
 
         // MenuBar at the top of the Window.
         let menu_bar = &window.menu_bar();
@@ -564,6 +682,7 @@ fn main() {
                 context_menu_open_decoder: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open with Decoder")),
                 //context_menu_open_dependency_manager: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open Dependency Manager")),
                 context_menu_open_dependency_manager: Action::new(&QString::from_std_str("&Open Dependency Manager")).into_raw(),
+                context_menu_global_search: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Global Search")),
 
                 //-------------------------------------------------------------------------------//
                 // "Special" Actions for the TreeView.
@@ -708,6 +827,10 @@ fn main() {
 
         let monospace_font = Rc::new(RefCell::new(Font::new(&QString::from_std_str("monospace [Consolas]"))));
 
+        // Here we store the pattern for the global search, and paths whose files have been changed/are new and need to be checked.
+        let global_search_pattern = Rc::new(RefCell::new(None));
+        let global_search_explicit_paths = Rc::new(RefCell::new(vec![]));
+
         // Display the basic tips by default.
         display_help_tips(&app_ui);
 
@@ -721,7 +844,8 @@ fn main() {
             is_modified.clone(),
             mode.clone(),
             mymod_menu_needs_rebuild.clone(),
-            &is_packedfile_opened
+            &is_packedfile_opened,
+            close_global_search_action,
         );
 
         let mymod_stuff = Rc::new(RefCell::new(result.0));
@@ -767,6 +891,7 @@ fn main() {
         unsafe { app_ui.context_menu_apply_prefix_to_all.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("apply_prefix_to_all").unwrap()))); }
         unsafe { app_ui.context_menu_open_decoder.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("open_in_decoder").unwrap()))); }
         unsafe { app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("open_packfiles_list").unwrap()))); }
+        unsafe { app_ui.context_menu_global_search.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("global_search").unwrap()))); }
         unsafe { app_ui.tree_view_expand_all.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("expand_all").unwrap()))); }
         unsafe { app_ui.tree_view_collapse_all.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("collapse_all").unwrap()))); }
 
@@ -787,6 +912,7 @@ fn main() {
         unsafe { app_ui.context_menu_apply_prefix_to_all.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_open_decoder.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+        unsafe { app_ui.context_menu_global_search.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.tree_view_expand_all.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.tree_view_collapse_all.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
 
@@ -807,6 +933,7 @@ fn main() {
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_apply_prefix_to_all); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_open_decoder); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_open_dependency_manager); }
+        unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_global_search); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.tree_view_expand_all); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.tree_view_collapse_all); }
 
@@ -881,6 +1008,7 @@ fn main() {
         unsafe { app_ui.context_menu_apply_prefix_to_all.as_mut().unwrap().set_status_tip(&QString::from_std_str("Add a Prefix to every File in the PackFile. Remember, whitespaces are NOT ALLOWED.")); }
         unsafe { app_ui.context_menu_open_decoder.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the selected table in the DB Decoder. To create/update schemas.")); }
         unsafe { app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the list of PackFiles referenced from this PackFile.")); }
+        unsafe { app_ui.context_menu_global_search.as_mut().unwrap().set_status_tip(&QString::from_std_str("Performs a search over every DB Table, Loc PackedFile and Text File in the PackFile.")); }
 
         //---------------------------------------------------------------------------------------//
         // What should happend when we press buttons and stuff...
@@ -891,6 +1019,15 @@ fn main() {
         let slot_tree_view_collapse_all = SlotNoArgs::new(move || { unsafe { app_ui.folder_tree_view.as_mut().unwrap().collapse_all(); }});
         unsafe { app_ui.tree_view_expand_all.as_ref().unwrap().signals().triggered().connect(&slot_tree_view_expand_all); }
         unsafe { app_ui.tree_view_collapse_all.as_ref().unwrap().signals().triggered().connect(&slot_tree_view_collapse_all); }
+
+        // What happens when we want to hide the "Global Search" view.
+        let slot_close_global_search = SlotNoArgs::new(clone!(
+            global_search_pattern => move || {
+                unsafe { global_search_widget.as_mut().unwrap().hide(); }
+                *global_search_pattern.borrow_mut() = None;
+            }
+        ));
+        unsafe { close_global_search_action.as_ref().unwrap().signals().triggered().connect(&slot_close_global_search); }
 
         //-----------------------------------------------------//
         // "Game Selected" Menu...
@@ -903,6 +1040,7 @@ fn main() {
             open_from_slots,
             is_modified,
             is_packedfile_opened,
+            close_global_search_action,
             mode,
             sender_qt,
             sender_qt_data,
@@ -952,6 +1090,7 @@ fn main() {
                     &mode,
                     &is_packedfile_opened,
                     &mymod_stuff,
+                    close_global_search_action,
                 );
 
                 // Re-enable the Main Window.
@@ -996,8 +1135,9 @@ fn main() {
                 // Check first if there has been changes in the PackFile.
                 if are_you_sure(&app_ui, &is_modified, false) {
 
-                    // Destroy whatever it's in the PackedFile's view, to avoid data corruption.
+                    // Destroy whatever it's in the PackedFile's view, to avoid data corruption. Also hide the Global Search stuff.
                     purge_them_all(&app_ui, &is_packedfile_opened);
+                    unsafe { close_global_search_action.as_mut().unwrap().trigger(); }
 
                     // Show the "Tips".
                     display_help_tips(&app_ui);
@@ -1116,7 +1256,8 @@ fn main() {
                             &is_modified,
                             &mode,
                             "",
-                            &is_packedfile_opened
+                            &is_packedfile_opened,
+                            close_global_search_action
                         ) { show_dialog(app_ui.window, false, error); }
                     }
                 }
@@ -1591,6 +1732,9 @@ fn main() {
 
                         // Trigger a save and break the loop.
                         unsafe { Action::trigger(app_ui.save_packfile.as_mut().unwrap()); }
+
+                        // Update the global search stuff, if needed.
+                        unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
                     }
 
                     // In ANY other situation, it's a message problem.
@@ -1840,6 +1984,7 @@ fn main() {
 
         // What happens when we trigger the "Add File/s" action in the Contextual Menu.
         let slot_contextual_menu_add_file = SlotBool::new(clone!(
+            global_search_explicit_paths,
             sender_qt,
             sender_qt_data,
             receiver_qt,
@@ -1944,11 +2089,15 @@ fn main() {
                                             app_ui.window,
                                             app_ui.folder_tree_view,
                                             app_ui.folder_tree_model,
-                                            TreeViewOperation::Add(paths_packedfile),
+                                            TreeViewOperation::Add(paths_packedfile.to_vec()),
                                         );
 
                                         // Set it as modified. Exception for the Paint System.
                                         *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
+
+                                        // Update the global search stuff, if needed.
+                                        global_search_explicit_paths.borrow_mut().append(&mut paths_packedfile);
+                                        unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
                                     }
 
                                     // If we got an error, just show it.
@@ -2006,11 +2155,15 @@ fn main() {
                                         app_ui.window,
                                         app_ui.folder_tree_view,
                                         app_ui.folder_tree_model,
-                                        TreeViewOperation::Add(paths_packedfile),
+                                        TreeViewOperation::Add(paths_packedfile.to_vec()),
                                     );
 
                                     // Set it as modified. Exception for the Paint System.
                                     *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
+
+                                    // Update the global search stuff, if needed.
+                                    global_search_explicit_paths.borrow_mut().append(&mut paths_packedfile);
+                                    unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
                                 }
 
                                 // If we got an error, just show it.
@@ -2030,6 +2183,7 @@ fn main() {
 
         // What happens when we trigger the "Add Folder/s" action in the Contextual Menu.
         let slot_contextual_menu_add_folder = SlotBool::new(clone!(
+            global_search_explicit_paths,
             sender_qt,
             sender_qt_data,
             receiver_qt,
@@ -2139,11 +2293,15 @@ fn main() {
                                             app_ui.window,
                                             app_ui.folder_tree_view,
                                             app_ui.folder_tree_model,
-                                            TreeViewOperation::Add(paths_packedfile),
+                                            TreeViewOperation::Add(paths_packedfile.to_vec()),
                                         );
 
                                         // Set it as modified. Exception for the Paint System.
                                         *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
+
+                                        // Update the global search stuff, if needed.
+                                        global_search_explicit_paths.borrow_mut().append(&mut paths_packedfile);
+                                        unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
                                     }
 
                                     // If we got an error, just show it.
@@ -2205,11 +2363,15 @@ fn main() {
                                         app_ui.window,
                                         app_ui.folder_tree_view,
                                         app_ui.folder_tree_model,
-                                        TreeViewOperation::Add(paths_packedfile),
+                                        TreeViewOperation::Add(paths_packedfile.to_vec()),
                                     );
 
                                     // Set it as modified. Exception for the Paint System.
                                     *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
+
+                                    // Update the global search stuff, if needed.
+                                    global_search_explicit_paths.borrow_mut().append(&mut paths_packedfile);
+                                    unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
                                 }
 
                                 // If we got an error, just show it.
@@ -2229,6 +2391,7 @@ fn main() {
 
         // What happens when we trigger the "Add from PackFile" action in the Contextual Menu.
         let slot_contextual_menu_add_from_packfile = SlotBool::new(clone!(
+            global_search_explicit_paths,
             sender_qt,
             sender_qt_data,
             receiver_qt,
@@ -2281,6 +2444,8 @@ fn main() {
                                 &is_folder_tree_view_locked,
                                 &is_modified,
                                 &is_packedfile_opened,
+                                &global_search_explicit_paths,
+                                update_global_search_stuff
                             );
                         }
 
@@ -2607,6 +2772,7 @@ fn main() {
 
         // What happens when we trigger the "Mass-Import TSV" Action.
         let slot_contextual_menu_mass_import_tsv = SlotBool::new(clone!(
+            global_search_explicit_paths,
             is_modified,
             sender_qt,
             sender_qt_data,
@@ -2649,11 +2815,15 @@ fn main() {
                                     app_ui.window,
                                     app_ui.folder_tree_view,
                                     app_ui.folder_tree_model,
-                                    TreeViewOperation::Add(paths_to_add),
+                                    TreeViewOperation::Add(paths_to_add.to_vec()),
                                 );
 
                                 // Set it as modified. Exception for the paint system.
                                 *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
+
+                                // Update the global search stuff, if needed.
+                                global_search_explicit_paths.borrow_mut().append(&mut paths_to_add);
+                                unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
                             }
 
                             // If we got an error...
@@ -2807,6 +2977,8 @@ fn main() {
                         // Set the mod as "Modified". For now, we don't paint deletions.
                         *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
 
+                        // Update the global search stuff, if needed.
+                        unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
                     }
 
                     // This can fail if, for some reason, the command gets resended for one file.
@@ -3201,6 +3373,7 @@ fn main() {
 
         // What happens when we trigger the "Rename" Action.
         let slot_contextual_menu_rename_current = SlotBool::new(clone!(
+            global_search_explicit_paths,
             is_modified,
             sender_qt,
             sender_qt_data,
@@ -3260,11 +3433,17 @@ fn main() {
                                         app_ui.window,
                                         app_ui.folder_tree_view,
                                         app_ui.folder_tree_model,
-                                        TreeViewOperation::Rename(item_type.clone(), new_name),
+                                        TreeViewOperation::Rename(item_type.clone(), new_name.to_owned()),
                                     );
 
                                     // Set the mod as "Modified". This is an exception to the paint system.
                                     *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
+
+                                    // Update the global search stuff, if needed.
+                                    let mut new_path = path.to_vec();
+                                    *new_path.last_mut().unwrap() = new_name.to_owned();
+                                    global_search_explicit_paths.borrow_mut().append(&mut vec![new_path; 1]);
+                                    unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
                                 }
 
                                 // If we got an error...
@@ -3303,6 +3482,7 @@ fn main() {
         ));
 
         let slot_contextual_menu_apply_prefix_to_selected = SlotBool::new(clone!(
+            global_search_explicit_paths,
             is_modified,
             sender_qt,
             sender_qt_data,
@@ -3355,11 +3535,20 @@ fn main() {
                                     app_ui.window,
                                     app_ui.folder_tree_view,
                                     app_ui.folder_tree_model,
-                                    TreeViewOperation::PrefixFiles(old_paths, prefix),
+                                    TreeViewOperation::PrefixFiles(old_paths.to_vec(), prefix.to_owned()),
                                 );
 
                                 // Set the mod as "Modified". This is an exception to the paint system.
                                 *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
+
+                                // Update the global search stuff, if needed.
+                                let mut new_paths = old_paths.to_vec();
+                                for path in &mut new_paths {
+                                    let mut new_name = format!("{}{}", prefix, *path.last().unwrap());
+                                    *path.last_mut().unwrap() = new_name.to_owned();
+                                }
+                                global_search_explicit_paths.borrow_mut().append(&mut new_paths);
+                                unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
                             }
 
                             // If we got an error...
@@ -3386,6 +3575,7 @@ fn main() {
         ));
 
         let slot_contextual_menu_apply_prefix_to_all = SlotBool::new(clone!(
+            global_search_explicit_paths,
             is_modified,
             sender_qt,
             sender_qt_data,
@@ -3420,11 +3610,20 @@ fn main() {
                                 app_ui.window,
                                 app_ui.folder_tree_view,
                                 app_ui.folder_tree_model,
-                                TreeViewOperation::PrefixFiles(old_paths, prefix),
+                                TreeViewOperation::PrefixFiles(old_paths.to_vec(), prefix.to_owned()),
                             );
 
                             // Set the mod as "Modified". This is an exception to the paint system.
                             *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
+
+                            // Update the global search stuff, if needed.
+                            let mut new_paths = old_paths.to_vec();
+                            for path in &mut new_paths {
+                                let mut new_name = format!("{}{}", prefix, *path.last().unwrap());
+                                *path.last_mut().unwrap() = new_name.to_owned();
+                            }
+                            global_search_explicit_paths.borrow_mut().append(&mut new_paths);
+                            unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
                         }
 
                         // If we got an error...
@@ -3459,7 +3658,8 @@ fn main() {
         //-----------------------------------------------------//
 
         // What happens when we try to open a PackedFile...
-        let slot_open_packedfile = SlotNoArgs::new(clone!(
+        let slot_open_packedfile = Rc::new(SlotNoArgs::new(clone!(
+            global_search_explicit_paths,
             sender_qt,
             sender_qt_data,
             receiver_qt,
@@ -3549,7 +3749,9 @@ fn main() {
                                         &receiver_qt,
                                         &is_modified,
                                         &app_ui,
-                                        path.to_vec()
+                                        path.to_vec(),
+                                        &global_search_explicit_paths,
+                                        update_global_search_stuff,
                                     ) {
                                         Ok(new_loc_slots) => *loc_slots.borrow_mut() = new_loc_slots,
                                         Err(error) => return show_dialog(app_ui.window, false, ErrorKind::LocDecode(format!("{}", error))),
@@ -3569,7 +3771,9 @@ fn main() {
                                         &receiver_qt,
                                         &is_modified,
                                         &app_ui,
-                                        path.to_vec()
+                                        path.to_vec(),
+                                        &global_search_explicit_paths,
+                                        update_global_search_stuff,
                                     ) {
                                         Ok(new_db_slots) => *db_slots.borrow_mut() = new_db_slots,
                                         Err(error) => return show_dialog(app_ui.window, false, ErrorKind::DBTableDecode(format!("{}", error))),
@@ -3645,15 +3849,516 @@ fn main() {
                     }
                 }
             }
+        )));
+
+        // What happens when we trigger the "Global Search" Action.
+        let slot_contextual_menu_global_search = SlotBool::new(clone!(
+            global_search_pattern,
+            sender_qt,
+            sender_qt_data,
+            receiver_qt => move |_| {
+
+                // Get the pattern to search, and info related to the search.
+                if let Some(pattern) = create_global_search_dialog(&app_ui) {
+
+                    // Start the search in the background thread.
+                    sender_qt.send(Commands::GlobalSearch).unwrap();
+                    sender_qt_data.send(Data::String(pattern.to_owned())).unwrap();
+
+                    // Create the dialog to show the response.
+                    let mut dialog;
+                    unsafe { dialog = MessageBox::new_unsafe((
+                        message_box::Icon::Information,
+                        &QString::from_std_str("Global search"),
+                        &QString::from_std_str("<p>Searching in progress... Please wait.</p>"),
+                        Flags::from_int(2097152), // Close button.
+                        app_ui.window as *mut Widget,
+                    )); }
+
+                    // Set it to be modal, and show it. Don't execute it, just show it.
+                    dialog.set_modal(true);
+                    dialog.show();
+
+                    // Get the data from the operation...
+                    match check_message_validity_tryrecv(&receiver_qt) {
+                        Data::VecGlobalMatch(matches) => {
+
+                            // If there are no matches, just report it.
+                            if matches.is_empty() { 
+                                dialog.set_text(&QString::from_std_str("<p>No matches found.</p>")); 
+                                dialog.exec();
+                            }
+
+                            // Otherwise...
+                            else {
+
+                                // Show the matches section in the main window and make sure both tables are empty.
+                                unsafe { global_search_widget.as_mut().unwrap().show(); }
+                                unsafe { model_matches_db.as_mut().unwrap().clear(); }
+                                unsafe { model_matches_loc.as_mut().unwrap().clear(); }
+
+                                // For each match, generate an entry in their respective table, 
+                                for match_found in &matches {
+                                    match match_found {
+
+                                        // In case of Loc PackedFiles...
+                                        GlobalMatch::Loc((path, matches)) => {
+                                            for match_found in matches.iter() {
+
+                                                // Create a new list of StandardItem.
+                                                let mut qlist = ListStandardItemMutPtr::new(());
+
+                                                // Create an empty row.
+                                                let clean_path: PathBuf = path.iter().collect();
+                                                let clean_path = clean_path.to_string_lossy();
+                                                let mut file = StandardItem::new(&QString::from_std_str(clean_path));
+                                                let mut column = StandardItem::new(&QString::from_std_str(if match_found.0 == 0 { "Key" } else { "Text" }));
+                                                let mut column_number = StandardItem::new(&QString::from_std_str(&format!("{:?}", match_found.0)));
+                                                let mut row = StandardItem::new(&QString::from_std_str(format!("{:?}", match_found.1 + 1)));
+                                                let mut text = StandardItem::new(&QString::from_std_str(&match_found.2));
+                                                file.set_editable(false);
+                                                column.set_editable(false);
+                                                column_number.set_editable(false);
+                                                row.set_editable(false);
+                                                text.set_editable(false);
+
+                                                // Add an empty row to the list.
+                                                unsafe { qlist.append_unsafe(&file.into_raw()); }
+                                                unsafe { qlist.append_unsafe(&column.into_raw()); }
+                                                unsafe { qlist.append_unsafe(&row.into_raw()); }
+                                                unsafe { qlist.append_unsafe(&text.into_raw()); }
+                                                unsafe { qlist.append_unsafe(&column_number.into_raw()); }
+
+                                                // Append the new row.
+                                                unsafe { model_matches_loc.as_mut().unwrap().append_row(&qlist); }
+                                            }
+                                        }
+
+                                        // In case of DB Tables...
+                                        GlobalMatch::DB((path, matches)) => {
+                                            for match_found in matches.iter() {
+
+                                                // Create a new list of StandardItem.
+                                                let mut qlist = ListStandardItemMutPtr::new(());
+
+                                                // Create an empty row.
+                                                let clean_path: PathBuf = path.iter().collect();
+                                                let clean_path = clean_path.to_string_lossy();
+                                                let mut file = StandardItem::new(&QString::from_std_str(clean_path));
+                                                let mut column = StandardItem::new(&QString::from_std_str(&match_found.0));
+                                                let mut column_number = StandardItem::new(&QString::from_std_str(&format!("{:?}", match_found.1)));
+                                                let mut row = StandardItem::new(&QString::from_std_str(format!("{:?}", match_found.2 + 1)));
+                                                let mut text = StandardItem::new(&QString::from_std_str(&match_found.3));
+                                                file.set_editable(false);
+                                                column.set_editable(false);
+                                                column_number.set_editable(false);
+                                                row.set_editable(false);
+                                                text.set_editable(false);
+
+                                                // Add an empty row to the list.
+                                                unsafe { qlist.append_unsafe(&file.into_raw()); }
+                                                unsafe { qlist.append_unsafe(&column.into_raw()); }
+                                                unsafe { qlist.append_unsafe(&row.into_raw()); }
+                                                unsafe { qlist.append_unsafe(&text.into_raw()); }
+                                                unsafe { qlist.append_unsafe(&column_number.into_raw()); }
+
+                                                // Append the new row.
+                                                unsafe { model_matches_db.as_mut().unwrap().append_row(&qlist); }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Hide the column number column for tables.
+                                unsafe { table_view_matches_db.as_mut().unwrap().hide_column(4); }
+                                unsafe { table_view_matches_loc.as_mut().unwrap().hide_column(4); }
+
+                                unsafe { model_matches_db.as_mut().unwrap().set_header_data((0, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("PackedFile")))); }
+                                unsafe { model_matches_db.as_mut().unwrap().set_header_data((1, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Column")))); }
+                                unsafe { model_matches_db.as_mut().unwrap().set_header_data((2, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Row")))); }
+                                unsafe { model_matches_db.as_mut().unwrap().set_header_data((3, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Match")))); }
+
+                                unsafe { model_matches_loc.as_mut().unwrap().set_header_data((0, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("PackedFile")))); }
+                                unsafe { model_matches_loc.as_mut().unwrap().set_header_data((1, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Column")))); }
+                                unsafe { model_matches_loc.as_mut().unwrap().set_header_data((2, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Row")))); }
+                                unsafe { model_matches_loc.as_mut().unwrap().set_header_data((3, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Match")))); }
+
+                                unsafe { table_view_matches_db.as_mut().unwrap().horizontal_header().as_mut().unwrap().resize_sections(ResizeMode::ResizeToContents); }
+                                unsafe { table_view_matches_loc.as_mut().unwrap().horizontal_header().as_mut().unwrap().resize_sections(ResizeMode::ResizeToContents); }
+
+                                unsafe { table_view_matches_db.as_mut().unwrap().sort_by_column((0, SortOrder::Ascending)); }
+                                unsafe { table_view_matches_loc.as_mut().unwrap().sort_by_column((0, SortOrder::Ascending)); }
+                            }
+                        }
+
+                        // In ANY other situation, it's a message problem.
+                        _ => panic!(THREADS_MESSAGE_ERROR),
+                    }
+
+                    // Store the pattern for future checks.
+                    *global_search_pattern.borrow_mut() = Some(pattern);
+                }
+            }
         ));
 
+        // What happens when we activate one of the matches in the "Loc Matches" table.
+        let slot_load_match_loc = SlotModelIndexRef::new(clone!(
+            slot_open_packedfile => move |model_index_filter| {
+
+                // Map the ModelIndex to his real ModelIndex in the full model.
+                let model_index_match;
+                unsafe { model_index_match = filter_model_matches_db.as_mut().unwrap().map_to_source(&model_index_filter); }
+
+                // Get the data about the PackedFile.
+                let path;
+                let row;
+                let column;
+                unsafe { path = model_matches_loc.as_mut().unwrap().item((model_index_match.row(), 0)).as_mut().unwrap().text().to_std_string(); }
+                let path: Vec<String> = path.split(|x| x == '/' || x == '\\').map(|x| x.to_owned()).collect();
+                unsafe { row = model_matches_loc.as_mut().unwrap().item((model_index_match.row(), 2)).as_mut().unwrap().text().to_std_string().parse::<i32>().unwrap() - 1; }
+                unsafe { column = model_matches_loc.as_mut().unwrap().item((model_index_match.row(), 4)).as_mut().unwrap().text().to_std_string().parse::<i32>().unwrap();; }
+
+                // Expand and select the item in the TreeView.
+                let item = get_item_from_incomplete_path(app_ui.folder_tree_model, &path);
+                let model_index;
+                unsafe { model_index = app_ui.folder_tree_model.as_mut().unwrap().index_from_item(item); }
+
+                let selection_model;
+                unsafe { selection_model = app_ui.folder_tree_view.as_mut().unwrap().selection_model(); }
+                unsafe { selection_model.as_mut().unwrap().select((
+                    &model_index,
+                    Flags::from_enum(SelectionFlag::ClearAndSelect)
+                )); }
+
+                // Show the PackedFile in the TreeView.
+                expand_treeview_to_item(app_ui.folder_tree_view, app_ui.folder_tree_model, &path);
+                unsafe { app_ui.folder_tree_view.as_mut().unwrap().scroll_to(&model_index); }
+                
+                // Open the PackedFile and select the match in it.
+                let action = Action::new(()).into_raw();
+                unsafe { action.as_mut().unwrap().signals().triggered().connect(&*slot_open_packedfile); }
+                unsafe { action.as_mut().unwrap().trigger(); }
+
+                let packed_file_table;
+                let packed_file_model;
+                unsafe { packed_file_table = app_ui.packed_file_layout.as_mut().unwrap().item_at(0).as_mut().unwrap().widget() as *mut TableView; }
+                unsafe { packed_file_model = packed_file_table.as_mut().unwrap().model(); }
+                let selection_model;
+                unsafe { selection_model = packed_file_table.as_mut().unwrap().selection_model(); }
+                unsafe { selection_model.as_mut().unwrap().select((
+                    &packed_file_model.as_mut().unwrap().index((row, column)),
+                    Flags::from_enum(SelectionFlag::ClearAndSelect)
+                )); }
+
+                unsafe { packed_file_table.as_mut().unwrap().scroll_to(&packed_file_model.as_mut().unwrap().index((row, column))); }
+            }
+        ));
+
+        // What happens when we activate one of the matches in the "DB Matches" table.
+        let slot_load_match_db = SlotModelIndexRef::new(clone!(
+            slot_open_packedfile => move |model_index_filter| {
+
+                // Map the ModelIndex to his real ModelIndex in the full model.
+                let model_index_match;
+                unsafe { model_index_match = filter_model_matches_db.as_mut().unwrap().map_to_source(&model_index_filter); }
+
+                // Get the data about the PackedFile.
+                let path;
+                let row;
+                let column;
+                unsafe { path = model_matches_db.as_mut().unwrap().item((model_index_match.row(), 0)).as_mut().unwrap().text().to_std_string(); }
+                let path: Vec<String> = path.split(|x| x == '/' || x == '\\').map(|x| x.to_owned()).collect();
+                unsafe { row = model_matches_db.as_mut().unwrap().item((model_index_match.row(), 2)).as_mut().unwrap().text().to_std_string().parse::<i32>().unwrap() - 1; }
+                unsafe { column = model_matches_db.as_mut().unwrap().item((model_index_match.row(), 4)).as_mut().unwrap().text().to_std_string().parse::<i32>().unwrap(); }
+
+                // Expand and select the item in the TreeView.
+                let item = get_item_from_incomplete_path(app_ui.folder_tree_model, &path);
+                let model_index;
+                unsafe { model_index = app_ui.folder_tree_model.as_mut().unwrap().index_from_item(item); }
+
+                let selection_model;
+                unsafe { selection_model = app_ui.folder_tree_view.as_mut().unwrap().selection_model(); }
+                unsafe { selection_model.as_mut().unwrap().select((
+                    &model_index,
+                    Flags::from_enum(SelectionFlag::ClearAndSelect)
+                )); }
+
+                // Show the PackedFile in the TreeView.
+                expand_treeview_to_item(app_ui.folder_tree_view, app_ui.folder_tree_model, &path);
+                unsafe { app_ui.folder_tree_view.as_mut().unwrap().scroll_to(&model_index); }
+                
+                // Open the PackedFile and select the match in it.
+                let action = Action::new(()).into_raw();
+                unsafe { action.as_mut().unwrap().signals().triggered().connect(&*slot_open_packedfile); }
+                unsafe { action.as_mut().unwrap().trigger(); }
+
+                let packed_file_table;
+                let packed_file_model;
+                unsafe { packed_file_table = app_ui.packed_file_layout.as_mut().unwrap().item_at(0).as_mut().unwrap().widget() as *mut TableView; }
+                unsafe { packed_file_model = packed_file_table.as_mut().unwrap().model(); }
+                let selection_model;
+                unsafe { selection_model = packed_file_table.as_mut().unwrap().selection_model(); }
+                unsafe { selection_model.as_mut().unwrap().select((
+                    &packed_file_model.as_mut().unwrap().index((row, column)),
+                    Flags::from_enum(SelectionFlag::ClearAndSelect)
+                )); }
+
+                unsafe { packed_file_table.as_mut().unwrap().scroll_to(&packed_file_model.as_mut().unwrap().index((row, column))); }
+            }
+        ));
+
+        // What happens when we want to update the "Global Search" view.
+        let slot_update_global_search_stuff = SlotNoArgs::new(clone!(
+            sender_qt,
+            sender_qt_data,
+            receiver_qt,
+            global_search_explicit_paths,
+            global_search_pattern => move || {
+
+                // If we have the global search stuff visible and we have a pattern...
+                let is_visible;
+                unsafe { is_visible = global_search_widget.as_ref().unwrap().is_visible() }
+                if is_visible {
+                    if let Some(ref pattern) = *global_search_pattern.borrow() {
+
+                        // List of all the paths to check.
+                        let mut paths = vec![];
+
+                        // For each row in the Loc Table, get his path.
+                        let rows;
+                        unsafe { rows = model_matches_loc.as_mut().unwrap().row_count(()); }
+                        for item in 0..rows {
+
+                            // Get the paths of the PackedFiles to check.
+                            let path;
+                            unsafe { path = model_matches_loc.as_mut().unwrap().item((item, 0)).as_mut().unwrap().text().to_std_string(); }
+                            paths.push(path.split(|x| x == '/' || x == '\\').map(|x| x.to_owned()).collect::<Vec<String>>());
+                        }
+
+                        // For each row in the DB Table, get his path.
+                        let rows;
+                        unsafe { rows = model_matches_db.as_mut().unwrap().row_count(()); }
+                        for item in 0..rows {
+
+                            // Get the paths of the PackedFiles to check.
+                            let path;
+                            unsafe { path = model_matches_db.as_mut().unwrap().item((item, 0)).as_mut().unwrap().text().to_std_string(); }
+                            paths.push(path.split(|x| x == '/' || x == '\\').map(|x| x.to_owned()).collect::<Vec<String>>());
+                        }
+
+                        // Add the explicit paths to the list and reset their list.
+                        paths.append(&mut global_search_explicit_paths.borrow().to_vec());
+                        global_search_explicit_paths.borrow_mut().clear();
+
+                        // Sort the paths and remove duplicates.
+                        paths.sort();
+                        paths.dedup();
+
+                        // Start the search in the background thread.
+                        sender_qt.send(Commands::UpdateGlobalSearchData).unwrap();
+                        sender_qt_data.send(Data::StringVecVecString((pattern.to_owned(), paths))).unwrap();
+
+                        // Get the data from the operation...
+                        match check_message_validity_tryrecv(&receiver_qt) {
+                            Data::VecGlobalMatch(matches) => {
+
+                                unsafe { model_matches_db.as_mut().unwrap().clear(); }
+                                unsafe { model_matches_loc.as_mut().unwrap().clear(); }
+
+                                // For each match, generate an entry in their respective table, 
+                                for match_found in &matches {
+                                    match match_found {
+
+                                        // In case of Loc PackedFiles...
+                                        GlobalMatch::Loc((path, matches)) => {
+                                            for match_found in matches.iter() {
+
+                                                // Create a new list of StandardItem.
+                                                let mut qlist = ListStandardItemMutPtr::new(());
+
+                                                // Create an empty row.
+                                                let clean_path: PathBuf = path.iter().collect();
+                                                let clean_path = clean_path.to_string_lossy();
+                                                let mut file = StandardItem::new(&QString::from_std_str(clean_path));
+                                                let mut column = StandardItem::new(&QString::from_std_str(if match_found.0 == 0 { "Key" } else { "Text" }));
+                                                let mut column_number = StandardItem::new(&QString::from_std_str(format!("{:?}", match_found.0)));
+                                                let mut row = StandardItem::new(&QString::from_std_str(format!("{:?}", match_found.1 + 1)));
+                                                let mut text = StandardItem::new(&QString::from_std_str(&match_found.2));
+                                                file.set_editable(false);
+                                                column.set_editable(false);
+                                                column_number.set_editable(false);
+                                                row.set_editable(false);
+                                                text.set_editable(false);
+
+                                                // Add an empty row to the list.
+                                                unsafe { qlist.append_unsafe(&file.into_raw()); }
+                                                unsafe { qlist.append_unsafe(&column.into_raw()); }
+                                                unsafe { qlist.append_unsafe(&row.into_raw()); }
+                                                unsafe { qlist.append_unsafe(&text.into_raw()); }
+                                                unsafe { qlist.append_unsafe(&column_number.into_raw()); }
+
+                                                // Append the new row.
+                                                unsafe { model_matches_loc.as_mut().unwrap().append_row(&qlist); }
+                                            }
+                                        }
+
+                                        // In case of DB Tables...
+                                        GlobalMatch::DB((path, matches)) => {
+                                            for match_found in matches.iter() {
+
+                                                // Create a new list of StandardItem.
+                                                let mut qlist = ListStandardItemMutPtr::new(());
+
+                                                // Create an empty row.
+                                                let clean_path: PathBuf = path.iter().collect();
+                                                let clean_path = clean_path.to_string_lossy();
+                                                let mut file = StandardItem::new(&QString::from_std_str(clean_path));
+                                                let mut column = StandardItem::new(&QString::from_std_str(&match_found.0));
+                                                let mut column_number = StandardItem::new(&QString::from_std_str(&format!("{:?}", match_found.1)));
+                                                let mut row = StandardItem::new(&QString::from_std_str(format!("{:?}", match_found.2 + 1)));
+                                                let mut text = StandardItem::new(&QString::from_std_str(&match_found.3));
+                                                file.set_editable(false);
+                                                column.set_editable(false);
+                                                column_number.set_editable(false);
+                                                row.set_editable(false);
+                                                text.set_editable(false);
+
+                                                // Add an empty row to the list.
+                                                unsafe { qlist.append_unsafe(&file.into_raw()); }
+                                                unsafe { qlist.append_unsafe(&column.into_raw()); }
+                                                unsafe { qlist.append_unsafe(&row.into_raw()); }
+                                                unsafe { qlist.append_unsafe(&text.into_raw()); }
+                                                unsafe { qlist.append_unsafe(&column_number.into_raw()); }
+
+                                                // Append the new row.
+                                                unsafe { model_matches_db.as_mut().unwrap().append_row(&qlist); }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Hide the column number column for tables.
+                                unsafe { table_view_matches_db.as_mut().unwrap().hide_column(4); }
+                                unsafe { table_view_matches_loc.as_mut().unwrap().hide_column(4); }
+                            }
+
+                            // In ANY other situation, it's a message problem.
+                            _ => panic!(THREADS_MESSAGE_ERROR),
+                        }
+
+                        // Reconfigure the columns.
+                        unsafe { model_matches_db.as_mut().unwrap().set_header_data((0, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("PackedFile")))); }
+                        unsafe { model_matches_db.as_mut().unwrap().set_header_data((1, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Column")))); }
+                        unsafe { model_matches_db.as_mut().unwrap().set_header_data((2, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Row")))); }
+                        unsafe { model_matches_db.as_mut().unwrap().set_header_data((3, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Match")))); }
+
+                        unsafe { model_matches_loc.as_mut().unwrap().set_header_data((0, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("PackedFile")))); }
+                        unsafe { model_matches_loc.as_mut().unwrap().set_header_data((1, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Column")))); }
+                        unsafe { model_matches_loc.as_mut().unwrap().set_header_data((2, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Row")))); }
+                        unsafe { model_matches_loc.as_mut().unwrap().set_header_data((3, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Match")))); }
+
+                        unsafe { table_view_matches_db.as_mut().unwrap().horizontal_header().as_mut().unwrap().resize_sections(ResizeMode::ResizeToContents); }
+                        unsafe { table_view_matches_loc.as_mut().unwrap().horizontal_header().as_mut().unwrap().resize_sections(ResizeMode::ResizeToContents); }
+
+                        unsafe { table_view_matches_db.as_mut().unwrap().sort_by_column((0, SortOrder::Ascending)); }
+                        unsafe { table_view_matches_loc.as_mut().unwrap().sort_by_column((0, SortOrder::Ascending)); }
+                    }
+                }
+            }
+        ));
+
+        // What happens when we use the filters to filter search results.
+        let slot_matches_filter_db_change_text = SlotStringRef::new(move |filter_text| {
+            filter_matches_result(
+                Some(QString::from_std_str(filter_text.to_std_string())),
+                None,
+                None,
+                filter_model_matches_db,
+                filter_matches_db_line_edit,
+                filter_matches_db_column_selector,
+                filter_matches_db_case_sensitive_button,
+            ); 
+        });
+        let slot_matches_filter_db_change_column = SlotCInt::new(move |index| {
+            filter_matches_result(
+                None,
+                Some(index),
+                None,
+                filter_model_matches_db,
+                filter_matches_db_line_edit,
+                filter_matches_db_column_selector,
+                filter_matches_db_case_sensitive_button,
+            ); 
+        });
+        let slot_matches_filter_db_change_case_sensitivity = SlotBool::new(move |case_sensitive| {
+            filter_matches_result(
+                None,
+                None,
+                Some(case_sensitive),
+                filter_model_matches_db,
+                filter_matches_db_line_edit,
+                filter_matches_db_column_selector,
+                filter_matches_db_case_sensitive_button,
+            ); 
+        });
+
+        let slot_matches_filter_loc_change_text = SlotStringRef::new(move |filter_text| {
+            filter_matches_result(
+                Some(QString::from_std_str(filter_text.to_std_string())),
+                None,
+                None,
+                filter_model_matches_loc,
+                filter_matches_loc_line_edit,
+                filter_matches_loc_column_selector,
+                filter_matches_loc_case_sensitive_button,
+            ); 
+        });
+        let slot_matches_filter_loc_change_column = SlotCInt::new(move |index| {
+            filter_matches_result(
+                None,
+                Some(index),
+                None,
+                filter_model_matches_loc,
+                filter_matches_loc_line_edit,
+                filter_matches_loc_column_selector,
+                filter_matches_loc_case_sensitive_button,
+            ); 
+        });
+        let slot_matches_filter_loc_change_case_sensitivity = SlotBool::new(move |case_sensitive| {
+            filter_matches_result(
+                None,
+                None,
+                Some(case_sensitive),
+                filter_model_matches_loc,
+                filter_matches_loc_line_edit,
+                filter_matches_loc_column_selector,
+                filter_matches_loc_case_sensitive_button,
+            ); 
+        });
+
         // Action to try to open a PackedFile.
-        unsafe { app_ui.folder_tree_view.as_ref().unwrap().signals().activated().connect(&slot_open_packedfile); }
+        unsafe { app_ui.folder_tree_view.as_ref().unwrap().signals().activated().connect(&*slot_open_packedfile); }
 
         // In windows "activated" means double click, so we need to add this action too to compensate it.
         if cfg!(target_os = "windows") {
-            unsafe { app_ui.folder_tree_view.as_ref().unwrap().signals().clicked().connect(&slot_open_packedfile); }
+            unsafe { app_ui.folder_tree_view.as_ref().unwrap().signals().clicked().connect(&*slot_open_packedfile); }
         }
+
+        // Global search actions.
+        unsafe { app_ui.context_menu_global_search.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_global_search); }
+        unsafe { table_view_matches_loc.as_mut().unwrap().signals().double_clicked().connect(&slot_load_match_loc); }
+        unsafe { table_view_matches_db.as_mut().unwrap().signals().double_clicked().connect(&slot_load_match_db); }
+        unsafe { close_matches_button.as_mut().unwrap().signals().released().connect(&slot_close_global_search); }
+        unsafe { update_global_search_stuff.as_mut().unwrap().signals().triggered().connect(&slot_update_global_search_stuff); }
+
+        // Trigger the filter whenever the "filtered" text changes, the "filtered" column changes or the "Case Sensitive" button changes.
+        unsafe { filter_matches_db_line_edit.as_mut().unwrap().signals().text_changed().connect(&slot_matches_filter_db_change_text); }
+        unsafe { filter_matches_db_column_selector.as_mut().unwrap().signals().current_index_changed_c_int().connect(&slot_matches_filter_db_change_column); }
+        unsafe { filter_matches_db_case_sensitive_button.as_mut().unwrap().signals().toggled().connect(&slot_matches_filter_db_change_case_sensitivity); }
+
+        unsafe { filter_matches_loc_line_edit.as_mut().unwrap().signals().text_changed().connect(&slot_matches_filter_loc_change_text); }
+        unsafe { filter_matches_loc_column_selector.as_mut().unwrap().signals().current_index_changed_c_int().connect(&slot_matches_filter_loc_change_column); }
+        unsafe { filter_matches_loc_case_sensitive_button.as_mut().unwrap().signals().toggled().connect(&slot_matches_filter_loc_change_case_sensitivity); }
 
         //-----------------------------------------------------//
         // Show the Main Window and start everything...
@@ -3669,6 +4374,7 @@ fn main() {
             receiver_qt,
             is_modified,
             mode,
+            close_global_search_action,
             mymod_menu_needs_rebuild => move || {
 
                 // If we need to rebuild the "MyMod" menu...
@@ -3684,7 +4390,8 @@ fn main() {
                         is_modified.clone(),
                         mode.clone(),
                         mymod_menu_needs_rebuild.clone(),
-                        &is_packedfile_opened
+                        &is_packedfile_opened,
+                        close_global_search_action
                     );
 
                     // And store the new values.
@@ -3724,7 +4431,8 @@ fn main() {
                     &is_modified,
                     &mode,
                     "",
-                    &is_packedfile_opened
+                    &is_packedfile_opened,
+                    close_global_search_action
                 ) { show_dialog(app_ui.window, false, error); }
             }
         }
@@ -3902,6 +4610,7 @@ fn open_packfile(
     mode: &Rc<RefCell<Mode>>,
     game_folder: &str,
     is_packedfile_opened: &Rc<RefCell<Option<Vec<String>>>>,
+    close_global_search_action: *mut Action,
 ) -> Result<()> {
 
     // Tell the Background Thread to create a new PackFile.
@@ -4002,6 +4711,7 @@ fn open_packfile(
 
             // Destroy whatever it's in the PackedFile's view, to avoid data corruption.
             purge_them_all(&app_ui, &is_packedfile_opened);
+            unsafe { close_global_search_action.as_mut().unwrap().trigger(); }
 
             // Show the "Tips".
             display_help_tips(&app_ui);
@@ -4051,7 +4761,8 @@ fn build_my_mod_menu(
     is_modified: Rc<RefCell<bool>>,
     mode: Rc<RefCell<Mode>>,
     needs_rebuild: Rc<RefCell<bool>>,
-    is_packedfile_opened: &Rc<RefCell<Option<Vec<String>>>>
+    is_packedfile_opened: &Rc<RefCell<Option<Vec<String>>>>,
+    close_global_search_action: *mut Action,
 ) -> (MyModStuff, MyModSlots) {
 
     // Get the current Settings, as we are going to need them later.
@@ -4516,6 +5227,7 @@ fn build_my_mod_menu(
                                         mymod_stuff,
                                         pack_file,
                                         is_packedfile_opened,
+                                        close_global_search_action,
                                         sender_qt,
                                         sender_qt_data,
                                         receiver_qt => move |_| {
@@ -4535,6 +5247,7 @@ fn build_my_mod_menu(
                                                     &mode,
                                                     &game_folder_name,
                                                     &is_packedfile_opened,
+                                                    close_global_search_action
                                                 ) { show_dialog(app_ui.window, false, error) }
                                             }
                                         }
@@ -4596,6 +5309,7 @@ fn build_open_from_submenus(
     mode: &Rc<RefCell<Mode>>,
     is_packedfile_opened: &Rc<RefCell<Option<Vec<String>>>>,
     mymod_stuff: &Rc<RefCell<MyModStuff>>,
+    close_global_search_action: *mut Action
 ) -> Vec<SlotBool<'static>> {
 
     // Get the current Settings, as we are going to need them later.
@@ -4632,6 +5346,7 @@ fn build_open_from_submenus(
                 mymod_stuff,
                 path,
                 is_packedfile_opened,
+                close_global_search_action,
                 sender_qt,
                 sender_qt_data,
                 receiver_qt => move |_| {
@@ -4650,7 +5365,8 @@ fn build_open_from_submenus(
                             &is_modified,
                             &mode,
                             "",
-                            &is_packedfile_opened
+                            &is_packedfile_opened,
+                            close_global_search_action
                         ) { show_dialog(app_ui.window, false, error); }
                     }
                 }
@@ -4683,6 +5399,7 @@ fn build_open_from_submenus(
                 mymod_stuff,
                 path,
                 is_packedfile_opened,
+                close_global_search_action,
                 sender_qt,
                 sender_qt_data,
                 receiver_qt => move |_| {
@@ -4701,7 +5418,8 @@ fn build_open_from_submenus(
                             &is_modified,
                             &mode,
                             "",
-                            &is_packedfile_opened
+                            &is_packedfile_opened,
+                            close_global_search_action
                         ) { show_dialog(app_ui.window, false, error); }
                     }
                 }
@@ -4721,4 +5439,46 @@ fn build_open_from_submenus(
 
     // Return the slots.
     open_from_slots
+}
+
+/// Function to filter the results of a global search, in any of the result tables.
+/// If a value is not provided by a slot, we get it from the widget itself.
+fn filter_matches_result(
+    pattern: Option<QString>,
+    column: Option<i32>,
+    case_sensitive: Option<bool>,
+    filter_model: *mut SortFilterProxyModel,
+    filter_line_edit: *mut LineEdit,
+    column_selector: *mut ComboBox,
+    case_sensitive_button: *mut PushButton,
+) {
+
+    // Set the pattern to search.
+    let mut pattern = if let Some(pattern) = pattern { RegExp::new(&pattern) }
+    else { 
+        let pattern;
+        unsafe { pattern = RegExp::new(&filter_line_edit.as_mut().unwrap().text()) }
+        pattern
+    };
+
+    // Set the column selected.
+    if let Some(column) = column { unsafe { filter_model.as_mut().unwrap().set_filter_key_column(column); }}
+    else { unsafe { filter_model.as_mut().unwrap().set_filter_key_column(column_selector.as_mut().unwrap().current_index()); }}
+
+    // Check if the filter should be "Case Sensitive".
+    if let Some(case_sensitive) = case_sensitive { 
+        if case_sensitive { pattern.set_case_sensitivity(CaseSensitivity::Sensitive); }
+        else { pattern.set_case_sensitivity(CaseSensitivity::Insensitive); }
+    }
+
+    else {
+        unsafe { 
+            let case_sensitive = case_sensitive_button.as_mut().unwrap().is_checked();
+            if case_sensitive { pattern.set_case_sensitivity(CaseSensitivity::Sensitive); }
+            else { pattern.set_case_sensitivity(CaseSensitivity::Insensitive); }
+        }
+    }
+
+    // Filter whatever it's in that column by the text we got.
+    unsafe { filter_model.as_mut().unwrap().set_filter_reg_exp(&pattern); }
 }

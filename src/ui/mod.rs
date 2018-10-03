@@ -9,8 +9,8 @@ extern crate serde_json;
 use qt_widgets::action::Action;
 use qt_widgets::combo_box::ComboBox;
 use qt_widgets::dialog::Dialog;
-use qt_widgets::grid_layout::GridLayout;
 use qt_widgets::file_dialog::{FileDialog, FileMode};
+use qt_widgets::grid_layout::GridLayout;
 use qt_widgets::label::Label;
 use qt_widgets::layout::Layout;
 use qt_widgets::line_edit::LineEdit;
@@ -129,9 +129,11 @@ impl AddFromPackFileSlots {
         app_ui: AppUI,
         is_folder_tree_view_locked: &Rc<RefCell<bool>>,
         is_modified: &Rc<RefCell<bool>>,
-        is_packedfile_opened: &Rc<RefCell<Option<Vec<String>>>>
+        is_packedfile_opened: &Rc<RefCell<Option<Vec<String>>>>,
+        global_search_explicit_paths: &Rc<RefCell<Vec<Vec<String>>>>,
+        update_global_search_stuff: *mut Action,
     ) -> Self {
-
+        
         // Create the stuff.
         let tree_view = TreeView::new().into_raw();
         let tree_model = StandardItemModel::new(()).into_raw();
@@ -152,6 +154,7 @@ impl AddFromPackFileSlots {
 
             // This slot is used to copy something from one PackFile to the other when pressing the "<=" button.
             copy: SlotModelIndexRef::new(clone!(
+                global_search_explicit_paths,
                 is_modified,
                 sender_qt,
                 sender_qt_data,
@@ -175,7 +178,7 @@ impl AddFromPackFileSlots {
                     match check_message_validity_tryrecv(&receiver_qt) {
                     
                         // If it's success....
-                        Data::VecVecString(paths) => {
+                        Data::VecVecString(mut paths) => {
 
                             // Update the TreeView.
                             update_treeview(
@@ -185,11 +188,15 @@ impl AddFromPackFileSlots {
                                 app_ui.window,
                                 app_ui.folder_tree_view,
                                 app_ui.folder_tree_model,
-                                TreeViewOperation::Add(paths),
+                                TreeViewOperation::Add(paths.to_vec()),
                             );
 
                             // Set the mod as "Modified". This is an exception for the path, as it'll be painted later on.
                             *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
+
+                            // Update the global search stuff, if needed.
+                            global_search_explicit_paths.borrow_mut().append(&mut paths);
+                            unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
                         }
 
                         // If we got an error...
@@ -719,6 +726,38 @@ fn create_prefab(
     else { show_dialog(app_ui.window, false, "There are no catchment PackedFiles in this PackFile."); }
 }*/
 
+/// This function creates the entire "Global Search" dialog. It returns the search info (pattern, case_sensitive).
+pub fn create_global_search_dialog(app_ui: &AppUI) -> Option<String> {
+
+    let mut dialog;
+    unsafe { dialog = Dialog::new_unsafe(app_ui.window as *mut Widget); }
+    dialog.set_window_title(&QString::from_std_str("Global Search"));
+    dialog.set_modal(true);
+
+    // Create the main Grid.
+    let main_grid = GridLayout::new().into_raw();
+    let mut pattern = LineEdit::new(());
+    pattern.set_placeholder_text(&QString::from_std_str("Write here what you want to search."));
+
+    let search_button = PushButton::new(&QString::from_std_str("Search")).into_raw();
+    unsafe { main_grid.as_mut().unwrap().add_widget((pattern.static_cast_mut() as *mut Widget, 0, 0, 1, 1)); }
+    unsafe { main_grid.as_mut().unwrap().add_widget((search_button as *mut Widget, 0, 1, 1, 1)); }
+    unsafe { dialog.set_layout(main_grid as *mut Layout); }
+
+    // What happens when we hit the "Search" button.
+    unsafe { search_button.as_mut().unwrap().signals().released().connect(&dialog.slots().accept()); }
+
+    // Execute the dialog.
+    if dialog.exec() == 1 { 
+        let text = pattern.text().to_std_string();
+        if !text.is_empty() { Some(text) }
+        else { None }
+    }
+    
+    // Otherwise, return None.
+    else { None }
+}
+
 //----------------------------------------------------------------------------//
 //                    Trait Implementations for Qt Stuff
 //----------------------------------------------------------------------------//
@@ -1172,6 +1211,79 @@ pub fn are_you_sure(
 
     // Otherwise, we allow the change directly.
     else { true }
+}
+
+/// This function is used to expand the entire path from the PackFile to an specific item in the TreeView.
+pub fn expand_treeview_to_item(
+    tree_view: *mut TreeView,
+    model: *mut StandardItemModel,
+    path: &[String],
+) {
+    // Get it another time, this time to use it to hold the current item.
+    let mut item;
+    unsafe { item = model.as_ref().unwrap().item(0); }
+    unsafe { tree_view.as_mut().unwrap().expand(&model.as_ref().unwrap().index_from_item(item)); }
+
+    // Indexes to see how deep we must go.
+    let mut index = 0;
+    let path_deep = path.len();
+
+    // First looping downwards.
+    loop {
+
+        // If we reached the folder of the file, stop.
+        if index == (path_deep - 1) { return }
+
+        // If we are not still in the folder of the file...
+        else {
+
+            // Get the amount of children of the current item.
+            let children_count;
+            unsafe { children_count = item.as_ref().unwrap().row_count(); }
+
+            // Bool to know when to stop in case of not finding the path.
+            let mut not_found = true;
+
+            // For each children we have...
+            for row in 0..children_count {
+
+                // Check if it has children of his own.
+                let child;
+                let has_children;
+                unsafe { child = item.as_ref().unwrap().child(row); }
+                unsafe { has_children = child.as_ref().unwrap().has_children(); }
+
+                // If it doesn't have children, continue with the next child.
+                if !has_children { continue; }
+
+                // Get his text.
+                let text;
+                unsafe { text = child.as_ref().unwrap().text().to_std_string(); }
+
+                // If it's the one we're looking for...
+                if text == path[index] {
+
+                    // Use it as our new item.
+                    item = child;
+
+                    // Increase the index.
+                    index += 1;
+
+                    // Tell the progam you found the child.
+                    not_found = false;
+
+                    // Expand the folder.
+                    unsafe { tree_view.as_mut().unwrap().expand(&model.as_ref().unwrap().index_from_item(item)); }
+
+                    // Break the loop.
+                    break;
+                }
+            }
+
+            // If the child was not found, stop and return the parent.
+            if not_found { break; }
+        }
+    }
 }
 
 /// This function is used to get the complete Path of a Selected Item in the TreeView.

@@ -71,6 +71,7 @@ impl Shortcuts {
         tree_view.insert("apply_prefix_to_all".to_owned(), "Ctrl+Alt+R".to_owned());
         tree_view.insert("open_in_decoder".to_owned(), "Ctrl+J".to_owned());
         tree_view.insert("open_packfiles_list".to_owned(), "Ctrl+M".to_owned());
+        tree_view.insert("global_search".to_owned(), "Ctrl+Shift+F".to_owned());
         tree_view.insert("expand_all".to_owned(), "Ctrl++".to_owned());
         tree_view.insert("collapse_all".to_owned(), "Ctrl+-".to_owned());
 

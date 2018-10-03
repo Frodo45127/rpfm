@@ -236,6 +236,8 @@ impl PackedFileDBTreeView {
         is_modified: &Rc<RefCell<bool>>,
         app_ui: &AppUI,
         packed_file_path: Vec<String>,
+        global_search_explicit_paths: &Rc<RefCell<Vec<Vec<String>>>>,
+        update_global_search_stuff: *mut Action,
     ) -> Result<Self> {
 
         // Get the settings.
@@ -528,6 +530,7 @@ impl PackedFileDBTreeView {
         // Slots for the TableView...
         let slots = Self {
             slot_undo: SlotNoArgs::new(clone!(
+                global_search_explicit_paths,
                 dependency_data,
                 packed_file_path,
                 app_ui,
@@ -552,6 +555,8 @@ impl PackedFileDBTreeView {
                         model,
                         &history,
                         &history_redo,
+                        &global_search_explicit_paths,
+                        update_global_search_stuff,
                     );
                     unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
     
@@ -561,6 +566,7 @@ impl PackedFileDBTreeView {
             )),
 
             slot_redo: SlotNoArgs::new(clone!(
+                global_search_explicit_paths,
                 dependency_data,
                 packed_file_path,
                 app_ui,
@@ -585,6 +591,8 @@ impl PackedFileDBTreeView {
                         model,
                         &history_redo,
                         &history,
+                        &global_search_explicit_paths,
+                        update_global_search_stuff,
                     );
                     unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
     
@@ -639,6 +647,7 @@ impl PackedFileDBTreeView {
                 }
             ),
             save_changes: SlotModelIndexRefModelIndexRefVectorVectorCIntRef::new(clone!(
+                global_search_explicit_paths,
                 packed_file_path,
                 app_ui,
                 is_modified,
@@ -659,6 +668,8 @@ impl PackedFileDBTreeView {
                             &packed_file_data,
                             &packed_file_path,
                             model,
+                            &global_search_explicit_paths,
+                            update_global_search_stuff,
                         );
 
                         // Update the search stuff, if needed.
@@ -947,6 +958,7 @@ impl PackedFileDBTreeView {
                 }
             )),
             slot_context_menu_delete: SlotBool::new(clone!(
+                global_search_explicit_paths,
                 packed_file_path,
                 app_ui,
                 is_modified,
@@ -1002,6 +1014,8 @@ impl PackedFileDBTreeView {
                             &packed_file_data,
                             &packed_file_path,
                             model,
+                            &global_search_explicit_paths,
+                            update_global_search_stuff,
                         );
 
                         // Update the search stuff, if needed.
@@ -1015,6 +1029,7 @@ impl PackedFileDBTreeView {
                 }
             )),
             slot_context_menu_clone: SlotBool::new(clone!(
+                global_search_explicit_paths,
                 packed_file_path,
                 app_ui,
                 is_modified,
@@ -1111,6 +1126,8 @@ impl PackedFileDBTreeView {
                             &packed_file_data,
                             &packed_file_path,
                             model,
+                            &global_search_explicit_paths,
+                            update_global_search_stuff,
                         );
 
                         // Update the search stuff, if needed.
@@ -1414,6 +1431,7 @@ impl PackedFileDBTreeView {
             )),
 
             slot_context_menu_paste_as_new_lines: SlotBool::new(clone!(
+                global_search_explicit_paths,
                 settings,
                 dependency_data,
                 packed_file_path,
@@ -1612,6 +1630,8 @@ impl PackedFileDBTreeView {
                                 &packed_file_data,
                                 &packed_file_path,
                                 model,
+                                &global_search_explicit_paths,
+                                update_global_search_stuff,
                             );
 
                             // Update the search stuff, if needed.
@@ -1693,6 +1713,7 @@ impl PackedFileDBTreeView {
             }),
 
             slot_context_menu_import: SlotBool::new(clone!(
+                global_search_explicit_paths,
                 settings,
                 app_ui,
                 is_modified,
@@ -1760,6 +1781,8 @@ impl PackedFileDBTreeView {
                             &packed_file_data,
                             &packed_file_path,
                             model,
+                            &global_search_explicit_paths,
+                            update_global_search_stuff,
                         );
 
                         // Update the search stuff, if needed.
@@ -1818,6 +1841,7 @@ impl PackedFileDBTreeView {
                 }
             )),
             slot_smart_delete: SlotBool::new(clone!(
+                global_search_explicit_paths,
                 app_ui,
                 is_modified,
                 table_definition,
@@ -1899,6 +1923,8 @@ impl PackedFileDBTreeView {
                             &packed_file_data,
                             &packed_file_path,
                             model,
+                            &global_search_explicit_paths,
+                            update_global_search_stuff,
                         );
                     }
 
@@ -2602,6 +2628,8 @@ impl PackedFileDBTreeView {
         data: &Rc<RefCell<DBData>>,
         packed_file_path: &[String],
         model: *mut StandardItemModel,
+        global_search_explicit_paths: &Rc<RefCell<Vec<Vec<String>>>>,
+        update_global_search_stuff: *mut Action,
     ) {
 
         // Update the DBData with the data in the table, or report error if it fails.
@@ -2615,6 +2643,10 @@ impl PackedFileDBTreeView {
 
         // Set the mod as "Modified".
         *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(packed_file_path.to_vec()));
+
+        // Update the global search stuff, if needed.
+        global_search_explicit_paths.borrow_mut().push(packed_file_path.to_vec());
+        unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
     }
 
     /// Function to undo/redo an operation in the table.
@@ -2633,7 +2665,9 @@ impl PackedFileDBTreeView {
         table_view: *mut TableView,
         model: *mut StandardItemModel,
         history_source: &Rc<RefCell<Vec<TableOperations>>>, 
-        history_opposite: &Rc<RefCell<Vec<TableOperations>>>, 
+        history_opposite: &Rc<RefCell<Vec<TableOperations>>>,
+        global_search_explicit_paths: &Rc<RefCell<Vec<Vec<String>>>>,
+        update_global_search_stuff: *mut Action,
     ) {
         
         // Block the signals during this, so we don't trigger an infinite loop.
@@ -2667,6 +2701,8 @@ impl PackedFileDBTreeView {
                                 &data,
                                 &packed_file_path,
                                 model,
+                                &global_search_explicit_paths,
+                                update_global_search_stuff,
                             );
                         }
 
@@ -2699,6 +2735,8 @@ impl PackedFileDBTreeView {
                                 &data,
                                 &packed_file_path,
                                 model,
+                                &global_search_explicit_paths,
+                                update_global_search_stuff,
                             );
                         }
 
@@ -2729,6 +2767,8 @@ impl PackedFileDBTreeView {
                                 &data,
                                 &packed_file_path,
                                 model,
+                                &global_search_explicit_paths,
+                                update_global_search_stuff,
                             );
                         }
 
@@ -2766,6 +2806,8 @@ impl PackedFileDBTreeView {
                                 &data,
                                 &packed_file_path,
                                 model,
+                                &global_search_explicit_paths,
+                                update_global_search_stuff,
                             );
                         }
 
