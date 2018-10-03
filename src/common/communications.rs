@@ -88,6 +88,7 @@ pub enum Commands {
     CheckScriptWithKailua,
     GlobalSearch,
     UpdateGlobalSearchData,
+    OpenWithExternalProgram,
 }
 
 /// This enum is meant to send data back and forward between threads. Variants here are 

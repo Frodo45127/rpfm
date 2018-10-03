@@ -1,3 +1,5 @@
+extern crate open;
+
 use std::env::temp_dir;
 use std::sync::mpsc::{Sender, Receiver};
 use std::path::PathBuf;
@@ -1362,6 +1364,42 @@ pub fn background_loop(
 
                         // Send back the list of matches.
                         sender.send(Data::VecGlobalMatch(matches)).unwrap();
+                    }
+
+                    // In case we want to open a PackedFile with an external Program...
+                    Commands::OpenWithExternalProgram => {
+
+                        // Wait until we get the needed data from the UI thread.
+                        let path = if let Data::VecString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
+
+                        // Find the PackedFile and get a mut ref to it, so we can "update" his data.
+                        match pack_file_decoded.data.packed_files.iter_mut().find(|x| x.path == path) {
+                            Some(ref mut packed_file) => {
+
+                                // Create a temporal file for the PackedFile in the TEMP directory of the filesystem.
+                                let mut temp_path = temp_dir();
+                                temp_path.push(packed_file.path.last().unwrap().to_owned());
+                                match File::create(&temp_path) {
+                                    Ok(mut file) => {
+
+                                        // If there is an error while trying to write the image to the TEMP folder, report it.
+                                        if file.write_all(&packed_file.data).is_err() {
+                                            sender.send(Data::Error(Error::from(ErrorKind::IOGenericWrite(vec![temp_path.display().to_string();1])))).unwrap();
+                                        }
+
+                                        // Otherwise...
+                                        else { 
+
+                                            // No matter how many times I tried, it's IMPOSSIBLE to open a file on windows, so instead we use this magic crate that seems to work everywhere.
+                                            if let Err(_) = open::that(&temp_path) { sender.send(Data::Error(Error::from(ErrorKind::IOGeneric))).unwrap(); }
+                                            else { sender.send(Data::Success).unwrap(); }
+                                        }
+                                    }
+                                    Err(_) => sender.send(Data::Error(Error::from(ErrorKind::IOGenericWrite(vec![temp_path.display().to_string();1])))).unwrap(),
+                                }
+                            }
+                            None => sender.send(Data::Error(Error::from(ErrorKind::PackedFileNotFound))).unwrap(),
+                        }
                     }
                 }
             }

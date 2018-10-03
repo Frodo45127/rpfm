@@ -356,6 +356,7 @@ pub struct AppUI {
     pub context_menu_apply_prefix_to_all: *mut Action,
     pub context_menu_open_decoder: *mut Action,
     pub context_menu_open_dependency_manager: *mut Action,
+    pub context_menu_open_with_external_program: *mut Action,
     pub context_menu_global_search: *mut Action,
 
     //-------------------------------------------------------------------------------//
@@ -683,6 +684,7 @@ fn main() {
                 context_menu_open_decoder: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open with Decoder")),
                 //context_menu_open_dependency_manager: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open Dependency Manager")),
                 context_menu_open_dependency_manager: Action::new(&QString::from_std_str("&Open Dependency Manager")).into_raw(),
+                context_menu_open_with_external_program: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open with External Program")),
                 context_menu_global_search: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Global Search")),
 
                 //-------------------------------------------------------------------------------//
@@ -879,6 +881,7 @@ fn main() {
             app_ui.context_menu_apply_prefix_to_all.as_mut().unwrap().set_enabled(false);
             app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(false);
             app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(false);
+            app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(false);
         }
 
         // Set the shortcuts for these actions.
@@ -898,6 +901,7 @@ fn main() {
         unsafe { app_ui.context_menu_apply_prefix_to_all.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("apply_prefix_to_all").unwrap()))); }
         unsafe { app_ui.context_menu_open_decoder.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("open_in_decoder").unwrap()))); }
         unsafe { app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("open_packfiles_list").unwrap()))); }
+        unsafe { app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("open_with_external_program").unwrap()))); }
         unsafe { app_ui.context_menu_global_search.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("global_search").unwrap()))); }
         unsafe { app_ui.tree_view_expand_all.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("expand_all").unwrap()))); }
         unsafe { app_ui.tree_view_collapse_all.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("collapse_all").unwrap()))); }
@@ -919,6 +923,7 @@ fn main() {
         unsafe { app_ui.context_menu_apply_prefix_to_all.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_open_decoder.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+        unsafe { app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_global_search.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.tree_view_expand_all.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.tree_view_collapse_all.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
@@ -940,6 +945,7 @@ fn main() {
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_apply_prefix_to_all); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_open_decoder); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_open_dependency_manager); }
+        unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_open_with_external_program); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_global_search); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.tree_view_expand_all); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.tree_view_collapse_all); }
@@ -1015,6 +1021,7 @@ fn main() {
         unsafe { app_ui.context_menu_apply_prefix_to_all.as_mut().unwrap().set_status_tip(&QString::from_std_str("Add a Prefix to every File in the PackFile. Remember, whitespaces are NOT ALLOWED.")); }
         unsafe { app_ui.context_menu_open_decoder.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the selected table in the DB Decoder. To create/update schemas.")); }
         unsafe { app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the list of PackFiles referenced from this PackFile.")); }
+        unsafe { app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the PackedFile in an external program.")); }
         unsafe { app_ui.context_menu_global_search.as_mut().unwrap().set_status_tip(&QString::from_std_str("Performs a search over every DB Table, Loc PackedFile and Text File in the PackFile.")); }
 
         //---------------------------------------------------------------------------------------//
@@ -1899,6 +1906,7 @@ fn main() {
                             app_ui.context_menu_apply_prefix_to_selected.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_apply_prefix_to_all.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(true);
                         }
 
                         // If it's a DB, we should enable this too.
@@ -1926,6 +1934,7 @@ fn main() {
                             app_ui.context_menu_apply_prefix_to_all.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(false);
                         }
                     },
 
@@ -1948,6 +1957,7 @@ fn main() {
                             app_ui.context_menu_apply_prefix_to_all.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(false);
                         }
                     },
 
@@ -1970,6 +1980,7 @@ fn main() {
                             app_ui.context_menu_apply_prefix_to_all.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(false);
                         }
                     },
                 }
@@ -3371,6 +3382,22 @@ fn main() {
             }
         ));
 
+        // What happens when we trigger the "Open with External Program" action in the Contextual Menu.
+        let slot_context_menu_open_with_external_program = SlotBool::new(clone!(
+            sender_qt,
+            sender_qt_data,
+            receiver_qt => move |_| {
+
+                // Get his Path, including the name of the PackFile.
+                let path = get_path_from_selection(&app_ui, false);
+
+                // Get the path of the extracted Image.
+                sender_qt.send(Commands::OpenWithExternalProgram).unwrap();
+                sender_qt_data.send(Data::VecString(path.to_vec())).unwrap();
+                if let Data::Error(error) = check_message_validity_recv2(&receiver_qt) { show_dialog(app_ui.window, false, error) };
+            }
+        ));
+
         // Contextual Menu Actions.
         unsafe { app_ui.context_menu_add_file.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_add_file); }
         unsafe { app_ui.context_menu_add_folder.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_add_folder); }
@@ -3385,6 +3412,7 @@ fn main() {
         unsafe { app_ui.context_menu_extract.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_extract); }
         unsafe { app_ui.context_menu_open_decoder.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_open_decoder); }
         unsafe { app_ui.context_menu_open_dependency_manager.as_ref().unwrap().signals().triggered().connect(&slot_context_menu_open_dependency_manager); }
+        unsafe { app_ui.context_menu_open_with_external_program.as_ref().unwrap().signals().triggered().connect(&slot_context_menu_open_with_external_program); }
 
         //-----------------------------------------------------------------------------------------//
         // Rename Action. Due to me not understanding how the edition of a TreeView works, we do it
