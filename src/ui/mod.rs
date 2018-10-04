@@ -9,8 +9,8 @@ extern crate serde_json;
 use qt_widgets::action::Action;
 use qt_widgets::combo_box::ComboBox;
 use qt_widgets::dialog::Dialog;
-use qt_widgets::grid_layout::GridLayout;
 use qt_widgets::file_dialog::{FileDialog, FileMode};
+use qt_widgets::grid_layout::GridLayout;
 use qt_widgets::label::Label;
 use qt_widgets::layout::Layout;
 use qt_widgets::line_edit::LineEdit;
@@ -22,6 +22,8 @@ use qt_widgets::widget::Widget;
 
 use qt_gui::brush::Brush;
 use qt_gui::icon;
+use qt_gui::key_sequence::KeySequence;
+use qt_gui::list::ListStandardItemMutPtr;
 use qt_gui::standard_item::StandardItem;
 use qt_gui::standard_item_model::StandardItemModel;
 
@@ -29,7 +31,8 @@ use qt_core::abstract_item_model::AbstractItemModel;
 use qt_core::connection::Signal;
 use qt_core::flags::Flags;
 use qt_core::item_selection::ItemSelection;
-use qt_core::qt::GlobalColor;
+use qt_core::model_index::ModelIndex;
+use qt_core::qt::{GlobalColor, ShortcutContext};
 use qt_core::slots::{SlotBool, SlotNoArgs, SlotModelIndexRef};
 use qt_core::variant::Variant;
 use cpp_utils::StaticCast;
@@ -94,6 +97,8 @@ pub struct MyModSlots {
 pub struct AddFromPackFileSlots {
     pub copy: SlotModelIndexRef<'static>,
     pub exit: SlotNoArgs<'static>,
+    pub slot_tree_view_expand_all: SlotNoArgs<'static>,
+    pub slot_tree_view_collapse_all: SlotNoArgs<'static>,
 }
 
 //----------------------------------------------------------------------------//
@@ -111,6 +116,8 @@ impl AddFromPackFileSlots {
         Self {
             copy: SlotModelIndexRef::new(|_| {}),
             exit: SlotNoArgs::new(|| {}),
+            slot_tree_view_expand_all: SlotNoArgs::new(|| {}),
+            slot_tree_view_collapse_all: SlotNoArgs::new(|| {}),
         }
     }
 
@@ -122,9 +129,11 @@ impl AddFromPackFileSlots {
         app_ui: AppUI,
         is_folder_tree_view_locked: &Rc<RefCell<bool>>,
         is_modified: &Rc<RefCell<bool>>,
-        is_packedfile_opened: &Rc<RefCell<Option<Vec<String>>>>
+        is_packedfile_opened: &Rc<RefCell<Option<Vec<String>>>>,
+        global_search_explicit_paths: &Rc<RefCell<Vec<Vec<String>>>>,
+        update_global_search_stuff: *mut Action,
     ) -> Self {
-
+        
         // Create the stuff.
         let tree_view = TreeView::new().into_raw();
         let tree_model = StandardItemModel::new(()).into_raw();
@@ -134,6 +143,7 @@ impl AddFromPackFileSlots {
         unsafe { tree_view.as_mut().unwrap().set_model(tree_model as *mut AbstractItemModel); }
         unsafe { tree_view.as_mut().unwrap().set_header_hidden(true); }
         unsafe { tree_view.as_mut().unwrap().set_expands_on_double_click(false); }
+        unsafe { tree_view.as_mut().unwrap().set_animated(true); }
 
         // Add all the stuff to the Grid.
         unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((exit_button as *mut Widget, 0, 0, 1, 1)); }
@@ -144,6 +154,7 @@ impl AddFromPackFileSlots {
 
             // This slot is used to copy something from one PackFile to the other when pressing the "<=" button.
             copy: SlotModelIndexRef::new(clone!(
+                global_search_explicit_paths,
                 is_modified,
                 sender_qt,
                 sender_qt_data,
@@ -167,7 +178,7 @@ impl AddFromPackFileSlots {
                     match check_message_validity_tryrecv(&receiver_qt) {
                     
                         // If it's success....
-                        Data::VecVecString(paths) => {
+                        Data::VecVecString(mut paths) => {
 
                             // Update the TreeView.
                             update_treeview(
@@ -177,11 +188,15 @@ impl AddFromPackFileSlots {
                                 app_ui.window,
                                 app_ui.folder_tree_view,
                                 app_ui.folder_tree_model,
-                                TreeViewOperation::Add(paths),
+                                TreeViewOperation::Add(paths.to_vec()),
                             );
 
                             // Set the mod as "Modified". This is an exception for the path, as it'll be painted later on.
                             *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
+
+                            // Update the global search stuff, if needed.
+                            global_search_explicit_paths.borrow_mut().append(&mut paths);
+                            unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
                         }
 
                         // If we got an error...
@@ -218,11 +233,33 @@ impl AddFromPackFileSlots {
                     *is_folder_tree_view_locked.borrow_mut() = false;
                 }
             )),
+
+            // Actions without buttons for the TreeView.
+            slot_tree_view_expand_all: SlotNoArgs::new(move || { unsafe { tree_view.as_mut().unwrap().expand_all(); }}),
+            slot_tree_view_collapse_all: SlotNoArgs::new(move || { unsafe { tree_view.as_mut().unwrap().collapse_all(); }}),
         };
 
+        let tree_view_expand_all = Action::new(&QString::from_std_str("&Expand All")).into_raw();
+        let tree_view_collapse_all = Action::new(&QString::from_std_str("&Collapse All")).into_raw();
+
+        // Get the current shortcuts.
+        sender_qt.send(Commands::GetShortcuts).unwrap();
+        let shortcuts = if let Data::Shortcuts(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+        
         // Actions for the slots...
         unsafe { tree_view.as_ref().unwrap().signals().double_clicked().connect(&slots.copy); }
         unsafe { exit_button.as_ref().unwrap().signals().released().connect(&slots.exit); }
+        unsafe { tree_view_expand_all.as_ref().unwrap().signals().triggered().connect(&slots.slot_tree_view_expand_all); }
+        unsafe { tree_view_collapse_all.as_ref().unwrap().signals().triggered().connect(&slots.slot_tree_view_collapse_all); }
+
+        unsafe { tree_view_expand_all.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("expand_all").unwrap()))); }
+        unsafe { tree_view_collapse_all.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("collapse_all").unwrap()))); }
+
+        unsafe { tree_view_expand_all.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+        unsafe { tree_view_collapse_all.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+
+        unsafe { tree_view.as_mut().unwrap().add_action(tree_view_expand_all); }
+        unsafe { tree_view.as_mut().unwrap().add_action(tree_view_collapse_all); }
 
         // Update the new TreeView.
         update_treeview(
@@ -244,7 +281,7 @@ impl AddFromPackFileSlots {
 //             UI Creation functions (to build the UI on start)
 //----------------------------------------------------------------------------//
 
-/// This function creates the entire "Rename" dialog. It returns the new name of the Item, or
+/// This function creates the entire "Rename Current" dialog. It returns the new name of the Item, or
 /// None if the dialog is canceled or closed.
 pub fn create_rename_dialog(app_ui: &AppUI, name: &str) -> Option<String> {
 
@@ -302,6 +339,38 @@ pub fn create_rename_dialog(app_ui: &AppUI, name: &str) -> Option<String> {
     else { None }
 }
 
+/// This function creates the entire "Apply Prefix to Selected/All" dialog. It returns the prefix for the items, or
+/// None if the dialog is canceled or closed.
+pub fn create_apply_prefix_to_packed_files_dialog(app_ui: &AppUI) -> Option<String> {
+
+    // Create the Dialog and configure it.
+    let mut dialog;
+    unsafe { dialog = Dialog::new_unsafe(app_ui.window as *mut Widget); }
+    dialog.set_window_title(&QString::from_std_str("Apply Prefix to Selected/All"));
+    dialog.set_modal(true);
+
+    // Create the main Grid.
+    let main_grid = GridLayout::new().into_raw();
+    let mut add_prefix_line_edit = LineEdit::new(());
+    add_prefix_line_edit.set_placeholder_text(&QString::from_std_str("Write a prefix here, like 'mua_'."));
+
+    // Create the "Apply" button.
+    let rename_button = PushButton::new(&QString::from_std_str("Apply Prefix")).into_raw();
+    unsafe { main_grid.as_mut().unwrap().add_widget((add_prefix_line_edit.static_cast_mut() as *mut Widget, 0, 1, 1, 1)); }
+    unsafe { main_grid.as_mut().unwrap().add_widget((rename_button as *mut Widget, 0, 2, 1, 1)); }
+
+    // And the Main Grid to the Dialog...
+    unsafe { dialog.set_layout(main_grid as *mut Layout); }
+
+    // What happens when we hit the "Rename" button.
+    unsafe { rename_button.as_mut().unwrap().signals().released().connect(&dialog.slots().accept()); }
+
+    // Show the Dialog and, if we hit the button, return the prefix.
+    if dialog.exec() == 1 { Some(add_prefix_line_edit.text().to_std_string()) }
+
+    // Otherwise, return None.
+    else { None }
+}
 /// This function creates the entire "New Folder" dialog. It returns the new name of the Folder, or
 /// None if the dialog is canceled or closed.
 pub fn create_new_folder_dialog(app_ui: &AppUI) -> Option<String> {
@@ -657,6 +726,98 @@ fn create_prefab(
     else { show_dialog(app_ui.window, false, "There are no catchment PackedFiles in this PackFile."); }
 }*/
 
+/// This function creates the entire "Global Search" dialog. It returns the search info (pattern, case_sensitive).
+pub fn create_global_search_dialog(app_ui: &AppUI) -> Option<String> {
+
+    let mut dialog;
+    unsafe { dialog = Dialog::new_unsafe(app_ui.window as *mut Widget); }
+    dialog.set_window_title(&QString::from_std_str("Global Search"));
+    dialog.set_modal(true);
+
+    // Create the main Grid.
+    let main_grid = GridLayout::new().into_raw();
+    let mut pattern = LineEdit::new(());
+    pattern.set_placeholder_text(&QString::from_std_str("Write here what you want to search."));
+
+    let search_button = PushButton::new(&QString::from_std_str("Search")).into_raw();
+    unsafe { main_grid.as_mut().unwrap().add_widget((pattern.static_cast_mut() as *mut Widget, 0, 0, 1, 1)); }
+    unsafe { main_grid.as_mut().unwrap().add_widget((search_button as *mut Widget, 0, 1, 1, 1)); }
+    unsafe { dialog.set_layout(main_grid as *mut Layout); }
+
+    // What happens when we hit the "Search" button.
+    unsafe { search_button.as_mut().unwrap().signals().released().connect(&dialog.slots().accept()); }
+
+    // Execute the dialog.
+    if dialog.exec() == 1 { 
+        let text = pattern.text().to_std_string();
+        if !text.is_empty() { Some(text) }
+        else { None }
+    }
+    
+    // Otherwise, return None.
+    else { None }
+}
+
+//----------------------------------------------------------------------------//
+//                    Trait Implementations for Qt Stuff
+//----------------------------------------------------------------------------//
+
+/// Rust doesn't allow implementing traits for types you don't own, so we have to wrap ModelIndex for ordering it.
+/// Don't like it a bit.
+pub struct ModelIndexWrapped {
+    pub model_index: ModelIndex
+}
+
+impl ModelIndexWrapped {
+    pub fn new(model_index: ModelIndex) -> Self {
+        ModelIndexWrapped {
+            model_index
+        }
+    }
+
+    pub fn get(&self) -> &ModelIndex {
+        &self.model_index
+    }
+}
+
+impl Ord for ModelIndexWrapped {
+    fn cmp(&self, other: &ModelIndexWrapped) -> Ordering {
+        let order = self.model_index.row().cmp(&other.model_index.row());
+        if order == Ordering::Equal { self.model_index.column().cmp(&other.model_index.column()) }
+        else { order }
+    }
+}
+
+impl PartialOrd for ModelIndexWrapped {
+    fn partial_cmp(&self, other: &ModelIndexWrapped) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Eq for ModelIndexWrapped {}
+impl PartialEq for ModelIndexWrapped {
+    fn eq(&self, other: &ModelIndexWrapped) -> bool {
+        self.model_index.row() == other.model_index.row() && self.model_index.column() == other.model_index.column()
+    }
+}
+
+//----------------------------------------------------------------------------//
+//                  Undo/Redo stuff for Tables and Locs
+//----------------------------------------------------------------------------//
+
+/// This function is used to update the background or undo table when a change is made in the main table.
+fn update_undo_model(model: *mut StandardItemModel, undo_model: *mut StandardItemModel) {
+    unsafe {
+        undo_model.as_mut().unwrap().clear();
+        for row in 0..model.as_mut().unwrap().row_count(()) {
+            for column in 0..model.as_mut().unwrap().column_count(()) {
+                let item = &*model.as_mut().unwrap().item((row, column));
+                undo_model.as_mut().unwrap().set_item((row, column, item.clone()));
+            }    
+        }
+    }
+}
+
 //----------------------------------------------------------------------------//
 //                    Enums & Structs needed for the UI
 //----------------------------------------------------------------------------//
@@ -667,6 +828,7 @@ fn create_prefab(
 /// - `DeleteSelected`: Removes whatever is selected from the TreeView. It requires the TreePathType of whatever you want to delete.
 /// - `DeleteUnselected`: Remove the File/Folder corresponding to the TreePathType we provide from the TreeView. It requires the TreePathType of whatever you want to delete.
 /// - `Rename`: Change the name of a File/Folder from the TreeView. Requires the TreePathType of whatever you want to rename and the new name.
+/// - `PrefixFiles`: Apply a prefix to every file under certain folder. Requires the old paths and the prefix to apply.
 #[derive(Clone, Debug)]
 pub enum TreeViewOperation {
     Build(bool),
@@ -674,6 +836,7 @@ pub enum TreeViewOperation {
     DeleteSelected(TreePathType),
     DeleteUnselected(TreePathType),
     Rename(TreePathType, String),
+    PrefixFiles(Vec<Vec<String>>, String),
 }
 
 /// Enum `ItemVisualStatus`: This enum represents the status of modification of an item in a TreeView.
@@ -683,6 +846,24 @@ pub enum ItemVisualStatus {
     Modified,
     AddedModified,
     Untouched,
+}
+
+/// Enum to know what operation was done while editing tables, so we can revert them with undo.
+/// - Editing: Intended for any kind of item editing. Holds ((row, column), *mut item).
+/// - AddRows: Intended for when adding/inserting rows. It holds a list of positions where the rows where inserted.
+/// - RemoveRows: Intended for when removing rows. It holds a list of positions where the rows where deleted and the deleted rows.
+/// - SmartDelete: Intended for when we are using the smart delete feature. This is a combination of list of edits and list of removed rows.
+/// - RevertSmartDelete: Selfexplanatory. This is a combination of list of edits and list of adding rows.
+/// - ImportTSVDB: It holds a copy of the entire DBData, before importing.
+/// - ImportTSVLOC: It holds a copy of the entire LocData, before importing.
+pub enum TableOperations {
+    Editing(((i32, i32), *mut StandardItem)),
+    AddRows(Vec<i32>),
+    RemoveRows((Vec<i32>, Vec<ListStandardItemMutPtr>)),
+    SmartDelete((Vec<((i32, i32), *mut StandardItem)>, Vec<(i32, ListStandardItemMutPtr)>)),
+    RevertSmartDelete((Vec<((i32, i32), *mut StandardItem)>, Vec<i32>)),
+    ImportTSVDB(DBData),
+    ImportTSVLOC(LocData),
 }
 
 /// Enum `IconType`: This enum holds all the possible Icon Types we can have in the TreeView,
@@ -901,6 +1082,54 @@ pub fn set_modified(
     }
 }
 
+/// This function is intended to be triggered when we undo all the way to the begining a table or loc.
+/// It "unpaints" it and, checks if the parent should still be painted, and repeats until it finds a parent
+/// that should be painted, or reaches the PackFile. If the PackFile should not be painted,
+/// then sets the PackFile as "not modified". 
+pub fn undo_paint_for_packed_file(
+    app_ui: &AppUI,
+    model: *mut StandardItemModel,
+    path: &[String]
+) {
+
+    // Get the item and paint it transparent.
+    let item = get_item_from_incomplete_path(app_ui.folder_tree_model, &path);
+    unsafe { item.as_mut().unwrap().set_background(&Brush::new(GlobalColor::Transparent)); }
+
+    // Get the full path of the item.
+    let full_path = get_path_from_item(model, item, true);
+
+    // Get the times we must to go up until we reach the parent.
+    let cycles = if full_path.len() > 0 { full_path.len() - 1 } else { 0 };
+
+    // Get his parent.
+    let mut parent;
+    unsafe { parent = item.as_mut().unwrap().parent(); }
+
+    // Unleash hell upon the land.
+    for _ in 0..cycles {
+
+        let childs;
+        unsafe { childs = parent.as_mut().unwrap().row_count(); }
+        for child in 0..childs {
+            let item;
+            let colour;
+            unsafe { item = parent.as_mut().unwrap().child(child); }
+            unsafe { colour = item.as_mut().unwrap().background().color().name(()).to_std_string(); }
+
+            // If it's not transparent, stop.
+            if colour != "#000000" { return }
+        }
+
+        // If no childs were modified, change the parent and try again.
+        unsafe { parent.as_mut().unwrap().set_background(&Brush::new(GlobalColor::Transparent)); }
+        unsafe { parent = parent.as_mut().unwrap().parent(); }
+    }
+
+    // If no more files were modified, set the mod as "not modified".
+    set_modified(false, app_ui, None);
+}
+
 /// This function deletes whatever it's in the right side of the screen, leaving it empty.
 /// Also, each time this triggers we consider there is no PackedFile open.
 pub fn purge_them_all(app_ui: &AppUI, is_packedfile_opened: &Rc<RefCell<Option<Vec<String>>>>) {
@@ -986,6 +1215,79 @@ pub fn are_you_sure(
 
     // Otherwise, we allow the change directly.
     else { true }
+}
+
+/// This function is used to expand the entire path from the PackFile to an specific item in the TreeView.
+pub fn expand_treeview_to_item(
+    tree_view: *mut TreeView,
+    model: *mut StandardItemModel,
+    path: &[String],
+) {
+    // Get it another time, this time to use it to hold the current item.
+    let mut item;
+    unsafe { item = model.as_ref().unwrap().item(0); }
+    unsafe { tree_view.as_mut().unwrap().expand(&model.as_ref().unwrap().index_from_item(item)); }
+
+    // Indexes to see how deep we must go.
+    let mut index = 0;
+    let path_deep = path.len();
+
+    // First looping downwards.
+    loop {
+
+        // If we reached the folder of the file, stop.
+        if index == (path_deep - 1) { return }
+
+        // If we are not still in the folder of the file...
+        else {
+
+            // Get the amount of children of the current item.
+            let children_count;
+            unsafe { children_count = item.as_ref().unwrap().row_count(); }
+
+            // Bool to know when to stop in case of not finding the path.
+            let mut not_found = true;
+
+            // For each children we have...
+            for row in 0..children_count {
+
+                // Check if it has children of his own.
+                let child;
+                let has_children;
+                unsafe { child = item.as_ref().unwrap().child(row); }
+                unsafe { has_children = child.as_ref().unwrap().has_children(); }
+
+                // If it doesn't have children, continue with the next child.
+                if !has_children { continue; }
+
+                // Get his text.
+                let text;
+                unsafe { text = child.as_ref().unwrap().text().to_std_string(); }
+
+                // If it's the one we're looking for...
+                if text == path[index] {
+
+                    // Use it as our new item.
+                    item = child;
+
+                    // Increase the index.
+                    index += 1;
+
+                    // Tell the progam you found the child.
+                    not_found = false;
+
+                    // Expand the folder.
+                    unsafe { tree_view.as_mut().unwrap().expand(&model.as_ref().unwrap().index_from_item(item)); }
+
+                    // Break the loop.
+                    break;
+                }
+            }
+
+            // If the child was not found, stop and return the parent.
+            if not_found { break; }
+        }
+    }
 }
 
 /// This function is used to get the complete Path of a Selected Item in the TreeView.
@@ -2117,6 +2419,39 @@ pub fn update_treeview(
 
                 // In any other case, don't do anything.
                 _ => {},
+            }
+        },
+
+        // If we want to apply a prefix to multiple files...
+        TreeViewOperation::PrefixFiles(old_paths, prefix) => {
+
+            // For each changed path...
+            for path in old_paths {
+
+                // Get the item and the new text.
+                let mut item = get_item_from_incomplete_path(model, &path);
+                let text;
+                unsafe { text = item.as_mut().unwrap().text().to_std_string(); }
+                let new_name = format!("{}{}", prefix, text); 
+                unsafe { item.as_mut().unwrap().set_text(&QString::from_std_str(&new_name)); }
+
+                // Prepare the new path for the sorting function.
+                let mut new_path = path.to_vec();
+                new_path.pop();
+                new_path.push(new_name);
+
+                // Paint it as "modified".
+                paint_treeview(item, model, ItemVisualStatus::Modified);
+
+                // Sort it.
+                sort_item_in_tree_view(
+                    sender_qt,
+                    sender_qt_data,
+                    receiver_qt_data.clone(),
+                    model,
+                    item,
+                    TreePathType::File(new_path)
+                );
             }
         },
     }

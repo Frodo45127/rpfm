@@ -349,7 +349,7 @@ fn network_thread(
 
             // Create new client with API base URL
             let mut client = RestClient::new("https://api.github.com").unwrap();
-            client.set_header_raw("User-Agent", &format!("RPFM/{}", current_version));
+            client.set_header("User-Agent", &format!("RPFM/{}", current_version)).unwrap();
 
             // Get `https://api.github.com/repos/frodo45127/rpfm/releases/latest` and deserialize the result automatically
             let apiresponse = match client.get(()) {
@@ -447,7 +447,7 @@ fn network_thread(
 
             // Create new client with API base URL
             let mut client = RestClient::new("https://raw.githubusercontent.com").unwrap();
-            client.set_header_raw("User-Agent", &format!("RPFM/{}", VERSION));
+            client.set_header("User-Agent", &format!("RPFM/{}", VERSION)).unwrap();
 
             // Get `https://raw.githubusercontent.com/Frodo45127/rpfm/master/schemas/versions.json` and deserialize the result automatically.
             let apiresponse = match client.get(()) {

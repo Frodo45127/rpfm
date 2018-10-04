@@ -239,7 +239,7 @@ impl SerializableToTSV for LocData {
 
                         // If it's not of type "Loc PackedFile" or not over 9000, it's not Goku.
                         if tsv_type != packed_file_type || its_over_9000 != 9001 {
-                            return Err(ErrorKind::ImportTSVWrongType)?;
+                            return Err(ErrorKind::ImportTSVWrongTypeLoc)?;
                         }
                     }
 

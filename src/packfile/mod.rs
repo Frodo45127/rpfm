@@ -699,10 +699,10 @@ pub fn extract_from_packfile(
     }
 }
 
-/// This function is used to rename anything in the TreeView (yes, PackFile included).
+/// This function is used to rename anything in the TreeView (PackFile not included).
 /// It requires:
 /// - pack_file: a &mut pack_file::PackFile. It's the PackFile opened.
-/// - tree_path: a Vec<String> with the tree_path of the file to rename.
+/// - tree_path: a Vec<String> with the tree_path of the file to rename. It needs to be complete.
 /// - new_name: the new name of the file to rename.
 pub fn rename_packed_file(
     pack_file: &mut packfile::PackFile,
@@ -764,6 +764,43 @@ pub fn rename_packed_file(
     }
 }
 
+/// This function is used to apply a prefix to any PackedFile under a path. It returns a tuple with the old
+/// paths and the new name for each PackedFile.
+/// It requires:
+/// - pack_file: a &mut pack_file::PackFile. It's the PackFile opened.
+/// - folder_path: a Vec<String> with the tree_path of the folder with the files to rename. It needs to be incomplete.
+/// - prefix: the prefix to apply to each PackedFile.
+pub fn apply_prefix_to_packed_files(
+    pack_file: &mut packfile::PackFile,
+    folder_path: &[String],
+    prefix: &str
+) -> Result<(Vec<Vec<String>>)> {
+
+    // First we check if the prefix is valid, and return an error if the prefix is invalid.
+    if prefix.is_empty() { Err(ErrorKind::EmptyInput)? }
+    else if prefix.contains(' ') { Err(ErrorKind::InvalidInput)? }
+
+    // If we reach this point, we can safely add the prefix to the PackedFiles.
+    else {
+
+        // There is a situation where an old path and a new path can generate a duplicate. 
+        // Here is not a problem, but there is no way to prevent it in the UI, so we have to deal with it here.
+        let old_paths = pack_file.data.packed_files.iter().filter(|x| x.path.starts_with(&folder_path)).map(|x| x.path.to_vec()).collect::<Vec<Vec<String>>>();
+        let mut new_paths = old_paths.to_vec();
+        new_paths.iter_mut().for_each(|x| *x.last_mut().unwrap() = format!("{}{}", prefix, *x.last().unwrap()));
+
+        // Check if ANY of the new paths is also present in the old paths.
+        for path in &new_paths {
+            if old_paths.contains(&path) { return Err(ErrorKind::InvalidInput)? }
+        }
+
+        pack_file.data.packed_files.iter_mut().filter(|x| x.path.starts_with(&folder_path)).for_each(|x| *x.path.last_mut().unwrap() = format!("{}{}", prefix, *x.path.last().unwrap()));
+
+        // If there were no errors, return the list of changed paths.
+        Ok(old_paths)
+    }
+}
+
 /*
 --------------------------------------------------------
              PackedFile-Related Functions
@@ -791,6 +828,15 @@ pub fn update_packed_file_data_db(
 ) {
 
     let packed_file = &mut pack_file.data.packed_files.iter_mut().find(|x| x.path == path).ok_or(Error::from(ErrorKind::PackedFileNotFound)).unwrap();
+    packed_file.data = DB::save(packed_file_data_decoded);
+    packed_file.size = packed_file.data.len() as u32;
+}
+
+// Same as the other one, but it requires a PackedFile to modify instead the entire PackFile.
+pub fn update_packed_file_data_db_2(
+    packed_file_data_decoded: &DB,
+    packed_file: &mut packfile::PackedFile,
+) {
     packed_file.data = DB::save(packed_file_data_decoded);
     packed_file.size = packed_file.data.len() as u32;
 }
@@ -1112,7 +1158,7 @@ pub fn create_prefab_from_catchment(
 /// from tables (and if the table is empty, it removes it too) and it cleans the PackFile of extra .xml files 
 /// often created by map editors. It requires just the PackFile to optimize and the dependency PackFile.
 pub fn optimize_packfile(
-    mut pack_file: &mut packfile::PackFile,
+    pack_file: &mut packfile::PackFile,
     original_tables: &[packfile::PackedFile],
     schema: &Option<Schema>
 ) -> Vec<TreePathType> {
@@ -1121,9 +1167,8 @@ pub fn optimize_packfile(
     let mut files_to_delete: Vec<Vec<String>> = vec![];
     let mut deleted_files_type: Vec<TreePathType> = vec![];
 
-    // TODO: Fix this clone.
     // For each PackedFile we have...
-    for packed_file in pack_file.data.packed_files.clone().iter() {
+    for mut packed_file in pack_file.data.packed_files.iter_mut() {
 
         // If it's a DB table...
         if packed_file.path.len() == 3 {
@@ -1180,7 +1225,7 @@ pub fn optimize_packfile(
                     }
 
                     // Save the table to the PackFile.
-                    update_packed_file_data_db(&optimized_table, &mut pack_file, &packed_file.path);
+                    update_packed_file_data_db_2(&optimized_table, &mut packed_file);
 
                     // Delete the table here if it's empty.
                     if optimized_table.data.entries.is_empty() { files_to_delete.push(packed_file.path.to_vec()); }

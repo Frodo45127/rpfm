@@ -1,11 +1,16 @@
+extern crate open;
+
 use std::env::temp_dir;
 use std::sync::mpsc::{Sender, Receiver};
 use std::path::PathBuf;
-use std::fs::File;
+use std::fs::{DirBuilder, File};
 use std::io::{BufReader, Write};
+use std::process::Command;
 
 use RPFM_PATH;
 use SUPPORTED_GAMES;
+use SHOW_TABLE_ERRORS;
+use GlobalMatch;
 use common::*;
 use common::coding_helpers::*;
 use common::communications::*;
@@ -324,6 +329,9 @@ pub fn background_loop(
                         // Get the new Game Selected, and set it.
                         game_selected = game_name;
 
+                        // Send back the new Game Selected, and a bool indicating if there is a PackFile open.
+                        sender.send(Data::StringBool((game_selected.to_owned(), pack_file_decoded.extra_data.file_name.is_empty()))).unwrap();
+
                         // Try to load the Schema for this game.
                         schema = Schema::load(&SUPPORTED_GAMES.get(&*game_selected).unwrap().schema).ok();
 
@@ -333,30 +341,29 @@ pub fn background_loop(
                         // If there is a PackFile open, change his id to match the one of the new GameSelected.
                         if !pack_file_decoded.extra_data.file_name.is_empty() { pack_file_decoded.header.id = SUPPORTED_GAMES.get(&*game_selected).unwrap().id.to_owned(); }
 
-                        // Send back the new Game Selected, and a bool indicating if there is a PackFile open.
-                        sender.send(Data::StringBool((game_selected.to_owned(), pack_file_decoded.extra_data.file_name.is_empty()))).unwrap();
-
                         // Test to see if every DB Table can be decoded. This is slow and only useful when
-                        // a new patch lands and you want to know what tables you need to decode. So, unless that,
-                        // leave this code commented.
-                        // let mut counter = 0;
-                        // for i in pack_file_decoded.data.packed_files.iter() {
-                        //     if i.path.starts_with(&["db".to_owned()]) {
-                        //         if let Some(ref schema) = schema {
-                        //             if let Err(_) = db::DB::read(&i.data, &i.path[1], &schema) {
-                        //                 match db::DBHeader::read(&i.data, &mut 0) {
-                        //                     Ok(db_header) => {
-                        //                         if db_header.entry_count > 0 {
-                        //                             counter += 1;
-                        //                             println!("{}, {:?}", counter, i.path);
-                        //                         }
-                        //                     }
-                        //                     Err(_) => println!("Error in {:?}", i.path),
-                        //                 }
-                        //             }
-                        //         }
-                        //     }
-                        // }
+                        // a new patch lands and you want to know what tables you need to decode. So, unless you want 
+                        // to decode new tables, leave the const as false
+                        if SHOW_TABLE_ERRORS {
+                            let mut counter = 0;
+                            for i in pack_file_decoded.data.packed_files.iter() {
+                                if i.path.starts_with(&["db".to_owned()]) {
+                                    if let Some(ref schema) = schema {
+                                        if let Err(_) = db::DB::read(&i.data, &i.path[1], &schema) {
+                                            match db::DBHeader::read(&i.data, &mut 0) {
+                                                Ok(db_header) => {
+                                                    if db_header.entry_count > 0 {
+                                                        counter += 1;
+                                                        println!("{}, {:?}", counter, i.path);
+                                                    }
+                                                }
+                                                Err(_) => println!("Error in {:?}", i.path),
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
 
                     // In case we want to get the current PackFile's Header...
@@ -968,6 +975,19 @@ pub fn background_loop(
                         }
                     }
 
+                    // In case we want to "Rename multiple PackedFiles" at once...
+                    Commands::ApplyPrefixToPackedFilesInPath => {
+
+                        // Wait until we get the needed data from the UI thread.
+                        let data = if let Data::VecStringString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
+
+                        // Try to rename it and report the result.
+                        match packfile::apply_prefix_to_packed_files(&mut pack_file_decoded, &data.0, &data.1) {
+                            Ok(result) => sender.send(Data::VecVecString(result)).unwrap(),
+                            Err(error) => sender.send(Data::Error(error)).unwrap(),
+                        }
+                    }
+
                     // In case we want to get a PackedFile's data...
                     Commands::GetPackedFile => {
 
@@ -1086,6 +1106,309 @@ pub fn background_loop(
                         data.dedup();
 
                         sender.send(Data::VecString(data)).unwrap();
+                    }
+
+                    // In case we want to use Kailua to check if your script has errors...
+                    Commands::CheckScriptWithKailua => {
+
+                        // This is for storing the results we have to send back.
+                        let mut results = vec![];
+
+                        // Get the paths we need.
+                        if let Some(ref ca_types_file) = SUPPORTED_GAMES.get(&*game_selected).unwrap().ca_types_file {
+                            let types_path = RPFM_PATH.to_path_buf().join(PathBuf::from("lua_types")).join(PathBuf::from(ca_types_file));
+                            let mut temp_folder_path = temp_dir().join(PathBuf::from("rpfm/scripts"));
+                            let mut config_path = temp_folder_path.to_path_buf();
+                            config_path.push("kailua.json");
+                            if Command::new("kailua").output().is_ok() {
+
+                                // Extract every lua file in the PackFile, respecting his path.
+                                for packed_file in &pack_file_decoded.data.packed_files {
+                                    if packed_file.path.last().unwrap().ends_with(".lua") {
+                                        let path: PathBuf = temp_folder_path.to_path_buf().join(packed_file.path.iter().collect::<PathBuf>());
+
+                                        // If the path doesn't exist, create it.
+                                        let mut path_base = path.to_path_buf();
+                                        path_base.pop();
+                                        if !path_base.is_dir() { DirBuilder::new().recursive(true).create(&path_base).unwrap(); }
+
+                                        File::create(&path).unwrap().write_all(&packed_file.data).unwrap();
+                                        
+                                        // Create the Kailua config file.
+                                        let config = format!("
+                                        {{
+                                            \"start_path\": [\"{}\"],
+                                            \"preload\": {{
+                                                \"open\": [\"lua51\"],
+                                                \"require\": [\"{}\"]
+                                            }}
+                                        }}", path.to_string_lossy().replace('\\', "\\\\"), types_path.to_string_lossy().replace('\\', "\\\\"));
+                                        File::create(&config_path).unwrap().write_all(&config.as_bytes()).unwrap();
+                                        results.push(String::from_utf8_lossy(&Command::new("kailua").arg("check").arg(&config_path.to_string_lossy().as_ref().to_owned()).output().unwrap().stderr).to_string());
+                                    }
+                                }
+    
+                                // Send back the result.
+                                sender.send(Data::VecString(results)).unwrap();
+                            }
+
+                            else { sender.send(Data::Error(Error::from(ErrorKind::KailuaNotFound))).unwrap(); }
+                        }
+
+                        // If there is no Type's file, return an error.
+                        else { sender.send(Data::Error(Error::from(ErrorKind::NoTypesFileFound))).unwrap(); }
+                    }
+
+                    // In case we want to perform a "Global Search"...
+                    Commands::GlobalSearch => {
+                       
+                        // Wait until we get the needed data from the UI thread.
+                        let pattern = if let Data::String(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
+                        let mut matches: Vec<GlobalMatch> = vec![];
+                        for packed_file in &pack_file_decoded.data.packed_files {
+                            let path = &packed_file.path;
+                            let packedfile_name = path.last().unwrap().to_owned();
+                            let mut packed_file_type: &str =
+
+                                // If it's in the "db" folder, it's a DB PackedFile (or you put something were it shouldn't be).
+                                if path[0] == "db" { "DB" }
+
+                                // If it ends in ".loc", it's a localisation PackedFile.
+                                else if packedfile_name.ends_with(".loc") { "LOC" }
+
+                                // If it ends in ".rigid_model_v2", it's a RigidModel PackedFile.
+                                else if packedfile_name.ends_with(".rigid_model_v2") { "RIGIDMODEL" }
+
+                                // If it ends in any of these, it's a plain text PackedFile.
+                                else if packedfile_name.ends_with(".lua") ||
+                                        packedfile_name.ends_with(".xml") ||
+                                        packedfile_name.ends_with(".xml.shader") ||
+                                        packedfile_name.ends_with(".xml.material") ||
+                                        packedfile_name.ends_with(".variantmeshdefinition") ||
+                                        packedfile_name.ends_with(".environment") ||
+                                        packedfile_name.ends_with(".lighting") ||
+                                        packedfile_name.ends_with(".wsmodel") ||
+                                        packedfile_name.ends_with(".csv") ||
+                                        packedfile_name.ends_with(".tsv") ||
+                                        packedfile_name.ends_with(".inl") ||
+                                        packedfile_name.ends_with(".battle_speech_camera") ||
+                                        packedfile_name.ends_with(".bob") ||
+                                        packedfile_name.ends_with(".cindyscene") ||
+                                        packedfile_name.ends_with(".cindyscenemanager") ||
+                                        //packedfile_name.ends_with(".benchmark") || // This one needs special decoding/encoding.
+                                        packedfile_name.ends_with(".txt") { "TEXT" }
+
+                                // If it ends in any of these, it's an image.
+                                else if packedfile_name.ends_with(".jpg") ||
+                                        packedfile_name.ends_with(".jpeg") ||
+                                        packedfile_name.ends_with(".tga") ||
+                                        packedfile_name.ends_with(".dds") ||
+                                        packedfile_name.ends_with(".png") { "IMAGE" }
+
+                                // Otherwise, we don't have a decoder for that PackedFile... yet.
+                                else { "None" };
+
+                            // Then, depending of his type we decode it properly (if we have it implemented support
+                            // for his type).
+                            match packed_file_type {
+
+                                // If the file is a Loc PackedFile, decode it and search in his key and text columns.
+                                "LOC" => {
+
+                                    // We try to decode it as a Loc PackedFile.
+                                    if let Ok(packed_file) = Loc::read(&packed_file.data) {
+
+                                        let mut matches_in_file = vec![];
+                                        for (index, row) in packed_file.data.entries.iter().enumerate() {
+                                            if row.key.contains(&pattern) { matches_in_file.push((0, index as i64, row.key.to_owned())); }
+                                            if row.text.contains(&pattern) { matches_in_file.push((1, index as i64, row.text.to_owned())); }
+                                        }
+
+                                        if !matches_in_file.is_empty() { matches.push(GlobalMatch::Loc((path.to_vec(), matches_in_file))); }
+                                    }
+                                }
+
+                                // If the file is a DB PackedFile...
+                                "DB" => {
+
+                                    if let Some(ref schema) = schema {   
+                                        if let Ok(packed_file) = DB::read(&packed_file.data, &path[1], &schema) {
+
+                                            let mut matches_in_file = vec![];
+                                            for (index, row) in packed_file.data.entries.iter().enumerate() {
+                                                for (column, field) in packed_file.data.table_definition.fields.iter().enumerate() {
+                                                    match row[column] {
+
+                                                        // All these are Strings, so it can be together,
+                                                        DecodedData::StringU8(ref data) |
+                                                        DecodedData::StringU16(ref data) |
+                                                        DecodedData::OptionalStringU8(ref data) |
+                                                        DecodedData::OptionalStringU16(ref data) => if data.contains(&pattern) {
+                                                            matches_in_file.push((field.field_name.to_owned(), column as i32, index as i64, data.to_owned())); 
+                                                        }
+
+                                                        _ => continue
+                                                    }
+                                                }
+                                            }
+
+                                            if !matches_in_file.is_empty() { matches.push(GlobalMatch::DB((path.to_vec(), matches_in_file))); }
+                                        }
+                                    }
+                                }
+
+                                // For any other PackedFile, skip it.
+                                _ => continue,
+                            }
+                        }
+
+                        // Send back the list of matches.
+                        sender.send(Data::VecGlobalMatch(matches)).unwrap();
+                    }
+
+                    // In case we want to perform a "Global Search"...
+                    Commands::UpdateGlobalSearchData => {
+                       
+                        // Wait until we get the needed data from the UI thread.
+                        let (pattern, paths) = if let Data::StringVecVecString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
+                        let mut matches: Vec<GlobalMatch> = vec![];
+                        for packed_file in &pack_file_decoded.data.packed_files {
+                            if paths.contains(&packed_file.path) {
+                                let path = &packed_file.path;
+                                let packedfile_name = path.last().unwrap().to_owned();
+                                let mut packed_file_type: &str =
+
+                                    // If it's in the "db" folder, it's a DB PackedFile (or you put something were it shouldn't be).
+                                    if path[0] == "db" { "DB" }
+
+                                    // If it ends in ".loc", it's a localisation PackedFile.
+                                    else if packedfile_name.ends_with(".loc") { "LOC" }
+
+                                    // If it ends in ".rigid_model_v2", it's a RigidModel PackedFile.
+                                    else if packedfile_name.ends_with(".rigid_model_v2") { "RIGIDMODEL" }
+
+                                    // If it ends in any of these, it's a plain text PackedFile.
+                                    else if packedfile_name.ends_with(".lua") ||
+                                            packedfile_name.ends_with(".xml") ||
+                                            packedfile_name.ends_with(".xml.shader") ||
+                                            packedfile_name.ends_with(".xml.material") ||
+                                            packedfile_name.ends_with(".variantmeshdefinition") ||
+                                            packedfile_name.ends_with(".environment") ||
+                                            packedfile_name.ends_with(".lighting") ||
+                                            packedfile_name.ends_with(".wsmodel") ||
+                                            packedfile_name.ends_with(".csv") ||
+                                            packedfile_name.ends_with(".tsv") ||
+                                            packedfile_name.ends_with(".inl") ||
+                                            packedfile_name.ends_with(".battle_speech_camera") ||
+                                            packedfile_name.ends_with(".bob") ||
+                                            packedfile_name.ends_with(".cindyscene") ||
+                                            packedfile_name.ends_with(".cindyscenemanager") ||
+                                            //packedfile_name.ends_with(".benchmark") || // This one needs special decoding/encoding.
+                                            packedfile_name.ends_with(".txt") { "TEXT" }
+
+                                    // If it ends in any of these, it's an image.
+                                    else if packedfile_name.ends_with(".jpg") ||
+                                            packedfile_name.ends_with(".jpeg") ||
+                                            packedfile_name.ends_with(".tga") ||
+                                            packedfile_name.ends_with(".dds") ||
+                                            packedfile_name.ends_with(".png") { "IMAGE" }
+
+                                    // Otherwise, we don't have a decoder for that PackedFile... yet.
+                                    else { "None" };
+
+                                // Then, depending of his type we decode it properly (if we have it implemented support
+                                // for his type).
+                                match packed_file_type {
+
+                                    // If the file is a Loc PackedFile, decode it and search in his key and text columns.
+                                    "LOC" => {
+
+                                        // We try to decode it as a Loc PackedFile.
+                                        if let Ok(packed_file) = Loc::read(&packed_file.data) {
+
+                                            let mut matches_in_file = vec![];
+                                            for (index, row) in packed_file.data.entries.iter().enumerate() {
+                                                if row.key.contains(&pattern) { matches_in_file.push((0, index as i64, row.key.to_owned())); }
+                                                if row.text.contains(&pattern) { matches_in_file.push((1, index as i64, row.text.to_owned())); }
+                                            }
+
+                                            if !matches_in_file.is_empty() { matches.push(GlobalMatch::Loc((path.to_vec(), matches_in_file))); }
+                                        }
+                                    }
+
+                                    // If the file is a DB PackedFile...
+                                    "DB" => {
+
+                                        if let Some(ref schema) = schema {   
+                                            if let Ok(packed_file) = DB::read(&packed_file.data, &path[1], &schema) {
+
+                                                let mut matches_in_file = vec![];
+                                                for (index, row) in packed_file.data.entries.iter().enumerate() {
+                                                    for (column, field) in packed_file.data.table_definition.fields.iter().enumerate() {
+                                                        match row[column] {
+
+                                                            // All these are Strings, so it can be together,
+                                                            DecodedData::StringU8(ref data) |
+                                                            DecodedData::StringU16(ref data) |
+                                                            DecodedData::OptionalStringU8(ref data) |
+                                                            DecodedData::OptionalStringU16(ref data) => if data.contains(&pattern) {
+                                                                matches_in_file.push((field.field_name.to_owned(), column as i32, index as i64, data.to_owned())); 
+                                                            }
+
+                                                            _ => continue
+                                                        }
+                                                    }
+                                                }
+
+                                                if !matches_in_file.is_empty() { matches.push(GlobalMatch::DB((path.to_vec(), matches_in_file))); }
+                                            }
+                                        }
+                                    }
+
+                                    // For any other PackedFile, skip it.
+                                    _ => continue,
+                                }
+                            }
+                        }
+
+                        // Send back the list of matches.
+                        sender.send(Data::VecGlobalMatch(matches)).unwrap();
+                    }
+
+                    // In case we want to open a PackedFile with an external Program...
+                    Commands::OpenWithExternalProgram => {
+
+                        // Wait until we get the needed data from the UI thread.
+                        let path = if let Data::VecString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
+
+                        // Find the PackedFile and get a mut ref to it, so we can "update" his data.
+                        match pack_file_decoded.data.packed_files.iter_mut().find(|x| x.path == path) {
+                            Some(ref mut packed_file) => {
+
+                                // Create a temporal file for the PackedFile in the TEMP directory of the filesystem.
+                                let mut temp_path = temp_dir();
+                                temp_path.push(packed_file.path.last().unwrap().to_owned());
+                                match File::create(&temp_path) {
+                                    Ok(mut file) => {
+
+                                        // If there is an error while trying to write the image to the TEMP folder, report it.
+                                        if file.write_all(&packed_file.data).is_err() {
+                                            sender.send(Data::Error(Error::from(ErrorKind::IOGenericWrite(vec![temp_path.display().to_string();1])))).unwrap();
+                                        }
+
+                                        // Otherwise...
+                                        else { 
+
+                                            // No matter how many times I tried, it's IMPOSSIBLE to open a file on windows, so instead we use this magic crate that seems to work everywhere.
+                                            if let Err(_) = open::that(&temp_path) { sender.send(Data::Error(Error::from(ErrorKind::IOGeneric))).unwrap(); }
+                                            else { sender.send(Data::Success).unwrap(); }
+                                        }
+                                    }
+                                    Err(_) => sender.send(Data::Error(Error::from(ErrorKind::IOGenericWrite(vec![temp_path.display().to_string();1])))).unwrap(),
+                                }
+                            }
+                            None => sender.send(Data::Error(Error::from(ErrorKind::PackedFileNotFound))).unwrap(),
+                        }
                     }
                 }
             }

@@ -3,14 +3,17 @@ extern crate qt_widgets;
 extern crate qt_gui;
 extern crate qt_core;
 
-use qt_widgets::widget::Widget;
+use qt_widgets::dialog::Dialog;
+use qt_widgets::dialog_button_box::{DialogButtonBox, StandardButton};
 use qt_widgets::plain_text_edit::PlainTextEdit;
+use qt_widgets::widget::Widget;
 
 use qt_core::connection::Signal;
 
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use SUPPORTED_GAMES;
 use AppUI;
 use Commands;
 use Data;
@@ -22,6 +25,7 @@ use error::Result;
 /// `PlainTextEdit` with the data of a plain text PackedFile, allowing us to manipulate it.
 pub struct PackedFileTextView {
     pub save_changes: SlotNoArgs<'static>,
+    pub check_syntax: SlotNoArgs<'static>,
 }
 
 /// Implementation of PackedFileLocTreeView.
@@ -33,6 +37,7 @@ impl PackedFileTextView {
         // Create some dummy slots and return it.
         Self {
             save_changes: SlotNoArgs::new(|| {}),
+            check_syntax: SlotNoArgs::new(|| {}),
         }
     }
 
@@ -47,6 +52,10 @@ impl PackedFileTextView {
         packed_file_path: Vec<String>,
     ) -> Result<Self> {
 
+        // Try to get the Game Selected. This should never fail, so CTD if it does it.
+        sender_qt.send(Commands::GetGameSelected).unwrap();
+        let game_selected = if let Data::String(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+
         // Get the text of the PackedFile.
         sender_qt.send(Commands::DecodePackedFileText).unwrap();
         sender_qt_data.send(Data::VecString(packed_file_path.to_vec())).unwrap();
@@ -56,11 +65,15 @@ impl PackedFileTextView {
             _ => panic!(THREADS_MESSAGE_ERROR), 
         };
 
-        // Create the PlainTextEdit.
+        // Create the PlainTextEdit and the checking button.
         let plain_text_edit = PlainTextEdit::new(&QString::from_std_str(&text)).into_raw();
+        let check_syntax_button = PushButton::new(&QString::from_std_str("Check Syntax")).into_raw();
 
         // Add it to the view.
         unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((plain_text_edit as *mut Widget, 0, 0, 1, 1)); }
+        if packed_file_path.last().unwrap().ends_with(".lua") && SUPPORTED_GAMES.get(&*game_selected).unwrap().ca_types_file.is_some() {
+            unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((check_syntax_button as *mut Widget, 1, 0, 1, 1)); }
+        }
 
         // Create the stuff needed for this to work.
         let stuff = Self {
@@ -83,10 +96,54 @@ impl PackedFileTextView {
                     *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(packed_file_path.to_vec()));
                 }
             )),
+
+            check_syntax: SlotNoArgs::new(clone!(
+                app_ui,
+                sender_qt,
+                receiver_qt => move || {
+
+                    // Tell the background thread to check the PackedFile, and return the result.
+                    sender_qt.send(Commands::CheckScriptWithKailua).unwrap();
+                    let result = match check_message_validity_recv2(&receiver_qt) { 
+                        Data::VecString(data) => data,
+                        Data::Error(error) => return show_dialog(app_ui.window, false, error),
+                        _ => panic!(THREADS_MESSAGE_ERROR), 
+                    };
+
+                    let mut clean_result = String::new();
+                    result.iter().for_each(|x| clean_result.push_str(&format!("{}\n", x)));
+
+                    // Create the dialog.
+                    let dialog;
+                    unsafe { dialog = Dialog::new_unsafe(app_ui.window as *mut Widget).into_raw(); }
+
+                    // Create the Grid.
+                    let grid = GridLayout::new().into_raw();
+                    unsafe { dialog.as_mut().unwrap().set_layout(grid as *mut Layout); }
+
+                    // Configure the dialog.
+                    unsafe { dialog.as_mut().unwrap().set_window_title(&QString::from_std_str("Script Checked!")); }
+                    unsafe { dialog.as_mut().unwrap().set_modal(false); }
+                    unsafe { dialog.as_mut().unwrap().resize((950, 500)); }
+
+                    // Create the Text View and the ButtonBox.
+                    let mut error_report = PlainTextEdit::new(&QString::from_std_str(clean_result));
+                    let mut button_box = DialogButtonBox::new(());
+                    error_report.set_read_only(true);
+                    let close_button = button_box.add_button(StandardButton::Close);
+                    unsafe { close_button.as_mut().unwrap().signals().released().connect(&dialog.as_mut().unwrap().slots().close()); }
+                    unsafe { grid.as_mut().unwrap().add_widget((error_report.into_raw() as *mut Widget, 0, 0, 1, 1)); }
+                    unsafe { grid.as_mut().unwrap().add_widget((button_box.into_raw() as *mut Widget, 1, 0, 1, 1)); }
+
+                    // Show the Dialog, so it doesn't block the program.
+                    unsafe { dialog.as_mut().unwrap().show(); }
+                }
+            )),
         };
 
-        // Action to trigger a save on edit.
+        // Actions to trigger the slots.
         unsafe { plain_text_edit.as_ref().unwrap().signals().text_changed().connect(&stuff.save_changes); }
+        unsafe { check_syntax_button.as_ref().unwrap().signals().released().connect(&stuff.check_syntax); }
 
         // Return the slots.
         Ok(stuff)

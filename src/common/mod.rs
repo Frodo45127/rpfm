@@ -273,8 +273,8 @@ pub fn get_game_selected_data_packfiles_paths(game_selected: &str, settings: &Se
 #[allow(dead_code)]
 pub fn get_game_selected_content_packfiles_paths(game_selected: &str, settings: &Settings) -> Option<Vec<PathBuf>> {
 
-    let mut path = settings.paths.get(game_selected).unwrap().clone()?;
-    let id = SUPPORTED_GAMES.get(game_selected).unwrap().steam_id?.to_string();
+    let mut path = settings.paths.get(game_selected)?.clone()?;
+    let id = SUPPORTED_GAMES.get(game_selected)?.steam_id?.to_string();
 
     path.pop();
     path.pop();

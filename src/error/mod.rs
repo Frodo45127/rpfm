@@ -73,7 +73,9 @@ pub enum ErrorKind {
 
     // These errors are to be used when importing TSV files. The last one is for any other error it can happen not already covered.
     ImportTSVIncorrectFirstRow,
-    ImportTSVWrongType,
+    ImportTSVWrongTypeTable,
+    ImportTSVWrongTypeLoc,
+    ImportTSVWrongVersion,
     ImportTSVIncompatibleFile,
     TSVErrorGeneric,
 
@@ -115,6 +117,9 @@ pub enum ErrorKind {
     //--------------------------------//
     // DB Table Errors
     //--------------------------------//
+
+    // Error for when we try to open a table with less than 5 bytes.
+    DBTableNotEnoughBytes,
 
     // Error for when we try to open a table with a List field on it.
     DBTableContainsListField,
@@ -166,6 +171,12 @@ pub enum ErrorKind {
 
     // Error for when a Text PackedFile fails to decode.
     TextDecode(String),
+
+    // Error for when we try to use Kailua without a types file.
+    NoTypesFileFound,
+
+    // Error for when Kailua is not installed.
+    KailuaNotFound,
 
     //--------------------------------//
     // Loc Errors
@@ -245,7 +256,7 @@ pub enum ErrorKind {
     // Error for when the introduced input (usually, a name) is empty and it cannot be empty.
     EmptyInput,
 
-    // Error for when the introduced input (usually, a name) has invalid characters.
+    // Error for when the introduced input (usually, a name) has invalid characters, or it's invalid for any other reason.
     InvalidInput,
 
     // Error for when the introduced input (usually, a name) hasn't changed.
@@ -339,7 +350,9 @@ impl Display for ErrorKind {
             //                TSV-related Errors
             //-----------------------------------------------------//
             ErrorKind::ImportTSVIncorrectFirstRow => write!(f, "<p>This TSV file's first line is incorrect.</p>"),
-            ErrorKind::ImportTSVWrongType => write!(f, "<p>This TSV file belongs to another table/version, or to a localisation PackedFile.</p>"),
+            ErrorKind::ImportTSVWrongTypeTable => write!(f, "<p>This TSV file belongs to another table, to a localisation PackedFile, or it's incompatible with RPFM.</p>"),
+            ErrorKind::ImportTSVWrongTypeLoc => write!(f, "<p>This TSV file belongs to a DB table, or it's incompatible with RPFM.</p>"),
+            ErrorKind::ImportTSVWrongVersion => write!(f, "<p>This TSV file belongs to another version of this table. If you want to use it, consider creating a new empty table, fill it with enough empty rows, open this file in a TSV editor, like Excel or LibreOffice, and copy column by column.</p><p>A more automatic solution is on the way, but not yet there.</p>"),
             ErrorKind::ImportTSVIncompatibleFile => write!(f, "<p>This TSV file it's not compatible with RPFM.</p>"),
             ErrorKind::TSVErrorGeneric => write!(f, "<p>Error while trying to import/export a TSV file.</p>"),
 
@@ -375,11 +388,12 @@ impl Display for ErrorKind {
             //                PackedFile Errors
             //-----------------------------------------------------//
             ErrorKind::PackedFileNotFound => write!(f, "<p>This PackedFile no longer exists in the PackFile.</p>"),
-            ErrorKind::PackedFileIsOpen => write!(f, "<p>That operation cannot be done while the PackedFile involved on it is open.</p>"),
+            ErrorKind::PackedFileIsOpen => write!(f, "<p>That operation cannot be done while the PackedFile involved on it is open. Please, close it by selecting a Folder/PackFile in the TreeView and try again.</p>"),
 
             //--------------------------------//
             // DB Table Errors
             //--------------------------------//
+            ErrorKind::DBTableNotEnoughBytes => write!(f, "<p>This table doesn't have enough bytes to be decoded. This error usually happen if this file is not a table or it's broken (sometimes the Assembly Kit exports broken tables).</p><p>If this table was created with the Assembly Kit, re-export it and try again. If it was not exported with the Assembly Kit and you are sure it's a table, it may be a bug so... report it. I guess.</p>"),
             ErrorKind::DBTableContainsListField => write!(f, "<p>This specific table version uses a currently unimplemented type (List), so is undecodeable, for now.</p>"),
             ErrorKind::DBTableNotADBTable => write!(f, "<p>This PackedFile is not a DB Table.</p>"),
             ErrorKind::DBTableParse => write!(f, "<p>Error while trying to save the DB Table.</p><p>This is probably caused by one of the fields you just changed. Please, make sure the data in that field it's of the correct type.</p>"),
@@ -405,6 +419,8 @@ impl Display for ErrorKind {
 
             // Error for when a Text PackedFile fails to decode.
             ErrorKind::TextDecode(cause) => write!(f, "<p>Error while trying to decode the Text PackedFile:</p><p>{}</p>", cause),
+            ErrorKind::NoTypesFileFound => write!(f, "<p>There is no Types file for the current Game Selected, so you can't use Kailua.</p>"),
+            ErrorKind::KailuaNotFound => write!(f, "<p>Kailua executable not found. Install it and try again.</p>"),
 
             //--------------------------------//
             // Loc Errors
