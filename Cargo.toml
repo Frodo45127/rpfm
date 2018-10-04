@@ -34,8 +34,6 @@ qt_core = "0.2"
 cpp_utils = "*"
 lazy_static = "*"
 
-openssl = {version = "0.10", features = ["vendored"]}
-
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1.5"
 
