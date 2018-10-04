@@ -6,6 +6,7 @@
 
 # Should I use this or stick to PFM?
 It depends on what you need. Good things of RPFM are:
+- **It has most of the features from PFM and many of his own.
 - **Is being actively developed**, so new features land from time to time.
 - **Faster by a lot** in... more or less everything.
 - **Far more stable** than PFM.
@@ -13,7 +14,6 @@ It depends on what you need. Good things of RPFM are:
 - **UI similar to PFM**, so it's not hard to get used to when coming from PFM.
 
 Bad things are:
-- **Not as many features as PFM**.
 - **Doesn't support as many games as PFM**.
 
 # Status of the Project
@@ -49,6 +49,10 @@ cargo build --target=x86_64-pc-windows-gnu --release
 cargo build --target=x86_64-unknown-linux-gnu --release
 ```
 
+# Known Issues
+- **The program crashes when trying to open an Arena PackFile!!!**: CA recently changed the encryption Arena uses (don't think it was really a coincidence),... so that's something to fix in the future.
+- **Kailua throws useless errors!!!**: That feature is alpha and very experimental.
+
 # FAQ
 - **Why not helping with PFM instead of reimplementing it?**: because I wanted to learn a new language, and I already now a bit of C#. Also, where is the fun of that?
 - **Why the code quality is not the very best?**: because I'm using this project to learn Rust, and I'm constantly rewriting code as I find new and better ways to write it.
@@ -58,6 +62,7 @@ cargo build --target=x86_64-unknown-linux-gnu --release
 - ***Maruka*** (From Steam): He made the wazard hat's icon. Also, he helped with the research to decode RigidModel files.
 - ***Mr. Jox*** (From Steam): He helped with A LOT of information about decoding RigidModels.
 - ***Aexrael Dex*** (From Discord): He is who got all those suggested functions you see when editing a Lua Script.
+- ***DrunkFlamingo*** (From Discord): He is who got all the Lua Types for Warhammer 2 so Kailua can work with WH2 scripts.
 - ***Der Spaten*** (From Discord): He helped with the research to decode RigidModels, specially with the "Replace texture" functionality.
 - ***Trolldemorted*** (From Github): He is who made all the research and code to get Arena PackFiles (and music PackedFiles in Rome 2 and Attila) decrypted and readable.
 
