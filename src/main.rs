@@ -4776,6 +4776,9 @@ fn open_packfile(
                 set_my_mod_mode(&mymod_stuff, mode, None);
             }
 
+            // Re-enable the Main Window.
+            unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
+
             // Destroy whatever it's in the PackedFile's view, to avoid data corruption.
             purge_them_all(&app_ui, &is_packedfile_opened);
             
@@ -4786,10 +4789,6 @@ fn open_packfile(
 
             // Show the "Tips".
             display_help_tips(&app_ui);
-
-            // Re-enable the Main Window.
-            unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
-
         }
 
         // If we got an error...
