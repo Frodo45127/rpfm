@@ -1879,30 +1879,22 @@ impl PackedFileDBTreeView {
                         }
                     }
 
+                    let mut edits = vec![];
+                    let mut removed_rows = vec![];
                     for (key, values) in cells.iter().rev() {
 
                         // If we have selected all the cells from a row, delete the row.
-                        if values.len() == table_definition.fields.len() {
-
-                            let mut row;
-                            unsafe { row = vec![model.as_mut().unwrap().take_row(*key)]; }
-
-                            // Update the undo stuff.
-                            history.borrow_mut().push(TableOperations::RemoveRows((vec![*key], row)));
-                            history_redo.borrow_mut().clear();
-                            update_undo_model(model, undo_model);
-                            unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
-                        }
+                        if values.len() == table_definition.fields.len() { unsafe { removed_rows.push((*key, model.as_mut().unwrap().take_row(*key))); }}
 
                         // Otherwise, delete the values on the cells, not the cells themselfs.
                         else { 
                             for column in values {
-
-                                let item;
-                                unsafe { item = model.as_mut().unwrap().item((*key, *column)); }
-
-                                unsafe { if item.as_mut().unwrap().is_checkable() { item.as_mut().unwrap().set_check_state(CheckState::Unchecked); }
-                                else { item.as_mut().unwrap().set_text(&QString::from_std_str("")); } }
+                                unsafe {
+                                    edits.push(((*key, *column), (&*model.as_mut().unwrap().item((*key, *column))).clone()));
+                                    let item = model.as_mut().unwrap().item((*key, *column));
+                                    if item.as_mut().unwrap().is_checkable() { item.as_mut().unwrap().set_check_state(CheckState::Unchecked); }
+                                    else { item.as_mut().unwrap().set_text(&QString::from_std_str("")); }
+                                }
                             }
                         }
                     }
@@ -1920,10 +1912,18 @@ impl PackedFileDBTreeView {
                             &global_search_explicit_paths,
                             update_global_search_stuff,
                         );
-                    }
 
-                    // Update the search stuff, if needed.
-                    unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
+                        // Update the search stuff, if needed.
+                        unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
+
+                        // Update the undo stuff. This is a bit special, as we have to remove all the automatically created "Editing" undos.
+                        let len = history.borrow().len();
+                        history.borrow_mut().truncate(len - edits.len());
+                        history.borrow_mut().push(TableOperations::SmartDelete((edits, removed_rows)));
+                        history_redo.borrow_mut().clear();
+                        update_undo_model(model, undo_model);
+                        unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }                        
+                    }
                 }
             )),
 
@@ -2774,6 +2774,83 @@ impl PackedFileDBTreeView {
                             unsafe { selection_model = table_view.as_mut().unwrap().selection_model(); }
                             unsafe { selection_model.as_mut().unwrap().select((
                                 &model.as_mut().unwrap().index((rows[0], 0)),
+                                Flags::from_enum(SelectionFlag::ClearAndSelect)
+                            )); }
+
+                            // Try to save the PackedFile to the main PackFile.
+                            Self::save_to_packed_file(
+                                &sender_qt,
+                                &sender_qt_data,
+                                &is_modified,
+                                &app_ui,
+                                &data,
+                                &packed_file_path,
+                                model,
+                                &global_search_explicit_paths,
+                                update_global_search_stuff,
+                            );
+                        }
+
+                        TableOperations::SmartDelete((edits, rows)) => {
+
+                            // Due to certain stuff, we need to allow signals to trigger after this. Otherwise, this doesn't even work.
+                            blocker.unblock();
+                            unsafe { rows.iter().rev().for_each(|x| model.as_mut().unwrap().insert_row((x.0, &x.1))); }
+                            blocker.reblock();
+
+                            // Restore all the "edits".
+                            let edits_before;
+                            unsafe { edits_before = edits.iter().map(|x| (((x.0).0, (x.0).1), (&*model.as_mut().unwrap().item(((x.0).0, (x.0).1))).clone())).collect::<Vec<((i32, i32), *mut StandardItem)>>(); }
+                            unsafe { edits.iter().for_each(|x| model.as_mut().unwrap().set_item(((x.0).0, (x.0).1, x.1.clone()))); }
+
+                            // Prepare the redo operation.
+                            history_opposite.borrow_mut().push(TableOperations::RevertSmartDelete((edits_before, rows.iter().map(|x| x.0).collect())));
+
+                            // Select the item. This should force the TableView to update and show the changes.
+                            let row_to_select = if !edits.is_empty() { (edits[0].0).0 } else { rows[0].0 };
+                            let selection_model;
+                            unsafe { selection_model = table_view.as_mut().unwrap().selection_model(); }
+                            unsafe { selection_model.as_mut().unwrap().select((
+                                &model.as_mut().unwrap().index((row_to_select, 0)),
+                                Flags::from_enum(SelectionFlag::ClearAndSelect)
+                            )); }
+
+                            // Try to save the PackedFile to the main PackFile.
+                            Self::save_to_packed_file(
+                                &sender_qt,
+                                &sender_qt_data,
+                                &is_modified,
+                                &app_ui,
+                                &data,
+                                &packed_file_path,
+                                model,
+                                &global_search_explicit_paths,
+                                update_global_search_stuff,
+                            );
+                        }
+
+                        TableOperations::RevertSmartDelete((edits, rows)) => {
+                            
+                            // Restore all the "edits".
+                            let edits_before;
+                            unsafe { edits_before = edits.iter().map(|x| (((x.0).0, (x.0).1), (&*model.as_mut().unwrap().item(((x.0).0, (x.0).1))).clone())).collect::<Vec<((i32, i32), *mut StandardItem)>>(); }
+                            unsafe { edits.iter().for_each(|x| model.as_mut().unwrap().set_item(((x.0).0, (x.0).1, x.1.clone()))); }
+
+                            // Due to certain stuff, we need to allow signals to trigger after this. Otherwise, this doesn't even work.
+                            blocker.unblock();
+                            let mut removed_rows = vec![];
+                            unsafe { rows.iter().for_each(|x| removed_rows.push((*x, model.as_mut().unwrap().take_row(*x)))); }
+                            blocker.reblock();
+
+                            // Prepare the redo operation.
+                            history_opposite.borrow_mut().push(TableOperations::SmartDelete((edits_before, removed_rows)));
+
+                            // Select the item. This should force the TableView to update and show the changes.
+                            let row_to_select = if !edits.is_empty() { (edits[0].0).0 } else { -1 };
+                            let selection_model;
+                            unsafe { selection_model = table_view.as_mut().unwrap().selection_model(); }
+                            unsafe { selection_model.as_mut().unwrap().select((
+                                &model.as_mut().unwrap().index((row_to_select, 0)),
                                 Flags::from_enum(SelectionFlag::ClearAndSelect)
                             )); }
 

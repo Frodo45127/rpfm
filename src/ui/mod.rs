@@ -852,12 +852,16 @@ pub enum ItemVisualStatus {
 /// - Editing: Intended for any kind of item editing. Holds ((row, column), *mut item).
 /// - AddRows: Intended for when adding/inserting rows. It holds a list of positions where the rows where inserted.
 /// - RemoveRows: Intended for when removing rows. It holds a list of positions where the rows where deleted and the deleted rows.
+/// - SmartDelete: Intended for when we are using the smart delete feature. This is a combination of list of edits and list of removed rows.
+/// - RevertSmartDelete: Selfexplanatory. This is a combination of list of edits and list of adding rows.
 /// - ImportTSVDB: It holds a copy of the entire DBData, before importing.
 /// - ImportTSVLOC: It holds a copy of the entire LocData, before importing.
 pub enum TableOperations {
     Editing(((i32, i32), *mut StandardItem)),
     AddRows(Vec<i32>),
     RemoveRows((Vec<i32>, Vec<ListStandardItemMutPtr>)),
+    SmartDelete((Vec<((i32, i32), *mut StandardItem)>, Vec<(i32, ListStandardItemMutPtr)>)),
+    RevertSmartDelete((Vec<((i32, i32), *mut StandardItem)>, Vec<i32>)),
     ImportTSVDB(DBData),
     ImportTSVLOC(LocData),
 }
