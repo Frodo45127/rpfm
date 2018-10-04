@@ -23,6 +23,7 @@ const SETTINGS_FILE: &str = "settings.json";
 /// - `db_pack`: This is the PackFile from where we load the data for db references. Since 1.0, we use data.pack or equivalent for this.
 /// - `loc_pack`: This is the PackFile from where we load the data for loc special stuff. This should be the one for english. For other languages, we'll have to search it.
 /// - `steam_id`: This is the "SteamID" used by the game, if it's on steam. If not, it's just None.
+/// - `ca_types_file`: This is the file used for checking scripts with Kailua. If there is no file, set it as None.
 /// - `supports_editing`: True if we can save PackFiles for this game. False if we cannot (Arena). This also affect if we can use this game for "MyMod" stuff.
 #[derive(Clone, Debug)]
 pub struct GameInfo {
@@ -32,6 +33,7 @@ pub struct GameInfo {
     pub db_pack: String,
     pub loc_pack: String,
     pub steam_id: Option<u64>,
+    pub ca_types_file: Option<String>,
     pub supports_editing: bool,
 }
 

@@ -172,6 +172,12 @@ pub enum ErrorKind {
     // Error for when a Text PackedFile fails to decode.
     TextDecode(String),
 
+    // Error for when we try to use Kailua without a types file.
+    NoTypesFileFound,
+
+    // Error for when Kailua is not installed.
+    KailuaNotFound,
+
     //--------------------------------//
     // Loc Errors
     //--------------------------------//
@@ -413,6 +419,8 @@ impl Display for ErrorKind {
 
             // Error for when a Text PackedFile fails to decode.
             ErrorKind::TextDecode(cause) => write!(f, "<p>Error while trying to decode the Text PackedFile:</p><p>{}</p>", cause),
+            ErrorKind::NoTypesFileFound => write!(f, "<p>There is no Types file for the current Game Selected, so you can't use Kailua.</p>"),
+            ErrorKind::KailuaNotFound => write!(f, "<p>Kailua executable not found. Install it and try again.</p>"),
 
             //--------------------------------//
             // Loc Errors

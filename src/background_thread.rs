@@ -1115,39 +1115,48 @@ pub fn background_loop(
                         let mut results = vec![];
 
                         // Get the paths we need.
-                        let types_path = RPFM_PATH.to_path_buf().join(PathBuf::from("ca_types"));
-                        let mut temp_folder_path = temp_dir().join(PathBuf::from("rpfm/scripts"));
-                        let mut config_path = temp_folder_path.to_path_buf();
-                        config_path.push("kailua.json");
+                        if let Some(ref ca_types_file) = SUPPORTED_GAMES.get(&*game_selected).unwrap().ca_types_file {
+                            let types_path = RPFM_PATH.to_path_buf().join(PathBuf::from("lua_types")).join(PathBuf::from(ca_types_file));
+                            let mut temp_folder_path = temp_dir().join(PathBuf::from("rpfm/scripts"));
+                            let mut config_path = temp_folder_path.to_path_buf();
+                            config_path.push("kailua.json");
+                            if Command::new("kailua").output().is_ok() {
 
-                        // Extract every lua file in the PackFile, respecting his path.
-                        for packed_file in &pack_file_decoded.data.packed_files {
-                            if packed_file.path.last().unwrap().ends_with(".lua") {
-                                let path: PathBuf = temp_folder_path.to_path_buf().join(packed_file.path.iter().collect::<PathBuf>());
+                                // Extract every lua file in the PackFile, respecting his path.
+                                for packed_file in &pack_file_decoded.data.packed_files {
+                                    if packed_file.path.last().unwrap().ends_with(".lua") {
+                                        let path: PathBuf = temp_folder_path.to_path_buf().join(packed_file.path.iter().collect::<PathBuf>());
 
-                                // If the path doesn't exist, create it.
-                                let mut path_base = path.to_path_buf();
-                                path_base.pop();
-                                if !path_base.is_dir() { DirBuilder::new().recursive(true).create(&path_base).unwrap(); }
+                                        // If the path doesn't exist, create it.
+                                        let mut path_base = path.to_path_buf();
+                                        path_base.pop();
+                                        if !path_base.is_dir() { DirBuilder::new().recursive(true).create(&path_base).unwrap(); }
 
-                                File::create(&path).unwrap().write_all(&packed_file.data).unwrap();
-                                
-                                // Create the Kailua config file.
-                                let config = format!("
-                                {{
-                                    \"start_path\": [\"{}\"],
-                                    \"preload\": {{
-                                        \"open\": [\"lua51\"],
-                                        \"require\": [\"{}\"]
-                                    }}
-                                }}", path.to_string_lossy(), types_path.to_string_lossy());
-                                File::create(&config_path).unwrap().write_all(&config.as_bytes()).unwrap();
-                                results.push(String::from_utf8_lossy(&Command::new("kailua").arg("check").arg(&config_path.to_string_lossy().as_ref().to_owned()).output().unwrap().stderr).to_string());
+                                        File::create(&path).unwrap().write_all(&packed_file.data).unwrap();
+                                        
+                                        // Create the Kailua config file.
+                                        let config = format!("
+                                        {{
+                                            \"start_path\": [\"{}\"],
+                                            \"preload\": {{
+                                                \"open\": [\"lua51\"],
+                                                \"require\": [\"{}\"]
+                                            }}
+                                        }}", path.to_string_lossy().replace('\\', "\\\\"), types_path.to_string_lossy().replace('\\', "\\\\"));
+                                        File::create(&config_path).unwrap().write_all(&config.as_bytes()).unwrap();
+                                        results.push(String::from_utf8_lossy(&Command::new("kailua").arg("check").arg(&config_path.to_string_lossy().as_ref().to_owned()).output().unwrap().stderr).to_string());
+                                    }
+                                }
+    
+                                // Send back the result.
+                                sender.send(Data::VecString(results)).unwrap();
                             }
+
+                            else { sender.send(Data::Error(Error::from(ErrorKind::KailuaNotFound))).unwrap(); }
                         }
 
-                        // Send back the result.
-                        sender.send(Data::VecString(results)).unwrap();
+                        // If there is no Type's file, return an error.
+                        else { sender.send(Data::Error(Error::from(ErrorKind::NoTypesFileFound))).unwrap(); }
                     }
 
                     // In case we want to perform a "Global Search"...
