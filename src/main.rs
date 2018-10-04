@@ -1157,7 +1157,11 @@ fn main() {
 
                     // Destroy whatever it's in the PackedFile's view, to avoid data corruption. Also hide the Global Search stuff.
                     purge_them_all(&app_ui, &is_packedfile_opened);
+
+                    // Close the Global Search stuff and reset the filter's history.
                     unsafe { close_global_search_action.as_mut().unwrap().trigger(); }
+                    history_filter_db.borrow_mut().clear();
+                    history_filter_loc.borrow_mut().clear();
 
                     // Show the "Tips".
                     display_help_tips(&app_ui);
@@ -1217,9 +1221,6 @@ fn main() {
 
                     // Set the current "Operational Mode" to Normal, as this is a "New" mod.
                     set_my_mod_mode(&mymod_stuff, &mode, None);
-
-                    history_filter_db.borrow_mut().clear();
-                    history_filter_loc.borrow_mut().clear();
                 }
             }
         ));
@@ -4861,6 +4862,8 @@ fn build_my_mod_menu(
 
         // This slot is used for the "New MyMod" action.
         new_mymod: SlotBool::new(clone!(
+            history_filter_db,
+            history_filter_loc,
             sender_qt,
             sender_qt_data,
             receiver_qt,
@@ -4931,6 +4934,11 @@ fn build_my_mod_menu(
 
                                 // Destroy whatever it's in the PackedFile's view, to avoid data corruption.
                                 purge_them_all(&app_ui, &is_packedfile_opened);
+
+                                // Close the Global Search stuff and reset the filter's history.
+                                unsafe { close_global_search_action.as_mut().unwrap().trigger(); }
+                                history_filter_db.borrow_mut().clear();
+                                history_filter_loc.borrow_mut().clear();
 
                                 // Show the "Tips".
                                 display_help_tips(&app_ui);
