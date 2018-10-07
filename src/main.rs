@@ -821,6 +821,7 @@ fn main() {
         let is_packedfile_opened = Rc::new(RefCell::new(None));
         let is_folder_tree_view_locked = Rc::new(RefCell::new(false));
         let mymod_menu_needs_rebuild = Rc::new(RefCell::new(false));
+        let open_from_submenu_menu_needs_rebuild = Rc::new(RefCell::new(false));
         let mode = Rc::new(RefCell::new(Mode::Normal));
 
         // Build the empty structs we need for certain features.
@@ -1053,14 +1054,9 @@ fn main() {
 
         // What happens when we trigger the "Change Game Selected" action.
         let slot_change_game_selected = SlotBool::new(clone!(
-            history_filter_db,
-            history_filter_loc,
             mode,
             mymod_stuff,
-            open_from_slots,
-            is_modified,
-            is_packedfile_opened,
-            close_global_search_action,
+            open_from_submenu_menu_needs_rebuild,
             mode,
             sender_qt,
             sender_qt_data,
@@ -1085,24 +1081,8 @@ fn main() {
                 sender_qt.send(Commands::SetGameSelected).unwrap();
                 sender_qt_data.send(Data::String(new_game_selected_folder_name.to_owned())).unwrap();
 
-                // Build the "Open from Content" submenu.
-                *open_from_slots.borrow_mut() = build_open_from_submenus(
-                    sender_qt.clone(),
-                    &sender_qt_data,
-                    receiver_qt.clone(),
-                    &settings,
-                    app_ui,
-                    &menu_open_from_content,
-                    &menu_open_from_data,
-                    &new_game_selected_folder_name,
-                    &is_modified,
-                    &mode,
-                    &is_packedfile_opened,
-                    &mymod_stuff,
-                    close_global_search_action,
-                    &history_filter_db,
-                    &history_filter_loc,
-                );
+                // Prepare to rebuild the submenu next time we try to open the PackFile menu.
+                *open_from_submenu_menu_needs_rebuild.borrow_mut() = true;
 
                 // Get the response from the background thread.
                 let response = if let Data::StringBool(data) = check_message_validity_tryrecv(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
@@ -4066,7 +4046,7 @@ fn main() {
 
                 // Map the ModelIndex to his real ModelIndex in the full model.
                 let model_index_match;
-                unsafe { model_index_match = filter_model_matches_db.as_mut().unwrap().map_to_source(&model_index_filter); }
+                unsafe { model_index_match = filter_model_matches_loc.as_mut().unwrap().map_to_source(&model_index_filter); }
 
                 // Get the data about the PackedFile.
                 let path;
@@ -4423,6 +4403,56 @@ fn main() {
         // Show the Main Window and start everything...
         //-----------------------------------------------------//
 
+        // We need to rebuild the "Open From ..." submenus while opening the PackFile menu if the variable for it is true.
+        let slot_rebuild_open_from_submenu = SlotNoArgs::new(clone!(
+            history_filter_db,
+            history_filter_loc,
+            mymod_stuff,
+            sender_qt,
+            is_packedfile_opened,
+            sender_qt_data,
+            receiver_qt,
+            is_modified,
+            mode,
+            close_global_search_action,
+            open_from_submenu_menu_needs_rebuild => move || {
+
+                // If we need to rebuild the "MyMod" menu...
+                if *open_from_submenu_menu_needs_rebuild.borrow() {
+
+                    // Get the current settings.
+                    sender_qt.send(Commands::GetSettings).unwrap();
+                    let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+
+                    // Change the Game Selected in the Background Thread.
+                    sender_qt.send(Commands::GetGameSelected).unwrap();
+                    let game_selected = if let Data::String(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+
+                    // Then rebuild it.
+                    *open_from_slots.borrow_mut() = build_open_from_submenus(
+                        sender_qt.clone(),
+                        &sender_qt_data,
+                        receiver_qt.clone(),
+                        &settings,
+                        app_ui,
+                        &menu_open_from_content,
+                        &menu_open_from_data,
+                        &game_selected,
+                        &is_modified,
+                        &mode,
+                        &is_packedfile_opened,
+                        &mymod_stuff,
+                        close_global_search_action,
+                        &history_filter_db,
+                        &history_filter_loc,
+                    );
+
+                    // Disable the rebuild for the next time.
+                    *open_from_submenu_menu_needs_rebuild.borrow_mut() = false;
+                }
+            }
+        ));
+
         // We need to rebuild the MyMod menu while opening it if the variable for it is true.
         let slot_rebuild_mymod_menu = SlotNoArgs::new(clone!(
             history_filter_db,
@@ -4466,6 +4496,7 @@ fn main() {
                 }
             }
         ));
+        unsafe { menu_bar_packfile.as_ref().unwrap().signals().about_to_show().connect(&slot_rebuild_open_from_submenu); }
         unsafe { menu_bar_mymod.as_ref().unwrap().signals().about_to_show().connect(&slot_rebuild_mymod_menu); }
 
         // Show the Main Window...
