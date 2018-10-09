@@ -8,8 +8,7 @@ extern crate hyper_tls;
 
 use failure::{Backtrace, Context, Fail};
 use serde_json::error::Category;
-use tw_pack_lib::ParsePackError;
-use tw_pack_lib::BuildPackError;
+use tw_pack_lib::error;
 
 use std::fmt;
 use std::fmt::Display;
@@ -85,6 +84,9 @@ pub enum ErrorKind {
     //                 PackFile Errors
     //-----------------------------------------------------//
 
+    // Error for when we receive a weird error from the PackFile lib.
+    PackFileGeneric,
+
     // Generic error to hold any other error triggered when opening a PackFile.
     OpenPackFileGeneric(String),
 
@@ -94,9 +96,6 @@ pub enum ErrorKind {
     // Error for when we try to load an unsupported PackFile.
     PackFileNotSupported,
 
-    // Error for when the PackFile's header can be read but it's not decodeable.
-    PackFileHeaderNotComplete,
-
     // Error for when we try to open a PackFile and his extension is not ".pack".
     OpenPackFileInvalidExtension,
 
@@ -105,6 +104,9 @@ pub enum ErrorKind {
 
     // Error for when the PackFile is not a valid file on disk.
     PackFileIsNotAFile,
+
+    // Error for when the file in disk of the PackFile we're trying to save no longer exists.
+    PackFileFileIsNoMore,
 
     //-----------------------------------------------------//
     //                PackedFile Errors
@@ -361,6 +363,7 @@ impl Display for ErrorKind {
             //-----------------------------------------------------//
             //                 PackFile Errors
             //-----------------------------------------------------//
+            ErrorKind::PackFileGeneric => write!(f, "<p>Error while trying to open/save the PackFile. If you see this, please report it.</p>"),
             ErrorKind::OpenPackFileGeneric(error) => write!(f, "<p>Error while trying to open a PackFile:</p><p>{}</p>", error),
             ErrorKind::SavePackFileGeneric(error) => write!(f, "<p>Error while trying to save the currently open PackFile:</p><p>{}</p>", error),
             ErrorKind::PackFileNotSupported => write!(f, "
@@ -373,7 +376,6 @@ impl Display for ErrorKind {
             <li>- Rome 2.</li>
             <li>- Arena.</li>
             </ul>"),
-            ErrorKind::PackFileHeaderNotComplete => write!(f, "<p>The header of the PackFile is incomplete, unsupported or damaged.</p>"),
             ErrorKind::OpenPackFileInvalidExtension => write!(f, "<p>RPFM can only open packfiles whose name ends in <i>'.pack'</i></p>"),
             ErrorKind::PackFileIsNonEditable => write!(f, "
             <p>This type of PackFile is supported in Read-Only mode.</p>
@@ -385,6 +387,7 @@ impl Display for ErrorKind {
             </ul>
             <p>If you really want to save it, go to <i>'PackFile/Change PackFile Type'</i> and change his type to 'Mod' or 'Movie'. Note that if the cause it's the third on the list, there is no way to save the PackFile, yet.</p>"),
             ErrorKind::PackFileIsNotAFile => write!(f, "<p>This PackFile doesn't exists as a file in the disk.</p>"),
+            ErrorKind::PackFileFileIsNoMore => write!(f, "<p>This PackFile's file is not in the disk anymore. If you didn't deleted it, probably the Assembly Kit did it for you :(.</p><p>If you enabled \"Use Lazy-Loading for PackFiles\" in the Settings, there is no way to fix this. Sorry, but you lost your PackFile. If you didn't, just hit \"Save PackFile As\" and save it somewhere. That'll fix it.</p>"),
 
             //-----------------------------------------------------//
             //                PackedFile Errors
@@ -563,14 +566,13 @@ impl From<io::Error> for Error {
     }
 }
 
-impl From<ParsePackError> for Error {
-    fn from(_: ParsePackError) -> Error {
-        Error::from(ErrorKind::OpenPackFileGeneric("Could not parse pack file".to_string()))
-    }
-}
-
-impl From<BuildPackError> for Error {
-    fn from(_: BuildPackError) -> Error {
-        Error::from(ErrorKind::SavePackFileGeneric("Could not save pack file".to_string()))
+/// Implementation to deal with the errors from the PackFile lib.
+impl From<error::Error> for Error {
+    fn from(error: error::Error) -> Error {
+        match error {
+            error::Error::UnsupportedPackFile => Error::from(ErrorKind::PackFileNotSupported),
+            error::Error::IOError => Error::from(ErrorKind::IOGeneric),
+            _ => Error::from(ErrorKind::PackFileGeneric),
+        }
     }
 }

@@ -1,16 +1,13 @@
 // In this file are all the Structs and Impls required to decode and encode the PackFiles.
+use tw_pack_lib::{PackedFile, PFHVersion, PFHFileType, PFHFlags, parse_pack, build_pack_from_memory};
 
 use std::path::PathBuf;
 use std::fs::File;
 use std::sync::Arc;
-
-use error::Result;
 use std::time::SystemTime;
-use tw_pack_lib::PackedFile;
-use tw_pack_lib::PFHVersion;
-use tw_pack_lib::PFHFileType;
-use tw_pack_lib::PFHFlags;
-use tw_pack_lib;
+
+use common::*;
+use error::Result;
 
 /// This `Struct` stores the data of the PackFile in memory, along with some extra data needed to manipulate the PackFile.
 ///
@@ -24,34 +21,22 @@ use tw_pack_lib;
 pub struct PackFileView {
     pub file_path: PathBuf,
     pub pfh_version: PFHVersion,
-    pub bitmask: PFHFlags,
     pub pfh_file_type: PFHFileType,
-    pub pack_files: Vec<String>,
+    pub bitmask: PFHFlags,
     pub timestamp: u32,
+
+    pub pack_files: Vec<String>,
     pub packed_files: Vec<PackedFileView>,
     pub empty_folders: Vec<Vec<String>>
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct PackFileExtraData {
-    pub file_name: String,
+#[derive(Debug)]
+pub struct PackFileUIData {
     pub file_path: PathBuf,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct PackFileHeader {
-    pub id: String,
-    pub pack_file_type: u32,
-    pub pack_file_count: u32,
-    pub pack_file_index_size: u32,
-    pub packed_file_count: u32,
-    pub packed_file_index_size: u32,
-    pub creation_time: u32,
-
-    pub data_is_encrypted: bool,
-    pub index_includes_timestamp: bool,
-    pub index_is_encrypted: bool,
-    pub header_is_extended: bool,
+    pub pfh_version: PFHVersion,
+    pub pfh_file_type: PFHFileType,
+    pub bitmask: PFHFlags,
+    pub timestamp: u32,
 }
 
 #[derive(Clone, Debug)]
@@ -69,10 +54,11 @@ impl PackFileView {
         Self {
             file_path: PathBuf::new(),
             pfh_version: PFHVersion::PFH5,
-            bitmask: PFHFlags::empty(),
             pfh_file_type: PFHFileType::Mod,
-            pack_files: vec![],
+            bitmask: PFHFlags::empty(),
             timestamp: 0,
+
+            pack_files: vec![],
             packed_files: vec![],
             empty_folders: vec![]
         }
@@ -80,51 +66,37 @@ impl PackFileView {
 
     /// This function creates a new empty `PackFile` with a name and an specific id.
     pub fn new_with_name(file_name: String, pfh_version: PFHVersion) -> Self {
-        let mut path = PathBuf::new();
-        path.set_file_name(file_name);
+        let mut file_path = PathBuf::new();
+        file_path.set_file_name(file_name);
         Self {
-            file_path: path,
-            pfh_version: pfh_version,
-            bitmask: tw_pack_lib::PFHFlags::empty(),
+            file_path,
+            pfh_version,
+            bitmask: PFHFlags::empty(),
             pfh_file_type: PFHFileType::Mod,
-            pack_files: vec![],
             timestamp: 0,
+
+            pack_files: vec![],
             packed_files: vec![],
             empty_folders: vec![]
         }
     }
 
-    pub fn create_extra_data(&self) -> PackFileExtraData {
-        PackFileExtraData {
-            file_name: self.get_file_name(),
-            file_path: self.file_path.clone()
-        }
-    }
-
-    pub fn create_header(&self) -> PackFileHeader {
-        PackFileHeader {
-            id: match self.pfh_version {
-                PFHVersion::PFH4 => "PFH4".to_string(),
-                PFHVersion::PFH5 => "PFH5".to_string()
-            },
-            pack_file_type: self.pfh_file_type.get_value(),
-            pack_file_count: 0,
-            pack_file_index_size: 0,
-            packed_file_count: 0,
-            packed_file_index_size: 0,
-            creation_time: self.timestamp,
-
-            data_is_encrypted: self.bitmask.contains(PFHFlags::HAS_ENCRYPTED_CONTENT),
-            index_includes_timestamp: self.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS),
-            index_is_encrypted: self.bitmask.contains(PFHFlags::HAS_ENCRYPTED_INDEX),
-            header_is_extended: self.bitmask.contains(PFHFlags::HAS_BIG_HEADER),
-        }
-    }
-
+    /// This function returns the name of the PackedFile. If it's empty, it's a dummy PackFile. 
     pub fn get_file_name(&self) -> String {
         match self.file_path.file_name() {
             Some(s) => s.to_string_lossy().to_string(),
-            None => "".to_string()
+            None => String::new()
+        }
+    }
+
+    /// This function copies the data needed by the UI to load a PackFile.
+    pub fn create_ui_data(&self) -> PackFileUIData {
+        PackFileUIData {
+            file_path: self.file_path.to_path_buf(),
+            pfh_version: self.pfh_version,
+            pfh_file_type: self.pfh_file_type,
+            bitmask: self.bitmask.clone(),
+            timestamp: self.timestamp,
         }
     }
 
@@ -183,28 +155,31 @@ impl PackFileView {
         self.packed_files = vec![];
     }
 
-    /// This function reads the content of a PackFile and returns a `PackFile` with all the contents of the PackFile decoded.
+    /// This function reads the content of a PackFile and returns a `PackFileView` with the contents of the PackFile decoded.
     ///
     /// It requires:
     /// - `file_path`: a `PathBuf` with the path of the PackFile.
-    pub fn read(pack_file_path: PathBuf, load_lazy: bool) -> Result<Self> {
-        let pack_file = File::open(&pack_file_path)?;
+    /// - `lazy_loading`: if the PackFile should be lazy-loaded. This should be disabled for Warhammer 2 when opening from /data due to a bug in TWeaK.
+    pub fn read(file_path: PathBuf, lazy_loading: bool) -> Result<Self> {
+        
         let now = SystemTime::now();
-        let parsed_pack = tw_pack_lib::parse_pack(pack_file, load_lazy).unwrap();
+        let pack_file = File::open(&file_path)?;
+        let parsed_pack = parse_pack(pack_file, lazy_loading)?;
         let mut packed_files = vec![];
         for packed_file in parsed_pack.into_iter() {
-            packed_files.push(PackedFileView::from_packedfile(packed_file))
+            packed_files.push(PackedFileView::from(packed_file))
         }
         println!("parsed pack in: {:?}. {:?}", now.elapsed().unwrap(), &parsed_pack.get_file_type());
         Ok(Self {
-                file_path: pack_file_path,
-                pfh_version: parsed_pack.get_version(),
-                bitmask: parsed_pack.get_bitmask(),
-                pfh_file_type: parsed_pack.get_file_type(),
-                pack_files: vec![],
-                timestamp: parsed_pack.get_timestamp(),
-                packed_files: packed_files,
-                empty_folders: vec![]
+            file_path,
+            pfh_version: parsed_pack.get_version(),
+            bitmask: parsed_pack.get_bitmask(),
+            pfh_file_type: parsed_pack.get_file_type(),
+            timestamp: parsed_pack.get_timestamp(),
+            
+            pack_files: parsed_pack.get_pack_file_index(),
+            packed_files,
+            empty_folders: vec![]
         })
     }
 
@@ -213,26 +188,27 @@ impl PackFileView {
     /// It requires:
     /// - `&mut self`: the `PackFile` we are trying to save.
     /// - `mut file`: a `BufWriter` of the PackFile we are trying to write to.
-    pub fn save(&mut self, pack_file_path: &PathBuf) -> Result<()> {
+    pub fn save(&mut self, save_as_another_file: bool) -> Result<()> {
 
-        // ensure every packed file has the correct timestamp and path and is loaded into memory before we (potentially) overwrite the file
-        let mut packed_files = Vec::with_capacity(self.packed_files.len());
-        for packed_file_view in &mut self.packed_files {
-            packed_file_view.packed_file.timestamp = Some(self.timestamp);
-            packed_file_view.packed_file.path = packed_file_view.path.join("\\");
-            packed_files.push(&packed_file_view.packed_file)
+        // If we are overwriting our own file (with a normal "Save"), ensure that all the data is loaded to memory before saving.
+        if !save_as_another_file { 
+            for packed_file in &self.packed_files {
+                packed_file.get_data()?;
+            }
         }
 
+        let mut packed_files: Vec<&PackedFile> = Vec::with_capacity(self.packed_files.len());
+        self.packed_files.iter_mut().for_each(|x| packed_files.push(From::from(x)));
+        
         // We try to create the file
-        let mut file = File::create(pack_file_path)?;
-        tw_pack_lib::build_pack_from_memory(&packed_files, &mut file, self.pfh_version, self.bitmask, self.pfh_file_type, self.timestamp).map_err(From::from)
+        let mut file = File::create(&self.file_path)?;
+        build_pack_from_memory(&mut packed_files, &mut file, self.pfh_version, self.bitmask, self.pfh_file_type, get_current_time(), &self.pack_files).map_err(From::from)
     }
-
     
     /// This function checks if a `PackedFile` exists in a `PackFile`.
     ///
     /// It requires:
-    /// - `&self`: a `PackFileData` to check for the `PackedFile`.
+    /// - `&self`: a `PackFileView` to check for the `PackedFile`.
     /// - `path`: the path of the `PackedFile` we want to check.
     pub fn packedfile_exists(&self, path: &[String]) -> bool {
         for packed_file in &self.packed_files {
@@ -243,7 +219,14 @@ impl PackFileView {
         false
     }
 
+    /// This function checks if a `PackedFile` exists in a `PackFile`.
+    ///
+    /// It requires:
+    /// - `&self`: a `PackFileData` to check for the `PackedFile`.
+    /// - `path`: the path of the folder we want to check.
     pub fn folder_exists(&self, path: &[String]) -> bool {
+
+        // starts_with() triggers a false positive if the path is empty, so we have to check that first.
         if path.is_empty() { false }
         else {
             for packed_file in &self.packed_files {
@@ -260,99 +243,67 @@ impl PackFileView {
         }
     }
 
+    /// This functions serves to update the empty folder list.
     pub fn update_empty_folders(&mut self) {
         let packed_files = &self.packed_files;
-        // For each empty folder...
         self.empty_folders.retain(|folder| {
-            assert!(!folder.is_empty());
-            for packed_file in packed_files {
-                if packed_file.path.starts_with(folder) && packed_file.path.len() > folder.len() {
-                    return false
+            if folder.is_empty() { false }
+            else {
+                for packed_file in packed_files {
+                    if packed_file.path.starts_with(folder) && packed_file.path.len() > folder.len() {
+                        return false
+                    }
                 }
+                true
             }
-            true
         })
     }
 }
 
 impl PackedFileView {
+
+    /// This function serves to create a new `PackedFileView` from existing data.
+    ///
+    /// It requires:
+    /// - `timestamp`: last modified time of the PackedFile, in `u32`. Optional.
+    /// - `path`: the path of the PackedFile.
+    /// - `data`: the raw data of the PackedFile.
     pub fn new(timestamp: Option<u32>, path: Vec<String>, data: Vec<u8>) -> Self {
         PackedFileView {
-            timestamp: timestamp,
+            timestamp,
             packed_file: PackedFile::new(timestamp, path.join("\\"), data),
             path: path
         }
     }
-    pub fn from_packedfile(packed_file: PackedFile) -> Self {
+
+    /// Getter for the PackedFile's Data.
+    pub fn get_data(&self) -> Result<Arc<Vec<u8>>> {
+        Ok(self.packed_file.get_data()?)
+    }
+
+    /// Setter for the PackedFile's Data.
+    pub fn set_data(&mut self, data: Arc<Vec<u8>>){
+        self.packed_file.set_data(data);
+    }
+}
+
+/// Implementeations to quickly convert from PackedFile (PackedFile in tw_pack_lib) to PackedFileView (PackedFile in RPFM).
+impl From<PackedFile> for PackedFileView {
+    fn from(packed_file: PackedFile) -> PackedFileView {
         PackedFileView {
             timestamp: packed_file.timestamp,
             path: packed_file.path.split("\\").map(|x| x.to_owned()).collect(),
             packed_file: packed_file
         }
     }
-    pub fn get_data(&self) -> Result<Arc<Vec<u8>>> {
-        Ok(self.packed_file.get_data()?)
-    }
+}
 
-    pub fn set_data(&mut self, data: Arc<Vec<u8>>){
-        self.packed_file.set_data(data);
+/// Implementation to quickly convert from PackedFileView (PackedFile in RPFM) to PackedFile (PackedFile in tw_pack_lib).
+impl<'a> From<&'a mut PackedFileView> for &'a PackedFile {
+    fn from(packed_file_view: &mut PackedFileView) -> &PackedFile {
+        packed_file_view.packed_file.timestamp = packed_file_view.timestamp;
+        packed_file_view.packed_file.path = packed_file_view.path.join("\\");
+        &packed_file_view.packed_file
     }
 }
 
-// Don't make me try to explain this. Is magic for me.
-pub fn decrypt_file2(ciphertext: &[u8], verbose: bool) -> Vec<u8> {
-    let mut plaintext = Vec::with_capacity(ciphertext.len());
-    let mut edi: u32 = 0;
-    let mut esi = 0;
-    let mut eax;
-    let mut edx;
-    for _ in 0..ciphertext.len()/8 {
-        // push 0x8FEB2A67
-        // push 0x40A6920E
-        // mov eax, edi
-        // not eax
-        // push 0
-        // push eax
-        // call multiply
-        let prod = (FILE_KEY * Wrapping((!edi) as u64)).0;
-        if verbose {
-            println!("prod: {:X}", prod);
-        }
-        eax = prod as u32;
-        edx = (prod >> 32) as u32;
-        if verbose {
-            println!("eax: {:X}", eax);
-            println!("edx: {:X}", edx);
-        }
-
-        // xor eax, [ebx+esi]
-        eax ^= decode_integer_u32(&ciphertext[esi..esi + 4]).unwrap();
-        if verbose {
-            println!("eax: {:X}", eax);
-        }
-
-        // add edi, 8
-        edi += 8;
-
-        // xor edx, [ebx+esi+4]
-        let _edx = decode_integer_u32(&ciphertext[esi + 4..esi + 8]).unwrap();
-        if verbose {
-            println!("_edx {:X}", _edx);
-        }
-        edx ^= _edx;
-        if verbose {
-            println!("edx {:X}", edx);
-        }
-
-        // mov [esi], eax
-        plaintext.append(&mut encode_integer_u32(eax));
-
-        // mov [esi+4], edx
-        if verbose {
-            println!("{:X}", edx);
-        }
-        plaintext.append(&mut encode_integer_u32(edx));
-        esi += 8;
-    }
-    plaintext
-}

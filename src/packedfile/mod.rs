@@ -232,7 +232,7 @@ pub fn tsv_mass_import(
     // Remove all the "conflicting" PackedFiles from the PackFile, before adding the new ones.
     let mut indexes = vec![];
     for packed_file_to_remove in &packed_files_to_remove {
-        for (index, packed_file) in pack_file.packed_files.iter_mut().enumerate() {
+        for (index, packed_file) in pack_file.packed_files.iter().enumerate() {
             if packed_file.path == *packed_file_to_remove {
                 indexes.push(index);
                 break;
@@ -316,22 +316,22 @@ pub fn tsv_mass_export(
                                     Ok(_) => exported_files.push(name.to_owned()),
 
                                     // In case of error, add it to the error list.
-                                    Err(_) => error_list.push(packed_file.path.clone()),
+                                    Err(_) => error_list.push(packed_file.path.to_vec()),
                                 }
                             }
 
                             // In case of error, add it to the error list.
-                            Err(_) => error_list.push(packed_file.path.clone()),
+                            Err(_) => error_list.push(packed_file.path.to_vec()),
                         }
                     }
 
                     // If we don't have it, add the PackedFile to the error list.
-                    None => error_list.push(packed_file.path.clone()),
+                    None => error_list.push(packed_file.path.to_vec()),
                 }
             }
 
             // Otherwise, we check if it's a Loc PackedFile.
-            else if packed_file.path.last().unwrap() == ".loc" {
+            else if packed_file.path.last().unwrap().ends_with(".loc") {
 
                 // Try to decode the data of the PackedFile.
                 match Loc::read(&packed_file.get_data().unwrap()) {
@@ -355,7 +355,7 @@ pub fn tsv_mass_export(
                             if !exported_files.contains(&name) { break; }
 
                             // If the name was invalid, add to it the index.
-                            else { name = format!("{}_{}.tsv", packed_file.path.last().unwrap().to_owned(), index); }
+                            else { name = format!("{}_{}.tsv", &packed_file.path.last().unwrap(), index); }
 
                             // Increase the index.
                             index += 1;

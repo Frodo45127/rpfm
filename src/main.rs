@@ -89,6 +89,7 @@ use std::fs::{DirBuilder, copy, remove_file, remove_dir_all};
 use indexmap::map::IndexMap;
 use chrono::NaiveDateTime;
 use sentry::integrations::panic::register_panic_handler;
+use tw_pack_lib::{PFHVersion, PFHFileType, PFHFlags};
 
 use common::*;
 use common::communications::*;
@@ -145,7 +146,7 @@ lazy_static! {
         // Warhammer 2
         map.insert("warhammer_2", GameInfo {
             display_name: "Warhammer 2".to_owned(),
-            id: "PFH5".to_owned(),
+            id: PFHVersion::PFH5,
             schema: "schema_wh.json".to_owned(),
             db_pack: "data.pack".to_owned(),
             loc_pack: "local_en.pack".to_owned(),
@@ -157,7 +158,7 @@ lazy_static! {
         // Warhammer
         map.insert("warhammer", GameInfo {
             display_name: "Warhammer".to_owned(),
-            id: "PFH4".to_owned(),
+            id: PFHVersion::PFH4,
             schema: "schema_wh.json".to_owned(),
             db_pack: "data.pack".to_owned(),
             loc_pack: "local_en.pack".to_owned(),
@@ -169,7 +170,7 @@ lazy_static! {
         // Attila
         map.insert("attila", GameInfo {
             display_name: "Attila".to_owned(),
-            id: "PFH4".to_owned(),
+            id: PFHVersion::PFH4,
             schema: "schema_att.json".to_owned(),
             db_pack: "data.pack".to_owned(),
             loc_pack: "local_en.pack".to_owned(),
@@ -181,7 +182,7 @@ lazy_static! {
         // Rome 2
         map.insert("rome_2", GameInfo {
             display_name: "Rome 2".to_owned(),
-            id: "PFH4".to_owned(),
+            id: PFHVersion::PFH4,
             schema: "schema_rom2.json".to_owned(),
             db_pack: "data_rome2.pack".to_owned(),
             loc_pack: "local_en.pack".to_owned(),
@@ -195,7 +196,7 @@ lazy_static! {
         // Arena
         map.insert("arena", GameInfo {
             display_name: "Arena".to_owned(),
-            id: "PFH5".to_owned(),
+            id: PFHVersion::PFH5,
             schema: "schema_are.json".to_owned(),
             db_pack: "wad.pack".to_owned(),
             loc_pack: "local_ex.pack".to_owned(),
@@ -1353,7 +1354,7 @@ fn main() {
                 match check_message_validity_recv2(&receiver_qt) {
 
                     // If we got confirmation....
-                    Data::PackFileExtraData(extra_data) => {
+                    Data::PathBuf(file_path) => {
 
                         // Create the FileDialog to get the PackFile to open.
                         let mut file_dialog;
@@ -1375,11 +1376,11 @@ fn main() {
                         file_dialog.set_default_suffix(&QString::from_std_str("pack"));
 
                         // Set the current name of the PackFile as default name.
-                        file_dialog.select_file(&QString::from_std_str(&extra_data.file_name));
+                        file_dialog.select_file(&QString::from_std_str(&file_path.file_name().unwrap().to_string_lossy()));
 
                         // If we are saving an existing PackFile with another name, we start in his current path.
-                        if extra_data.file_path.is_file() {
-                            let mut path = extra_data.file_path.to_path_buf();
+                        if file_path.is_file() {
+                            let mut path = file_path.to_path_buf();
                             path.pop();
                             file_dialog.set_directory(&QString::from_std_str(path.to_string_lossy().as_ref().to_owned()));
                         }
@@ -1495,17 +1496,17 @@ fn main() {
                 // Get the currently selected PackFile's Type.
                 let packfile_type;
                 unsafe { packfile_type = match &*QString::to_std_string(&app_ui.change_packfile_type_group.as_mut().unwrap().checked_action().as_mut().unwrap().text()) {
-                    "&Boot" => 0,
-                    "&Release" => 1,
-                    "&Patch" => 2,
-                    "&Mod" => 3,
-                    "Mo&vie" => 4,
-                    _ => 99,
+                    "&Boot" => PFHFileType::Boot,
+                    "&Release" => PFHFileType::Release,
+                    "&Patch" => PFHFileType::Patch,
+                    "&Mod" => PFHFileType::Mod,
+                    "Mo&vie" => PFHFileType::Movie,
+                    _ => PFHFileType::Other(99),
                 }; }
 
                 // Send the type to the Background Thread.
                 sender_qt.send(Commands::SetPackFileType).unwrap();
-                sender_qt_data.send(Data::U32(packfile_type)).unwrap();
+                sender_qt_data.send(Data::PFHFileType(packfile_type)).unwrap();
 
                 // Set the mod as "Modified".
                 unsafe { *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(vec![app_ui.folder_tree_model.as_ref().unwrap().item(0).as_ref().unwrap().text().to_std_string()])); }
@@ -4723,23 +4724,23 @@ fn open_packfile(
     match check_message_validity_tryrecv(&receiver_qt) {
     
         // If it's success....
-        Data::PackFileHeader(header) => {
+        Data::PackFileUIData(ui_data) => {
 
             // We choose the right option, depending on our PackFile.
-            match header.pack_file_type {
-                0 => unsafe { app_ui.change_packfile_type_boot.as_mut().unwrap().set_checked(true); }
-                1 => unsafe { app_ui.change_packfile_type_release.as_mut().unwrap().set_checked(true); }
-                2 => unsafe { app_ui.change_packfile_type_patch.as_mut().unwrap().set_checked(true); }
-                3 => unsafe { app_ui.change_packfile_type_mod.as_mut().unwrap().set_checked(true); }
-                4 => unsafe { app_ui.change_packfile_type_movie.as_mut().unwrap().set_checked(true); }
-                _ => unsafe { app_ui.change_packfile_type_other.as_mut().unwrap().set_checked(true); }
+            match ui_data.pfh_file_type {
+                PFHFileType::Boot => unsafe { app_ui.change_packfile_type_boot.as_mut().unwrap().set_checked(true); }
+                PFHFileType::Release => unsafe { app_ui.change_packfile_type_release.as_mut().unwrap().set_checked(true); }
+                PFHFileType::Patch => unsafe { app_ui.change_packfile_type_patch.as_mut().unwrap().set_checked(true); }
+                PFHFileType::Mod => unsafe { app_ui.change_packfile_type_mod.as_mut().unwrap().set_checked(true); }
+                PFHFileType::Movie => unsafe { app_ui.change_packfile_type_movie.as_mut().unwrap().set_checked(true); }
+                PFHFileType::Other(_) => unsafe { app_ui.change_packfile_type_other.as_mut().unwrap().set_checked(true); }
             }
 
             // Enable or disable these, depending on what data we have in the header.
-            unsafe { app_ui.change_packfile_type_data_is_encrypted.as_mut().unwrap().set_checked(header.data_is_encrypted); }
-            unsafe { app_ui.change_packfile_type_index_includes_timestamp.as_mut().unwrap().set_checked(header.index_includes_timestamp); }
-            unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_checked(header.index_is_encrypted); }
-            unsafe { app_ui.change_packfile_type_header_is_extended.as_mut().unwrap().set_checked(header.header_is_extended); }
+            unsafe { app_ui.change_packfile_type_data_is_encrypted.as_mut().unwrap().set_checked(ui_data.bitmask.contains(PFHFlags::HAS_ENCRYPTED_CONTENT)); }
+            unsafe { app_ui.change_packfile_type_index_includes_timestamp.as_mut().unwrap().set_checked(ui_data.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS)); }
+            unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_checked(ui_data.bitmask.contains(PFHFlags::HAS_ENCRYPTED_INDEX)); }
+            unsafe { app_ui.change_packfile_type_header_is_extended.as_mut().unwrap().set_checked(ui_data.bitmask.contains(PFHFlags::HAS_BIG_HEADER)); }
 
             // Update the TreeView.
             update_treeview(
@@ -4775,20 +4776,20 @@ fn open_packfile(
             else {
 
                 // Depending on the Id, choose one game or another.
-                match &*header.id {
+                match ui_data.pfh_version {
 
                     // PFH5 is for Warhammer 2/Arena.
-                    "PFH5" => {
+                    PFHVersion::PFH5 => {
 
                         // If the PackFile has the mysterious byte enabled, it's from Arena.
-                        if header.header_is_extended { unsafe { app_ui.arena.as_mut().unwrap().trigger(); } }
+                        if ui_data.bitmask.contains(PFHFlags::HAS_BIG_HEADER) { unsafe { app_ui.arena.as_mut().unwrap().trigger(); } }
 
                         // Otherwise, it's from Warhammer 2.
                         else { unsafe { app_ui.warhammer_2.as_mut().unwrap().trigger(); } }
                     },
 
                     // PFH4 is for Warhammer 1/Attila.
-                    "PFH4" | _ => {
+                    PFHVersion::PFH4 => {
 
                         // Get the Game Selected.
                         sender_qt.send(Commands::GetGameSelected).unwrap();
@@ -4958,7 +4959,7 @@ fn build_my_mod_menu(
 
                         // Tell the Background Thread to create a new PackFile.
                         sender_qt.send(Commands::SavePackFileAs).unwrap();
-                        let _ = if let Data::PackFileExtraData(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                        let _ = if let Data::PathBuf(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                         // Pass the new PackFile's Path to the worker thread.
                         sender_qt_data.send(Data::PathBuf(mymod_path.to_path_buf())).unwrap();

@@ -1,6 +1,8 @@
 // This module is for communication-related stuff.
 extern crate qt_core;
 
+use tw_pack_lib::PFHFileType;
+
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::path::PathBuf;
@@ -9,7 +11,7 @@ use std::sync::mpsc::{Receiver, TryRecvError};
 use GlobalMatch;
 use common::*;
 use error::Error;
-use packfile::packfile::{PackFileExtraData, PackFileHeader, PackedFileView};
+use packfile::packfile::{PackedFileView, PackFileUIData};
 use packedfile::*;
 use packedfile::loc::*;
 use packedfile::db::*;
@@ -115,9 +117,8 @@ pub enum Data {
     Schema(Schema),
     OptionSchema(Option<Schema>),
 
-    PackFileHeader(PackFileHeader),
-    PackFileExtraData(PackFileExtraData),
-
+    PFHFileType(PFHFileType),
+    PackFileUIData(PackFileUIData),
     PackedFile(PackedFileView),
     TreePathType(TreePathType),
 

@@ -32,7 +32,7 @@ qt_gui = "0.2"
 qt_core = "0.2"
 
 cpp_utils = "*"
-tw_pack_lib = "0.1.18"
+tw_pack_lib = { git = "https://github.com/TotalWar-Modding/tw_pack_lib" }
 
 lazy_static = "*"
 
