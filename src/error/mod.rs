@@ -114,6 +114,9 @@ pub enum ErrorKind {
     // Error for when we are trying to do an operation that cannot be done with the PackedFile open.
     PackedFileIsOpen,
 
+    // Error for when we are trying to open a PackedFile in two different views at the same time.
+    PackedFileIsOpenInAnotherView,
+
     //--------------------------------//
     // DB Table Errors
     //--------------------------------//
@@ -389,6 +392,7 @@ impl Display for ErrorKind {
             //-----------------------------------------------------//
             ErrorKind::PackedFileNotFound => write!(f, "<p>This PackedFile no longer exists in the PackFile.</p>"),
             ErrorKind::PackedFileIsOpen => write!(f, "<p>That operation cannot be done while the PackedFile involved on it is open. Please, close it by selecting a Folder/PackFile in the TreeView and try again.</p>"),
+            ErrorKind::PackedFileIsOpenInAnotherView => write!(f, "<p>That PackedFile is already open in another view. Opening the same PackedFile in multiple views is not supported.</p>"),
 
             //--------------------------------//
             // DB Table Errors

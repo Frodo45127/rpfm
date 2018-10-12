@@ -86,43 +86,6 @@ pub struct PackedFileLocTreeView {
 /// Implementation of PackedFileLocTreeView.
 impl PackedFileLocTreeView {
 
-    /// This functin returns a dummy struct. Use it for initialization.
-    pub fn new() -> Self {
-
-        // Create some dummy slots and return it.
-        Self {
-            slot_undo: SlotNoArgs::new(|| {}),
-            slot_redo: SlotNoArgs::new(|| {}),
-            slot_undo_redo_enabler: SlotNoArgs::new(|| {}),
-            slot_context_menu: SlotQtCorePointRef::new(|_| {}),
-            slot_context_menu_enabler: SlotItemSelectionRefItemSelectionRef::new(|_,_| {}),
-            save_changes: SlotModelIndexRefModelIndexRefVectorVectorCIntRef::new(|_,_,_| {}),
-            slot_item_changed: SlotStandardItemMutPtr::new(|_| {}),
-            slot_row_filter_change_text: SlotStringRef::new(|_| {}),
-            slot_row_filter_change_column: SlotCInt::new(|_| {}),
-            slot_row_filter_change_case_sensitive: SlotBool::new(|_| {}),
-            slot_context_menu_add: SlotBool::new(|_| {}),
-            slot_context_menu_insert: SlotBool::new(|_| {}),
-            slot_context_menu_delete: SlotBool::new(|_| {}),
-            slot_context_menu_copy: SlotBool::new(|_| {}),
-            slot_context_menu_paste_in_selection: SlotBool::new(|_| {}),
-            slot_context_menu_paste_as_new_lines: SlotBool::new(|_| {}),
-            slot_context_menu_paste_to_fill_selection: SlotBool::new(|_| {}),
-            slot_context_menu_search: SlotBool::new(|_| {}),
-            slot_context_menu_import: SlotBool::new(|_| {}),
-            slot_context_menu_export: SlotBool::new(|_| {}),
-            slot_smart_delete: SlotBool::new(|_| {}),
-
-            slot_update_search_stuff: SlotNoArgs::new(|| {}),
-            slot_search: SlotNoArgs::new(|| {}),
-            slot_prev_match: SlotNoArgs::new(|| {}),
-            slot_next_match: SlotNoArgs::new(|| {}),
-            slot_close_search: SlotNoArgs::new(|| {}),
-            slot_replace_current: SlotNoArgs::new(|| {}),
-            slot_replace_all: SlotNoArgs::new(|| {}),
-        }
-    }
-
     /// This function creates a new TreeView with the PackedFile's View as father and returns a
     /// `PackedFileLocTreeView` with all his data.
     pub fn create_tree_view(
@@ -131,6 +94,7 @@ impl PackedFileLocTreeView {
         receiver_qt: &Rc<RefCell<Receiver<Data>>>,
         is_modified: &Rc<RefCell<bool>>,
         app_ui: &AppUI,
+        layout: *mut GridLayout,
         packed_file_path: Vec<String>,
         global_search_explicit_paths: &Rc<RefCell<Vec<Vec<String>>>>,
         update_global_search_stuff: *mut Action,
@@ -200,10 +164,10 @@ impl PackedFileLocTreeView {
         // Add Table to the Grid.
         unsafe { filter_model.as_mut().unwrap().set_source_model(model as *mut AbstractItemModel); }
         unsafe { table_view.as_mut().unwrap().set_model(filter_model as *mut AbstractItemModel); }
-        unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((table_view as *mut Widget, 0, 0, 1, 3)); }
-        unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((row_filter_line_edit as *mut Widget, 2, 0, 1, 1)); }
-        unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((row_filter_case_sensitive_button as *mut Widget, 2, 1, 1, 1)); }
-        unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((row_filter_column_selector as *mut Widget, 2, 2, 1, 1)); }
+        unsafe { layout.as_mut().unwrap().add_widget((table_view as *mut Widget, 0, 0, 1, 3)); }
+        unsafe { layout.as_mut().unwrap().add_widget((row_filter_line_edit as *mut Widget, 2, 0, 1, 1)); }
+        unsafe { layout.as_mut().unwrap().add_widget((row_filter_case_sensitive_button as *mut Widget, 2, 1, 1, 1)); }
+        unsafe { layout.as_mut().unwrap().add_widget((row_filter_column_selector as *mut Widget, 2, 2, 1, 1)); }
 
         // Create the main search widget.
         let search_widget = Widget::new().into_raw();
@@ -268,7 +232,7 @@ impl PackedFileLocTreeView {
 
         // Add all the stuff to the main grid and hide the search widget.
         unsafe { search_widget.as_mut().unwrap().set_layout(grid as *mut Layout); }
-        unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((search_widget as *mut Widget, 1, 0, 1, 3)); }
+        unsafe { layout.as_mut().unwrap().add_widget((search_widget as *mut Widget, 1, 0, 1, 3)); }
         unsafe { search_widget.as_mut().unwrap().hide(); }
 
         // Store the search results and the currently selected search item.

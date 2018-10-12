@@ -31,16 +31,6 @@ pub struct PackedFileRigidModelDataView {
 /// Implementation of "PackedFileRigidModelDataView".
 impl PackedFileRigidModelDataView {
 
-    /// This functin returns a dummy struct. Use it for initialization.
-    pub fn new() -> Self {
-
-        // Create some dummy slots and return it.
-        Self {
-            save_changes: SlotNoArgs::new(|| {}),
-            patch_rigid_model: SlotNoArgs::new(|| {}),
-        }
-    }
-
     /// This function creates a "view" with the PackedFile's View as father and returns a
     /// `PackedFileRigidModelDataView` with all his slots.
     pub fn create_data_view(
@@ -49,6 +39,7 @@ impl PackedFileRigidModelDataView {
         receiver_qt: &Rc<RefCell<Receiver<Data>>>,
         is_modified: &Rc<RefCell<bool>>,
         app_ui: &AppUI,
+        layout: *mut GridLayout,
         packed_file_path: Vec<String>,
     ) -> Result<Self> {
 
@@ -173,8 +164,8 @@ impl PackedFileRigidModelDataView {
             unsafe { tabs.as_mut().unwrap().add_tab((tab_widget, &QString::from_std_str("Decal Texture Directory"))); }
 
             // Add everything to the PackedFile's View.
-            unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((info_frame as *mut Widget, 0, 0, 1, 1)); }
-            unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((tabs as *mut Widget, 1, 0, 1, 1)); }
+            unsafe { layout.as_mut().unwrap().add_widget((info_frame as *mut Widget, 0, 0, 1, 1)); }
+            unsafe { layout.as_mut().unwrap().add_widget((tabs as *mut Widget, 1, 0, 1, 1)); }
 
             // Add the LineEdit to the List.
             texture_paths.push(vec![texture_directory_line_edit]);
@@ -260,8 +251,8 @@ impl PackedFileRigidModelDataView {
             }
 
             // Add everything to the PackedFile's View.
-            unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((info_frame as *mut Widget, 0, 0, 1, 1)); }
-            unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((tabs as *mut Widget, 1, 0, 1, 1)); }
+            unsafe { layout.as_mut().unwrap().add_widget((info_frame as *mut Widget, 0, 0, 1, 1)); }
+            unsafe { layout.as_mut().unwrap().add_widget((tabs as *mut Widget, 1, 0, 1, 1)); }
         }
 
         //-------------------------------------------------------------------------------//

@@ -31,16 +31,6 @@ pub struct PackedFileTextView {
 /// Implementation of PackedFileLocTreeView.
 impl PackedFileTextView {
 
-    /// This functin returns a dummy struct. Use it for initialization.
-    pub fn new() -> Self {
-
-        // Create some dummy slots and return it.
-        Self {
-            save_changes: SlotNoArgs::new(|| {}),
-            check_syntax: SlotNoArgs::new(|| {}),
-        }
-    }
-
     /// This function creates a new TreeView with the PackedFile's View as father and returns a
     /// `PackedFileLocTreeView` with all his data.
     pub fn create_text_view(
@@ -49,6 +39,7 @@ impl PackedFileTextView {
         receiver_qt: &Rc<RefCell<Receiver<Data>>>,
         is_modified: &Rc<RefCell<bool>>,
         app_ui: &AppUI,
+        layout: *mut GridLayout,
         packed_file_path: Vec<String>,
     ) -> Result<Self> {
 
@@ -70,9 +61,9 @@ impl PackedFileTextView {
         let check_syntax_button = PushButton::new(&QString::from_std_str("Check Syntax")).into_raw();
 
         // Add it to the view.
-        unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((plain_text_edit as *mut Widget, 0, 0, 1, 1)); }
+        unsafe { layout.as_mut().unwrap().add_widget((plain_text_edit as *mut Widget, 0, 0, 1, 1)); }
         if packed_file_path.last().unwrap().ends_with(".lua") && SUPPORTED_GAMES.get(&*game_selected).unwrap().ca_types_file.is_some() {
-            unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((check_syntax_button as *mut Widget, 1, 0, 1, 1)); }
+            unsafe { layout.as_mut().unwrap().add_widget((check_syntax_button as *mut Widget, 1, 0, 1, 1)); }
         }
 
         // Create the stuff needed for this to work.

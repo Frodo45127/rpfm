@@ -12,7 +12,6 @@ use qt_core::flags::Flags;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use AppUI;
 use Commands;
 use Data;
 use common::communications::*;
@@ -25,7 +24,7 @@ pub fn create_image_view(
     sender_qt: Sender<Commands>,
     sender_qt_data: &Sender<Data>,
     receiver_qt: &Rc<RefCell<Receiver<Data>>>,
-    app_ui: &AppUI,
+    layout: *mut GridLayout,
     packed_file_path: Vec<String>,
 ) -> Result<()> {
 
@@ -47,8 +46,8 @@ pub fn create_image_view(
     // Get the size of the holding widget.
     let widget_height;
     let widget_width;
-    unsafe { widget_height = app_ui.packed_file_layout.as_mut().unwrap().parent_widget().as_mut().unwrap().height(); }
-    unsafe { widget_width = app_ui.packed_file_layout.as_mut().unwrap().parent_widget().as_mut().unwrap().width(); }
+    unsafe { widget_height = layout.as_mut().unwrap().parent_widget().as_mut().unwrap().height(); }
+    unsafe { widget_width = layout.as_mut().unwrap().parent_widget().as_mut().unwrap().width(); }
 
     // If the image is bigger than the current widget...
     let scaled_image = if image.height() >= widget_height || image.width() >= widget_width {
@@ -70,7 +69,7 @@ pub fn create_image_view(
     unsafe { label.as_mut().unwrap().set_pixmap(&scaled_image); }
 
     // Attach the label to the PackedFile View.
-    unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((label as *mut Widget, 0, 0, 1, 1)); }
+    unsafe { layout.as_mut().unwrap().add_widget((label as *mut Widget, 0, 0, 1, 1)); }
 
     // Return success.
     Ok(())

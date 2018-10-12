@@ -32,12 +32,14 @@ use qt_core::connection::Signal;
 use qt_core::flags::Flags;
 use qt_core::item_selection::ItemSelection;
 use qt_core::model_index::ModelIndex;
+use qt_core::object::Object;
 use qt_core::qt::{GlobalColor, ShortcutContext};
 use qt_core::slots::{SlotBool, SlotNoArgs, SlotModelIndexRef};
 use qt_core::variant::Variant;
 use cpp_utils::StaticCast;
 
 use chrono::NaiveDateTime;
+use std::collections::BTreeMap;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::mpsc::{Sender, Receiver};
@@ -129,10 +131,16 @@ impl AddFromPackFileSlots {
         app_ui: AppUI,
         is_folder_tree_view_locked: &Rc<RefCell<bool>>,
         is_modified: &Rc<RefCell<bool>>,
-        is_packedfile_opened: &Rc<RefCell<Option<Vec<String>>>>,
+        packedfiles_open_in_packedfile_view: &Rc<RefCell<BTreeMap<i32, Vec<String>>>>,
         global_search_explicit_paths: &Rc<RefCell<Vec<Vec<String>>>>,
         update_global_search_stuff: *mut Action,
     ) -> Self {
+
+        // Create the widget that'll act as a container for the view.
+        let widget = Widget::new().into_raw();
+        let widget_layout = GridLayout::new().into_raw();
+        unsafe { widget.as_mut().unwrap().set_layout(widget_layout as *mut Layout); }
+        unsafe { app_ui.packed_file_splitter.as_mut().unwrap().insert_widget(0, widget); }
         
         // Create the stuff.
         let tree_view = TreeView::new().into_raw();
@@ -146,8 +154,8 @@ impl AddFromPackFileSlots {
         unsafe { tree_view.as_mut().unwrap().set_animated(true); }
 
         // Add all the stuff to the Grid.
-        unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((exit_button as *mut Widget, 0, 0, 1, 1)); }
-        unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((tree_view as *mut Widget, 1, 0, 1, 1)); }
+        unsafe { widget_layout.as_mut().unwrap().add_widget((exit_button as *mut Widget, 0, 0, 1, 1)); }
+        unsafe { widget_layout.as_mut().unwrap().add_widget((tree_view as *mut Widget, 1, 0, 1, 1)); }
 
         // Create the slots for the stuff we need.
         let slots = Self {
@@ -217,14 +225,14 @@ impl AddFromPackFileSlots {
             // This slot is used to exit the "Add from PackFile" view, returning to the normal state of the program.
             exit: SlotNoArgs::new(clone!(
                 sender_qt,
-                is_packedfile_opened,
+                packedfiles_open_in_packedfile_view,
                 is_folder_tree_view_locked => move || {
 
                     // Reset the Secondary PackFile.
                     sender_qt.send(Commands::ResetPackFileExtra).unwrap();
 
                     // Destroy the "Add from PackFile" stuff.
-                    purge_them_all(&app_ui, &is_packedfile_opened);
+                    purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);
 
                     // Show the "Tips".
                     display_help_tips(&app_ui);
@@ -1132,38 +1140,70 @@ pub fn undo_paint_for_packed_file(
 
 /// This function deletes whatever it's in the right side of the screen, leaving it empty.
 /// Also, each time this triggers we consider there is no PackedFile open.
-pub fn purge_them_all(app_ui: &AppUI, is_packedfile_opened: &Rc<RefCell<Option<Vec<String>>>>) {
+pub fn purge_them_all(app_ui: &AppUI, packedfiles_open_in_packedfile_view: &Rc<RefCell<BTreeMap<i32, Vec<String>>>>) {
 
     // Black magic.
     unsafe {
-        for _ in 0..app_ui.packed_file_layout.as_mut().unwrap().count() {
-            let child = app_ui.packed_file_layout.as_mut().unwrap().take_at(0);
-            child.as_mut().unwrap().widget().as_mut().unwrap().close();
-            app_ui.packed_file_layout.as_mut().unwrap().remove_item(child);
+        for item in 0..app_ui.packed_file_splitter.as_mut().unwrap().count() {
+            let child = app_ui.packed_file_splitter.as_mut().unwrap().widget(item);
+            child.as_mut().unwrap().hide();
+            (child as *mut Object).as_mut().unwrap().delete_later();
         }
     }
 
     // Set it as not having an opened PackedFile, just in case.
-    *is_packedfile_opened.borrow_mut() = None;
+    packedfiles_open_in_packedfile_view.borrow_mut().clear();
 
     // Just in case what was open before this was a DB Table, make sure the "Game Selected" menu is re-enabled.
     unsafe { app_ui.game_selected_group.as_mut().unwrap().set_enabled(true); }
-
-    // Fix the column and row stretch caused by the DB Decoder.
-    unsafe { app_ui.packed_file_layout.as_mut().unwrap().set_column_stretch(1, 0); }
-    unsafe { app_ui.packed_file_layout.as_mut().unwrap().set_row_stretch(0, 0); }
-    unsafe { app_ui.packed_file_layout.as_mut().unwrap().set_row_stretch(2, 0); }
 }
+
+/// This function deletes whatever it's in the specified position of the right side of the screen.
+/// Also, if there was a PackedFile open there, we remove it from the "open PackedFiles" list.
+pub fn purge_that_one_specifically(app_ui: &AppUI, the_one: i32, packedfiles_open_in_packedfile_view: &Rc<RefCell<BTreeMap<i32, Vec<String>>>>) {
+
+    // Black magic.
+    unsafe {
+        if app_ui.packed_file_splitter.as_mut().unwrap().count() > the_one {        
+            let child = app_ui.packed_file_splitter.as_mut().unwrap().widget(the_one);
+            child.as_mut().unwrap().hide();
+            (child as *mut Object).as_mut().unwrap().delete_later();
+        }
+    }
+
+    // Set it as not having an opened PackedFile, just in case.
+    packedfiles_open_in_packedfile_view.borrow_mut().remove(&the_one);
+
+    // Just in case what was open before this was a DB Table, make sure the "Game Selected" menu is re-enabled.
+    let mut x = false;
+    for packed_file in packedfiles_open_in_packedfile_view.borrow().values() {
+        if let Some(folder) = packed_file.get(0) {
+            if folder == "db" {
+                x = true;
+                break;
+            }
+        }
+    }
+
+    if !x { unsafe { app_ui.game_selected_group.as_mut().unwrap().set_enabled(true); }}
+}
+
 
 /// This function shows the tips in the PackedFile View. Remember to call "purge_them_all" before this!
 pub fn display_help_tips(app_ui: &AppUI) {
+
+    // Create the widget that'll act as a container for the view.
+    let widget = Widget::new().into_raw();
+    let widget_layout = GridLayout::new().into_raw();
+    unsafe { widget.as_mut().unwrap().set_layout(widget_layout as *mut Layout); }
+    unsafe { app_ui.packed_file_splitter.as_mut().unwrap().insert_widget(0, widget); }
 
     let label = Label::new(&QString::from_std_str("Welcome to Rusted PackFile Manager! Here you have some tips on how to use it:
     - Read the manual. It's in 'About/Open Manual'. It explains how to configure RPFM and how to use it.
     - To know what each option in 'Preferences' do, left the mouse over the option for one second and a tooltip will pop up.
     - In the 'About' Menu, in 'About RPFM' you can find links to the Source Code and the Patreon of the Project.")).into_raw();
 
-    unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((label as *mut Widget, 0, 0, 1, 1)); }
+    unsafe { widget_layout.as_mut().unwrap().add_widget((label as *mut Widget, 0, 0, 1, 1)); }
 }
 
 /// This function shows a message asking for confirmation. For use in operations that implies unsaved

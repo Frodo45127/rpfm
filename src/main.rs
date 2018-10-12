@@ -270,7 +270,7 @@ pub struct AppUI {
     pub window: *mut MainWindow,
     pub folder_tree_view: *mut TreeView,
     pub folder_tree_model: *mut StandardItemModel,
-    pub packed_file_layout: *mut GridLayout,
+    pub packed_file_splitter: *mut Splitter,
 
     //-------------------------------------------------------------------------------//
     // "PackFile" menu.
@@ -362,6 +362,7 @@ pub struct AppUI {
     pub context_menu_open_decoder: *mut Action,
     pub context_menu_open_dependency_manager: *mut Action,
     pub context_menu_open_with_external_program: *mut Action,
+    pub context_menu_open_in_multi_view: *mut Action,
     pub context_menu_global_search: *mut Action,
 
     //-------------------------------------------------------------------------------//
@@ -425,17 +426,15 @@ fn main() {
         let mut central_splitter = Splitter::new(());
         unsafe { central_layout.add_widget((central_splitter.static_cast_mut() as *mut Widget, 0, 0, 1, 1)); }
 
+        // Create the PackedFile splitter.
+        let mut packed_file_splitter = Splitter::new(());
+
         // Create the TreeView.
         let mut folder_tree_view = TreeView::new();
         let mut folder_tree_model = StandardItemModel::new(());
         unsafe { folder_tree_view.set_model(folder_tree_model.static_cast_mut()); }
         folder_tree_view.set_header_hidden(true);
         folder_tree_view.set_animated(true);
-
-        // Create the right-side Grid.
-        let mut packed_file_view = Widget::new();
-        let mut packed_file_layout = GridLayout::new();
-        unsafe { packed_file_view.set_layout(packed_file_layout.static_cast_mut()); }
 
         // Create the "Global Search" view.
         let global_search_widget = Widget::new().into_raw();
@@ -525,7 +524,7 @@ fn main() {
 
         // Add the corresponding widgets to the layout.
         unsafe { central_splitter.add_widget(folder_tree_view.static_cast_mut()); }
-        unsafe { central_splitter.add_widget(packed_file_view.as_mut_ptr()); }
+        unsafe { central_splitter.add_widget(packed_file_splitter.static_cast_mut() as *mut Widget); }
         unsafe { central_splitter.add_widget(global_search_widget); }
 
         // Set the correct proportions for the Splitter.
@@ -589,7 +588,7 @@ fn main() {
                 window: window.into_raw(),
                 folder_tree_view: folder_tree_view.into_raw(),
                 folder_tree_model: folder_tree_model.into_raw(),
-                packed_file_layout: packed_file_layout.into_raw(),
+                packed_file_splitter: packed_file_splitter.into_raw(),
 
                 //-------------------------------------------------------------------------------//
                 // "PackFile" menu.
@@ -689,6 +688,7 @@ fn main() {
                 context_menu_open_decoder: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open with Decoder")),
                 context_menu_open_dependency_manager: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open Dependency Manager")),
                 context_menu_open_with_external_program: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open with External Program")),
+                context_menu_open_in_multi_view: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open in Multi-View")),
                 context_menu_global_search: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Global Search")),
 
                 //-------------------------------------------------------------------------------//
@@ -818,7 +818,7 @@ fn main() {
         // Put the stuff we need to move to the slots in Rc<Refcell<>>, so we can clone it without issues.
         let receiver_qt = Rc::new(RefCell::new(receiver_qt));
         let is_modified = Rc::new(RefCell::new(set_modified(false, &app_ui, None)));
-        let is_packedfile_opened = Rc::new(RefCell::new(None));
+        let packedfiles_open_in_packedfile_view = Rc::new(RefCell::new(BTreeMap::new()));
         let is_folder_tree_view_locked = Rc::new(RefCell::new(false));
         let mymod_menu_needs_rebuild = Rc::new(RefCell::new(false));
         let open_from_submenu_menu_needs_rebuild = Rc::new(RefCell::new(false));
@@ -827,11 +827,13 @@ fn main() {
         // Build the empty structs we need for certain features.
         let add_from_packfile_slots = Rc::new(RefCell::new(AddFromPackFileSlots::new()));
         let packfiles_list_slots = Rc::new(RefCell::new(DependencyTableView::new()));
-        let db_slots = Rc::new(RefCell::new(PackedFileDBTreeView::new()));
-        let loc_slots = Rc::new(RefCell::new(PackedFileLocTreeView::new()));
-        let text_slots = Rc::new(RefCell::new(PackedFileTextView::new()));
         let decoder_slots = Rc::new(RefCell::new(PackedFileDBDecoder::new()));
-        let rigid_model_slots = Rc::new(RefCell::new(PackedFileRigidModelDataView::new()));
+        let db_slots = Rc::new(RefCell::new(BTreeMap::new()));
+        let loc_slots = Rc::new(RefCell::new(BTreeMap::new()));
+        let text_slots = Rc::new(RefCell::new(BTreeMap::new()));
+        let rigid_model_slots = Rc::new(RefCell::new(BTreeMap::new()));
+
+
 
         let monospace_font = Rc::new(RefCell::new(Font::new(&QString::from_std_str("monospace [Consolas]"))));
 
@@ -856,7 +858,7 @@ fn main() {
             is_modified.clone(),
             mode.clone(),
             mymod_menu_needs_rebuild.clone(),
-            &is_packedfile_opened,
+            &packedfiles_open_in_packedfile_view,
             close_global_search_action,
             &history_filter_db,
             &history_filter_loc,
@@ -887,6 +889,7 @@ fn main() {
             app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(false);
             app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(false);
             app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(false);
+            app_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_enabled(false);
         }
 
         // Set the shortcuts for these actions.
@@ -907,6 +910,7 @@ fn main() {
         unsafe { app_ui.context_menu_open_decoder.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("open_in_decoder").unwrap()))); }
         unsafe { app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("open_packfiles_list").unwrap()))); }
         unsafe { app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("open_with_external_program").unwrap()))); }
+        unsafe { app_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("open_in_multi_view").unwrap()))); }
         unsafe { app_ui.context_menu_global_search.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("global_search").unwrap()))); }
         unsafe { app_ui.tree_view_expand_all.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("expand_all").unwrap()))); }
         unsafe { app_ui.tree_view_collapse_all.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("collapse_all").unwrap()))); }
@@ -929,6 +933,7 @@ fn main() {
         unsafe { app_ui.context_menu_open_decoder.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+        unsafe { app_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_global_search.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.tree_view_expand_all.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.tree_view_collapse_all.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
@@ -951,6 +956,7 @@ fn main() {
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_open_decoder); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_open_dependency_manager); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_open_with_external_program); }
+        unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_open_in_multi_view); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_global_search); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.tree_view_expand_all); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.tree_view_collapse_all); }
@@ -1027,6 +1033,7 @@ fn main() {
         unsafe { app_ui.context_menu_open_decoder.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the selected table in the DB Decoder. To create/update schemas.")); }
         unsafe { app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the list of PackFiles referenced from this PackFile.")); }
         unsafe { app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the PackedFile in an external program.")); }
+        unsafe { app_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the PackedFile in a secondary view, without closing the currently open one.")); }
         unsafe { app_ui.context_menu_global_search.as_mut().unwrap().set_status_tip(&QString::from_std_str("Performs a search over every DB Table, Loc PackedFile and Text File in the PackFile.")); }
 
         //---------------------------------------------------------------------------------------//
@@ -1132,7 +1139,7 @@ fn main() {
             is_modified,
             mymod_stuff,
             mode,
-            is_packedfile_opened,
+            packedfiles_open_in_packedfile_view,
             sender_qt,
             sender_qt_data,
             receiver_qt => move |_| {
@@ -1141,7 +1148,7 @@ fn main() {
                 if are_you_sure(&app_ui, &is_modified, false) {
 
                     // Destroy whatever it's in the PackedFile's view, to avoid data corruption. Also hide the Global Search stuff.
-                    purge_them_all(&app_ui, &is_packedfile_opened);
+                    purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);
 
                     // Close the Global Search stuff and reset the filter's history.
                     unsafe { close_global_search_action.as_mut().unwrap().trigger(); }
@@ -1219,7 +1226,7 @@ fn main() {
             mymod_stuff,
             sender_qt,
             sender_qt_data,
-            is_packedfile_opened,
+            packedfiles_open_in_packedfile_view,
             receiver_qt => move |_| {
 
                 // Check first if there has been changes in the PackFile.
@@ -1267,7 +1274,7 @@ fn main() {
                             &is_modified,
                             &mode,
                             "",
-                            &is_packedfile_opened,
+                            &packedfiles_open_in_packedfile_view,
                             close_global_search_action,
                             &history_filter_db,
                             &history_filter_loc,
@@ -1707,13 +1714,13 @@ fn main() {
 
         // What happens when we trigger the "Optimize PackFile" action.
         let slot_optimize_packfile = SlotBool::new(clone!(
-            is_packedfile_opened,
+            packedfiles_open_in_packedfile_view,
             receiver_qt,
             sender_qt,
             sender_qt_data => move |_| {
 
                 // This cannot be done if there is a PackedFile open.
-                if is_packedfile_opened.borrow().is_some() { return show_dialog(app_ui.window, false, ErrorKind::OperationNotAllowedWithPackedFileOpen); }
+                if !packedfiles_open_in_packedfile_view.borrow().is_empty() { return show_dialog(app_ui.window, false, ErrorKind::OperationNotAllowedWithPackedFileOpen); }
             
                 // Ask the background loop to create the Dependency PackFile.
                 sender_qt.send(Commands::OptimizePackFile).unwrap();
@@ -1894,6 +1901,7 @@ fn main() {
                             app_ui.context_menu_apply_prefix_to_all.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_enabled(true);
                         }
 
                         // If it's a DB, we should enable this too.
@@ -1922,6 +1930,7 @@ fn main() {
                             app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_enabled(false);
                         }
                     },
 
@@ -1945,6 +1954,7 @@ fn main() {
                             app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_enabled(false);
                         }
                     },
 
@@ -1968,6 +1978,7 @@ fn main() {
                             app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_enabled(false);
                         }
                     },
                 }
@@ -2007,7 +2018,7 @@ fn main() {
             sender_qt_data,
             receiver_qt,
             is_modified,
-            is_packedfile_opened,
+            packedfiles_open_in_packedfile_view,
             mode => move |_| {
 
                 // Create the FileDialog to get the file/s to add.
@@ -2084,9 +2095,9 @@ fn main() {
                                 };
 
                                 // If we have a PackedFile open and it's on the adding list, stop.
-                                if let Some(ref open_path) = *is_packedfile_opened.borrow() {
-                                    if paths_packedfile.contains(open_path) { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
-                                }
+                                packedfiles_open_in_packedfile_view.borrow().values().for_each(|x| 
+                                    if paths_packedfile.contains(x) { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
+                                );
 
                                 // Tell the Background Thread to add the files.
                                 sender_qt.send(Commands::AddPackedFile).unwrap();
@@ -2150,9 +2161,9 @@ fn main() {
                             for path in &paths { paths_packedfile.append(&mut get_path_from_pathbuf(&app_ui, &path, true)); }
 
                             // If we have a PackedFile open and it's on the adding list, stop.
-                            if let Some(ref open_path) = *is_packedfile_opened.borrow() {
-                                if paths_packedfile.contains(open_path) { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
-                            }
+                            packedfiles_open_in_packedfile_view.borrow().values().for_each(|x| 
+                                if paths_packedfile.contains(x) { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
+                            );
 
                             // Tell the Background Thread to add the files.
                             sender_qt.send(Commands::AddPackedFile).unwrap();
@@ -2206,7 +2217,7 @@ fn main() {
             sender_qt_data,
             receiver_qt,
             is_modified,
-            is_packedfile_opened,
+            packedfiles_open_in_packedfile_view,
             mode => move |_| {
 
                 // Create the FileDialog to get the folder/s to add.
@@ -2288,9 +2299,9 @@ fn main() {
                                 };
 
                                 // If we have a PackedFile open and it's on the adding list, stop.
-                                if let Some(ref open_path) = *is_packedfile_opened.borrow() {
-                                    if paths_packedfile.contains(open_path) { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
-                                }
+                                packedfiles_open_in_packedfile_view.borrow().values().for_each(|x| 
+                                    if paths_packedfile.contains(x) { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
+                                );
 
                                 // Tell the Background Thread to add the files.
                                 sender_qt.send(Commands::AddPackedFile).unwrap();
@@ -2358,9 +2369,9 @@ fn main() {
                             for path in &folder_paths { paths_packedfile.append(&mut get_path_from_pathbuf(&app_ui, &path, false)); }
 
                             // If we have a PackedFile open and it's on the adding list, stop.
-                            if let Some(ref open_path) = *is_packedfile_opened.borrow() {
-                                if paths_packedfile.contains(open_path) { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
-                            }
+                            packedfiles_open_in_packedfile_view.borrow().values().for_each(|x| 
+                                if paths_packedfile.contains(x) { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
+                            );
 
                             // Tell the Background Thread to add the files.
                             sender_qt.send(Commands::AddPackedFile).unwrap();
@@ -2413,7 +2424,7 @@ fn main() {
             sender_qt,
             sender_qt_data,
             receiver_qt,
-            is_packedfile_opened,
+            packedfiles_open_in_packedfile_view,
             is_folder_tree_view_locked,
             is_modified,
             add_from_packfile_slots => move |_| {
@@ -2451,7 +2462,7 @@ fn main() {
                             *is_folder_tree_view_locked.borrow_mut() = true;
 
                             // Destroy whatever it's in the PackedFile's View.
-                            purge_them_all(&app_ui, &is_packedfile_opened);
+                            purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);
 
                             // Build the TreeView to hold all the Extra PackFile's data and save his slots.
                             *add_from_packfile_slots.borrow_mut() = AddFromPackFileSlots::new_with_grid(
@@ -2461,7 +2472,7 @@ fn main() {
                                 app_ui,
                                 &is_folder_tree_view_locked,
                                 &is_modified,
-                                &is_packedfile_opened,
+                                &packedfiles_open_in_packedfile_view,
                                 &global_search_explicit_paths,
                                 update_global_search_stuff
                             );
@@ -2943,7 +2954,7 @@ fn main() {
             sender_qt,
             sender_qt_data,
             receiver_qt,
-            is_packedfile_opened,
+            packedfiles_open_in_packedfile_view,
             is_modified => move |_| {
 
                 // Get his Path, including the name of the PackFile.
@@ -2953,7 +2964,7 @@ fn main() {
                 if path.is_empty() { return }
 
                 // If we have a PackedFile open...
-                if let Some(ref open_path) = *is_packedfile_opened.borrow() {
+                for open_path in packedfiles_open_in_packedfile_view.borrow().values() {
 
                     // Send the Path to the Background Thread, and get the type of the item.
                     sender_qt.send(Commands::GetTypeOfPath).unwrap();
@@ -3307,7 +3318,7 @@ fn main() {
             sender_qt,
             sender_qt_data,
             receiver_qt,
-            is_packedfile_opened => move |_| {
+            packedfiles_open_in_packedfile_view => move |_| {
 
                 // Get his Path, including the name of the PackFile.
                 let path = get_path_from_selection(&app_ui, true);
@@ -3321,7 +3332,7 @@ fn main() {
                 if let TreePathType::File(path) = item_type {
 
                     // Remove everything from the PackedFile View.
-                    purge_them_all(&app_ui, &is_packedfile_opened);
+                    purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);
 
                     // We try to open it in the decoder.
                     if let Ok(result) = PackedFileDBDecoder::create_decoder_view(
@@ -3350,10 +3361,10 @@ fn main() {
             receiver_qt,
             packfiles_list_slots,
             is_modified,
-            is_packedfile_opened => move |_| {
+            packedfiles_open_in_packedfile_view => move |_| {
 
                 // Destroy any children that the PackedFile's View we use may have, cleaning it.
-                purge_them_all(&app_ui, &is_packedfile_opened);
+                purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);
 
                 // Build the UI and save the slots.
                 *packfiles_list_slots.borrow_mut() = DependencyTableView::create_table_view(
@@ -3365,7 +3376,7 @@ fn main() {
                 );
 
                 // Tell the program there is an open PackedFile.
-                *is_packedfile_opened.borrow_mut() = Some(vec![]);
+                packedfiles_open_in_packedfile_view.borrow_mut().insert(0, vec![]);
             }
         ));
 
@@ -3385,6 +3396,43 @@ fn main() {
             }
         ));
 
+        // What happens when we trigger the "Open in Multi-View" action in the Contextual Menu.
+        let slot_context_menu_open_in_multi_view = SlotBool::new(clone!(
+            history_filter_db,
+            history_filter_loc,
+            global_search_explicit_paths,
+            sender_qt,
+            sender_qt_data,
+            receiver_qt,
+            is_modified,
+            db_slots,
+            loc_slots,
+            text_slots,
+            rigid_model_slots,
+            is_folder_tree_view_locked,
+            packedfiles_open_in_packedfile_view => move |_| {
+
+                if let Err(error) = open_packedfile(
+                    &sender_qt,
+                    &sender_qt_data,
+                    &receiver_qt,
+                    &app_ui,
+                    &is_modified,
+                    &packedfiles_open_in_packedfile_view,
+                    &global_search_explicit_paths,
+                    &is_folder_tree_view_locked,
+                    &history_filter_db,
+                    &history_filter_loc,
+                    &db_slots,
+                    &loc_slots,
+                    &text_slots,
+                    &rigid_model_slots,
+                    update_global_search_stuff,
+                    1
+                ) { show_dialog(app_ui.window, false, error); }
+            }
+        ));
+
         // Contextual Menu Actions.
         unsafe { app_ui.context_menu_add_file.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_add_file); }
         unsafe { app_ui.context_menu_add_folder.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_add_folder); }
@@ -3400,6 +3448,7 @@ fn main() {
         unsafe { app_ui.context_menu_open_decoder.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_open_decoder); }
         unsafe { app_ui.context_menu_open_dependency_manager.as_ref().unwrap().signals().triggered().connect(&slot_context_menu_open_dependency_manager); }
         unsafe { app_ui.context_menu_open_with_external_program.as_ref().unwrap().signals().triggered().connect(&slot_context_menu_open_with_external_program); }
+        unsafe { app_ui.context_menu_open_in_multi_view.as_ref().unwrap().signals().triggered().connect(&slot_context_menu_open_in_multi_view); }
 
         //-----------------------------------------------------------------------------------------//
         // Rename Action. Due to me not understanding how the edition of a TreeView works, we do it
@@ -3412,7 +3461,7 @@ fn main() {
             is_modified,
             sender_qt,
             sender_qt_data,
-            is_packedfile_opened,
+            packedfiles_open_in_packedfile_view,
             receiver_qt => move |_| {
 
                 // Get his Path, including the name of the PackFile.
@@ -3424,7 +3473,7 @@ fn main() {
                 let item_type = if let Data::TreePathType(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                 // If we have a PackedFile open...
-                if let Some(ref open_path) = *is_packedfile_opened.borrow() {
+                for open_path in packedfiles_open_in_packedfile_view.borrow().values() {
 
                     // If it's empty, it's the dep manager.
                     if !open_path.is_empty() { 
@@ -3521,7 +3570,7 @@ fn main() {
             is_modified,
             sender_qt,
             sender_qt_data,
-            is_packedfile_opened,
+            packedfiles_open_in_packedfile_view,
             receiver_qt => move |_| {
 
                 // Get his Path, including the name of the PackFile.
@@ -3533,7 +3582,7 @@ fn main() {
                 let item_type = if let Data::TreePathType(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                 // If the open PackedFile is inside our folder...
-                if let Some(ref open_path) = *is_packedfile_opened.borrow() {
+                for open_path in packedfiles_open_in_packedfile_view.borrow().values() {
 
                     // If it's empty, it's the dep manager.
                     if !open_path.is_empty() { 
@@ -3614,11 +3663,11 @@ fn main() {
             is_modified,
             sender_qt,
             sender_qt_data,
-            is_packedfile_opened,
+            packedfiles_open_in_packedfile_view,
             receiver_qt => move |_| {
 
                 // If there is something open...
-                if let Some(ref open_path) = *is_packedfile_opened.borrow() {
+                for open_path in packedfiles_open_in_packedfile_view.borrow().values() {
 
                     // If it's a file, return an error. If it's empty, it's the dep manager.
                     if !open_path.is_empty() { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
@@ -3697,196 +3746,35 @@ fn main() {
             history_filter_db,
             history_filter_loc,
             global_search_explicit_paths,
+            db_slots,
+            loc_slots,
+            text_slots,
+            rigid_model_slots,
             sender_qt,
             sender_qt_data,
             receiver_qt,
             is_modified,
             is_folder_tree_view_locked,
-            is_packedfile_opened => move || {
+            packedfiles_open_in_packedfile_view => move || {
 
-                // Before anything else, we need to check if the TreeView is unlocked. Otherwise we don't do anything from here.
-                if !(*is_folder_tree_view_locked.borrow()) {
-
-                    // Destroy any children that the PackedFile's View we use may have, cleaning it.
-                    purge_them_all(&app_ui, &is_packedfile_opened);
-
-                    // Get the selection to see what we are going to open.
-                    let selection;
-                    unsafe { selection = app_ui.folder_tree_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection(); }
-
-                    // Get the path of the selected item.
-                    let full_path = get_path_from_item_selection(app_ui.folder_tree_model, &selection, true);
-
-                    // Send the Path to the Background Thread, and get the type of the item.
-                    sender_qt.send(Commands::GetTypeOfPath).unwrap();
-                    sender_qt_data.send(Data::VecString(full_path)).unwrap();
-                    let item_type = if let Data::TreePathType(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                    // We act, depending on his type.
-                    match item_type {
-
-                        // Only in case it's a file, we do something.
-                        TreePathType::File(path) => {
-
-                            // Get the name of the PackedFile (we are going to use it a lot).
-                            let packedfile_name = path.last().unwrap().to_owned();
-
-                            // We get his type to decode it properly
-                            let mut packed_file_type: &str =
-
-                                // If it's in the "db" folder, it's a DB PackedFile (or you put something were it shouldn't be).
-                                if path[0] == "db" { "DB" }
-
-                                // If it ends in ".loc", it's a localisation PackedFile.
-                                else if packedfile_name.ends_with(".loc") { "LOC" }
-
-                                // If it ends in ".rigid_model_v2", it's a RigidModel PackedFile.
-                                else if packedfile_name.ends_with(".rigid_model_v2") { "RIGIDMODEL" }
-
-                                // If it ends in any of these, it's a plain text PackedFile.
-                                else if packedfile_name.ends_with(".lua") ||
-                                        packedfile_name.ends_with(".xml") ||
-                                        packedfile_name.ends_with(".xml.shader") ||
-                                        packedfile_name.ends_with(".xml.material") ||
-                                        packedfile_name.ends_with(".variantmeshdefinition") ||
-                                        packedfile_name.ends_with(".environment") ||
-                                        packedfile_name.ends_with(".lighting") ||
-                                        packedfile_name.ends_with(".wsmodel") ||
-                                        packedfile_name.ends_with(".csv") ||
-                                        packedfile_name.ends_with(".tsv") ||
-                                        packedfile_name.ends_with(".inl") ||
-                                        packedfile_name.ends_with(".battle_speech_camera") ||
-                                        packedfile_name.ends_with(".bob") ||
-                                        packedfile_name.ends_with(".cindyscene") ||
-                                        packedfile_name.ends_with(".cindyscenemanager") ||
-                                        //packedfile_name.ends_with(".benchmark") || // This one needs special decoding/encoding.
-                                        packedfile_name.ends_with(".txt") { "TEXT" }
-
-                                // If it ends in any of these, it's an image.
-                                else if packedfile_name.ends_with(".jpg") ||
-                                        packedfile_name.ends_with(".jpeg") ||
-                                        packedfile_name.ends_with(".tga") ||
-                                        packedfile_name.ends_with(".dds") ||
-                                        packedfile_name.ends_with(".png") { "IMAGE" }
-
-                                // Otherwise, we don't have a decoder for that PackedFile... yet.
-                                else { "None" };
-
-                            // Then, depending of his type we decode it properly (if we have it implemented support
-                            // for his type).
-                            match packed_file_type {
-
-                                // If the file is a Loc PackedFile...
-                                "LOC" => {
-
-                                    // Try to get the view build, or return error.
-                                    match PackedFileLocTreeView::create_tree_view(
-                                        sender_qt.clone(),
-                                        &sender_qt_data,
-                                        &receiver_qt,
-                                        &is_modified,
-                                        &app_ui,
-                                        path.to_vec(),
-                                        &global_search_explicit_paths,
-                                        update_global_search_stuff,
-                                        &history_filter_loc
-                                    ) {
-                                        Ok(new_loc_slots) => *loc_slots.borrow_mut() = new_loc_slots,
-                                        Err(error) => return show_dialog(app_ui.window, false, ErrorKind::LocDecode(format!("{}", error))),
-                                    }
-
-                                    // Tell the program there is an open PackedFile.
-                                    *is_packedfile_opened.borrow_mut() = Some(path);
-                                }
-
-                                // If the file is a DB PackedFile...
-                                "DB" => {
-
-                                    // Try to get the view build, or return error.
-                                    match PackedFileDBTreeView::create_table_view(
-                                        sender_qt.clone(),
-                                        &sender_qt_data,
-                                        &receiver_qt,
-                                        &is_modified,
-                                        &app_ui,
-                                        path.to_vec(),
-                                        &global_search_explicit_paths,
-                                        update_global_search_stuff,
-                                        &history_filter_db
-                                    ) {
-                                        Ok(new_db_slots) => *db_slots.borrow_mut() = new_db_slots,
-                                        Err(error) => return show_dialog(app_ui.window, false, ErrorKind::DBTableDecode(format!("{}", error))),
-                                    }
-
-                                    // Tell the program there is an open PackedFile.
-                                    *is_packedfile_opened.borrow_mut() = Some(path);
-
-                                    // Disable the "Change game selected" function, so we cannot change the current schema with an open table.
-                                    unsafe { app_ui.game_selected_group.as_mut().unwrap().set_enabled(false); }
-                                }
-
-                                // If the file is a Text PackedFile...
-                                "TEXT" => {
-
-                                    // Try to get the view build, or return error.
-                                    match PackedFileTextView::create_text_view(
-                                        sender_qt.clone(),
-                                        &sender_qt_data,
-                                        &receiver_qt,
-                                        &is_modified,
-                                        &app_ui,
-                                        path.to_vec()
-                                    ) {
-                                        Ok(new_text_slots) => *text_slots.borrow_mut() = new_text_slots,
-                                        Err(error) => return show_dialog(app_ui.window, false, ErrorKind::TextDecode(format!("{}", error))),
-                                    }
-
-                                    // Tell the program there is an open PackedFile.
-                                    *is_packedfile_opened.borrow_mut() = Some(path);
-                                }
-
-                                // If the file is a Text PackedFile...
-                                "RIGIDMODEL" => {
-
-                                    // Try to get the view build, or return error.
-                                    match PackedFileRigidModelDataView::create_data_view(
-                                        sender_qt.clone(),
-                                        &sender_qt_data,
-                                        &receiver_qt,
-                                        &is_modified,
-                                        &app_ui,
-                                        path.to_vec()
-                                    ) {
-                                        Ok(new_rigid_model_slots) => *rigid_model_slots.borrow_mut() = new_rigid_model_slots,
-                                        Err(error) => return show_dialog(app_ui.window, false, ErrorKind::RigidModelDecode(format!("{}", error))),
-                                    }
-
-                                    // Tell the program there is an open PackedFile.
-                                    *is_packedfile_opened.borrow_mut() = Some(path);
-                                }
-
-                                // If the file is a Text PackedFile...
-                                "IMAGE" => {
-
-                                    // Try to get the view build, or return error.
-                                    if let Err(error) = ui::packedfile_image::create_image_view(
-                                        sender_qt.clone(),
-                                        &sender_qt_data,
-                                        &receiver_qt,
-                                        &app_ui,
-                                        path
-                                    ) { return show_dialog(app_ui.window, false, ErrorKind::ImageDecode(format!("{}", error))) }
-                                }
-
-                                // For any other PackedFile, just restore the display tips.
-                                _ => display_help_tips(&app_ui),
-                            }
-                        }
-
-                        // If it's anything else, then we just show the "Tips" list.
-                        _ => display_help_tips(&app_ui),
-                    }
-                }
+                if let Err(error) = open_packedfile(
+                    &sender_qt,
+                    &sender_qt_data,
+                    &receiver_qt,
+                    &app_ui,
+                    &is_modified,
+                    &packedfiles_open_in_packedfile_view,
+                    &global_search_explicit_paths,
+                    &is_folder_tree_view_locked,
+                    &history_filter_db,
+                    &history_filter_loc,
+                    &db_slots,
+                    &loc_slots,
+                    &text_slots,
+                    &rigid_model_slots,
+                    update_global_search_stuff,
+                    0
+                ) { show_dialog(app_ui.window, false, error); }
             }
         )));
 
@@ -4042,6 +3930,7 @@ fn main() {
 
         // What happens when we activate one of the matches in the "Loc Matches" table.
         let slot_load_match_loc = SlotModelIndexRef::new(clone!(
+            packedfiles_open_in_packedfile_view,
             slot_open_packedfile => move |model_index_filter| {
 
                 // Map the ModelIndex to his real ModelIndex in the full model.
@@ -4073,14 +3962,15 @@ fn main() {
                 expand_treeview_to_item(app_ui.folder_tree_view, app_ui.folder_tree_model, &path);
                 unsafe { app_ui.folder_tree_view.as_mut().unwrap().scroll_to(&model_index); }
                 
-                // Open the PackedFile and select the match in it.
+                // Close any open PackedFile, the open the PackedFile and select the match in it.
+                purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);
                 let action = Action::new(()).into_raw();
                 unsafe { action.as_mut().unwrap().signals().triggered().connect(&*slot_open_packedfile); }
                 unsafe { action.as_mut().unwrap().trigger(); }
 
                 let packed_file_table;
                 let packed_file_model;
-                unsafe { packed_file_table = app_ui.packed_file_layout.as_mut().unwrap().item_at(0).as_mut().unwrap().widget() as *mut TableView; }
+                unsafe { packed_file_table = app_ui.packed_file_splitter.as_mut().unwrap().widget(0).as_mut().unwrap().layout().as_mut().unwrap().item_at(0).as_mut().unwrap().widget() as *mut TableView; }
                 unsafe { packed_file_model = packed_file_table.as_mut().unwrap().model(); }
                 let selection_model;
                 unsafe { selection_model = packed_file_table.as_mut().unwrap().selection_model(); }
@@ -4095,6 +3985,7 @@ fn main() {
 
         // What happens when we activate one of the matches in the "DB Matches" table.
         let slot_load_match_db = SlotModelIndexRef::new(clone!(
+            packedfiles_open_in_packedfile_view,
             slot_open_packedfile => move |model_index_filter| {
 
                 // Map the ModelIndex to his real ModelIndex in the full model.
@@ -4125,15 +4016,16 @@ fn main() {
                 // Show the PackedFile in the TreeView.
                 expand_treeview_to_item(app_ui.folder_tree_view, app_ui.folder_tree_model, &path);
                 unsafe { app_ui.folder_tree_view.as_mut().unwrap().scroll_to(&model_index); }
-                
-                // Open the PackedFile and select the match in it.
+                           
+                // Close any open PackedFile, the open the PackedFile and select the match in it.
+                purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);
                 let action = Action::new(()).into_raw();
                 unsafe { action.as_mut().unwrap().signals().triggered().connect(&*slot_open_packedfile); }
                 unsafe { action.as_mut().unwrap().trigger(); }
 
                 let packed_file_table;
                 let packed_file_model;
-                unsafe { packed_file_table = app_ui.packed_file_layout.as_mut().unwrap().item_at(0).as_mut().unwrap().widget() as *mut TableView; }
+                unsafe { packed_file_table = app_ui.packed_file_splitter.as_mut().unwrap().widget(0).as_mut().unwrap().layout().as_mut().unwrap().item_at(0).as_mut().unwrap().widget() as *mut TableView; }
                 unsafe { packed_file_model = packed_file_table.as_mut().unwrap().model(); }
                 let selection_model;
                 unsafe { selection_model = packed_file_table.as_mut().unwrap().selection_model(); }
@@ -4409,7 +4301,7 @@ fn main() {
             history_filter_loc,
             mymod_stuff,
             sender_qt,
-            is_packedfile_opened,
+            packedfiles_open_in_packedfile_view,
             sender_qt_data,
             receiver_qt,
             is_modified,
@@ -4440,7 +4332,7 @@ fn main() {
                         &game_selected,
                         &is_modified,
                         &mode,
-                        &is_packedfile_opened,
+                        &packedfiles_open_in_packedfile_view,
                         &mymod_stuff,
                         close_global_search_action,
                         &history_filter_db,
@@ -4460,7 +4352,7 @@ fn main() {
             mymod_stuff,
             mymod_stuff_slots,
             sender_qt,
-            is_packedfile_opened,
+            packedfiles_open_in_packedfile_view,
             sender_qt_data,
             receiver_qt,
             is_modified,
@@ -4481,7 +4373,7 @@ fn main() {
                         is_modified.clone(),
                         mode.clone(),
                         mymod_menu_needs_rebuild.clone(),
-                        &is_packedfile_opened,
+                        &packedfiles_open_in_packedfile_view,
                         close_global_search_action,
                         &history_filter_db,
                         &history_filter_loc,
@@ -4525,7 +4417,7 @@ fn main() {
                     &is_modified,
                     &mode,
                     "",
-                    &is_packedfile_opened,
+                    &packedfiles_open_in_packedfile_view,
                     close_global_search_action,
                     &history_filter_db,
                     &history_filter_loc,
@@ -4705,7 +4597,7 @@ fn open_packfile(
     is_modified: &Rc<RefCell<bool>>,
     mode: &Rc<RefCell<Mode>>,
     game_folder: &str,
-    is_packedfile_opened: &Rc<RefCell<Option<Vec<String>>>>,
+    packedfiles_open_in_packedfile_view: &Rc<RefCell<BTreeMap<i32, Vec<String>>>>,
     close_global_search_action: *mut Action,
     history_filter_db: &Rc<RefCell<BTreeMap<Vec<String>, (QString, i32, bool)>>>,
     history_filter_loc: &Rc<RefCell<BTreeMap<Vec<String>, (QString, i32, bool)>>>,
@@ -4811,7 +4703,7 @@ fn open_packfile(
             unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
 
             // Destroy whatever it's in the PackedFile's view, to avoid data corruption.
-            purge_them_all(&app_ui, &is_packedfile_opened);
+            purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);
             
             // Close the Global Search stuff and reset the filter's history.
             unsafe { close_global_search_action.as_mut().unwrap().trigger(); }
@@ -4847,6 +4739,245 @@ fn open_packfile(
     Ok(())
 }
 
+/// This function is used to open ANY supported PackedFile in the right view.
+fn open_packedfile(
+    sender_qt: &Sender<Commands>,
+    sender_qt_data: &Sender<Data>,
+    receiver_qt: &Rc<RefCell<Receiver<Data>>>,
+    app_ui: &AppUI,
+    is_modified: &Rc<RefCell<bool>>,
+    packedfiles_open_in_packedfile_view: &Rc<RefCell<BTreeMap<i32, Vec<String>>>>,
+    global_search_explicit_paths: &Rc<RefCell<Vec<Vec<String>>>>,
+    is_folder_tree_view_locked: &Rc<RefCell<bool>>,
+    history_filter_db: &Rc<RefCell<BTreeMap<Vec<String>, (QString, i32, bool)>>>,
+    history_filter_loc: &Rc<RefCell<BTreeMap<Vec<String>, (QString, i32, bool)>>>,
+    db_slots: &Rc<RefCell<BTreeMap<i32, PackedFileDBTreeView>>>,
+    loc_slots: &Rc<RefCell<BTreeMap<i32, PackedFileLocTreeView>>>,
+    text_slots: &Rc<RefCell<BTreeMap<i32, PackedFileTextView>>>,
+    rigid_model_slots: &Rc<RefCell<BTreeMap<i32, PackedFileRigidModelDataView>>>,
+    update_global_search_stuff: *mut Action,
+    view_position: i32,
+) -> Result<()> {
+
+    // Before anything else, we need to check if the TreeView is unlocked. Otherwise we don't do anything from here.
+    if !(*is_folder_tree_view_locked.borrow()) {
+
+        // Get the selection to see what we are going to open.
+        let selection;
+        unsafe { selection = app_ui.folder_tree_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection(); }
+
+        // Get the path of the selected item.
+        let full_path = get_path_from_item_selection(app_ui.folder_tree_model, &selection, true);
+
+        // Send the Path to the Background Thread, and get the type of the item.
+        sender_qt.send(Commands::GetTypeOfPath).unwrap();
+        sender_qt_data.send(Data::VecString(full_path)).unwrap();
+        let item_type = if let Data::TreePathType(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+
+        // We act, depending on his type.
+        match item_type {
+
+            // Only in case it's a file, we do something.
+            TreePathType::File(path) => {
+
+                // If the file we want to open is already open in another view, don't open it.
+                for (view_pos, packed_file_path) in packedfiles_open_in_packedfile_view.borrow().iter() {
+                    if packed_file_path == &path && view_pos != &view_position {
+                        return Err(ErrorKind::PackedFileIsOpenInAnotherView)?
+                    }
+                }
+
+                // Get the name of the PackedFile (we are going to use it a lot).
+                let packedfile_name = path.last().unwrap().to_owned();
+
+                // We get his type to decode it properly
+                let mut packed_file_type: &str =
+
+                    // If it's in the "db" folder, it's a DB PackedFile (or you put something were it shouldn't be).
+                    if path[0] == "db" { "DB" }
+
+                    // If it ends in ".loc", it's a localisation PackedFile.
+                    else if packedfile_name.ends_with(".loc") { "LOC" }
+
+                    // If it ends in ".rigid_model_v2", it's a RigidModel PackedFile.
+                    else if packedfile_name.ends_with(".rigid_model_v2") { "RIGIDMODEL" }
+
+                    // If it ends in any of these, it's a plain text PackedFile.
+                    else if packedfile_name.ends_with(".lua") ||
+                            packedfile_name.ends_with(".xml") ||
+                            packedfile_name.ends_with(".xml.shader") ||
+                            packedfile_name.ends_with(".xml.material") ||
+                            packedfile_name.ends_with(".variantmeshdefinition") ||
+                            packedfile_name.ends_with(".environment") ||
+                            packedfile_name.ends_with(".lighting") ||
+                            packedfile_name.ends_with(".wsmodel") ||
+                            packedfile_name.ends_with(".csv") ||
+                            packedfile_name.ends_with(".tsv") ||
+                            packedfile_name.ends_with(".inl") ||
+                            packedfile_name.ends_with(".battle_speech_camera") ||
+                            packedfile_name.ends_with(".bob") ||
+                            packedfile_name.ends_with(".cindyscene") ||
+                            packedfile_name.ends_with(".cindyscenemanager") ||
+                            //packedfile_name.ends_with(".benchmark") || // This one needs special decoding/encoding.
+                            packedfile_name.ends_with(".txt") { "TEXT" }
+
+                    // If it ends in any of these, it's an image.
+                    else if packedfile_name.ends_with(".jpg") ||
+                            packedfile_name.ends_with(".jpeg") ||
+                            packedfile_name.ends_with(".tga") ||
+                            packedfile_name.ends_with(".dds") ||
+                            packedfile_name.ends_with(".png") { "IMAGE" }
+
+                    // Otherwise, we don't have a decoder for that PackedFile... yet.
+                    else { "None" };
+
+                // Create the widget that'll act as a container for the view.
+                let widget = Widget::new().into_raw();
+                let widget_layout = GridLayout::new().into_raw();
+                unsafe { widget.as_mut().unwrap().set_layout(widget_layout as *mut Layout); }
+
+                // Then, depending of his type we decode it properly (if we have it implemented support
+                // for his type).
+                match packed_file_type {
+
+                    // If the file is a Loc PackedFile...
+                    "LOC" => {
+
+                        // Try to get the view build, or return error.
+                        match PackedFileLocTreeView::create_tree_view(
+                            sender_qt.clone(),
+                            &sender_qt_data,
+                            &receiver_qt,
+                            &is_modified,
+                            &app_ui,
+                            widget_layout,
+                            path.to_vec(),
+                            &global_search_explicit_paths,
+                            update_global_search_stuff,
+                            &history_filter_loc
+                        ) {
+                            Ok(new_loc_slots) => { loc_slots.borrow_mut().insert(view_position, new_loc_slots); },
+                            Err(error) => return Err(ErrorKind::LocDecode(format!("{}", error)))?,
+                        }
+
+                        // Tell the program there is an open PackedFile and finish the table.
+                        purge_that_one_specifically(&app_ui, view_position, &packedfiles_open_in_packedfile_view);
+                        packedfiles_open_in_packedfile_view.borrow_mut().insert(view_position, path);
+                        unsafe { app_ui.packed_file_splitter.as_mut().unwrap().insert_widget(view_position, widget as *mut Widget); }
+                    }
+
+                    // If the file is a DB PackedFile...
+                    "DB" => {
+
+                        // Try to get the view build, or return error.
+                        match PackedFileDBTreeView::create_table_view(
+                            sender_qt.clone(),
+                            &sender_qt_data,
+                            &receiver_qt,
+                            &is_modified,
+                            &app_ui,
+                            widget_layout,
+                            path.to_vec(),
+                            &global_search_explicit_paths,
+                            update_global_search_stuff,
+                            &history_filter_db
+                        ) {
+                            Ok(new_db_slots) => { db_slots.borrow_mut().insert(view_position, new_db_slots); },
+                            Err(error) => return Err(ErrorKind::DBTableDecode(format!("{}", error)))?,
+                        }
+
+                        // Tell the program there is an open PackedFile and finish the table.
+                        purge_that_one_specifically(&app_ui, view_position, &packedfiles_open_in_packedfile_view);
+                        packedfiles_open_in_packedfile_view.borrow_mut().insert(view_position, path);
+                        unsafe { app_ui.packed_file_splitter.as_mut().unwrap().insert_widget(view_position, widget as *mut Widget); }
+
+                        // Disable the "Change game selected" function, so we cannot change the current schema with an open table.
+                        unsafe { app_ui.game_selected_group.as_mut().unwrap().set_enabled(false); }
+                    }
+
+                    // If the file is a Text PackedFile...
+                    "TEXT" => {
+
+                        // Try to get the view build, or return error.
+                        match PackedFileTextView::create_text_view(
+                            sender_qt.clone(),
+                            &sender_qt_data,
+                            &receiver_qt,
+                            &is_modified,
+                            &app_ui,
+                            widget_layout,
+                            path.to_vec()
+                        ) {
+                            Ok(new_text_slots) => { text_slots.borrow_mut().insert(view_position, new_text_slots); },
+                            Err(error) => return Err(ErrorKind::TextDecode(format!("{}", error)))?,
+                        }
+
+                        // Tell the program there is an open PackedFile and finish the table.
+                        purge_that_one_specifically(&app_ui, view_position, &packedfiles_open_in_packedfile_view);
+                        packedfiles_open_in_packedfile_view.borrow_mut().insert(view_position, path);
+                        unsafe { app_ui.packed_file_splitter.as_mut().unwrap().insert_widget(view_position, widget as *mut Widget); }
+                    }
+
+                    // If the file is a Text PackedFile...
+                    "RIGIDMODEL" => {
+
+                        // Try to get the view build, or return error.
+                        match PackedFileRigidModelDataView::create_data_view(
+                            sender_qt.clone(),
+                            &sender_qt_data,
+                            &receiver_qt,
+                            &is_modified,
+                            &app_ui,
+                            widget_layout,
+                            path.to_vec()
+                        ) {
+                            Ok(new_rigid_model_slots) => { rigid_model_slots.borrow_mut().insert(view_position, new_rigid_model_slots); },
+                            Err(error) => return Err(ErrorKind::RigidModelDecode(format!("{}", error)))?,
+                        }
+
+                        // Tell the program there is an open PackedFile and finish the table.
+                        purge_that_one_specifically(&app_ui, view_position, &packedfiles_open_in_packedfile_view);
+                        packedfiles_open_in_packedfile_view.borrow_mut().insert(view_position, path);
+                        unsafe { app_ui.packed_file_splitter.as_mut().unwrap().insert_widget(view_position, widget as *mut Widget); }
+                    }
+
+                    // If the file is a Text PackedFile...
+                    "IMAGE" => {
+
+                        // Try to get the view build, or return error.
+                        if let Err(error) = ui::packedfile_image::create_image_view(
+                            sender_qt.clone(),
+                            &sender_qt_data,
+                            &receiver_qt,
+                            widget_layout,
+                            path.to_vec(),
+                        ) { return Err(ErrorKind::ImageDecode(format!("{}", error)))? }
+
+                        // Tell the program there is an open PackedFile and finish the table.
+                        purge_that_one_specifically(&app_ui, view_position, &packedfiles_open_in_packedfile_view);
+                        packedfiles_open_in_packedfile_view.borrow_mut().insert(view_position, path);
+                        unsafe { app_ui.packed_file_splitter.as_mut().unwrap().insert_widget(view_position, widget as *mut Widget); }
+                    }
+
+                    // For any other PackedFile, just restore the display tips.
+                    _ => {
+                        purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);
+                        display_help_tips(&app_ui);
+                    }
+                }
+            }
+
+            // If it's anything else, then we just show the "Tips" list.
+            _ => {
+                purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);
+                display_help_tips(&app_ui);
+            }
+        }
+    }
+
+    Ok(())
+}
+
 /// This function takes care of the re-creation of the "MyMod" list in the following moments:
 /// - At the start of the program.
 /// - At the end of MyMod deletion.
@@ -4862,7 +4993,7 @@ fn build_my_mod_menu(
     is_modified: Rc<RefCell<bool>>,
     mode: Rc<RefCell<Mode>>,
     needs_rebuild: Rc<RefCell<bool>>,
-    is_packedfile_opened: &Rc<RefCell<Option<Vec<String>>>>,
+    packedfiles_open_in_packedfile_view: &Rc<RefCell<BTreeMap<i32, Vec<String>>>>,
     close_global_search_action: *mut Action,
     history_filter_db: &Rc<RefCell<BTreeMap<Vec<String>, (QString, i32, bool)>>>,
     history_filter_loc: &Rc<RefCell<BTreeMap<Vec<String>, (QString, i32, bool)>>>,
@@ -4903,7 +5034,7 @@ fn build_my_mod_menu(
             sender_qt,
             sender_qt_data,
             receiver_qt,
-            is_packedfile_opened,
+            packedfiles_open_in_packedfile_view,
             app_ui,
             mode,
             settings,
@@ -4969,7 +5100,7 @@ fn build_my_mod_menu(
                             Data::U32(_) => {
 
                                 // Destroy whatever it's in the PackedFile's view, to avoid data corruption.
-                                purge_them_all(&app_ui, &is_packedfile_opened);
+                                purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);
 
                                 // Close the Global Search stuff and reset the filter's history.
                                 unsafe { close_global_search_action.as_mut().unwrap().trigger(); }
@@ -5338,7 +5469,7 @@ fn build_my_mod_menu(
                                         mode,
                                         mymod_stuff,
                                         pack_file,
-                                        is_packedfile_opened,
+                                        packedfiles_open_in_packedfile_view,
                                         close_global_search_action,
                                         sender_qt,
                                         sender_qt_data,
@@ -5358,7 +5489,7 @@ fn build_my_mod_menu(
                                                     &is_modified,
                                                     &mode,
                                                     &game_folder_name,
-                                                    &is_packedfile_opened,
+                                                    &packedfiles_open_in_packedfile_view,
                                                     close_global_search_action,
                                                     &history_filter_db,
                                                     &history_filter_loc,
@@ -5422,7 +5553,7 @@ fn build_open_from_submenus(
     game_selected: &str,
     is_modified: &Rc<RefCell<bool>>,
     mode: &Rc<RefCell<Mode>>,
-    is_packedfile_opened: &Rc<RefCell<Option<Vec<String>>>>,
+    packedfiles_open_in_packedfile_view: &Rc<RefCell<BTreeMap<i32, Vec<String>>>>,
     mymod_stuff: &Rc<RefCell<MyModStuff>>,
     close_global_search_action: *mut Action,
     history_filter_db: &Rc<RefCell<BTreeMap<Vec<String>, (QString, i32, bool)>>>,
@@ -5460,7 +5591,7 @@ fn build_open_from_submenus(
                 mode,
                 mymod_stuff,
                 path,
-                is_packedfile_opened,
+                packedfiles_open_in_packedfile_view,
                 close_global_search_action,
                 sender_qt,
                 sender_qt_data,
@@ -5480,7 +5611,7 @@ fn build_open_from_submenus(
                             &is_modified,
                             &mode,
                             "",
-                            &is_packedfile_opened,
+                            &packedfiles_open_in_packedfile_view,
                             close_global_search_action,
                             &history_filter_db,
                             &history_filter_loc,
@@ -5517,7 +5648,7 @@ fn build_open_from_submenus(
                 mode,
                 mymod_stuff,
                 path,
-                is_packedfile_opened,
+                packedfiles_open_in_packedfile_view,
                 close_global_search_action,
                 sender_qt,
                 sender_qt_data,
@@ -5537,7 +5668,7 @@ fn build_open_from_submenus(
                             &is_modified,
                             &mode,
                             "",
-                            &is_packedfile_opened,
+                            &packedfiles_open_in_packedfile_view,
                             close_global_search_action,
                             &history_filter_db,
                             &history_filter_loc,
