@@ -307,7 +307,7 @@ impl PackedFileRigidModelDataView {
 
                     // Send the data to the background to try to patch the rigidmodel.
                     sender_qt.send(Commands::PatchAttilaRigidModelToWarhammer).unwrap();
-                    sender_qt_data.send(Data::VecString(packed_file_path.to_vec())).unwrap();
+                    sender_qt_data.send(Data::RigidModelVecString((packed_file.borrow().clone(), packed_file_path.to_vec()))).unwrap();
 
                     // Disable the Main Window (so we can't do other stuff).
                     unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
@@ -330,19 +330,8 @@ impl PackedFileRigidModelDataView {
                             *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(packed_file_path.to_vec()));
                         }
 
-                        // If we got an error...
-                        Data::Error(error) => {
-
-                            // We must check what kind of error it's.
-                            match error.kind() {
-
-                                // If the patching process failed, report it and break the loop.
-                                ErrorKind::RigidModelPatchToWarhammer(_) => show_dialog(app_ui.window, false, error.kind()),
-
-                                // In ANY other situation, it's a message problem.
-                                _ => panic!(THREADS_MESSAGE_ERROR)
-                            }
-                        }
+                        // If we got an error, report it.
+                        Data::Error(error) => show_dialog(app_ui.window, false, error),
 
                         // In ANY other situation, it's a message problem.
                         _ => panic!(THREADS_MESSAGE_ERROR),

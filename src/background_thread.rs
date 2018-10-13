@@ -49,7 +49,6 @@ pub fn background_loop(
     // These are a list of empty PackedFiles, used to store data of the open PackedFile.
     let mut packed_file_loc = Loc::new();
     let mut packed_file_db = DB::new("", 0, TableDefinition::new(0));
-    let mut packed_file_rigid_model = RigidModel::new();
 
     // We load the settings here, and in case they doesn't exist or they are not valid, we create them.
     let mut settings = Settings::load().unwrap_or_else(|_|Settings::new());
@@ -846,12 +845,7 @@ pub fn background_loop(
                                         match RigidModel::read(&data) {
 
                                             // If we succeed, store it and send it back.
-                                            Ok(packed_file_decoded) => {
-                                                packed_file_rigid_model = packed_file_decoded;
-                                                sender.send(Data::RigidModel(packed_file_rigid_model.clone())).unwrap();
-                                            }
-
-                                            // In case of error, report it.
+                                            Ok(packed_file_decoded) => sender.send(Data::RigidModel(packed_file_decoded)).unwrap(),
                                             Err(error) => sender.send(Data::Error(error)).unwrap(),
                                         }
                                     }
@@ -868,12 +862,9 @@ pub fn background_loop(
                         // Wait until we get the needed data from the UI thread.
                         let data = if let Data::RigidModelVecString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
-                        // Replace the old encoded data with the new one.
-                        packed_file_rigid_model = data.0;
-
                         // Update the PackFile to reflect the changes.
                         packfile::update_packed_file_data_rigid(
-                            &packed_file_rigid_model,
+                            &data.0,
                             &mut pack_file_decoded,
                             &data.1
                         );
@@ -883,27 +874,27 @@ pub fn background_loop(
                     Commands::PatchAttilaRigidModelToWarhammer => {
 
                         // Wait until we get the needed data from the UI thread.
-                        let path = if let Data::VecString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                        let mut data = if let Data::RigidModelVecString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                         // Find the PackedFile we want and send back the response.
-                        match pack_file_decoded.packed_files.iter().find(|x| x.path == path) {
+                        match pack_file_decoded.packed_files.iter().find(|x| x.path == data.1) {
                             Some(_) => {
 
                                 // We try to patch the RigidModel.
-                                match packfile::patch_rigid_model_attila_to_warhammer(&mut packed_file_rigid_model) {
+                                match packfile::patch_rigid_model_attila_to_warhammer(&mut data.0) {
 
                                     // If we succeed...
                                     Ok(_) => {
 
                                         // Update the PackFile to reflect the changes.
                                         packfile::update_packed_file_data_rigid(
-                                            &packed_file_rigid_model,
+                                            &data.0,
                                             &mut pack_file_decoded,
-                                            &path
+                                            &data.1
                                         );
 
                                         // Send back the patched PackedFile.
-                                        sender.send(Data::RigidModel(packed_file_rigid_model.clone())).unwrap()
+                                        sender.send(Data::RigidModel(data.0)).unwrap()
                                     }
 
                                     // In case of error, report it.
