@@ -1761,6 +1761,8 @@ fn main() {
                         unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
                     }
 
+                    Data::Error(error) => show_dialog(app_ui.window, false, error),
+                    
                     // In ANY other situation, it's a message problem.
                     _ => panic!(THREADS_MESSAGE_ERROR),
                 }

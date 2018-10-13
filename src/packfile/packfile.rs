@@ -427,7 +427,7 @@ impl PackFile {
         for _ in 0..pack_file_count {
             let mut pack_file_name = String::new();
             loop {
-                let character = packed_file_index[pack_file_index_position];
+                let character = pack_file_index[pack_file_index_position];
                 pack_file_index_position += 1;
                 if character == 0 { break; }
                 pack_file_name.push(character as char);
@@ -553,7 +553,6 @@ impl PackFile {
     ///
     /// It requires:
     /// - `&mut self`: the `PackFile` we are trying to save.
-    /// - `mut file`: a `BufWriter` of the PackFile we are trying to write to.
     pub fn save(&mut self) -> Result<()> {
 
         // For some bizarre reason, if the PackedFiles are not alphabetically sorted they may or may not crash the game for particular people.
@@ -638,8 +637,7 @@ impl PackedFile {
 
     /// This function loads the data from the disk if it's not loaded yet.
     pub fn load_data(&mut self) -> Result<()> {
-        let mut data_on_memory = PackedFileData::OnMemory(vec![]);
-        if let PackedFileData::OnDisk(ref file, position, size, (is_encrypted, pack_file_version)) = self.data {
+        let data_on_memory = if let PackedFileData::OnDisk(ref file, position, size, (is_encrypted, pack_file_version)) = self.data {
             if is_encrypted {
                 match pack_file_version {
                     PFHVersion::PFH5 => {
@@ -648,14 +646,14 @@ impl PackedFile {
                         let mut data = vec![0; padded_size as usize];
                         file.lock().unwrap().seek(SeekFrom::Start(position))?;
                         file.lock().unwrap().read_exact(&mut data)?;
-                        data_on_memory = PackedFileData::OnMemory(decrypt_file(&data, size as usize, false));
+                        PackedFileData::OnMemory(decrypt_file(&data, size as usize, false))
                     }
 
                     PFHVersion::PFH4 => {
                         let mut data = vec![0; size as usize];
                         file.lock().unwrap().seek(SeekFrom::Start(position))?;
                         file.lock().unwrap().read_exact(&mut data)?;
-                        data_on_memory = PackedFileData::OnMemory(decrypt_file2(&data, false));
+                        PackedFileData::OnMemory(decrypt_file2(&data, false))
                     }
                 }
             }
@@ -663,9 +661,9 @@ impl PackedFile {
                 let mut data = vec![0; size as usize];
                 file.lock().unwrap().seek(SeekFrom::Start(position))?;
                 file.lock().unwrap().read_exact(&mut data)?;
-                data_on_memory = PackedFileData::OnMemory(data);
+                PackedFileData::OnMemory(data)
             }
-        }
+        } else { return Ok(()) };
         self.data = data_on_memory;
         Ok(())
     }

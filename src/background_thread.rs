@@ -1025,8 +1025,10 @@ pub fn background_loop(
 
                     // In case we want to optimize our PackFile...
                     Commands::OptimizePackFile => {
-                        let deleted_packed_files = packfile::optimize_packfile(&mut pack_file_decoded, &dependency_database, &schema).unwrap();
-                        sender.send(Data::VecTreePathType(deleted_packed_files)).unwrap();
+                        match packfile::optimize_packfile(&mut pack_file_decoded, &dependency_database, &schema) {
+                            Ok(deleted_packed_files) => sender.send(Data::VecTreePathType(deleted_packed_files)).unwrap(),
+                            Err(_) => sender.send(Data::Error(Error::from(ErrorKind::PackedFileDataCouldNotBeLoaded))).unwrap(),
+                        }
                     }
 
                     // In case we want to get the PackFiles List of our PackFile...
