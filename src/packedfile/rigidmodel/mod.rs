@@ -58,23 +58,13 @@ impl RigidModel {
     /// This function reads the data from a Vec<u8> and decode it into a RigidModel. This CAN FAIL,
     /// so we return Result<RigidModel, Error>.
     pub fn read(packed_file_data: &[u8]) -> Result<RigidModel> {
-        match RigidModelHeader::read(&packed_file_data[..140]) {
-            Ok(packed_file_header) => {
-                match RigidModelData::read(
-                    &packed_file_data[140..],
-                    &packed_file_header.packed_file_header_model_type,
-                    &packed_file_header.packed_file_header_lods_count
-                ) {
-                    Ok(packed_file_data) =>
-                        Ok(RigidModel {
-                            packed_file_header,
-                            packed_file_data,
-                        }),
-                    Err(error) => Err(error)
-                }
-            }
-            Err(error) => Err(error)
-        }
+        let packed_file_header = RigidModelHeader::read(&packed_file_data[..140])?;
+        let packed_file_data = RigidModelData::read(&packed_file_data[140..], &packed_file_header.packed_file_header_model_type, &packed_file_header.packed_file_header_lods_count)?;
+
+        Ok(RigidModel {
+            packed_file_header,
+            packed_file_data,
+        })
     }
 
     /// This function reads the data from a RigidModel and encode it into a Vec<u8>. This CAN FAIL,

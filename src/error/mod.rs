@@ -95,14 +95,20 @@ pub enum ErrorKind {
     // Error for when the PackFile's header can be read but it's not decodeable.
     PackFileHeaderNotComplete,
 
+    // Error for when the PackFile Indexes are incomplete.
+    PackFileIndexesNotComplete,
+
     // Error for when we try to open a PackFile and his extension is not ".pack".
     OpenPackFileInvalidExtension,
 
     // Error for when trying to save a non-editable PackFile.
     PackFileIsNonEditable,
 
-    // Error for when the PackFile is not a valid file on disk.
+    // Error for when the PackFile is not a file in the disk.
     PackFileIsNotAFile,
+
+    // Error for when the PackFile is not a valid PackFile.
+    PackFileIsNotAPackFile,
 
     //-----------------------------------------------------//
     //                PackedFile Errors
@@ -116,6 +122,9 @@ pub enum ErrorKind {
 
     // Error for when we are trying to open a PackedFile in two different views at the same time.
     PackedFileIsOpenInAnotherView,
+
+    // Error for when a load_data or get_data fails.
+    PackedFileDataCouldNotBeLoaded,
 
     //--------------------------------//
     // DB Table Errors
@@ -375,6 +384,7 @@ impl Display for ErrorKind {
             <li>- Arena.</li>
             </ul>"),
             ErrorKind::PackFileHeaderNotComplete => write!(f, "<p>The header of the PackFile is incomplete, unsupported or damaged.</p>"),
+            ErrorKind::PackFileIndexesNotComplete => write!(f, "<p>The indexes of this of the PackFile are incomplete, unsupported or damaged.</p>"),
             ErrorKind::OpenPackFileInvalidExtension => write!(f, "<p>RPFM can only open packfiles whose name ends in <i>'.pack'</i></p>"),
             ErrorKind::PackFileIsNonEditable => write!(f, "
             <p>This type of PackFile is supported in Read-Only mode.</p>
@@ -385,6 +395,7 @@ impl Display for ErrorKind {
             <li>One of the greyed checkboxes under <i>'PackFile/Change PackFile Type'</i> is checked.</li>
             </ul>
             <p>If you really want to save it, go to <i>'PackFile/Change PackFile Type'</i> and change his type to 'Mod' or 'Movie'. Note that if the cause it's the third on the list, there is no way to save the PackFile, yet.</p>"),
+            ErrorKind::PackFileIsNotAPackFile => write!(f, "<p>This file is not a valid PackFile.</p>"),
             ErrorKind::PackFileIsNotAFile => write!(f, "<p>This PackFile doesn't exists as a file in the disk.</p>"),
 
             //-----------------------------------------------------//
@@ -393,6 +404,7 @@ impl Display for ErrorKind {
             ErrorKind::PackedFileNotFound => write!(f, "<p>This PackedFile no longer exists in the PackFile.</p>"),
             ErrorKind::PackedFileIsOpen => write!(f, "<p>That operation cannot be done while the PackedFile involved on it is open. Please, close it by selecting a Folder/PackFile in the TreeView and try again.</p>"),
             ErrorKind::PackedFileIsOpenInAnotherView => write!(f, "<p>That PackedFile is already open in another view. Opening the same PackedFile in multiple views is not supported.</p>"),
+            ErrorKind::PackedFileDataCouldNotBeLoaded => write!(f, "<p>This PackedFile's data could not be loaded. This means RPFM can no longer read the PackFile from the disk.</p>"),
 
             //--------------------------------//
             // DB Table Errors

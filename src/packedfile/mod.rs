@@ -92,7 +92,7 @@ pub fn create_packed_file(
     };
 
     // Create and add the new PackedFile to the PackFile.
-    pack_file.add_packedfiles(vec![PackedFile::read(data.len() as u32, get_current_time(), path, data); 1]);
+    pack_file.add_packedfiles(vec![PackedFile::read(get_current_time(), path, data); 1]);
 
     // Return the path to update the UI.
     Ok(())
@@ -152,10 +152,10 @@ pub fn tsv_mass_import(
                             }
 
                             // If that path already exist in the PackFile, add it to the "remove" list.
-                            if pack_file.data.packedfile_exists(&path) { packed_files_to_remove.push(path.to_vec()) }
+                            if pack_file.packedfile_exists(&path) { packed_files_to_remove.push(path.to_vec()) }
 
                             // Create and add the new PackedFile to the PackFile.
-                            packed_files.push(PackedFile::read(data.len() as u32, get_current_time(), path, data));
+                            packed_files.push(PackedFile::read(get_current_time(), path, data));
                         }
 
                         // In case of error, add it to the error list.
@@ -200,10 +200,10 @@ pub fn tsv_mass_import(
                             }
 
                             // If that path already exists in the PackFile, add it to the "remove" list.
-                            if pack_file.data.packedfile_exists(&path) { packed_files_to_remove.push(path.to_vec()) }
+                            if pack_file.packedfile_exists(&path) { packed_files_to_remove.push(path.to_vec()) }
 
                             // Create and add the new PackedFile to the PackFile.
-                            packed_files.push(PackedFile::read(data.len() as u32, get_current_time(), path, data));
+                            packed_files.push(PackedFile::read(get_current_time(), path, data));
                         }
 
                         // In case of error, add it to the error list.
@@ -232,7 +232,7 @@ pub fn tsv_mass_import(
     // Remove all the "conflicting" PackedFiles from the PackFile, before adding the new ones.
     let mut indexes = vec![];
     for packed_file_to_remove in &packed_files_to_remove {
-        for (index, packed_file) in pack_file.data.packed_files.iter_mut().enumerate() {
+        for (index, packed_file) in pack_file.packed_files.iter().enumerate() {
             if packed_file.path == *packed_file_to_remove {
                 indexes.push(index);
                 break;
@@ -263,7 +263,7 @@ pub fn tsv_mass_export(
     let mut exported_files = vec![];
 
     // For each PackedFile we have...
-    for packed_file in &pack_file.data.packed_files {
+    for packed_file in &pack_file.packed_files {
 
         // Check if it's "valid for exportation". We check if his path is empty first to avoid false
         // positives related with "starts_with" function.
@@ -279,7 +279,7 @@ pub fn tsv_mass_export(
                     Some(schema) => {
 
                         // Try to decode the data of the PackedFile.
-                        match DB::read(&packed_file.data, &packed_file.path[1], &schema) {
+                        match DB::read(&(packed_file.get_data()?), &packed_file.path[1], &schema) {
 
                             // In case of success...
                             Ok(db) => {
@@ -334,7 +334,7 @@ pub fn tsv_mass_export(
             else if packed_file.path.last().unwrap().ends_with(".loc") {
 
                 // Try to decode the data of the PackedFile.
-                match Loc::read(&packed_file.data) {
+                match Loc::read(&(packed_file.get_data()?)) {
 
                     // In case of success...
                     Ok(loc) => {
