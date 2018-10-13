@@ -540,6 +540,9 @@ impl PackFile {
                 pack_file_decoded.packed_files.push(packed_file);
                 pack_file_data_position += size as u64;
             }
+
+            // If at this point we have not reached the end of the PackFile, there is something wrong with it.
+            if pack_file_data_position != pack_file_len { return Err(ErrorKind::PackFileSizeIsNotWhatWeExpect(pack_file_len, pack_file_data_position))? }
         }
 
         // If we disabled lazy-loading, load every PackedFile to memory.

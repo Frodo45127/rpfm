@@ -110,6 +110,9 @@ pub enum ErrorKind {
     // Error for when the PackFile is not a valid PackFile.
     PackFileIsNotAPackFile,
 
+    // Error for when the PackFile size doesn't match what we expect.
+    PackFileSizeIsNotWhatWeExpect(u64, u64),
+
     //-----------------------------------------------------//
     //                PackedFile Errors
     //-----------------------------------------------------//
@@ -397,6 +400,7 @@ impl Display for ErrorKind {
             <p>If you really want to save it, go to <i>'PackFile/Change PackFile Type'</i> and change his type to 'Mod' or 'Movie'. Note that if the cause it's the third on the list, there is no way to save the PackFile, yet.</p>"),
             ErrorKind::PackFileIsNotAPackFile => write!(f, "<p>This file is not a valid PackFile.</p>"),
             ErrorKind::PackFileIsNotAFile => write!(f, "<p>This PackFile doesn't exists as a file in the disk.</p>"),
+            ErrorKind::PackFileSizeIsNotWhatWeExpect(expected_size, reported_size) => write!(f, "<p>This PackFile's reported size is <i><b>{}</b></i> bytes, but we expected it to be <i><b>{}</b></i> bytes. This means that either the decoding logic in RPFM is broken for this PackFile, or this PackFile is corrupted.</p>", expected_size, reported_size),
 
             //-----------------------------------------------------//
             //                PackedFile Errors
