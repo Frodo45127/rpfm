@@ -183,7 +183,7 @@ pub fn tsv_mass_import(
                     let mut db = DB::new(table_type, table_version, table_definition);
 
                     // Try to import the TSV's data into it.
-                    match db.data.import_tsv(&path, &table_type) {
+                    match db.import_tsv(&path, &table_type) {
                         Ok(_) => {
 
                             // Save it.
@@ -310,7 +310,7 @@ pub fn tsv_mass_export(
                                 export_path.push(name.to_owned());
 
                                 // Try to export it to the provided path.
-                                match db.data.export_tsv(&export_path, (&packed_file.path[1], db.header.version)) {
+                                match db.export_tsv(&export_path, (&packed_file.path[1], db.version)) {
 
                                     // If success, add it to the exported files list.
                                     Ok(_) => exported_files.push(name.to_owned()),

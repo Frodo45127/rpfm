@@ -182,7 +182,8 @@ pub struct PackedFileDBDecoderStuffNonUI {
     pub packed_file_path: Vec<String>,
     pub packed_file_data: Vec<u8>,
     pub initial_index: usize,
-    pub header: DBHeader,
+    pub version: u32,
+    pub entry_count: u32,
 }
 
 /// Implementation of PackedFileDBTreeView.
@@ -211,7 +212,7 @@ impl PackedFileDBTreeView {
         sender_qt.send(Commands::DecodePackedFileDB).unwrap();
         sender_qt_data.send(Data::VecString(packed_file_path.to_vec())).unwrap();
         let packed_file_data = match check_message_validity_recv2(&receiver_qt) { 
-            Data::DBData(data) => Rc::new(RefCell::new(data)),
+            Data::DB(data) => Rc::new(RefCell::new(data)),
             Data::Error(error) => return Err(error),
             _ => panic!(THREADS_MESSAGE_ERROR), 
         };
@@ -1701,15 +1702,13 @@ impl PackedFileDBTreeView {
 
                         // Tell the background thread to start importing the TSV.
                         sender_qt.send(Commands::ImportTSVPackedFileDB).unwrap();
-                        sender_qt_data.send(Data::PathBuf(path)).unwrap();
+                        sender_qt_data.send(Data::DBPathBuf((packed_file_data.borrow().clone(), path))).unwrap();
 
                         // Receive the new data to load in the TableView, or an error.
                         match check_message_validity_recv2(&receiver_qt) {
 
                             // If the importing was succesful, load the data into the Table.
-                            Data::DBData(new_db_data) => Self::load_data_to_table_view(&dependency_data, &new_db_data, model, &settings),
-
-                            // If there was an error, report it.
+                            Data::DB(new_db_data) => Self::load_data_to_table_view(&dependency_data, &new_db_data, model, &settings),
                             Data::Error(error) => return show_dialog(app_ui.window, false, error),
                             _ => panic!(THREADS_MESSAGE_ERROR),
                         }
@@ -1756,6 +1755,7 @@ impl PackedFileDBTreeView {
                 app_ui,
                 sender_qt,
                 sender_qt_data,
+                packed_file_data,
                 receiver_qt => move |_| {
 
                     // Create a File Chooser to get the destination path.
@@ -1785,7 +1785,7 @@ impl PackedFileDBTreeView {
 
                         // Tell the background thread to start exporting the TSV.
                         sender_qt.send(Commands::ExportTSVPackedFileDB).unwrap();
-                        sender_qt_data.send(Data::PathBuf(path)).unwrap();
+                        sender_qt_data.send(Data::DBPathBuf((packed_file_data.borrow().clone(), path))).unwrap();
 
                         // Receive the result of the exporting.
                         match check_message_validity_recv2(&receiver_qt) {
@@ -2398,7 +2398,7 @@ impl PackedFileDBTreeView {
     /// This function loads the data from a LocData into a TableView.
     pub fn load_data_to_table_view(
         dependency_data: &BTreeMap<i32, Vec<String>>,
-        packed_file_data: &DBData,
+        packed_file_data: &DB,
         model: *mut StandardItemModel,
         settings: &Settings,
     ) {
@@ -2544,7 +2544,7 @@ impl PackedFileDBTreeView {
     /// This function returns a DBData with all the stuff in the table. This can and will fail in case
     /// the data of a field cannot be parsed to the type of that field. Beware of that.
     pub fn return_data_from_table_view(
-        packed_file_data: &mut DBData,
+        packed_file_data: &mut DB,
         model: *mut StandardItemModel,
     ) -> Result<()> {
 
@@ -2606,7 +2606,7 @@ impl PackedFileDBTreeView {
         sender_qt_data: &Sender<Data>,
         is_modified: &Rc<RefCell<bool>>,
         app_ui: &AppUI,
-        data: &Rc<RefCell<DBData>>,
+        data: &Rc<RefCell<DB>>,
         packed_file_path: &[String],
         model: *mut StandardItemModel,
         global_search_explicit_paths: &Rc<RefCell<Vec<Vec<String>>>>,
@@ -2620,7 +2620,7 @@ impl PackedFileDBTreeView {
 
         // Tell the background thread to start saving the PackedFile.
         sender_qt.send(Commands::EncodePackedFileDB).unwrap();
-        sender_qt_data.send(Data::DBDataVecString((data.borrow().clone(), packed_file_path.to_vec()))).unwrap();
+        sender_qt_data.send(Data::DBVecString((data.borrow().clone(), packed_file_path.to_vec()))).unwrap();
 
         // Set the mod as "Modified".
         *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(packed_file_path.to_vec()));
@@ -2642,7 +2642,7 @@ impl PackedFileDBTreeView {
         receiver_qt: &Rc<RefCell<Receiver<Data>>>,
         is_modified: &Rc<RefCell<bool>>,
         packed_file_path: &[String],
-        data: &Rc<RefCell<DBData>>,
+        data: &Rc<RefCell<DB>>,
         table_view: *mut TableView,
         model: *mut StandardItemModel,
         history_source: &Rc<RefCell<Vec<TableOperations>>>, 
@@ -3218,7 +3218,7 @@ impl PackedFileDBDecoder {
         let schema = if let Data::OptionSchema(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
         // If the PackedFile is in the db folder...
-        if packed_file.path.len() > 2 {
+        if packed_file.path.len() == 3 {
             if packed_file.path[0] == "db" {
 
                 // Put all together so we can pass it easely.
@@ -3268,21 +3268,20 @@ impl PackedFileDBDecoder {
                     table_view_old_versions_context_menu_delete,
                 };
 
-                // Create the index to move along the data.
-                let mut initial_index = 0;
-
                 // Check if it can be read as a table.
-                match DBHeader::read(&(packed_file.get_data()?), &mut initial_index) {
+                let packed_file_data = packed_file.get_data()?;
+                match DB::get_header_data(&packed_file_data) {
 
                     // If we succeed at decoding his header...
-                    Ok(header) => {
+                    Ok((version, entry_count, initial_index)) => {
 
                         // Put all the "Non UI" data we need to keep together.
                         let stuff_non_ui = PackedFileDBDecoderStuffNonUI {
                             packed_file_path: packed_file.path.to_vec(),
-                            packed_file_data: packed_file.get_data()?,
+                            packed_file_data,
                             initial_index,
-                            header,
+                            version,
+                            entry_count,
                         };
 
                         // Get the index we are going to "manipulate".
@@ -3295,9 +3294,9 @@ impl PackedFileDBDecoder {
                             Some(schema) => {
 
                                 // Get the table definition for this table (or create a new one).
-                                let table_definition = match DB::get_schema(&stuff_non_ui.packed_file_path[1], stuff_non_ui.header.version, &schema) {
+                                let table_definition = match DB::get_schema(&stuff_non_ui.packed_file_path[1], stuff_non_ui.version, &schema) {
                                     Some(table_definition) => Rc::new(RefCell::new(table_definition)),
-                                    None => Rc::new(RefCell::new(TableDefinition::new(stuff_non_ui.header.version)))
+                                    None => Rc::new(RefCell::new(TableDefinition::new(stuff_non_ui.version)))
                                 };
 
                                 //---------------------------------------------------------------------------------------//
@@ -3903,11 +3902,11 @@ impl PackedFileDBDecoder {
             }
 
             // Otherwise, return error.
-            else { return Err(ErrorKind::DBTableNotADBTable)? }
+            else { return Err(ErrorKind::DBTableIsNotADBTable)? }
         }
 
         // Otherwise, return error.
-        else { return Err(ErrorKind::DBTableNotADBTable)? }
+        else { return Err(ErrorKind::DBTableIsNotADBTable)? }
     }
 
     /// This function is meant to load the static data of a DB PackedFile into the decoder, or return error.
@@ -4050,8 +4049,8 @@ impl PackedFileDBDecoder {
 
         // Load the "Info" data to the view.
         unsafe { stuff.table_info_type_decoded_label.as_mut().unwrap().set_text(&QString::from_std_str(&stuff_non_ui.packed_file_path[1])); }
-        unsafe { stuff.table_info_version_decoded_label.as_mut().unwrap().set_text(&QString::from_std_str(format!("{}", stuff_non_ui.header.version))); }
-        unsafe { stuff.table_info_entry_count_decoded_label.as_mut().unwrap().set_text(&QString::from_std_str(format!("{}", stuff_non_ui.header.entry_count))); }
+        unsafe { stuff.table_info_version_decoded_label.as_mut().unwrap().set_text(&QString::from_std_str(format!("{}", stuff_non_ui.version))); }
+        unsafe { stuff.table_info_entry_count_decoded_label.as_mut().unwrap().set_text(&QString::from_std_str(format!("{}", stuff_non_ui.entry_count))); }
     }
 
     /// This function is used to update the list of "Versions" of the currently open table decoded.

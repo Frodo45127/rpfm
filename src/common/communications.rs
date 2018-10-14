@@ -124,8 +124,9 @@ pub enum Data {
     LocVecString((Loc, Vec<String>)),
     LocPathBuf((Loc, PathBuf)),
 
-    DBData(DBData),
-    DBDataVecString((DBData, Vec<String>)),
+    DB(DB),
+    DBVecString((DB, Vec<String>)),
+    DBPathBuf((DB, PathBuf)),
 
     RigidModel(RigidModel),
     RigidModelVecString((RigidModel, Vec<String>)),

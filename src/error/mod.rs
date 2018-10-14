@@ -136,14 +136,11 @@ pub enum ErrorKind {
     // DB Table Errors
     //--------------------------------//
 
-    // Error for when we try to open a table with less than 5 bytes.
-    DBTableNotEnoughBytes,
+    // Error for when we try to decode something as a DB Table and it fails.
+    DBTableIsNotADBTable,
 
     // Error for when we try to open a table with a List field on it.
     DBTableContainsListField,
-
-    // Error for when we try to decode something that's not a DB Table as a DB Table.
-    DBTableNotADBTable,
 
     // Error for when data fails to get parsed while encoding DB Tables.
     DBTableParse,
@@ -423,9 +420,8 @@ impl Display for ErrorKind {
             //--------------------------------//
             // DB Table Errors
             //--------------------------------//
-            ErrorKind::DBTableNotEnoughBytes => write!(f, "<p>This table doesn't have enough bytes to be decoded. This error usually happen if this file is not a table or it's broken (sometimes the Assembly Kit exports broken tables).</p><p>If this table was created with the Assembly Kit, re-export it and try again. If it was not exported with the Assembly Kit and you are sure it's a table, it may be a bug so... report it. I guess.</p>"),
+            ErrorKind::DBTableIsNotADBTable => write!(f, "<p>This is either not a DB Table, or it's a DB Table but it's corrupted.</p>"),
             ErrorKind::DBTableContainsListField => write!(f, "<p>This specific table version uses a currently unimplemented type (List), so is undecodeable, for now.</p>"),
-            ErrorKind::DBTableNotADBTable => write!(f, "<p>This PackedFile is not a DB Table.</p>"),
             ErrorKind::DBTableParse => write!(f, "<p>Error while trying to save the DB Table.</p><p>This is probably caused by one of the fields you just changed. Please, make sure the data in that field it's of the correct type.</p>"),
             ErrorKind::DBTableDecode(cause) => write!(f, "<p>Error while trying to decode the DB Table:</p><p>{}</p>", cause),
             ErrorKind::DBTableEmptyWithNoTableDefinition => write!(f, "<p>This DB Table is empty and there is not a Table Definition for it. That means is undecodeable.</p>"),

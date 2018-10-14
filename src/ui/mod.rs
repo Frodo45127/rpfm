@@ -536,37 +536,18 @@ pub fn create_new_packed_file_dialog(
             PackedFileType::Loc(_) => Some(Ok(PackedFileType::Loc(packed_file_name))),
             PackedFileType::DB(_,_,_) => {
 
-                // TODO: Dedup this.
-                // Get the current schema.
-                sender.send(Commands::GetSchema).unwrap();
-                let schema = if let Data::OptionSchema(data) = check_message_validity_recv2(&receiver) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                // Get the table and his version.
+                let table = table_dropdown.current_text().to_std_string();
 
-                // Check if we actually have an schema.
-                match schema {
-
-                    // If we have an schema...
-                    Some(schema) => {
-
-                        // Get the table and his version.
-                        let table = table_dropdown.current_text().to_std_string();
-
-                        // Get the data of the table used in the dependency database.
-                        sender.send(Commands::GetTableVersionFromDependencyPackFile).unwrap();
-                        sender_data.send(Data::String(table.to_owned())).unwrap();
-                        let version = if let Data::U32(data) = check_message_validity_recv2(&receiver) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                        let table_schema = schema.tables_definitions.iter().filter(|x| x.name == table).cloned().collect::<Vec<TableDefinitions>>();
-                        let valid_versions = table_schema[0].versions.iter().map(|x| x.version).collect::<Vec<u32>>();
-
-                        if valid_versions.contains(&version) {
-                            Some(Ok(PackedFileType::DB(packed_file_name, table, version)))
-                        }
-                        else { return Some(Err(Error::from(ErrorKind::SchemaTableDefinitionNotFound))) }
-                    }
-
-                    // If we don't have an schema, return Some(Error).
-                    None => return Some(Err(Error::from(ErrorKind::SchemaNotFound))),
-                }
+                // Get the data of the table used in the dependency database.
+                sender.send(Commands::GetTableVersionFromDependencyPackFile).unwrap();
+                sender_data.send(Data::String(table.to_owned())).unwrap();
+                let version = match check_message_validity_recv2(&receiver) { 
+                    Data::U32(data) => data,
+                    Data::Error(error) => return Some(Err(error)),
+                    _ => panic!(THREADS_MESSAGE_ERROR), 
+                };
+                Some(Ok(PackedFileType::DB(packed_file_name, table, version)))
             },
             PackedFileType::Text(_) => Some(Ok(PackedFileType::Text(packed_file_name))),
         }
@@ -870,7 +851,7 @@ pub enum TableOperations {
     RemoveRows((Vec<i32>, Vec<ListStandardItemMutPtr>)),
     SmartDelete((Vec<((i32, i32), *mut StandardItem)>, Vec<(i32, ListStandardItemMutPtr)>)),
     RevertSmartDelete((Vec<((i32, i32), *mut StandardItem)>, Vec<i32>)),
-    ImportTSVDB(DBData),
+    ImportTSVDB(DB),
     ImportTSVLOC(Loc),
 }
 

@@ -46,9 +46,6 @@ pub fn background_loop(
     let mut pack_file_decoded = PackFile::new();
     let mut pack_file_decoded_extra = PackFile::new();
 
-    // These are a list of empty PackedFiles, used to store data of the open PackedFile.
-    let mut packed_file_db = DB::new("", 0, TableDefinition::new(0));
-
     // We load the settings here, and in case they doesn't exist or they are not valid, we create them.
     let mut settings = Settings::load().unwrap_or_else(|_|Settings::new());
 
@@ -319,9 +316,9 @@ pub fn background_loop(
                                 if i.path.starts_with(&["db".to_owned()]) {
                                     if let Some(ref schema) = schema {
                                         if let Err(_) = db::DB::read(&(i.get_data().unwrap()), &i.path[1], &schema) {
-                                            match db::DBHeader::read(&i.get_data().unwrap(), &mut 0) {
-                                                Ok(db_header) => {
-                                                    if db_header.entry_count > 0 {
+                                            match db::DB::get_header_data(&i.get_data().unwrap()) {
+                                                Ok((_, entry_count, _)) => {
+                                                    if entry_count > 0 {
                                                         counter += 1;
                                                         println!("{}, {:?}", counter, i.path);
                                                     }
@@ -696,14 +693,7 @@ pub fn background_loop(
                                                     &packed_file.path[1],
                                                     schema,
                                                 ) {
-
-                                                    // If we succeed, store it and send it back.
-                                                    Ok(packed_file_decoded) => {
-                                                        packed_file_db = packed_file_decoded;
-                                                        sender.send(Data::DBData(packed_file_db.data.clone())).unwrap();
-                                                    }
-
-                                                    // In case of error, report it.
+                                                    Ok(packed_file_decoded) => sender.send(Data::DB(packed_file_decoded)).unwrap(),
                                                     Err(error) => sender.send(Data::Error(error)).unwrap(),
                                                 }
                                             }
@@ -723,14 +713,11 @@ pub fn background_loop(
                     Commands::EncodePackedFileDB => {
 
                         // Wait until we get the needed data from the UI thread.
-                        let data = if let Data::DBDataVecString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                        // Replace the old encoded data with the new one.
-                        packed_file_db.data = data.0;
+                        let data = if let Data::DBVecString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                         // Update the PackFile to reflect the changes.
                         packfile::update_packed_file_data_db(
-                            &packed_file_db,
+                            &data.0,
                             &mut pack_file_decoded,
                             &data.1
                         );
@@ -740,14 +727,12 @@ pub fn background_loop(
                     Commands::ImportTSVPackedFileDB => {
 
                         // Wait until we get the needed data from the UI thread.
-                        let path = if let Data::PathBuf(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                        // Get his name.
-                        let name = &packed_file_db.db_type;
+                        let mut data = if let Data::DBPathBuf(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                         // Try to import the TSV into the open DB PackedFile, or die trying.
-                        match packed_file_db.data.import_tsv(&path, name) {
-                            Ok(_) => sender.send(Data::DBData(packed_file_db.data.clone())).unwrap(),
+                        let db_type = data.0.db_type.to_owned();
+                        match data.0.import_tsv(&data.1, &db_type) {
+                            Ok(_) => sender.send(Data::DB(data.0)).unwrap(),
                             Err(error) => sender.send(Data::Error(error)).unwrap(),
                         }
                     }
@@ -756,10 +741,10 @@ pub fn background_loop(
                     Commands::ExportTSVPackedFileDB => {
 
                         // Wait until we get the needed data from the UI thread.
-                        let path = if let Data::PathBuf(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                        let data = if let Data::DBPathBuf(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                         // Try to export the TSV into the open DB PackedFile, or die trying.
-                        match packed_file_db.data.export_tsv(&path, (&packed_file_db.db_type, packed_file_db.header.version)) {
+                        match data.0.export_tsv(&data.1, (&data.0.db_type, data.0.version)) {
                             Ok(success) => sender.send(Data::String(success)).unwrap(),
                             Err(error) => sender.send(Data::Error(error)).unwrap(),
                         }
@@ -990,17 +975,28 @@ pub fn background_loop(
 
                         // Wait until we get the needed data from the UI thread.
                         let table_name = if let Data::String(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
-
-                        let table_data = dependency_database.iter().filter(|x| x.path.len() > 2).filter(|x| x.path[1] == table_name).map(|x| x.get_data().unwrap().to_vec()).collect::<Vec<Vec<u8>>>();
-                        match schema {
-                            Some(ref schema) => {
-                                match DB::read(&table_data[0], &table_name, &schema) {
-                                    Ok(table) => sender.send(Data::U32(table.header.version)).unwrap(),
-                                    Err(error) => sender.send(Data::Error(error)).unwrap(),
-                                }
+                        if let Some(vanilla_table) = dependency_database.iter().filter(|x| x.path.len() == 3).find(|x| x.path[1] == table_name) {
+                            match DB::get_header_data(&vanilla_table.get_data().unwrap()) {
+                                Ok(data) => sender.send(Data::U32(data.0)).unwrap(),
+                                Err(error) => sender.send(Data::Error(error)).unwrap(),
                             }
-                            None => sender.send(Data::Error(Error::from(ErrorKind::SchemaNotFound))).unwrap(),
                         }
+
+                        // If our table is not in the dependencies, we fall back to use the version in the schema.
+                        else if let Some(ref schema) = schema {
+                            if let Some(definition) = schema.tables_definitions.iter().find(|x| x.name == table_name) {
+                                let mut versions = definition.versions.to_vec();
+                                versions.sort_unstable_by(|x, y| x.version.cmp(&y.version));
+                                sender.send(Data::U32(versions.last().unwrap().version)).unwrap();
+                            }
+
+                            // If there is no table in the schema, we return an error.
+                            else { sender.send(Data::Error(Error::from(ErrorKind::SchemaTableDefinitionNotFound))).unwrap(); }
+
+                        }
+
+                        // If there is no schema, we return an error.
+                        else { sender.send(Data::Error(Error::from(ErrorKind::SchemaNotFound))).unwrap(); }
                     }
 
                     // In case we want to optimize our PackFile...
@@ -1038,8 +1034,8 @@ pub fn background_loop(
                             while let Some(packed_file) = iter.find(|x| x.path.starts_with(&["db".to_owned(), format!("{}_tables", dependency_data.0)])) {
                                 if let Some(ref schema) = schema {
                                     if let Ok(table) = DB::read(&packed_file.get_data().unwrap(), &format!("{}_tables", dependency_data.0), &schema) {
-                                        if let Some(column_index) = table.data.table_definition.fields.iter().position(|x| x.field_name == dependency_data.1) {
-                                            for row in table.data.entries.iter() {
+                                        if let Some(column_index) = table.table_definition.fields.iter().position(|x| x.field_name == dependency_data.1) {
+                                            for row in table.entries.iter() {
 
                                                 // For now we assume any dependency is a string.
                                                 match row[column_index] { 
@@ -1063,8 +1059,8 @@ pub fn background_loop(
                                 if let Some(ref schema) = schema {
                                     if let Ok(packed_file_data) = packed_file.get_data() {
                                         if let Ok(table) = DB::read(&packed_file_data, &format!("{}_tables", dependency_data.0), &schema) {
-                                            if let Some(column_index) = table.data.table_definition.fields.iter().position(|x| x.field_name == dependency_data.1) {
-                                                for row in table.data.entries.iter() {
+                                            if let Some(column_index) = table.table_definition.fields.iter().position(|x| x.field_name == dependency_data.1) {
+                                                for row in table.entries.iter() {
 
                                                     // For now we assume any dependency is a string.
                                                     match row[column_index] { 
@@ -1237,8 +1233,8 @@ pub fn background_loop(
                                         if let Ok(packed_file) = DB::read(&data, &path[1], &schema) {
 
                                             let mut matches_in_file = vec![];
-                                            for (index, row) in packed_file.data.entries.iter().enumerate() {
-                                                for (column, field) in packed_file.data.table_definition.fields.iter().enumerate() {
+                                            for (index, row) in packed_file.entries.iter().enumerate() {
+                                                for (column, field) in packed_file.table_definition.fields.iter().enumerate() {
                                                     match row[column] {
 
                                                         // All these are Strings, so it can be together,
@@ -1355,8 +1351,8 @@ pub fn background_loop(
                                             if let Ok(packed_file) = DB::read(&data, &path[1], &schema) {
 
                                                 let mut matches_in_file = vec![];
-                                                for (index, row) in packed_file.data.entries.iter().enumerate() {
-                                                    for (column, field) in packed_file.data.table_definition.fields.iter().enumerate() {
+                                                for (index, row) in packed_file.entries.iter().enumerate() {
+                                                    for (column, field) in packed_file.table_definition.fields.iter().enumerate() {
                                                         match row[column] {
 
                                                             // All these are Strings, so it can be together,

@@ -11,7 +11,7 @@ use std::io::BufWriter;
 use common::*;
 use error::{Error, ErrorKind, Result};
 use packedfile::loc::Loc;
-use packedfile::db::{DB, DBHeader};
+use packedfile::db::DB;
 use packedfile::db::schemas::Schema;
 use packedfile::rigidmodel::RigidModel;
 use settings::Settings;
@@ -1038,8 +1038,8 @@ pub fn optimize_packfile(
                     if dep_tables.is_empty() { continue }
 
                     // If the table is empty, add it to the deletion list and continue.
-                    if let Ok(header) = DBHeader::read(&(packed_file.get_data()?), &mut 0) {
-                        if header.entry_count == 0 { 
+                    if let Ok((_, entry_count, _)) = DB::get_header_data(&(packed_file.get_data()?)) {
+                        if entry_count == 0 { 
                             files_to_delete.push(packed_file.path.to_vec());
                             continue;
                         }
@@ -1065,23 +1065,23 @@ pub fn optimize_packfile(
 
                         // For each row we have in our table (in reverse) check if it exists in the vanilla table, and delete it if it does.
                         let mut rows_to_delete = vec![];
-                        for (row_index, row) in optimized_table.data.entries.iter().enumerate() {
-                            if vanilla_table.data.entries.contains(row) { rows_to_delete.push(row_index); }
+                        for (row_index, row) in optimized_table.entries.iter().enumerate() {
+                            if vanilla_table.entries.contains(row) { rows_to_delete.push(row_index); }
                         }
-                        for row in rows_to_delete.iter().rev() { optimized_table.data.entries.remove(*row); }
+                        for row in rows_to_delete.iter().rev() { optimized_table.entries.remove(*row); }
                     }
 
                     // Save the table to the PackFile.
                     update_packed_file_data_db_2(&optimized_table, &mut packed_file);
 
                     // Delete the table here if it's empty.
-                    if optimized_table.data.entries.is_empty() { files_to_delete.push(packed_file.path.to_vec()); }
+                    if optimized_table.entries.is_empty() { files_to_delete.push(packed_file.path.to_vec()); }
                 }
 
                 // Otherwise, we just check if it's empty. In that case, we delete it.
                 else { 
-                    if let Ok(header) = DBHeader::read(&(packed_file.get_data()?), &mut 0) {
-                        if header.entry_count == 0 { files_to_delete.push(packed_file.path.to_vec()); }
+                    if let Ok((_, entry_count, _)) = DB::get_header_data(&(packed_file.get_data()?)) {
+                        if entry_count == 0 { files_to_delete.push(packed_file.path.to_vec()); }
                     }
                 }
             }
