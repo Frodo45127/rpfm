@@ -164,9 +164,13 @@ impl PackFileView {
         
         let now = SystemTime::now();
         let pack_file = File::open(&file_path)?;
-        let parsed_pack = parse_pack(pack_file, lazy_loading)?;
+        let parsed_pack = parse_pack(pack_file)?;
         let mut packed_files = vec![];
+        println!("tw_pack_lib::parsed_pack returned after {:?}. {:?}", now.elapsed().unwrap(), &parsed_pack.get_file_type());
         for packed_file in parsed_pack.into_iter() {
+            if !lazy_loading {
+                packed_file.get_data()?;
+            }
             packed_files.push(PackedFileView::from(packed_file))
         }
         println!("parsed pack in: {:?}. {:?}", now.elapsed().unwrap(), &parsed_pack.get_file_type());
