@@ -158,7 +158,12 @@ pub fn background_loop(
                         // If it passed all the checks, then try to save it and return the result.
                         match packfile::save_packfile(&mut pack_file_decoded, None, *settings.settings_bool.get("allow_editing_of_ca_packfiles").unwrap()) {
                             Ok(_) => sender.send(Data::U32(pack_file_decoded.timestamp)).unwrap(),
-                            Err(error) => sender.send(Data::Error(Error::from(ErrorKind::SavePackFileGeneric(format!("{}", error))))).unwrap(),
+                            Err(error) => {
+                                match error.kind() {
+                                    ErrorKind::PackFileIsNotAFile => sender.send(Data::Error(error)).unwrap(),
+                                    _ => sender.send(Data::Error(Error::from(ErrorKind::SavePackFileGeneric(format!("{}", error))))).unwrap(),
+                                }
+                            }
                         }
                     }
 
