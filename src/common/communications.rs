@@ -120,8 +120,9 @@ pub enum Data {
     PackedFile(PackedFile),
     TreePathType(TreePathType),
 
-    LocData(LocData),
-    LocDataVecString((LocData, Vec<String>)),
+    Loc(Loc),
+    LocVecString((Loc, Vec<String>)),
+    LocPathBuf((Loc, PathBuf)),
 
     DBData(DBData),
     DBDataVecString((DBData, Vec<String>)),

@@ -11,34 +11,19 @@ use common::coding_helpers::*;
 use error::{Error, ErrorKind, Result};
 use super::SerializableToTSV;
 
+/// This const represents the value that every LOC PackedFile has in their first 2 bytes.
+const BYTEORDER_MARK: u16 = 65279; // FF FE
+
+/// This const represents the value that every LOC PackedFile has in their 2-5 bytes.
+const PACKED_FILE_TYPE: &str = "LOC";
+
+/// This const represents the value that every LOC PackedFile has in their 6-10 bytes.
+const PACKED_FILE_VERSION: u32 = 1;
+
 /// `Loc`: This stores the data of a decoded Localisation PackedFile in memory.
-/// It stores the PackedFile divided in 2 parts:
-/// - header: header of the PackedFile, decoded.
-/// - data: data of the PackedFile, decoded.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Loc {
-    pub header: LocHeader,
-    pub data: LocData,
-}
-
-/// `LocHeader`: This stores the header of a decoded Localisation PackedFile in memory.
-/// It stores the PackedFile's header in different parts:
-/// - byte_order_mark: an u16 (2 bytes) that marks the beginning of the PackedFile (FF FE).
-/// - packed_file_type: LOC (3 bytes) in our case. After this it should be a 0 byte.
-/// - packed_file_version: if this is not 1, the file is invalid, don't know why.
-/// - packed_file_entry_count: amount of entries in the file.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct LocHeader {
-    pub byte_order_mark: u16,
-    pub packed_file_type: String,
-    pub packed_file_version: u32,
-    pub packed_file_entry_count: u32,
-}
-
-/// `LocData`: This stores the data of a decoded Localisation PackedFile in memory.
 /// It stores the PackedFile's data in a Vec<LocEntry>.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct LocData {
+#[derive(Clone, Debug)]
+pub struct Loc {
     pub entries: Vec<LocEntry>,
 }
 
@@ -59,139 +44,64 @@ impl Loc {
 
     /// This function creates a new empty Loc PackedFile.
     pub fn new() -> Self {
-        Self{
-            header: LocHeader::new(),
-            data: LocData::new(),
-        }
+        Self { entries: vec![] }
     }
 
-    /// This function creates a new decoded Loc from the data of a PackedFile. Note that this assume
-    /// the file is a loc. It'll crash otherwise.
+    /// This function creates a new decoded Loc from the data of a PackedFile.
     pub fn read(packed_file_data: &[u8]) -> Result<Self> {
-        match LocHeader::read(&packed_file_data[..14]) {
-            Ok(header) => {
-                match LocData::read(&packed_file_data[14..], &header) {
-                    Ok(data) =>
-                        Ok(Self {
-                            header,
-                            data,
-                        }),
-                    Err(error) => Err(error)
-                }
-            }
-            Err(error) => Err(error)
+
+        // A valid Loc PackedFile has at least 14 bytes. This ensures they exists before anything else.
+        if packed_file_data.len() < 14 { return Err(ErrorKind::LocPackedFileIsNotALocPackedFile)? }
+
+        // More checks to ensure this is a valid Loc PAckedFile.
+        if BYTEORDER_MARK != decode_integer_u16(&packed_file_data[0..2])? { return Err(ErrorKind::LocPackedFileIsNotALocPackedFile)? }
+        if PACKED_FILE_TYPE != decode_string_u8(&packed_file_data[2..5])? { return Err(ErrorKind::LocPackedFileIsNotALocPackedFile)? }
+        if PACKED_FILE_VERSION != decode_integer_u32(&packed_file_data[6..10])? { return Err(ErrorKind::LocPackedFileIsNotALocPackedFile)? }
+        let entry_count = decode_integer_u32(&packed_file_data[10..14])?;
+
+        // Get all the entries and return the Loc.
+        let mut entries = vec![];
+        let mut index = 14 as usize;
+        for _ in 0..entry_count {
+
+            // Decode the three fields.
+            let key = if index < packed_file_data.len() { decode_packedfile_string_u16(&packed_file_data[index..], &mut index)? } else { return Err(ErrorKind::LocPackedFileCorrupted)? };
+            let text = if index < packed_file_data.len() { decode_packedfile_string_u16(&packed_file_data[index..], &mut index)? } else { return Err(ErrorKind::LocPackedFileCorrupted)? };
+            let tooltip = if index < packed_file_data.len() { decode_packedfile_bool(packed_file_data[index], &mut index)? } else { return Err(ErrorKind::LocPackedFileCorrupted)? };
+            let mut entry = LocEntry::new(key, text, tooltip);
+            entries.push(entry);
         }
+
+        // If we are not in the last byte, it means we didn't parse the entire file, which means this file is corrupt.
+        if index != packed_file_data.len() { return Err(ErrorKind::PackedFileSizeIsNotWhatWeExpect(packed_file_data.len(), index))? }
+
+        Ok(Self { entries })
+
     }
 
     /// This function takes a LocHeader and a LocData and put them together in a Vec<u8>, encoding an
     /// entire LocFile ready to write on disk.
     pub fn save(&self) -> Vec<u8> {
 
-        // Encode the header.
-        let mut packed_file = LocHeader::save(&self.header, self.data.entries.len() as u32);
-
-        // Add the data to the encoded header.
-        LocData::save(&self.data, &mut packed_file);
-
-        // Return the encoded PackedFile.
-        packed_file
-    }
-}
-
-/// Implementation of "LocHeader".
-impl LocHeader {
-
-    /// This function creates a new empty LocHeader.
-    pub fn new() -> Self {
-        Self {
-            byte_order_mark: 65279,
-            packed_file_type: "LOC".to_owned(),
-            packed_file_version: 1,
-            packed_file_entry_count: 0,
-        }
-    }
-
-    /// This function creates a new decoded LocHeader from the data of a PackedFile. To see what are
-    /// these values, check the LocHeader struct.
-    pub fn read(packed_file_header: &[u8]) -> Result<Self> {
-
-        // Create a new header.
-        let mut header = Self::new();
-
-        // Get the values of the file.
-        header.byte_order_mark = decode_integer_u16(&packed_file_header[0..2])?;
-        header.packed_file_type = decode_string_u8(&packed_file_header[2..5])?;
-        header.packed_file_version = decode_integer_u32(&packed_file_header[6..10])?;
-        header.packed_file_entry_count = decode_integer_u32(&packed_file_header[10..14])?;
-
-        // Return the new header.
-        Ok(header)
-    }
-
-    /// This function takes a LocHeader and an entry count and creates a Vec<u8> encoded version of
-    /// the LocHeader, ready to write it on disk.
-    pub fn save(&self, entry_count: u32) -> Vec<u8> {
-
         // Create the vector to hold them all.
         let mut packed_file: Vec<u8> = vec![];
 
         // Encode the header.
-        packed_file.extend_from_slice(&encode_integer_u16(self.byte_order_mark));
-        packed_file.extend_from_slice(&encode_string_u8(&self.packed_file_type));
+        packed_file.extend_from_slice(&encode_integer_u16(BYTEORDER_MARK));
+        packed_file.extend_from_slice(&encode_string_u8(PACKED_FILE_TYPE));
         packed_file.push(0);
-        packed_file.extend_from_slice(&encode_integer_u32(self.packed_file_version));
-        packed_file.extend_from_slice(&encode_integer_u32(entry_count));
+        packed_file.extend_from_slice(&encode_integer_u32(PACKED_FILE_VERSION));
+        packed_file.extend_from_slice(&encode_integer_u32(self.entries.len() as u32));
 
-        // Return the encoded PackedFile.
-        packed_file
-    }
-}
-
-/// Implementation of "LocData".
-impl LocData {
-
-    /// This function returns an empty LocData.
-    pub fn new() -> Self {
-        Self { entries: vec![] }
-    }
-
-    /// This function creates a new decoded LocData from the data of a PackedFile. This pass through
-    /// all the data of the Loc PackedFile and decodes every entry.
-    pub fn read(packed_file_data: &[u8], header: &LocHeader) -> Result<Self> {
-
-        // Create a new list of entries.
-        let mut entries = vec![];
-
-        // Create the index to move through the file.
-        let mut index = 0 as usize;
-
-        // For each entry we have...
-        for _ in 0..header.packed_file_entry_count {
-
-            // Decode the three fields.
-            let key = decode_packedfile_string_u16(&packed_file_data[index..], &mut index)?;
-            let text = decode_packedfile_string_u16(&packed_file_data[index..], &mut index)?;
-            let tooltip = decode_packedfile_bool(packed_file_data[index], &mut index)?;
-
-            // Create our new entry.
-            let mut entry = LocEntry::new(key, text, tooltip);
-
-            // Add the entry to the list.
-            entries.push(entry);
-        }
-
-        // Return the entries.
-        Ok(Self { entries })
-    }
-
-    /// This function takes an entire LocData and encode it to Vec<u8> to write it on disk. Also, it
-    /// returns his entry count for the header.
-    pub fn save(&self, packed_file: &mut Vec<u8>) {
+        // Encode the data.
         for entry in &self.entries {
             packed_file.append(&mut encode_packedfile_string_u16(&entry.key));
             packed_file.append(&mut encode_packedfile_string_u16(&entry.text));
             packed_file.push(encode_bool(entry.tooltip));
         }
+
+        // And return the encoded PackedFile.
+        packed_file
     }
 }
 
@@ -209,7 +119,7 @@ impl LocEntry {
 }
 
 /// Implementation of `SerializableToTSV` for `LocData`.
-impl SerializableToTSV for LocData {
+impl SerializableToTSV for Loc {
 
     /// This function imports a TSV file and loads his contents into a Loc PackedFile.
     fn import_tsv(&mut self, tsv_file_path: &PathBuf, packed_file_type: &str) -> Result<()> {

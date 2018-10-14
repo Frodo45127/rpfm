@@ -135,7 +135,7 @@ pub fn tsv_mass_import(
                     let mut loc = Loc::new();
 
                     // Try to import the TSV's data into it.
-                    match loc.data.import_tsv(&path, tsv_info[0]) {
+                    match loc.import_tsv(&path, tsv_info[0]) {
                         Ok(_) => {
 
                             // Save it.
@@ -365,7 +365,7 @@ pub fn tsv_mass_export(
                         export_path.push(name.to_owned());
 
                         // Try to export it to the provided path.
-                        match loc.data.export_tsv(&export_path, ("Loc PackedFile", 9001)) {
+                        match loc.export_tsv(&export_path, ("Loc PackedFile", 9001)) {
 
                             // If success, add it to the exported files list.
                             Ok(_) => exported_files.push(name.to_owned()),

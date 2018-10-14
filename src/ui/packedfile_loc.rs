@@ -109,7 +109,7 @@ impl PackedFileLocTreeView {
         sender_qt.send(Commands::DecodePackedFileLoc).unwrap();
         sender_qt_data.send(Data::VecString(packed_file_path.to_vec())).unwrap();
         let packed_file_data = match check_message_validity_recv2(&receiver_qt) { 
-            Data::LocData(data) => Rc::new(RefCell::new(data)),
+            Data::Loc(data) => Rc::new(RefCell::new(data)),
             Data::Error(error) => return Err(error),
             _ => panic!(THREADS_MESSAGE_ERROR), 
         };
@@ -1106,15 +1106,11 @@ impl PackedFileLocTreeView {
 
                         // Tell the background thread to start importing the TSV.
                         sender_qt.send(Commands::ImportTSVPackedFileLoc).unwrap();
-                        sender_qt_data.send(Data::PathBuf(path)).unwrap();
+                        sender_qt_data.send(Data::LocPathBuf((packed_file_data.borrow().clone(), path))).unwrap();
 
                         // Receive the new data to load in the TableView, or an error.
                         match check_message_validity_recv2(&receiver_qt) {
-
-                            // If the importing was succesful, load the data into the Table.
-                            Data::LocData(new_loc_data) => Self::load_data_to_tree_view(&new_loc_data, model),
-
-                            // If there was an error, report it.
+                            Data::Loc(new_loc_data) => Self::load_data_to_tree_view(&new_loc_data, model),
                             Data::Error(error) => return show_dialog(app_ui.window, false, error),
                             _ => panic!(THREADS_MESSAGE_ERROR),
                         }
@@ -1161,6 +1157,7 @@ impl PackedFileLocTreeView {
                 app_ui,
                 sender_qt,
                 sender_qt_data,
+                packed_file_data,
                 receiver_qt => move |_| {
 
                     // Create a File Chooser to get the destination path.
@@ -1190,7 +1187,7 @@ impl PackedFileLocTreeView {
 
                         // Tell the background thread to start exporting the TSV.
                         sender_qt.send(Commands::ExportTSVPackedFileLoc).unwrap();
-                        sender_qt_data.send(Data::PathBuf(path)).unwrap();
+                        sender_qt_data.send(Data::LocPathBuf((packed_file_data.borrow().clone(), path))).unwrap();
 
                         // Receive the result of the exporting.
                         match check_message_validity_recv2(&receiver_qt) {
@@ -1805,7 +1802,7 @@ impl PackedFileLocTreeView {
 
     /// This function loads the data from a LocData into a TableView.
     pub fn load_data_to_tree_view(
-        packed_file_data: &LocData,
+        packed_file_data: &Loc,
         model: *mut StandardItemModel,
     ) {
         // First, we delete all the data from the `ListStore`. Just in case there is something there.
@@ -1863,7 +1860,7 @@ impl PackedFileLocTreeView {
 
     /// This function returns a LocData with all the stuff in the table.
     pub fn return_data_from_tree_view(
-        packed_file_data: &mut LocData,
+        packed_file_data: &mut Loc,
         model: *mut StandardItemModel,
     ) {
 
@@ -1896,7 +1893,7 @@ impl PackedFileLocTreeView {
         sender_qt_data: &Sender<Data>,
         is_modified: &Rc<RefCell<bool>>,
         app_ui: &AppUI,
-        data: &Rc<RefCell<LocData>>,
+        data: &Rc<RefCell<Loc>>,
         packed_file_path: &[String],
         model: *mut StandardItemModel,
         global_search_explicit_paths: &Rc<RefCell<Vec<Vec<String>>>>,
@@ -1908,7 +1905,7 @@ impl PackedFileLocTreeView {
 
         // Tell the background thread to start saving the PackedFile.
         sender_qt.send(Commands::EncodePackedFileLoc).unwrap();
-        sender_qt_data.send(Data::LocDataVecString((data.borrow().clone(), packed_file_path.to_vec()))).unwrap();
+        sender_qt_data.send(Data::LocVecString((data.borrow().clone(), packed_file_path.to_vec()))).unwrap();
 
         // Set the mod as "Modified".
         *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(packed_file_path.to_vec()));
@@ -1929,7 +1926,7 @@ impl PackedFileLocTreeView {
         receiver_qt: &Rc<RefCell<Receiver<Data>>>,
         is_modified: &Rc<RefCell<bool>>,
         packed_file_path: &[String],
-        data: &Rc<RefCell<LocData>>,
+        data: &Rc<RefCell<Loc>>,
         table_view: *mut TableView,
         model: *mut StandardItemModel,
         history_source: &Rc<RefCell<Vec<TableOperations>>>, 

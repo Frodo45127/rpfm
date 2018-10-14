@@ -871,7 +871,7 @@ pub enum TableOperations {
     SmartDelete((Vec<((i32, i32), *mut StandardItem)>, Vec<(i32, ListStandardItemMutPtr)>)),
     RevertSmartDelete((Vec<((i32, i32), *mut StandardItem)>, Vec<i32>)),
     ImportTSVDB(DBData),
-    ImportTSVLOC(LocData),
+    ImportTSVLOC(Loc),
 }
 
 /// Enum `IconType`: This enum holds all the possible Icon Types we can have in the TreeView,

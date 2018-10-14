@@ -47,7 +47,6 @@ pub fn background_loop(
     let mut pack_file_decoded_extra = PackFile::new();
 
     // These are a list of empty PackedFiles, used to store data of the open PackedFile.
-    let mut packed_file_loc = Loc::new();
     let mut packed_file_db = DB::new("", 0, TableDefinition::new(0));
 
     // We load the settings here, and in case they doesn't exist or they are not valid, we create them.
@@ -622,14 +621,7 @@ pub fn background_loop(
                                 match packed_file.get_data() {
                                     Ok(data) => {
                                         match Loc::read(&data) {
-
-                                            // If we succeed, store it and send it back.
-                                            Ok(packed_file_decoded) => {
-                                                packed_file_loc = packed_file_decoded;
-                                                sender.send(Data::LocData(packed_file_loc.data.clone())).unwrap();
-                                            }
-
-                                            // In case of error, report it.
+                                            Ok(packed_file_decoded) => sender.send(Data::Loc(packed_file_decoded)).unwrap(),
                                             Err(error) => sender.send(Data::Error(error)).unwrap(),
                                         }
                                     }
@@ -644,14 +636,11 @@ pub fn background_loop(
                     Commands::EncodePackedFileLoc => {
 
                         // Wait until we get the needed data from the UI thread.
-                        let data = if let Data::LocDataVecString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                        // Replace the old encoded data with the new one.
-                        packed_file_loc.data = data.0;
+                        let data = if let Data::LocVecString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                         // Update the PackFile to reflect the changes.
                         packfile::update_packed_file_data_loc(
-                            &packed_file_loc,
+                            &data.0,
                             &mut pack_file_decoded,
                             &data.1
                         );
@@ -661,11 +650,11 @@ pub fn background_loop(
                     Commands::ImportTSVPackedFileLoc => {
 
                         // Wait until we get the needed data from the UI thread.
-                        let path = if let Data::PathBuf(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                        let mut data = if let Data::LocPathBuf(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                         // Try to import the TSV into the open Loc PackedFile, or die trying.
-                        match packed_file_loc.data.import_tsv(&path, "Loc PackedFile") {
-                            Ok(_) => sender.send(Data::LocData(packed_file_loc.data.clone())).unwrap(),
+                        match data.0.import_tsv(&data.1, "Loc PackedFile") {
+                            Ok(_) => sender.send(Data::Loc(data.0)).unwrap(),
                             Err(error) => sender.send(Data::Error(error)).unwrap(),
                         }
                     }
@@ -674,10 +663,10 @@ pub fn background_loop(
                     Commands::ExportTSVPackedFileLoc => {
 
                         // Wait until we get the needed data from the UI thread.
-                        let path = if let Data::PathBuf(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                        let data = if let Data::LocPathBuf(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                         // Try to export the TSV from the open Loc PackedFile, or die trying.
-                        match packed_file_loc.data.export_tsv(&path, ("Loc PackedFile", 9001)) {
+                        match data.0.export_tsv(&data.1, ("Loc PackedFile", 9001)) {
                             Ok(success) => sender.send(Data::String(success)).unwrap(),
                             Err(error) => sender.send(Data::Error(error)).unwrap(),
                         }
@@ -1232,7 +1221,7 @@ pub fn background_loop(
                                     if let Ok(packed_file) = Loc::read(&data) {
 
                                         let mut matches_in_file = vec![];
-                                        for (index, row) in packed_file.data.entries.iter().enumerate() {
+                                        for (index, row) in packed_file.entries.iter().enumerate() {
                                             if row.key.contains(&pattern) { matches_in_file.push((0, index as i64, row.key.to_owned())); }
                                             if row.text.contains(&pattern) { matches_in_file.push((1, index as i64, row.text.to_owned())); }
                                         }
@@ -1350,7 +1339,7 @@ pub fn background_loop(
                                         if let Ok(packed_file) = Loc::read(&data) {
 
                                             let mut matches_in_file = vec![];
-                                            for (index, row) in packed_file.data.entries.iter().enumerate() {
+                                            for (index, row) in packed_file.entries.iter().enumerate() {
                                                 if row.key.contains(&pattern) { matches_in_file.push((0, index as i64, row.key.to_owned())); }
                                                 if row.text.contains(&pattern) { matches_in_file.push((1, index as i64, row.text.to_owned())); }
                                             }

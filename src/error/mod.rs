@@ -129,6 +129,9 @@ pub enum ErrorKind {
     // Error for when a load_data or get_data fails.
     PackedFileDataCouldNotBeLoaded,
 
+    // Error for when the PackedFile size doesn't match what we expect.
+    PackedFileSizeIsNotWhatWeExpect(usize, usize),
+
     //--------------------------------//
     // DB Table Errors
     //--------------------------------//
@@ -199,6 +202,12 @@ pub enum ErrorKind {
 
     // Error for when a Loc PackedFile fails to decode.
     LocDecode(String),
+
+    // Error for when we try to decode something as a Loc PackedFile and it fails.
+    LocPackedFileIsNotALocPackedFile,
+
+    // Error for when we try to decode a Loc PackedFile and fails for corruption.
+    LocPackedFileCorrupted,
 
     //--------------------------------//
     // Image Errors
@@ -400,7 +409,7 @@ impl Display for ErrorKind {
             <p>If you really want to save it, go to <i>'PackFile/Change PackFile Type'</i> and change his type to 'Mod' or 'Movie'. Note that if the cause it's the third on the list, there is no way to save the PackFile, yet.</p>"),
             ErrorKind::PackFileIsNotAPackFile => write!(f, "<p>This file is not a valid PackFile.</p>"),
             ErrorKind::PackFileIsNotAFile => write!(f, "<p>This PackFile doesn't exists as a file in the disk.</p>"),
-            ErrorKind::PackFileSizeIsNotWhatWeExpect(expected_size, reported_size) => write!(f, "<p>This PackFile's reported size is <i><b>{}</b></i> bytes, but we expected it to be <i><b>{}</b></i> bytes. This means that either the decoding logic in RPFM is broken for this PackFile, or this PackFile is corrupted.</p>", expected_size, reported_size),
+            ErrorKind::PackFileSizeIsNotWhatWeExpect(reported_size, expected_size) => write!(f, "<p>This PackFile's reported size is <i><b>{}</b></i> bytes, but we expected it to be <i><b>{}</b></i> bytes. This means that either the decoding logic in RPFM is broken for this PackFile, or this PackFile is corrupted.</p>", reported_size, expected_size),
 
             //-----------------------------------------------------//
             //                PackedFile Errors
@@ -409,6 +418,7 @@ impl Display for ErrorKind {
             ErrorKind::PackedFileIsOpen => write!(f, "<p>That operation cannot be done while the PackedFile involved on it is open. Please, close it by selecting a Folder/PackFile in the TreeView and try again.</p>"),
             ErrorKind::PackedFileIsOpenInAnotherView => write!(f, "<p>That PackedFile is already open in another view. Opening the same PackedFile in multiple views is not supported.</p>"),
             ErrorKind::PackedFileDataCouldNotBeLoaded => write!(f, "<p>This PackedFile's data could not be loaded. This means RPFM can no longer read the PackFile from the disk.</p>"),
+            ErrorKind::PackedFileSizeIsNotWhatWeExpect(reported_size, expected_size) => write!(f, "<p>This PackedFile's reported size is <i><b>{}</b></i> bytes, but we expected it to be <i><b>{}</b></i> bytes. This means that either the decoding logic in RPFM is broken for this PackedFile, or this PackedFile is corrupted.</p>", reported_size, expected_size),
 
             //--------------------------------//
             // DB Table Errors
@@ -448,6 +458,8 @@ impl Display for ErrorKind {
 
             // Error for when a Loc PackedFile fails to decode.
             ErrorKind::LocDecode(cause) => write!(f, "<p>Error while trying to decode the Loc PackedFile:</p><p>{}</p>", cause),
+            ErrorKind::LocPackedFileIsNotALocPackedFile => write!(f, "<p>This is either not a Loc PackedFile, or it's a Loc PackedFile but it's corrupted.</p>"),
+            ErrorKind::LocPackedFileCorrupted => write!(f, "<p>This Loc PackedFile seems to be corrupted.</p>"),
 
             //--------------------------------//
             // Image Errors
