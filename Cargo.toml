@@ -34,6 +34,7 @@ qt_core = "0.2"
 cpp_utils = "*"
 lazy_static = "*"
 
+bitflags = "1.0"
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1.5"
 

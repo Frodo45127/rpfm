@@ -9,7 +9,7 @@ use std::sync::mpsc::{Receiver, TryRecvError};
 use GlobalMatch;
 use common::*;
 use error::Error;
-use packfile::packfile::{PackFileExtraData, PackFileHeader, PackedFile};
+use packfile::packfile::{PFHFileType, PackFileUIData, PackedFile};
 use packedfile::*;
 use packedfile::loc::*;
 use packedfile::db::*;
@@ -43,7 +43,6 @@ pub enum Commands {
     SetShortcuts,
     GetGameSelected,
     SetGameSelected,
-    //GetPackFileHeader,
     IsThereADependencyDatabase,
     IsThereASchema,
     PatchSiegeAI,
@@ -115,17 +114,19 @@ pub enum Data {
     Schema(Schema),
     OptionSchema(Option<Schema>),
 
-    PackFileHeader(PackFileHeader),
-    PackFileExtraData(PackFileExtraData),
+    PFHFileType(PFHFileType),
+    PackFileUIData(PackFileUIData),
 
     PackedFile(PackedFile),
     TreePathType(TreePathType),
 
-    LocData(LocData),
-    LocDataVecString((LocData, Vec<String>)),
+    Loc(Loc),
+    LocVecString((Loc, Vec<String>)),
+    LocPathBuf((Loc, PathBuf)),
 
-    DBData(DBData),
-    DBDataVecString((DBData, Vec<String>)),
+    DB(DB),
+    DBVecString((DB, Vec<String>)),
+    DBPathBuf((DB, PathBuf)),
 
     RigidModel(RigidModel),
     RigidModelVecString((RigidModel, Vec<String>)),

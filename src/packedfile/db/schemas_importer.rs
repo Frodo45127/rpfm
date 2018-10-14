@@ -8,7 +8,7 @@ use std::path::PathBuf;
 
 use error::Result;
 use self::serde_xml_rs::deserialize;
-use super::DBHeader;
+use super::DB;
 use super::schemas::*;
 use common::*;
 
@@ -80,8 +80,7 @@ pub fn import_schema(
                             file.read_to_end(&mut pack_file_buffered).expect("Error reading file.");
 
                             // Get it's version...
-                            let header = DBHeader::read(&pack_file_buffered, &mut 0).unwrap();
-                            let version = header.version;
+                            let version = DB::get_header_data(&pack_file_buffered).unwrap().0;
 
                             // And add it to the schema.
                             schema.add_table_definitions(TableDefinitions::new(&table_name));

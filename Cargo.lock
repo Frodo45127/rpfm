@@ -1218,6 +1218,7 @@ dependencies = [
 name = "rpfm-code"
 version = "1.1.1"
 dependencies = [
+ "bitflags 1.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "byteorder 1.2.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "chrono 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "cpp_utils 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",

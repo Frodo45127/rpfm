@@ -10,6 +10,7 @@ use std::io::{BufReader, BufWriter};
 use RPFM_PATH;
 use SUPPORTED_GAMES;
 use error::Result;
+use packfile::packfile::PFHVersion;
 
 pub mod shortcuts;
 
@@ -28,7 +29,7 @@ const SETTINGS_FILE: &str = "settings.json";
 #[derive(Clone, Debug)]
 pub struct GameInfo {
     pub display_name: String,
-    pub id: String,
+    pub id: PFHVersion,
     pub schema: String,
     pub db_pack: String,
     pub loc_pack: String,
@@ -76,6 +77,7 @@ impl Settings {
         settings_bool.insert("check_schema_updates_on_start".to_owned(), true);
         settings_bool.insert("use_pfm_extracting_behavior".to_owned(), false);
         settings_bool.insert("use_dependency_checker".to_owned(), false);
+        settings_bool.insert("use_lazy_loading".to_owned(), false);
 
         // Return it.
         Self {
