@@ -11,7 +11,7 @@ use qt_widgets::file_dialog::FileDialog;
 use qt_widgets::label::Label;
 use qt_widgets::line_edit::LineEdit;
 use qt_widgets::menu::Menu;
-use qt_widgets::slots::SlotQtCorePointRef;
+use qt_widgets::slots::{SlotQtCorePointRef, SlotCIntQtCoreQtSortOrder};
 use qt_widgets::table_view::TableView;
 use qt_widgets::widget::Widget;
 
@@ -20,7 +20,7 @@ use qt_gui::cursor::Cursor;
 use qt_gui::gui_application::GuiApplication;
 use qt_gui::key_sequence::KeySequence;
 use qt_gui::list::ListStandardItemMutPtr;
-use qt_gui::slots::SlotStandardItemMutPtr;
+use qt_gui::slots::{SlotStandardItemMutPtr, SlotCIntCIntCInt};
 use qt_gui::standard_item::StandardItem;
 use qt_gui::standard_item_model::StandardItemModel;
 
@@ -52,6 +52,8 @@ use ui::*;
 /// Struct `PackedFileLocTreeView`: contains all the stuff we need to give to the program to show a
 /// `TreeView` with the data of a Loc PackedFile, allowing us to manipulate it.
 pub struct PackedFileLocTreeView {
+    pub slot_column_moved: SlotCIntCIntCInt<'static>,
+    pub slot_sort_order_column_changed: SlotCIntQtCoreQtSortOrder<'static>,
     pub slot_undo: SlotNoArgs<'static>,
     pub slot_redo: SlotNoArgs<'static>,
     pub slot_undo_redo_enabler: SlotNoArgs<'static>,
@@ -98,7 +100,7 @@ impl PackedFileLocTreeView {
         packed_file_path: Vec<String>,
         global_search_explicit_paths: &Rc<RefCell<Vec<Vec<String>>>>,
         update_global_search_stuff: *mut Action,
-        filter_history: &Rc<RefCell<BTreeMap<Vec<String>, (QString, i32, bool)>>>,
+        history_state: &Rc<RefCell<BTreeMap<Vec<String>, TableState>>>,
     ) -> Result<Self> {
 
         // Get the settings.
@@ -152,6 +154,7 @@ impl PackedFileLocTreeView {
         // Enable sorting the columns.
         unsafe { table_view.as_mut().unwrap().set_sorting_enabled(true); }
         unsafe { table_view.as_mut().unwrap().sort_by_column((-1, SortOrder::Ascending)); }
+        unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_sections_movable(true); }
 
         // Load the data to the Table. For some reason, if we do this after setting the titles of
         // the columns, the titles will be reseted to 1, 2, 3,... so we do this here.
@@ -349,6 +352,24 @@ impl PackedFileLocTreeView {
 
         // Slots for the TableView...
         let slots = Self {
+            slot_column_moved: SlotCIntCIntCInt::new(clone!(
+                packed_file_path,
+                history_state => move |_, visual_base, visual_new| {
+                    if let Some(state) = history_state.borrow_mut().get_mut(&packed_file_path) {
+                        state.columns_state.visual_order.push((visual_base, visual_new));
+                    }
+                }
+            )),
+
+            slot_sort_order_column_changed: SlotCIntQtCoreQtSortOrder::new(clone!(
+                packed_file_path,
+                history_state => move |column, order| {
+                    if let Some(state) = history_state.borrow_mut().get_mut(&packed_file_path) {
+                        state.columns_state.sorting_column = (column, order);
+                    }
+                }
+            )),
+
             slot_undo: SlotNoArgs::new(clone!(
                 global_search_explicit_paths,
                 packed_file_path,
@@ -514,7 +535,7 @@ impl PackedFileLocTreeView {
 
             slot_row_filter_change_text: SlotStringRef::new(clone!(
                 packed_file_path,
-                filter_history => move |filter_text| {
+                history_state => move |filter_text| {
                     filter_table(
                         Some(QString::from_std_str(filter_text.to_std_string())),
                         None,
@@ -525,13 +546,13 @@ impl PackedFileLocTreeView {
                         row_filter_case_sensitive_button,
                         update_search_stuff,
                         &packed_file_path,
-                        &filter_history,
+                        &history_state,
                     ); 
                 }
             )),
             slot_row_filter_change_column: SlotCInt::new(clone!(
                 packed_file_path,
-                filter_history => move |index| {
+                history_state => move |index| {
                     filter_table(
                         None,
                         Some(index),
@@ -542,13 +563,13 @@ impl PackedFileLocTreeView {
                         row_filter_case_sensitive_button,
                         update_search_stuff,
                         &packed_file_path,
-                        &filter_history,
+                        &history_state,
                     ); 
                 }
             )),
             slot_row_filter_change_case_sensitive: SlotBool::new(clone!(
                 packed_file_path,
-                filter_history => move |case_sensitive| {
+                history_state => move |case_sensitive| {
                     filter_table(
                         None,
                         None,
@@ -559,7 +580,7 @@ impl PackedFileLocTreeView {
                         row_filter_case_sensitive_button,
                         update_search_stuff,
                         &packed_file_path,
-                        &filter_history,
+                        &history_state,
                     ); 
                 }
             )),
@@ -1295,6 +1316,8 @@ impl PackedFileLocTreeView {
             slot_update_search_stuff: SlotNoArgs::new(clone!(
                 matches,
                 position,
+                history_state,
+                packed_file_path,
                 search_data => move || {
 
                     // Get all the stuff separated, to make it clear.
@@ -1413,12 +1436,19 @@ impl PackedFileLocTreeView {
                             unsafe { replace_all_button.as_mut().unwrap().set_enabled(true); }
                         }
                     }
+
+                    // Add the new search data to the state history.
+                    if let Some(state) = history_state.borrow_mut().get_mut(&packed_file_path) {
+                        unsafe { state.search_state = SearchState::new(search_line_edit.as_mut().unwrap().text(), replace_line_edit.as_mut().unwrap().text(), column_selector.as_ref().unwrap().current_index(), case_sensitive_button.as_mut().unwrap().is_checked()); }
+                    }
                 }
             )),
 
             // Slot for the search button.
             slot_search: SlotNoArgs::new(clone!(
                 matches,
+                history_state,
+                packed_file_path,
                 position => move || {
 
                     // Reset the data.
@@ -1555,6 +1585,11 @@ impl PackedFileLocTreeView {
                             _ => unreachable!(),
                         }
                     );
+
+                    // Add the new search data to the state history.
+                    if let Some(state) = history_state.borrow_mut().get_mut(&packed_file_path) {
+                        unsafe { state.search_state = SearchState::new(search_line_edit.as_mut().unwrap().text(), replace_line_edit.as_mut().unwrap().text(), column_selector.as_ref().unwrap().current_index(), case_sensitive_button.as_mut().unwrap().is_checked()); }
+                    }
                 }
             )),
 
@@ -1725,6 +1760,8 @@ impl PackedFileLocTreeView {
 
         // Actions for the TableView...
         unsafe { (table_view as *mut Widget).as_ref().unwrap().signals().custom_context_menu_requested().connect(&slots.slot_context_menu); }
+        unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().signals().section_moved().connect(&slots.slot_column_moved); }
+        unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().signals().sort_indicator_changed().connect(&slots.slot_sort_order_column_changed); }
         unsafe { model.as_mut().unwrap().signals().data_changed().connect(&slots.save_changes); }
         unsafe { model.as_mut().unwrap().signals().item_changed().connect(&slots.slot_item_changed); }
         unsafe { context_menu_add.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_add); }
@@ -1774,23 +1811,63 @@ impl PackedFileLocTreeView {
         // Trigger the "Enable/Disable" slot every time we change the selection in the TreeView.
         unsafe { table_view.as_mut().unwrap().selection_model().as_ref().unwrap().signals().selection_changed().connect(&slots.slot_context_menu_enabler); }
 
-        // If we got an entry for this PackedFile in the filter's history, use it.
-        if let Some(filter_data) = filter_history.borrow().get(&packed_file_path) {
+        // If we got an entry for this PackedFile in the state's history, use it.
+        if history_state.borrow().get(&packed_file_path).is_some() {
+            if let Some(state_data) = history_state.borrow_mut().get_mut(&packed_file_path) {
 
-            // Block the signals during this, so we don't trigger a borrow error.
-            let mut blocker1;
-            let mut blocker2;
-            let mut blocker3;
-            unsafe { blocker1 = SignalBlocker::new(row_filter_line_edit.as_mut().unwrap().static_cast_mut() as &mut Object); }
-            unsafe { blocker2 = SignalBlocker::new(row_filter_column_selector.as_mut().unwrap().static_cast_mut() as &mut Object); }
-            unsafe { blocker3 = SignalBlocker::new(row_filter_case_sensitive_button.as_mut().unwrap().static_cast_mut() as &mut Object); }
-            unsafe { row_filter_line_edit.as_mut().unwrap().set_text(&filter_data.0); }
-            unsafe { row_filter_column_selector.as_mut().unwrap().set_current_index(filter_data.1); }
-            unsafe { row_filter_case_sensitive_button.as_mut().unwrap().set_checked(filter_data.2); }
-            blocker1.unblock();
-            blocker2.unblock();
-            blocker3.unblock();
+                // Block the signals during this, so we don't trigger a borrow error.
+                let mut blocker1;
+                let mut blocker2;
+                let mut blocker3;
+                unsafe { blocker1 = SignalBlocker::new(row_filter_line_edit.as_mut().unwrap().static_cast_mut() as &mut Object); }
+                unsafe { blocker2 = SignalBlocker::new(row_filter_column_selector.as_mut().unwrap().static_cast_mut() as &mut Object); }
+                unsafe { blocker3 = SignalBlocker::new(row_filter_case_sensitive_button.as_mut().unwrap().static_cast_mut() as &mut Object); }
+                unsafe { row_filter_line_edit.as_mut().unwrap().set_text(&state_data.filter_state.text); }
+                unsafe { row_filter_column_selector.as_mut().unwrap().set_current_index(state_data.filter_state.column); }
+                unsafe { row_filter_case_sensitive_button.as_mut().unwrap().set_checked(state_data.filter_state.is_case_sensitive); }
+                blocker1.unblock();
+                blocker2.unblock();
+                blocker3.unblock();
+
+                // Same with everything inside the search widget.
+                let mut blocker1;
+                let mut blocker2;
+                let mut blocker3;
+                let mut blocker4;
+                unsafe { blocker1 = SignalBlocker::new(search_line_edit.as_mut().unwrap().static_cast_mut() as &mut Object); }
+                unsafe { blocker2 = SignalBlocker::new(replace_line_edit.as_mut().unwrap().static_cast_mut() as &mut Object); }
+                unsafe { blocker3 = SignalBlocker::new(column_selector.as_mut().unwrap().static_cast_mut() as &mut Object); }
+                unsafe { blocker4 = SignalBlocker::new(case_sensitive_button.as_mut().unwrap().static_cast_mut() as &mut Object); }
+                unsafe { search_line_edit.as_mut().unwrap().set_text(&state_data.search_state.search_text); }
+                unsafe { replace_line_edit.as_mut().unwrap().set_text(&state_data.search_state.replace_text); }
+                unsafe { column_selector.as_mut().unwrap().set_current_index(state_data.search_state.column); }
+                unsafe { case_sensitive_button.as_mut().unwrap().set_checked(state_data.search_state.is_case_sensitive); }
+                blocker1.unblock();
+                blocker2.unblock();
+                blocker3.unblock();
+                blocker4.unblock();
+
+                // Same with the columns, if we opted to keep their state.
+                let mut blocker1;
+                let mut blocker2;
+                unsafe { blocker1 = SignalBlocker::new(table_view.as_mut().unwrap().static_cast_mut() as &mut Object); }
+                unsafe { blocker2 = SignalBlocker::new(table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().static_cast_mut() as &mut Object); }
+
+                if *settings.settings_bool.get("remember_column_state").unwrap() {                
+                    for (visual_old, visual_new) in &state_data.columns_state.visual_order {
+                        unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().move_section(*visual_old, *visual_new); }
+                    }
+                    unsafe { table_view.as_mut().unwrap().sort_by_column((state_data.columns_state.sorting_column.0, state_data.columns_state.sorting_column.1.clone())); }                    
+                }
+                else { state_data.columns_state = ColumnsState::new((-1, SortOrder::Ascending), vec![]); }
+                
+                blocker1.unblock();
+                blocker2.unblock();
+            }
         }
+
+        // Otherwise, we create a basic state.
+        else { history_state.borrow_mut().insert(packed_file_path, TableState::new()); }
 
         // Retrigger the filter, so the table get's updated properly.
         unsafe { row_filter_case_sensitive_button.as_mut().unwrap().set_checked(!row_filter_case_sensitive_button.as_mut().unwrap().is_checked()); }
@@ -2355,7 +2432,7 @@ fn filter_table(
     case_sensitive_button: *mut PushButton,
     update_search_stuff: *mut Action,
     packed_file_path: &[String],
-    filter_history: &Rc<RefCell<BTreeMap<Vec<String>, (QString, i32, bool)>>>, 
+    history_state: &Rc<RefCell<BTreeMap<Vec<String>, TableState>>>, 
 ) {
 
     // Set the pattern to search.
@@ -2390,15 +2467,8 @@ fn filter_table(
     // Update the search stuff, if needed.
     unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
 
-    // Add the new filter data to the filter history.
-    unsafe {
-        filter_history.borrow_mut().insert(
-            packed_file_path.to_vec(), 
-            (
-                filter_line_edit.as_mut().unwrap().text(), 
-                column_selector.as_mut().unwrap().current_index(),
-                case_sensitive_button.as_mut().unwrap().is_checked(),
-            )
-        );
+    // Add the new filter data to the state history.
+    if let Some(state) = history_state.borrow_mut().get_mut(packed_file_path) {
+        unsafe { state.filter_state = FilterState::new(filter_line_edit.as_mut().unwrap().text(), column_selector.as_mut().unwrap().current_index(), case_sensitive_button.as_mut().unwrap().is_checked()); }
     }
 }

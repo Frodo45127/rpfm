@@ -50,6 +50,7 @@ pub struct SettingsDialog {
     pub ui_adjust_columns_to_content: *mut CheckBox,
     pub ui_extend_last_column_on_tables: *mut CheckBox,
     pub ui_start_maximized: *mut CheckBox,
+    pub ui_remember_column_state: *mut CheckBox,
     pub extra_default_game_combobox: *mut ComboBox,
     pub extra_allow_editing_of_ca_packfiles: *mut CheckBox,
     pub extra_check_updates_on_start: *mut CheckBox,
@@ -151,10 +152,12 @@ impl SettingsDialog {
         let mut adjust_columns_to_content_label = Label::new(&QString::from_std_str("Adjust Columns to Content:"));
         let mut extend_last_column_on_tables_label = Label::new(&QString::from_std_str("Extend Last Column on Tables:"));
         let mut start_maximized_label = Label::new(&QString::from_std_str("Start Maximized:"));
+        let mut remember_column_state_label = Label::new(&QString::from_std_str("Remember Column State on Tables:"));
 
         let mut adjust_columns_to_content_checkbox = CheckBox::new(());
         let mut extend_last_column_on_tables_checkbox = CheckBox::new(());
         let mut start_maximized_checkbox = CheckBox::new(());
+        let mut remember_column_state_checkbox = CheckBox::new(());
 
         let mut shortcuts_label = Label::new(&QString::from_std_str("See/Change Shortcuts:"));
         let mut shortcuts_button = PushButton::new(&QString::from_std_str("Shortcuts"));
@@ -163,6 +166,7 @@ impl SettingsDialog {
         let adjust_columns_to_content_tip = QString::from_std_str("If you enable this, when you open a DB Table or Loc File, all columns will be automatically resized depending on their content's size.\nOtherwise, columns will have a predefined size. Either way, you'll be able to resize them manually after the initial resize.\nNOTE: This can make very big tables take more time to load.");
         let extend_last_column_on_tables_tip = QString::from_std_str("If you enable this, the last column on DB Tables and Loc PackedFiles will extend itself to fill the empty space at his right, if there is any.");
         let start_maximized_tip = QString::from_std_str("If you enable this, RPFM will start maximized.");
+        let remember_column_state_tip = QString::from_std_str("If you enable this, RPFM will remember how did you left a Table (columns moved, what column was sorting the Table,...) when you re-open it again. This memory is temporary, until the opened PackFile changes.");
         let shortcuts_tip = QString::from_std_str("See/change the shortcuts from here if you don't like them. Changes are applied on restart of the program.");
 
         adjust_columns_to_content_label.set_tool_tip(&adjust_columns_to_content_tip);
@@ -171,6 +175,8 @@ impl SettingsDialog {
         extend_last_column_on_tables_checkbox.set_tool_tip(&extend_last_column_on_tables_tip);
         start_maximized_label.set_tool_tip(&start_maximized_tip);
         start_maximized_checkbox.set_tool_tip(&start_maximized_tip);
+        remember_column_state_label.set_tool_tip(&remember_column_state_tip);
+        remember_column_state_checkbox.set_tool_tip(&remember_column_state_tip);
         shortcuts_label.set_tool_tip(&shortcuts_tip);
         shortcuts_button.set_tool_tip(&shortcuts_tip);
 
@@ -183,8 +189,11 @@ impl SettingsDialog {
         unsafe { ui_settings_grid.as_mut().unwrap().add_widget((start_maximized_label.static_cast_mut() as *mut Widget, 2, 0, 1, 1)); }
         unsafe { ui_settings_grid.as_mut().unwrap().add_widget((start_maximized_checkbox.static_cast_mut() as *mut Widget, 2, 1, 1, 1)); }
 
-        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((shortcuts_label.static_cast_mut() as *mut Widget, 3, 0, 1, 1)); }
-        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((shortcuts_button.static_cast_mut() as *mut Widget, 3, 1, 1, 1)); }
+        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((remember_column_state_label.static_cast_mut() as *mut Widget, 3, 0, 1, 1)); }
+        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((remember_column_state_checkbox.static_cast_mut() as *mut Widget, 3, 1, 1, 1)); }
+
+        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((shortcuts_label.static_cast_mut() as *mut Widget, 4, 0, 1, 1)); }
+        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((shortcuts_button.static_cast_mut() as *mut Widget, 4, 1, 1, 1)); }
 
         // Create the "Extra Settings" frame and Grid.
         let extra_settings_frame = GroupBox::new(&QString::from_std_str("Extra Settings")).into_raw();
@@ -368,6 +377,7 @@ impl SettingsDialog {
             ui_adjust_columns_to_content: adjust_columns_to_content_checkbox.into_raw(),
             ui_extend_last_column_on_tables: extend_last_column_on_tables_checkbox.into_raw(),
             ui_start_maximized: start_maximized_checkbox.into_raw(),
+            ui_remember_column_state: remember_column_state_checkbox.into_raw(),
             extra_default_game_combobox: default_game_combobox.into_raw(),
             extra_allow_editing_of_ca_packfiles: allow_editing_of_ca_packfiles_checkbox.into_raw(),
             extra_check_updates_on_start: check_updates_on_start_checkbox.into_raw(),
@@ -434,6 +444,7 @@ impl SettingsDialog {
         unsafe { self.ui_adjust_columns_to_content.as_mut().unwrap().set_checked(*settings.settings_bool.get("adjust_columns_to_content").unwrap()); }
         unsafe { self.ui_extend_last_column_on_tables.as_mut().unwrap().set_checked(*settings.settings_bool.get("extend_last_column_on_tables").unwrap()); }
         unsafe { self.ui_start_maximized.as_mut().unwrap().set_checked(*settings.settings_bool.get("start_maximized").unwrap()); }
+        unsafe { self.ui_remember_column_state.as_mut().unwrap().set_checked(*settings.settings_bool.get("remember_column_state").unwrap()); }
 
         // Load the Extra Stuff.
         unsafe { self.extra_allow_editing_of_ca_packfiles.as_mut().unwrap().set_checked(*settings.settings_bool.get("allow_editing_of_ca_packfiles").unwrap()); }
@@ -480,6 +491,7 @@ impl SettingsDialog {
         unsafe { settings.settings_bool.insert("adjust_columns_to_content".to_owned(), self.ui_adjust_columns_to_content.as_mut().unwrap().is_checked()); }
         unsafe { settings.settings_bool.insert("extend_last_column_on_tables".to_owned(), self.ui_extend_last_column_on_tables.as_mut().unwrap().is_checked()); }
         unsafe { settings.settings_bool.insert("start_maximized".to_owned(), self.ui_start_maximized.as_mut().unwrap().is_checked()); }
+        unsafe { settings.settings_bool.insert("remember_column_state".to_owned(), self.ui_remember_column_state.as_mut().unwrap().is_checked()); }
 
         // Get the Extra Settings.
         unsafe { settings.settings_bool.insert("allow_editing_of_ca_packfiles".to_owned(), self.extra_allow_editing_of_ca_packfiles.as_mut().unwrap().is_checked()); }
