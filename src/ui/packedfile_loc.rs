@@ -764,15 +764,30 @@ impl PackedFileLocTreeView {
                 let selection;
                 unsafe { selection = table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection(); }
                 let indexes = selection.indexes();
+                let mut indexes_sorted = vec![];
+                for index in 0..indexes.count(()) {
+                    indexes_sorted.push(indexes.at(index))
+                }
+
+                // Sort the indexes so they follow the visual index, not their logical one. This should fix situations like copying a row and getting a different order in the cells.
+                let header;
+                unsafe { header = table_view.as_ref().unwrap().horizontal_header().as_ref().unwrap(); }
+                indexes_sorted.sort_unstable_by(|a, b| {
+                    if a.row() == b.row() {
+                        if header.visual_index(a.column()) < header.visual_index(b.column()) { return Ordering::Less }
+                        else { return Ordering::Greater }
+                    }
+
+                    // If they are in different rows, we order from less to more.
+                    else if a.row() < b.row() { return Ordering::Less }
+                    else { return Ordering::Greater }
+                });
 
                 // Create a variable to check the row of the model_index.
                 let mut row = 0;
 
                 // For each selected index...
-                for (cycle, index) in (0..indexes.count(())).enumerate() {
-
-                    // Get his filtered ModelIndex.
-                    let model_index = indexes.at(index);
+                for (cycle, model_index) in indexes_sorted.iter().enumerate() {
 
                     // Check if the ModelIndex is valid. Otherwise this can crash.
                     if model_index.is_valid() {
@@ -818,7 +833,7 @@ impl PackedFileLocTreeView {
                         }
 
                         // Add a \t to separate fields except if it's the last field.
-                        if index < (indexes.count(()) - 1) { copy.push('\t'); }
+                        if cycle < (indexes_sorted.len() - 1) { copy.push('\t'); }
                     }
                 }
 
