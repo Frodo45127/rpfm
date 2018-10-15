@@ -23,6 +23,7 @@ extern crate serde_json;
 extern crate failure;
 extern crate num;
 extern crate chrono;
+extern crate regex;
 
 #[macro_use]
 extern crate sentry;

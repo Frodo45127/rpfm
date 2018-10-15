@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use std::fs::{DirBuilder, File};
 use std::io::Write;
 use std::process::Command;
+use regex::Regex;
 
 use RPFM_PATH;
 use SUPPORTED_GAMES;
@@ -1157,6 +1158,7 @@ pub fn background_loop(
                        
                         // Wait until we get the needed data from the UI thread.
                         let pattern = if let Data::String(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
+                        let regex = Regex::new(&pattern);
                         let mut matches: Vec<GlobalMatch> = vec![];
                         let mut error = false;
                         for packed_file in &pack_file_decoded.packed_files {
@@ -1223,8 +1225,14 @@ pub fn background_loop(
 
                                         let mut matches_in_file = vec![];
                                         for (index, row) in packed_file.entries.iter().enumerate() {
-                                            if row.key.contains(&pattern) { matches_in_file.push((0, index as i64, row.key.to_owned())); }
-                                            if row.text.contains(&pattern) { matches_in_file.push((1, index as i64, row.text.to_owned())); }
+                                            if let Ok(ref regex) = regex {
+                                                if regex.is_match(&row.key) { matches_in_file.push((0, index as i64, row.key.to_owned())); }
+                                                if regex.is_match(&row.text) { matches_in_file.push((1, index as i64, row.text.to_owned())); }
+                                            }
+                                            else {
+                                                if row.key.contains(&pattern) { matches_in_file.push((0, index as i64, row.key.to_owned())); }
+                                                if row.text.contains(&pattern) { matches_in_file.push((1, index as i64, row.text.to_owned())); }
+                                            }
                                         }
 
                                         if !matches_in_file.is_empty() { matches.push(GlobalMatch::Loc((path.to_vec(), matches_in_file))); }
@@ -1246,10 +1254,18 @@ pub fn background_loop(
                                                         DecodedData::StringU8(ref data) |
                                                         DecodedData::StringU16(ref data) |
                                                         DecodedData::OptionalStringU8(ref data) |
-                                                        DecodedData::OptionalStringU16(ref data) => if data.contains(&pattern) {
-                                                            matches_in_file.push((field.field_name.to_owned(), column as i32, index as i64, data.to_owned())); 
-                                                        }
+                                                        DecodedData::OptionalStringU16(ref data) => 
 
+                                                            if let Ok(ref regex) = regex {
+                                                                if regex.is_match(&data) {
+                                                                    matches_in_file.push((field.field_name.to_owned(), column as i32, index as i64, data.to_owned())); 
+                                                                }
+                                                            }
+                                                            else {
+                                                                if data.contains(&pattern) {
+                                                                    matches_in_file.push((field.field_name.to_owned(), column as i32, index as i64, data.to_owned())); 
+                                                                }
+                                                            }
                                                         _ => continue
                                                     }
                                                 }
@@ -1274,6 +1290,7 @@ pub fn background_loop(
                        
                         // Wait until we get the needed data from the UI thread.
                         let (pattern, paths) = if let Data::StringVecVecString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
+                        let regex = Regex::new(&pattern);
                         let mut matches: Vec<GlobalMatch> = vec![];
                         let mut error = false;
                         for packed_file in &pack_file_decoded.packed_files {
@@ -1341,8 +1358,14 @@ pub fn background_loop(
 
                                             let mut matches_in_file = vec![];
                                             for (index, row) in packed_file.entries.iter().enumerate() {
-                                                if row.key.contains(&pattern) { matches_in_file.push((0, index as i64, row.key.to_owned())); }
-                                                if row.text.contains(&pattern) { matches_in_file.push((1, index as i64, row.text.to_owned())); }
+                                                if let Ok(ref regex) = regex {
+                                                    if regex.is_match(&row.key) { matches_in_file.push((0, index as i64, row.key.to_owned())); }
+                                                    if regex.is_match(&row.text) { matches_in_file.push((1, index as i64, row.text.to_owned())); }
+                                                }
+                                                else {
+                                                    if row.key.contains(&pattern) { matches_in_file.push((0, index as i64, row.key.to_owned())); }
+                                                    if row.text.contains(&pattern) { matches_in_file.push((1, index as i64, row.text.to_owned())); }
+                                                }
                                             }
 
                                             if !matches_in_file.is_empty() { matches.push(GlobalMatch::Loc((path.to_vec(), matches_in_file))); }
@@ -1364,11 +1387,19 @@ pub fn background_loop(
                                                             DecodedData::StringU8(ref data) |
                                                             DecodedData::StringU16(ref data) |
                                                             DecodedData::OptionalStringU8(ref data) |
-                                                            DecodedData::OptionalStringU16(ref data) => if data.contains(&pattern) {
-                                                                matches_in_file.push((field.field_name.to_owned(), column as i32, index as i64, data.to_owned())); 
-                                                            }
+                                                            DecodedData::OptionalStringU16(ref data) => 
 
-                                                            _ => continue
+                                                            if let Ok(ref regex) = regex {
+                                                                if regex.is_match(&data) {
+                                                                    matches_in_file.push((field.field_name.to_owned(), column as i32, index as i64, data.to_owned())); 
+                                                                }
+                                                            }
+                                                            else {
+                                                                if data.contains(&pattern) {
+                                                                    matches_in_file.push((field.field_name.to_owned(), column as i32, index as i64, data.to_owned())); 
+                                                                }
+                                                            }
+                                                        _ => continue
                                                         }
                                                     }
                                                 }

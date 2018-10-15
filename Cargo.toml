@@ -24,6 +24,7 @@ hyper-tls = "0.1.4"
 tokio-core = "0.1"
 open = "*"
 indexmap = "1.0"
+regex = "1"
 
 sentry = "0.11"
 

@@ -1236,6 +1236,7 @@ dependencies = [
  "qt_core 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "qt_gui 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "qt_widgets 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "regex 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "restson 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "sentry 0.11.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.79 (registry+https://github.com/rust-lang/crates.io-index)",
