@@ -119,6 +119,7 @@ impl PackedFileLocTreeView {
         // Create the "Undo" history for the table.
         let history = Rc::new(RefCell::new(vec![]));
         let history_redo = Rc::new(RefCell::new(vec![]));
+        let undo_lock = Rc::new(RefCell::new(false));
         let undo_model = StandardItemModel::new(()).into_raw();
         let undo_redo_enabler = Action::new(()).into_raw();
 
@@ -379,6 +380,7 @@ impl PackedFileLocTreeView {
                 sender_qt,
                 sender_qt_data,
                 receiver_qt,
+                undo_lock,
                 history_redo,
                 history => move || {
 
@@ -392,14 +394,16 @@ impl PackedFileLocTreeView {
                         &packed_file_data,
                         table_view,
                         model,
+                        filter_model,
                         &history,
                         &history_redo,
                         &global_search_explicit_paths,
                         update_global_search_stuff,
+                        &undo_lock,
                     );
+
+                    update_undo_model(model, undo_model);
                     unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
-    
-                    // Update the search stuff, if needed.
                     unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
                 }
             )),
@@ -413,6 +417,7 @@ impl PackedFileLocTreeView {
                 sender_qt,
                 sender_qt_data,
                 receiver_qt,
+                undo_lock,
                 history_redo,
                 history => move || {
 
@@ -426,14 +431,16 @@ impl PackedFileLocTreeView {
                         &packed_file_data,
                         table_view,
                         model,
+                        filter_model,
                         &history_redo,
                         &history,
                         &global_search_explicit_paths,
                         update_global_search_stuff,
+                        &undo_lock,
                     );
+
+                    update_undo_model(model, undo_model);
                     unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
-    
-                    // Update the search stuff, if needed.
                     unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
                 }
             )),
@@ -492,7 +499,8 @@ impl PackedFileLocTreeView {
 
                     // To avoid doing this multiple times due to the cell painting stuff, we need to check the role.
                     // This has to be allowed ONLY if the role is 0 (DisplayText), 2 (EditorText) or 10 (CheckStateRole).
-                    if roles.contains(&0) || roles.contains(&2) || roles.contains(&10) {
+                    // 16 is a role we use as an special trigger for this.
+                    if roles.contains(&0) || roles.contains(&2) || roles.contains(&10) || roles.contains(&16) {
 
                         // Try to save the PackedFile to the main PackFile.
                         Self::save_to_packed_file(
@@ -513,23 +521,24 @@ impl PackedFileLocTreeView {
                 }
             )),
             slot_item_changed: SlotStandardItemMutPtr::new(clone!(
+                undo_lock,
                 history,
                 history_redo => move |item| {
 
+                    // If we are NOT UNDOING, paint the item as edited and add the edition to the undo list.
+                    if !*undo_lock.borrow() {
+                        let item_old = unsafe { &*undo_model.as_mut().unwrap().item((item.as_mut().unwrap().row(), item.as_mut().unwrap().column())) };
+                        unsafe { history.borrow_mut().push(TableOperations::Editing(vec![((item.as_mut().unwrap().row(), item.as_mut().unwrap().column()), item_old.clone()); 1])); }
+                        history_redo.borrow_mut().clear();
 
-                    // Block the signals during this, so we don't trigger an infinite loop.
-                    let mut blocker;
-                    unsafe { blocker = SignalBlocker::new(model.as_mut().unwrap().static_cast_mut() as &mut Object); }
-                    unsafe { item.as_mut().unwrap().set_background(&Brush::new(GlobalColor::Yellow)); }
-                    blocker.unblock();
+                        // We block the saving for painting, so this doesn't get rettriggered again.
+                        let mut blocker = unsafe { SignalBlocker::new(model.as_mut().unwrap().static_cast_mut() as &mut Object) };
+                        unsafe { item.as_mut().unwrap().set_background(&Brush::new(GlobalColor::Yellow)); }
+                        blocker.unblock();
 
-                    // Add the item to the undo history.
-                    let item_old;
-                    unsafe { item_old = &*undo_model.as_mut().unwrap().item((item.as_mut().unwrap().row(), item.as_mut().unwrap().column())); }
-                    unsafe { history.borrow_mut().push(TableOperations::Editing(((item.as_mut().unwrap().row(), item.as_mut().unwrap().column()), item_old.clone()))); }
-                    history_redo.borrow_mut().clear();
-                    update_undo_model(model, undo_model);
-                    unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
+                        update_undo_model(model, undo_model);
+                        unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
+                    }
                 }
             )),
 
@@ -842,127 +851,140 @@ impl PackedFileLocTreeView {
             }),
 
             // NOTE: Saving is not needed in this slot, as this gets detected by the main saving slot.
-            slot_context_menu_paste_in_selection: SlotBool::new(move |_| {
+            // It's needed, however, to deal in a special way here with the undo system.
+            slot_context_menu_paste_in_selection: SlotBool::new(clone!(
+                history,
+                history_redo => move |_| {
 
-                // If whatever it's in the Clipboard is pasteable in our selection...
-                if check_clipboard(table_view, model, filter_model) {
+                    // If whatever it's in the Clipboard is pasteable in our selection...
+                    if check_clipboard(table_view, model, filter_model) {
 
-                    // Get the clipboard.
-                    let clipboard = GuiApplication::clipboard();
+                        // Get the text from the clipboard and the list of cells to paste to.
+                        let clipboard = GuiApplication::clipboard();
+                        let mut text = unsafe { clipboard.as_mut().unwrap().text(()).to_std_string() };
+                        let selection = unsafe { filter_model.as_mut().unwrap().map_selection_to_source(&table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection()) };
+                        let indexes = selection.indexes();
 
-                    // Get the current selection.
-                    let selection;
-                    unsafe { selection = table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection(); }
-                    let indexes = selection.indexes();
+                        // If the text ends in \n, remove it. Excel things. We don't use newlines, so replace them with '\t'.
+                        if text.ends_with('\n') { text.pop(); }
+                        let text = text.replace('\n', "\t");
+                        let text = text.split('\t').collect::<Vec<&str>>();
 
-                    // Get the text from the clipboard.
-                    let mut text;
-                    unsafe { text = QString::to_std_string(&clipboard.as_mut().unwrap().text(())); }
-
-                    // If the text ends in \n, remove it. Excel things.
-                    if text.ends_with('\n') { text.pop(); }
-
-                    // We don't use newlines, so replace them with '\t'.
-                    let text = text.replace('\n', "\t");
-
-                    // Split the text into individual strings.
-                    let text = text.split('\t').collect::<Vec<&str>>();
-
-                    // Vector to store the selected items.
-                    let mut items = vec![];
-
-                    // For each selected index...
-                    for index in 0..indexes.count(()) {
-
-                        // Get the filtered ModelIndex.
-                        let model_index = indexes.at(index);
-
-                        // Check if the ModelIndex is valid. Otherwise this can crash.
-                        if model_index.is_valid() {
-
-                            // Get the source ModelIndex for our filtered ModelIndex.
-                            let model_index_source;
-                            unsafe {model_index_source = filter_model.as_mut().unwrap().map_to_source(&model_index); }
-
-                            // Get his StandardItem and add it to the Vector.
-                            unsafe { items.push(model.as_mut().unwrap().item_from_index(&model_index_source)); }
+                        // Get the list of items selected in a format we can deal with easely.
+                        let mut items = vec![];
+                        for index in 0..indexes.count(()) {
+                            let model_index = indexes.at(index);
+                            if model_index.is_valid() {
+                                unsafe { items.push(model.as_mut().unwrap().item_from_index(&model_index)); }
+                            }
                         }
-                    }
 
-                    // Zip together both vectors.
-                    let data = items.iter().zip(text);
+                        // Zip together both vectors, so we can paste until one of them ends.
+                        let data = items.iter().zip(text);
+                        let mut changed_cells = 0;
+                        for cell in data.clone() {
 
-                    // For each cell we have...
-                    for cell in data.clone() {
-
-                        unsafe {
-
-                            // If it's checkable, we need to check or uncheck the cell.
-                            if cell.0.as_mut().unwrap().is_checkable() {
-                                if cell.1 == "true" { cell.0.as_mut().unwrap().set_check_state(CheckState::Checked); }
-                                else { cell.0.as_mut().unwrap().set_check_state(CheckState::Unchecked); }
+                            // Qt doesn't notify when you try to set a value to the same value it has. Two days with this fucking bug.....
+                            // so we have to do the same check ourselfs and skip the repeated values.
+                            if unsafe { cell.0.as_mut().unwrap().is_checkable() } {
+                                let current_value = unsafe { cell.0.as_mut().unwrap().check_state() };
+                                let new_value = if cell.1 == "true" { CheckState::Checked } else { CheckState::Unchecked };
+                                if current_value != new_value { 
+                                    unsafe { cell.0.as_mut().unwrap().set_check_state(new_value); }
+                                    changed_cells += 1;
+                                }
                             }
 
                             // Otherwise, it's just a string.
-                            else { cell.0.as_mut().unwrap().set_text(&QString::from_std_str(cell.1)); }
+                            else { 
+                                let current_value = unsafe { cell.0.as_mut().unwrap().text().to_std_string() };
+                                if &*current_value != cell.1 {
+                                    unsafe { cell.0.as_mut().unwrap().set_text(&QString::from_std_str(cell.1)); }
+                                    changed_cells += 1;
+                                }
+                            }
+                        }
 
-                            // Paint the cells.
-                            cell.0.as_mut().unwrap().set_background(&Brush::new(GlobalColor::Yellow));
+                        // Fix the undo history to have all the previous changed merged into one.
+                        if changed_cells > 0 {
+                            let len = history.borrow().len();
+                            let mut edits_data = vec![];
+                            {
+                                let mut history = history.borrow_mut();
+                                let mut edits = history.drain((len - changed_cells)..);
+                                for edit in &mut edits { if let TableOperations::Editing(mut edit) = edit { edits_data.append(&mut edit); }}
+                            }
+
+                            history.borrow_mut().push(TableOperations::Editing(edits_data));
+                            history_redo.borrow_mut().clear();
+                            update_undo_model(model, undo_model);
+                            unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }                           
                         }
                     }
                 }
-            }),
+            )),
 
-            slot_context_menu_paste_to_fill_selection: SlotBool::new(move |_| {
+            slot_context_menu_paste_to_fill_selection: SlotBool::new(clone!(
+                history,
+                history_redo => move |_| {
+                
+                    // If whatever it's in the Clipboard is pasteable in our selection...
+                    if check_clipboard_to_fill_selection(table_view, model, filter_model) {
 
-                // If whatever it's in the Clipboard is pasteable in our selection...
-                if check_clipboard_to_fill_selection(table_view, model, filter_model) {
+                        // Get the text from the clipboard and the list of cells to paste to.
+                        let clipboard = GuiApplication::clipboard();
+                        let text = unsafe { clipboard.as_mut().unwrap().text(()).to_std_string() };
+                        let selection = unsafe { filter_model.as_mut().unwrap().map_selection_to_source(&table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection()) };
+                        let indexes = selection.indexes();
 
-                    // Get the clipboard.
-                    let clipboard = GuiApplication::clipboard();
+                        let mut changed_cells = 0;
+                        for index in 0..indexes.count(()) {
+                            let model_index = indexes.at(index);
+                            if model_index.is_valid() {
 
-                    // Get the current selection.
-                    let selection;
-                    unsafe { selection = table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection(); }
-                    let indexes = selection.indexes();
+                                // Get our item. If it's checkable, we need to check or uncheck the cell.
+                                let item = unsafe { model.as_mut().unwrap().item_from_index(&model_index) };
 
-                    // Get the text from the clipboard.
-                    let text;
-                    unsafe { text = clipboard.as_mut().unwrap().text(()).to_std_string(); }
-
-                    // For each selected index...
-                    for index in 0..indexes.count(()) {
-
-                        // Get the filtered ModelIndex.
-                        let model_index = indexes.at(index);
-
-                        // Check if the ModelIndex is valid. Otherwise this can crash.
-                        if model_index.is_valid() {
-
-                            // Get our item.
-                            let model_index_source;
-                            let item;
-                            unsafe { model_index_source = filter_model.as_mut().unwrap().map_to_source(&model_index); }
-                            unsafe { item = model.as_mut().unwrap().item_from_index(&model_index_source); }
-
-                            unsafe {
-
-                                // If it's checkable, we need to check or uncheck the cell.
-                                if item.as_mut().unwrap().is_checkable() {
-                                    if text == "true" { item.as_mut().unwrap().set_check_state(CheckState::Checked); }
-                                    else { item.as_mut().unwrap().set_check_state(CheckState::Unchecked); }
+                                // Qt doesn't notify when you try to set a value to the same value it has. Two days with this fucking bug.....
+                                // so we have to do the same check ourselfs and skip the repeated values.
+                                if unsafe { item.as_mut().unwrap().is_checkable() } {
+                                    let current_value = unsafe { item.as_mut().unwrap().check_state() };
+                                    let new_value = if text == "true" { CheckState::Checked } else { CheckState::Unchecked };
+                                    if current_value != new_value { 
+                                        unsafe { item.as_mut().unwrap().set_check_state(new_value); }
+                                        changed_cells += 1;
+                                    }
                                 }
 
                                 // Otherwise, it's just a string.
-                                else { item.as_mut().unwrap().set_text(&QString::from_std_str(&text)); }
-
-                                // Paint the cells.
-                                item.as_mut().unwrap().set_background(&Brush::new(GlobalColor::Yellow));
+                                else { 
+                                    let current_value = unsafe { item.as_mut().unwrap().text().to_std_string() };
+                                    if &*current_value != text {
+                                        unsafe { item.as_mut().unwrap().set_text(&QString::from_std_str(&text)); }
+                                        changed_cells += 1;
+                                    }
+                                }
                             }
+                        }
+
+                        // Fix the undo history to have all the previous changed merged into one.
+                        if changed_cells > 0 {
+                            let len = history.borrow().len();
+                            let mut edits_data = vec![];
+                            {
+                                let mut history = history.borrow_mut();
+                                let mut edits = history.drain((len - changed_cells)..);
+                                for edit in &mut edits { if let TableOperations::Editing(mut edit) = edit { edits_data.append(&mut edit); }}
+                            }
+
+                            history.borrow_mut().push(TableOperations::Editing(edits_data));
+                            history_redo.borrow_mut().clear();
+                            update_undo_model(model, undo_model);
+                            unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }                           
                         }
                     }
                 }
-            }),
+            )),
 
             slot_context_menu_paste_as_new_lines: SlotBool::new(clone!(
                 global_search_explicit_paths,
@@ -1247,27 +1269,18 @@ impl PackedFileLocTreeView {
                 sender_qt_data => move |_| {
 
                     // Get the current selection.
-                    let selection;
-                    unsafe { selection = table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection(); }
+                    let selection = unsafe { filter_model.as_mut().unwrap().map_selection_to_source(&table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection()) };
                     let indexes = selection.indexes();
 
                     // Get all the cells selected, separated by rows.
                     let mut cells: BTreeMap<i32, Vec<i32>> = BTreeMap::new();
                     for index in 0..indexes.size() {
-
-                        // Get the ModelIndex.
                         let model_index = indexes.at(index);
-
-                        // Check if the ModelIndex is valid. Otherwise this can crash.
                         if model_index.is_valid() {
 
-                            // Get the source ModelIndex for our filtered ModelIndex.
-                            let model_index_source;
-                            unsafe {model_index_source = filter_model.as_mut().unwrap().map_to_source(&model_index); }
-
                             // Get the current row and column.
-                            let row = model_index_source.row();
-                            let column = model_index_source.column();
+                            let row = model_index.row();
+                            let column = model_index.column();
 
                             // Check if we have any cell in that row and add/insert the new one.
                             let mut x = false;
@@ -1289,11 +1302,25 @@ impl PackedFileLocTreeView {
                         // Otherwise, delete the values on the cells, not the cells themselfs.
                         else { 
                             for column in values {
-                                unsafe {
-                                    edits.push(((*key, *column), (&*model.as_mut().unwrap().item((*key, *column))).clone()));
-                                    let item = model.as_mut().unwrap().item((*key, *column));
-                                    if item.as_mut().unwrap().is_checkable() { item.as_mut().unwrap().set_check_state(CheckState::Unchecked); }
-                                    else { item.as_mut().unwrap().set_text(&QString::from_std_str("")); }
+                                let item = unsafe { model.as_mut().unwrap().item((*key, *column)) };
+
+                                // Qt doesn't notify when you try to set a value to the same value it has. Two days with this fucking bug.....
+                                // so we have to do the same check ourselfs and skip the repeated values.
+                                if unsafe { item.as_mut().unwrap().is_checkable() } {
+                                    let current_value = unsafe { item.as_mut().unwrap().check_state() };
+                                    if current_value != CheckState::Unchecked { 
+                                        unsafe { edits.push(((*key, *column), (&*item).clone())); }
+                                        unsafe { item.as_mut().unwrap().set_check_state(CheckState::Unchecked); }
+                                    }
+                                }
+
+                                // Otherwise, it's just a string.
+                                else { 
+                                    let current_value = unsafe { item.as_mut().unwrap().text().to_std_string() };
+                                    if !current_value.is_empty() {
+                                        unsafe { edits.push(((*key, *column), (&*item).clone())); }
+                                        unsafe { item.as_mut().unwrap().set_text(&QString::from_std_str("")); }
+                                    }
                                 }
                             }
                         }
@@ -1683,10 +1710,8 @@ impl PackedFileLocTreeView {
                 position => move || {
                     
                     // Get the text.
-                    let text_source;
-                    let text_replace;
-                    unsafe { text_source = search_line_edit.as_mut().unwrap().text().to_std_string(); }
-                    unsafe { text_replace = replace_line_edit.as_mut().unwrap().text().to_std_string(); }
+                    let text_source = unsafe { search_line_edit.as_mut().unwrap().text().to_std_string() };
+                    let text_replace = unsafe { replace_line_edit.as_mut().unwrap().text().to_std_string() };
 
                     // Only proceed if the source is not empty.
                     if !text_source.is_empty() {
@@ -1733,13 +1758,10 @@ impl PackedFileLocTreeView {
             slot_replace_all: SlotNoArgs::new(clone!(
                 matches => move || {
                     
-                    // Get the text.
-                    let text_source;
-                    let text_replace;
-                    unsafe { text_source = search_line_edit.as_mut().unwrap().text().to_std_string(); }
-                    unsafe { text_replace = replace_line_edit.as_mut().unwrap().text().to_std_string(); }
-
-                    // Only proceed if the source is not empty.
+                    // Get the texts and only proceed if the source is not empty.
+                    let text_source = unsafe { search_line_edit.as_mut().unwrap().text().to_std_string() };
+                    let text_replace = unsafe { replace_line_edit.as_mut().unwrap().text().to_std_string() };
+                    if text_source == text_replace { return }
                     if !text_source.is_empty() {
 
                         // This is done like that because problems with borrowing matches and position. We cannot set the new text while
@@ -1753,20 +1775,33 @@ impl PackedFileLocTreeView {
                              
                                 // If the position is still valid (not required, but just in case)...
                                 if model_index.is_valid() {
-                                    let item;
-                                    let text;
-                                    unsafe { item = model.as_mut().unwrap().item_from_index(model_index); }
-                                    unsafe { text = item.as_mut().unwrap().text().to_std_string(); }
+                                    let item = unsafe { model.as_mut().unwrap().item_from_index(model_index) };
+                                    let text = unsafe { item.as_mut().unwrap().text().to_std_string() };
                                     positions_and_texts.push(((model_index.row(), model_index.column()), text.replace(&text_source, &text_replace)));
                                 } else { return }
                             }
                         }
 
                         // For each position, get his item and change his text.
-                        for data in &positions_and_texts {
-                            let item;
-                            unsafe { item = model.as_mut().unwrap().item(((data.0).0, (data.0).1)); }
+                        for (index, data) in positions_and_texts.iter().enumerate() {
+                            let item = unsafe { model.as_mut().unwrap().item(((data.0).0, (data.0).1)) };
                             unsafe { item.as_mut().unwrap().set_text(&QString::from_std_str(&data.1)); }
+
+                            // If we finished replacing, fix the undo history to have all the previous changed merged into one.
+                            if index == positions_and_texts.len() - 1 {
+                                let len = history.borrow().len();
+                                let mut edits_data = vec![];
+                                {
+                                    let mut history = history.borrow_mut();
+                                    let mut edits = history.drain((len - positions_and_texts.len())..);
+                                    for edit in &mut edits { if let TableOperations::Editing(mut edit) = edit { edits_data.append(&mut edit); }}
+                                }
+
+                                history.borrow_mut().push(TableOperations::Editing(edits_data));
+                                history_redo.borrow_mut().clear();
+                                update_undo_model(model, undo_model);
+                                unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
+                            }
                         }
                     }
                 }
@@ -2021,240 +2056,211 @@ impl PackedFileLocTreeView {
         data: &Rc<RefCell<Loc>>,
         table_view: *mut TableView,
         model: *mut StandardItemModel,
+        filter_model: *mut SortFilterProxyModel,
         history_source: &Rc<RefCell<Vec<TableOperations>>>, 
         history_opposite: &Rc<RefCell<Vec<TableOperations>>>,
         global_search_explicit_paths: &Rc<RefCell<Vec<Vec<String>>>>,
         update_global_search_stuff: *mut Action,
+        undo_lock: &Rc<RefCell<bool>>, 
     ) {
         
-        // Block the signals during this, so we don't trigger an infinite loop.
-        let mut blocker;
-        unsafe { blocker = SignalBlocker::new(model.as_mut().unwrap().static_cast_mut() as &mut Object); }
+        // Get the last operation in the Undo History, or return if there is none.
+        let operation = if let Some(operation) = history_source.borrow_mut().pop() { operation } else { return };
+        match operation {
+            TableOperations::Editing(editions) => {
 
-        if !history_source.borrow().is_empty() {
-            match history_source.borrow().last() {
-                Some(operation) => {
-                    match operation {
-                        TableOperations::Editing(((row, column), item)) => {
+                // Prepare the redo operation, then do the rest.
+                let mut redo_editions = vec![];
+                unsafe { editions.iter().for_each(|x| redo_editions.push((((x.0).0, (x.0).1), (&*model.as_mut().unwrap().item(((x.0).0, (x.0).1))).clone()))); }
+                history_opposite.borrow_mut().push(TableOperations::Editing(redo_editions));
+    
+                *undo_lock.borrow_mut() = true;
+                for (index, edit) in editions.iter().enumerate() {
+                    let row = (edit.0).0;
+                    let column = (edit.0).1;
+                    let item = edit.1;
+                    unsafe { model.as_mut().unwrap().set_item((row, column, item.clone())); }
+                    
+                    // Trick to tell the model to update everything.
+                    if index == editions.len() - 1 { unsafe { model.as_mut().unwrap().item((row, column)).as_mut().unwrap().set_data((&Variant::new0(()), 16)); }}
+                }
+                *undo_lock.borrow_mut() = false;
+    
+                // Select all the edited items.
+                let selection_model = unsafe { table_view.as_mut().unwrap().selection_model() };
+                unsafe { selection_model.as_mut().unwrap().clear(); }
+                for ((row, column),_) in &editions {
+                    let model_index_filtered = unsafe { filter_model.as_ref().unwrap().map_from_source(&model.as_mut().unwrap().index((*row, *column))) };
+                    if model_index_filtered.is_valid() {
+                        unsafe { selection_model.as_mut().unwrap().select((
+                            &model_index_filtered,
+                            Flags::from_enum(SelectionFlag::Select)
+                        )); }
+                    }
+                }
+            }
 
-                            // Prepare the redo operation, then do the rest.
-                            unsafe { history_opposite.borrow_mut().push(TableOperations::Editing(((*row, *column), (&*model.as_mut().unwrap().item((*row, *column))).clone()))); }
-                            unsafe { model.as_mut().unwrap().set_item((*row, *column, item.clone())); }
+            // This action is special and we have to manually trigger a save for it.
+            TableOperations::AddRows(rows) => {
 
-                            // Select the item. This should force the TableView to update and show the changes.
-                            let selection_model;
-                            unsafe { selection_model = table_view.as_mut().unwrap().selection_model(); }
-                            unsafe { selection_model.as_mut().unwrap().select((
-                                &model.as_mut().unwrap().index((*row, *column)),
-                                Flags::from_enum(SelectionFlag::ClearAndSelect)
-                            )); }
+                // Prepare the redo operation. Rows are removed from top to bottom, so we have to receive them sorted from bottom to top (9->1).
+                let mut new_rows = vec![];
+                unsafe { rows.iter().rev().for_each(|x| new_rows.push(model.as_mut().unwrap().take_row(*x))); }
+                history_opposite.borrow_mut().push(TableOperations::RemoveRows((rows.to_vec(), new_rows)));
 
-                            // Try to save the PackedFile to the main PackFile.
-                            Self::save_to_packed_file(
-                                &sender_qt,
-                                &sender_qt_data,
-                                &is_modified,
-                                &app_ui,
-                                &data,
-                                &packed_file_path,
-                                model,
-                                &global_search_explicit_paths,
-                                update_global_search_stuff,
-                            );
-                        }
+                Self::save_to_packed_file(
+                    &sender_qt,
+                    &sender_qt_data,
+                    &is_modified,
+                    &app_ui,
+                    &data,
+                    &packed_file_path,
+                    model,
+                    &global_search_explicit_paths,
+                    update_global_search_stuff,
+                );
+            }
 
-                        // NOTE: Rows are removed from top to bottom, so we have to receive them sorted from bottom to top (9->1).
-                        TableOperations::AddRows(rows) => {
+            TableOperations::RemoveRows((rows, rows_data)) => {
 
-                            // Due to certain stuff, we need to allow signals to trigger after this. Otherwise, we're left with broken rows.
-                            blocker.unblock();
-                            let mut removed_rows = vec![];
-                            unsafe { rows.iter().rev().for_each(|x| removed_rows.push(model.as_mut().unwrap().take_row(*x))); }
-                            blocker.reblock();
+                // Prepare the redo operation and insert the removed rows. Then select the new rows.
+                unsafe { rows.iter().enumerate().rev().for_each(|(index, x)| model.as_mut().unwrap().insert_row((*x, &rows_data[index]))); }
+                history_opposite.borrow_mut().push(TableOperations::AddRows(rows.to_vec()));
+                
+                let selection_model = unsafe { table_view.as_mut().unwrap().selection_model() };
+                unsafe { selection_model.as_mut().unwrap().clear(); }
+                for row in rows.iter().rev() {
+                    let model_index_filtered = unsafe { filter_model.as_ref().unwrap().map_from_source(&model.as_mut().unwrap().index((*row, 0))) };
+                    if model_index_filtered.is_valid() {
+                        unsafe { selection_model.as_mut().unwrap().select((
+                            &model_index_filtered,
+                            Flags::from_enum(SelectionFlag::Select) | Flags::from_enum(SelectionFlag::Rows)
+                        )); }
+                    }
+                }
+                
+                // Trick to tell the model to update everything.
+                *undo_lock.borrow_mut() = true;
+                unsafe { model.as_mut().unwrap().item((0, 0)).as_mut().unwrap().set_data((&Variant::new0(()), 16)); }
+                *undo_lock.borrow_mut() = false;
+            }
 
-                            // Prepare the redo operation.
-                            history_opposite.borrow_mut().push(TableOperations::RemoveRows((rows.to_vec(), removed_rows)));
+            TableOperations::SmartDelete((edits, rows)) => {
 
-                            // Select the item. This should force the TableView to update and show the changes.
-                            let selection_model;
-                            unsafe { selection_model = table_view.as_mut().unwrap().selection_model(); }
-                            unsafe { selection_model.as_mut().unwrap().select((
-                                &model.as_mut().unwrap().index((rows[0] - 1, 0)),
-                                Flags::from_enum(SelectionFlag::ClearAndSelect)
-                            )); }
+                // Re-insert all the removed rows and restore all the edits.
+                *undo_lock.borrow_mut() = true;
+                unsafe { rows.iter().rev().for_each(|x| model.as_mut().unwrap().insert_row((x.0, &x.1))); }
+                let edits_before = unsafe { edits.iter().map(|x| (((x.0).0, (x.0).1), (&*model.as_mut().unwrap().item(((x.0).0, (x.0).1))).clone())).collect::<Vec<((i32, i32), *mut StandardItem)>>() };
+                unsafe { edits.iter().for_each(|x| model.as_mut().unwrap().set_item(((x.0).0, (x.0).1, x.1.clone()))); }
+                *undo_lock.borrow_mut() = false;
 
-                            // Try to save the PackedFile to the main PackFile.
-                            Self::save_to_packed_file(
-                                &sender_qt,
-                                &sender_qt_data,
-                                &is_modified,
-                                &app_ui,
-                                &data,
-                                &packed_file_path,
-                                model,
-                                &global_search_explicit_paths,
-                                update_global_search_stuff,
-                            );
-                        }
+                // Prepare the redo operation.
+                history_opposite.borrow_mut().push(TableOperations::RevertSmartDelete((edits_before, rows.iter().map(|x| x.0).collect())));
 
-                        TableOperations::RemoveRows((rows, rows_data)) => {
-
-                            // Due to certain stuff, we need to allow signals to trigger after this. Otherwise, this doesn't even work.
-                            blocker.unblock();
-                            unsafe { rows.iter().enumerate().rev().for_each(|(index, x)| model.as_mut().unwrap().insert_row((*x, &rows_data[index]))); }
-                            blocker.reblock();
-
-                            // Prepare the redo operation.
-                            history_opposite.borrow_mut().push(TableOperations::AddRows(rows.to_vec()));
-
-                            // Select the item. This should force the TableView to update and show the changes.
-                            let selection_model;
-                            unsafe { selection_model = table_view.as_mut().unwrap().selection_model(); }
-                            unsafe { selection_model.as_mut().unwrap().select((
-                                &model.as_mut().unwrap().index((rows[0], 0)),
-                                Flags::from_enum(SelectionFlag::ClearAndSelect)
-                            )); }
-
-                            // Try to save the PackedFile to the main PackFile.
-                            Self::save_to_packed_file(
-                                &sender_qt,
-                                &sender_qt_data,
-                                &is_modified,
-                                &app_ui,
-                                &data,
-                                &packed_file_path,
-                                model,
-                                &global_search_explicit_paths,
-                                update_global_search_stuff,
-                            );
-                        }
-
-                        TableOperations::SmartDelete((edits, rows)) => {
-
-                            // Due to certain stuff, we need to allow signals to trigger after this. Otherwise, this doesn't even work.
-                            blocker.unblock();
-                            unsafe { rows.iter().rev().for_each(|x| model.as_mut().unwrap().insert_row((x.0, &x.1))); }
-                            blocker.reblock();
-
-                            // Restore all the "edits".
-                            let edits_before;
-                            unsafe { edits_before = edits.iter().map(|x| (((x.0).0, (x.0).1), (&*model.as_mut().unwrap().item(((x.0).0, (x.0).1))).clone())).collect::<Vec<((i32, i32), *mut StandardItem)>>(); }
-                            unsafe { edits.iter().for_each(|x| model.as_mut().unwrap().set_item(((x.0).0, (x.0).1, x.1.clone()))); }
-
-                            // Prepare the redo operation.
-                            history_opposite.borrow_mut().push(TableOperations::RevertSmartDelete((edits_before, rows.iter().map(|x| x.0).collect())));
-
-                            // Select the item. This should force the TableView to update and show the changes.
-                            let row_to_select = if !edits.is_empty() { (edits[0].0).0 } else { rows[0].0 };
-                            let selection_model;
-                            unsafe { selection_model = table_view.as_mut().unwrap().selection_model(); }
-                            unsafe { selection_model.as_mut().unwrap().select((
-                                &model.as_mut().unwrap().index((row_to_select, 0)),
-                                Flags::from_enum(SelectionFlag::ClearAndSelect)
-                            )); }
-
-                            // Try to save the PackedFile to the main PackFile.
-                            Self::save_to_packed_file(
-                                &sender_qt,
-                                &sender_qt_data,
-                                &is_modified,
-                                &app_ui,
-                                &data,
-                                &packed_file_path,
-                                model,
-                                &global_search_explicit_paths,
-                                update_global_search_stuff,
-                            );
-                        }
-
-                        TableOperations::RevertSmartDelete((edits, rows)) => {
-
-                            // Restore all the "edits".
-                            let edits_before;
-                            unsafe { edits_before = edits.iter().map(|x| (((x.0).0, (x.0).1), (&*model.as_mut().unwrap().item(((x.0).0, (x.0).1))).clone())).collect::<Vec<((i32, i32), *mut StandardItem)>>(); }
-                            unsafe { edits.iter().for_each(|x| model.as_mut().unwrap().set_item(((x.0).0, (x.0).1, x.1.clone()))); }
-
-                            // Due to certain stuff, we need to allow signals to trigger after this. Otherwise, this doesn't even work.
-                            blocker.unblock();
-                            let mut removed_rows = vec![];
-                            unsafe { rows.iter().for_each(|x| removed_rows.push((*x, model.as_mut().unwrap().take_row(*x)))); }
-                            blocker.reblock();
-
-                            // Prepare the redo operation.
-                            history_opposite.borrow_mut().push(TableOperations::SmartDelete((edits_before, removed_rows)));
-
-                            // Select the item. This should force the TableView to update and show the changes.
-                            let row_to_select = if !edits.is_empty() { (edits[0].0).0 } else { -1 };
-                            let selection_model;
-                            unsafe { selection_model = table_view.as_mut().unwrap().selection_model(); }
-                            unsafe { selection_model.as_mut().unwrap().select((
-                                &model.as_mut().unwrap().index((row_to_select, 0)),
-                                Flags::from_enum(SelectionFlag::ClearAndSelect)
-                            )); }
-
-                            // Try to save the PackedFile to the main PackFile.
-                            Self::save_to_packed_file(
-                                &sender_qt,
-                                &sender_qt_data,
-                                &is_modified,
-                                &app_ui,
-                                &data,
-                                &packed_file_path,
-                                model,
-                                &global_search_explicit_paths,
-                                update_global_search_stuff,
-                            );
-                        }
-
-                        TableOperations::ImportTSVLOC(table_data) => {
-
-                            // Get the settings.
-                            sender_qt.send(Commands::GetSettings).unwrap();
-                            let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                            // Prepare the redo operation.
-                            history_opposite.borrow_mut().push(TableOperations::ImportTSVLOC(data.borrow().clone()));
-
-                             Self::load_data_to_tree_view(&table_data, model);
-                            build_columns(table_view, model);
-
-                            // If we want to let the columns resize themselfs...
-                            if *settings.settings_bool.get("adjust_columns_to_content").unwrap() {
-                                unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().resize_sections(ResizeMode::ResizeToContents); }
-                            }
-
-                            // Select the item. This should force the TableView to update and show the changes.
-                            let selection_model;
-                            unsafe { selection_model = table_view.as_mut().unwrap().selection_model(); }
-                            unsafe { selection_model.as_mut().unwrap().select((
-                                &model.as_mut().unwrap().index((0, 0)),
-                                Flags::from_enum(SelectionFlag::ClearAndSelect)
-                            )); }
-
-                            // Try to save the PackedFile to the main PackFile.
-                            Self::save_to_packed_file(
-                                &sender_qt,
-                                &sender_qt_data,
-                                &is_modified,
-                                &app_ui,
-                                &data,
-                                &packed_file_path,
-                                model,
-                                &global_search_explicit_paths,
-                                update_global_search_stuff,
-                            );
-                        }
-
-                        // Any other variant is not possible in this kind of table.
-                        _ => { blocker.unblock(); return },
+                // Select all the edited items/rows.
+                let selection_model = unsafe { table_view.as_mut().unwrap().selection_model() };
+                unsafe { selection_model.as_mut().unwrap().clear(); }
+                for row in rows.iter().rev() {
+                    let model_index_filtered = unsafe { filter_model.as_ref().unwrap().map_from_source(&model.as_mut().unwrap().index((row.0, 0))) };
+                    if model_index_filtered.is_valid() {
+                        unsafe { selection_model.as_mut().unwrap().select((
+                            &model_index_filtered,
+                            Flags::from_enum(SelectionFlag::Select) | Flags::from_enum(SelectionFlag::Rows)
+                        )); }
                     }
                 }
 
-                None => { blocker.unblock(); return },
+                for edit in edits.iter() {
+                    let model_index_filtered = unsafe { filter_model.as_ref().unwrap().map_from_source(&model.as_mut().unwrap().index(((edit.0).0, (edit.0).1))) };
+                    if model_index_filtered.is_valid() {
+                        unsafe { selection_model.as_mut().unwrap().select((
+                            &model_index_filtered,
+                            Flags::from_enum(SelectionFlag::Select)
+                        )); }
+                    }
+                }
+
+                // Trick to tell the model to update everything.
+                *undo_lock.borrow_mut() = true;
+                unsafe { model.as_mut().unwrap().item((0, 0)).as_mut().unwrap().set_data((&Variant::new0(()), 16)); }
+                *undo_lock.borrow_mut() = false;
             }
-            history_source.borrow_mut().pop();
+
+            // This action is special and we have to manually trigger a save for it.
+            TableOperations::RevertSmartDelete((edits, rows)) => {
+
+                // Remake all the "edits" and remove the restored rows.
+                let edits_before = unsafe { edits.iter().map(|x| (((x.0).0, (x.0).1), (&*model.as_mut().unwrap().item(((x.0).0, (x.0).1))).clone())).collect::<Vec<((i32, i32), *mut StandardItem)>>() };
+                unsafe { edits.iter().for_each(|x| model.as_mut().unwrap().set_item(((x.0).0, (x.0).1, x.1.clone()))); }
+                let mut removed_rows = vec![];
+                unsafe { rows.iter().for_each(|x| removed_rows.push((*x, model.as_mut().unwrap().take_row(*x)))); }
+
+                // Prepare the redo operation.
+                history_opposite.borrow_mut().push(TableOperations::SmartDelete((edits_before, removed_rows)));
+
+                // Select all the edited items, if any.
+                let selection_model = unsafe { table_view.as_mut().unwrap().selection_model() };
+                unsafe { selection_model.as_mut().unwrap().clear(); }
+
+                for edit in edits.iter() {
+                    let model_index_filtered = unsafe { filter_model.as_ref().unwrap().map_from_source(&model.as_mut().unwrap().index(((edit.0).0, (edit.0).1))) };
+                    if model_index_filtered.is_valid() {
+                        unsafe { selection_model.as_mut().unwrap().select((
+                            &model_index_filtered,
+                            Flags::from_enum(SelectionFlag::Select)
+                        )); }
+                    }
+                }
+
+                // Try to save the PackedFile to the main PackFile.
+                Self::save_to_packed_file(
+                    &sender_qt,
+                    &sender_qt_data,
+                    &is_modified,
+                    &app_ui,
+                    &data,
+                    &packed_file_path,
+                    model,
+                    &global_search_explicit_paths,
+                    update_global_search_stuff,
+                );
+            }
+
+            // This action is special and we have to manually trigger a save for it.
+            TableOperations::ImportTSVLOC(table_data) => {
+
+                // Get the settings.
+                sender_qt.send(Commands::GetSettings).unwrap();
+                let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+
+                // Prepare the redo operation.
+                history_opposite.borrow_mut().push(TableOperations::ImportTSVLOC(data.borrow().clone()));
+
+                Self::load_data_to_tree_view(&table_data, model);
+                build_columns(table_view, model);
+
+                // If we want to let the columns resize themselfs...
+                if *settings.settings_bool.get("adjust_columns_to_content").unwrap() {
+                    unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().resize_sections(ResizeMode::ResizeToContents); }
+                }
+
+                // Try to save the PackedFile to the main PackFile.
+                Self::save_to_packed_file(
+                    &sender_qt,
+                    &sender_qt_data,
+                    &is_modified,
+                    &app_ui,
+                    &data,
+                    &packed_file_path,
+                    model,
+                    &global_search_explicit_paths,
+                    update_global_search_stuff,
+                );
+            }
+
+            // Any other variant is not possible in this kind of table.
+            _ => { return },
         }
-        blocker.unblock();
     }
 }
 
@@ -2282,64 +2288,40 @@ fn check_clipboard(
     filter_model: *mut SortFilterProxyModel
 ) -> bool {
 
-    // Get the clipboard.
-    let clipboard = GuiApplication::clipboard();
-
     // Get the current selection.
-    let selection;
-    unsafe { selection = table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection(); }
+    let clipboard = GuiApplication::clipboard();
+    let mut text = unsafe { clipboard.as_mut().unwrap().text(()).to_std_string() };
+    let selection = unsafe { filter_model.as_mut().unwrap().map_selection_to_source(&table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection()) };
     let indexes = selection.indexes();
 
-    // Get the text from the clipboard.
-    let mut text;
-    unsafe { text = QString::to_std_string(&clipboard.as_mut().unwrap().text(())); }
+    // If there is nothing selected, don't waste your time.
+    if indexes.count(()) == 0 { return false }
 
-    // If the text ends in \n, remove it. Excel things.
+    // If the text ends in \n, remove it. Excel things. We don't use newlines, so replace them with '\t'.
     if text.ends_with('\n') { text.pop(); }
-
-    // We don't use newlines, so replace them with '\t'.
     let text = text.replace('\n', "\t");
-
-    // Split the text into individual strings.
     let text = text.split('\t').collect::<Vec<&str>>();
 
-    // Vector to store the selected items.
+    // Get the list of items selected in a format we can deal with easely.
     let mut items = vec![];
-
-    // For each selected index...
     for index in 0..indexes.count(()) {
-
-        // Get the filtered ModelIndex.
         let model_index = indexes.at(index);
-
-        // Check if the ModelIndex is valid. Otherwise this can crash.
         if model_index.is_valid() {
-
-            // Get the source ModelIndex for our filtered ModelIndex.
-            let model_index_source;
-            unsafe {model_index_source = filter_model.as_mut().unwrap().map_to_source(&model_index); }
-
-            // Get his StandardItem and add it to the Vector.
-            unsafe { items.push(model.as_mut().unwrap().item_from_index(&model_index_source)); }
+            unsafe { items.push(model.as_mut().unwrap().item_from_index(&model_index)); }
         }
     }
 
+    // If none of the items are valid, stop.
+    if items.is_empty() { return false }
+
     // Zip together both vectors.
     let data = items.iter().zip(text);
-
-    // For each cell we have...
     for cell in data {
 
-        unsafe {
-
-            // If it's checkable, we need to see if his text it's a bool.
-            if cell.0.as_mut().unwrap().is_checkable() {
-                if cell.1 == "true" || cell.1 == "false" { continue } else { return false }
-            }
-
-            // Otherwise, it's just a string.
-            else { continue }
-        }
+        // If it's checkable, we need to see if his text it's a bool. Otherwise, it's just a string.
+        if unsafe { cell.0.as_mut().unwrap().is_checkable() } {
+            if cell.1 == "true" || cell.1 == "false" { continue } else { return false }
+        } else { continue }
     }
 
     // If we reach this place, it means none of the cells was incorrect, so we can paste.
@@ -2353,43 +2335,25 @@ fn check_clipboard_to_fill_selection(
     filter_model: *mut SortFilterProxyModel
 ) -> bool {
 
-    // Get the clipboard.
-    let clipboard = GuiApplication::clipboard();
-
     // Get the current selection.
-    let selection;
-    unsafe { selection = table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection(); }
+    let clipboard = GuiApplication::clipboard();
+    let text = unsafe { clipboard.as_mut().unwrap().text(()).to_std_string() };
+    let selection = unsafe { filter_model.as_mut().unwrap().map_selection_to_source(&table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection()) };
     let indexes = selection.indexes();
 
-    // Get the text from the clipboard.
-    let text;
-    unsafe { text = QString::to_std_string(&clipboard.as_mut().unwrap().text(())); }
+    // If there is nothing selected, don't waste your time.
+    if indexes.count(()) == 0 { return false }
 
     // For each selected index...
     for index in 0..indexes.count(()) {
-
-        // Get the filtered ModelIndex.
         let model_index = indexes.at(index);
-
-        // Check if the ModelIndex is valid. Otherwise this can crash.
         if model_index.is_valid() {
+            let item = unsafe { model.as_mut().unwrap().item_from_index(&model_index) };
 
-            // Get our item.
-            let model_index_source;
-            let item;
-            unsafe { model_index_source = filter_model.as_mut().unwrap().map_to_source(&model_index); }
-            unsafe { item = model.as_mut().unwrap().item_from_index(&model_index_source); }
-            
-            unsafe {
-
-                // If it's checkable, we need to see if his text it's a bool.
-                if item.as_mut().unwrap().is_checkable() {
-                    if text == "true" || text == "false" { continue } else { return false }
-                }
-
-                // Otherwise, it's just a string.
-                else { continue }
-            }            
+            // If it's checkable, we need to see if his text it's a bool. Otherwise, it's just a string.
+            if unsafe { item.as_mut().unwrap().is_checkable() } {
+                if text == "true" || text == "false" { continue } else { return false }
+            } else { continue }
         }
     }
 
@@ -2401,26 +2365,17 @@ fn check_clipboard_to_fill_selection(
 /// This function checks if the data in the clipboard is suitable to be appended as rows at the end of the Table.
 fn check_clipboard_append_rows() -> bool {
 
-    // Get the clipboard.
-    let clipboard = GuiApplication::clipboard();
-
     // Get the text from the clipboard.
-    let mut text;
-    unsafe { text = QString::to_std_string(&clipboard.as_mut().unwrap().text(())); }
+    let clipboard = GuiApplication::clipboard();
+    let mut text = unsafe { clipboard.as_mut().unwrap().text(()).to_std_string() };
 
-    // If the text ends in \n, remove it. Excel things.
+    // If the text ends in \n, remove it. Excel things. We don't use newlines, so replace them with '\t'.
     if text.ends_with('\n') { text.pop(); }
-
-    // We don't use newlines, so replace them with '\t'.
     let text = text.replace('\n', "\t");
-
-    // Split the text into individual strings.
     let text = text.split('\t').collect::<Vec<&str>>();
 
     // Get the index for the column.
     let mut column = 0;
-
-    // For each text we have to paste...
     for cell in text {
 
         // If the column is 2, ensure it's a boolean.
@@ -2452,11 +2407,7 @@ fn filter_table(
 
     // Set the pattern to search.
     let mut pattern = if let Some(pattern) = pattern { RegExp::new(&pattern) }
-    else { 
-        let pattern;
-        unsafe { pattern = RegExp::new(&filter_line_edit.as_mut().unwrap().text()) }
-        pattern
-    };
+    else { unsafe { RegExp::new(&filter_line_edit.as_mut().unwrap().text()) }};
 
     // Set the column selected.
     if let Some(column) = column { unsafe { filter_model.as_mut().unwrap().set_filter_key_column(column); }}
