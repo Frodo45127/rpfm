@@ -604,6 +604,7 @@ impl PackedFileDBTreeView {
                             undo_paint_for_packed_file(&app_ui, model, &packed_file_path);
                         }
                         else { context_menu_undo.as_mut().unwrap().set_enabled(true); }
+                        
                         if history_redo.borrow().is_empty() { context_menu_redo.as_mut().unwrap().set_enabled(false); }
                         else { context_menu_redo.as_mut().unwrap().set_enabled(true); }
                     }
@@ -614,13 +615,10 @@ impl PackedFileDBTreeView {
             slot_context_menu_enabler: SlotItemSelectionRefItemSelectionRef::new(move |_,_| {
 
                     // Turns out that this slot doesn't give the the amount of selected items, so we have to get them ourselfs.
-                    let selection_model;
-                    let selection;
-                    unsafe { selection_model = table_view.as_mut().unwrap().selection_model(); }
-                    unsafe { selection = selection_model.as_mut().unwrap().selected_indexes(); }
+                    let indexes = unsafe { table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selected_indexes() };
 
                     // If we have something selected, enable these actions.
-                    if selection.count(()) > 0 {
+                    if indexes.count(()) > 0 {
                         unsafe {
                             context_menu_clone.as_mut().unwrap().set_enabled(true);
                             context_menu_copy.as_mut().unwrap().set_enabled(true);
@@ -902,38 +900,21 @@ impl PackedFileDBTreeView {
                         unsafe { qlist.append_unsafe(&item.into_raw()); }
                     }
 
-                    // Get the current row.
-                    let row;
-                    let selection;
-                    unsafe { selection = table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection(); }
-
-                    // If there is any row selected...
-                    if selection.indexes().count(()) > 0 {
-
-                        // Get the current filtered ModelIndex.
-                        let model_index_list = selection.indexes();
-                        let model_index = model_index_list.at(0);
-
-                        // Check if the ModelIndex is valid. Otherwise this can crash.
+                    // Get the current row and insert the new one.
+                    let indexes = unsafe { filter_model.as_mut().unwrap().map_selection_to_source(&table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection()).indexes() };
+                    let row = if indexes.count(()) > 0 {
+                        let model_index = indexes.at(0);
                         if model_index.is_valid() {
-
-                            // Get the source ModelIndex for our filtered ModelIndex.
-                            let model_index_source;
-                            unsafe {model_index_source = filter_model.as_mut().unwrap().map_to_source(&model_index); }
-
-                            // Get the current row.
-                            row = model_index_source.row();
-
-                            // Insert the new row where the current one is.
-                            unsafe { model.as_mut().unwrap().insert_row((row, &qlist)); }
+                            unsafe { model.as_mut().unwrap().insert_row((model_index.row(), &qlist)); }
+                            model_index.row()
                         } else { return }
                     }
 
                     // Otherwise, just do the same the "Add Row" do.
                     else { 
                         unsafe { model.as_mut().unwrap().append_row(&qlist); } 
-                        unsafe { row = model.as_mut().unwrap().row_count(()) - 1; }
-                    }
+                        unsafe { model.as_mut().unwrap().row_count(()) - 1 }
+                    };
 
                     history.borrow_mut().push(TableOperations::AddRows(vec![row; 1]));
                     history_redo.borrow_mut().clear();
@@ -952,31 +933,12 @@ impl PackedFileDBTreeView {
                 sender_qt,
                 sender_qt_data => move |_| {
 
-                    // Get the current selection.
-                    let selection;
-                    unsafe { selection = table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection(); }
-                    let indexes = selection.indexes();
-
                     // Get all the selected rows.
+                    let indexes = unsafe { filter_model.as_mut().unwrap().map_selection_to_source(&table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection()).indexes() };
                     let mut rows: Vec<i32> = vec![];
                     for index in 0..indexes.size() {
-
-                        // Get the ModelIndex.
                         let model_index = indexes.at(index);
-
-                        // Check if the ModelIndex is valid. Otherwise this can crash.
-                        if model_index.is_valid() {
-
-                            // Get the source ModelIndex for our filtered ModelIndex.
-                            let model_index_source;
-                            unsafe {model_index_source = filter_model.as_mut().unwrap().map_to_source(&model_index); }
-
-                            // Get the current row.
-                            let row = model_index_source.row();
-
-                            // Add it to the list.
-                            rows.push(row);
-                        }
+                        if model_index.is_valid() { rows.push(model_index.row()); }
                     }
 
                     // Dedup the list and reverse it.
@@ -1024,31 +986,12 @@ impl PackedFileDBTreeView {
                 sender_qt,
                 sender_qt_data => move |_| {
 
-                    // Get the current selection.
-                    let selection;
-                    unsafe { selection = table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection(); }
-                    let indexes = selection.indexes();
-
                     // Get all the selected rows.
+                    let indexes = unsafe { filter_model.as_mut().unwrap().map_selection_to_source(&table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection()).indexes() };
                     let mut rows: Vec<i32> = vec![];
                     for index in 0..indexes.size() {
-
-                        // Get the ModelIndex.
                         let model_index = indexes.at(index);
-
-                        // Check if the ModelIndex is valid. Otherwise this can crash.
-                        if model_index.is_valid() {
-
-                            // Get the source ModelIndex for our filtered ModelIndex.
-                            let model_index_source;
-                            unsafe {model_index_source = filter_model.as_mut().unwrap().map_to_source(&model_index); }
-
-                            // Get the current row.
-                            let row = model_index_source.row();
-
-                            // Add it to the list.
-                            rows.push(row);
-                        }
+                        if model_index.is_valid() { rows.push(model_index.row()); }
                     }
 
                     // Dedup the list and reverse it.
@@ -1056,43 +999,15 @@ impl PackedFileDBTreeView {
                     rows.dedup();
                     rows.reverse();
 
-                    // For each row...
+                    // For each row to clone, create a new one, duplicate the items and add the row under the old one.
                     for row in &rows {
-
-                        // Create a new list of StandardItem.
                         let mut qlist = ListStandardItemMutPtr::new(());
-
-                        // For each field in the definition...
                         for column in 0..table_definition.fields.len() {
 
-                            // Get the original item.
-                            let original_item;
-                            unsafe { original_item = model.as_mut().unwrap().item((*row, column as i32)); }
-
-                            // Get a clone of the item of that column.
-                            let item;
-                            unsafe { item = original_item.as_mut().unwrap().clone(); }
-
-                            // Depending on the column, we try to encode the data in one format or another.
-                            match table_definition.fields[column as usize].field_type {
-
-                                // If it's a boolean...
-                                FieldType::Boolean => {
-
-                                    // Set the item as checkable and disable his editing.
-                                    unsafe { item.as_mut().unwrap().set_checkable(true); }
-                                    unsafe { item.as_mut().unwrap().set_editable(false); }
-
-                                    // Depending on his original state, set it as checked or unchecked.
-                                    unsafe { item.as_mut().unwrap().set_check_state(original_item.as_mut().unwrap().check_state()); }
-                                }
-                                _ => unsafe { item.as_mut().unwrap().set_text(&original_item.as_mut().unwrap().text()) },
-                            }
-
-                            // Paint the cells.
+                            // Get the original item and his clone.
+                            let original_item = unsafe { model.as_mut().unwrap().item((*row, column as i32)) };
+                            let item = unsafe { original_item.as_mut().unwrap().clone() };
                             unsafe { item.as_mut().unwrap().set_background(&Brush::new(GlobalColor::Green)); }
-
-                            // Add the item to the list.
                             unsafe { qlist.append_unsafe(&item); }
                         }
 
@@ -1133,17 +1048,14 @@ impl PackedFileDBTreeView {
                 let mut copy = String::new();
 
                 // Get the current selection.
-                let selection;
-                unsafe { selection = table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection(); }
-                let indexes = selection.indexes();
+                let indexes = unsafe { filter_model.as_mut().unwrap().map_selection_to_source(&table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection()).indexes() };
                 let mut indexes_sorted = vec![];
                 for index in 0..indexes.count(()) {
                     indexes_sorted.push(indexes.at(index))
                 }
 
                 // Sort the indexes so they follow the visual index, not their logical one. This should fix situations like copying a row and getting a different order in the cells.
-                let header;
-                unsafe { header = table_view.as_ref().unwrap().horizontal_header().as_ref().unwrap(); }
+                let header = unsafe { table_view.as_ref().unwrap().horizontal_header().as_ref().unwrap() };
                 indexes_sorted.sort_unstable_by(|a, b| {
                     if a.row() == b.row() {
                         if header.visual_index(a.column()) < header.visual_index(b.column()) { return Ordering::Less }
@@ -1155,54 +1067,29 @@ impl PackedFileDBTreeView {
                     else { return Ordering::Greater }
                 });
 
-                // Create a variable to check the row of the model_index.
+                // Build the copy String.
                 let mut row = 0;
-
-                // For each selected index...
                 for (cycle, model_index) in indexes_sorted.iter().enumerate() {
-
-                    // Check if the ModelIndex is valid. Otherwise this can crash.
                     if model_index.is_valid() {
 
-                        // Get the source ModelIndex for our filtered ModelIndex.
-                        let model_index_source;
-                        unsafe {model_index_source = filter_model.as_mut().unwrap().map_to_source(&model_index); }
-
-                        // Get his StandardItem.
-                        let standard_item;
-                        unsafe { standard_item = model.as_mut().unwrap().item_from_index(&model_index_source); }
-
-                        // If this is the first time we loop, get the row.
-                        if cycle == 0 { row = model_index_source.row(); }
-
-                        // Otherwise, if our current row is different than our last row...
-                        else if model_index_source.row() != row {
-
-                            // Replace the last \t with a \n
+                        // If this is the first time we loop, get the row. Otherwise, Replace the last \t with a \n and update the row.
+                        if cycle == 0 { row = model_index.row(); }
+                        else if model_index.row() != row {
                             copy.pop();
                             copy.push('\n');
-
-                            // Update the row.
-                            row = model_index_source.row();
+                            row = model_index.row();
                         }
 
-                        unsafe {
-
-                            // If it's checkable, we need to get a bool.
-                            if standard_item.as_mut().unwrap().is_checkable() {
-
-                                // Turn his CheckState into a bool and add it to the copy string.
-                                if standard_item.as_mut().unwrap().check_state() == CheckState::Checked { copy.push_str("true"); }
-                                else {copy.push_str("false"); }
-                            }
-
-                            // Otherwise, it's a string.
-                            else {
-
-                                // Get his text and push them to the copy string.
-                                copy.push_str(&QString::to_std_string(&standard_item.as_mut().unwrap().text()));
+                        // If it's checkable, we need to get a bool. Otherwise it's a String.
+                        let item = unsafe { model.as_mut().unwrap().item_from_index(&model_index) };
+                        if unsafe { item.as_mut().unwrap().is_checkable() } {
+                            match unsafe { item.as_mut().unwrap().check_state() } {
+                                CheckState::Checked => copy.push_str("true"),
+                                CheckState::Unchecked => copy.push_str("false"),
+                                _ => return
                             }
                         }
+                        else { copy.push_str(&QString::to_std_string(unsafe { &item.as_mut().unwrap().text() })); }
 
                         // Add a \t to separate fields except if it's the last field.
                         if cycle < (indexes_sorted.len() - 1) { copy.push('\t'); }
@@ -1364,8 +1251,7 @@ impl PackedFileDBTreeView {
                         // Get the text from the clipboard and the list of cells to paste to.
                         let clipboard = GuiApplication::clipboard();
                         let mut text = unsafe { clipboard.as_mut().unwrap().text(()).to_std_string() };
-                        let selection = unsafe { filter_model.as_mut().unwrap().map_selection_to_source(&table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection()) };
-                        let indexes = selection.indexes();
+                        let indexes = unsafe { filter_model.as_mut().unwrap().map_selection_to_source(&table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection()).indexes() };
 
                         // If the text ends in \n, remove it. Excel things. We don't use newlines, so replace them with '\t'.
                         if text.ends_with('\n') { text.pop(); }
@@ -1443,35 +1329,20 @@ impl PackedFileDBTreeView {
                     // If whatever it's in the Clipboard is pasteable in our selection...
                     if check_clipboard_append_rows(&table_definition) {
 
-                        // Get the clipboard.
-                        let clipboard = GuiApplication::clipboard();
-
                         // Get the text from the clipboard.
-                        let mut text;
-                        unsafe { text = QString::to_std_string(&clipboard.as_mut().unwrap().text(())); }
+                        let clipboard = GuiApplication::clipboard();
+                        let mut text = unsafe { clipboard.as_mut().unwrap().text(()).to_std_string() };
 
-                        // If the text ends in \n, remove it. Excel things.
+                        // If the text ends in \n, remove it. Excel things. We don't use newlines, so replace them with '\t'.
                         if text.ends_with('\n') { text.pop(); }
-
-                        // We don't use newlines, so replace them with '\t'.
                         let text = text.replace('\n', "\t");
-
-                        // Split the text into individual strings.
                         let text = text.split('\t').collect::<Vec<&str>>();
 
-                        // Get the index for the column and row.
+                        // Create a new list of StandardItem, ready to be populated.
                         let mut column = 0;
-
-                        // Create a new list of StandardItem.
                         let mut qlist = ListStandardItemMutPtr::new(());
-
-                        // For each text we have to paste...
                         for cell in &text {
-
-                            // Get the new field.
                             let field = &table_definition.fields[column];
-
-                            // We create a normal cell.
                             let mut item = StandardItem::new(());
 
                             // Depending on the column, we populate the cell with one thing or another.
@@ -1529,16 +1400,10 @@ impl PackedFileDBTreeView {
                             // Add the cell to the list.
                             unsafe { qlist.append_unsafe(&item.into_raw()); }
 
-                            // If we are in the last column...
+                            // If we are in the last column, append the list to the Table and reset it.
                             if column == &table_definition.fields.len() - 1 {
-
-                                // Append the list to the Table.
                                 unsafe { model.as_mut().unwrap().append_row(&qlist); }
-
-                                // Reset the list.
                                 qlist = ListStandardItemMutPtr::new(());
-
-                                // Reset the column count.
                                 column = 0;
                             }
 
@@ -1602,13 +1467,8 @@ impl PackedFileDBTreeView {
                                     // Otherwise, use the text from the description of that field.
                                     else { field.field_description.to_owned() };
 
-                                // Set the tooltip for the item.
                                 item.set_tool_tip(&QString::from_std_str(&tooltip_text));
-
-                                // Paint the cells.
                                 item.set_background(&Brush::new(GlobalColor::Green));
-
-                                // Add the cell to the list.
                                 unsafe { qlist.append_unsafe(&item.into_raw()); }
                             }
 
@@ -1656,8 +1516,7 @@ impl PackedFileDBTreeView {
                         // Get the text from the clipboard and the list of cells to paste to.
                         let clipboard = GuiApplication::clipboard();
                         let text = unsafe { clipboard.as_mut().unwrap().text(()).to_std_string() };
-                        let selection = unsafe { filter_model.as_mut().unwrap().map_selection_to_source(&table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection()) };
-                        let indexes = selection.indexes();
+                        let indexes = unsafe { filter_model.as_mut().unwrap().map_selection_to_source(&table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection()).indexes() };
 
                         let mut changed_cells = 0;
                         for index in 0..indexes.count(()) {
@@ -1854,11 +1713,8 @@ impl PackedFileDBTreeView {
                 sender_qt,
                 sender_qt_data => move |_| {
 
-                    // Get the current selection.
-                    let selection = unsafe { filter_model.as_mut().unwrap().map_selection_to_source(&table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection()) };
-                    let indexes = selection.indexes();
-
                     // Get all the cells selected, separated by rows.
+                    let indexes = unsafe { filter_model.as_mut().unwrap().map_selection_to_source(&table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection()).indexes() };
                     let mut cells: BTreeMap<i32, Vec<i32>> = BTreeMap::new();
                     for index in 0..indexes.size() {
                         let model_index = indexes.at(index);
@@ -1963,16 +1819,10 @@ impl PackedFileDBTreeView {
 
                             // Get all the matches from all the columns.
                             for index in 0..table_definition.fields.len() {
-                                let mut matches_unprocessed;
-                                unsafe { matches_unprocessed = model.as_mut().unwrap().find_items((&QString::from_std_str(text), flags.clone(), index as i32)); }
-
-                                // Once you got them, process them and get their ModelIndex.
+                                let mut matches_unprocessed = unsafe { model.as_mut().unwrap().find_items((&QString::from_std_str(text), flags.clone(), index as i32)) };
                                 for index in 0..matches_unprocessed.count() {
-
-                                    let model_index;
-                                    let filter_model_index;
-                                    unsafe { model_index = matches_unprocessed.at(index).as_mut().unwrap().index(); }
-                                    unsafe { filter_model_index = filter_model.as_mut().unwrap().map_from_source(&model_index); }
+                                    let model_index = unsafe { matches_unprocessed.at(index).as_mut().unwrap().index() };
+                                    let filter_model_index = unsafe { filter_model.as_mut().unwrap().map_from_source(&model_index) };
                                     matches.borrow_mut().insert(
                                         ModelIndexWrapped::new(model_index),
                                         if filter_model_index.is_valid() { Some(ModelIndexWrapped::new(filter_model_index)) } else { None }
@@ -1983,15 +1833,11 @@ impl PackedFileDBTreeView {
 
                         _ => {
 
-                            let mut matches_unprocessed;
-                            unsafe { matches_unprocessed = model.as_mut().unwrap().find_items((&QString::from_std_str(text), flags.clone(), column)); }
-
                             // Once you got them, process them and get their ModelIndex.
+                            let mut matches_unprocessed = unsafe { model.as_mut().unwrap().find_items((&QString::from_std_str(text), flags.clone(), column)) };
                             for index in 0..matches_unprocessed.count() {
-                                let model_index;
-                                let filter_model_index;
-                                unsafe { model_index = matches_unprocessed.at(index).as_mut().unwrap().index(); }
-                                unsafe { filter_model_index = filter_model.as_mut().unwrap().map_from_source(&model_index); }
+                                let model_index = unsafe { matches_unprocessed.at(index).as_mut().unwrap().index() };
+                                let filter_model_index = unsafe { filter_model.as_mut().unwrap().map_from_source(&model_index) };
                                 matches.borrow_mut().insert(
                                     ModelIndexWrapped::new(model_index),
                                     if filter_model_index.is_valid() { Some(ModelIndexWrapped::new(filter_model_index)) } else { None }
@@ -2010,9 +1856,8 @@ impl PackedFileDBTreeView {
                         unsafe { replace_all_button.as_mut().unwrap().set_enabled(false); }
                     }
 
-                    // Otherwise...
+                    // Otherwise, get the matches in the filter and check them.
                     else {
-
                         let matches_in_filter = matches.borrow().iter().filter(|x| x.1.is_some()).count();
 
                         // If no matches have been found in the current filter, but they have been in the model...
@@ -2030,22 +1875,15 @@ impl PackedFileDBTreeView {
 
                             // Calculate the new position to be selected.
                             let new_position = match *position.borrow() {
-
-                                // If there was a position being used, we need to check if that position is still valid.
                                 Some(pos) => {
 
                                     // Get the list of all valid ModelIndex for the current filter.
                                     let matches = matches.borrow();
                                     let matches_in_filter = matches.iter().filter(|x| x.1.is_some()).map(|x| x.1.as_ref().unwrap().get()).collect::<Vec<&ModelIndex>>();
                                     
-                                    // If our position is still valid, use it.
-                                    if pos < matches_in_filter.len() { pos }
-
-                                    // Otherwise, return a 0.
-                                    else { 0 }
+                                    // If our position is still valid, use it. Otherwise, return a 0.
+                                    if pos < matches_in_filter.len() { pos } else { 0 }
                                 }
-
-                                // If there was none, but now there is, use the first match.
                                 None => 0
                             };
 
@@ -2078,13 +1916,10 @@ impl PackedFileDBTreeView {
                 history_state,
                 position => move || {
 
-                    // Reset the data.
+                    // Reset the data and get the text.
                     matches.borrow_mut().clear();
                     *position.borrow_mut() = None;
-
-                    // Get the text.
-                    let text;
-                    unsafe { text = search_line_edit.as_mut().unwrap().text(); }
+                    let text = unsafe { search_line_edit.as_mut().unwrap().text() };
                     
                     // If there is no text, return emptyhanded.
                     if text.is_empty() { 
@@ -2102,28 +1937,20 @@ impl PackedFileDBTreeView {
                     let mut flags = Flags::from_enum(MatchFlag::Contains);
 
                     // Check if the filter should be "Case Sensitive".
-                    let case_sensitive;
-                    unsafe { case_sensitive = case_sensitive_button.as_mut().unwrap().is_checked(); }
+                    let case_sensitive = unsafe { case_sensitive_button.as_mut().unwrap().is_checked() };
                     if case_sensitive { flags = flags | Flags::from_enum(MatchFlag::CaseSensitive); }
                     
                     // Get the column selected, and act depending on it.
-                    let column;
-                    unsafe { column = column_selector.as_mut().unwrap().current_text().to_std_string().replace(' ', "_").to_lowercase(); }
+                    let column = unsafe { column_selector.as_mut().unwrap().current_text().to_std_string().replace(' ', "_").to_lowercase() };
                     match &*column {
                         "*_(all_columns)" => {
-
-                            // Get all the matches from all the columns.
                             for index in 0..table_definition.fields.len() {
-                                let mut matches_unprocessed;
-                                unsafe { matches_unprocessed = model.as_mut().unwrap().find_items((&text, flags.clone(), index as i32)); }
-
-                                // Once you got them, process them and get their ModelIndex.
+                                
+                                // Get all the matches from all the columns. Once you got them, process them and get their ModelIndex.
+                                let mut matches_unprocessed = unsafe { model.as_mut().unwrap().find_items((&text, flags.clone(), index as i32)) };
                                 for index in 0..matches_unprocessed.count() {
-
-                                    let model_index;
-                                    let filter_model_index;
-                                    unsafe { model_index = matches_unprocessed.at(index).as_mut().unwrap().index(); }
-                                    unsafe { filter_model_index = filter_model.as_mut().unwrap().map_from_source(&model_index); }
+                                    let model_index = unsafe { matches_unprocessed.at(index).as_mut().unwrap().index() };
+                                    let filter_model_index = unsafe { filter_model.as_mut().unwrap().map_from_source(&model_index) };
                                     matches.borrow_mut().insert(
                                         ModelIndexWrapped::new(model_index),
                                         if filter_model_index.is_valid() { Some(ModelIndexWrapped::new(filter_model_index)) } else { None }
@@ -2133,18 +1960,13 @@ impl PackedFileDBTreeView {
                         },
 
                         _ => {
-
                             let column = table_definition.fields.iter().position(|x| x.field_name == column).unwrap();
 
-                            let mut matches_unprocessed;
-                            unsafe { matches_unprocessed = model.as_mut().unwrap().find_items((&text, flags.clone(), column as i32)); }
-
                             // Once you got them, process them and get their ModelIndex.
+                            let mut matches_unprocessed = unsafe { model.as_mut().unwrap().find_items((&text, flags.clone(), column as i32)) };
                             for index in 0..matches_unprocessed.count() {
-                                let model_index;
-                                let filter_model_index;
-                                unsafe { model_index = matches_unprocessed.at(index).as_mut().unwrap().index(); }
-                                unsafe { filter_model_index = filter_model.as_mut().unwrap().map_from_source(&model_index); }
+                                let model_index = unsafe { matches_unprocessed.at(index).as_mut().unwrap().index() };
+                                let filter_model_index = unsafe { filter_model.as_mut().unwrap().map_from_source(&model_index) };
                                 matches.borrow_mut().insert(
                                     ModelIndexWrapped::new(model_index),
                                     if filter_model_index.is_valid() { Some(ModelIndexWrapped::new(filter_model_index)) } else { None }
@@ -2190,8 +2012,7 @@ impl PackedFileDBTreeView {
                             unsafe { replace_current_button.as_mut().unwrap().set_enabled(true); }
                             unsafe { replace_all_button.as_mut().unwrap().set_enabled(true); }
 
-                            let selection_model;
-                            unsafe { selection_model = table_view.as_mut().unwrap().selection_model(); }
+                            let selection_model = unsafe { table_view.as_mut().unwrap().selection_model() };
                             unsafe { selection_model.as_mut().unwrap().select((
                                 matches.borrow().iter().find(|x| x.1.is_some()).map(|x| x.1.as_ref().unwrap().get()).unwrap(),
                                 Flags::from_enum(SelectionFlag::ClearAndSelect)
@@ -2199,9 +2020,8 @@ impl PackedFileDBTreeView {
                         }
                     }
 
-                    *search_data.borrow_mut() = (text.to_std_string(), flags, table_definition.fields.iter().position(|x| x.field_name == column).map(|x| x as i32).unwrap_or(-1));
-
                     // Add the new search data to the state history.
+                    *search_data.borrow_mut() = (text.to_std_string(), flags, table_definition.fields.iter().position(|x| x.field_name == column).map(|x| x as i32).unwrap_or(-1));
                     if let Some(state) = history_state.borrow_mut().get_mut(&packed_file_path) {
                         unsafe { state.search_state = SearchState::new(search_line_edit.as_mut().unwrap().text(), replace_line_edit.as_mut().unwrap().text(), column_selector.as_ref().unwrap().current_index(), case_sensitive_button.as_mut().unwrap().is_checked()); }
                     }
@@ -2227,8 +2047,7 @@ impl PackedFileDBTreeView {
                             else { unsafe { next_match_button.as_mut().unwrap().set_enabled(true); }}
 
                             // Select the new cell.
-                            let selection_model;
-                            unsafe { selection_model = table_view.as_mut().unwrap().selection_model(); }
+                            let selection_model = unsafe { table_view.as_mut().unwrap().selection_model() };
                             unsafe { selection_model.as_mut().unwrap().select((
                                 matches_in_filter[*pos],
                                 Flags::from_enum(SelectionFlag::ClearAndSelect)
@@ -2258,8 +2077,7 @@ impl PackedFileDBTreeView {
                             else { unsafe { next_match_button.as_mut().unwrap().set_enabled(true); }}
 
                             // Select the new cell.
-                            let selection_model;
-                            unsafe { selection_model = table_view.as_mut().unwrap().selection_model(); }
+                            let selection_model = unsafe { table_view.as_mut().unwrap().selection_model() };                            
                             unsafe { selection_model.as_mut().unwrap().select((
                                 matches_in_filter[*pos],
                                 Flags::from_enum(SelectionFlag::ClearAndSelect)
@@ -2282,11 +2100,9 @@ impl PackedFileDBTreeView {
                 matches,
                 position => move || {
                     
-                    // Get the text.
+                    // Get the text, and only proceed if the source is not empty.
                     let text_source = unsafe { search_line_edit.as_mut().unwrap().text().to_std_string() };
                     let text_replace = unsafe { replace_line_edit.as_mut().unwrap().text().to_std_string() };
-
-                    // Only proceed if the source is not empty.
                     if !text_source.is_empty() {
 
                         // This is done like that because problems with borrowing matches and position. We cannot set the new text while
@@ -2304,9 +2120,8 @@ impl PackedFileDBTreeView {
 
                             // If the position is still valid (not required, but just in case)...
                             if model_index.is_valid() {
-                                let text;
                                 unsafe { item = model.as_mut().unwrap().item_from_index(model_index); }
-                                unsafe { text = item.as_mut().unwrap().text().to_std_string(); }
+                                let text = unsafe { item.as_mut().unwrap().text().to_std_string() };
                                 replaced_text = text.replace(&text_source, &text_replace);
                             } else { return }
                         } else { return }
@@ -2316,8 +2131,8 @@ impl PackedFileDBTreeView {
                         if let Some(pos) = *position.borrow() {
                             let matches = matches.borrow();
                             let matches_in_filter = matches.iter().filter(|x| x.1.is_some()).map(|x| x.1.as_ref().unwrap().get()).collect::<Vec<&ModelIndex>>();
-                            let selection_model;
-                            unsafe { selection_model = table_view.as_mut().unwrap().selection_model(); }
+                           
+                            let selection_model = unsafe { table_view.as_mut().unwrap().selection_model() };
                             unsafe { selection_model.as_mut().unwrap().select((
                                 matches_in_filter[pos],
                                 Flags::from_enum(SelectionFlag::ClearAndSelect)
@@ -2331,11 +2146,10 @@ impl PackedFileDBTreeView {
             slot_replace_all: SlotNoArgs::new(clone!(
                 matches => move || {
                     
-                    // Get the text.
+                    // Get the texts and only proceed if the source is not empty.
                     let text_source = unsafe { search_line_edit.as_mut().unwrap().text().to_std_string() };
                     let text_replace = unsafe { replace_line_edit.as_mut().unwrap().text().to_std_string() };
-
-                    // Only proceed if the source is not empty.
+                    if text_source == text_replace { return }
                     if !text_source.is_empty() {
 
                         // This is done like that because problems with borrowing matches and position. We cannot set the new text while
@@ -2447,12 +2261,9 @@ impl PackedFileDBTreeView {
                 let column = if state_data.filter_state.column < table_definition.fields.len() as i32 { state_data.filter_state.column } else { 0 };
 
                 // Block the signals during this, so we don't trigger a borrow error.
-                let mut blocker1;
-                let mut blocker2;
-                let mut blocker3;
-                unsafe { blocker1 = SignalBlocker::new(row_filter_line_edit.as_mut().unwrap().static_cast_mut() as &mut Object); }
-                unsafe { blocker2 = SignalBlocker::new(row_filter_column_selector.as_mut().unwrap().static_cast_mut() as &mut Object); }
-                unsafe { blocker3 = SignalBlocker::new(row_filter_case_sensitive_button.as_mut().unwrap().static_cast_mut() as &mut Object); }
+                let mut blocker1 = unsafe { SignalBlocker::new(row_filter_line_edit.as_mut().unwrap().static_cast_mut() as &mut Object) };
+                let mut blocker2 = unsafe { SignalBlocker::new(row_filter_column_selector.as_mut().unwrap().static_cast_mut() as &mut Object) };
+                let mut blocker3 = unsafe { SignalBlocker::new(row_filter_case_sensitive_button.as_mut().unwrap().static_cast_mut() as &mut Object) };
                 unsafe { row_filter_line_edit.as_mut().unwrap().set_text(&state_data.filter_state.text); }
                 unsafe { row_filter_column_selector.as_mut().unwrap().set_current_index(column); }
                 unsafe { row_filter_case_sensitive_button.as_mut().unwrap().set_checked(state_data.filter_state.is_case_sensitive); }
@@ -2464,14 +2275,10 @@ impl PackedFileDBTreeView {
                 let column = if state_data.search_state.column < table_definition.fields.len() as i32 { state_data.search_state.column } else { 0 };
 
                 // Same with everything inside the search widget.
-                let mut blocker1;
-                let mut blocker2;
-                let mut blocker3;
-                let mut blocker4;
-                unsafe { blocker1 = SignalBlocker::new(search_line_edit.as_mut().unwrap().static_cast_mut() as &mut Object); }
-                unsafe { blocker2 = SignalBlocker::new(replace_line_edit.as_mut().unwrap().static_cast_mut() as &mut Object); }
-                unsafe { blocker3 = SignalBlocker::new(column_selector.as_mut().unwrap().static_cast_mut() as &mut Object); }
-                unsafe { blocker4 = SignalBlocker::new(case_sensitive_button.as_mut().unwrap().static_cast_mut() as &mut Object); }
+                let mut blocker1 = unsafe { SignalBlocker::new(search_line_edit.as_mut().unwrap().static_cast_mut() as &mut Object) };
+                let mut blocker2 = unsafe { SignalBlocker::new(replace_line_edit.as_mut().unwrap().static_cast_mut() as &mut Object) };
+                let mut blocker3 = unsafe { SignalBlocker::new(column_selector.as_mut().unwrap().static_cast_mut() as &mut Object) };
+                let mut blocker4 = unsafe { SignalBlocker::new(case_sensitive_button.as_mut().unwrap().static_cast_mut() as &mut Object) };
                 unsafe { search_line_edit.as_mut().unwrap().set_text(&state_data.search_state.search_text); }
                 unsafe { replace_line_edit.as_mut().unwrap().set_text(&state_data.search_state.replace_text); }
                 unsafe { column_selector.as_mut().unwrap().set_current_index(column); }
@@ -2482,11 +2289,8 @@ impl PackedFileDBTreeView {
                 blocker4.unblock();
 
                 // Same with the columns, if we opted to keep their state.
-                let mut blocker1;
-                let mut blocker2;
-                unsafe { blocker1 = SignalBlocker::new(table_view.as_mut().unwrap().static_cast_mut() as &mut Object); }
-                unsafe { blocker2 = SignalBlocker::new(table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().static_cast_mut() as &mut Object); }
-
+                let mut blocker1 = unsafe { SignalBlocker::new(table_view.as_mut().unwrap().static_cast_mut() as &mut Object) };
+                let mut blocker2 = unsafe { SignalBlocker::new(table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().static_cast_mut() as &mut Object) };
                 if *settings.settings_bool.get("remember_column_state").unwrap() {                
                     for (visual_old, visual_new) in &state_data.columns_state.visual_order {
                         unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().move_section(*visual_old, *visual_new); }
@@ -2519,6 +2323,7 @@ impl PackedFileDBTreeView {
         settings: &Settings,
     ) {
         // First, we delete all the data from the `ListStore`. Just in case there is something there.
+        // This wipes out header information, so remember to run "build_columns" after this.
         unsafe { model.as_mut().unwrap().clear(); }
 
         // Then we add every line to the ListStore.
@@ -2667,9 +2472,9 @@ impl PackedFileDBTreeView {
         // This list is to store the new data before passing it to the DBData, just in case it fails.
         let mut new_data: Vec<Vec<DecodedData>> = vec![];
 
-        // Get the amount of rows we have.
-        let rows;
-        unsafe { rows = model.as_mut().unwrap().row_count(()); }
+        // Clear the data and, for each row we have, add it to the cleared data.
+        packed_file_data.entries.clear();
+        let rows = unsafe { model.as_mut().unwrap().row_count(()) };
 
         // For each row we have...
         for row in 0..rows {
@@ -5023,9 +4828,7 @@ fn check_references(
     // Check if it's a valid reference.
     if let Some(ref_data) = dependency_data.get(&column) {
 
-        let text;
-        unsafe { text = item.as_mut().unwrap().text().to_std_string(); }
-
+        let text = unsafe { item.as_mut().unwrap().text().to_std_string() };
         if ref_data.contains(&text) { unsafe { item.as_mut().unwrap().set_foreground(&Brush::new(GlobalColor::Black)); } }
         else if ref_data.is_empty() { unsafe { item.as_mut().unwrap().set_foreground(&Brush::new(GlobalColor::Blue)); } }
         else { unsafe { item.as_mut().unwrap().set_foreground(&Brush::new(GlobalColor::Red)); } }
@@ -5043,8 +4846,7 @@ fn check_clipboard(
     // Get the current selection.
     let clipboard = GuiApplication::clipboard();
     let mut text = unsafe { clipboard.as_mut().unwrap().text(()).to_std_string() };
-    let selection = unsafe { filter_model.as_mut().unwrap().map_selection_to_source(&table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection()) };
-    let indexes = selection.indexes();
+    let indexes = unsafe { filter_model.as_mut().unwrap().map_selection_to_source(&table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection()).indexes() };
 
     // If there is nothing selected, don't waste your time.
     if indexes.count(()) == 0 { return false }
@@ -5101,8 +4903,7 @@ fn check_clipboard_to_fill_selection(
     // Get the current selection.
     let clipboard = GuiApplication::clipboard();
     let text = unsafe { clipboard.as_mut().unwrap().text(()).to_std_string() };
-    let selection = unsafe { filter_model.as_mut().unwrap().map_selection_to_source(&table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection()) };
-    let indexes = selection.indexes();
+    let indexes = unsafe { filter_model.as_mut().unwrap().map_selection_to_source(&table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection()).indexes() };
 
     // If there is nothing selected, don't waste your time.
     if indexes.count(()) == 0 { return false }
@@ -5201,11 +5002,9 @@ fn filter_table(
     }
 
     else {
-        unsafe { 
-            let case_sensitive = case_sensitive_button.as_mut().unwrap().is_checked();
-            if case_sensitive { pattern.set_case_sensitivity(CaseSensitivity::Sensitive); }
-            else { pattern.set_case_sensitivity(CaseSensitivity::Insensitive); }
-        }
+        let case_sensitive = unsafe { case_sensitive_button.as_mut().unwrap().is_checked() };
+        if case_sensitive { pattern.set_case_sensitivity(CaseSensitivity::Sensitive); }
+        else { pattern.set_case_sensitivity(CaseSensitivity::Insensitive); }
     }
 
     // Filter whatever it's in that column by the text we got.
