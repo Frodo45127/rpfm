@@ -103,6 +103,7 @@ impl Shortcuts {
         packed_files_loc.insert("add_row".to_owned(), "Ctrl+Shift+A".to_owned());
         packed_files_loc.insert("insert_row".to_owned(), "Ctrl+I".to_owned());
         packed_files_loc.insert("delete_row".to_owned(), "Ctrl+Del".to_owned());
+        packed_files_loc.insert("clone_row".to_owned(), "Ctrl+D".to_owned());
         packed_files_loc.insert("copy".to_owned(), "Ctrl+C".to_owned());
         packed_files_loc.insert("paste_in_selection".to_owned(), "Ctrl+V".to_owned());
         packed_files_loc.insert("paste_as_new_row".to_owned(), "Ctrl+Shift+V".to_owned());
