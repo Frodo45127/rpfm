@@ -642,6 +642,7 @@ impl PackedFileDBTreeView {
                 app_ui,
                 is_modified,
                 packed_file_data,
+                history_redo,
                 sender_qt,
                 sender_qt_data => move |_,_,roles| {
 
@@ -650,8 +651,9 @@ impl PackedFileDBTreeView {
                     // 16 is a role we use as an special trigger for this.
                     if roles.contains(&0) || roles.contains(&2) || roles.contains(&10) || roles.contains(&16) {
 
-                        // Try to save the PackedFile to the main PackFile.
-                        Self::save_to_packed_file(
+                        // Try to save the PackedFile to the main PackFile. If it fails, revert the last change, 
+                        // In theory, only a manual bad edit or a replace current/all of a number column are the only things that can cause this to fail. 
+                        if let Err(_) = Self::save_to_packed_file(
                             &sender_qt,
                             &sender_qt_data,
                             &is_modified,
@@ -661,10 +663,16 @@ impl PackedFileDBTreeView {
                             model,
                             &global_search_explicit_paths,
                             update_global_search_stuff,
-                        );
+                        ) { 
 
-                        // Update the search stuff, if needed.
-                        unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
+                            // After the undo, make sure to remove the automatically-created redo operation.
+                            unsafe { context_menu_undo.as_mut().unwrap().trigger(); }
+                            history_redo.borrow_mut().pop();
+                            unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
+                        }
+
+                        // Otherwise, update the needed stuff.
+                        else { unsafe { update_search_stuff.as_mut().unwrap().trigger(); }}
                     }
                 }
             )),
@@ -896,9 +904,9 @@ impl PackedFileDBTreeView {
                     let mut rows_data = vec![];
                     unsafe { rows.iter().for_each(|x| rows_data.push(model.as_mut().unwrap().take_row(*x))); }
 
-                    // If we deleted something, try to save the PackedFile to the main PackFile.
+                    // If we deleted something, try to save the PackedFile to the main PackFile. This cannot fail here, so we can ignore the result
                     if !rows.is_empty() {
-                        Self::save_to_packed_file(
+                        let _y = Self::save_to_packed_file(
                             &sender_qt,
                             &sender_qt_data,
                             &is_modified,
@@ -963,7 +971,7 @@ impl PackedFileDBTreeView {
 
                     // If we cloned something, try to save the PackedFile to the main PackFile.
                     if !rows.is_empty() {
-                        Self::save_to_packed_file(
+                        let _y = Self::save_to_packed_file(
                             &sender_qt,
                             &sender_qt_data,
                             &is_modified,
@@ -1372,7 +1380,7 @@ impl PackedFileDBTreeView {
 
                         // If we pasted something, try to save the PackedFile to the main PackFile.
                         if !text.is_empty() {
-                            Self::save_to_packed_file(
+                            let _y = Self::save_to_packed_file(
                                 &sender_qt,
                                 &sender_qt_data,
                                 &is_modified,
@@ -1527,7 +1535,7 @@ impl PackedFileDBTreeView {
                         let old_data = packed_file_data.borrow().clone();
 
                         // Try to save the PackedFile to the main PackFile.
-                        Self::save_to_packed_file(
+                        let _y = Self::save_to_packed_file(
                             &sender_qt,
                             &sender_qt_data,
                             &is_modified,
@@ -1647,6 +1655,22 @@ impl PackedFileDBTreeView {
                                             unsafe { item.as_mut().unwrap().set_check_state(CheckState::Unchecked); }
                                         }
                                     }
+
+                                    FieldType::Float => {
+                                        let current_value = unsafe { item.as_mut().unwrap().text().to_std_string() };
+                                        if !current_value.is_empty() {
+                                            unsafe { edits.push(((*key, *column), (&*item).clone())); }
+                                            unsafe { item.as_mut().unwrap().set_text(&QString::from_std_str("0.0")); }
+                                        }
+                                    }
+
+                                    FieldType::Integer | FieldType::LongInteger => {
+                                        let current_value = unsafe { item.as_mut().unwrap().text().to_std_string() };
+                                        if !current_value.is_empty() {
+                                            unsafe { edits.push(((*key, *column), (&*item).clone())); }
+                                            unsafe { item.as_mut().unwrap().set_text(&QString::from_std_str("0")); }
+                                        }
+                                    }
                                     _ => {
                                         let current_value = unsafe { item.as_mut().unwrap().text().to_std_string() };
                                         if !current_value.is_empty() {
@@ -1659,9 +1683,9 @@ impl PackedFileDBTreeView {
                         }
                     }
 
-                    // When you delete a row, the save has to be triggered manually.
+                    // When you delete a row, the save has to be triggered manually. For cell edits it get's triggered automatically.
                     if !cells.is_empty() {
-                        Self::save_to_packed_file(
+                        let _y = Self::save_to_packed_file(
                             &sender_qt,
                             &sender_qt_data,
                             &is_modified,
@@ -1991,6 +2015,8 @@ impl PackedFileDBTreeView {
 
             // Slot for the "Replace Current" button. This triggers the main save function, so we can let that one update the search stuff.
             slot_replace_current: SlotNoArgs::new(clone!(
+                table_definition,
+                app_ui,
                 matches,
                 position => move || {
                     
@@ -2017,6 +2043,15 @@ impl PackedFileDBTreeView {
                                 unsafe { item = model.as_mut().unwrap().item_from_index(model_index); }
                                 let text = unsafe { item.as_mut().unwrap().text().to_std_string() };
                                 replaced_text = text.replace(&text_source, &text_replace);
+
+                                // We need to do an extra check to ensure the new text can be in the field. Return in bools, as we don't support those columns.
+                                match table_definition.fields[model_index.column() as usize].field_type {
+                                    FieldType::Boolean => return,
+                                    FieldType::Float => if replaced_text.parse::<f32>().is_err() { return show_dialog(app_ui.window, false, ErrorKind::DBTableReplaceInvalidData) }
+                                    FieldType::Integer => if replaced_text.parse::<i32>().is_err() { return show_dialog(app_ui.window, false, ErrorKind::DBTableReplaceInvalidData) }
+                                    FieldType::LongInteger => if replaced_text.parse::<i64>().is_err() { return show_dialog(app_ui.window, false, ErrorKind::DBTableReplaceInvalidData) }
+                                    _ =>  {}
+                                }
                             } else { return }
                         } else { return }
                         unsafe { item.as_mut().unwrap().set_text(&QString::from_std_str(&replaced_text)); }
@@ -2038,6 +2073,8 @@ impl PackedFileDBTreeView {
 
             // Slot for the "Replace All" button. This triggers the main save function, so we can let that one update the search stuff.
             slot_replace_all: SlotNoArgs::new(clone!(
+                table_definition,
+                app_ui,
                 matches => move || {
                     
                     // Get the texts and only proceed if the source is not empty.
@@ -2053,6 +2090,24 @@ impl PackedFileDBTreeView {
                             // Get the list of all valid ModelIndex for the current filter and the current position.
                             let matches = matches.borrow();
                             let matches_original_from_filter = matches.iter().filter(|x| x.1.is_some()).map(|x| x.0.get()).collect::<Vec<&ModelIndex>>();
+                            for model_index in &matches_original_from_filter {
+                             
+                                // If the position is still valid (not required, but just in case)...
+                                if model_index.is_valid() {
+
+                                    // We need to do an extra check to ensure every new field is valid. If one fails, return.
+                                    let text = unsafe { model.as_ref().unwrap().item_from_index(model_index).as_mut().unwrap().text().to_std_string() };
+                                    let replaced_text = text.replace(&text_source, &text_replace);
+                                    match table_definition.fields[model_index.column() as usize].field_type {
+                                        FieldType::Boolean => return,
+                                        FieldType::Float => if replaced_text.parse::<f32>().is_err() { return show_dialog(app_ui.window, false, ErrorKind::DBTableReplaceInvalidData) }
+                                        FieldType::Integer => if replaced_text.parse::<i32>().is_err() { return show_dialog(app_ui.window, false, ErrorKind::DBTableReplaceInvalidData) }
+                                        FieldType::LongInteger => if replaced_text.parse::<i64>().is_err() { return show_dialog(app_ui.window, false, ErrorKind::DBTableReplaceInvalidData) }
+                                        _ =>  {}
+                                    }
+                                } else { return }
+                            }
+
                             for model_index in &matches_original_from_filter {
                              
                                 // If the position is still valid (not required, but just in case)...
@@ -2220,13 +2275,8 @@ impl PackedFileDBTreeView {
         // This wipes out header information, so remember to run "build_columns" after this.
         unsafe { model.as_mut().unwrap().clear(); }
 
-        // Then we add every line to the ListStore.
         for entry in &packed_file_data.entries {
-
-            // Create a new list of StandardItem.
             let mut qlist = ListStandardItemMutPtr::new(());
-
-            // For each field we have in the definition...
             for (index, field) in entry.iter().enumerate() {
 
                 // Create a new Item.
@@ -2272,28 +2322,16 @@ impl PackedFileDBTreeView {
                         check_references(dependency_data, index as i32, item.as_mut_ptr());
                     }
                 }
-
-                // Add the item to the list.
                 unsafe { qlist.append_unsafe(&item.into_raw()); }
             }
-
-            // Append the new row.
             unsafe { model.as_mut().unwrap().append_row(&qlist); }
         }
 
-        // If the table it's empty, we add an empty row.
+        // If the table it's empty, we add an empty row and delete it, so the "columns" get created.
         if packed_file_data.entries.len() == 0 {
-
-            // Create a new list of StandardItem.
             let mut qlist = ListStandardItemMutPtr::new(());
-
-            // For each field in the definition...
             for field in &packed_file_data.table_definition.fields {
-
-                // Create a new Item.
                 let item = match field.field_type {
-
-                    // This one needs a couple of changes before turning it into an item in the table.
                     FieldType::Boolean => {
                         let mut item = StandardItem::new(());
                         item.set_editable(false);
@@ -2306,25 +2344,17 @@ impl PackedFileDBTreeView {
                     FieldType::Integer => StandardItem::new(&QString::from_std_str(format!("{}", 0))),
                     FieldType::LongInteger => StandardItem::new(&QString::from_std_str(format!("{}", 0))),
 
-                    // All these are Strings, so it can be together,
                     FieldType::StringU8 |
                     FieldType::StringU16 |
                     FieldType::OptionalStringU8 |
                     FieldType::OptionalStringU16 => StandardItem::new(&QString::from_std_str("")),
                 };
-
-                // Add the item to the list.
                 unsafe { qlist.append_unsafe(&item.into_raw()); }
             }
-
-            // Append the new row.
             unsafe { model.as_mut().unwrap().append_row(&qlist); }
-
-            // Remove the row, so the columns stay.
             unsafe { model.as_mut().unwrap().remove_rows((0, 1)); }
         }
     }
-
 
     /// This function returns a DBData with all the stuff in the table. This can and will fail in case
     /// the data of a field cannot be parsed to the type of that field. Beware of that.
@@ -2385,12 +2415,10 @@ impl PackedFileDBTreeView {
         model: *mut StandardItemModel,
         global_search_explicit_paths: &Rc<RefCell<Vec<Vec<String>>>>,
         update_global_search_stuff: *mut Action,
-    ) {
+    ) -> Result<()> {
 
-        // Update the DBData with the data in the table, or report error if it fails.
-        if let Err(error) = Self::return_data_from_table_view(&mut data.borrow_mut(), model) {
-            return show_dialog(app_ui.window, false, error.kind());
-        };
+        // Update the DB with the data in the table, or report error if it fails.
+        if let Err(error) = Self::return_data_from_table_view(&mut data.borrow_mut(), model) { return Err(error) }
 
         // Tell the background thread to start saving the PackedFile.
         sender_qt.send(Commands::EncodePackedFileDB).unwrap();
@@ -2402,6 +2430,9 @@ impl PackedFileDBTreeView {
         // Update the global search stuff, if needed.
         global_search_explicit_paths.borrow_mut().push(packed_file_path.to_vec());
         unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
+
+        // If the table has been saved without problems, return success.
+        Ok(())
     }
 
     /// Function to undo/redo an operation in the table.
@@ -2471,7 +2502,7 @@ impl PackedFileDBTreeView {
                 unsafe { rows.iter().rev().for_each(|x| new_rows.push(model.as_mut().unwrap().take_row(*x))); }
                 history_opposite.borrow_mut().push(TableOperations::RemoveRows((rows.to_vec(), new_rows)));
 
-                Self::save_to_packed_file(
+                let _y = Self::save_to_packed_file(
                     &sender_qt,
                     &sender_qt_data,
                     &is_modified,
@@ -2576,7 +2607,7 @@ impl PackedFileDBTreeView {
                 }
 
                 // Try to save the PackedFile to the main PackFile.
-                Self::save_to_packed_file(
+                let _y = Self::save_to_packed_file(
                     &sender_qt,
                     &sender_qt_data,
                     &is_modified,
@@ -2608,7 +2639,7 @@ impl PackedFileDBTreeView {
                 }
 
                 // Try to save the PackedFile to the main PackFile.
-                Self::save_to_packed_file(
+                let _y = Self::save_to_packed_file(
                     &sender_qt,
                     &sender_qt_data,
                     &is_modified,
