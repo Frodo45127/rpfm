@@ -68,6 +68,7 @@ pub struct PackedFileLocTreeView {
     pub slot_context_menu_insert: SlotBool<'static>,
     pub slot_context_menu_delete: SlotBool<'static>,
     pub slot_context_menu_clone: SlotBool<'static>,
+    pub slot_context_menu_clone_and_append: SlotBool<'static>,
     pub slot_context_menu_copy: SlotBool<'static>,
     pub slot_context_menu_paste_in_selection: SlotBool<'static>,
     pub slot_context_menu_paste_as_new_lines: SlotBool<'static>,
@@ -267,7 +268,11 @@ impl PackedFileLocTreeView {
         let context_menu_add = context_menu.add_action(&QString::from_std_str("&Add Row"));
         let context_menu_insert = context_menu.add_action(&QString::from_std_str("&Insert Row"));
         let context_menu_delete = context_menu.add_action(&QString::from_std_str("&Delete Row"));
-        let context_menu_clone = context_menu.add_action(&QString::from_std_str("&Clone"));
+
+        let mut context_menu_clone_submenu = Menu::new(&QString::from_std_str("&Clone..."));
+        let context_menu_clone = context_menu_clone_submenu.add_action(&QString::from_std_str("&Clone and Insert"));
+        let context_menu_clone_and_append = context_menu_clone_submenu.add_action(&QString::from_std_str("Clone and &Append"));
+
         let context_menu_copy = context_menu.add_action(&QString::from_std_str("&Copy"));
 
         let mut context_menu_paste_submenu = Menu::new(&QString::from_std_str("&Paste..."));
@@ -292,6 +297,7 @@ impl PackedFileLocTreeView {
         unsafe { context_menu_insert.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("insert_row").unwrap()))); }
         unsafe { context_menu_delete.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("delete_row").unwrap()))); }
         unsafe { context_menu_clone.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("clone_row").unwrap()))); }
+        unsafe { context_menu_clone_and_append.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("clone_and_append_row").unwrap()))); }
         unsafe { context_menu_copy.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("copy").unwrap()))); }
         unsafe { context_menu_paste_in_selection.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("paste_in_selection").unwrap()))); }
         unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("paste_as_new_row").unwrap()))); }
@@ -308,6 +314,7 @@ impl PackedFileLocTreeView {
         unsafe { context_menu_insert.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_delete.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_clone.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+        unsafe { context_menu_clone_and_append.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_copy.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_paste_in_selection.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
@@ -324,6 +331,7 @@ impl PackedFileLocTreeView {
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_insert); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_delete); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_clone); }
+        unsafe { table_view.as_mut().unwrap().add_action(context_menu_clone_and_append); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_copy); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_paste_in_selection); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_paste_as_new_lines); }
@@ -339,7 +347,8 @@ impl PackedFileLocTreeView {
         unsafe { context_menu_add.as_mut().unwrap().set_status_tip(&QString::from_std_str("Add an empty row at the end of the table.")); }
         unsafe { context_menu_insert.as_mut().unwrap().set_status_tip(&QString::from_std_str("Insert an empty row just above the one selected.")); }
         unsafe { context_menu_delete.as_mut().unwrap().set_status_tip(&QString::from_std_str("Delete all the selected rows.")); }
-        unsafe { context_menu_clone.as_mut().unwrap().set_status_tip(&QString::from_std_str("Duplicate the selected rows.")); }
+        unsafe { context_menu_clone.as_mut().unwrap().set_status_tip(&QString::from_std_str("Duplicate the selected rows and insert the new rows under the original ones.")); }
+        unsafe { context_menu_clone_and_append.as_mut().unwrap().set_status_tip(&QString::from_std_str("Duplicate the selected rows and append the new rows at the end of the table.")); }
         unsafe { context_menu_copy.as_mut().unwrap().set_status_tip(&QString::from_std_str("Copy whatever is selected to the Clipboard.")); }
         unsafe { context_menu_paste_in_selection.as_mut().unwrap().set_status_tip(&QString::from_std_str("Try to paste whatever is in the Clipboard. Does nothing if the data is not compatible with the cell.")); }
         unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().set_status_tip(&QString::from_std_str("Try to paste whatever is in the Clipboard as new lines at the end of the table. Does nothing if the data is not compatible with the cell.")); }
@@ -351,7 +360,8 @@ impl PackedFileLocTreeView {
         unsafe { context_menu_redo.as_mut().unwrap().set_status_tip(&QString::from_std_str("Another classic.")); }
 
         // Insert some separators to space the menu, and the paste submenu.
-        unsafe { context_menu.insert_separator(context_menu_clone); }
+        unsafe { context_menu.insert_separator(context_menu_copy); }
+        unsafe { context_menu.insert_menu(context_menu_copy, context_menu_clone_submenu.into_raw()); }
         unsafe { context_menu.insert_menu(context_menu_search, context_menu_paste_submenu.into_raw()); }
         unsafe { context_menu.insert_separator(context_menu_search); }
         unsafe { context_menu.insert_separator(context_menu_import); }
@@ -479,6 +489,7 @@ impl PackedFileLocTreeView {
                     if indexes.count(()) > 0 {
                         unsafe {
                             context_menu_clone.as_mut().unwrap().set_enabled(true);
+                            context_menu_clone_and_append.as_mut().unwrap().set_enabled(true);
                             context_menu_copy.as_mut().unwrap().set_enabled(true);
                             context_menu_delete.as_mut().unwrap().set_enabled(true);
                         }
@@ -488,6 +499,7 @@ impl PackedFileLocTreeView {
                     else {
                         unsafe {
                             context_menu_clone.as_mut().unwrap().set_enabled(false);
+                            context_menu_clone_and_append.as_mut().unwrap().set_enabled(false);
                             context_menu_copy.as_mut().unwrap().set_enabled(false);
                             context_menu_delete.as_mut().unwrap().set_enabled(false);
                         }
@@ -795,6 +807,73 @@ impl PackedFileLocTreeView {
                         // Update the undo stuff. Cloned rows are their equivalent + 1 starting from the top, so we need to take that into account.
                         rows.iter_mut().for_each(|x| *x += 1);
                         history.borrow_mut().push(TableOperations::AddRows(rows));
+                        history_redo.borrow_mut().clear();
+                        update_undo_model(model, undo_model);
+                        unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
+                    }
+                }
+            )),
+
+            slot_context_menu_clone_and_append: SlotBool::new(clone!(
+                global_search_explicit_paths,
+                packed_file_path,
+                app_ui,
+                is_modified,
+                packed_file_data,
+                history,
+                history_redo,
+                sender_qt,
+                sender_qt_data => move |_| {
+
+                    // Get all the selected rows.
+                    let indexes = unsafe { filter_model.as_mut().unwrap().map_selection_to_source(&table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection()).indexes() };
+                    let mut rows: Vec<i32> = vec![];
+                    for index in 0..indexes.size() {
+                        let model_index = indexes.at(index);
+                        if model_index.is_valid() { rows.push(model_index.row()); }
+                    }
+
+                    // Dedup the list.
+                    rows.sort();
+                    rows.dedup();
+
+                    // For each row to clone, create a new one, duplicate the items and add the row under the old one.
+                    for row in &rows {
+                        let mut qlist = ListStandardItemMutPtr::new(());
+                        for column in 0..3 {
+
+                            // Get the original item and his clone.
+                            let original_item = unsafe { model.as_mut().unwrap().item((*row, column as i32)) };
+                            let item = unsafe { original_item.as_mut().unwrap().clone() };
+                            unsafe { item.as_mut().unwrap().set_background(&Brush::new(GlobalColor::Green)); }
+                            unsafe { qlist.append_unsafe(&item); }
+                        }
+
+                        // Insert the new row after the original one.
+                        unsafe { model.as_mut().unwrap().append_row(&qlist); }
+                    }
+
+                    // If we cloned something, try to save the PackedFile to the main PackFile.
+                    if !rows.is_empty() {
+                        Self::save_to_packed_file(
+                            &sender_qt,
+                            &sender_qt_data,
+                            &is_modified,
+                            &app_ui,
+                            &packed_file_data,
+                            &packed_file_path,
+                            model,
+                            &global_search_explicit_paths,
+                            update_global_search_stuff,
+                        );
+
+                        // Update the search stuff, if needed.
+                        unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
+
+                        // Update the undo stuff. Cloned rows are the amount of rows - the amount of cloned rows.
+                        let total_rows = unsafe { model.as_ref().unwrap().row_count(()) };
+                        let range = (total_rows - rows.len() as i32..total_rows).collect::<Vec<i32>>();
+                        history.borrow_mut().push(TableOperations::AddRows(range));
                         history_redo.borrow_mut().clear();
                         update_undo_model(model, undo_model);
                         unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
@@ -1763,6 +1842,7 @@ impl PackedFileLocTreeView {
         unsafe { context_menu_insert.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_insert); }
         unsafe { context_menu_delete.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_delete); }
         unsafe { context_menu_clone.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_clone); }
+        unsafe { context_menu_clone_and_append.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_clone_and_append); }
         unsafe { context_menu_copy.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_copy); }
         unsafe { context_menu_paste_in_selection.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_paste_in_selection); }
         unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_paste_as_new_lines); }
@@ -1795,6 +1875,7 @@ impl PackedFileLocTreeView {
             context_menu_insert.as_mut().unwrap().set_enabled(true);
             context_menu_delete.as_mut().unwrap().set_enabled(false);
             context_menu_clone.as_mut().unwrap().set_enabled(false);
+            context_menu_clone_and_append.as_mut().unwrap().set_enabled(false);
             context_menu_copy.as_mut().unwrap().set_enabled(false);
             context_menu_paste_in_selection.as_mut().unwrap().set_enabled(true);
             context_menu_paste_as_new_lines.as_mut().unwrap().set_enabled(true);
