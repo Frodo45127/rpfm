@@ -788,33 +788,6 @@ impl PackedFileDBTreeView {
                             FieldType::OptionalStringU16 => StandardItem::new(&QString::from_std_str("")),
                         };
 
-                        // Create the text for the tooltip.
-                        let tooltip_text: String =
-
-                            // If it's a reference, we put to what cell is referencing in the tooltip.
-                            if let Some(ref reference) = field.field_is_reference {
-                                if !field.field_description.is_empty() {
-                                    format!("{}\n\nThis column is a reference to \"{}/{}\".",
-                                        field.field_description,
-                                        reference.0,
-                                        reference.1
-                                    )
-                                }
-                                else {
-                                    format!("This column is a reference to \"{}/{}\".",
-                                        reference.0,
-                                        reference.1
-                                    )
-                                }
-
-                            }
-
-                            // Otherwise, use the text from the description of that field.
-                            else { field.field_description.to_owned() };
-
-                        // Set the tooltip for the item.
-                        item.set_tool_tip(&QString::from_std_str(&tooltip_text));
-
                         // Paint the cells.
                         item.set_background(&Brush::new(GlobalColor::Green));
 
@@ -865,33 +838,6 @@ impl PackedFileDBTreeView {
                             FieldType::OptionalStringU8 |
                             FieldType::OptionalStringU16 => StandardItem::new(&QString::from_std_str("")),
                         };
-
-                        // Create the text for the tooltip.
-                        let tooltip_text: String =
-
-                            // If it's a reference, we put to what cell is referencing in the tooltip.
-                            if let Some(ref reference) = field.field_is_reference {
-                                if !field.field_description.is_empty() {
-                                    format!("{}\n\nThis column is a reference to \"{}/{}\".",
-                                        field.field_description,
-                                        reference.0,
-                                        reference.1
-                                    )
-                                }
-                                else {
-                                    format!("This column is a reference to \"{}/{}\".",
-                                        reference.0,
-                                        reference.1
-                                    )
-                                }
-
-                            }
-
-                            // Otherwise, use the text from the description of that field.
-                            else { field.field_description.to_owned() };
-
-                        // Set the tooltip for the item.
-                        item.set_tool_tip(&QString::from_std_str(&tooltip_text));
 
                         // Paint the cells.
                         item.set_background(&Brush::new(GlobalColor::Green));
@@ -1363,33 +1309,6 @@ impl PackedFileDBTreeView {
                                 }
                             }
 
-                            // Create the text for the tooltip.
-                            let tooltip_text: String =
-
-                                // If it's a reference, we put to what cell is referencing in the tooltip.
-                                if let Some(ref reference) = field.field_is_reference {
-                                    if !field.field_description.is_empty() {
-                                        format!("{}\n\nThis column is a reference to \"{}/{}\".",
-                                            field.field_description,
-                                            reference.0,
-                                            reference.1
-                                        )
-                                    }
-                                    else {
-                                        format!("This column is a reference to \"{}/{}\".",
-                                            reference.0,
-                                            reference.1
-                                        )
-                                    }
-
-                                }
-
-                                // Otherwise, use the text from the description of that field.
-                                else { field.field_description.to_owned() };
-
-                            // Set the tooltip for the item.
-                            item.set_tool_tip(&QString::from_std_str(&tooltip_text));
-
                             // If we have the dependency stuff enabled, check if it's a valid reference.
                             if *settings.settings_bool.get("use_dependency_checker").unwrap() {
                                 if field.field_is_reference.is_some() {
@@ -1443,31 +1362,6 @@ impl PackedFileDBTreeView {
                                     FieldType::OptionalStringU16 => StandardItem::new(&QString::from_std_str("")),
                                 };
 
-                                // Create the text for the tooltip.
-                                let tooltip_text: String =
-
-                                    // If it's a reference, we put to what cell is referencing in the tooltip.
-                                    if let Some(ref reference) = field.field_is_reference {
-                                        if !field.field_description.is_empty() {
-                                            format!("{}\n\nThis column is a reference to \"{}/{}\".",
-                                                field.field_description,
-                                                reference.0,
-                                                reference.1
-                                            )
-                                        }
-                                        else {
-                                            format!("This column is a reference to \"{}/{}\".",
-                                                reference.0,
-                                                reference.1
-                                            )
-                                        }
-
-                                    }
-
-                                    // Otherwise, use the text from the description of that field.
-                                    else { field.field_description.to_owned() };
-
-                                item.set_tool_tip(&QString::from_std_str(&tooltip_text));
                                 item.set_background(&Brush::new(GlobalColor::Green));
                                 unsafe { qlist.append_unsafe(&item.into_raw()); }
                             }
@@ -2372,39 +2266,9 @@ impl PackedFileDBTreeView {
                     DecodedData::OptionalStringU16(ref data) => StandardItem::new(&QString::from_std_str(data)),
                 };
 
-                // Get the new field.
-                let field_def = &packed_file_data.table_definition.fields[index];
-
-                // Create the text for the tooltip.
-                let tooltip_text: String =
-
-                    // If it's a reference, we put to what cell is referencing in the tooltip.
-                    if let Some(ref reference) = field_def.field_is_reference {
-                        if !field_def.field_description.is_empty() {
-                            format!("{}\n\nThis column is a reference to \"{}/{}\".",
-                                field_def.field_description,
-                                reference.0,
-                                reference.1
-                            )
-                        }
-                        else {
-                            format!("This column is a reference to \"{}/{}\".",
-                                reference.0,
-                                reference.1
-                            )
-                        }
-
-                    }
-
-                    // Otherwise, use the text from the description of that field.
-                    else { field_def.field_description.to_owned() };
-
-                // Set the tooltip for the item.
-                item.set_tool_tip(&QString::from_std_str(&tooltip_text));
-
                 // If we have the dependency stuff enabled, check if it's a valid reference.
                 if *settings.settings_bool.get("use_dependency_checker").unwrap() {
-                    if field_def.field_is_reference.is_some() {
+                    if packed_file_data.table_definition.fields[index].field_is_reference.is_some() {
                         check_references(dependency_data, index as i32, item.as_mut_ptr());
                     }
                 }
@@ -2469,25 +2333,18 @@ impl PackedFileDBTreeView {
         model: *mut StandardItemModel,
     ) -> Result<()> {
 
-        // This list is to store the new data before passing it to the DBData, just in case it fails.
+        // This list is to store the new data before passing it to the PackedFile, just in case it fails.
         let mut new_data: Vec<Vec<DecodedData>> = vec![];
 
-        // Clear the data and, for each row we have, add it to the cleared data.
-        packed_file_data.entries.clear();
+        // Get the data from the table, row by row, ensuring their type is correct.
         let rows = unsafe { model.as_mut().unwrap().row_count(()) };
-
-        // For each row we have...
         for row in 0..rows {
-
             let mut new_row: Vec<DecodedData> = vec![];
-
-            // For each field in that table...
             for (column, field) in packed_file_data.table_definition.fields.iter().enumerate() {
 
                 // Create a new Item.
-                let item;
-                unsafe {
-                    item = match field.field_type {
+                let item = unsafe {
+                    match field.field_type {
 
                         // This one needs a couple of changes before turning it into an item in the table.
                         FieldType::Boolean => DecodedData::Boolean(if model.as_mut().unwrap().item((row as i32, column as i32)).as_mut().unwrap().check_state() == CheckState::Checked { true } else { false }),
@@ -2502,14 +2359,10 @@ impl PackedFileDBTreeView {
                         FieldType::StringU16 => DecodedData::StringU16(QString::to_std_string(&model.as_mut().unwrap().item((row as i32, column as i32)).as_mut().unwrap().text())),
                         FieldType::OptionalStringU8 => DecodedData::OptionalStringU8(QString::to_std_string(&model.as_mut().unwrap().item((row as i32, column as i32)).as_mut().unwrap().text())),
                         FieldType::OptionalStringU16 => DecodedData::OptionalStringU16(QString::to_std_string(&model.as_mut().unwrap().item((row as i32, column as i32)).as_mut().unwrap().text())),
-                    };
-                }
-
-                // Add it to the list.
+                    }
+                };
                 new_row.push(item);
             }
-
-            // Add it to the list of rows.
             new_data.push(new_row);
         }
 
@@ -4735,33 +4588,21 @@ impl PackedFileDBDecoder {
 
 /// This function "process" the column names of a table, so they look like they should.
 fn clean_column_names(field_name: &str) -> String {
-
-    // Create the "New" processed `String`.
     let mut new_name = String::new();
-
-    // Variable to know if the next character should be uppercase.
     let mut should_be_uppercase = false;
 
-    // For each character...
     for character in field_name.chars() {
 
-        // If it's the first character, or it should be Uppercase....
         if new_name.is_empty() || should_be_uppercase {
-
-            // Make it Uppercase and set that flag to false.
             new_name.push_str(&character.to_uppercase().to_string());
             should_be_uppercase = false;
         }
 
-        // If it's an underscore...
         else if character == '_' {
-
-            // Replace it with a whitespace and set the "Uppercase" flag to true.
             new_name.push(' ');
             should_be_uppercase = true;
         }
 
-        // Otherwise... it's a normal character.
         else { new_name.push(character); }
     }
 
@@ -4778,14 +4619,12 @@ fn build_columns(
     // Create a list of "Key" columns.
     let mut keys = vec![];
 
-    // For each column...
+    // For each column, clean their name and set their width and tooltip.
     for (index, field) in definition.fields.iter().enumerate() {
 
-        // Create the "New" processed `String`.
-        let mut new_name = clean_column_names(&field.field_name);
-
-        // Set his title.
-        unsafe { model.as_mut().unwrap().set_header_data((index as i32, Orientation::Horizontal, &Variant::new0(&QString::from_std_str(&new_name)))); }
+        let name = clean_column_names(&field.field_name);
+        let item = StandardItem::new(&QString::from_std_str(&name)).into_raw();
+        unsafe { model.as_mut().unwrap().set_horizontal_header_item(index as i32, item) };
 
         // Depending on his type, set one width or another.
         match field.field_type {
@@ -4798,23 +4637,22 @@ fn build_columns(
             FieldType::OptionalStringU8 => unsafe { table_view.as_mut().unwrap().set_column_width(index as i32, 350); }
             FieldType::OptionalStringU16 => unsafe { table_view.as_mut().unwrap().set_column_width(index as i32, 350); }
         }
+
+        // Create the tooltip for the column.
+        let tooltip_text: String = if let Some(ref reference) = field.field_is_reference {
+            if !field.field_description.is_empty() { format!("{}\n\nThis column is a reference to \"{}/{}\".", field.field_description, reference.0, reference.1) }
+            else { format!("This column is a reference to \"{}/{}\".", reference.0, reference.1) }
+        } else { field.field_description.to_owned() };
+        unsafe { item.as_mut().unwrap().set_tool_tip(&QString::from_std_str(&tooltip_text)); }
             
         // If the field is key, add that column to the "Key" list, so we can move them at the begining later.
         if field.field_is_key { keys.push(index); }
     }
 
-    // If we have any "Key" field...
+    // If we have any "Key" field, move it to the beginning.
     if !keys.is_empty() {
-
-        // Get the Horizontal Header of the Table.
-        let header;
-        unsafe { header = table_view.as_mut().unwrap().horizontal_header(); }
-
-        // For each key column (in reverse)...
         for (position, column) in keys.iter().enumerate() {
-
-            // Move the column to the begining.
-            unsafe { header.as_mut().unwrap().move_section(*column as i32, position as i32); }
+            unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().move_section(*column as i32, position as i32); }
         }
     }
 }
