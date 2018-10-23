@@ -561,20 +561,16 @@ pub fn rename_packed_file(
 ) -> Result<()> {
 
     // First we check if the name is valid, and return an error if the new name is invalid.
-    if new_name == tree_path.last().unwrap() {
-        Err(ErrorKind::UnchangedInput)?
-    }
-    else if new_name.is_empty() {
-        Err(ErrorKind::EmptyInput)?
-    }
-    else if new_name.contains(' ') {
-        Err(ErrorKind::InvalidInput)?
-    }
+    if new_name == tree_path.last().unwrap() { Err(ErrorKind::UnchangedInput)? }
+    else if new_name.is_empty() { Err(ErrorKind::EmptyInput)? }
 
     // If we reach this point, we can rename the file/folder.
     else {
         match get_type_of_selected_path(tree_path, pack_file) {
             TreePathType::File(path) => {
+
+                // PackedFiles cannot have spaces in their name.
+                if new_name.contains(' ') { Err(ErrorKind::InvalidInput)? }
 
                 // Now we create the new path, while conserving the old one for checks
                 let mut new_path = path.to_owned();
