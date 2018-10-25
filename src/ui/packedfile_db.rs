@@ -1025,7 +1025,10 @@ impl PackedFileDBTreeView {
 
                     // If we got an operation and a value, get all the cells in the selection, try to apply the operation to them and,
                     // if the resulting value is valid in all of them, apply it.
-                    if let Some((operation, value)) = create_apply_maths_dialog(&app_ui) {
+                    if let Some((mut operation, value)) = create_apply_maths_dialog(&app_ui) {
+
+                        // For some reason Qt adds & to the X operation, so we need to delete it.
+                        if let Some(index) = operation.find('&') { operation.remove(index); }
 
                         let mut results = vec![];
                         let indexes = unsafe { filter_model.as_mut().unwrap().map_selection_to_source(&table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection()).indexes() };
@@ -1065,6 +1068,7 @@ impl PackedFileDBTreeView {
                                 // Yo, maths! Ere I go again!
                                 else if *field_type == FieldType::Float {
                                     let value_to_operate = unsafe { model.as_ref().unwrap().item_from_index(model_index).as_ref().unwrap().text().to_std_string().parse::<f64>().unwrap() };
+
                                     let result = match &*operation {
                                         "+" => value_to_operate + value,
                                         "-" => value_to_operate - value,
