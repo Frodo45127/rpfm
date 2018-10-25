@@ -73,6 +73,7 @@ pub struct PackedFileDBTreeView {
     pub slot_context_menu_add: SlotBool<'static>,
     pub slot_context_menu_insert: SlotBool<'static>,
     pub slot_context_menu_delete: SlotBool<'static>,
+    pub slot_context_menu_apply_maths_to_selection: SlotBool<'static>,
     pub slot_context_menu_clone: SlotBool<'static>,
     pub slot_context_menu_clone_and_append: SlotBool<'static>,
     pub slot_context_menu_copy: SlotBool<'static>,
@@ -187,6 +188,16 @@ pub struct PackedFileDBDecoderStuffNonUI {
     pub initial_index: usize,
     pub version: u32,
     pub entry_count: u32,
+}
+
+/// Enum MathOperationResult: used for keeping together different types of results after a math operation.
+/// None is an special type, so we know that we have to ignore an specified cell.
+#[derive(Clone, PartialEq)]
+enum MathOperationResult {
+    Float(f32),
+    Integer(i32),
+    LongInteger(i64),
+    None
 }
 
 /// Implementation of PackedFileDBTreeView.
@@ -399,6 +410,9 @@ impl PackedFileDBTreeView {
         let context_menu_insert = context_menu.add_action(&QString::from_std_str("&Insert Row"));
         let context_menu_delete = context_menu.add_action(&QString::from_std_str("&Delete Row"));
 
+        let mut context_menu_apply_submenu = Menu::new(&QString::from_std_str("A&pply..."));
+        let context_menu_apply_maths_to_selection = context_menu_apply_submenu.add_action(&QString::from_std_str("&Apply Maths to Selection"));
+
         let mut context_menu_clone_submenu = Menu::new(&QString::from_std_str("&Clone..."));
         let context_menu_clone = context_menu_clone_submenu.add_action(&QString::from_std_str("&Clone and Insert"));
         let context_menu_clone_and_append = context_menu_clone_submenu.add_action(&QString::from_std_str("Clone and &Append"));
@@ -428,6 +442,7 @@ impl PackedFileDBTreeView {
         unsafe { context_menu_add.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_db.get("add_row").unwrap()))); }
         unsafe { context_menu_insert.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_db.get("insert_row").unwrap()))); }
         unsafe { context_menu_delete.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_db.get("delete_row").unwrap()))); }
+        unsafe { context_menu_apply_maths_to_selection.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_db.get("apply_maths_to_selection").unwrap()))); }
         unsafe { context_menu_clone.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_db.get("clone_row").unwrap()))); }
         unsafe { context_menu_clone_and_append.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_db.get("clone_and_append_row").unwrap()))); }
         unsafe { context_menu_copy.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_db.get("copy").unwrap()))); }
@@ -446,6 +461,7 @@ impl PackedFileDBTreeView {
         unsafe { context_menu_add.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_insert.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_delete.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+        unsafe { context_menu_apply_maths_to_selection.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_clone.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_clone_and_append.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_copy.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
@@ -464,6 +480,7 @@ impl PackedFileDBTreeView {
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_add); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_insert); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_delete); }
+        unsafe { table_view.as_mut().unwrap().add_action(context_menu_apply_maths_to_selection); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_clone); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_clone_and_append); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_copy); }
@@ -482,6 +499,7 @@ impl PackedFileDBTreeView {
         unsafe { context_menu_add.as_mut().unwrap().set_status_tip(&QString::from_std_str("Add an empty row at the end of the table.")); }
         unsafe { context_menu_insert.as_mut().unwrap().set_status_tip(&QString::from_std_str("Insert an empty row just above the one selected.")); }
         unsafe { context_menu_delete.as_mut().unwrap().set_status_tip(&QString::from_std_str("Delete all the selected rows.")); }
+        unsafe { context_menu_apply_maths_to_selection.as_mut().unwrap().set_status_tip(&QString::from_std_str("Apply a simple mathematical operation to every cell in the selected cells.")); }
         unsafe { context_menu_clone.as_mut().unwrap().set_status_tip(&QString::from_std_str("Duplicate the selected rows and insert the new rows under the original ones.")); }
         unsafe { context_menu_clone_and_append.as_mut().unwrap().set_status_tip(&QString::from_std_str("Duplicate the selected rows and append the new rows at the end of the table.")); }
         unsafe { context_menu_copy.as_mut().unwrap().set_status_tip(&QString::from_std_str("Copy whatever is selected to the Clipboard.")); }
@@ -497,6 +515,7 @@ impl PackedFileDBTreeView {
 
         // Insert some separators to space the menu, and the paste submenu.
         unsafe { context_menu.insert_separator(context_menu_search); }
+        unsafe { context_menu.insert_menu(context_menu_search, context_menu_apply_submenu.into_raw()); }
         unsafe { context_menu.insert_menu(context_menu_search, context_menu_clone_submenu.into_raw()); }
         unsafe { context_menu.insert_menu(context_menu_search, context_menu_copy_submenu.into_raw()); }
         unsafe { context_menu.insert_menu(context_menu_search, context_menu_paste_submenu.into_raw()); }
@@ -621,10 +640,11 @@ impl PackedFileDBTreeView {
             )),
 
             slot_context_menu: SlotQtCorePointRef::new(move |_| { context_menu.exec2(&Cursor::pos()); }),
-            slot_context_menu_enabler: SlotItemSelectionRefItemSelectionRef::new(move |_,_| {
+            slot_context_menu_enabler: SlotItemSelectionRefItemSelectionRef::new(clone!(
+                table_definition => move |_,_| {
 
                     // Turns out that this slot doesn't give the the amount of selected items, so we have to get them ourselfs.
-                    let indexes = unsafe { table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selected_indexes() };
+                    let indexes = unsafe { filter_model.as_mut().unwrap().map_selection_to_source(&table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection()).indexes() };
 
                     // If we have something selected, enable these actions.
                     if indexes.count(()) > 0 {
@@ -633,12 +653,30 @@ impl PackedFileDBTreeView {
                             context_menu_clone_and_append.as_mut().unwrap().set_enabled(true);
                             context_menu_copy.as_mut().unwrap().set_enabled(true);
                             context_menu_delete.as_mut().unwrap().set_enabled(true);
+                        
+                            // The "Apply" actions have to be enabled only when all the indexes are valid for the operation. 
+                            let mut columns = vec![];
+                            for index in 0..indexes.count(()) {
+                                let model_index = indexes.at(index);
+                                if model_index.is_valid() { columns.push(model_index.column()); }
+                            }
+
+                            columns.sort();
+                            columns.dedup();
+                            let mut can_apply = true;
+                            for column in columns {
+                                let field_type = &table_definition.fields[column as usize].field_type;
+                                if *field_type == FieldType::Integer || *field_type == FieldType::LongInteger || *field_type == FieldType::Float { continue }
+                                else { can_apply = false; break } 
+                            }
+                            context_menu_apply_maths_to_selection.as_mut().unwrap().set_enabled(can_apply);
                         }
                     }
 
                     // Otherwise, disable them.
                     else {
                         unsafe {
+                            context_menu_apply_maths_to_selection.as_mut().unwrap().set_enabled(false);
                             context_menu_clone.as_mut().unwrap().set_enabled(false);
                             context_menu_clone_and_append.as_mut().unwrap().set_enabled(false);
                             context_menu_copy.as_mut().unwrap().set_enabled(false);
@@ -646,7 +684,7 @@ impl PackedFileDBTreeView {
                         }
                     }
                 }
-            ),
+            )),
             save_changes: SlotModelIndexRefModelIndexRefVectorVectorCIntRef::new(clone!(
                 global_search_explicit_paths,
                 packed_file_path,
@@ -939,6 +977,105 @@ impl PackedFileDBTreeView {
                     }
                 }
             )),
+
+            slot_context_menu_apply_maths_to_selection: SlotBool::new(clone!(
+                history,
+                history_redo,
+                table_definition,
+                app_ui => move |_| {
+
+                    // If we got an operation and a value, get all the cells in the selection, try to apply the operation to them and,
+                    // if the resulting value is valid in all of them, apply it.
+                    if let Some((operation, value)) = create_apply_maths_dialog(&app_ui) {
+
+                        let mut results = vec![];
+                        let indexes = unsafe { filter_model.as_mut().unwrap().map_selection_to_source(&table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection()).indexes() };
+                        for index in 0..indexes.count(()) {
+                            let model_index = indexes.at(index);
+                            if model_index.is_valid() { 
+
+                                // For Integers and Long Integers is easy. Just try to do the operation and return an error if it fails.
+                                let field_type = &table_definition.fields[model_index.column() as usize].field_type;
+                                if *field_type == FieldType::LongInteger || *field_type == FieldType::Integer {
+                                    let value_to_operate = unsafe { model.as_ref().unwrap().item_from_index(model_index).as_ref().unwrap().text().to_std_string().parse::<i64>().unwrap() };
+
+                                    let result = match &*operation {
+                                        "+" => value_to_operate.checked_add(value.round() as i64),
+                                        "-" => value_to_operate.checked_sub(value.round() as i64),
+                                        "x" => value_to_operate.checked_mul(value.round() as i64),
+                                        "/" => value_to_operate.checked_div(value.round() as i64),
+                                        _ => unreachable!()
+                                    };
+
+                                    let result = match result {
+                                        Some(result) => result,
+                                        None => return show_dialog(app_ui.window, false, ErrorKind::DBTableApplyMathsOverflow)
+                                    };
+
+                                    // If the value hasn't change (like when we add 0), set the operation as "None".
+                                    if result == value_to_operate { results.push(MathOperationResult::None) }
+
+                                    // For i32, we need to make sure the value is also a valid i32.
+                                    else if *field_type == FieldType::Integer {
+                                        if let Ok(result) = format!("{}", result).parse::<i32>() { results.push(MathOperationResult::Integer(result)) }
+                                        else { return show_dialog(app_ui.window, false, ErrorKind::DBTableApplyMathsOverflow) }
+                                    } else { results.push(MathOperationResult::LongInteger(result)) }         
+                                }
+
+                                // There is not a built-in method to check for overflow with floats, so we have to do some thinking.
+                                // Yo, maths! Ere I go again!
+                                else if *field_type == FieldType::Float {
+                                    let value_to_operate = unsafe { model.as_ref().unwrap().item_from_index(model_index).as_ref().unwrap().text().to_std_string().parse::<f64>().unwrap() };
+                                    let result = match &*operation {
+                                        "+" => value_to_operate + value,
+                                        "-" => value_to_operate - value,
+                                        "x" => value_to_operate * value,
+                                        "/" => if value != 0f64 { value_to_operate / value } else { return show_dialog(app_ui.window, false, ErrorKind::ThereIsAnSpecialPlaceInHellForYou) },
+                                        _ => unreachable!()
+                                    };
+
+                                    // If the value hasn't change (like when we add 0), set the operation as "None".
+                                    if result == value_to_operate { results.push(MathOperationResult::None) }
+
+                                    else if let Ok(result) = format!("{}", result).parse::<f32>() { results.push(MathOperationResult::Float(result)) }
+                                    else { return show_dialog(app_ui.window, false, ErrorKind::DBTableApplyMathsOverflow) }
+                                }
+                            }
+                        }
+
+                        // If every result is a valid result, then iterate again over every cell applying the new value.
+                        for index in 0..indexes.count(()) {
+                            let model_index = indexes.at(index);
+                            match results[index as usize] {
+                                MathOperationResult::Integer(x) => unsafe { model.as_mut().unwrap().item_from_index(model_index).as_mut().unwrap().set_text(&QString::from_std_str(format!("{}", x))) },
+                                MathOperationResult::LongInteger(x) => unsafe { model.as_mut().unwrap().item_from_index(model_index).as_mut().unwrap().set_text(&QString::from_std_str(format!("{}", x))) }
+                                MathOperationResult::Float(x) => unsafe { model.as_mut().unwrap().item_from_index(model_index).as_mut().unwrap().set_text(&QString::from_std_str(format!("{}", x))) }
+                                MathOperationResult::None => continue,
+                            }
+                        }
+
+                        // If we finished doing maths, fix the undo history to have all the previous changes merged into one.
+                        // Keep in mind that `None` results should be ignored here.
+                        let valid_results = results.iter().filter(|x| **x != MathOperationResult::None).count();
+
+                        if valid_results > 0 {
+                            let len = history.borrow().len();
+                            let mut edits_data = vec![];
+                            {
+                                let mut history = history.borrow_mut();
+                                let mut edits = history.drain((len - valid_results)..);
+                                for edit in &mut edits { if let TableOperations::Editing(mut edit) = edit { edits_data.append(&mut edit); }}
+                            }
+
+                            history.borrow_mut().push(TableOperations::Editing(edits_data));
+                            history_redo.borrow_mut().clear();
+                            update_undo_model(model, undo_model);
+                            unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
+                        }
+                    }
+                }
+            )),
+
             slot_context_menu_clone: SlotBool::new(clone!(
                 global_search_explicit_paths,
                 packed_file_path,
@@ -2233,6 +2370,7 @@ impl PackedFileDBTreeView {
         unsafe { context_menu_add.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_add); }
         unsafe { context_menu_insert.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_insert); }
         unsafe { context_menu_delete.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_delete); }
+        unsafe { context_menu_apply_maths_to_selection.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_apply_maths_to_selection); }
         unsafe { context_menu_clone.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_clone); }
         unsafe { context_menu_clone_and_append.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_clone_and_append); }
         unsafe { context_menu_copy.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_copy); }
@@ -2267,6 +2405,7 @@ impl PackedFileDBTreeView {
             context_menu_add.as_mut().unwrap().set_enabled(true);
             context_menu_insert.as_mut().unwrap().set_enabled(true);
             context_menu_delete.as_mut().unwrap().set_enabled(false);
+            context_menu_apply_maths_to_selection.as_mut().unwrap().set_enabled(false);
             context_menu_clone.as_mut().unwrap().set_enabled(false);
             context_menu_clone_and_append.as_mut().unwrap().set_enabled(false);
             context_menu_copy.as_mut().unwrap().set_enabled(false);

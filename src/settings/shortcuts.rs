@@ -94,6 +94,7 @@ impl Shortcuts {
         packed_files_db.insert("paste_in_selection".to_owned(), "Ctrl+V".to_owned());
         packed_files_db.insert("paste_as_new_row".to_owned(), "Ctrl+Shift+V".to_owned());
         packed_files_db.insert("paste_to_fill_selection".to_owned(), "Ctrl+Alt+V".to_owned());
+        packed_files_db.insert("apply_maths_to_selection".to_owned(), "Ctrl+B".to_owned());
         packed_files_db.insert("search".to_owned(), "Ctrl+F".to_owned());
         packed_files_db.insert("import_tsv".to_owned(), "Ctrl+W".to_owned());
         packed_files_db.insert("export_tsv".to_owned(), "Ctrl+E".to_owned());
