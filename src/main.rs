@@ -81,6 +81,7 @@ use cpp_utils::StaticCast;
 
 use std::env::args;
 use std::collections::BTreeMap;
+use std::ops::DerefMut;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::thread;
@@ -107,6 +108,7 @@ use ui::packedfile_loc::*;
 use ui::packedfile_text::*;
 use ui::packedfile_rigidmodel::*;
 use ui::settings::*;
+use ui::table_state::*;
 use ui::updater::*;
 
 /// This macro is used to clone the variables into the closures without the compiler complaining.
@@ -390,7 +392,7 @@ fn main() {
     if !cfg!(debug_assertions) { register_panic_handler(); }
 
     // Create the application...
-    Application::create_and_exit(|_app| {
+    Application::create_and_exit(|app| {
 
         //---------------------------------------------------------------------------------------//
         // Preparing the Program...
@@ -845,8 +847,16 @@ fn main() {
         let global_search_explicit_paths = Rc::new(RefCell::new(vec![]));
 
         // History for the filters, search, columns...., so table and loc filters are remembered when zapping files, and cleared when the open PackFile changes.
-        let history_state_db: Rc<RefCell<BTreeMap<Vec<String>, TableState>>> = Rc::new(RefCell::new(BTreeMap::new()));
-        let history_state_loc: Rc<RefCell<BTreeMap<Vec<String>, TableState>>> = Rc::new(RefCell::new(BTreeMap::new()));
+        // NOTE: This affects both DB Tables and Loc PackedFiles.
+        let history_state_tables = Rc::new(RefCell::new(TableState::load().unwrap_or_else(|_| TableState::new())));
+
+        // Signal to save the tables states to disk when we're about to close RPFM. We ignore the error here, as at this point we cannot report it to the user.
+        let slot_save_states = SlotNoArgs::new(clone!(
+            history_state_tables => move || {
+                let _y = TableState::save(&history_state_tables.borrow());
+            }
+        ));
+        app.deref_mut().signals().about_to_quit().connect(&slot_save_states);
 
         // Display the basic tips by default.
         display_help_tips(&app_ui);
@@ -863,8 +873,7 @@ fn main() {
             mymod_menu_needs_rebuild.clone(),
             &packedfiles_open_in_packedfile_view,
             close_global_search_action,
-            &history_state_db,
-            &history_state_loc,
+            &history_state_tables,
         );
 
         let mymod_stuff = Rc::new(RefCell::new(result.0));
@@ -1137,8 +1146,7 @@ fn main() {
 
         // What happens when we trigger the "New PackFile" action.
         let slot_new_packfile = SlotBool::new(clone!(
-            history_state_db,
-            history_state_loc,
+            history_state_tables,
             is_modified,
             mymod_stuff,
             mode,
@@ -1153,10 +1161,13 @@ fn main() {
                     // Destroy whatever it's in the PackedFile's view, to avoid data corruption. Also hide the Global Search stuff.
                     purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);
 
+                    // Try to get the settings.
+                    sender_qt.send(Commands::GetSettings).unwrap();
+                    let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+
                     // Close the Global Search stuff and reset the filter's history.
                     unsafe { close_global_search_action.as_mut().unwrap().trigger(); }
-                    history_state_db.borrow_mut().clear();
-                    history_state_loc.borrow_mut().clear();
+                    if !settings.settings_bool.get("remember_table_state_permanently").unwrap() { history_state_tables.borrow_mut().clear(); }
 
                     // Show the "Tips".
                     display_help_tips(&app_ui);
@@ -1207,10 +1218,6 @@ fn main() {
                     sender_qt.send(Commands::GetGameSelected).unwrap();
                     let game_selected = if let Data::String(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
-                    // Try to get the settings.
-                    sender_qt.send(Commands::GetSettings).unwrap();
-                    let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
                     // Enable the actions available for the PackFile from the `MenuBar`.
                     enable_packfile_actions(&app_ui, &game_selected, &mymod_stuff, settings, true);
 
@@ -1222,8 +1229,7 @@ fn main() {
 
         // What happens when we trigger the "Open PackFile" action.
         let slot_open_packfile = SlotBool::new(clone!(
-            history_state_db,
-            history_state_loc,
+            history_state_tables,
             is_modified,
             mode,
             mymod_stuff,
@@ -1279,8 +1285,7 @@ fn main() {
                             "",
                             &packedfiles_open_in_packedfile_view,
                             close_global_search_action,
-                            &history_state_db,
-                            &history_state_loc,
+                            &history_state_tables,
                         ) { show_dialog(app_ui.window, false, error); }
                     }
                 }
@@ -3404,8 +3409,7 @@ fn main() {
 
         // What happens when we trigger the "Open in Multi-View" action in the Contextual Menu.
         let slot_context_menu_open_in_multi_view = SlotBool::new(clone!(
-            history_state_db,
-            history_state_loc,
+            history_state_tables,
             global_search_explicit_paths,
             sender_qt,
             sender_qt_data,
@@ -3427,8 +3431,7 @@ fn main() {
                     &packedfiles_open_in_packedfile_view,
                     &global_search_explicit_paths,
                     &is_folder_tree_view_locked,
-                    &history_state_db,
-                    &history_state_loc,
+                    &history_state_tables,
                     &db_slots,
                     &loc_slots,
                     &text_slots,
@@ -3749,8 +3752,7 @@ fn main() {
 
         // What happens when we try to open a PackedFile...
         let slot_open_packedfile = Rc::new(SlotNoArgs::new(clone!(
-            history_state_db,
-            history_state_loc,
+            history_state_tables,
             global_search_explicit_paths,
             db_slots,
             loc_slots,
@@ -3772,8 +3774,7 @@ fn main() {
                     &packedfiles_open_in_packedfile_view,
                     &global_search_explicit_paths,
                     &is_folder_tree_view_locked,
-                    &history_state_db,
-                    &history_state_loc,
+                    &history_state_tables,
                     &db_slots,
                     &loc_slots,
                     &text_slots,
@@ -4306,8 +4307,7 @@ fn main() {
 
         // We need to rebuild the "Open From ..." submenus while opening the PackFile menu if the variable for it is true.
         let slot_rebuild_open_from_submenu = SlotNoArgs::new(clone!(
-            history_state_db,
-            history_state_loc,
+            history_state_tables,
             mymod_stuff,
             sender_qt,
             packedfiles_open_in_packedfile_view,
@@ -4344,8 +4344,7 @@ fn main() {
                         &packedfiles_open_in_packedfile_view,
                         &mymod_stuff,
                         close_global_search_action,
-                        &history_state_db,
-                        &history_state_loc,
+                        &history_state_tables,
                     );
 
                     // Disable the rebuild for the next time.
@@ -4356,8 +4355,7 @@ fn main() {
 
         // We need to rebuild the MyMod menu while opening it if the variable for it is true.
         let slot_rebuild_mymod_menu = SlotNoArgs::new(clone!(
-            history_state_db,
-            history_state_loc,
+            history_state_tables,
             mymod_stuff,
             mymod_stuff_slots,
             sender_qt,
@@ -4384,8 +4382,7 @@ fn main() {
                         mymod_menu_needs_rebuild.clone(),
                         &packedfiles_open_in_packedfile_view,
                         close_global_search_action,
-                        &history_state_db,
-                        &history_state_loc,
+                        &history_state_tables,
                     );
 
                     // And store the new values.
@@ -4428,8 +4425,7 @@ fn main() {
                     "",
                     &packedfiles_open_in_packedfile_view,
                     close_global_search_action,
-                    &history_state_db,
-                    &history_state_loc,
+                    &history_state_tables,
                 ) { show_dialog(app_ui.window, false, error); }
             }
         }
@@ -4608,8 +4604,7 @@ fn open_packfile(
     game_folder: &str,
     packedfiles_open_in_packedfile_view: &Rc<RefCell<BTreeMap<i32, Vec<String>>>>,
     close_global_search_action: *mut Action,
-    history_state_db: &Rc<RefCell<BTreeMap<Vec<String>, TableState>>>,
-    history_state_loc: &Rc<RefCell<BTreeMap<Vec<String>, TableState>>>,
+    history_state_tables: &Rc<RefCell<BTreeMap<Vec<String>, TableState>>>,
 ) -> Result<()> {
 
     // Tell the Background Thread to create a new PackFile.
@@ -4713,11 +4708,14 @@ fn open_packfile(
 
             // Destroy whatever it's in the PackedFile's view, to avoid data corruption.
             purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);
-            
+
+            // Get the current settings.
+            sender_qt.send(Commands::GetSettings).unwrap();
+            let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+        
             // Close the Global Search stuff and reset the filter's history.
             unsafe { close_global_search_action.as_mut().unwrap().trigger(); }
-            history_state_db.borrow_mut().clear();
-            history_state_loc.borrow_mut().clear();
+            if !settings.settings_bool.get("remember_table_state_permanently").unwrap() { history_state_tables.borrow_mut().clear(); }
 
             // Show the "Tips".
             display_help_tips(&app_ui);
@@ -4758,8 +4756,7 @@ fn open_packedfile(
     packedfiles_open_in_packedfile_view: &Rc<RefCell<BTreeMap<i32, Vec<String>>>>,
     global_search_explicit_paths: &Rc<RefCell<Vec<Vec<String>>>>,
     is_folder_tree_view_locked: &Rc<RefCell<bool>>,
-    history_state_db: &Rc<RefCell<BTreeMap<Vec<String>, TableState>>>,
-    history_state_loc: &Rc<RefCell<BTreeMap<Vec<String>, TableState>>>,
+    history_state_tables: &Rc<RefCell<BTreeMap<Vec<String>, TableState>>>,
     db_slots: &Rc<RefCell<BTreeMap<i32, PackedFileDBTreeView>>>,
     loc_slots: &Rc<RefCell<BTreeMap<i32, PackedFileLocTreeView>>>,
     text_slots: &Rc<RefCell<BTreeMap<i32, PackedFileTextView>>>,
@@ -4863,7 +4860,7 @@ fn open_packedfile(
                             path.to_vec(),
                             &global_search_explicit_paths,
                             update_global_search_stuff,
-                            &history_state_loc
+                            &history_state_tables
                         ) {
                             Ok(new_loc_slots) => { loc_slots.borrow_mut().insert(view_position, new_loc_slots); },
                             Err(error) => return Err(ErrorKind::LocDecode(format!("{}", error)))?,
@@ -4889,7 +4886,7 @@ fn open_packedfile(
                             path.to_vec(),
                             &global_search_explicit_paths,
                             update_global_search_stuff,
-                            &history_state_db
+                            &history_state_tables
                         ) {
                             Ok(new_db_slots) => { db_slots.borrow_mut().insert(view_position, new_db_slots); },
                             Err(error) => return Err(ErrorKind::DBTableDecode(format!("{}", error)))?,
@@ -5004,8 +5001,7 @@ fn build_my_mod_menu(
     needs_rebuild: Rc<RefCell<bool>>,
     packedfiles_open_in_packedfile_view: &Rc<RefCell<BTreeMap<i32, Vec<String>>>>,
     close_global_search_action: *mut Action,
-    history_state_db: &Rc<RefCell<BTreeMap<Vec<String>, TableState>>>,
-    history_state_loc: &Rc<RefCell<BTreeMap<Vec<String>, TableState>>>,
+    history_state_tables: &Rc<RefCell<BTreeMap<Vec<String>, TableState>>>,
 ) -> (MyModStuff, MyModSlots) {
 
     // Get the current Settings, as we are going to need them later.
@@ -5038,8 +5034,7 @@ fn build_my_mod_menu(
 
         // This slot is used for the "New MyMod" action.
         new_mymod: SlotBool::new(clone!(
-            history_state_db,
-            history_state_loc,
+            history_state_tables,
             sender_qt,
             sender_qt_data,
             receiver_qt,
@@ -5111,10 +5106,13 @@ fn build_my_mod_menu(
                                 // Destroy whatever it's in the PackedFile's view, to avoid data corruption.
                                 purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);
 
+                                // Try to get the settings.
+                                sender_qt.send(Commands::GetSettings).unwrap();
+                                let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+
                                 // Close the Global Search stuff and reset the filter's history.
                                 unsafe { close_global_search_action.as_mut().unwrap().trigger(); }
-                                history_state_db.borrow_mut().clear();
-                                history_state_loc.borrow_mut().clear();
+                                if !settings.settings_bool.get("remember_table_state_permanently").unwrap() { history_state_tables.borrow_mut().clear(); }
 
                                 // Show the "Tips".
                                 display_help_tips(&app_ui);
@@ -5145,10 +5143,6 @@ fn build_my_mod_menu(
                                 // Get the Game Selected.
                                 sender_qt.send(Commands::GetGameSelected).unwrap();
                                 let game_selected = if let Data::String(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                                // Try to get the settings.
-                                sender_qt.send(Commands::GetSettings).unwrap();
-                                let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                                 // Enable the actions available for the PackFile from the `MenuBar`.
                                 enable_packfile_actions(&app_ui, &game_selected, &Rc::new(RefCell::new(mymod_stuff.clone())), settings, true);
@@ -5471,8 +5465,7 @@ fn build_my_mod_menu(
 
                                     // Create the slot for that action.
                                     let slot_open_mod = SlotBool::new(clone!(
-                                        history_state_db,
-                                        history_state_loc,
+                                        history_state_tables,
                                         game_folder_name,
                                         is_modified,
                                         mode,
@@ -5500,8 +5493,7 @@ fn build_my_mod_menu(
                                                     &game_folder_name,
                                                     &packedfiles_open_in_packedfile_view,
                                                     close_global_search_action,
-                                                    &history_state_db,
-                                                    &history_state_loc,
+                                                    &history_state_tables,
                                                 ) { show_dialog(app_ui.window, false, error) }
                                             }
                                         }
@@ -5565,8 +5557,7 @@ fn build_open_from_submenus(
     packedfiles_open_in_packedfile_view: &Rc<RefCell<BTreeMap<i32, Vec<String>>>>,
     mymod_stuff: &Rc<RefCell<MyModStuff>>,
     close_global_search_action: *mut Action,
-    history_state_db: &Rc<RefCell<BTreeMap<Vec<String>, TableState>>>,
-    history_state_loc: &Rc<RefCell<BTreeMap<Vec<String>, TableState>>>,
+    history_state_tables: &Rc<RefCell<BTreeMap<Vec<String>, TableState>>>,
 ) -> Vec<SlotBool<'static>> {
 
     // First, we clear the list, just in case this is a "Rebuild" of the menu.
@@ -5594,8 +5585,7 @@ fn build_open_from_submenus(
 
             // Create the slot for that action.
             let slot_open_mod = SlotBool::new(clone!(
-                history_state_db,
-                history_state_loc,
+                history_state_tables,
                 is_modified,
                 mode,
                 mymod_stuff,
@@ -5622,8 +5612,7 @@ fn build_open_from_submenus(
                             "",
                             &packedfiles_open_in_packedfile_view,
                             close_global_search_action,
-                            &history_state_db,
-                            &history_state_loc,
+                            &history_state_tables,
                         ) { show_dialog(app_ui.window, false, error); }
                     }
                 }
@@ -5651,8 +5640,7 @@ fn build_open_from_submenus(
 
             // Create the slot for that action.
             let slot_open_mod = SlotBool::new(clone!(
-                history_state_db,
-                history_state_loc,
+                history_state_tables,
                 is_modified,
                 mode,
                 mymod_stuff,
@@ -5679,8 +5667,7 @@ fn build_open_from_submenus(
                             "",
                             &packedfiles_open_in_packedfile_view,
                             close_global_search_action,
-                            &history_state_db,
-                            &history_state_loc,
+                            &history_state_tables,
                         ) { show_dialog(app_ui.window, false, error); }
                     }
                 }

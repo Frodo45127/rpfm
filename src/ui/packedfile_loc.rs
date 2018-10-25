@@ -48,6 +48,7 @@ use common::*;
 use common::communications::*;
 use error::Result;
 use ui::*;
+use ui::table_state::*;
 
 /// Struct `PackedFileLocTreeView`: contains all the stuff we need to give to the program to show a
 /// `TreeView` with the data of a Loc PackedFile, allowing us to manipulate it.
@@ -420,7 +421,7 @@ impl PackedFileLocTreeView {
                 packed_file_path,
                 history_state => move |column, order| {
                     if let Some(state) = history_state.borrow_mut().get_mut(&packed_file_path) {
-                        state.columns_state.sorting_column = (column, order);
+                        state.columns_state.sorting_column = (column, if let SortOrder::Ascending = order { false } else { true });
                     }
                 }
             )),
@@ -1569,7 +1570,7 @@ impl PackedFileLocTreeView {
 
                     // Add the new search data to the state history.
                     if let Some(state) = history_state.borrow_mut().get_mut(&packed_file_path) {
-                        unsafe { state.search_state = SearchState::new(search_line_edit.as_mut().unwrap().text(), replace_line_edit.as_mut().unwrap().text(), column_selector.as_ref().unwrap().current_index(), case_sensitive_button.as_mut().unwrap().is_checked()); }
+                        unsafe { state.search_state = SearchState::new(search_line_edit.as_mut().unwrap().text().to_std_string(), replace_line_edit.as_mut().unwrap().text().to_std_string(), column_selector.as_ref().unwrap().current_index(), case_sensitive_button.as_mut().unwrap().is_checked()); }
                     }
                 }
             )),
@@ -1700,7 +1701,7 @@ impl PackedFileLocTreeView {
                         }
                     );
                     if let Some(state) = history_state.borrow_mut().get_mut(&packed_file_path) {
-                        unsafe { state.search_state = SearchState::new(search_line_edit.as_mut().unwrap().text(), replace_line_edit.as_mut().unwrap().text(), column_selector.as_ref().unwrap().current_index(), case_sensitive_button.as_mut().unwrap().is_checked()); }
+                        unsafe { state.search_state = SearchState::new(search_line_edit.as_mut().unwrap().text().to_std_string(), replace_line_edit.as_mut().unwrap().text().to_std_string(), column_selector.as_ref().unwrap().current_index(), case_sensitive_button.as_mut().unwrap().is_checked()); }
                     }
                 }
             )),
@@ -1938,7 +1939,7 @@ impl PackedFileLocTreeView {
                 let mut blocker1 = unsafe { SignalBlocker::new(row_filter_line_edit.as_mut().unwrap().static_cast_mut() as &mut Object) };
                 let mut blocker2 = unsafe { SignalBlocker::new(row_filter_column_selector.as_mut().unwrap().static_cast_mut() as &mut Object) };
                 let mut blocker3 = unsafe { SignalBlocker::new(row_filter_case_sensitive_button.as_mut().unwrap().static_cast_mut() as &mut Object) };
-                unsafe { row_filter_line_edit.as_mut().unwrap().set_text(&state_data.filter_state.text); }
+                unsafe { row_filter_line_edit.as_mut().unwrap().set_text(&QString::from_std_str(&state_data.filter_state.text)); }
                 unsafe { row_filter_column_selector.as_mut().unwrap().set_current_index(state_data.filter_state.column); }
                 unsafe { row_filter_case_sensitive_button.as_mut().unwrap().set_checked(state_data.filter_state.is_case_sensitive); }
                 blocker1.unblock();
@@ -1950,8 +1951,8 @@ impl PackedFileLocTreeView {
                 let mut blocker2 = unsafe { SignalBlocker::new(replace_line_edit.as_mut().unwrap().static_cast_mut() as &mut Object) };
                 let mut blocker3 = unsafe { SignalBlocker::new(column_selector.as_mut().unwrap().static_cast_mut() as &mut Object) };
                 let mut blocker4 = unsafe { SignalBlocker::new(case_sensitive_button.as_mut().unwrap().static_cast_mut() as &mut Object) };
-                unsafe { search_line_edit.as_mut().unwrap().set_text(&state_data.search_state.search_text); }
-                unsafe { replace_line_edit.as_mut().unwrap().set_text(&state_data.search_state.replace_text); }
+                unsafe { search_line_edit.as_mut().unwrap().set_text(&QString::from_std_str(&state_data.search_state.search_text)); }
+                unsafe { replace_line_edit.as_mut().unwrap().set_text(&QString::from_std_str(&state_data.search_state.replace_text)); }
                 unsafe { column_selector.as_mut().unwrap().set_current_index(state_data.search_state.column); }
                 unsafe { case_sensitive_button.as_mut().unwrap().set_checked(state_data.search_state.is_case_sensitive); }
                 blocker1.unblock();
@@ -1964,7 +1965,8 @@ impl PackedFileLocTreeView {
                 let mut blocker2 = unsafe { SignalBlocker::new(table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().static_cast_mut() as &mut Object) };
                 
                 if *settings.settings_bool.get("remember_column_state").unwrap() {
-                    unsafe { table_view.as_mut().unwrap().sort_by_column((state_data.columns_state.sorting_column.0, state_data.columns_state.sorting_column.1.clone())); }
+                    let sort_order = if state_data.columns_state.sorting_column.1 { SortOrder::Descending } else { SortOrder::Ascending };
+                    unsafe { table_view.as_mut().unwrap().sort_by_column((state_data.columns_state.sorting_column.0, sort_order)); }
       
                     for (visual_old, visual_new) in &state_data.columns_state.visual_order {
                         unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().move_section(*visual_old, *visual_new); }
@@ -1978,7 +1980,7 @@ impl PackedFileLocTreeView {
                         unsafe { actions_hide_show_column[*hidden_column as usize].as_mut().unwrap().set_checked(true); }
                     }                     
                 }
-                else { state_data.columns_state = ColumnsState::new((-1, SortOrder::Ascending), vec![], vec![]); }
+                else { state_data.columns_state = ColumnsState::new((-1, false), vec![], vec![]); }
                 
                 blocker1.unblock();
                 blocker2.unblock();
@@ -1986,7 +1988,7 @@ impl PackedFileLocTreeView {
         }
 
         // Otherwise, we create a basic state.
-        else { history_state.borrow_mut().insert(packed_file_path, TableState::new()); }
+        else { history_state.borrow_mut().insert(packed_file_path, TableState::new_empty()); }
 
         // Retrigger the filter, so the table get's updated properly.
         unsafe { row_filter_case_sensitive_button.as_mut().unwrap().set_checked(!row_filter_case_sensitive_button.as_mut().unwrap().is_checked()); }
@@ -2494,6 +2496,6 @@ fn filter_table(
 
     // Add the new filter data to the state history.
     if let Some(state) = history_state.borrow_mut().get_mut(packed_file_path) {
-        unsafe { state.filter_state = FilterState::new(filter_line_edit.as_mut().unwrap().text(), column_selector.as_mut().unwrap().current_index(), case_sensitive_button.as_mut().unwrap().is_checked()); }
+        unsafe { state.filter_state = FilterState::new(filter_line_edit.as_mut().unwrap().text().to_std_string(), column_selector.as_mut().unwrap().current_index(), case_sensitive_button.as_mut().unwrap().is_checked()); }
     }
 }

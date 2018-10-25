@@ -72,6 +72,7 @@ impl Settings {
         settings_bool.insert("extend_last_column_on_tables".to_owned(), true);
         settings_bool.insert("start_maximized".to_owned(), false);
         settings_bool.insert("remember_column_state".to_owned(), true);
+        settings_bool.insert("remember_table_state_permanently".to_owned(), false);
 
         settings_bool.insert("allow_editing_of_ca_packfiles".to_owned(), false);
         settings_bool.insert("check_updates_on_start".to_owned(), true);
@@ -130,8 +131,8 @@ impl Settings {
         let mut file = BufWriter::new(File::create(path)?);
 
         // Try to save the file, and return the result.
-        let shortcuts = serde_json::to_string_pretty(self);
-        file.write_all(shortcuts.unwrap().as_bytes())?;
+        let settings = serde_json::to_string_pretty(self);
+        file.write_all(settings.unwrap().as_bytes())?;
 
         // Return success.
         Ok(())

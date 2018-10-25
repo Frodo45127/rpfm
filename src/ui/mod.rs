@@ -38,7 +38,7 @@ use qt_core::flags::Flags;
 use qt_core::item_selection::ItemSelection;
 use qt_core::model_index::ModelIndex;
 use qt_core::object::Object;
-use qt_core::qt::{GlobalColor, ShortcutContext, SortOrder};
+use qt_core::qt::{GlobalColor, ShortcutContext};
 use qt_core::slots::{SlotBool, SlotNoArgs, SlotModelIndexRef};
 use qt_core::variant::Variant;
 use cpp_utils::StaticCast;
@@ -75,6 +75,7 @@ pub mod packedfile_image;
 pub mod packedfile_rigidmodel;
 pub mod settings;
 pub mod shortcuts;
+pub mod table_state;
 pub mod updater;
 
 //----------------------------------------------------------------------------//
@@ -927,38 +928,6 @@ pub enum TableOperations {
     ImportTSVLOC(Loc),
 }
 
-/// This struct keeps the current state of the "configurable" stuff from a TableView.
-/// - Filter: Keeps the `QString` used for the filter, the column filtered and if it's case sensitive or not.
-/// - Search: Keeps the `QString` used search, the `QString` used to replace, the column filtered, if it's case sensitive or not and the currently selected match.
-/// - Columns: Keeps the order the user sets for the columns.
-pub struct TableState {
-    filter_state: FilterState,
-    search_state: SearchState,
-    columns_state: ColumnsState,
-}
-
-/// This Struct stores the last state of the filter of a TableView.
-pub struct FilterState {
-    text: QString,
-    column: i32,
-    is_case_sensitive: bool
-}
-
-/// This Struct stores the last state of the search widget of a TableView.
-pub struct SearchState {
-    search_text: QString,
-    replace_text: QString,
-    column: i32,
-    is_case_sensitive: bool,
-}
-
-/// This Struct stores the last state of the columns of a TableView.
-pub struct ColumnsState {
-    sorting_column: (i32, SortOrder),
-    visual_order: Vec<(i32, i32)>,
-    hidden_columns: Vec<i32>,
-}
-
 /// Enum `IconType`: This enum holds all the possible Icon Types we can have in the TreeView,
 /// depending on the type of the PackedFiles.
 enum IconType {
@@ -1000,59 +969,6 @@ pub struct Icons {
 
     // For rigidmodels.
     pub rigid_model: icon::Icon,
-}
-
-/// Implementation of TableState.
-impl TableState {
-
-    /// This function creates the TableState of a TableView.
-    pub fn new() -> Self {
-        Self {
-            filter_state: FilterState::new(QString::from_std_str(""), 0, false),
-            search_state: SearchState::new(QString::from_std_str(""), QString::from_std_str(""), 0, false),
-            columns_state: ColumnsState::new((-1, SortOrder::Ascending), vec![], vec![]),
-        }
-    }
-}
-
-/// Implementation of FilterState.
-impl FilterState {
-
-    /// This function creates the FilterState of a TableView.
-    pub fn new(text: QString, column: i32, is_case_sensitive: bool) -> Self {
-        Self {
-            text,
-            column,
-            is_case_sensitive
-        }
-    }
-}
-
-/// Implementation of SearchState.
-impl SearchState {
-
-    /// This function creates the SearchState of a TableView.
-    pub fn new(search_text: QString, replace_text: QString, column: i32, is_case_sensitive: bool) -> Self {
-        Self {
-            search_text,
-            replace_text,
-            column,
-            is_case_sensitive
-        }
-    }
-}
-
-/// Implementation of ColumnsState.
-impl ColumnsState {
-
-    /// This function creates the ColumnState of a TableView.
-    pub fn new(sorting_column: (i32, SortOrder), visual_order: Vec<(i32, i32)>, hidden_columns: Vec<i32>) -> Self {
-        Self {
-            sorting_column,
-            visual_order,
-            hidden_columns,
-        }
-    }
 }
 
 /// Debug implementation of TableOperations, so we can at least guess what is in the history.
