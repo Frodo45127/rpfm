@@ -85,6 +85,7 @@ pub struct PackedFileDBTreeView {
     pub slot_context_menu_import: SlotBool<'static>,
     pub slot_context_menu_export: SlotBool<'static>,
     pub slot_smart_delete: SlotBool<'static>,
+    pub slots_hide_show_column: Vec<SlotBool<'static>>,
 
     pub slot_update_search_stuff: SlotNoArgs<'static>,
     pub slot_search: SlotNoArgs<'static>,
@@ -430,6 +431,8 @@ impl PackedFileDBTreeView {
 
         let context_menu_import = context_menu.add_action(&QString::from_std_str("&Import"));
         let context_menu_export = context_menu.add_action(&QString::from_std_str("&Export"));
+
+        let context_menu_hide_show_submenu = Menu::new(&QString::from_std_str("&Hide/Show...")).into_raw();
         
         let context_menu_undo = context_menu.add_action(&QString::from_std_str("&Undo"));
         let context_menu_redo = context_menu.add_action(&QString::from_std_str("&Redo"));
@@ -522,6 +525,41 @@ impl PackedFileDBTreeView {
         unsafe { context_menu.insert_separator(context_menu_search); }
         unsafe { context_menu.insert_separator(context_menu_import); }
         unsafe { context_menu.insert_separator(context_menu_undo); }
+        unsafe { context_menu.insert_menu(context_menu_undo, context_menu_hide_show_submenu); }
+        unsafe { context_menu.insert_separator(context_menu_undo); }
+
+        // Create the "Hide/Show" slots and actions and connect them.
+        let mut slots_hide_show_column = vec![];
+        let mut actions_hide_show_column = vec![];
+        for (index, column) in table_definition.fields.iter().enumerate() {
+
+            let hide_show_slot = SlotBool::new(clone!(
+                packed_file_path,
+                history_state => move |state| {
+                    unsafe { table_view.as_mut().unwrap().set_column_hidden(index as i32, state); }
+
+                    // Update the state of the column in the table history.
+                    if let Some(history_state) = history_state.borrow_mut().get_mut(&packed_file_path) {
+                        if state {
+                            if !history_state.columns_state.hidden_columns.contains(&(index as i32)) {
+                                history_state.columns_state.hidden_columns.push(index as i32);
+                            }
+                        }
+                        else {
+                            let pos = history_state.columns_state.hidden_columns.iter().position(|x| *x as usize == index).unwrap();
+                            history_state.columns_state.hidden_columns.remove(pos);
+                        }
+                    }
+                }
+            ));
+
+            let hide_show_action = unsafe { context_menu_hide_show_submenu.as_mut().unwrap().add_action(&QString::from_std_str(&clean_column_names(&column.field_name))) };
+            unsafe { hide_show_action.as_mut().unwrap().set_checkable(true); }
+            unsafe { hide_show_action.as_mut().unwrap().signals().toggled().connect(&hide_show_slot); }
+
+            slots_hide_show_column.push(hide_show_slot);
+            actions_hide_show_column.push(hide_show_action);
+        }
 
         // Slots for the TableView...
         let slots = Self {
@@ -1927,6 +1965,9 @@ impl PackedFileDBTreeView {
                 }
             )),
 
+            // This is the list of slots to hide/show columns. Is created before all this, so here we just add it.
+            slots_hide_show_column,
+
             // Slot to close the search widget.
             slot_update_search_stuff: SlotNoArgs::new(clone!(
                 matches,
@@ -2460,13 +2501,23 @@ impl PackedFileDBTreeView {
                 // Same with the columns, if we opted to keep their state.
                 let mut blocker1 = unsafe { SignalBlocker::new(table_view.as_mut().unwrap().static_cast_mut() as &mut Object) };
                 let mut blocker2 = unsafe { SignalBlocker::new(table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().static_cast_mut() as &mut Object) };
+                
                 if *settings.settings_bool.get("remember_column_state").unwrap() {                
+                    unsafe { table_view.as_mut().unwrap().sort_by_column((state_data.columns_state.sorting_column.0, state_data.columns_state.sorting_column.1.clone())); }
+                    
                     for (visual_old, visual_new) in &state_data.columns_state.visual_order {
                         unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().move_section(*visual_old, *visual_new); }
                     }
-                    unsafe { table_view.as_mut().unwrap().sort_by_column((state_data.columns_state.sorting_column.0, state_data.columns_state.sorting_column.1.clone())); }                    
+
+                    // For this we have to "block" the action before checking it, to avoid borrowmut errors. There is no need to unblock, because the blocker will die after the action.
+                    for hidden_column in &state_data.columns_state.hidden_columns {
+                        unsafe { table_view.as_mut().unwrap().set_column_hidden(*hidden_column, true); }
+
+                        let mut _blocker = unsafe { SignalBlocker::new(actions_hide_show_column[*hidden_column as usize].as_mut().unwrap() as &mut Object) };
+                        unsafe { actions_hide_show_column[*hidden_column as usize].as_mut().unwrap().set_checked(true); }
+                    }                  
                 }
-                else { state_data.columns_state = ColumnsState::new((-1, SortOrder::Ascending), vec![]); }
+                else { state_data.columns_state = ColumnsState::new((-1, SortOrder::Ascending), vec![], vec![]); }
                 
                 blocker1.unblock();
                 blocker2.unblock();

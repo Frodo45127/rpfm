@@ -955,7 +955,8 @@ pub struct SearchState {
 /// This Struct stores the last state of the columns of a TableView.
 pub struct ColumnsState {
     sorting_column: (i32, SortOrder),
-    visual_order: Vec<(i32, i32)>
+    visual_order: Vec<(i32, i32)>,
+    hidden_columns: Vec<i32>,
 }
 
 /// Enum `IconType`: This enum holds all the possible Icon Types we can have in the TreeView,
@@ -1009,7 +1010,7 @@ impl TableState {
         Self {
             filter_state: FilterState::new(QString::from_std_str(""), 0, false),
             search_state: SearchState::new(QString::from_std_str(""), QString::from_std_str(""), 0, false),
-            columns_state: ColumnsState::new((-1, SortOrder::Ascending), vec![]),
+            columns_state: ColumnsState::new((-1, SortOrder::Ascending), vec![], vec![]),
         }
     }
 }
@@ -1045,10 +1046,11 @@ impl SearchState {
 impl ColumnsState {
 
     /// This function creates the ColumnState of a TableView.
-    pub fn new(sorting_column: (i32, SortOrder), visual_order: Vec<(i32, i32)>) -> Self {
+    pub fn new(sorting_column: (i32, SortOrder), visual_order: Vec<(i32, i32)>, hidden_columns: Vec<i32>) -> Self {
         Self {
             sorting_column,
             visual_order,
+            hidden_columns,
         }
     }
 }
