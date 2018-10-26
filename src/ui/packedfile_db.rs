@@ -874,7 +874,11 @@ impl PackedFileDBTreeView {
                             }
 
                             FieldType::Float => StandardItem::new(&QString::from_std_str(format!("{}", 0.0))),
-                            FieldType::Integer => StandardItem::new(&QString::from_std_str(format!("{}", 0))),
+                            FieldType::Integer => {
+                                let mut item = StandardItem::new(());
+                                item.set_data((&Variant::new0(0), 2));
+                                item
+                            },
                             FieldType::LongInteger => StandardItem::new(&QString::from_std_str(format!("{}", 0))),
 
                             // All these are Strings, so it can be together.
@@ -925,7 +929,11 @@ impl PackedFileDBTreeView {
                             }
 
                             FieldType::Float => StandardItem::new(&QString::from_std_str(format!("{}", 0.0))),
-                            FieldType::Integer => StandardItem::new(&QString::from_std_str(format!("{}", 0))),
+                            FieldType::Integer => {
+                                let mut item = StandardItem::new(());
+                                item.set_data((&Variant::new0(0), 2));
+                                item
+                            },
                             FieldType::LongInteger => StandardItem::new(&QString::from_std_str(format!("{}", 0))),
 
                             // All these are Strings, so it can be together.
@@ -1090,7 +1098,7 @@ impl PackedFileDBTreeView {
                         for index in 0..indexes.count(()) {
                             let model_index = indexes.at(index);
                             match results[index as usize] {
-                                MathOperationResult::Integer(x) => unsafe { model.as_mut().unwrap().item_from_index(model_index).as_mut().unwrap().set_text(&QString::from_std_str(format!("{}", x))) },
+                                MathOperationResult::Integer(x) => unsafe { model.as_mut().unwrap().item_from_index(model_index).as_mut().unwrap().set_data((&Variant::new0(x), 2)) },
                                 MathOperationResult::LongInteger(x) => unsafe { model.as_mut().unwrap().item_from_index(model_index).as_mut().unwrap().set_text(&QString::from_std_str(format!("{}", x))) }
                                 MathOperationResult::Float(x) => unsafe { model.as_mut().unwrap().item_from_index(model_index).as_mut().unwrap().set_text(&QString::from_std_str(format!("{}", x))) }
                                 MathOperationResult::None => continue,
@@ -1494,7 +1502,15 @@ impl PackedFileDBTreeView {
                                         unsafe { cell.0.as_mut().unwrap().set_check_state(new_value); }
                                         changed_cells += 1;
                                     }
-                                }
+                                },
+
+                                FieldType::Integer => {
+                                    let current_value = unsafe { cell.0.as_mut().unwrap().text().to_std_string() };
+                                    if &*current_value != cell.1 {
+                                        unsafe { cell.0.as_mut().unwrap().set_data((&Variant::new0(cell.1.parse::<i32>().unwrap()), 2)); }
+                                        changed_cells += 1;
+                                    }
+                                },
 
                                 _ => {
                                     let current_value = unsafe { cell.0.as_mut().unwrap().text().to_std_string() };
@@ -1569,6 +1585,12 @@ impl PackedFileDBTreeView {
                                     item.set_background(&Brush::new(GlobalColor::Green));
                                 },
 
+                                // Integers need to be created appart of the rest here.
+                                FieldType::Integer => {
+                                    item.set_data((&Variant::new0(cell.parse::<i32>().unwrap()), 2));
+                                    item.set_background(&Brush::new(GlobalColor::Green));
+                                },
+
                                 // In any other case, we treat it as a string. Type-checking is done before this and while saving.
                                 _ => {
                                     item.set_text(&QString::from_std_str(cell));
@@ -1619,7 +1641,11 @@ impl PackedFileDBTreeView {
                                     }
 
                                     FieldType::Float => StandardItem::new(&QString::from_std_str(format!("{}", 0.0))),
-                                    FieldType::Integer => StandardItem::new(&QString::from_std_str(format!("{}", 0))),
+                                    FieldType::Integer => {
+                                        let mut item = StandardItem::new(());
+                                        item.set_data((&Variant::new0(0), 2));
+                                        item
+                                    },
                                     FieldType::LongInteger => StandardItem::new(&QString::from_std_str(format!("{}", 0))),
 
                                     // All these are Strings, so it can be together.
@@ -1697,7 +1723,16 @@ impl PackedFileDBTreeView {
                                             unsafe { item.as_mut().unwrap().set_check_state(new_value); }
                                             changed_cells += 1;
                                         }
-                                    }
+                                    },
+
+                                    FieldType::Integer => {
+                                        let current_value = unsafe { item.as_mut().unwrap().text().to_std_string() };
+                                        if &*current_value != text {
+                                            unsafe { item.as_mut().unwrap().set_data((&Variant::new0(text.parse::<i32>().unwrap()), 2)); }
+                                            changed_cells += 1;
+                                        }
+                                    },
+
                                     _ => {
                                         let current_value = unsafe { item.as_mut().unwrap().text().to_std_string() };
                                         if &*current_value != text {
@@ -1927,7 +1962,7 @@ impl PackedFileDBTreeView {
                                         let current_value = unsafe { item.as_mut().unwrap().text().to_std_string() };
                                         if !current_value.is_empty() {
                                             unsafe { edits.push(((*key, *column), (&*item).clone())); }
-                                            unsafe { item.as_mut().unwrap().set_text(&QString::from_std_str("0")); }
+                                            unsafe { item.as_mut().unwrap().set_data((&Variant::new0(0), 2)); }
                                         }
                                     }
                                     _ => {
@@ -2316,7 +2351,11 @@ impl PackedFileDBTreeView {
                                 }
                             } else { return }
                         } else { return }
-                        unsafe { item.as_mut().unwrap().set_text(&QString::from_std_str(&replaced_text)); }
+
+                        match table_definition.fields[unsafe { item.as_mut().unwrap().column() as usize }].field_type {
+                            FieldType::Integer => unsafe { item.as_mut().unwrap().set_data((&Variant::new0(replaced_text.parse::<i32>().unwrap()), 2)); }
+                            _ => unsafe { item.as_mut().unwrap().set_text(&QString::from_std_str(&replaced_text)); }
+                        }
 
                         // If we still have matches, select the next match, if any, or the first one, if any.
                         if let Some(pos) = *position.borrow() {
@@ -2384,7 +2423,11 @@ impl PackedFileDBTreeView {
                         // For each position, get his item and change his text.
                         for (index, data) in positions_and_texts.iter().enumerate() {
                             let item = unsafe { model.as_mut().unwrap().item(((data.0).0, (data.0).1)) };
-                            unsafe { item.as_mut().unwrap().set_text(&QString::from_std_str(&data.1)); }
+
+                            match table_definition.fields[unsafe { item.as_mut().unwrap().column() as usize }].field_type {
+                                FieldType::Integer => unsafe { item.as_mut().unwrap().set_data((&Variant::new0(data.1.parse::<i32>().unwrap()), 2)); }
+                                _ => unsafe { item.as_mut().unwrap().set_text(&QString::from_std_str(&data.1)); }
+                            }
 
                             // If we finished replacing, fix the undo history to have all the previous changed merged into one.
                             if index == positions_and_texts.len() - 1 {
@@ -2583,7 +2626,11 @@ impl PackedFileDBTreeView {
                         };
                         StandardItem::new(&QString::from_std_str(data))
                     },
-                    DecodedData::Integer(ref data) => StandardItem::new(&QString::from_std_str(format!("{}", data))),
+                    DecodedData::Integer(ref data) => {
+                        let mut item = StandardItem::new(());
+                        item.set_data((&Variant::new0(*data), 2));
+                        item
+                    },
                     DecodedData::LongInteger(ref data) => StandardItem::new(&QString::from_std_str(format!("{}", data))),
 
                     // All these are Strings, so it can be together,
@@ -2618,7 +2665,11 @@ impl PackedFileDBTreeView {
                     }
 
                     FieldType::Float => StandardItem::new(&QString::from_std_str(format!("{}", 0.0))),
-                    FieldType::Integer => StandardItem::new(&QString::from_std_str(format!("{}", 0))),
+                    FieldType::Integer => {
+                        let mut item = StandardItem::new(());
+                        item.set_data((&Variant::new0(0), 2));
+                        item
+                    },
                     FieldType::LongInteger => StandardItem::new(&QString::from_std_str(format!("{}", 0))),
 
                     FieldType::StringU8 |
@@ -4937,9 +4988,9 @@ fn build_columns(
         // Depending on his type, set one width or another.
         match field.field_type {
             FieldType::Boolean => unsafe { table_view.as_mut().unwrap().set_column_width(index as i32, 100); }
-            FieldType::Float => unsafe { table_view.as_mut().unwrap().set_column_width(index as i32, 100); }
-            FieldType::Integer => unsafe { table_view.as_mut().unwrap().set_column_width(index as i32, 100); }
-            FieldType::LongInteger => unsafe { table_view.as_mut().unwrap().set_column_width(index as i32, 100); }
+            FieldType::Float => unsafe { table_view.as_mut().unwrap().set_column_width(index as i32, 140); }
+            FieldType::Integer => unsafe { table_view.as_mut().unwrap().set_column_width(index as i32, 140); }
+            FieldType::LongInteger => unsafe { table_view.as_mut().unwrap().set_column_width(index as i32, 140); }
             FieldType::StringU8 => unsafe { table_view.as_mut().unwrap().set_column_width(index as i32, 350); }
             FieldType::StringU16 => unsafe { table_view.as_mut().unwrap().set_column_width(index as i32, 350); }
             FieldType::OptionalStringU8 => unsafe { table_view.as_mut().unwrap().set_column_width(index as i32, 350); }
