@@ -2106,7 +2106,7 @@ fn main() {
 
                                 // If we have a PackedFile open and it's on the adding list, stop.
                                 packedfiles_open_in_packedfile_view.borrow().values().for_each(|x| 
-                                    if paths_packedfile.contains(x) { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
+                                    if paths_packedfile.contains(&x.borrow()) { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
                                 );
 
                                 // Tell the Background Thread to add the files.
@@ -2172,7 +2172,7 @@ fn main() {
 
                             // If we have a PackedFile open and it's on the adding list, stop.
                             packedfiles_open_in_packedfile_view.borrow().values().for_each(|x| 
-                                if paths_packedfile.contains(x) { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
+                                if paths_packedfile.contains(&x.borrow()) { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
                             );
 
                             // Tell the Background Thread to add the files.
@@ -2310,7 +2310,7 @@ fn main() {
 
                                 // If we have a PackedFile open and it's on the adding list, stop.
                                 packedfiles_open_in_packedfile_view.borrow().values().for_each(|x| 
-                                    if paths_packedfile.contains(x) { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
+                                    if paths_packedfile.contains(&x.borrow()) { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
                                 );
 
                                 // Tell the Background Thread to add the files.
@@ -2380,7 +2380,7 @@ fn main() {
 
                             // If we have a PackedFile open and it's on the adding list, stop.
                             packedfiles_open_in_packedfile_view.borrow().values().for_each(|x| 
-                                if paths_packedfile.contains(x) { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
+                                if paths_packedfile.contains(&x.borrow()) { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
                             );
 
                             // Tell the Background Thread to add the files.
@@ -2984,8 +2984,8 @@ fn main() {
 
                     // And that PackedFile is the one we want to delete, or it's on the list of paths to delete...
                     match item_type {
-                        TreePathType::File(item_path) => if *open_path == item_path { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
-                        TreePathType::Folder(item_path) => if !item_path.is_empty() && open_path.starts_with(&item_path) { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
+                        TreePathType::File(item_path) => if *open_path.borrow() == item_path { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
+                        TreePathType::Folder(item_path) => if !item_path.is_empty() && open_path.borrow().starts_with(&item_path) { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
                         TreePathType::PackFile => return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen),
                         
                         // We use this for the Dependency Manager, in which case we can continue.
@@ -3387,7 +3387,7 @@ fn main() {
                 );
 
                 // Tell the program there is an open PackedFile.
-                packedfiles_open_in_packedfile_view.borrow_mut().insert(0, vec![]);
+                packedfiles_open_in_packedfile_view.borrow_mut().insert(0, Rc::new(RefCell::new(vec![])));
             }
         ));
 
@@ -3481,21 +3481,6 @@ fn main() {
                 sender_qt_data.send(Data::VecString(complete_path.to_vec())).unwrap();
                 let item_type = if let Data::TreePathType(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
-                // If we have a PackedFile open...
-                for open_path in packedfiles_open_in_packedfile_view.borrow().values() {
-
-                    // If it's empty, it's the dep manager.
-                    if !open_path.is_empty() { 
-                        
-                        // And that PackedFile is the one we want to rename, or it's on the list of paths to rename...
-                        match item_type {
-                            TreePathType::File(ref item_path) => if open_path == item_path { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
-                            TreePathType::Folder(ref item_path) => if !item_path.is_empty() && open_path.starts_with(&item_path) { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
-                            _ => unreachable!(),
-                        }
-                    }
-                }
-
                 // Depending on the type of the selection...
                 match item_type {
 
@@ -3514,8 +3499,6 @@ fn main() {
 
                             // Check what response we got.
                             match check_message_validity_recv2(&receiver_qt) {
-                            
-                                // If it's success....
                                 Data::Success => {
 
                                     // Update the TreeView.
@@ -3532,10 +3515,40 @@ fn main() {
                                     // Set the mod as "Modified". This is an exception to the paint system.
                                     *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
 
-                                    // Update the global search stuff, if needed.
-                                    let mut new_path = path.to_vec();
-                                    *new_path.last_mut().unwrap() = new_name.to_owned();
-                                    global_search_explicit_paths.borrow_mut().append(&mut vec![new_path; 1]);
+                                    // If we have a PackedFile open, we have to rename it in that list too. Note that a path can be empty (the dep manager), so we have to check that too.
+                                    for open_path in packedfiles_open_in_packedfile_view.borrow().values() {
+                                        if !open_path.borrow().is_empty() { 
+                                            match item_type {
+                                                TreePathType::File(ref item_path) => {
+                                                    if *item_path == *open_path.borrow() {
+
+                                                        // Get the new path.
+                                                        let mut new_path = path.to_vec();
+                                                        *new_path.last_mut().unwrap() = new_name.to_owned();
+                                                        *open_path.borrow_mut() = new_path.to_vec();
+
+                                                        // Update the global search stuff, if needed.
+                                                        global_search_explicit_paths.borrow_mut().append(&mut vec![new_path; 1]);
+                                                    }
+                                                } 
+
+                                                TreePathType::Folder(ref item_path) => {
+                                                    if !item_path.is_empty() && open_path.borrow().starts_with(&item_path) {
+
+                                                        let mut new_path = item_path.to_vec();
+                                                        *new_path.last_mut().unwrap() = new_name.to_owned();
+                                                        new_path.append(&mut (&open_path.borrow()[item_path.len()..]).to_vec());
+                                                        *open_path.borrow_mut() = new_path.to_vec();
+
+                                                        // Update the global search stuff, if needed.
+                                                        global_search_explicit_paths.borrow_mut().append(&mut vec![new_path; 1]);
+                                                    }
+                                                }
+                                                _ => unreachable!(),
+                                            }
+                                        }
+                                    }
+
                                     unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
                                 }
 
@@ -3594,11 +3607,11 @@ fn main() {
                 for open_path in packedfiles_open_in_packedfile_view.borrow().values() {
 
                     // If it's empty, it's the dep manager.
-                    if !open_path.is_empty() { 
+                    if !open_path.borrow().is_empty() { 
                         
                         // And that PackedFile is the one we want to rename, or it's on the list of paths to rename...
                         match item_type {
-                            TreePathType::Folder(ref item_path) => if !item_path.is_empty() && open_path.starts_with(&item_path) { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
+                            TreePathType::Folder(ref item_path) => if !item_path.is_empty() && open_path.borrow().starts_with(&item_path) { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
                             _ => unreachable!(),
                         }
                     }
@@ -3679,7 +3692,7 @@ fn main() {
                 for open_path in packedfiles_open_in_packedfile_view.borrow().values() {
 
                     // If it's a file, return an error. If it's empty, it's the dep manager.
-                    if !open_path.is_empty() { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
+                    if !open_path.borrow().is_empty() { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
                 }
 
                 // Create the "Rename" dialog and wait for a prefix (or a cancelation).
@@ -4602,7 +4615,7 @@ fn open_packfile(
     is_modified: &Rc<RefCell<bool>>,
     mode: &Rc<RefCell<Mode>>,
     game_folder: &str,
-    packedfiles_open_in_packedfile_view: &Rc<RefCell<BTreeMap<i32, Vec<String>>>>,
+    packedfiles_open_in_packedfile_view: &Rc<RefCell<BTreeMap<i32, Rc<RefCell<Vec<String>>>>>>,
     close_global_search_action: *mut Action,
     history_state_tables: &Rc<RefCell<BTreeMap<Vec<String>, TableState>>>,
 ) -> Result<()> {
@@ -4707,7 +4720,7 @@ fn open_packfile(
             unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
 
             // Destroy whatever it's in the PackedFile's view, to avoid data corruption.
-            purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);
+            purge_them_all(&app_ui, packedfiles_open_in_packedfile_view);
 
             // Get the current settings.
             sender_qt.send(Commands::GetSettings).unwrap();
@@ -4753,7 +4766,7 @@ fn open_packedfile(
     receiver_qt: &Rc<RefCell<Receiver<Data>>>,
     app_ui: &AppUI,
     is_modified: &Rc<RefCell<bool>>,
-    packedfiles_open_in_packedfile_view: &Rc<RefCell<BTreeMap<i32, Vec<String>>>>,
+    packedfiles_open_in_packedfile_view: &Rc<RefCell<BTreeMap<i32, Rc<RefCell<Vec<String>>>>>>,
     global_search_explicit_paths: &Rc<RefCell<Vec<Vec<String>>>>,
     is_folder_tree_view_locked: &Rc<RefCell<bool>>,
     history_state_tables: &Rc<RefCell<BTreeMap<Vec<String>, TableState>>>,
@@ -4788,7 +4801,7 @@ fn open_packedfile(
 
                 // If the file we want to open is already open in another view, don't open it.
                 for (view_pos, packed_file_path) in packedfiles_open_in_packedfile_view.borrow().iter() {
-                    if packed_file_path == &path && view_pos != &view_position {
+                    if *packed_file_path.borrow() == path && view_pos != &view_position {
                         return Err(ErrorKind::PackedFileIsOpenInAnotherView)?
                     }
                 }
@@ -4842,6 +4855,9 @@ fn open_packedfile(
                 let widget_layout = GridLayout::new().into_raw();
                 unsafe { widget.as_mut().unwrap().set_layout(widget_layout as *mut Layout); }
 
+                // Put the Path into a Rc<RefCell<> so we can alter it while it's open.
+                let path = Rc::new(RefCell::new(path));
+
                 // Then, depending of his type we decode it properly (if we have it implemented support
                 // for his type).
                 match packed_file_type {
@@ -4857,7 +4873,7 @@ fn open_packedfile(
                             &is_modified,
                             &app_ui,
                             widget_layout,
-                            path.to_vec(),
+                            &path,
                             &global_search_explicit_paths,
                             update_global_search_stuff,
                             &history_state_tables
@@ -4883,7 +4899,7 @@ fn open_packedfile(
                             &is_modified,
                             &app_ui,
                             widget_layout,
-                            path.to_vec(),
+                            &path,
                             &global_search_explicit_paths,
                             update_global_search_stuff,
                             &history_state_tables
@@ -4912,7 +4928,7 @@ fn open_packedfile(
                             &is_modified,
                             &app_ui,
                             widget_layout,
-                            path.to_vec()
+                            &path
                         ) {
                             Ok(new_text_slots) => { text_slots.borrow_mut().insert(view_position, new_text_slots); },
                             Err(error) => return Err(ErrorKind::TextDecode(format!("{}", error)))?,
@@ -4935,7 +4951,7 @@ fn open_packedfile(
                             &is_modified,
                             &app_ui,
                             widget_layout,
-                            path.to_vec()
+                            &path
                         ) {
                             Ok(new_rigid_model_slots) => { rigid_model_slots.borrow_mut().insert(view_position, new_rigid_model_slots); },
                             Err(error) => return Err(ErrorKind::RigidModelDecode(format!("{}", error)))?,
@@ -4956,7 +4972,7 @@ fn open_packedfile(
                             &sender_qt_data,
                             &receiver_qt,
                             widget_layout,
-                            path.to_vec(),
+                            &path,
                         ) { return Err(ErrorKind::ImageDecode(format!("{}", error)))? }
 
                         // Tell the program there is an open PackedFile and finish the table.
@@ -4999,7 +5015,7 @@ fn build_my_mod_menu(
     is_modified: Rc<RefCell<bool>>,
     mode: Rc<RefCell<Mode>>,
     needs_rebuild: Rc<RefCell<bool>>,
-    packedfiles_open_in_packedfile_view: &Rc<RefCell<BTreeMap<i32, Vec<String>>>>,
+    packedfiles_open_in_packedfile_view: &Rc<RefCell<BTreeMap<i32, Rc<RefCell<Vec<String>>>>>>,
     close_global_search_action: *mut Action,
     history_state_tables: &Rc<RefCell<BTreeMap<Vec<String>, TableState>>>,
 ) -> (MyModStuff, MyModSlots) {
@@ -5554,7 +5570,7 @@ fn build_open_from_submenus(
     game_selected: &str,
     is_modified: &Rc<RefCell<bool>>,
     mode: &Rc<RefCell<Mode>>,
-    packedfiles_open_in_packedfile_view: &Rc<RefCell<BTreeMap<i32, Vec<String>>>>,
+    packedfiles_open_in_packedfile_view: &Rc<RefCell<BTreeMap<i32, Rc<RefCell<Vec<String>>>>>>,
     mymod_stuff: &Rc<RefCell<MyModStuff>>,
     close_global_search_action: *mut Action,
     history_state_tables: &Rc<RefCell<BTreeMap<Vec<String>, TableState>>>,

@@ -138,7 +138,7 @@ impl AddFromPackFileSlots {
         app_ui: AppUI,
         is_folder_tree_view_locked: &Rc<RefCell<bool>>,
         is_modified: &Rc<RefCell<bool>>,
-        packedfiles_open_in_packedfile_view: &Rc<RefCell<BTreeMap<i32, Vec<String>>>>,
+        packedfiles_open_in_packedfile_view: &Rc<RefCell<BTreeMap<i32, Rc<RefCell<Vec<String>>>>>>,
         global_search_explicit_paths: &Rc<RefCell<Vec<Vec<String>>>>,
         update_global_search_stuff: *mut Action,
     ) -> Self {
@@ -1165,11 +1165,11 @@ pub fn set_modified(
 pub fn undo_paint_for_packed_file(
     app_ui: &AppUI,
     model: *mut StandardItemModel,
-    path: &[String]
+    path: &Rc<RefCell<Vec<String>>>,
 ) {
 
     // Get the item and paint it transparent.
-    let item = get_item_from_incomplete_path(app_ui.folder_tree_model, &path);
+    let item = get_item_from_incomplete_path(app_ui.folder_tree_model, &path.borrow());
     unsafe { item.as_mut().unwrap().set_background(&Brush::new(GlobalColor::Transparent)); }
 
     // Get the full path of the item.
@@ -1208,7 +1208,7 @@ pub fn undo_paint_for_packed_file(
 
 /// This function deletes whatever it's in the right side of the screen, leaving it empty.
 /// Also, each time this triggers we consider there is no PackedFile open.
-pub fn purge_them_all(app_ui: &AppUI, packedfiles_open_in_packedfile_view: &Rc<RefCell<BTreeMap<i32, Vec<String>>>>) {
+pub fn purge_them_all(app_ui: &AppUI, packedfiles_open_in_packedfile_view: &Rc<RefCell<BTreeMap<i32, Rc<RefCell<Vec<String>>>>>>) {
 
     // Black magic.
     unsafe {
@@ -1228,7 +1228,7 @@ pub fn purge_them_all(app_ui: &AppUI, packedfiles_open_in_packedfile_view: &Rc<R
 
 /// This function deletes whatever it's in the specified position of the right side of the screen.
 /// Also, if there was a PackedFile open there, we remove it from the "open PackedFiles" list.
-pub fn purge_that_one_specifically(app_ui: &AppUI, the_one: i32, packedfiles_open_in_packedfile_view: &Rc<RefCell<BTreeMap<i32, Vec<String>>>>) {
+pub fn purge_that_one_specifically(app_ui: &AppUI, the_one: i32, packedfiles_open_in_packedfile_view: &Rc<RefCell<BTreeMap<i32, Rc<RefCell<Vec<String>>>>>>) {
 
     // Black magic.
     unsafe {
@@ -1245,7 +1245,7 @@ pub fn purge_that_one_specifically(app_ui: &AppUI, the_one: i32, packedfiles_ope
     // Just in case what was open before this was a DB Table, make sure the "Game Selected" menu is re-enabled.
     let mut x = false;
     for packed_file in packedfiles_open_in_packedfile_view.borrow().values() {
-        if let Some(folder) = packed_file.get(0) {
+        if let Some(folder) = packed_file.borrow().get(0) {
             if folder == "db" {
                 x = true;
                 break;

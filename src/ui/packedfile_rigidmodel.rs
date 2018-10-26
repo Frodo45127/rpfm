@@ -40,12 +40,12 @@ impl PackedFileRigidModelDataView {
         is_modified: &Rc<RefCell<bool>>,
         app_ui: &AppUI,
         layout: *mut GridLayout,
-        packed_file_path: Vec<String>,
+        packed_file_path: &Rc<RefCell<Vec<String>>>,
     ) -> Result<Self> {
 
         // Get the data of the PackedFile.
         sender_qt.send(Commands::DecodePackedFileRigidModel).unwrap();
-        sender_qt_data.send(Data::VecString(packed_file_path.to_vec())).unwrap();
+        sender_qt_data.send(Data::VecString(packed_file_path.borrow().to_vec())).unwrap();
         let packed_file = match check_message_validity_recv2(&receiver_qt) { 
             Data::RigidModel(data) => data,
             Data::Error(error) => return Err(error),
@@ -288,10 +288,10 @@ impl PackedFileRigidModelDataView {
 
                     // Tell the background thread to start saving the PackedFile.
                     sender_qt.send(Commands::EncodePackedFileRigidModel).unwrap();
-                    sender_qt_data.send(Data::RigidModelVecString((packed_file.borrow().clone(), packed_file_path.to_vec()))).unwrap();
+                    sender_qt_data.send(Data::RigidModelVecString((packed_file.borrow().clone(), packed_file_path.borrow().to_vec()))).unwrap();
 
                     // Set the mod as "Modified".
-                    *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(packed_file_path.to_vec()));
+                    *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(packed_file_path.borrow().to_vec()));
                 }
             )),
 
@@ -307,7 +307,7 @@ impl PackedFileRigidModelDataView {
 
                     // Send the data to the background to try to patch the rigidmodel.
                     sender_qt.send(Commands::PatchAttilaRigidModelToWarhammer).unwrap();
-                    sender_qt_data.send(Data::RigidModelVecString((packed_file.borrow().clone(), packed_file_path.to_vec()))).unwrap();
+                    sender_qt_data.send(Data::RigidModelVecString((packed_file.borrow().clone(), packed_file_path.borrow().to_vec()))).unwrap();
 
                     // Disable the Main Window (so we can't do other stuff).
                     unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
@@ -327,7 +327,7 @@ impl PackedFileRigidModelDataView {
                             unsafe { patch_attila_to_warhammer_button.as_mut().unwrap().set_enabled(false); }
 
                             // Set the mod as "Modified".
-                            *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(packed_file_path.to_vec()));
+                            *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(packed_file_path.borrow().to_vec()));
                         }
 
                         // If we got an error, report it.

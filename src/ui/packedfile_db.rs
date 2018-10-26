@@ -214,7 +214,7 @@ impl PackedFileDBTreeView {
         is_modified: &Rc<RefCell<bool>>,
         app_ui: &AppUI,
         layout: *mut GridLayout,
-        packed_file_path: Vec<String>,
+        packed_file_path: &Rc<RefCell<Vec<String>>>,
         global_search_explicit_paths: &Rc<RefCell<Vec<Vec<String>>>>,
         update_global_search_stuff: *mut Action,
         history_state: &Rc<RefCell<BTreeMap<Vec<String>, TableState>>>,
@@ -226,7 +226,7 @@ impl PackedFileDBTreeView {
 
         // Send the index back to the background thread, and wait until we get a response.
         sender_qt.send(Commands::DecodePackedFileDB).unwrap();
-        sender_qt_data.send(Data::VecString(packed_file_path.to_vec())).unwrap();
+        sender_qt_data.send(Data::VecString(packed_file_path.borrow().to_vec())).unwrap();
         let packed_file_data = match check_message_validity_recv2(&receiver_qt) { 
             Data::DB(data) => Rc::new(RefCell::new(data)),
             Data::Error(error) => return Err(error),
@@ -540,7 +540,7 @@ impl PackedFileDBTreeView {
                     unsafe { table_view.as_mut().unwrap().set_column_hidden(index as i32, state); }
 
                     // Update the state of the column in the table history.
-                    if let Some(history_state) = history_state.borrow_mut().get_mut(&packed_file_path) {
+                    if let Some(history_state) = history_state.borrow_mut().get_mut(&*packed_file_path.borrow()) {
                         if state {
                             if !history_state.columns_state.hidden_columns.contains(&(index as i32)) {
                                 history_state.columns_state.hidden_columns.push(index as i32);
@@ -567,7 +567,7 @@ impl PackedFileDBTreeView {
             slot_column_moved: SlotCIntCIntCInt::new(clone!(
                 packed_file_path,
                 history_state => move |_, visual_base, visual_new| {
-                    if let Some(state) = history_state.borrow_mut().get_mut(&packed_file_path) {
+                    if let Some(state) = history_state.borrow_mut().get_mut(&*packed_file_path.borrow()) {
                         state.columns_state.visual_order.push((visual_base, visual_new));
                     }
                 }
@@ -576,7 +576,7 @@ impl PackedFileDBTreeView {
             slot_sort_order_column_changed: SlotCIntQtCoreQtSortOrder::new(clone!(
                 packed_file_path,
                 history_state => move |column, order| {
-                    if let Some(state) = history_state.borrow_mut().get_mut(&packed_file_path) {
+                    if let Some(state) = history_state.borrow_mut().get_mut(&*packed_file_path.borrow()) {
                         state.columns_state.sorting_column = (column, if let SortOrder::Ascending = order { false } else { true });
                     }
                 }
@@ -2117,7 +2117,7 @@ impl PackedFileDBTreeView {
                     }
 
                     // Add the new search data to the state history.
-                    if let Some(state) = history_state.borrow_mut().get_mut(&packed_file_path) {
+                    if let Some(state) = history_state.borrow_mut().get_mut(&*packed_file_path.borrow()) {
                         unsafe { state.search_state = SearchState::new(search_line_edit.as_mut().unwrap().text().to_std_string(), replace_line_edit.as_mut().unwrap().text().to_std_string(), column_selector.as_ref().unwrap().current_index(), case_sensitive_button.as_mut().unwrap().is_checked()); }
                     }
                 }
@@ -2237,7 +2237,7 @@ impl PackedFileDBTreeView {
 
                     // Add the new search data to the state history.
                     *search_data.borrow_mut() = (text.to_std_string(), flags, table_definition.fields.iter().position(|x| x.field_name == column).map(|x| x as i32).unwrap_or(-1));
-                    if let Some(state) = history_state.borrow_mut().get_mut(&packed_file_path) {
+                    if let Some(state) = history_state.borrow_mut().get_mut(&*packed_file_path.borrow()) {
                         unsafe { state.search_state = SearchState::new(search_line_edit.as_mut().unwrap().text().to_std_string(), replace_line_edit.as_mut().unwrap().text().to_std_string(), column_selector.as_ref().unwrap().current_index(), case_sensitive_button.as_mut().unwrap().is_checked()); }
                     }
                 }
@@ -2512,8 +2512,8 @@ impl PackedFileDBTreeView {
         unsafe { table_view.as_mut().unwrap().selection_model().as_ref().unwrap().signals().selection_changed().connect(&slots.slot_context_menu_enabler); }
 
         // If we got an entry for this PackedFile in the state's history, use it.
-        if history_state.borrow().get(&packed_file_path).is_some() {
-            if let Some(state_data) = history_state.borrow_mut().get_mut(&packed_file_path) {
+        if history_state.borrow().get(&*packed_file_path.borrow()).is_some() {
+            if let Some(state_data) = history_state.borrow_mut().get_mut(&*packed_file_path.borrow()) {
 
                 // Ensure that the selected column actually exists in the table.
                 let column = if state_data.filter_state.column < table_definition.fields.len() as i32 { state_data.filter_state.column } else { 0 };
@@ -2574,7 +2574,7 @@ impl PackedFileDBTreeView {
         }
 
         // Otherwise, we create a basic state.
-        else { history_state.borrow_mut().insert(packed_file_path, TableState::new_empty()); }
+        else { history_state.borrow_mut().insert(packed_file_path.borrow().to_vec(), TableState::new_empty()); }
 
         // Retrigger the filter, so the table get's updated properly.
         unsafe { row_filter_case_sensitive_button.as_mut().unwrap().set_checked(!row_filter_case_sensitive_button.as_mut().unwrap().is_checked()); }
@@ -2739,7 +2739,7 @@ impl PackedFileDBTreeView {
         is_modified: &Rc<RefCell<bool>>,
         app_ui: &AppUI,
         data: &Rc<RefCell<DB>>,
-        packed_file_path: &[String],
+        packed_file_path: &Rc<RefCell<Vec<String>>>,
         model: *mut StandardItemModel,
         global_search_explicit_paths: &Rc<RefCell<Vec<Vec<String>>>>,
         update_global_search_stuff: *mut Action,
@@ -2750,13 +2750,13 @@ impl PackedFileDBTreeView {
 
         // Tell the background thread to start saving the PackedFile.
         sender_qt.send(Commands::EncodePackedFileDB).unwrap();
-        sender_qt_data.send(Data::DBVecString((data.borrow().clone(), packed_file_path.to_vec()))).unwrap();
+        sender_qt_data.send(Data::DBVecString((data.borrow().clone(), packed_file_path.borrow().to_vec()))).unwrap();
 
         // Set the mod as "Modified".
-        *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(packed_file_path.to_vec()));
+        *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(packed_file_path.borrow().to_vec()));
 
         // Update the global search stuff, if needed.
-        global_search_explicit_paths.borrow_mut().push(packed_file_path.to_vec());
+        global_search_explicit_paths.borrow_mut().push(packed_file_path.borrow().to_vec());
         unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
 
         // If the table has been saved without problems, return success.
@@ -2774,7 +2774,7 @@ impl PackedFileDBTreeView {
         sender_qt_data: &Sender<Data>,
         receiver_qt: &Rc<RefCell<Receiver<Data>>>,
         is_modified: &Rc<RefCell<bool>>,
-        packed_file_path: &[String],
+        packed_file_path: &Rc<RefCell<Vec<String>>>,
         data: &Rc<RefCell<DB>>,
         table_view: *mut TableView,
         model: *mut StandardItemModel,
@@ -5180,7 +5180,7 @@ fn filter_table(
     column_selector: *mut ComboBox,
     case_sensitive_button: *mut PushButton,
     update_search_stuff: *mut Action,
-    packed_file_path: &[String],
+    packed_file_path: &Rc<RefCell<Vec<String>>>,
     history_state: &Rc<RefCell<BTreeMap<Vec<String>, TableState>>>, 
 ) {
 
@@ -5211,7 +5211,7 @@ fn filter_table(
     unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
 
     // Add the new filter data to the state history.
-    if let Some(state) = history_state.borrow_mut().get_mut(packed_file_path) {
+    if let Some(state) = history_state.borrow_mut().get_mut(&*packed_file_path.borrow()) {
         unsafe { state.filter_state = FilterState::new(filter_line_edit.as_mut().unwrap().text().to_std_string(), column_selector.as_mut().unwrap().current_index(), case_sensitive_button.as_mut().unwrap().is_checked()); }
     }
 }

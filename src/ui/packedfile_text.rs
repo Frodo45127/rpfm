@@ -40,7 +40,7 @@ impl PackedFileTextView {
         is_modified: &Rc<RefCell<bool>>,
         app_ui: &AppUI,
         layout: *mut GridLayout,
-        packed_file_path: Vec<String>,
+        packed_file_path: &Rc<RefCell<Vec<String>>>,
     ) -> Result<Self> {
 
         // Try to get the Game Selected. This should never fail, so CTD if it does it.
@@ -49,7 +49,7 @@ impl PackedFileTextView {
 
         // Get the text of the PackedFile.
         sender_qt.send(Commands::DecodePackedFileText).unwrap();
-        sender_qt_data.send(Data::VecString(packed_file_path.to_vec())).unwrap();
+        sender_qt_data.send(Data::VecString(packed_file_path.borrow().to_vec())).unwrap();
         let text = match check_message_validity_recv2(&receiver_qt) { 
             Data::String(data) => data,
             Data::Error(error) => return Err(error),
@@ -62,7 +62,7 @@ impl PackedFileTextView {
 
         // Add it to the view.
         unsafe { layout.as_mut().unwrap().add_widget((plain_text_edit as *mut Widget, 0, 0, 1, 1)); }
-        if packed_file_path.last().unwrap().ends_with(".lua") && SUPPORTED_GAMES.get(&*game_selected).unwrap().ca_types_file.is_some() {
+        if packed_file_path.borrow().last().unwrap().ends_with(".lua") && SUPPORTED_GAMES.get(&*game_selected).unwrap().ca_types_file.is_some() {
             unsafe { layout.as_mut().unwrap().add_widget((check_syntax_button as *mut Widget, 1, 0, 1, 1)); }
         }
 
@@ -81,10 +81,10 @@ impl PackedFileTextView {
 
                     // Tell the background thread to start saving the PackedFile.
                     sender_qt.send(Commands::EncodePackedFileText).unwrap();
-                    sender_qt_data.send(Data::StringVecString((text, packed_file_path.to_vec()))).unwrap();
+                    sender_qt_data.send(Data::StringVecString((text, packed_file_path.borrow().to_vec()))).unwrap();
 
                     // Set the mod as "Modified".
-                    *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(packed_file_path.to_vec()));
+                    *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(packed_file_path.borrow().to_vec()));
                 }
             )),
 
