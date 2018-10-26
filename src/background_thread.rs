@@ -1294,7 +1294,19 @@ pub fn background_loop(
                         let mut matches: Vec<GlobalMatch> = vec![];
                         let mut error = false;
                         for packed_file in &pack_file_decoded.packed_files {
-                            if paths.contains(&packed_file.path) {
+
+                            // We need to take into account that we may pass here incomplete paths.
+                            let mut is_in_folder = false;
+                            for path in &paths {
+                                if !path.is_empty() {
+                                    if packed_file.path.starts_with(path) {
+                                        is_in_folder = true;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if paths.contains(&packed_file.path) || is_in_folder {
                                 let path = &packed_file.path;
                                 let packedfile_name = path.last().unwrap().to_owned();
                                 let mut packed_file_type: &str =

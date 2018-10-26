@@ -3535,13 +3535,15 @@ fn main() {
                                                 TreePathType::Folder(ref item_path) => {
                                                     if !item_path.is_empty() && open_path.borrow().starts_with(&item_path) {
 
-                                                        let mut new_path = item_path.to_vec();
-                                                        *new_path.last_mut().unwrap() = new_name.to_owned();
-                                                        new_path.append(&mut (&open_path.borrow()[item_path.len()..]).to_vec());
-                                                        *open_path.borrow_mut() = new_path.to_vec();
+                                                        let mut new_folder_path = item_path.to_vec();
+                                                        *new_folder_path.last_mut().unwrap() = new_name.to_owned();
+
+                                                        let mut new_file_path = new_folder_path.to_vec();
+                                                        new_file_path.append(&mut (&open_path.borrow()[item_path.len()..]).to_vec());
+                                                        *open_path.borrow_mut() = new_file_path.to_vec();
 
                                                         // Update the global search stuff, if needed.
-                                                        global_search_explicit_paths.borrow_mut().append(&mut vec![new_path; 1]);
+                                                        global_search_explicit_paths.borrow_mut().append(&mut vec![new_folder_path; 1]);
                                                     }
                                                 }
                                                 _ => unreachable!(),
@@ -3603,20 +3605,6 @@ fn main() {
                 sender_qt_data.send(Data::VecString(complete_path)).unwrap();
                 let item_type = if let Data::TreePathType(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
-                // If the open PackedFile is inside our folder...
-                for open_path in packedfiles_open_in_packedfile_view.borrow().values() {
-
-                    // If it's empty, it's the dep manager.
-                    if !open_path.borrow().is_empty() { 
-                        
-                        // And that PackedFile is the one we want to rename, or it's on the list of paths to rename...
-                        match item_type {
-                            TreePathType::Folder(ref item_path) => if !item_path.is_empty() && open_path.borrow().starts_with(&item_path) { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
-                            _ => unreachable!(),
-                        }
-                    }
-                }
-
                 // If it's a folder...
                 if let TreePathType::Folder(ref path) = item_type {
 
@@ -3646,6 +3634,16 @@ fn main() {
 
                                 // Set the mod as "Modified". This is an exception to the paint system.
                                 *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
+
+                                // If we have a PackedFile open, we have to rename it in that list too. Note that a path can be empty (the dep manager), so we have to check that too.
+                                for open_path in packedfiles_open_in_packedfile_view.borrow().values() {
+                                    if !open_path.borrow().is_empty() { 
+                                        if !path.is_empty() && open_path.borrow().starts_with(&path) {
+                                            let mut new_name = format!("{}{}", prefix, *open_path.borrow().last().unwrap());
+                                            *open_path.borrow_mut().last_mut().unwrap() = new_name.to_owned();
+                                        }
+                                    }
+                                }
 
                                 // Update the global search stuff, if needed.
                                 let mut new_paths = old_paths.to_vec();
@@ -3688,13 +3686,6 @@ fn main() {
             packedfiles_open_in_packedfile_view,
             receiver_qt => move |_| {
 
-                // If there is something open...
-                for open_path in packedfiles_open_in_packedfile_view.borrow().values() {
-
-                    // If it's a file, return an error. If it's empty, it's the dep manager.
-                    if !open_path.borrow().is_empty() { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
-                }
-
                 // Create the "Rename" dialog and wait for a prefix (or a cancelation).
                 if let Some(prefix) = create_apply_prefix_to_packed_files_dialog(&app_ui) {
 
@@ -3721,6 +3712,14 @@ fn main() {
 
                             // Set the mod as "Modified". This is an exception to the paint system.
                             *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
+
+                            // If we have a PackedFile open, we have to rename it in that list too. Note that a path can be empty (the dep manager), so we have to check that too.
+                            for open_path in packedfiles_open_in_packedfile_view.borrow().values() {
+                                if !open_path.borrow().is_empty() {
+                                    let mut new_name = format!("{}{}", prefix, *open_path.borrow().last().unwrap());
+                                    *open_path.borrow_mut().last_mut().unwrap() = new_name.to_owned();
+                                }
+                            }
 
                             // Update the global search stuff, if needed.
                             let mut new_paths = old_paths.to_vec();
@@ -4070,8 +4069,7 @@ fn main() {
             global_search_pattern => move || {
 
                 // If we have the global search stuff visible and we have a pattern...
-                let is_visible;
-                unsafe { is_visible = global_search_widget.as_ref().unwrap().is_visible() }
+                let is_visible = unsafe { global_search_widget.as_ref().unwrap().is_visible() };
                 if is_visible {
                     if let Some(ref pattern) = *global_search_pattern.borrow() {
 
@@ -4079,24 +4077,20 @@ fn main() {
                         let mut paths = vec![];
 
                         // For each row in the Loc Table, get his path.
-                        let rows;
-                        unsafe { rows = model_matches_loc.as_mut().unwrap().row_count(()); }
+                        let rows = unsafe { model_matches_loc.as_mut().unwrap().row_count(()) };
                         for item in 0..rows {
 
                             // Get the paths of the PackedFiles to check.
-                            let path;
-                            unsafe { path = model_matches_loc.as_mut().unwrap().item((item, 0)).as_mut().unwrap().text().to_std_string(); }
+                            let path = unsafe { model_matches_loc.as_mut().unwrap().item((item, 0)).as_mut().unwrap().text().to_std_string() };
                             paths.push(path.split(|x| x == '/' || x == '\\').map(|x| x.to_owned()).collect::<Vec<String>>());
                         }
 
                         // For each row in the DB Table, get his path.
-                        let rows;
-                        unsafe { rows = model_matches_db.as_mut().unwrap().row_count(()); }
+                        let rows = unsafe { model_matches_db.as_mut().unwrap().row_count(()) };
                         for item in 0..rows {
 
                             // Get the paths of the PackedFiles to check.
-                            let path;
-                            unsafe { path = model_matches_db.as_mut().unwrap().item((item, 0)).as_mut().unwrap().text().to_std_string(); }
+                            let path = unsafe { model_matches_db.as_mut().unwrap().item((item, 0)).as_mut().unwrap().text().to_std_string() };
                             paths.push(path.split(|x| x == '/' || x == '\\').map(|x| x.to_owned()).collect::<Vec<String>>());
                         }
 
