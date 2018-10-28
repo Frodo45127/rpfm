@@ -32,7 +32,7 @@ pub struct Loc {
 /// - key: the "key" column of the entry.
 /// - text: the text you'll see ingame.
 /// - tooltip (bool): this one I believe it was to enable or disable certain lines ingame.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct LocEntry {
     pub key: String,
     pub text: String,

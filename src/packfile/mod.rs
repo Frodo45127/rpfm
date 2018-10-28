@@ -742,6 +742,14 @@ pub fn update_packed_file_data_loc(
     packed_file.set_data(Loc::save(packed_file_data_decoded));
 }
 
+/// Like the other one, but this one requires a PackedFile.
+pub fn update_packed_file_data_loc_2(
+    packed_file_data_decoded: &Loc,
+    packed_file: &mut packfile::PackedFile,
+) {
+    packed_file.set_data(Loc::save(packed_file_data_decoded));
+}
+
 /// This function saves the data of the edited DB PackedFile in the main PackFile after a change has
 /// been done by the user. Checking for valid characters is done before this, so be careful to not break it.
 pub fn update_packed_file_data_db(
@@ -1080,85 +1088,84 @@ pub fn create_prefab_from_catchment(
 /// often created by map editors. It requires just the PackFile to optimize and the dependency PackFile.
 pub fn optimize_packfile(
     pack_file: &mut packfile::PackFile,
-    original_tables: &[packfile::PackedFile],
+    game_packed_files: &[packfile::PackedFile],
     schema: &Option<Schema>
 ) -> Result<Vec<TreePathType>> {
 
-    // List of PackedFiles to delete. This includes empty tables and xml files.
+    // List of PackedFiles to delete. This includes empty DB Tables and empty Loc PackedFiles.
     let mut files_to_delete: Vec<Vec<String>> = vec![];
     let mut deleted_files_type: Vec<TreePathType> = vec![];
 
-    // For each PackedFile we have...
+    // Get a list of every Loc and DB PackedFiles in our dependency's files. For performance reasons, we decode every one of them here.
+    // Otherwise, they may have to be decoded multiple times, making this function take ages to finish. 
+    let game_locs = game_packed_files.iter()
+        .filter(|x| x.path.last().unwrap().ends_with(".loc"))
+        .filter_map(|x| x.get_data().ok())
+        .filter_map(|x| Loc::read(&x).ok())
+        .collect::<Vec<Loc>>();
+
+    let game_dbs = if let Some(schema) = schema {
+        game_packed_files.iter()
+            .filter(|x| x.path.len() == 3 && x.path[0] == "db")
+            .map(|x| (x.get_data(), x.path[1].to_owned()))
+            .filter(|x| x.0.is_ok())
+            .filter_map(|x| DB::read(&x.0.unwrap(), &x.1, &schema).ok())
+            .collect::<Vec<DB>>()
+    } else { vec![] };
+
     for mut packed_file in pack_file.packed_files.iter_mut() {
 
-        // If it's a DB table...
-        if packed_file.path.len() == 3 {
-            if packed_file.path[0] == "db" {
+        // If it's a DB table and we have an schema...
+        if packed_file.path.len() == 3 && packed_file.path[0] == "db" && !game_dbs.is_empty() {
+            if let Some(schema) = schema {
 
-                // If we have an schema we optimize DB tables. Otherwise ignore this.
-                if let Some(schema) = schema {
+                // Try to decode our table.
+                let mut optimized_table = match DB::read(&(packed_file.get_data()?), &packed_file.path[1], &schema) {
+                    Ok(table) => table,
+                    Err(_) => continue,
+                };
 
-                    // Get the tables if exists from the dependency database.
-                    let mut dep_tables = vec![];
-                    for vanilla_packed_file in original_tables {
-                        if vanilla_packed_file.path.len() == 3 {
-                            if vanilla_packed_file.path[0] == "db" && vanilla_packed_file.path[1] == packed_file.path[1] {
-                                dep_tables.push(vanilla_packed_file);
-                            }
-                        }
-                    }
-
-                    // If there are no tables, we cannot optimize that PackedFile.
-                    if dep_tables.is_empty() { continue }
-
-                    // If the table is empty, add it to the deletion list and continue.
-                    if let Ok((_, entry_count, _)) = DB::get_header_data(&(packed_file.get_data()?)) {
-                        if entry_count == 0 { 
-                            files_to_delete.push(packed_file.path.to_vec());
-                            continue;
-                        }
-                    }
-
-                    // Try to decode our table.
-                    let mut optimized_table = match DB::read(&(packed_file.get_data()?), &packed_file.path[1], &schema) {
-                        Ok(table) => table,
-                        Err(error) => {
-                            if error.kind() == ErrorKind::DBTableContainsListField { files_to_delete.push(packed_file.path.to_vec()); } 
-                            continue;
-                        }
-                    };
-
-                    // For each table we got...
-                    for table in &dep_tables {
-
-                        // Try to decode the vanilla table.
-                        let mut vanilla_table = match DB::read(&(table.get_data()?), &table.path[1], &schema) {
-                            Ok(table) => table,
-                            Err(_) => continue,
-                        };
-
-                        // For each row we have in our table (in reverse) check if it exists in the vanilla table, and delete it if it does.
-                        let mut rows_to_delete = vec![];
-                        for (row_index, row) in optimized_table.entries.iter().enumerate() {
-                            if vanilla_table.entries.contains(row) { rows_to_delete.push(row_index); }
-                        }
-                        for row in rows_to_delete.iter().rev() { optimized_table.entries.remove(*row); }
-                    }
-
-                    // Save the table to the PackFile.
-                    update_packed_file_data_db_2(&optimized_table, &mut packed_file);
-
-                    // Delete the table here if it's empty.
-                    if optimized_table.entries.is_empty() { files_to_delete.push(packed_file.path.to_vec()); }
-                }
-
-                // Otherwise, we just check if it's empty. In that case, we delete it.
-                else { 
-                    if let Ok((_, entry_count, _)) = DB::get_header_data(&(packed_file.get_data()?)) {
-                        if entry_count == 0 { files_to_delete.push(packed_file.path.to_vec()); }
+                // For each vanilla DB Table that coincide with our own, compare it row by row, cell by cell, with our own DB Table. Then delete in reverse every coincidence.
+                for game_db in &game_dbs {
+                    if game_db.db_type == optimized_table.db_type && game_db.version == optimized_table.version {
+                        let rows_to_delete = optimized_table.entries.iter().enumerate().filter(|(_, entry)| game_db.entries.contains(entry)).map(|(row, _)| row).collect::<Vec<usize>>();
+                        for row in rows_to_delete.iter().rev() {
+                            optimized_table.entries.remove(*row);
+                        } 
                     }
                 }
+
+                // Save the data to the PackFile and, if it's empty, add it to the deletion list.
+                update_packed_file_data_db_2(&optimized_table, &mut packed_file);
+                if optimized_table.entries.is_empty() { files_to_delete.push(packed_file.path.to_vec()); }
             }
+
+            // Otherwise, we just check if it's empty. In that case, we delete it.
+            else if let Ok((_, entry_count, _)) = DB::get_header_data(&(packed_file.get_data()?)) {
+                if entry_count == 0 { files_to_delete.push(packed_file.path.to_vec()); }
+            }
+        }
+
+        // If it's a Loc PackedFile and there are some Locs in our dependencies...
+        else if packed_file.path.last().unwrap().ends_with(".loc") && !game_locs.is_empty() {
+
+            // Try to decode our Loc. If it's empty, skip it and continue with the next one.
+            let mut optimized_loc = match Loc::read(&(packed_file.get_data()?)) {
+                Ok(loc) => if !loc.entries.is_empty() { loc } else { continue },
+                Err(_) => continue,
+            };
+
+            // For each vanilla Loc, compare it row by row, cell by cell, with our own Loc. Then delete in reverse every coincidence.
+            for game_loc in &game_locs {
+                let rows_to_delete = optimized_loc.entries.iter().enumerate().filter(|(_, entry)| game_loc.entries.contains(entry)).map(|(row, _)| row).collect::<Vec<usize>>();
+                for row in rows_to_delete.iter().rev() {
+                    optimized_loc.entries.remove(*row);
+                } 
+            }
+
+            // Save the data to the PackFile and, if it's empty, add it to the deletion list.
+            update_packed_file_data_loc_2(&optimized_loc, &mut packed_file);
+            if optimized_loc.entries.is_empty() { files_to_delete.push(packed_file.path.to_vec()); }
         }
     }
 
