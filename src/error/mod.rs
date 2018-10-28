@@ -413,7 +413,8 @@ impl Display for ErrorKind {
             <li>The PackFile's type is <i>'Other'</i>.</li>
             <li>One of the greyed checkboxes under <i>'PackFile/Change PackFile Type'</i> is checked.</li>
             </ul>
-            <p>If you really want to save it, go to <i>'PackFile/Change PackFile Type'</i> and change his type to 'Mod' or 'Movie'. Note that if the cause it's the third on the list, there is no way to save the PackFile, yet.</p>"),
+            <p>If you really want to save it, go to <i>'PackFile/Change PackFile Type'</i> and change his type to 'Mod' or 'Movie'. Note that if the cause it's the third on the list, there is no way to save the PackFile, yet.</p>
+            <p><b>NOTE</b>: If you created this PackFile using the <i>'Load All CA PackedFiles'</i> feature, NEVER try to save it unless you have 64GB of ram or more. Otherwise it may hang your entire computer to dead.</p>"),
             ErrorKind::PackFileIsNotAPackFile => write!(f, "<p>This file is not a valid PackFile.</p>"),
             ErrorKind::PackFileIsNotAFile => write!(f, "<p>This PackFile doesn't exists as a file in the disk.</p>"),
             ErrorKind::PackFileSizeIsNotWhatWeExpect(reported_size, expected_size) => write!(f, "<p>This PackFile's reported size is <i><b>{}</b></i> bytes, but we expected it to be <i><b>{}</b></i> bytes. This means that either the decoding logic in RPFM is broken for this PackFile, or this PackFile is corrupted.</p>", reported_size, expected_size),

@@ -8,8 +8,10 @@ use std::path::PathBuf;
 use std::io::BufReader;
 use std::io::BufWriter;
 
+use SUPPORTED_GAMES;
 use common::*;
 use error::{Error, ErrorKind, Result};
+use packfile::packfile::PFHFileType;
 use packedfile::loc::Loc;
 use packedfile::db::DB;
 use packedfile::db::schemas::Schema;
@@ -182,6 +184,82 @@ pub fn load_dependency_packfiles(game_selected: &str, settings: &Settings, depen
 
     // Return the new PackedFiles list.
     packed_files
+}
+
+/// This function is another special open function, to get all the PackedFiles from every CA PackFile of a game.
+/// It returns a fake PackFile with them.
+pub fn load_all_ca_packfiles(game_selected: &str, settings: &Settings) -> Result<packfile::PackFile> {
+
+    // Create the fake PackFile.
+    let pfh_version = SUPPORTED_GAMES.get(&*game_selected).unwrap().id;
+    let mut pack_file = packfile::PackFile::new_with_name(game_selected.to_owned(), pfh_version);
+
+    // Get all the paths we need and open them one by one.
+    let packs_paths = if let Some(paths) = get_game_selected_data_packfiles_paths(game_selected, settings) { paths } else { Err(ErrorKind::GamePathNotConfigured)? };
+    let mut ca_pack_files = vec![];
+    for path in packs_paths {
+        ca_pack_files.push(packfile::PackFile::read(path, true)?);
+    }
+
+    // Get all the PackedFiles from each PackFile. First Boot type, then Release type, then Patch type, then Movie type.
+    let mut boot_files = vec![];
+    for ca_pack_file in &ca_pack_files {
+        if let PFHFileType::Boot = ca_pack_file.pfh_file_type {
+            ca_pack_file.packed_files.iter().for_each(|x| boot_files.push(x.clone()));
+        }
+    }
+    
+    let mut release_files = vec![];
+    for ca_pack_file in &ca_pack_files {
+        if let PFHFileType::Release = ca_pack_file.pfh_file_type {
+            ca_pack_file.packed_files.iter().for_each(|x| release_files.push(x.clone()));
+        }
+    }
+
+    let mut patch_files = vec![];
+    for ca_pack_file in &ca_pack_files {
+        if let PFHFileType::Patch = ca_pack_file.pfh_file_type {
+            ca_pack_file.packed_files.iter().for_each(|x| patch_files.push(x.clone()));
+        }
+    }
+
+    // This may load custom PackFiles. The only way to fix this is to read the manifest and checking if they are there, but I don't know if it's in all the games.
+    // TODO: Make this only load CA PackFiles.
+    let mut movie_files = vec![];
+    for ca_pack_file in &ca_pack_files {
+        if let PFHFileType::Movie = ca_pack_file.pfh_file_type {
+            ca_pack_file.packed_files.iter().for_each(|x| movie_files.push(x.clone()));
+        }
+    }
+
+    // The priority in case of collision is:
+    // - Same Type: First to come is the valid one.
+    // - Different Type: Last to come is the valid one.
+    boot_files.sort_by_key(|x| x.path.to_vec());
+    boot_files.dedup_by_key(|x| x.path.to_vec());
+
+    release_files.sort_by_key(|x| x.path.to_vec());
+    release_files.dedup_by_key(|x| x.path.to_vec());
+
+    patch_files.sort_by_key(|x| x.path.to_vec());
+    patch_files.dedup_by_key(|x| x.path.to_vec());
+
+    movie_files.sort_by_key(|x| x.path.to_vec());
+    movie_files.dedup_by_key(|x| x.path.to_vec());
+
+    pack_file.packed_files.append(&mut movie_files);
+    pack_file.packed_files.append(&mut patch_files);
+    pack_file.packed_files.append(&mut release_files);
+    pack_file.packed_files.append(&mut boot_files);
+
+    pack_file.packed_files.sort_by_key(|x| x.path.to_vec());
+    pack_file.packed_files.dedup_by_key(|x| x.path.to_vec());
+
+    // Set it as type "Other(200)", so we can easely identify it as fake in other places.
+    pack_file.pfh_file_type = PFHFileType::Other(200);
+
+    // Return the new PackedFiles list.
+    Ok(pack_file)
 }
 
 /// This function is used to take an open PackFile, encode it and save it into the disk. We return

@@ -266,6 +266,7 @@ pub fn get_game_selected_data_packfiles_paths(game_selected: &str, settings: &Se
         }
     }
 
+    paths.sort();
     Some(paths)
 }
 
@@ -291,5 +292,6 @@ pub fn get_game_selected_content_packfiles_paths(game_selected: &str, settings: 
         }
     }
 
+    paths.sort();
     Some(paths)
 }

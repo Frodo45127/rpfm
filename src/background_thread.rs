@@ -188,6 +188,23 @@ pub fn background_loop(
                         }
                     }
 
+                    // In case we want to "Load All CA PackFiles"...
+                    Commands::LoadAllCAPackFiles => {
+
+                        // Open the PackFile (Or die trying it).
+                        match packfile::load_all_ca_packfiles(&game_selected, &settings) {
+
+                            // If we succeed at opening the PackFile...
+                            Ok(pack_file) => {
+                                pack_file_decoded = pack_file;
+                                sender.send(Data::PackFileUIData(pack_file_decoded.create_ui_data())).unwrap();
+                            }
+
+                            // If there is an error, send it back to the UI.
+                            Err(error) => sender.send(Data::Error(error)).unwrap(),
+                        }
+                    }
+
                     // In case we want to change the PackFile's Type...
                     Commands::SetPackFileType => {
 

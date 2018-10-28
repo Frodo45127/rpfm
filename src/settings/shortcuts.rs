@@ -46,6 +46,7 @@ impl Shortcuts {
         menu_bar_packfile.insert("open_packfile".to_owned(), "Ctrl+O".to_owned());
         menu_bar_packfile.insert("save_packfile".to_owned(), "Ctrl+S".to_owned());
         menu_bar_packfile.insert("save_packfile_as".to_owned(), "Ctrl+Shift+S".to_owned());
+        menu_bar_packfile.insert("load_all_ca_packfiles".to_owned(), "Ctrl+G".to_owned());
         menu_bar_packfile.insert("preferences".to_owned(), "Ctrl+P".to_owned());
         menu_bar_packfile.insert("quit".to_owned(), "Ctrl+Q".to_owned());
 

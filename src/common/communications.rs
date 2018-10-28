@@ -33,6 +33,7 @@ pub enum Commands {
     OpenPackFileExtra,
     SavePackFile,
     SavePackFileAs,
+    LoadAllCAPackFiles,
     SetPackFileType,
     ChangeIndexIncludesTimestamp,
     GetSchema,

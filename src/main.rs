@@ -288,6 +288,7 @@ pub struct AppUI {
     pub open_packfile: *mut Action,
     pub save_packfile: *mut Action,
     pub save_packfile_as: *mut Action,
+    pub load_all_ca_packfiles: *mut Action,
     pub preferences: *mut Action,
     pub quit: *mut Action,
 
@@ -585,126 +586,124 @@ fn main() {
         let menu_rename = folder_tree_view_context_menu.add_menu(&QString::from_std_str("&Rename..."));
 
         // Da monsta.
-        let app_ui;
-        unsafe {
-            app_ui = AppUI {
+        let app_ui = unsafe { AppUI {
 
-                //-------------------------------------------------------------------------------//
-                // Big stuff.
-                //-------------------------------------------------------------------------------//
-                window: window.into_raw(),
-                folder_tree_view: folder_tree_view.into_raw(),
-                folder_tree_model: folder_tree_model.into_raw(),
-                packed_file_splitter: packed_file_splitter.into_raw(),
+            //-------------------------------------------------------------------------------//
+            // Big stuff.
+            //-------------------------------------------------------------------------------//
+            window: window.into_raw(),
+            folder_tree_view: folder_tree_view.into_raw(),
+            folder_tree_model: folder_tree_model.into_raw(),
+            packed_file_splitter: packed_file_splitter.into_raw(),
 
-                //-------------------------------------------------------------------------------//
-                // "PackFile" menu.
-                //-------------------------------------------------------------------------------//
+            //-------------------------------------------------------------------------------//
+            // "PackFile" menu.
+            //-------------------------------------------------------------------------------//
 
-                // Menús.
-                new_packfile: menu_bar_packfile.as_mut().unwrap().add_action(&QString::from_std_str("&New PackFile")),
-                open_packfile: menu_bar_packfile.as_mut().unwrap().add_action(&QString::from_std_str("&Open PackFile")),
-                save_packfile: menu_bar_packfile.as_mut().unwrap().add_action(&QString::from_std_str("&Save PackFile")),
-                save_packfile_as: menu_bar_packfile.as_mut().unwrap().add_action(&QString::from_std_str("Save PackFile &As...")),
-                preferences: menu_bar_packfile.as_mut().unwrap().add_action(&QString::from_std_str("&Preferences")),
-                quit: menu_bar_packfile.as_mut().unwrap().add_action(&QString::from_std_str("&Quit")),
+            // Menús.
+            new_packfile: menu_bar_packfile.as_mut().unwrap().add_action(&QString::from_std_str("&New PackFile")),
+            open_packfile: menu_bar_packfile.as_mut().unwrap().add_action(&QString::from_std_str("&Open PackFile")),
+            save_packfile: menu_bar_packfile.as_mut().unwrap().add_action(&QString::from_std_str("&Save PackFile")),
+            save_packfile_as: menu_bar_packfile.as_mut().unwrap().add_action(&QString::from_std_str("Save PackFile &As...")),
+            load_all_ca_packfiles: menu_bar_packfile.as_mut().unwrap().add_action(&QString::from_std_str("&Load All CA PackFiles...")),
+            preferences: menu_bar_packfile.as_mut().unwrap().add_action(&QString::from_std_str("&Preferences")),
+            quit: menu_bar_packfile.as_mut().unwrap().add_action(&QString::from_std_str("&Quit")),
 
-                // "Change PackFile Type" submenu.
-                change_packfile_type_boot: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Boot")),
-                change_packfile_type_release: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Release")),
-                change_packfile_type_patch: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Patch")),
-                change_packfile_type_mod: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Mod")),
-                change_packfile_type_movie: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("Mo&vie")),
-                change_packfile_type_other: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Other")),
+            // "Change PackFile Type" submenu.
+            change_packfile_type_boot: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Boot")),
+            change_packfile_type_release: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Release")),
+            change_packfile_type_patch: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Patch")),
+            change_packfile_type_mod: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Mod")),
+            change_packfile_type_movie: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("Mo&vie")),
+            change_packfile_type_other: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Other")),
 
-                change_packfile_type_data_is_encrypted: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Data Is Encrypted")),
-                change_packfile_type_index_includes_timestamp: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Index Includes Timestamp")),
-                change_packfile_type_index_is_encrypted: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("Index Is &Encrypted")),
-                change_packfile_type_header_is_extended: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Header Is Extended")),
+            change_packfile_type_data_is_encrypted: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Data Is Encrypted")),
+            change_packfile_type_index_includes_timestamp: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Index Includes Timestamp")),
+            change_packfile_type_index_is_encrypted: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("Index Is &Encrypted")),
+            change_packfile_type_header_is_extended: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Header Is Extended")),
 
-                // Action Group for the submenu.
-                change_packfile_type_group: ActionGroup::new(menu_change_packfile_type.as_mut().unwrap().static_cast_mut()).into_raw(),
+            // Action Group for the submenu.
+            change_packfile_type_group: ActionGroup::new(menu_change_packfile_type.as_mut().unwrap().static_cast_mut()).into_raw(),
 
-                //-------------------------------------------------------------------------------//
-                // "Game Selected" menu.
-                //-------------------------------------------------------------------------------//
+            //-------------------------------------------------------------------------------//
+            // "Game Selected" menu.
+            //-------------------------------------------------------------------------------//
 
-                warhammer_2: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("&Warhammer 2")),
-                warhammer: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("War&hammer")),
-                attila: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("&Attila")),
-                rome_2: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("R&ome 2")),
-                arena: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("A&rena")),
+            warhammer_2: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("&Warhammer 2")),
+            warhammer: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("War&hammer")),
+            attila: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("&Attila")),
+            rome_2: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("R&ome 2")),
+            arena: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("A&rena")),
 
-                game_selected_group: ActionGroup::new(menu_bar_game_seleted.as_mut().unwrap().static_cast_mut()).into_raw(),
+            game_selected_group: ActionGroup::new(menu_bar_game_seleted.as_mut().unwrap().static_cast_mut()).into_raw(),
 
-                //-------------------------------------------------------------------------------//
-                // "Special Stuff" menu.
-                //-------------------------------------------------------------------------------//
+            //-------------------------------------------------------------------------------//
+            // "Special Stuff" menu.
+            //-------------------------------------------------------------------------------//
 
-                // Warhammer 2's actions.
-                wh2_patch_siege_ai: menu_warhammer_2.as_mut().unwrap().add_action(&QString::from_std_str("&Patch Siege AI")),
-                // wh2_create_prefab: menu_warhammer_2.as_mut().unwrap().add_action(&QString::from_std_str("&Create Prefab")),
-                wh2_create_prefab: Action::new(&QString::from_std_str("&Create Prefab")).into_raw(),
-                wh2_optimize_packfile: menu_warhammer_2.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
+            // Warhammer 2's actions.
+            wh2_patch_siege_ai: menu_warhammer_2.as_mut().unwrap().add_action(&QString::from_std_str("&Patch Siege AI")),
+            // wh2_create_prefab: menu_warhammer_2.as_mut().unwrap().add_action(&QString::from_std_str("&Create Prefab")),
+            wh2_create_prefab: Action::new(&QString::from_std_str("&Create Prefab")).into_raw(),
+            wh2_optimize_packfile: menu_warhammer_2.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
 
-                // Warhammer's actions.
-                wh_patch_siege_ai: menu_warhammer.as_mut().unwrap().add_action(&QString::from_std_str("&Patch Siege AI")),
-                // wh_create_prefab: menu_warhammer.as_mut().unwrap().add_action(&QString::from_std_str("&Create Prefab")),
-                wh_create_prefab: Action::new(&QString::from_std_str("&Create Prefab")).into_raw(),
-                wh_optimize_packfile: menu_warhammer.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
-                
-                // Attila's actions.
-                att_optimize_packfile: menu_attila.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
-                
-                // Rome 2'a actions.
-                rom2_optimize_packfile: menu_rome_2.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
+            // Warhammer's actions.
+            wh_patch_siege_ai: menu_warhammer.as_mut().unwrap().add_action(&QString::from_std_str("&Patch Siege AI")),
+            // wh_create_prefab: menu_warhammer.as_mut().unwrap().add_action(&QString::from_std_str("&Create Prefab")),
+            wh_create_prefab: Action::new(&QString::from_std_str("&Create Prefab")).into_raw(),
+            wh_optimize_packfile: menu_warhammer.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
+            
+            // Attila's actions.
+            att_optimize_packfile: menu_attila.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
+            
+            // Rome 2'a actions.
+            rom2_optimize_packfile: menu_rome_2.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
 
-                //-------------------------------------------------------------------------------//
-                // "About" menu.
-                //-------------------------------------------------------------------------------//
-                about_qt: menu_bar_about.as_mut().unwrap().add_action(&QString::from_std_str("About &Qt")),
-                about_rpfm: menu_bar_about.as_mut().unwrap().add_action(&QString::from_std_str("&About RPFM")),
-                open_manual: menu_bar_about.as_mut().unwrap().add_action(&QString::from_std_str("&Open Manual")),
-                patreon_link: menu_bar_about.as_mut().unwrap().add_action(&QString::from_std_str("&Support me on Patreon")),
-                check_updates: menu_bar_about.as_mut().unwrap().add_action(&QString::from_std_str("&Check Updates")),
-                check_schema_updates: menu_bar_about.as_mut().unwrap().add_action(&QString::from_std_str("Check Schema &Updates")),
+            //-------------------------------------------------------------------------------//
+            // "About" menu.
+            //-------------------------------------------------------------------------------//
+            about_qt: menu_bar_about.as_mut().unwrap().add_action(&QString::from_std_str("About &Qt")),
+            about_rpfm: menu_bar_about.as_mut().unwrap().add_action(&QString::from_std_str("&About RPFM")),
+            open_manual: menu_bar_about.as_mut().unwrap().add_action(&QString::from_std_str("&Open Manual")),
+            patreon_link: menu_bar_about.as_mut().unwrap().add_action(&QString::from_std_str("&Support me on Patreon")),
+            check_updates: menu_bar_about.as_mut().unwrap().add_action(&QString::from_std_str("&Check Updates")),
+            check_schema_updates: menu_bar_about.as_mut().unwrap().add_action(&QString::from_std_str("Check Schema &Updates")),
 
-                //-------------------------------------------------------------------------------//
-                // "Contextual" Menu for the TreeView.
-                //-------------------------------------------------------------------------------//
+            //-------------------------------------------------------------------------------//
+            // "Contextual" Menu for the TreeView.
+            //-------------------------------------------------------------------------------//
 
-                context_menu_add_file: menu_add.as_mut().unwrap().add_action(&QString::from_std_str("&Add File")),
-                context_menu_add_folder: menu_add.as_mut().unwrap().add_action(&QString::from_std_str("Add &Folder")),
-                context_menu_add_from_packfile: menu_add.as_mut().unwrap().add_action(&QString::from_std_str("Add from &PackFile")),
+            context_menu_add_file: menu_add.as_mut().unwrap().add_action(&QString::from_std_str("&Add File")),
+            context_menu_add_folder: menu_add.as_mut().unwrap().add_action(&QString::from_std_str("Add &Folder")),
+            context_menu_add_from_packfile: menu_add.as_mut().unwrap().add_action(&QString::from_std_str("Add from &PackFile")),
 
-                context_menu_create_folder: menu_create.as_mut().unwrap().add_action(&QString::from_std_str("&Create Folder")),
-                context_menu_create_loc: menu_create.as_mut().unwrap().add_action(&QString::from_std_str("&Create Loc")),
-                context_menu_create_db: menu_create.as_mut().unwrap().add_action(&QString::from_std_str("Create &DB")),
-                context_menu_create_text: menu_create.as_mut().unwrap().add_action(&QString::from_std_str("Create &Text")),
+            context_menu_create_folder: menu_create.as_mut().unwrap().add_action(&QString::from_std_str("&Create Folder")),
+            context_menu_create_loc: menu_create.as_mut().unwrap().add_action(&QString::from_std_str("&Create Loc")),
+            context_menu_create_db: menu_create.as_mut().unwrap().add_action(&QString::from_std_str("Create &DB")),
+            context_menu_create_text: menu_create.as_mut().unwrap().add_action(&QString::from_std_str("Create &Text")),
 
-                context_menu_mass_import_tsv: menu_create.as_mut().unwrap().add_action(&QString::from_std_str("Mass-Import TSV")),
-                context_menu_mass_export_tsv: menu_create.as_mut().unwrap().add_action(&QString::from_std_str("Mass-Export TSV")),
+            context_menu_mass_import_tsv: menu_create.as_mut().unwrap().add_action(&QString::from_std_str("Mass-Import TSV")),
+            context_menu_mass_export_tsv: menu_create.as_mut().unwrap().add_action(&QString::from_std_str("Mass-Export TSV")),
 
-                context_menu_delete: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Delete")),
-                context_menu_extract: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Extract")),
-                
-                context_menu_rename_current: menu_rename.as_mut().unwrap().add_action(&QString::from_std_str("Rename &Current")),
-                context_menu_apply_prefix_to_selected: menu_rename.as_mut().unwrap().add_action(&QString::from_std_str("Apply Prefix to &Selected")),
-                context_menu_apply_prefix_to_all: menu_rename.as_mut().unwrap().add_action(&QString::from_std_str("Apply Prefix to &All")),
+            context_menu_delete: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Delete")),
+            context_menu_extract: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Extract")),
+            
+            context_menu_rename_current: menu_rename.as_mut().unwrap().add_action(&QString::from_std_str("Rename &Current")),
+            context_menu_apply_prefix_to_selected: menu_rename.as_mut().unwrap().add_action(&QString::from_std_str("Apply Prefix to &Selected")),
+            context_menu_apply_prefix_to_all: menu_rename.as_mut().unwrap().add_action(&QString::from_std_str("Apply Prefix to &All")),
 
-                context_menu_open_decoder: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open with Decoder")),
-                context_menu_open_dependency_manager: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open Dependency Manager")),
-                context_menu_open_with_external_program: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open with External Program")),
-                context_menu_open_in_multi_view: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open in Multi-View")),
-                context_menu_global_search: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Global Search")),
+            context_menu_open_decoder: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open with Decoder")),
+            context_menu_open_dependency_manager: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open Dependency Manager")),
+            context_menu_open_with_external_program: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open with External Program")),
+            context_menu_open_in_multi_view: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open in Multi-View")),
+            context_menu_global_search: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Global Search")),
 
-                //-------------------------------------------------------------------------------//
-                // "Special" Actions for the TreeView.
-                //-------------------------------------------------------------------------------//
-                tree_view_expand_all: Action::new(&QString::from_std_str("&Expand All")).into_raw(),
-                tree_view_collapse_all: Action::new(&QString::from_std_str("&Collapse All")).into_raw(),
-            };
-        }
+            //-------------------------------------------------------------------------------//
+            // "Special" Actions for the TreeView.
+            //-------------------------------------------------------------------------------//
+            tree_view_expand_all: Action::new(&QString::from_std_str("&Expand All")).into_raw(),
+            tree_view_collapse_all: Action::new(&QString::from_std_str("&Collapse All")).into_raw(),
+        }};
 
         // The "Change PackFile Type" submenu should be an ActionGroup.
         unsafe { app_ui.change_packfile_type_group.as_mut().unwrap().add_action_unsafe(app_ui.change_packfile_type_boot); }
@@ -795,6 +794,7 @@ fn main() {
         unsafe { app_ui.open_packfile.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.menu_bar_packfile.get("open_packfile").unwrap()))); }
         unsafe { app_ui.save_packfile.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.menu_bar_packfile.get("save_packfile").unwrap()))); }
         unsafe { app_ui.save_packfile_as.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.menu_bar_packfile.get("save_packfile_as").unwrap()))); }
+        unsafe { app_ui.load_all_ca_packfiles.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.menu_bar_packfile.get("load_all_ca_packfiles").unwrap()))); }
         unsafe { app_ui.preferences.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.menu_bar_packfile.get("preferences").unwrap()))); }
         unsafe { app_ui.quit.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.menu_bar_packfile.get("quit").unwrap()))); }
 
@@ -809,6 +809,7 @@ fn main() {
         unsafe { app_ui.open_packfile.as_mut().unwrap().set_shortcut_context(ShortcutContext::Application); }
         unsafe { app_ui.save_packfile.as_mut().unwrap().set_shortcut_context(ShortcutContext::Application); }
         unsafe { app_ui.save_packfile_as.as_mut().unwrap().set_shortcut_context(ShortcutContext::Application); }
+        unsafe { app_ui.load_all_ca_packfiles.as_mut().unwrap().set_shortcut_context(ShortcutContext::Application); }
         unsafe { app_ui.preferences.as_mut().unwrap().set_shortcut_context(ShortcutContext::Application); }
         unsafe { app_ui.quit.as_mut().unwrap().set_shortcut_context(ShortcutContext::Application); }
 
@@ -985,6 +986,7 @@ fn main() {
         unsafe { app_ui.open_packfile.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open an existing PackFile.")); }
         unsafe { app_ui.save_packfile.as_mut().unwrap().set_status_tip(&QString::from_std_str("Save the changes made in the currently open PackFile to disk.")); }
         unsafe { app_ui.save_packfile_as.as_mut().unwrap().set_status_tip(&QString::from_std_str("Save the currently open PackFile as a new PackFile, instead of overwriting the original one.")); }
+        unsafe { app_ui.load_all_ca_packfiles.as_mut().unwrap().set_status_tip(&QString::from_std_str("Try to load every PackedFile from every vanilla PackFile of the selected game into RPFM at the same time, using lazy-loading to load the PackedFiles. Keep in mind that if you try to save it, your PC may die.")); }
         unsafe { app_ui.change_packfile_type_boot.as_mut().unwrap().set_status_tip(&QString::from_std_str("Changes the PackFile's Type to Boot. You should never use it.")); }
         unsafe { app_ui.change_packfile_type_release.as_mut().unwrap().set_status_tip(&QString::from_std_str("Changes the PackFile's Type to Release. You should never use it.")); }
         unsafe { app_ui.change_packfile_type_patch.as_mut().unwrap().set_status_tip(&QString::from_std_str("Changes the PackFile's Type to Patch. You should never use it.")); }
@@ -1500,6 +1502,93 @@ fn main() {
             }
         ));
 
+        // What happens when we trigger the "Load All CA PackFiles" action.
+        let slot_load_all_ca_packfiles = SlotBool::new(clone!(
+            history_state_tables,
+            is_modified,
+            mode,
+            mymod_stuff,
+            sender_qt,
+            sender_qt_data,
+            packedfiles_open_in_packedfile_view,
+            receiver_qt => move |_| {
+
+                // Check first if there has been changes in the PackFile.
+                if are_you_sure(&app_ui, &is_modified, false) {
+
+                    // Tell the Background Thread to try to load the PackFiles.
+                    sender_qt.send(Commands::LoadAllCAPackFiles).unwrap();
+                    unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+                    match check_message_validity_tryrecv(&receiver_qt) {
+                    
+                        // If it's success....
+                        Data::PackFileUIData(_) => {
+
+                            // This PackFile is a special one. It'll always be type "Other(200)" with every special stuff as false.
+                            // TODO: Encrypted PackedFiles haven't been tested with this.
+                            unsafe { app_ui.change_packfile_type_other.as_mut().unwrap().set_checked(true); }
+                            unsafe { app_ui.change_packfile_type_data_is_encrypted.as_mut().unwrap().set_checked(false); }
+                            unsafe { app_ui.change_packfile_type_index_includes_timestamp.as_mut().unwrap().set_checked(false); }
+                            unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_checked(false); }
+                            unsafe { app_ui.change_packfile_type_header_is_extended.as_mut().unwrap().set_checked(false); }
+
+                            // Update the TreeView.
+                            update_treeview(
+                                &sender_qt,
+                                &sender_qt_data,
+                                receiver_qt.clone(),
+                                app_ui.window,
+                                app_ui.folder_tree_view,
+                                app_ui.folder_tree_model,
+                                TreeViewOperation::Build(false),
+                            );
+
+                            // Set the new mod as "Not modified".
+                            *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
+
+                            // Reset the Game Selected, so the UI get's updated properly.
+                            sender_qt.send(Commands::GetGameSelected).unwrap();
+                            let game_selected = if let Data::String(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                            match &*game_selected {
+                                "warhammer_2" => unsafe { app_ui.warhammer_2.as_mut().unwrap().trigger(); },
+                                "warhammer" => unsafe { app_ui.warhammer.as_mut().unwrap().trigger(); },
+                                "attila" => unsafe { app_ui.attila.as_mut().unwrap().trigger(); }
+                                "rome_2" => unsafe { app_ui.rome_2.as_mut().unwrap().trigger(); }
+                                "arena" => unsafe { app_ui.arena.as_mut().unwrap().trigger(); },
+                                _ => unreachable!()
+                            }
+
+                            // Set the current "Operational Mode" to `Normal`.
+                            set_my_mod_mode(&mymod_stuff, &mode, None);
+
+                            // Destroy whatever it's in the PackedFile's view, to avoid data corruption.
+                            purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);
+
+                            // Get the current settings.
+                            sender_qt.send(Commands::GetSettings).unwrap();
+                            let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                        
+                            // Close the Global Search stuff and reset the filter's history.
+                            unsafe { close_global_search_action.as_mut().unwrap().trigger(); }
+                            if !settings.settings_bool.get("remember_table_state_permanently").unwrap() { history_state_tables.borrow_mut().clear(); }
+
+                            // Show the "Tips".
+                            display_help_tips(&app_ui);
+                        }
+
+                        // If we got an error...
+                        Data::Error(error) => show_dialog(app_ui.window, false, error),
+
+                        // In ANY other situation, it's a message problem.
+                        _ => panic!(THREADS_MESSAGE_ERROR),
+                    }
+
+                    // Re-enable the Main Window.
+                    unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
+                }
+            }
+        ));
+
         // What happens when we trigger the "Change PackFile Type" action.
         let slot_change_packfile_type = SlotBool::new(clone!(
             is_modified,
@@ -1636,6 +1725,7 @@ fn main() {
         unsafe { app_ui.open_packfile.as_ref().unwrap().signals().triggered().connect(&slot_open_packfile); }
         unsafe { app_ui.save_packfile.as_ref().unwrap().signals().triggered().connect(&slot_save_packfile); }
         unsafe { app_ui.save_packfile_as.as_ref().unwrap().signals().triggered().connect(&slot_save_packfile_as); }
+        unsafe { app_ui.load_all_ca_packfiles.as_ref().unwrap().signals().triggered().connect(&slot_load_all_ca_packfiles); }
 
         unsafe { app_ui.change_packfile_type_boot.as_ref().unwrap().signals().triggered().connect(&slot_change_packfile_type); }
         unsafe { app_ui.change_packfile_type_release.as_ref().unwrap().signals().triggered().connect(&slot_change_packfile_type); }

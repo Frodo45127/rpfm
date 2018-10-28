@@ -265,8 +265,11 @@ impl PackFile {
     /// except types "Mod" and "Movie".
     pub fn is_editable(&self, is_editing_of_ca_packfiles_allowed: bool) -> bool {
 
+        // If it's this very specific type, don't save under any circunstance.
+        if let PFHFileType::Other(_) = self.pfh_file_type { false }
+
         // If ANY of these bitmask is detected in the PackFile, disable all saving.
-        if self.bitmask.contains(PFHFlags::HAS_ENCRYPTED_DATA) || self.bitmask.contains(PFHFlags::HAS_ENCRYPTED_INDEX) || self.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) { false }
+        else if self.bitmask.contains(PFHFlags::HAS_ENCRYPTED_DATA) || self.bitmask.contains(PFHFlags::HAS_ENCRYPTED_INDEX) || self.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) { false }
 
         // These types are always editable.
         else if self.pfh_file_type == PFHFileType::Mod || self.pfh_file_type == PFHFileType::Movie { true }
