@@ -669,11 +669,9 @@ pub fn background_loop(
                     // In case we want to import a TSV file into a Loc PackedFile...
                     Commands::ImportTSVPackedFileLoc => {
 
-                        // Wait until we get the needed data from the UI thread.
+                        // Try to import the TSV into the open Loc PackedFile from the provided path, or die trying.
                         let mut data = if let Data::LocPathBuf(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                        // Try to import the TSV into the open Loc PackedFile, or die trying.
-                        match data.0.import_tsv(&data.1, "Loc PackedFile") {
+                        match data.0.import_tsv(&data.1, "") {
                             Ok(_) => sender.send(Data::Loc(data.0)).unwrap(),
                             Err(error) => sender.send(Data::Error(error)).unwrap(),
                         }
@@ -682,12 +680,10 @@ pub fn background_loop(
                     // In case we want to export a Loc PackedFile into a TSV file...
                     Commands::ExportTSVPackedFileLoc => {
 
-                        // Wait until we get the needed data from the UI thread.
+                        // Try to export the TSV from the open Loc PackedFile to the provided path, or die trying.
                         let data = if let Data::LocPathBuf(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                        // Try to export the TSV from the open Loc PackedFile, or die trying.
-                        match data.0.export_tsv(&data.1, ("Loc PackedFile", 9001)) {
-                            Ok(success) => sender.send(Data::String(success)).unwrap(),
+                        match data.0.export_tsv(&data.1, ("", 0)) {
+                            Ok(_) => sender.send(Data::Success).unwrap(),
                             Err(error) => sender.send(Data::Error(error)).unwrap(),
                         }
                     }
@@ -749,10 +745,8 @@ pub fn background_loop(
                     // In case we want to import a TSV file into a DB PackedFile...
                     Commands::ImportTSVPackedFileDB => {
 
-                        // Wait until we get the needed data from the UI thread.
+                        // Try to import the TSV into the open DB Table from the provided path, or die trying.
                         let mut data = if let Data::DBPathBuf(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                        // Try to import the TSV into the open DB PackedFile, or die trying.
                         let db_type = data.0.db_type.to_owned();
                         match data.0.import_tsv(&data.1, &db_type) {
                             Ok(_) => sender.send(Data::DB(data.0)).unwrap(),
@@ -763,12 +757,10 @@ pub fn background_loop(
                     // In case we want to export a DB PackedFile into a TSV file...
                     Commands::ExportTSVPackedFileDB => {
 
-                        // Wait until we get the needed data from the UI thread.
+                        // Try to export the TSV into the open DB PackedFile to the provided path, or die trying.
                         let data = if let Data::DBPathBuf(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                        // Try to export the TSV into the open DB PackedFile, or die trying.
                         match data.0.export_tsv(&data.1, (&data.0.db_type, data.0.version)) {
-                            Ok(success) => sender.send(Data::String(success)).unwrap(),
+                            Ok(_) => sender.send(Data::Success).unwrap(),
                             Err(error) => sender.send(Data::Error(error)).unwrap(),
                         }
                     }

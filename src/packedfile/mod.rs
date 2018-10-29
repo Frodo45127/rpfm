@@ -42,13 +42,13 @@ pub enum PackedFileType {
 /// export to and import from a TSV file, like `LocData` and `DBData`.
 pub trait SerializableToTSV {
 
-    /// `import_tsv`: Requires `&mut self`, a `&PathBuf` with the path of the TSV file and the name of our PackedFile.
-    /// Returns success or an error.
-    fn import_tsv(&mut self, tsv_file_path: &PathBuf, packed_file_type: &str) -> Result<()>;
+    /// `import_tsv`: Requires `&mut self`, a `&PathBuf` with the path of the TSV file and (in case of a table)
+    /// the name of our DB Table's table (xxx_tables). Returns success or an error.
+    fn import_tsv(&mut self, tsv_file_path: &PathBuf, db_name: &str) -> Result<()>;
 
-    /// `export_tsv`: Requires `&self`, the destination path for the TSV file and a name and a number (version)
-    /// to put in the header of the TSV file. Returns a success message, or an error.
-    fn export_tsv(&self, tsv_file_path: &PathBuf, extra_data: (&str, u32)) -> Result<String>;
+    /// `export_tsv`: Requires `&self`, the destination path for the TSV file and (in case of a table) 
+    /// a name and a number (version) to put in the header of the TSV file. Returns sucess or an error.
+    fn export_tsv(&self, tsv_file_path: &PathBuf, db_info: (&str, u32)) -> Result<()>;
 }
 
 /*

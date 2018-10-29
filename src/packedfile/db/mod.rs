@@ -288,7 +288,11 @@ impl DB {
 impl SerializableToTSV for DB {
 
     /// This function imports a TSV file and loads his contents into a DB Table.
-    fn import_tsv(&mut self, tsv_file_path: &PathBuf, packed_file_type: &str) -> Result<()> {
+    fn import_tsv(
+        &mut self,
+        tsv_file_path: &PathBuf,
+        db_name: &str
+    ) -> Result<()> {
 
         // We want the reader to have no quotes, tab as delimiter and custom headers, because otherwise
         // Excel, Libreoffice and all the programs that edit this kind of files break them on save.
@@ -299,80 +303,57 @@ impl SerializableToTSV for DB {
             .flexible(true)
             .from_path(&tsv_file_path) {
 
-            // If we succesfully read the TSV file into a reader...
             Ok(mut reader) => {
 
-                // We create here the vector to store the data while it's being decoded.
-                let mut packed_file_data = vec![];
+                // If we succesfully read the TSV file into a reader, check the first two lines to ensure it's a valid TSV for our specific table.
+                let mut entries = vec![];
+                for (row, record) in reader.records().enumerate() {
+                    if let Ok(record) = record {
 
-                // For each entry in the reader...
-                for (index, reader_entry) in reader.records().enumerate() {
-
-                    // We use the first entry to make sure this TSV file belongs to this table.
-                    if index == 0 {
-                        match reader_entry {
-                            Ok(entry) => {
-
-                                // Get his original table's name and version.
-                                let table_name = entry.get(0).unwrap_or("error");
-                                let table_version = entry.get(1).unwrap_or("99999").parse::<u32>().unwrap_or(99999);
-
-                                // If the name or version are the defaults, return error.
-                                if table_name == "error" || table_version == 99999 {
-                                    return Err(ErrorKind::ImportTSVIncorrectFirstRow)?;
-                                }
-
-                                // If any of them doesn't match the name and version of the table we are importing to, return error.
-                                if table_name != packed_file_type { return Err(ErrorKind::ImportTSVWrongTypeTable)?; }
-                                else if table_version != self.table_definition.version { return Err(ErrorKind::ImportTSVWrongVersion)?; }
+                        if row == 0 { 
+                            if record.get(0).unwrap_or("error") != db_name {
+                                return Err(ErrorKind::ImportTSVWrongTypeTable)?;
                             }
-
-                            // If it fails, return error.
-                            Err(_) => return Err(ErrorKind::ImportTSVIncorrectFirstRow)?,
+                            if record.get(1).unwrap_or("error") != self.version.to_string() {
+                                return Err(ErrorKind::ImportTSVWrongVersion)?;
+                            }
                         }
-                    }
 
-                    // The rest of the lines should be decoded normally.
-                    else {
+                        // The second row is just to help people in other programs, not needed to be check.
+                        else if row == 1 { continue }
 
-                        // If the entry record hasn't returned any error, we try decode it using the schema of the open table.
-                        match reader_entry {
-                            Ok(entry) => {
-
-                                // We need to check if the length of the imported entries is the same than the one from the schema.
-                                // If not, then we stop the import and return an error. This should avoid the problem with undecodeable
-                                // tables after importing into them a TSV from another table that passes the schema filter from below.
-                                if entry.len() == self.table_definition.fields.len() {
-                                    let mut entry_complete = vec![];
-                                    for (index, field) in entry.iter().enumerate() {
-                                        match self.table_definition.fields[index].field_type {
-                                            FieldType::Boolean => entry_complete.push(DecodedData::Boolean(field.parse::<bool>().map_err(|_| Error::from(ErrorKind::DBTableParse))?)),
-                                            FieldType::Float => entry_complete.push(DecodedData::Float(field.parse::<f32>().map_err(|_| Error::from(ErrorKind::DBTableParse))?)),
-                                            FieldType::Integer => entry_complete.push(DecodedData::Integer(field.parse::<i32>().map_err(|_| Error::from(ErrorKind::DBTableParse))?)),
-                                            FieldType::LongInteger => entry_complete.push(DecodedData::LongInteger(field.parse::<i64>().map_err(|_| Error::from(ErrorKind::DBTableParse))?)),
-                                            FieldType::StringU8 => entry_complete.push(DecodedData::StringU8(field.to_owned())),
-                                            FieldType::StringU16 => entry_complete.push(DecodedData::StringU16(field.to_owned())),
-                                            FieldType::OptionalStringU8 => entry_complete.push(DecodedData::OptionalStringU8(field.to_owned())),
-                                            FieldType::OptionalStringU16 => entry_complete.push(DecodedData::OptionalStringU16(field.to_owned())),
-                                        }
+                        // Then read the rest of the rows as a normal TSV.
+                        else if record.len() == self.table_definition.fields.len() {
+                            let mut entry = vec![];
+                            for (column, field) in record.iter().enumerate() {
+                                match self.table_definition.fields[column].field_type {
+                                    FieldType::Boolean => {
+                                        let value = field.to_lowercase();
+                                        if value == "true" || value == "1" { entry.push(DecodedData::Boolean(true)); }
+                                        else if value == "false" || value == "0" { entry.push(DecodedData::Boolean(false)); }
+                                        else { return Err(ErrorKind::ImportTSVIncorrectRow(row, column))?; }
                                     }
-                                    packed_file_data.push(entry_complete);
+                                    FieldType::Float => entry.push(DecodedData::Float(field.parse::<f32>().map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?)),
+                                    FieldType::Integer => entry.push(DecodedData::Integer(field.parse::<i32>().map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?)),
+                                    FieldType::LongInteger => entry.push(DecodedData::LongInteger(field.parse::<i64>().map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?)),
+                                    FieldType::StringU8 => entry.push(DecodedData::StringU8(field.to_owned())),
+                                    FieldType::StringU16 => entry.push(DecodedData::StringU16(field.to_owned())),
+                                    FieldType::OptionalStringU8 => entry.push(DecodedData::OptionalStringU8(field.to_owned())),
+                                    FieldType::OptionalStringU16 => entry.push(DecodedData::OptionalStringU16(field.to_owned())),
                                 }
-
-                                // If the entry lenght doesn't match with the one of the current table, return error.
-                                else { return Err(ErrorKind::ImportTSVIncompatibleFile)?; }
                             }
-
-                            // If it fails, return error.
-                            Err(error) => return Err(Error::from(error))
+                            entries.push(entry);
                         }
+
+                        // If it fails here, return an error with the len of the record instead a field.
+                        else { return Err(ErrorKind::ImportTSVIncorrectRow(row, record.len()))?; }
                     }
+
+                    else { return Err(ErrorKind::ImportTSVIncorrectRow(row, 0))?; }
                 }
 
-                // If we reached this point without errors, we replace the old data with the new one.
-                self.entries = packed_file_data;
-
-                // Return success.
+                // If we reached this point without errors, we replace the old data with the new one and return success.
+                self.entries = entries;
                 Ok(())
             }
 
@@ -382,7 +363,11 @@ impl SerializableToTSV for DB {
     }
 
     /// This function creates a TSV file with the contents of the DB Table.
-    fn export_tsv(&self, packed_file_path: &PathBuf, table_info: (&str, u32)) -> Result<String> {
+    fn export_tsv(
+        &self, 
+        packed_file_path: &PathBuf, 
+        db_info: (&str, u32)
+    ) -> Result<()> {
 
         // We want the writer to have no quotes, tab as delimiter and custom headers, because otherwise
         // Excel, Libreoffice and all the programs that edit this kind of files break them on save.
@@ -393,25 +378,18 @@ impl SerializableToTSV for DB {
             .flexible(true)
             .from_writer(vec![]);
 
-        // We serialize the info of the table in the first line, so we can use it in the future to create tables from a TSV.
-        writer.serialize(table_info)?;
+        // We serialize the info of the table (name and version) in the first line, and the column names in the second one.
+        writer.serialize(db_info)?;
+        writer.serialize(self.table_definition.fields.iter().map(|x| x.field_name.to_owned()).collect::<Vec<String>>())?;
 
-        // For every entry, we serialize every one of his fields (except the index).
-        for entry in &self.entries {
-
-            // We don't want the index, as that's not really needed outside the program.
-            writer.serialize(&entry)?;
-        }
+        // Then we serialize each entry in the DB Table.
+        for entry in &self.entries { writer.serialize(&entry)?; }
 
         // Then, we try to write it on disk. If there is an error, report it.
-        match File::create(&packed_file_path) {
-            Ok(mut file) => {
-                match file.write_all(String::from_utf8(writer.into_inner().unwrap())?.as_bytes()) {
-                    Ok(_) => Ok(format!("<p>DB PackedFile successfully exported:</p><ul><li>{}</li></ul>", packed_file_path.display())),
-                    Err(_) => Err(ErrorKind::IOGenericWrite(vec![packed_file_path.display().to_string();1]))?
-                }
-            }
-            Err(_) => Err(ErrorKind::IOGenericWrite(vec![packed_file_path.display().to_string();1]))?
-        }
+        if let Ok(mut file) = File::create(&packed_file_path) {
+            if file.write_all(String::from_utf8(writer.into_inner().unwrap())?.as_bytes()).is_err() { Err(ErrorKind::IOGeneric)? }
+        } else { Err(ErrorKind::IOGeneric)? }
+
+        Ok(())
     }
 }

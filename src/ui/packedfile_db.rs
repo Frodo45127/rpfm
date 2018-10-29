@@ -1785,30 +1785,22 @@ impl PackedFileDBTreeView {
                 dependency_data,
                 receiver_qt => move |_| {
 
-                    // Create the FileDialog to get the PackFile to open.
-                    let mut file_dialog;
-                    unsafe { file_dialog = FileDialog::new_unsafe((
+                    // Create the FileDialog to import the TSV file and configure it.
+                    let mut file_dialog = unsafe { FileDialog::new_unsafe((
                         app_ui.window as *mut Widget,
                         &QString::from_std_str("Select TSV File to Import..."),
-                    )); }
+                    )) };
 
-                    // Filter it so it only shows TSV Files.
                     file_dialog.set_name_filter(&QString::from_std_str("TSV Files (*.tsv)"));
 
-                    // Run it and expect a response (1 => Accept, 0 => Cancel).
+                    // Run it and, if we receive 1 (Accept), try to import the TSV file.
                     if file_dialog.exec() == 1 {
 
-                        // Get the path of the selected file and turn it in a Rust's PathBuf.
                         let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
-
-                        // Tell the background thread to start importing the TSV.
                         sender_qt.send(Commands::ImportTSVPackedFileDB).unwrap();
                         sender_qt_data.send(Data::DBPathBuf((packed_file_data.borrow().clone(), path))).unwrap();
 
-                        // Receive the new data to load in the TableView, or an error.
                         match check_message_validity_recv2(&receiver_qt) {
-
-                            // If the importing was succesful, load the data into the Table.
                             Data::DB(new_db_data) => Self::load_data_to_table_view(&dependency_data, &new_db_data, model, &settings),
                             Data::Error(error) => return show_dialog(app_ui.window, false, error),
                             _ => panic!(THREADS_MESSAGE_ERROR),
@@ -1817,15 +1809,14 @@ impl PackedFileDBTreeView {
                         // Build the Column's "Data".
                         build_columns(&table_definition, table_view, model);
 
-                        // Get the settings.
+                        // Get the settings and resize the columns, if the setting for it is enabled.
                         sender_qt.send(Commands::GetSettings).unwrap();
                         let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                        // If we want to let the columns resize themselfs...
                         if *settings.settings_bool.get("adjust_columns_to_content").unwrap() {
                             unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().resize_sections(ResizeMode::ResizeToContents); }
                         }
 
+                        // Make a copy of the old data for the undo system.
                         let old_data = packed_file_data.borrow().clone();
 
                         // Try to save the PackedFile to the main PackFile.
@@ -1859,38 +1850,27 @@ impl PackedFileDBTreeView {
                 packed_file_data,
                 receiver_qt => move |_| {
 
-                    // Create a File Chooser to get the destination path.
-                    let mut file_dialog;
-                    unsafe { file_dialog = FileDialog::new_unsafe((
+                    // Create a File Chooser to get the destination path and configure it.
+                    let mut file_dialog = unsafe { FileDialog::new_unsafe((
                         app_ui.window as *mut Widget,
                         &QString::from_std_str("Export TSV File..."),
-                    )); }
+                    )) };
 
-                    // Set it to save mode.
                     file_dialog.set_accept_mode(qt_widgets::file_dialog::AcceptMode::Save);
-
-                    // Ask for confirmation in case of overwrite.
                     file_dialog.set_confirm_overwrite(true);
-
-                    // Filter it so it only shows TSV Files.
                     file_dialog.set_name_filter(&QString::from_std_str("TSV Files (*.tsv)"));
-
-                    // Set the default suffix to ".tsv", in case we forgot to write it.
                     file_dialog.set_default_suffix(&QString::from_std_str("tsv"));
 
-                    // Run it and expect a response (1 => Accept, 0 => Cancel).
+                    // Run it and, if we receive 1 (Accept), export the DB Table.
                     if file_dialog.exec() == 1 {
 
-                        // Get the path of the selected file and turn it in a Rust's PathBuf.
                         let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
-
-                        // Tell the background thread to start exporting the TSV.
                         sender_qt.send(Commands::ExportTSVPackedFileDB).unwrap();
                         sender_qt_data.send(Data::DBPathBuf((packed_file_data.borrow().clone(), path))).unwrap();
 
-                        // Receive the result of the exporting.
+                        // If there is an error, report it. Otherwise, we're done.
                         match check_message_validity_recv2(&receiver_qt) {
-                            Data::String(data) => return show_dialog(app_ui.window, true, data),
+                            Data::Success => return (),
                             Data::Error(error) => return show_dialog(app_ui.window, false, error),
                             _ => panic!(THREADS_MESSAGE_ERROR),
                         }

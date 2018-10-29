@@ -75,11 +75,10 @@ pub enum ErrorKind {
     //-----------------------------------------------------//
 
     // These errors are to be used when importing TSV files. The last one is for any other error it can happen not already covered.
-    ImportTSVIncorrectFirstRow,
+    ImportTSVIncorrectRow(usize, usize),
     ImportTSVWrongTypeTable,
     ImportTSVWrongTypeLoc,
     ImportTSVWrongVersion,
-    ImportTSVIncompatibleFile,
     TSVErrorGeneric,
 
     //-----------------------------------------------------//
@@ -370,7 +369,7 @@ impl Display for ErrorKind {
             //-----------------------------------------------------//
             ErrorKind::IOPermissionDenied => write!(f, "<p>Error while trying to read/write a file from disk. This can be caused by two reasons:</p><ul><li>It's a file in the data folder of Warhammer 2 and you haven't close the Assembly Kit.</li><li>You don't have permission to read/write the file in question.</li></ul>"),
             ErrorKind::IOFileNotFound => write!(f, "<p>Error while trying to use a file from disk:</p><p>The file with the specified path hasn't been found.</p>"),
-            ErrorKind::IOGeneric => write!(f, "<p>Error while trying to do an IO operation.</p>"),
+            ErrorKind::IOGeneric => write!(f, "<p>Error while trying to do an IO operation. This means RPFM failed to read/write something from/to the disk.</p>"),
             ErrorKind::IOGenericCopy(path) => write!(f, "<p>Error while trying to copy one or more files to the following folder:</p><ul>{:#?}</ul>", path),
             ErrorKind::IOGenericDelete(paths) => write!(f, "<p>Error while trying to delete from disk the following files/folders:</p><ul>{:#?}</ul>", paths),
             ErrorKind::IOGenericWrite(paths) => write!(f, "<p>Error while trying to write to disk the following file/s:</p><ul>{:#?}</ul>", paths),
@@ -380,11 +379,10 @@ impl Display for ErrorKind {
             //-----------------------------------------------------//
             //                TSV-related Errors
             //-----------------------------------------------------//
-            ErrorKind::ImportTSVIncorrectFirstRow => write!(f, "<p>This TSV file's first line is incorrect.</p>"),
-            ErrorKind::ImportTSVWrongTypeTable => write!(f, "<p>This TSV file belongs to another table, to a localisation PackedFile, or it's incompatible with RPFM.</p>"),
-            ErrorKind::ImportTSVWrongTypeLoc => write!(f, "<p>This TSV file belongs to a DB table, or it's incompatible with RPFM.</p>"),
+            ErrorKind::ImportTSVIncorrectRow(row, column) => write!(f, "<p>This TSV file has an error in the row {}, field {}. Please, check it and make sure the value in that field is a valid value for that column.</p>", row, column + 1),
+            ErrorKind::ImportTSVWrongTypeTable => write!(f, "<p>This TSV file either belongs to another table, to a localisation PackedFile, it's broken or it's incompatible with RPFM.</p>"),
+            ErrorKind::ImportTSVWrongTypeLoc => write!(f, "<p>This TSV file either belongs to a DB table, it's broken or it's incompatible with RPFM.</p>"),
             ErrorKind::ImportTSVWrongVersion => write!(f, "<p>This TSV file belongs to another version of this table. If you want to use it, consider creating a new empty table, fill it with enough empty rows, open this file in a TSV editor, like Excel or LibreOffice, and copy column by column.</p><p>A more automatic solution is on the way, but not yet there.</p>"),
-            ErrorKind::ImportTSVIncompatibleFile => write!(f, "<p>This TSV file it's not compatible with RPFM.</p>"),
             ErrorKind::TSVErrorGeneric => write!(f, "<p>Error while trying to import/export a TSV file.</p>"),
 
             //-----------------------------------------------------//
