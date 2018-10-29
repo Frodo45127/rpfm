@@ -749,6 +749,7 @@ fn main() {
         unsafe { menu_bar_game_seleted.as_mut().unwrap().insert_separator(app_ui.arena); }
 
         // Put the Submenus and separators in place.
+        unsafe { menu_bar_packfile.as_mut().unwrap().insert_separator(app_ui.load_all_ca_packfiles); }
         unsafe { menu_bar_packfile.as_mut().unwrap().insert_separator(app_ui.preferences); }
         unsafe { menu_bar_packfile.as_mut().unwrap().insert_menu(app_ui.preferences, menu_change_packfile_type); }
         unsafe { menu_bar_packfile.as_mut().unwrap().insert_separator(app_ui.preferences); }
@@ -756,8 +757,8 @@ fn main() {
         // Add the "Open..." submenus. These needs to be here because they have to be appended to the menu.
         let menu_open_from_content = Menu::new(&QString::from_std_str("Open From Content")).into_raw();
         let menu_open_from_data = Menu::new(&QString::from_std_str("Open From Data")).into_raw();
-        unsafe { menu_bar_packfile.as_mut().unwrap().insert_menu(app_ui.save_packfile, menu_open_from_content); }
-        unsafe { menu_bar_packfile.as_mut().unwrap().insert_menu(app_ui.save_packfile, menu_open_from_data); }
+        unsafe { menu_bar_packfile.as_mut().unwrap().insert_menu(app_ui.load_all_ca_packfiles, menu_open_from_content); }
+        unsafe { menu_bar_packfile.as_mut().unwrap().insert_menu(app_ui.load_all_ca_packfiles, menu_open_from_data); }
         
         // Put a separator in the "Create" contextual menu.
         unsafe { menu_create.as_mut().unwrap().insert_separator(app_ui.context_menu_mass_import_tsv); }
