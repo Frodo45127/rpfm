@@ -43,6 +43,9 @@ impl PackedFileTextView {
         packed_file_path: &Rc<RefCell<Vec<String>>>,
     ) -> Result<Self> {
 
+        sender_qt.send(Commands::GetSettings).unwrap();
+        let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+
         // Try to get the Game Selected. This should never fail, so CTD if it does it.
         sender_qt.send(Commands::GetGameSelected).unwrap();
         let game_selected = if let Data::String(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
@@ -72,6 +75,7 @@ impl PackedFileTextView {
                 packed_file_path,
                 app_ui,
                 is_modified,
+                settings,
                 sender_qt,
                 sender_qt_data => move || {
 
@@ -84,7 +88,8 @@ impl PackedFileTextView {
                     sender_qt_data.send(Data::StringVecString((text, packed_file_path.borrow().to_vec()))).unwrap();
 
                     // Set the mod as "Modified".
-                    *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(packed_file_path.borrow().to_vec()));
+                    let use_dark_theme = settings.settings_bool.get("use_dark_theme").unwrap();
+                    *is_modified.borrow_mut() = set_modified(true, &app_ui, Some((packed_file_path.borrow().to_vec(), *use_dark_theme)));
                 }
             )),
 

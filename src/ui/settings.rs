@@ -52,6 +52,7 @@ pub struct SettingsDialog {
     pub ui_start_maximized: *mut CheckBox,
     pub ui_remember_column_state: *mut CheckBox,
     pub ui_remember_table_state_permanently: *mut CheckBox,
+    pub ui_use_dark_theme: *mut CheckBox,
     pub extra_default_game_combobox: *mut ComboBox,
     pub extra_allow_editing_of_ca_packfiles: *mut CheckBox,
     pub extra_check_updates_on_start: *mut CheckBox,
@@ -87,17 +88,10 @@ impl SettingsDialog {
         // Creating the Settings Dialog...
         //-------------------------------------------------------------------------------------------//
 
-        // Create the Preferences Dialog.
-        let dialog;
-        unsafe { dialog = Dialog::new_unsafe(app_ui.window as *mut Widget).into_raw(); }
-
-        // Change his title.
+        // Create the Preferences Dialog and configure it.
+        let dialog = unsafe { Dialog::new_unsafe(app_ui.window as *mut Widget).into_raw() };
         unsafe { dialog.as_mut().unwrap().set_window_title(&QString::from_std_str("Preferences")); }
-
-        // Set it Modal, so you can't touch the Main Window with this dialog open.
         unsafe { dialog.as_mut().unwrap().set_modal(true); }
-
-        // Resize the Dialog.
         unsafe { dialog.as_mut().unwrap().resize((750, 0)); }
 
         // Create the main Grid.
@@ -155,12 +149,14 @@ impl SettingsDialog {
         let mut start_maximized_label = Label::new(&QString::from_std_str("Start Maximized:"));
         let mut remember_column_state_label = Label::new(&QString::from_std_str("Remember Column State on Tables:"));
         let mut remember_table_state_permanently_label = Label::new(&QString::from_std_str("Remember Table State Across PackFiles:"));
+        let mut use_dark_theme_label = Label::new(&QString::from_std_str("Use Dark Theme (Requires restart):"));
 
         let mut adjust_columns_to_content_checkbox = CheckBox::new(());
         let mut extend_last_column_on_tables_checkbox = CheckBox::new(());
         let mut start_maximized_checkbox = CheckBox::new(());
         let mut remember_column_state_checkbox = CheckBox::new(());
         let mut remember_table_state_permanently_checkbox = CheckBox::new(());
+        let mut use_dark_theme_checkbox = CheckBox::new(());
 
         let mut shortcuts_label = Label::new(&QString::from_std_str("See/Change Shortcuts:"));
         let mut shortcuts_button = PushButton::new(&QString::from_std_str("Shortcuts"));
@@ -171,6 +167,7 @@ impl SettingsDialog {
         let start_maximized_tip = QString::from_std_str("If you enable this, RPFM will start maximized.");
         let remember_column_state_tip = QString::from_std_str("If you enable this, RPFM will remember how did you left a DB Table or Loc PackedFile (columns moved, what column was sorting the Table,...) when you re-open it again. This memory is temporary, until the opened PackFile changes.");
         let remember_table_state_permanently_tip = QString::from_std_str("If you enable this, RPFM will remember the state of a DB Table or Loc PackedFile (filter data, columns moved, what column was sorting the Table,...) even when you close RPFM and open it again. If you don't want this behavior, leave this disabled.");
+        let use_dark_theme_tip = QString::from_std_str("<i>Ash nazg durbatulûk, ash nazg gimbatul, ash nazg thrakatulûk, agh burzum-ishi krimpatul</i>");
         let shortcuts_tip = QString::from_std_str("See/change the shortcuts from here if you don't like them. Changes are applied on restart of the program.");
 
         adjust_columns_to_content_label.set_tool_tip(&adjust_columns_to_content_tip);
@@ -183,6 +180,8 @@ impl SettingsDialog {
         remember_column_state_checkbox.set_tool_tip(&remember_column_state_tip);
         remember_table_state_permanently_label.set_tool_tip(&remember_table_state_permanently_tip);
         remember_table_state_permanently_checkbox.set_tool_tip(&remember_table_state_permanently_tip);
+        use_dark_theme_label.set_tool_tip(&use_dark_theme_tip);
+        use_dark_theme_checkbox.set_tool_tip(&use_dark_theme_tip);
         shortcuts_label.set_tool_tip(&shortcuts_tip);
         shortcuts_button.set_tool_tip(&shortcuts_tip);
 
@@ -200,9 +199,14 @@ impl SettingsDialog {
 
         unsafe { ui_settings_grid.as_mut().unwrap().add_widget((remember_table_state_permanently_label.static_cast_mut() as *mut Widget, 4, 0, 1, 1)); }
         unsafe { ui_settings_grid.as_mut().unwrap().add_widget((remember_table_state_permanently_checkbox.static_cast_mut() as *mut Widget, 4, 1, 1, 1)); }
+       
+        if cfg!(target_os = "windows") {
+            unsafe { ui_settings_grid.as_mut().unwrap().add_widget((use_dark_theme_label.static_cast_mut() as *mut Widget, 5, 0, 1, 1)); }
+            unsafe { ui_settings_grid.as_mut().unwrap().add_widget((use_dark_theme_checkbox.static_cast_mut() as *mut Widget, 5, 1, 1, 1)); }
+        }
 
-        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((shortcuts_label.static_cast_mut() as *mut Widget, 5, 0, 1, 1)); }
-        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((shortcuts_button.static_cast_mut() as *mut Widget, 5, 1, 1, 1)); }
+        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((shortcuts_label.static_cast_mut() as *mut Widget, 6, 0, 1, 1)); }
+        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((shortcuts_button.static_cast_mut() as *mut Widget, 6, 1, 1, 1)); }
 
         // Create the "Extra Settings" frame and Grid.
         let extra_settings_frame = GroupBox::new(&QString::from_std_str("Extra Settings")).into_raw();
@@ -388,6 +392,7 @@ impl SettingsDialog {
             ui_start_maximized: start_maximized_checkbox.into_raw(),
             ui_remember_column_state: remember_column_state_checkbox.into_raw(),
             ui_remember_table_state_permanently: remember_table_state_permanently_checkbox.into_raw(),
+            ui_use_dark_theme: use_dark_theme_checkbox.into_raw(),
             extra_default_game_combobox: default_game_combobox.into_raw(),
             extra_allow_editing_of_ca_packfiles: allow_editing_of_ca_packfiles_checkbox.into_raw(),
             extra_check_updates_on_start: check_updates_on_start_checkbox.into_raw(),
@@ -456,6 +461,7 @@ impl SettingsDialog {
         unsafe { self.ui_start_maximized.as_mut().unwrap().set_checked(*settings.settings_bool.get("start_maximized").unwrap()); }
         unsafe { self.ui_remember_column_state.as_mut().unwrap().set_checked(*settings.settings_bool.get("remember_column_state").unwrap()); }
         unsafe { self.ui_remember_table_state_permanently.as_mut().unwrap().set_checked(*settings.settings_bool.get("remember_table_state_permanently").unwrap()); }
+        unsafe { self.ui_use_dark_theme.as_mut().unwrap().set_checked(*settings.settings_bool.get("use_dark_theme").unwrap()); }
 
         // Load the Extra Stuff.
         unsafe { self.extra_allow_editing_of_ca_packfiles.as_mut().unwrap().set_checked(*settings.settings_bool.get("allow_editing_of_ca_packfiles").unwrap()); }
@@ -504,6 +510,7 @@ impl SettingsDialog {
         unsafe { settings.settings_bool.insert("start_maximized".to_owned(), self.ui_start_maximized.as_mut().unwrap().is_checked()); }
         unsafe { settings.settings_bool.insert("remember_column_state".to_owned(), self.ui_remember_column_state.as_mut().unwrap().is_checked()); }
         unsafe { settings.settings_bool.insert("remember_table_state_permanently".to_owned(), self.ui_remember_table_state_permanently.as_mut().unwrap().is_checked()); }
+        unsafe { settings.settings_bool.insert("use_dark_theme".to_owned(), self.ui_use_dark_theme.as_mut().unwrap().is_checked()); }
 
         // Get the Extra Settings.
         unsafe { settings.settings_bool.insert("allow_editing_of_ca_packfiles".to_owned(), self.extra_allow_editing_of_ca_packfiles.as_mut().unwrap().is_checked()); }

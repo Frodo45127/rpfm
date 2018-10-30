@@ -43,6 +43,9 @@ impl PackedFileRigidModelDataView {
         packed_file_path: &Rc<RefCell<Vec<String>>>,
     ) -> Result<Self> {
 
+        sender_qt.send(Commands::GetSettings).unwrap();
+        let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+
         // Get the data of the PackedFile.
         sender_qt.send(Commands::DecodePackedFileRigidModel).unwrap();
         sender_qt_data.send(Data::VecString(packed_file_path.borrow().to_vec())).unwrap();
@@ -272,6 +275,7 @@ impl PackedFileRigidModelDataView {
                 packed_file,
                 is_modified,
                 app_ui,
+                settings,
                 sender_qt,
                 sender_qt_data => move || {
 
@@ -291,7 +295,8 @@ impl PackedFileRigidModelDataView {
                     sender_qt_data.send(Data::RigidModelVecString((packed_file.borrow().clone(), packed_file_path.borrow().to_vec()))).unwrap();
 
                     // Set the mod as "Modified".
-                    *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(packed_file_path.borrow().to_vec()));
+                    let use_dark_theme = settings.settings_bool.get("use_dark_theme").unwrap();
+                    *is_modified.borrow_mut() = set_modified(true, &app_ui, Some((packed_file_path.borrow().to_vec(), *use_dark_theme)));
                 }
             )),
 
@@ -300,6 +305,7 @@ impl PackedFileRigidModelDataView {
                 packed_file_path,
                 packed_file,
                 is_modified,
+                settings,
                 app_ui,
                 sender_qt,
                 sender_qt_data,
@@ -327,7 +333,8 @@ impl PackedFileRigidModelDataView {
                             unsafe { patch_attila_to_warhammer_button.as_mut().unwrap().set_enabled(false); }
 
                             // Set the mod as "Modified".
-                            *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(packed_file_path.borrow().to_vec()));
+                            let use_dark_theme = settings.settings_bool.get("use_dark_theme").unwrap();
+                            *is_modified.borrow_mut() = set_modified(true, &app_ui, Some((packed_file_path.borrow().to_vec(), *use_dark_theme)));
                         }
 
                         // If we got an error, report it.

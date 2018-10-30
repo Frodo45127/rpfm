@@ -59,12 +59,14 @@ use qt_widgets::table_view::TableView;
 use qt_widgets::tree_view::TreeView;
 use qt_widgets::widget::Widget;
 
+use qt_gui::color::Color;
 use qt_gui::cursor::Cursor;
 use qt_gui::desktop_services::DesktopServices;
 use qt_gui::font::Font;
 use qt_gui::icon::Icon;
 use qt_gui::key_sequence::KeySequence;
 use qt_gui::list::ListStandardItemMutPtr;
+use qt_gui::palette::{Palette, ColorGroup, ColorRole};
 use qt_gui::standard_item::StandardItem;
 use qt_gui::standard_item_model::StandardItemModel;
 
@@ -226,6 +228,47 @@ lazy_static! {
 
     /// Icons for the PackFile TreeView.
     static ref TREEVIEW_ICONS: Icons = Icons::new();
+
+    // Bright and dark palettes of colours for Windows.
+    // The dark one is taken from here: https://gist.github.com/QuantumCD/6245215
+    static ref LIGHT_PALETTE: Palette = Palette::new(());
+    static ref DARK_PALETTE: Palette = {
+        let mut palette = Palette::new(());
+
+        // Base config.
+        palette.set_color((ColorRole::Window, &Color::new((51, 51, 51))));
+        palette.set_color((ColorRole::WindowText, &Color::new((187, 187, 187))));
+        palette.set_color((ColorRole::Base, &Color::new((34, 34, 34))));
+        palette.set_color((ColorRole::AlternateBase, &Color::new((51, 51, 51))));
+        palette.set_color((ColorRole::ToolTipBase, &Color::new((187, 187, 187))));
+        palette.set_color((ColorRole::ToolTipText, &Color::new((187, 187, 187))));
+        palette.set_color((ColorRole::Text, &Color::new((187, 187, 187))));
+        palette.set_color((ColorRole::Button, &Color::new((51, 51, 51))));
+        palette.set_color((ColorRole::ButtonText, &Color::new((187, 187, 187))));
+        palette.set_color((ColorRole::BrightText, &Color::new((255, 0, 0))));
+        palette.set_color((ColorRole::Link, &Color::new((42, 130, 218))));
+
+        palette.set_color((ColorRole::Highlight, &Color::new((42, 130, 218))));
+        palette.set_color((ColorRole::HighlightedText, &Color::new((204, 204, 204))));
+
+        // Disabled config.
+        palette.set_color((ColorGroup::Disabled, ColorRole::Window, &Color::new((34, 34, 34))));
+        palette.set_color((ColorGroup::Disabled, ColorRole::WindowText, &Color::new((85, 85, 85))));
+        palette.set_color((ColorGroup::Disabled, ColorRole::Base, &Color::new((34, 34, 34))));
+        palette.set_color((ColorGroup::Disabled, ColorRole::AlternateBase, &Color::new((34, 34, 34))));
+        palette.set_color((ColorGroup::Disabled, ColorRole::ToolTipBase, &Color::new((85, 85, 85))));
+        palette.set_color((ColorGroup::Disabled, ColorRole::ToolTipText, &Color::new((85, 85, 85))));
+        palette.set_color((ColorGroup::Disabled, ColorRole::Text, &Color::new((85, 85, 85))));
+        palette.set_color((ColorGroup::Disabled, ColorRole::Button, &Color::new((34, 34, 34))));
+        palette.set_color((ColorGroup::Disabled, ColorRole::ButtonText, &Color::new((85, 85, 85))));
+        palette.set_color((ColorGroup::Disabled, ColorRole::BrightText, &Color::new((170, 0, 0))));
+        palette.set_color((ColorGroup::Disabled, ColorRole::Link, &Color::new((42, 130, 218))));
+
+        palette.set_color((ColorGroup::Disabled, ColorRole::Highlight, &Color::new((42, 130, 218))));
+        palette.set_color((ColorGroup::Disabled, ColorRole::HighlightedText, &Color::new((85, 85, 85))));
+
+        palette
+    };
 }
 
 /// This constant gets RPFM's version from the `Cargo.toml` file, so we don't have to change it
@@ -1594,7 +1637,8 @@ fn main() {
         let slot_change_packfile_type = SlotBool::new(clone!(
             is_modified,
             sender_qt,
-            sender_qt_data => move |_| {
+            sender_qt_data,
+            receiver_qt => move |_| {
 
                 // Get the currently selected PackFile's Type.
                 let packfile_type;
@@ -1612,7 +1656,10 @@ fn main() {
                 sender_qt_data.send(Data::PFHFileType(packfile_type)).unwrap();
 
                 // Set the mod as "Modified".
-                unsafe { *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(vec![app_ui.folder_tree_model.as_ref().unwrap().item(0).as_ref().unwrap().text().to_std_string()])); }
+                sender_qt.send(Commands::GetSettings).unwrap();
+                let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                let use_dark_theme = settings.settings_bool.get("use_dark_theme").unwrap();
+                unsafe { *is_modified.borrow_mut() = set_modified(true, &app_ui, Some((vec![app_ui.folder_tree_model.as_ref().unwrap().item(0).as_ref().unwrap().text().to_std_string()], *use_dark_theme))); }
             }
         ));
 
@@ -4480,6 +4527,17 @@ fn main() {
 
         // If we want the window to start maximized...
         if *settings.settings_bool.get("start_maximized").unwrap() { unsafe { (app_ui.window as *mut Widget).as_mut().unwrap().set_window_state(Flags::from_enum(WindowState::Maximized)); } }
+
+        // If we want to use the dark theme (Only in windows)...
+        if cfg!(target_os = "windows") {
+            if *settings.settings_bool.get("use_dark_theme").unwrap() { 
+                Application::set_style(&QString::from_std_str("fusion"));
+                Application::set_palette(&DARK_PALETTE); 
+            } else { 
+                Application::set_style(&QString::from_std_str("windowsvista"));
+                Application::set_palette(&LIGHT_PALETTE);
+            }
+        }
 
         // If we have it enabled in the prefs, check if there are updates.
         if *settings.settings_bool.get("check_updates_on_start").unwrap() { check_updates(&app_ui, false) };

@@ -551,6 +551,7 @@ impl PackedFileLocTreeView {
                 app_ui,
                 is_modified,
                 packed_file_data,
+                receiver_qt,
                 sender_qt,
                 sender_qt_data => move |_,_,roles| {
 
@@ -563,6 +564,7 @@ impl PackedFileLocTreeView {
                         Self::save_to_packed_file(
                             &sender_qt,
                             &sender_qt_data,
+                            &receiver_qt,
                             &is_modified,
                             &app_ui,
                             &packed_file_data,
@@ -578,6 +580,7 @@ impl PackedFileLocTreeView {
                 }
             )),
             slot_item_changed: SlotStandardItemMutPtr::new(clone!(
+                settings,
                 undo_lock,
                 history,
                 history_redo => move |item| {
@@ -590,7 +593,8 @@ impl PackedFileLocTreeView {
 
                         // We block the saving for painting, so this doesn't get rettriggered again.
                         let mut blocker = unsafe { SignalBlocker::new(model.as_mut().unwrap().static_cast_mut() as &mut Object) };
-                        unsafe { item.as_mut().unwrap().set_background(&Brush::new(GlobalColor::Yellow)); }
+                        let use_dark_theme = settings.settings_bool.get("use_dark_theme").unwrap();
+                        unsafe { item.as_mut().unwrap().set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkYellow } else { GlobalColor::Yellow })); }
                         blocker.unblock();
 
                         update_undo_model(model, undo_model);
@@ -651,6 +655,7 @@ impl PackedFileLocTreeView {
                 }
             )),
             slot_context_menu_add: SlotBool::new(clone!(
+                settings,
                 history,
                 history_redo => move |_| {
 
@@ -666,9 +671,10 @@ impl PackedFileLocTreeView {
                     tooltip.set_check_state(CheckState::Checked);
 
                     // Paint the cells.
-                    key.set_background(&Brush::new(GlobalColor::Green));
-                    text.set_background(&Brush::new(GlobalColor::Green));
-                    tooltip.set_background(&Brush::new(GlobalColor::Green));
+                    let use_dark_theme = settings.settings_bool.get("use_dark_theme").unwrap();
+                    key.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                    text.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                    tooltip.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
 
                     // Add an empty row to the list.
                     unsafe { qlist.append_unsafe(&key.into_raw()); }
@@ -687,6 +693,7 @@ impl PackedFileLocTreeView {
             )),
 
             slot_context_menu_insert: SlotBool::new(clone!(
+                settings,
                 history,
                 history_redo => move |_| {
 
@@ -702,9 +709,10 @@ impl PackedFileLocTreeView {
                     tooltip.set_check_state(CheckState::Checked);
 
                     // Paint the cells.
-                    key.set_background(&Brush::new(GlobalColor::Green));
-                    text.set_background(&Brush::new(GlobalColor::Green));
-                    tooltip.set_background(&Brush::new(GlobalColor::Green));
+                    let use_dark_theme = settings.settings_bool.get("use_dark_theme").unwrap();
+                    key.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                    text.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                    tooltip.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
 
                     // Add an empty row to the list.
                     unsafe { qlist.append_unsafe(&key.into_raw()); }
@@ -741,6 +749,7 @@ impl PackedFileLocTreeView {
                 packed_file_data,
                 history,
                 history_redo,
+                receiver_qt,
                 sender_qt,
                 sender_qt_data => move |_| {
 
@@ -766,6 +775,7 @@ impl PackedFileLocTreeView {
                         Self::save_to_packed_file(
                             &sender_qt,
                             &sender_qt_data,
+                            &receiver_qt,
                             &is_modified,
                             &app_ui,
                             &packed_file_data,
@@ -792,10 +802,14 @@ impl PackedFileLocTreeView {
                 app_ui,
                 is_modified,
                 packed_file_data,
+                settings,
                 history,
                 history_redo,
+                receiver_qt,
                 sender_qt,
                 sender_qt_data => move |_| {
+
+                    let use_dark_theme = settings.settings_bool.get("use_dark_theme").unwrap();
 
                     // Get all the selected rows.
                     let indexes = unsafe { filter_model.as_mut().unwrap().map_selection_to_source(&table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection()).indexes() };
@@ -818,7 +832,7 @@ impl PackedFileLocTreeView {
                             // Get the original item and his clone.
                             let original_item = unsafe { model.as_mut().unwrap().item((*row, column as i32)) };
                             let item = unsafe { original_item.as_mut().unwrap().clone() };
-                            unsafe { item.as_mut().unwrap().set_background(&Brush::new(GlobalColor::Green)); }
+                            unsafe { item.as_mut().unwrap().set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green })); }
                             unsafe { qlist.append_unsafe(&item); }
                         }
 
@@ -831,6 +845,7 @@ impl PackedFileLocTreeView {
                         Self::save_to_packed_file(
                             &sender_qt,
                             &sender_qt_data,
+                            &receiver_qt,
                             &is_modified,
                             &app_ui,
                             &packed_file_data,
@@ -859,10 +874,14 @@ impl PackedFileLocTreeView {
                 app_ui,
                 is_modified,
                 packed_file_data,
+                settings,
                 history,
                 history_redo,
+                receiver_qt,
                 sender_qt,
                 sender_qt_data => move |_| {
+
+                    let use_dark_theme = settings.settings_bool.get("use_dark_theme").unwrap();
 
                     // Get all the selected rows.
                     let indexes = unsafe { filter_model.as_mut().unwrap().map_selection_to_source(&table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection()).indexes() };
@@ -884,7 +903,7 @@ impl PackedFileLocTreeView {
                             // Get the original item and his clone.
                             let original_item = unsafe { model.as_mut().unwrap().item((*row, column as i32)) };
                             let item = unsafe { original_item.as_mut().unwrap().clone() };
-                            unsafe { item.as_mut().unwrap().set_background(&Brush::new(GlobalColor::Green)); }
+                            unsafe { item.as_mut().unwrap().set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green })); }
                             unsafe { qlist.append_unsafe(&item); }
                         }
 
@@ -897,6 +916,7 @@ impl PackedFileLocTreeView {
                         Self::save_to_packed_file(
                             &sender_qt,
                             &sender_qt_data,
+                            &receiver_qt,
                             &is_modified,
                             &app_ui,
                             &packed_file_data,
@@ -1118,13 +1138,16 @@ impl PackedFileLocTreeView {
                 app_ui,
                 is_modified,
                 packed_file_data,
+                settings,
                 history,
                 history_redo,
+                receiver_qt,
                 sender_qt,
                 sender_qt_data => move |_| {
 
                     // If whatever it's in the Clipboard is pasteable...
                     if check_clipboard_append_rows() {
+                        let use_dark_theme = settings.settings_bool.get("use_dark_theme").unwrap();
 
                         // Get the text from the clipboard.
                         let clipboard = GuiApplication::clipboard();
@@ -1146,13 +1169,13 @@ impl PackedFileLocTreeView {
                                 item.set_editable(false);
                                 item.set_checkable(true);
                                 item.set_check_state(if *cell == "true" { CheckState::Checked } else { CheckState::Unchecked });
-                                item.set_background(&Brush::new(GlobalColor::Green));
+                                item.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
                             }
 
                             // Otherwise, create a normal cell.
                             else {
                                 item.set_text(&QString::from_std_str(cell));
-                                item.set_background(&Brush::new(GlobalColor::Green));
+                                item.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
                             }
 
                             // Add the item to the list.
@@ -1177,7 +1200,7 @@ impl PackedFileLocTreeView {
 
                                 // Add the text column.
                                 let mut item = StandardItem::new(&QString::from_std_str(""));
-                                item.set_background(&Brush::new(GlobalColor::Green));
+                                item.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
                                 unsafe { qlist.append_unsafe(&item.into_raw()); }
 
                                 // Add the tooltip column.
@@ -1185,7 +1208,7 @@ impl PackedFileLocTreeView {
                                 item.set_editable(false);
                                 item.set_checkable(true);
                                 item.set_check_state(CheckState::Checked);
-                                item.set_background(&Brush::new(GlobalColor::Green));
+                                item.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
                                 unsafe { qlist.append_unsafe(&item.into_raw()); }
                             }
 
@@ -1197,7 +1220,7 @@ impl PackedFileLocTreeView {
                                 item.set_editable(false);
                                 item.set_checkable(true);
                                 item.set_check_state(CheckState::Checked);
-                                item.set_background(&Brush::new(GlobalColor::Green));
+                                item.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
                                 unsafe { qlist.append_unsafe(&item.into_raw()); }
                             }
 
@@ -1210,6 +1233,7 @@ impl PackedFileLocTreeView {
                             Self::save_to_packed_file(
                                 &sender_qt,
                                 &sender_qt_data,
+                                &receiver_qt,
                                 &is_modified,
                                 &app_ui,
                                 &packed_file_data,
@@ -1291,6 +1315,7 @@ impl PackedFileLocTreeView {
                         Self::save_to_packed_file(
                             &sender_qt,
                             &sender_qt_data,
+                            &receiver_qt,
                             &is_modified,
                             &app_ui,
                             &packed_file_data,
@@ -1354,6 +1379,7 @@ impl PackedFileLocTreeView {
                 packed_file_path,
                 history,
                 history_redo,
+                receiver_qt,
                 sender_qt,
                 sender_qt_data => move |_| {
 
@@ -1417,6 +1443,7 @@ impl PackedFileLocTreeView {
                         Self::save_to_packed_file(
                             &sender_qt,
                             &sender_qt_data,
+                            &receiver_qt,
                             &is_modified,
                             &app_ui,
                             &packed_file_data,
@@ -2065,6 +2092,7 @@ impl PackedFileLocTreeView {
     pub fn save_to_packed_file(
         sender_qt: &Sender<Commands>,
         sender_qt_data: &Sender<Data>,
+        receiver_qt: &Rc<RefCell<Receiver<Data>>>,
         is_modified: &Rc<RefCell<bool>>,
         app_ui: &AppUI,
         data: &Rc<RefCell<Loc>>,
@@ -2073,6 +2101,10 @@ impl PackedFileLocTreeView {
         global_search_explicit_paths: &Rc<RefCell<Vec<Vec<String>>>>,
         update_global_search_stuff: *mut Action,
     ) {
+        // Get the settings before saving, so we don't wait for the background thread to save.
+        sender_qt.send(Commands::GetSettings).unwrap();
+        let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+        let use_dark_theme = settings.settings_bool.get("use_dark_theme").unwrap();
 
         // Update our LocData.
         Self::return_data_from_tree_view(&mut data.borrow_mut(), model);
@@ -2082,7 +2114,7 @@ impl PackedFileLocTreeView {
         sender_qt_data.send(Data::LocVecString((data.borrow().clone(), packed_file_path.borrow().to_vec()))).unwrap();
 
         // Set the mod as "Modified".
-        *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(packed_file_path.borrow().to_vec()));
+        *is_modified.borrow_mut() = set_modified(true, &app_ui, Some((packed_file_path.borrow().to_vec(), *use_dark_theme)));
         
         // Update the global search stuff, if needed.
         global_search_explicit_paths.borrow_mut().push(packed_file_path.borrow().to_vec());
@@ -2158,6 +2190,7 @@ impl PackedFileLocTreeView {
                 Self::save_to_packed_file(
                     &sender_qt,
                     &sender_qt_data,
+                    &receiver_qt,
                     &is_modified,
                     &app_ui,
                     &data,
@@ -2263,6 +2296,7 @@ impl PackedFileLocTreeView {
                 Self::save_to_packed_file(
                     &sender_qt,
                     &sender_qt_data,
+                    &receiver_qt,
                     &is_modified,
                     &app_ui,
                     &data,
@@ -2295,6 +2329,7 @@ impl PackedFileLocTreeView {
                 Self::save_to_packed_file(
                     &sender_qt,
                     &sender_qt_data,
+                    &receiver_qt,
                     &is_modified,
                     &app_ui,
                     &data,

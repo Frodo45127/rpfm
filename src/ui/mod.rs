@@ -1066,7 +1066,7 @@ pub fn show_dialog<T: Display>(
 pub fn set_modified(
     is_modified: bool,
     app_ui: &AppUI,
-    path: Option<Vec<String>>
+    path: Option<(Vec<String>, bool)>
 ) -> bool {
 
     // If the PackFile is modified...
@@ -1080,13 +1080,13 @@ pub fn set_modified(
         unsafe { app_ui.window.as_mut().unwrap().set_window_title(&QString::from_std_str(format!("{} - Modified", pack_file_name))); }
 
         // If we have received a path to mark as "modified"...
-        if let Some(path) = path {
+        if let Some((path, use_dark_theme)) = path {
 
             // Get the item of the Path.
             let item = get_item_from_incomplete_path(app_ui.folder_tree_model, &path);
 
             // Paint the modified item.
-            paint_treeview(item, app_ui.folder_tree_model, ItemVisualStatus::Modified);
+            paint_treeview(item, app_ui.folder_tree_model, ItemVisualStatus::Modified, use_dark_theme);
         }
 
         // And return true.
@@ -1693,60 +1693,53 @@ pub fn get_item_from_incomplete_path(
 pub fn paint_treeview(
     item: *mut StandardItem,
     model: *mut StandardItemModel,
-    status: ItemVisualStatus
+    status: ItemVisualStatus,
+    use_dark_theme: bool,
 ) {
 
-    // Get the color we need to apply.
+    // Get the colors we need to apply.
+    let color_added = if use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green };
+    let color_modified = if use_dark_theme { GlobalColor::DarkYellow } else { GlobalColor::Yellow };
+    let color_added_modified = if use_dark_theme { GlobalColor::DarkMagenta } else { GlobalColor::Magenta };
+    let color_untouched = GlobalColor::Transparent;
     let color = match &status {
-        ItemVisualStatus::Added => GlobalColor::Green,
-        ItemVisualStatus::Modified => GlobalColor::Yellow,
-        ItemVisualStatus::AddedModified => GlobalColor::Magenta,
-        ItemVisualStatus::Untouched => GlobalColor::Transparent,
+        ItemVisualStatus::Added => color_added,
+        ItemVisualStatus::Modified => color_modified,
+        ItemVisualStatus::AddedModified => color_added_modified.clone(),
+        ItemVisualStatus::Untouched => color_untouched,
     };
 
-    // Get the full path of the item.
+    // Get the full path of the item and the times we must to go up until we reach the parent.
     let full_path = get_path_from_item(model, item, true);
-
-    // Get the times we must to go up until we reach the parent.
     let cycles = if full_path.len() > 0 { full_path.len() - 1 } else { 0 };
 
     // Paint it like one of your french girls.
     unsafe { item.as_mut().unwrap().set_background(&Brush::new(color.clone())); }
 
-    // Get his parent.
-    let mut parent;
-    unsafe { parent = item.as_mut().unwrap().parent(); }
-
     // Loop through his parents until we reach the PackFile
+    let mut parent = unsafe { item.as_mut().unwrap().parent() };
     for _ in 0..cycles {
 
-        // Get the color of the Parent.
-        let parent_color;
-        unsafe { parent_color = parent.as_mut().unwrap().background().color().name(()).to_std_string(); }
-
         // Get the status of the Parent depending on his color.
+        let parent_color = unsafe { parent.as_mut().unwrap().background().color().name(()).to_std_string() };
         let parent_status = match &*parent_color {
-            "#00ff00" => ItemVisualStatus::Added,
-            "#ffff00" => ItemVisualStatus::Modified,
-            "#ff00ff" => ItemVisualStatus::AddedModified,
+            "#00ff00" | "800000" => ItemVisualStatus::Added,
+            "#ffff00" | "808000" => ItemVisualStatus::Modified,
+            "#ff00ff" | "800080" => ItemVisualStatus::AddedModified,
             "#000000" | _ => ItemVisualStatus::Untouched,
         };
 
         // Paint it depending on his status.
         match parent_status {
 
-            // If it's Added...
+            // If it's Added and the new status is "Modified", turn it into "AddedModified".
             ItemVisualStatus::Added => {
-
-                // If the new status is "Modified", turn it into "AddedModified"
-                if status == ItemVisualStatus::Modified { unsafe { parent.as_mut().unwrap().set_background(&Brush::new(GlobalColor::Magenta)); } }
+                if status == ItemVisualStatus::Modified { unsafe { parent.as_mut().unwrap().set_background(&Brush::new(color_added_modified.clone())); } }
             },
 
-            // If it's Modified...
+            // If it's Modified and the new status is "Added", turn it into "AddedModified".
             ItemVisualStatus::Modified => {
-
-                // If the new status is "Added", turn it into "AddedModified"
-                if status == ItemVisualStatus::Added { unsafe { parent.as_mut().unwrap().set_background(&Brush::new(GlobalColor::Magenta)); } }
+                if status == ItemVisualStatus::Added { unsafe { parent.as_mut().unwrap().set_background(&Brush::new(color_added_modified.clone())); } }
             },
 
             // If it's AddedModified, left it as is.
@@ -1869,6 +1862,11 @@ pub fn update_treeview(
     model: *mut StandardItemModel,
     operation: TreeViewOperation,
 ) {
+
+    // Get the settings and the use_dark_theme setting, for later use.
+    sender_qt.send(Commands::GetSettings).unwrap();
+    let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+    let use_dark_theme = settings.settings_bool.get("use_dark_theme").unwrap();
 
     // We act depending on the operation requested.
     match operation {
@@ -2094,7 +2092,7 @@ pub fn update_treeview(
                         if &possible_path == path {
 
                             // Just re-paint it like that parrot you painted yesterday.
-                            paint_treeview(possible_item, model, ItemVisualStatus::Added);
+                            paint_treeview(possible_item, model, ItemVisualStatus::Added, *use_dark_theme);
                         }
 
                         // Otherwise, it's a new PackedFile, so do the usual stuff.
@@ -2129,7 +2127,7 @@ pub fn update_treeview(
                             }
 
                             // Paint it like that parrot you painted yesterday.
-                            paint_treeview(item, model, ItemVisualStatus::Added);
+                            paint_treeview(item, model, ItemVisualStatus::Added, *use_dark_theme);
 
                             // Sort the TreeView.
                             sort_item_in_tree_view(
@@ -2480,7 +2478,7 @@ pub fn update_treeview(
                     unsafe { item = model.as_mut().unwrap().item_from_index(selection); }
 
                     // Paint it as "modified".
-                    paint_treeview(item, model, ItemVisualStatus::Modified);
+                    paint_treeview(item, model, ItemVisualStatus::Modified, *use_dark_theme);
 
                     // Sort it.
                     sort_item_in_tree_view(
@@ -2517,7 +2515,7 @@ pub fn update_treeview(
                 new_path.push(new_name);
 
                 // Paint it as "modified".
-                paint_treeview(item, model, ItemVisualStatus::Modified);
+                paint_treeview(item, model, ItemVisualStatus::Modified, *use_dark_theme);
 
                 // Sort it.
                 sort_item_in_tree_view(

@@ -731,6 +731,7 @@ impl PackedFileDBTreeView {
                 is_modified,
                 packed_file_data,
                 history_redo,
+                receiver_qt,
                 sender_qt,
                 sender_qt_data => move |_,_,roles| {
 
@@ -744,6 +745,7 @@ impl PackedFileDBTreeView {
                         if let Err(_) = Self::save_to_packed_file(
                             &sender_qt,
                             &sender_qt_data,
+                            &receiver_qt,
                             &is_modified,
                             &app_ui,
                             &packed_file_data,
@@ -780,7 +782,8 @@ impl PackedFileDBTreeView {
 
                         // We block the saving for painting, so this doesn't get rettriggered again.
                         let mut blocker = unsafe { SignalBlocker::new(model.as_mut().unwrap().static_cast_mut() as &mut Object) };
-                        unsafe { item.as_mut().unwrap().set_background(&Brush::new(GlobalColor::Yellow)); }
+                        let use_dark_theme = settings.settings_bool.get("use_dark_theme").unwrap();
+                        unsafe { item.as_mut().unwrap().set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkYellow } else { GlobalColor::Yellow })); }
                         blocker.unblock();
 
                         update_undo_model(model, undo_model);
@@ -792,7 +795,7 @@ impl PackedFileDBTreeView {
                     if *settings.settings_bool.get("use_dependency_checker").unwrap() {
                         let column = unsafe { item.as_mut().unwrap().column() };
                         if table_definition.fields[column as usize].field_is_reference.is_some() {
-                            check_references(&dependency_data, column, item);
+                            check_references(&dependency_data, column, item, *settings.settings_bool.get("use_dark_theme").unwrap());
                         }
                     }
                 }
@@ -851,6 +854,7 @@ impl PackedFileDBTreeView {
             )),
 
             slot_context_menu_add: SlotBool::new(clone!(
+                settings,
                 history,
                 history_redo,
                 table_definition => move |_| {
@@ -889,7 +893,8 @@ impl PackedFileDBTreeView {
                         };
 
                         // Paint the cells.
-                        item.set_background(&Brush::new(GlobalColor::Green));
+                        let use_dark_theme = settings.settings_bool.get("use_dark_theme").unwrap();
+                        item.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
 
                         // Add the item to the list.
                         unsafe { qlist.append_unsafe(&item.into_raw()); }
@@ -906,6 +911,7 @@ impl PackedFileDBTreeView {
                 }
             )),
             slot_context_menu_insert: SlotBool::new(clone!(
+                settings,
                 history,
                 history_redo,
                 table_definition => move |_| {
@@ -944,7 +950,8 @@ impl PackedFileDBTreeView {
                         };
 
                         // Paint the cells.
-                        item.set_background(&Brush::new(GlobalColor::Green));
+                        let use_dark_theme = settings.settings_bool.get("use_dark_theme").unwrap();
+                        item.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
 
                         // Add the item to the list.
                         unsafe { qlist.append_unsafe(&item.into_raw()); }
@@ -980,6 +987,7 @@ impl PackedFileDBTreeView {
                 packed_file_data,
                 history,
                 history_redo,
+                receiver_qt,
                 sender_qt,
                 sender_qt_data => move |_| {
 
@@ -1005,6 +1013,7 @@ impl PackedFileDBTreeView {
                         let _y = Self::save_to_packed_file(
                             &sender_qt,
                             &sender_qt_data,
+                            &receiver_qt,
                             &is_modified,
                             &app_ui,
                             &packed_file_data,
@@ -1134,8 +1143,10 @@ impl PackedFileDBTreeView {
                 is_modified,
                 table_definition,
                 packed_file_data,
+                settings,
                 history,
                 history_redo,
+                receiver_qt,
                 sender_qt,
                 sender_qt_data => move |_| {
 
@@ -1153,6 +1164,7 @@ impl PackedFileDBTreeView {
                     rows.reverse();
 
                     // For each row to clone, create a new one, duplicate the items and add the row under the old one.
+                    let use_dark_theme = settings.settings_bool.get("use_dark_theme").unwrap();
                     for row in &rows {
                         let mut qlist = ListStandardItemMutPtr::new(());
                         for column in 0..table_definition.fields.len() {
@@ -1160,7 +1172,7 @@ impl PackedFileDBTreeView {
                             // Get the original item and his clone.
                             let original_item = unsafe { model.as_mut().unwrap().item((*row, column as i32)) };
                             let item = unsafe { original_item.as_mut().unwrap().clone() };
-                            unsafe { item.as_mut().unwrap().set_background(&Brush::new(GlobalColor::Green)); }
+                            unsafe { item.as_mut().unwrap().set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green })); }
                             unsafe { qlist.append_unsafe(&item); }
                         }
 
@@ -1173,6 +1185,7 @@ impl PackedFileDBTreeView {
                         let _y = Self::save_to_packed_file(
                             &sender_qt,
                             &sender_qt_data,
+                            &receiver_qt,
                             &is_modified,
                             &app_ui,
                             &packed_file_data,
@@ -1202,8 +1215,10 @@ impl PackedFileDBTreeView {
                 is_modified,
                 packed_file_data,
                 table_definition,
+                settings,
                 history,
                 history_redo,
+                receiver_qt,
                 sender_qt,
                 sender_qt_data => move |_| {
 
@@ -1220,6 +1235,7 @@ impl PackedFileDBTreeView {
                     rows.dedup();
 
                     // For each row to clone, create a new one, duplicate the items and add the row under the old one.
+                    let use_dark_theme = settings.settings_bool.get("use_dark_theme").unwrap();
                     for row in &rows {
                         let mut qlist = ListStandardItemMutPtr::new(());
                         for column in 0..table_definition.fields.len() {
@@ -1227,7 +1243,7 @@ impl PackedFileDBTreeView {
                             // Get the original item and his clone.
                             let original_item = unsafe { model.as_mut().unwrap().item((*row, column as i32)) };
                             let item = unsafe { original_item.as_mut().unwrap().clone() };
-                            unsafe { item.as_mut().unwrap().set_background(&Brush::new(GlobalColor::Green)); }
+                            unsafe { item.as_mut().unwrap().set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green })); }
                             unsafe { qlist.append_unsafe(&item); }
                         }
 
@@ -1240,6 +1256,7 @@ impl PackedFileDBTreeView {
                         let _y = Self::save_to_packed_file(
                             &sender_qt,
                             &sender_qt_data,
+                            &receiver_qt,
                             &is_modified,
                             &app_ui,
                             &packed_file_data,
@@ -1552,11 +1569,13 @@ impl PackedFileDBTreeView {
                 packed_file_data,
                 history,
                 history_redo,
+                receiver_qt,
                 sender_qt,
                 sender_qt_data => move |_| {
 
                     // If whatever it's in the Clipboard is pasteable in our selection...
                     if check_clipboard_append_rows(&table_definition) {
+                        let use_dark_theme = settings.settings_bool.get("use_dark_theme").unwrap();
 
                         // Get the text from the clipboard.
                         let clipboard = GuiApplication::clipboard();
@@ -1582,26 +1601,26 @@ impl PackedFileDBTreeView {
                                     item.set_editable(false);
                                     item.set_checkable(true);
                                     item.set_check_state(if *cell == "true" { CheckState::Checked } else { CheckState::Unchecked });
-                                    item.set_background(&Brush::new(GlobalColor::Green));
+                                    item.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
                                 },
 
                                 // Integers need to be created appart of the rest here.
                                 FieldType::Integer => {
                                     item.set_data((&Variant::new0(cell.parse::<i32>().unwrap()), 2));
-                                    item.set_background(&Brush::new(GlobalColor::Green));
+                                    item.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
                                 },
 
                                 // In any other case, we treat it as a string. Type-checking is done before this and while saving.
                                 _ => {
                                     item.set_text(&QString::from_std_str(cell));
-                                    item.set_background(&Brush::new(GlobalColor::Green));
+                                    item.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
                                 }
                             }
 
                             // If we have the dependency stuff enabled, check if it's a valid reference.
                             if *settings.settings_bool.get("use_dependency_checker").unwrap() {
                                 if field.field_is_reference.is_some() {
-                                    check_references(&dependency_data, column as i32, item.as_mut_ptr());
+                                    check_references(&dependency_data, column as i32, item.as_mut_ptr(), *settings.settings_bool.get("use_dark_theme").unwrap());
                                 }
                             }
 
@@ -1655,7 +1674,7 @@ impl PackedFileDBTreeView {
                                     FieldType::OptionalStringU16 => StandardItem::new(&QString::from_std_str("")),
                                 };
 
-                                item.set_background(&Brush::new(GlobalColor::Green));
+                                item.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
                                 unsafe { qlist.append_unsafe(&item.into_raw()); }
                             }
 
@@ -1668,6 +1687,7 @@ impl PackedFileDBTreeView {
                             let _y = Self::save_to_packed_file(
                                 &sender_qt,
                                 &sender_qt_data,
+                                &receiver_qt,
                                 &is_modified,
                                 &app_ui,
                                 &packed_file_data,
@@ -1823,6 +1843,7 @@ impl PackedFileDBTreeView {
                         let _y = Self::save_to_packed_file(
                             &sender_qt,
                             &sender_qt_data,
+                            &receiver_qt,
                             &is_modified,
                             &app_ui,
                             &packed_file_data,
@@ -1886,6 +1907,7 @@ impl PackedFileDBTreeView {
                 packed_file_path,
                 history,
                 history_redo,
+                receiver_qt,
                 sender_qt,
                 sender_qt_data => move |_| {
 
@@ -1962,6 +1984,7 @@ impl PackedFileDBTreeView {
                         let _y = Self::save_to_packed_file(
                             &sender_qt,
                             &sender_qt_data,
+                            &receiver_qt,
                             &is_modified,
                             &app_ui,
                             &packed_file_data,
@@ -2623,7 +2646,7 @@ impl PackedFileDBTreeView {
                 // If we have the dependency stuff enabled, check if it's a valid reference.
                 if *settings.settings_bool.get("use_dependency_checker").unwrap() {
                     if packed_file_data.table_definition.fields[index].field_is_reference.is_some() {
-                        check_references(dependency_data, index as i32, item.as_mut_ptr());
+                        check_references(dependency_data, index as i32, item.as_mut_ptr(), *settings.settings_bool.get("use_dark_theme").unwrap());
                     }
                 }
                 unsafe { qlist.append_unsafe(&item.into_raw()); }
@@ -2716,6 +2739,7 @@ impl PackedFileDBTreeView {
     pub fn save_to_packed_file(
         sender_qt: &Sender<Commands>,
         sender_qt_data: &Sender<Data>,
+        receiver_qt:&Rc<RefCell<Receiver<Data>>>,
         is_modified: &Rc<RefCell<bool>>,
         app_ui: &AppUI,
         data: &Rc<RefCell<DB>>,
@@ -2725,6 +2749,11 @@ impl PackedFileDBTreeView {
         update_global_search_stuff: *mut Action,
     ) -> Result<()> {
 
+        // Get the settings before saving, so we don't wait for the background thread to save.
+        sender_qt.send(Commands::GetSettings).unwrap();
+        let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+        let use_dark_theme = settings.settings_bool.get("use_dark_theme").unwrap();
+
         // Update the DB with the data in the table, or report error if it fails.
         if let Err(error) = Self::return_data_from_table_view(&mut data.borrow_mut(), model) { return Err(error) }
 
@@ -2733,7 +2762,7 @@ impl PackedFileDBTreeView {
         sender_qt_data.send(Data::DBVecString((data.borrow().clone(), packed_file_path.borrow().to_vec()))).unwrap();
 
         // Set the mod as "Modified".
-        *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(packed_file_path.borrow().to_vec()));
+        *is_modified.borrow_mut() = set_modified(true, &app_ui, Some((packed_file_path.borrow().to_vec(), *use_dark_theme)));
 
         // Update the global search stuff, if needed.
         global_search_explicit_paths.borrow_mut().push(packed_file_path.borrow().to_vec());
@@ -2813,6 +2842,7 @@ impl PackedFileDBTreeView {
                 let _y = Self::save_to_packed_file(
                     &sender_qt,
                     &sender_qt_data,
+                    &receiver_qt,
                     &is_modified,
                     &app_ui,
                     &data,
@@ -2918,6 +2948,7 @@ impl PackedFileDBTreeView {
                 let _y = Self::save_to_packed_file(
                     &sender_qt,
                     &sender_qt_data,
+                    &receiver_qt,
                     &is_modified,
                     &app_ui,
                     &data,
@@ -2950,6 +2981,7 @@ impl PackedFileDBTreeView {
                 let _y = Self::save_to_packed_file(
                     &sender_qt,
                     &sender_qt_data,
+                    &receiver_qt,
                     &is_modified,
                     &app_ui,
                     &data,
@@ -5001,12 +5033,13 @@ fn check_references(
     dependency_data: &BTreeMap<i32, Vec<String>>,
     column: i32,
     item: *mut StandardItem,
+    use_dark_theme: bool
 ) {
     // Check if it's a valid reference.
     if let Some(ref_data) = dependency_data.get(&column) {
 
         let text = unsafe { item.as_mut().unwrap().text().to_std_string() };
-        if ref_data.contains(&text) { unsafe { item.as_mut().unwrap().set_foreground(&Brush::new(GlobalColor::Black)); } }
+        if ref_data.contains(&text) { unsafe { item.as_mut().unwrap().set_foreground(&Brush::new(if use_dark_theme { GlobalColor::White } else { GlobalColor::Black })); } }
         else if ref_data.is_empty() { unsafe { item.as_mut().unwrap().set_foreground(&Brush::new(GlobalColor::Blue)); } }
         else { unsafe { item.as_mut().unwrap().set_foreground(&Brush::new(GlobalColor::Red)); } }
     }

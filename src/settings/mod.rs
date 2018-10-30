@@ -73,6 +73,7 @@ impl Settings {
         settings_bool.insert("start_maximized".to_owned(), false);
         settings_bool.insert("remember_column_state".to_owned(), true);
         settings_bool.insert("remember_table_state_permanently".to_owned(), false);
+        settings_bool.insert("use_dark_theme".to_owned(), false);
 
         settings_bool.insert("allow_editing_of_ca_packfiles".to_owned(), false);
         settings_bool.insert("check_updates_on_start".to_owned(), true);
