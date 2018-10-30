@@ -310,6 +310,7 @@ pub fn create_rename_dialog(app_ui: &AppUI, name: &str) -> Option<String> {
 
     // Change his title.
     dialog.set_window_title(&QString::from_std_str("Rename"));
+    dialog.resize((400, 50));
 
     // Set it Modal, so you can't touch the Main Window with this dialog open.
     dialog.set_modal(true);
@@ -576,7 +577,7 @@ pub fn create_mass_import_tsv_dialog(app_ui: &AppUI) -> Option<(String, Vec<Path
     let dialog = unsafe { Dialog::new_unsafe(app_ui.window as *mut Widget).into_raw() };
     unsafe { dialog.as_mut().unwrap().set_window_title(&QString::from_std_str("Mass-Import TSV Files")); }
     unsafe { dialog.as_mut().unwrap().set_modal(true); }
-    unsafe { dialog.as_mut().unwrap().resize((300, 0)); }
+    unsafe { dialog.as_mut().unwrap().resize((400, 100)); }
 
     // Create the main Grid and his stuff.
     let main_grid = GridLayout::new().into_raw();
