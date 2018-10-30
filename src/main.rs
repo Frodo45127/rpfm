@@ -2903,32 +2903,29 @@ fn main() {
 
         // What happens when we trigger the "Mass-Import TSV" Action.
         let slot_contextual_menu_mass_import_tsv = SlotBool::new(clone!(
+            packedfiles_open_in_packedfile_view,
             global_search_explicit_paths,
             is_modified,
             sender_qt,
             sender_qt_data,
             receiver_qt => move |_| {
 
+                // Don't do anything if there is a PackedFile open. This fixes the situation where you could overwrite data already in the UI.
+                if !packedfiles_open_in_packedfile_view.borrow().is_empty() { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
+
                 // Create the "Mass-Import TSV" dialog and wait for his data (or a cancelation).
                 if let Some(data) = create_mass_import_tsv_dialog(&app_ui) {
 
-                    // If there is no name...
+                    // If there is no name provided, nor TSV file selected, return an error.
                     if data.0.is_empty() { return show_dialog(app_ui.window, false, ErrorKind::EmptyInput) }
-
-                    // If there is no file selected...
                     else if data.1.is_empty() { return show_dialog(app_ui.window, false, ErrorKind::NoFilesToImport) }
 
-                    // Otherwise...
+                    // Otherwise, try to import all of them and report the result.
                     else {
-
-                        // Try to import them.
                         sender_qt.send(Commands::MassImportTSV).unwrap();
                         sender_qt_data.send(Data::StringVecPathBuf(data)).unwrap();
 
-                        // Disable the Main Window (so we can't do other stuff).
                         unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
-
-                        // Get the data from the operation...
                         match check_message_validity_tryrecv(&receiver_qt) {
                             
                             // If it's success....
@@ -2957,28 +2954,7 @@ fn main() {
                                 unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
                             }
 
-                            // If we got an error...
-                            Data::Error(error) => {
-
-                                // We must check what kind of error it's.
-                                match error.kind() {
-
-                                    // If it's one of the "Mass-Import" specific errors...
-                                    ErrorKind::MassImport(_) => {
-                                        show_dialog(app_ui.window, true, error);
-                                    }
-
-                                    // If one or more files failed to get extracted due to an IO error...
-                                    ErrorKind::IOFileNotFound | ErrorKind::IOPermissionDenied | ErrorKind::IOGeneric => {
-                                        show_dialog(app_ui.window, true, error);
-                                    }
-
-                                    // In ANY other situation, it's a message problem.
-                                    _ => panic!(THREADS_MESSAGE_ERROR)
-                                }
-                            }
-
-                            // In ANY other situation, it's a message problem.
+                            Data::Error(error) => show_dialog(app_ui.window, true, error),
                             _ => panic!(THREADS_MESSAGE_ERROR),
                         }
 
@@ -2996,55 +2972,25 @@ fn main() {
             receiver_qt => move |_| {
 
                 // Get a "Folder-only" FileDialog.
-                let export_path;
-                unsafe {export_path = FileDialog::get_existing_directory_unsafe((
+                let export_path = unsafe { FileDialog::get_existing_directory_unsafe((
                     app_ui.window as *mut Widget,
                     &QString::from_std_str("Select destination folder")
-                )); }
+                )) };
 
-                // If we got an export path and it's not empty...
+                // If we got an export path and it's not empty, try to export all exportable files there.
                 if !export_path.is_empty() {
-
-                    // Get the Path we choose to export the TSV files in a readable format.
                     let export_path = PathBuf::from(export_path.to_std_string());
-
-                    // If the folder is a valid folder...
                     if export_path.is_dir() {
-
-                        // Tell the Background Thread to export all the tables and loc files there.
                         sender_qt.send(Commands::MassExportTSV).unwrap();
                         sender_qt_data.send(Data::PathBuf(export_path)).unwrap();
 
-                        // Disable the Main Window (so we can't do other stuff).
+                        // Depending on the result, report success or an error.
                         unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
-
-                        // Get the data from the operation...
                         match check_message_validity_tryrecv(&receiver_qt) {
-                            
-                            // If it's success....
                             Data::String(response) => show_dialog(app_ui.window, true, response),
-
-                            // If we got an error...
-                            Data::Error(error) => {
-
-                                // We must check what kind of error it's.
-                                match error.kind() {
-
-                                    // If one or more files failed to get extracted due to an IO error...
-                                    ErrorKind::IOFileNotFound | ErrorKind::IOPermissionDenied | ErrorKind::IOGeneric => {
-                                        show_dialog(app_ui.window, true, error);
-                                    }
-
-                                    // In ANY other situation, it's a message problem.
-                                    _ => panic!(THREADS_MESSAGE_ERROR)
-                                }
-                            }
-
-                            // In ANY other situation, it's a message problem.
+                            Data::Error(error) => show_dialog(app_ui.window, true, error),
                             _ => panic!(THREADS_MESSAGE_ERROR),
                         }
-
-                        // Re-enable the Main Window.
                         unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
                     }
                 }

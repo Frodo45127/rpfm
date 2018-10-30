@@ -604,10 +604,8 @@ pub fn background_loop(
                     // In case we want to Mass-Import TSV Files...
                     Commands::MassImportTSV => {
 
-                        // Wait until we get the needed data from the UI thread.
+                        // Try to import all the importable files from the provided path.
                         let data = if let Data::StringVecPathBuf(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                        // Try to import the files.
                         match tsv_mass_import(&data.1, &data.0, &schema, &mut pack_file_decoded) {
                             Ok(result) => sender.send(Data::VecVecStringVecVecString(result)).unwrap(),
                             Err(error) => sender.send(Data::Error(error)).unwrap(),
@@ -617,10 +615,8 @@ pub fn background_loop(
                     // In case we want to Mass-Export TSV Files...
                     Commands::MassExportTSV => {
 
-                        // Wait until we get the needed data from the UI thread.
+                        // Try to export all the exportable files to the provided path.
                         let path = if let Data::PathBuf(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                        // Try to import the files.
                         match tsv_mass_export(&path, &schema, &pack_file_decoded) {
                             Ok(result) => sender.send(Data::String(result)).unwrap(),
                             Err(error) => sender.send(Data::Error(error)).unwrap(),
