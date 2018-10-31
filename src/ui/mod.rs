@@ -788,6 +788,32 @@ pub fn create_apply_maths_dialog(app_ui: &AppUI) -> Option<(String, f64)> {
     } else { None }
 }
 
+/// This function creates the entire "Apply Prefix" dialog for tables. It returns the prefix to apply, or None.
+pub fn create_apply_prefix_dialog(app_ui: &AppUI) -> Option<String> {
+
+    // Create and configure the "Apply Maths" Dialog.
+    let mut dialog = unsafe { Dialog::new_unsafe(app_ui.window as *mut Widget) };
+    dialog.set_window_title(&QString::from_std_str("Apply Prefix"));
+    dialog.set_modal(true);
+    dialog.resize((400, 50));
+    let main_grid = GridLayout::new().into_raw();
+
+    let mut prefix_line_edit = LineEdit::new(());
+    prefix_line_edit.set_placeholder_text(&QString::from_std_str("Write here the prefix you want."));
+    let apply_button = PushButton::new(&QString::from_std_str("Apply")).into_raw();
+
+    unsafe { main_grid.as_mut().unwrap().add_widget((prefix_line_edit.static_cast_mut() as *mut Widget, 0, 0, 1, 1)); }
+    unsafe { main_grid.as_mut().unwrap().add_widget((apply_button as *mut Widget, 0, 1, 1, 1)); }
+    unsafe { dialog.set_layout(main_grid as *mut Layout); }
+
+    unsafe { apply_button.as_mut().unwrap().signals().released().connect(&dialog.slots().accept()); }
+
+    if dialog.exec() == 1 { 
+        let prefix = prefix_line_edit.text().to_std_string();
+        if prefix.is_empty() { None } else { Some(prefix_line_edit.text().to_std_string()) } 
+    } else { None }
+}
+
 //----------------------------------------------------------------------------//
 //                    Trait Implementations for Qt Stuff
 //----------------------------------------------------------------------------//

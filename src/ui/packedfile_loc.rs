@@ -68,6 +68,7 @@ pub struct PackedFileLocTreeView {
     pub slot_context_menu_add: SlotBool<'static>,
     pub slot_context_menu_insert: SlotBool<'static>,
     pub slot_context_menu_delete: SlotBool<'static>,
+    pub slot_context_menu_apply_prefix_to_selection: SlotBool<'static>,
     pub slot_context_menu_clone: SlotBool<'static>,
     pub slot_context_menu_clone_and_append: SlotBool<'static>,
     pub slot_context_menu_copy: SlotBool<'static>,
@@ -271,6 +272,9 @@ impl PackedFileLocTreeView {
         let context_menu_insert = context_menu.add_action(&QString::from_std_str("&Insert Row"));
         let context_menu_delete = context_menu.add_action(&QString::from_std_str("&Delete Row"));
 
+        let mut context_menu_apply_submenu = Menu::new(&QString::from_std_str("A&pply..."));
+        let context_menu_apply_prefix_to_selection = context_menu_apply_submenu.add_action(&QString::from_std_str("&Apply Prefix to Selection"));
+
         let mut context_menu_clone_submenu = Menu::new(&QString::from_std_str("&Clone..."));
         let context_menu_clone = context_menu_clone_submenu.add_action(&QString::from_std_str("&Clone and Insert"));
         let context_menu_clone_and_append = context_menu_clone_submenu.add_action(&QString::from_std_str("Clone and &Append"));
@@ -300,6 +304,7 @@ impl PackedFileLocTreeView {
         unsafe { context_menu_add.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("add_row").unwrap()))); }
         unsafe { context_menu_insert.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("insert_row").unwrap()))); }
         unsafe { context_menu_delete.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("delete_row").unwrap()))); }
+        unsafe { context_menu_apply_prefix_to_selection.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_db.get("apply_prefix_to_selection").unwrap()))); }        
         unsafe { context_menu_clone.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("clone_row").unwrap()))); }
         unsafe { context_menu_clone_and_append.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("clone_and_append_row").unwrap()))); }
         unsafe { context_menu_copy.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("copy").unwrap()))); }
@@ -317,6 +322,7 @@ impl PackedFileLocTreeView {
         unsafe { context_menu_add.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_insert.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_delete.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+        unsafe { context_menu_apply_prefix_to_selection.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_clone.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_clone_and_append.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_copy.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
@@ -334,6 +340,7 @@ impl PackedFileLocTreeView {
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_add); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_insert); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_delete); }
+        unsafe { table_view.as_mut().unwrap().add_action(context_menu_apply_prefix_to_selection); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_clone); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_clone_and_append); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_copy); }
@@ -351,6 +358,7 @@ impl PackedFileLocTreeView {
         unsafe { context_menu_add.as_mut().unwrap().set_status_tip(&QString::from_std_str("Add an empty row at the end of the table.")); }
         unsafe { context_menu_insert.as_mut().unwrap().set_status_tip(&QString::from_std_str("Insert an empty row just above the one selected.")); }
         unsafe { context_menu_delete.as_mut().unwrap().set_status_tip(&QString::from_std_str("Delete all the selected rows.")); }
+        unsafe { context_menu_apply_prefix_to_selection.as_mut().unwrap().set_status_tip(&QString::from_std_str("Apply a prefix to every cell in the selected cells.")); }
         unsafe { context_menu_clone.as_mut().unwrap().set_status_tip(&QString::from_std_str("Duplicate the selected rows and insert the new rows under the original ones.")); }
         unsafe { context_menu_clone_and_append.as_mut().unwrap().set_status_tip(&QString::from_std_str("Duplicate the selected rows and append the new rows at the end of the table.")); }
         unsafe { context_menu_copy.as_mut().unwrap().set_status_tip(&QString::from_std_str("Copy whatever is selected to the Clipboard.")); }
@@ -365,6 +373,7 @@ impl PackedFileLocTreeView {
 
         // Insert some separators to space the menu, and the paste submenu.
         unsafe { context_menu.insert_separator(context_menu_copy); }
+        unsafe { context_menu.insert_menu(context_menu_copy, context_menu_apply_submenu.into_raw()); }
         unsafe { context_menu.insert_menu(context_menu_copy, context_menu_clone_submenu.into_raw()); }
         unsafe { context_menu.insert_menu(context_menu_search, context_menu_paste_submenu.into_raw()); }
         unsafe { context_menu.insert_separator(context_menu_search); }
@@ -531,12 +540,26 @@ impl PackedFileLocTreeView {
                             context_menu_clone_and_append.as_mut().unwrap().set_enabled(true);
                             context_menu_copy.as_mut().unwrap().set_enabled(true);
                             context_menu_delete.as_mut().unwrap().set_enabled(true);
+
+                            // The "Apply" actions have to be enabled only when all the indexes are valid for the operation. 
+                            let mut columns = vec![];
+                            for index in 0..indexes.count(()) {
+                                let model_index = indexes.at(index);
+                                if model_index.is_valid() { columns.push(model_index.column()); }
+                            }
+
+                            columns.sort();
+                            columns.dedup();
+
+                            let can_apply = if columns.contains(&2) { false } else { true };    
+                            context_menu_apply_prefix_to_selection.as_mut().unwrap().set_enabled(can_apply);
                         }
                     }
 
                     // Otherwise, disable them.
                     else {
                         unsafe {
+                            context_menu_apply_prefix_to_selection.as_mut().unwrap().set_enabled(false);
                             context_menu_clone.as_mut().unwrap().set_enabled(false);
                             context_menu_clone_and_append.as_mut().unwrap().set_enabled(false);
                             context_menu_copy.as_mut().unwrap().set_enabled(false);
@@ -789,6 +812,53 @@ impl PackedFileLocTreeView {
                         unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
 
                         history.borrow_mut().push(TableOperations::RemoveRows((rows, rows_data)));
+                        history_redo.borrow_mut().clear();
+                        update_undo_model(model, undo_model);
+                        unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
+                    }
+                }
+            )),
+
+            slot_context_menu_apply_prefix_to_selection: SlotBool::new(clone!(
+                history,
+                history_redo,
+                app_ui => move |_| {
+
+                    // If we got a prefix, get all the cells in the selection, try to apply it to them.
+                    if let Some(mut prefix) = create_apply_prefix_dialog(&app_ui) {
+
+                        // For some reason Qt adds & sometimes, ro remove it if you found it.
+                        if let Some(index) = prefix.find('&') { prefix.remove(index); }
+
+                        let mut results = vec![];
+                        let indexes = unsafe { filter_model.as_mut().unwrap().map_selection_to_source(&table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection()).indexes() };
+                        for index in 0..indexes.count(()) {
+                            let model_index = indexes.at(index);
+                            if model_index.is_valid() { 
+
+                                let text = unsafe { model.as_ref().unwrap().item_from_index(model_index).as_ref().unwrap().text().to_std_string() };
+                                let result = format!("{}{}", prefix, text);
+                                results.push(result);
+                            }
+                        }
+
+                        // Then iterate again over every cell applying the new value.
+                        for index in 0..indexes.count(()) {
+                            let model_index = indexes.at(index);
+                            unsafe { model.as_mut().unwrap().item_from_index(model_index).as_mut().unwrap().set_text(&QString::from_std_str(&results[index as usize])) };
+                        }
+
+                        // If we finished appling prefixes, fix the undo history to have all the previous changes merged into one.
+                        // Keep in mind that `None` results should be ignored here.
+                        let len = history.borrow().len();
+                        let mut edits_data = vec![];
+                        {
+                            let mut history = history.borrow_mut();
+                            let mut edits = history.drain((len - results.len())..);
+                            for edit in &mut edits { if let TableOperations::Editing(mut edit) = edit { edits_data.append(&mut edit); }}
+                        }
+
+                        history.borrow_mut().push(TableOperations::Editing(edits_data));
                         history_redo.borrow_mut().clear();
                         update_undo_model(model, undo_model);
                         unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
@@ -1892,6 +1962,7 @@ impl PackedFileLocTreeView {
         unsafe { context_menu_add.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_add); }
         unsafe { context_menu_insert.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_insert); }
         unsafe { context_menu_delete.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_delete); }
+        unsafe { context_menu_apply_prefix_to_selection.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_apply_prefix_to_selection); }
         unsafe { context_menu_clone.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_clone); }
         unsafe { context_menu_clone_and_append.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_clone_and_append); }
         unsafe { context_menu_copy.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_copy); }
@@ -1925,6 +1996,7 @@ impl PackedFileLocTreeView {
             context_menu_add.as_mut().unwrap().set_enabled(true);
             context_menu_insert.as_mut().unwrap().set_enabled(true);
             context_menu_delete.as_mut().unwrap().set_enabled(false);
+            context_menu_apply_prefix_to_selection.as_mut().unwrap().set_enabled(false);
             context_menu_clone.as_mut().unwrap().set_enabled(false);
             context_menu_clone_and_append.as_mut().unwrap().set_enabled(false);
             context_menu_copy.as_mut().unwrap().set_enabled(false);
