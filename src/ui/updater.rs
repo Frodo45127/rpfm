@@ -375,7 +375,7 @@ fn network_thread(
         // When we want to check if there is a schema's update available...
         "check_schema_updates" => {
             let apiresponse = 
-                if let Ok(mut remote_versions) = reqwest::get("https://raw.githubusercontent.com/Frodo45127/rpfm/develop/schemas/versions.json") {
+                if let Ok(mut remote_versions) = reqwest::get("https://raw.githubusercontent.com/Frodo45127/rpfm/master/schemas/versions.json") {
                     if let Ok(remote_versions) = remote_versions.json() {
 
                         let remote_versions: Versions = remote_versions;
