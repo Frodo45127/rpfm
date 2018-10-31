@@ -3,8 +3,7 @@
 extern crate failure;
 extern crate serde_json;
 extern crate csv;
-extern crate hyper;
-extern crate hyper_tls;
+extern crate reqwest;
 
 use failure::{Backtrace, Context, Fail};
 use serde_json::error::Category;
@@ -573,19 +572,13 @@ impl From<string::FromUtf8Error> for Error {
     }
 }
 
-/// Implementation to create a custom error from a hyper::Error.
-impl From<hyper::Error> for Error {
-    fn from(_: hyper::Error) -> Error {
+/// Implementation to create a custom error from a Reqwest Error.
+impl From<reqwest::Error> for Error {
+    fn from(_: reqwest::Error) -> Error {
         Error::from(ErrorKind::NetworkGeneric)
     }
 }
 
-/// Implementation to create a custom error from a hyper_tls::Error.
-impl From<hyper_tls::Error> for Error {
-    fn from(_: hyper_tls::Error) -> Error {
-        Error::from(ErrorKind::NetworkGeneric)
-    }
-}
 
 /// Implementation to create a custom error from a std::io::Error. Based on the "From" used to convert it to std::io::Error.
 impl From<io::Error> for Error {

@@ -5,12 +5,14 @@ extern crate qt_widgets;
 extern crate qt_gui;
 extern crate qt_core;
 extern crate cpp_utils;
+extern crate reqwest;
 
 use qt_widgets::{widget::Widget, message_box, message_box::MessageBox};
 
 use qt_core::flags::Flags;
 
 use self::restson::RestClient;
+use self::reqwest::header::USER_AGENT;
 use std::sync::mpsc::{channel, Sender, Receiver};
 use std::thread;
 use std::cell::RefCell;
@@ -129,202 +131,131 @@ pub fn check_schema_updates(
     sender_qt_data: &Sender<Data>,
     receiver_qt: &Rc<RefCell<Receiver<Data>>>,
 ) {
-
-    // Create a channel to comunicate with the "Network" thread.
-    let (sender_net, receiver_ui) = channel();
-
     // Create the network thread with the "check_schema_update" operation.
+    let (sender_net, receiver_net) = channel();
     thread::spawn(move || { network_thread(sender_net, "check_schema_updates"); });
 
-    // Create this here so we can later access again to the response from the server.
-    let response: (APIResponse, APIResponseSchema);
-
-    // If we want to use a Dialog to show the full searching process (clicking in the menu button)...
+    // If we want to use a Dialog to show the full searching process.
     if use_dialog {
 
-        // Create the dialog to show the response.
-        let mut dialog;
-        unsafe { dialog = MessageBox::new_unsafe((
+        // Create the dialog to show the response and configure it.
+        let mut dialog = unsafe { MessageBox::new_unsafe((
             message_box::Icon::Information,
             &QString::from_std_str("Update Schema Checker"),
             &QString::from_std_str("Searching for updates..."),
             Flags::from_int(2097152), // Close button.
             app_ui.window as *mut Widget,
-        )); }
+        )) };
 
-        // Add a "Update" button with the "Accept" role, disabled by default.
         let update_button = dialog.add_button((&QString::from_std_str("&Update"), message_box::ButtonRole::AcceptRole));
         unsafe { update_button.as_mut().unwrap().set_enabled(false); }
 
-        // Set it to be modal, and show it. Don't execute it, just show it.
         dialog.set_modal(true);
         dialog.show();
 
-        response = check_api_response(&receiver_ui);
-
-        let message: String = match response {
-            (_,APIResponseSchema::SuccessNewUpdate(ref local_versions, ref current_versions)) => {
-
-                // In case of new schema, enable the "Update" button.
+        // When we get a response, act depending on the kind of response we got.
+        let response = check_api_response(&receiver_net);
+        let message: String = match response.1 {
+            APIResponseSchema::SuccessNewUpdate(ref local_versions, ref remote_versions) => {
                 unsafe { update_button.as_mut().unwrap().set_enabled(true); }
 
-                // Create the initial message.
+                // Build a table with each one of the remote schemas to show what ones got updated.
                 let mut message = "<h4>New schema update available</h4> <table>".to_owned();
-
-                // For each schema supported...
-                for (index, schema) in current_versions.schemas.iter().enumerate() {
-
-                    // Start the line.
+                for (remote_schema_name, remote_schema_version) in remote_versions {
                     message.push_str("<tr>");
-
-                    // Add the name of the game.
-                    message.push_str(&format!("<td>{}:</td>", schema.schema_file));
+                    message.push_str(&format!("<td>{}:</td>", remote_schema_name));
 
                     // If the game exist in the local version, show both versions.
-                    if let Some(local_schema) = local_versions.schemas.get(index) {
-                        message.push_str(&format!("<td>{} => {}</td>", local_schema.version, schema.version));
-                    }
+                    if let Some(local_schema_version) = local_versions.get(remote_schema_name) {
+                        message.push_str(&format!("<td>{} => {}</td>", local_schema_version, remote_schema_version));
+                    } else { message.push_str(&format!("<td>0 => {}</td>", remote_schema_version)); }
 
-                    // Otherwise, it's a new game. Use 0 as his initial version.
-                    else { message.push_str(&format!("<td>0 => {}</td>", schema.version))}
-
-                    // End the line.
                     message.push_str("</tr>");
                 }
-
-                // Complete the table.
                 message.push_str("</table>");
 
                 // Ask if you want to update.
                 message.push_str("<p>Do you want to update the schemas?</p>");
-
-                // Return the message.
                 message
             }
-            (_,APIResponseSchema::SuccessNoUpdate) => "<h4>No new schema updates available</h4> <p>More luck next time :)</p>".to_owned(),
-            (_,APIResponseSchema::Error) => "<h4>Error while checking new updates :(</h4> <p>If you see this message, there has been a problem with your connection to the Github.com server. Please, make sure you can access to <a href=\"https://api.github.com\">https://api.github.com</a> and try again.</p>".to_owned(),
+            APIResponseSchema::SuccessNoUpdate => "<h4>No new schema updates available</h4> <p>More luck next time :)</p>".to_owned(),
+            APIResponseSchema::Error => "<h4>Error while checking new updates :(</h4> <p>If you see this message, there has been a problem with your connection to the Github.com server. Please, make sure you can access to <a href=\"https://api.github.com\">https://api.github.com</a> and try again.</p>".to_owned(),
         };
 
-        // Change the text of the dialog.
+        // Change the text of the dialog with the updated message.
         dialog.set_text(&QString::from_std_str(message));
 
-        // If we hit "Update"...
+        // If we hit "Update", try to update the schemas.
         if dialog.exec() == 0 {
+            if let APIResponseSchema::SuccessNewUpdate(local_versions, remote_versions) = response.1 {
 
-            // Useless if, but easiest way I know to get local and current version at this point.
-            if let APIResponseSchema::SuccessNewUpdate(local_versions, current_versions) = response.1 {
-
-                // Sent to the background thread the order to download the lastest schemas.
                 sender_qt.send(Commands::UpdateSchemas).unwrap();
-                sender_qt_data.send(Data::VersionsVersions((local_versions, current_versions))).unwrap();
+                sender_qt_data.send(Data::VersionsVersions((local_versions, remote_versions))).unwrap();
 
-                // Change the text of the dialog and disable the update button.
                 dialog.show();
                 dialog.set_text(&QString::from_std_str("<p>Downloading updates, don't close this window...</p> <p>This may take a while.</p>"));
                 unsafe { update_button.as_mut().unwrap().set_enabled(false); }
 
-                // Get the data from the operation...
                 match check_message_validity_tryrecv(&receiver_qt) {
-                    
-                    // If it's success....
                     Data::Success => show_dialog(app_ui.window, true, "<h4>Schemas updated and reloaded</h4><p>You can continue using RPFM now.</p>"),
-
-                    // If we got an error...
                     Data::Error(error) => show_dialog(app_ui.window, true, error),
-
-                    // In ANY other situation, it's a message problem.
                     _ => panic!(THREADS_MESSAGE_ERROR),
                 }
             }
         }
     }
 
-    // Otherwise, we just wait until we got a response, and only then (and only in case of new schema update)... we show a dialog.
+    // Otherwise, we just wait until we got a response, and only then (and only in case of new schema update) we show a dialog.
     else {
 
-        response = check_api_response(&receiver_ui);
-
         // Depending on the response, we change the text of the dialog in a way or another.
-        let message = match response {
-            (_,APIResponseSchema::SuccessNewUpdate(ref local_versions, ref current_versions)) => {
+        let response = check_api_response(&receiver_net);
+        let message = match response.1 {
+            APIResponseSchema::SuccessNewUpdate(ref local_versions, ref remote_versions) => {
 
-                // Create the initial message.
                 let mut message = "<h4>New schema update available</h4> <table>".to_owned();
-
-                // For each schema supported...
-                for (index, schema) in current_versions.schemas.iter().enumerate() {
-
-                    // Start the line.
+                for (remote_schema_name, remote_schema_version) in remote_versions {
                     message.push_str("<tr>");
+                    message.push_str(&format!("<td>{}:</td>", remote_schema_name));
 
-                    // Add the name of the game.
-                    message.push_str(&format!("<td>{}:</td>", schema.schema_file));
-
-                    // If the game exist in the local version, show both versions.
-                    if let Some(local_schema) = local_versions.schemas.get(index) {
-                        message.push_str(&format!("<td>{} => {}</td>", local_schema.version, schema.version));
-                    }
-
-                    // Otherwise, it's a new game. Use 0 as his initial version.
-                    else { message.push_str(&format!("<td>0 => {}</td>", schema.version))}
-
-                    // End the line.
+                    if let Some(local_schema_version) = local_versions.get(remote_schema_name) {
+                        message.push_str(&format!("<td>{} => {}</td>", local_schema_version, remote_schema_version));
+                    } else { message.push_str(&format!("<td>0 => {}</td>", remote_schema_version)); }
                     message.push_str("</tr>");
                 }
-
-                // Complete the table.
                 message.push_str("</table>");
-
-                // Ask if you want to update.
                 message.push_str("<p>Do you want to update the schemas?</p>");
-
-                // Return the message.
                 message
             }
             _ => return
         };
 
         // Create the dialog to show the response.
-        let mut dialog;
-        unsafe { dialog = MessageBox::new_unsafe((
+        let mut dialog = unsafe { MessageBox::new_unsafe((
             message_box::Icon::Information,
             &QString::from_std_str("Update Schema Checker"),
             &QString::from_std_str(message),
             Flags::from_int(2097152), // Close button.
             app_ui.window as *mut Widget,
-        )); }
+        )) };
 
-        // Add a "Update" button with the "Accept" role.
         let update_button = dialog.add_button((&QString::from_std_str("&Update"), message_box::ButtonRole::AcceptRole));
-
-        // Set it to be modal, and execute it.
         dialog.set_modal(true);
 
-        // If we hit "Update"...
+        // If we hit "Update", same process than when we have a dialog.
         if dialog.exec() == 0 {
+            if let APIResponseSchema::SuccessNewUpdate(local_versions, remote_versions) = response.1 {
 
-            // Useless if, but easiest way I know to get local and current version at this point.
-            if let APIResponseSchema::SuccessNewUpdate(local_versions, current_versions) = response.1 {
-
-                // Sent to the background thread the order to download the lastest schemas.
                 sender_qt.send(Commands::UpdateSchemas).unwrap();
-                sender_qt_data.send(Data::VersionsVersions((local_versions, current_versions))).unwrap();
+                sender_qt_data.send(Data::VersionsVersions((local_versions, remote_versions))).unwrap();
 
-                // Change the text of the dialog and disable the update button.
                 dialog.show();
                 dialog.set_text(&QString::from_std_str("<p>Downloading updates, don't close this window...</p> <p>This may take a while.</p>"));
                 unsafe { update_button.as_mut().unwrap().set_enabled(false); }
 
-                // Get the data from the operation...
                 match check_message_validity_tryrecv(&receiver_qt) {
-                    
-                    // If it's success....
                     Data::Success => show_dialog(app_ui.window, true, "<h4>Schemas updated and reloaded</h4><p>You can continue using RPFM now.</p>"),
-
-                    // If we got an error...
                     Data::Error(error) => show_dialog(app_ui.window, true, error),
-
-                    // In ANY other situation, it's a message problem.
                     _ => panic!(THREADS_MESSAGE_ERROR),
                 }
             }
@@ -444,36 +375,24 @@ fn network_thread(
 
         // When we want to check if there is a schema's update available...
         "check_schema_updates" => {
+            let apiresponse = 
+                if let Ok(mut remote_versions) = reqwest::get("https://raw.githubusercontent.com/Frodo45127/rpfm/develop/schemas/versions.json") {
+                    if let Ok(remote_versions) = remote_versions.json() {
 
-            // Create new client with API base URL
-            let mut client = RestClient::new("https://raw.githubusercontent.com").unwrap();
-            client.set_header("User-Agent", &format!("RPFM/{}", VERSION)).unwrap();
+                        let remote_versions: Versions = remote_versions;
+                        let local_versions: Versions = serde_json::from_reader(BufReader::new(File::open(RPFM_PATH.to_path_buf().join(PathBuf::from("schemas/versions.json"))).unwrap())).unwrap();
 
-            // Get `https://raw.githubusercontent.com/Frodo45127/rpfm/master/schemas/versions.json` and deserialize the result automatically.
-            let apiresponse = match client.get(()) {
+                        // If both versions are equal, we have no updates.
+                        if remote_versions == local_versions { APIResponseSchema::SuccessNoUpdate }
 
-                // If we received a response from the server...
-                Ok(current_versions) => {
+                        // If the local version have more schemas, it has a local indev schema, so don't consider it as "Updates available."
+                        else if remote_versions.len() < local_versions.len() { APIResponseSchema::SuccessNoUpdate }
 
-                    // We get `current_versions` into our `current_versions`. Redundant, but the compiler doesn't know his type otherwise.
-                    let current_versions: Versions = current_versions;
+                        // In any other sisuation, there is an update (or I broke something).
+                        else { APIResponseSchema::SuccessNewUpdate(local_versions, remote_versions) }
 
-                    // Get the local versions.
-                    let local_versions: Versions = serde_json::from_reader(BufReader::new(File::open(RPFM_PATH.to_path_buf().join(PathBuf::from("schemas/versions.json"))).unwrap())).unwrap();
-
-                    // If both versions are equal, we have no updates.
-                    if current_versions == local_versions { APIResponseSchema::SuccessNoUpdate }
-
-                    // If the local version have more schemas, it has a local indev schema, so don't consider it as "Updates available."
-                    else if current_versions.schemas.len() < local_versions.schemas.len() { APIResponseSchema::SuccessNoUpdate }
-
-                    // In any other sisuation, there is an update (or I broke something).
-                    else { APIResponseSchema::SuccessNewUpdate(local_versions, current_versions) }
-                }
-
-                // If there has been no response from the server, or it has responded with an error...
-                Err(_) => APIResponseSchema::Error,
-            };
+                    } else { APIResponseSchema::Error }
+                } else { APIResponseSchema::Error };
 
             // Send the APIResponse, back to the UI thread.
             sender.send((APIResponse::Error, apiresponse)).unwrap();
