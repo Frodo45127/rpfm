@@ -12,7 +12,6 @@ use qt_widgets::{widget::Widget, message_box, message_box::MessageBox};
 use qt_core::flags::Flags;
 
 use self::restson::RestClient;
-use self::reqwest::header::USER_AGENT;
 use std::sync::mpsc::{channel, Sender, Receiver};
 use std::thread;
 use std::cell::RefCell;
