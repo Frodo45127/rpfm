@@ -80,7 +80,7 @@ impl Settings {
         settings_bool.insert("check_schema_updates_on_start".to_owned(), true);
         settings_bool.insert("use_pfm_extracting_behavior".to_owned(), false);
         settings_bool.insert("use_dependency_checker".to_owned(), false);
-        settings_bool.insert("use_lazy_loading".to_owned(), false);
+        settings_bool.insert("use_lazy_loading".to_owned(), true);
 
         // Return it.
         Self {
