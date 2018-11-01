@@ -50,12 +50,16 @@ pub struct SettingsDialog {
     pub ui_adjust_columns_to_content: *mut CheckBox,
     pub ui_extend_last_column_on_tables: *mut CheckBox,
     pub ui_start_maximized: *mut CheckBox,
+    pub ui_remember_column_state: *mut CheckBox,
+    pub ui_remember_table_state_permanently: *mut CheckBox,
+    pub ui_use_dark_theme: *mut CheckBox,
     pub extra_default_game_combobox: *mut ComboBox,
     pub extra_allow_editing_of_ca_packfiles: *mut CheckBox,
     pub extra_check_updates_on_start: *mut CheckBox,
     pub extra_check_schema_updates_on_start: *mut CheckBox,
     pub extra_use_pfm_extracting_behavior: *mut CheckBox,
     pub extra_use_dependency_checker: *mut CheckBox,
+    pub extra_use_lazy_loading_checker: *mut CheckBox,
 }
 
 /// `MyModNewWindow`: This struct holds all the relevant stuff for "My Mod"'s New Mod Window.
@@ -84,17 +88,10 @@ impl SettingsDialog {
         // Creating the Settings Dialog...
         //-------------------------------------------------------------------------------------------//
 
-        // Create the Preferences Dialog.
-        let dialog;
-        unsafe { dialog = Dialog::new_unsafe(app_ui.window as *mut Widget).into_raw(); }
-
-        // Change his title.
+        // Create the Preferences Dialog and configure it.
+        let dialog = unsafe { Dialog::new_unsafe(app_ui.window as *mut Widget).into_raw() };
         unsafe { dialog.as_mut().unwrap().set_window_title(&QString::from_std_str("Preferences")); }
-
-        // Set it Modal, so you can't touch the Main Window with this dialog open.
         unsafe { dialog.as_mut().unwrap().set_modal(true); }
-
-        // Resize the Dialog.
         unsafe { dialog.as_mut().unwrap().resize((750, 0)); }
 
         // Create the main Grid.
@@ -150,10 +147,16 @@ impl SettingsDialog {
         let mut adjust_columns_to_content_label = Label::new(&QString::from_std_str("Adjust Columns to Content:"));
         let mut extend_last_column_on_tables_label = Label::new(&QString::from_std_str("Extend Last Column on Tables:"));
         let mut start_maximized_label = Label::new(&QString::from_std_str("Start Maximized:"));
+        let mut remember_column_state_label = Label::new(&QString::from_std_str("Remember Column State on Tables:"));
+        let mut remember_table_state_permanently_label = Label::new(&QString::from_std_str("Remember Table State Across PackFiles:"));
+        let mut use_dark_theme_label = Label::new(&QString::from_std_str("Use Dark Theme (Requires restart):"));
 
         let mut adjust_columns_to_content_checkbox = CheckBox::new(());
         let mut extend_last_column_on_tables_checkbox = CheckBox::new(());
         let mut start_maximized_checkbox = CheckBox::new(());
+        let mut remember_column_state_checkbox = CheckBox::new(());
+        let mut remember_table_state_permanently_checkbox = CheckBox::new(());
+        let mut use_dark_theme_checkbox = CheckBox::new(());
 
         let mut shortcuts_label = Label::new(&QString::from_std_str("See/Change Shortcuts:"));
         let mut shortcuts_button = PushButton::new(&QString::from_std_str("Shortcuts"));
@@ -162,6 +165,9 @@ impl SettingsDialog {
         let adjust_columns_to_content_tip = QString::from_std_str("If you enable this, when you open a DB Table or Loc File, all columns will be automatically resized depending on their content's size.\nOtherwise, columns will have a predefined size. Either way, you'll be able to resize them manually after the initial resize.\nNOTE: This can make very big tables take more time to load.");
         let extend_last_column_on_tables_tip = QString::from_std_str("If you enable this, the last column on DB Tables and Loc PackedFiles will extend itself to fill the empty space at his right, if there is any.");
         let start_maximized_tip = QString::from_std_str("If you enable this, RPFM will start maximized.");
+        let remember_column_state_tip = QString::from_std_str("If you enable this, RPFM will remember how did you left a DB Table or Loc PackedFile (columns moved, what column was sorting the Table,...) when you re-open it again. This memory is temporary, until the opened PackFile changes.");
+        let remember_table_state_permanently_tip = QString::from_std_str("If you enable this, RPFM will remember the state of a DB Table or Loc PackedFile (filter data, columns moved, what column was sorting the Table,...) even when you close RPFM and open it again. If you don't want this behavior, leave this disabled.");
+        let use_dark_theme_tip = QString::from_std_str("<i>Ash nazg durbatulûk, ash nazg gimbatul, ash nazg thrakatulûk, agh burzum-ishi krimpatul</i>");
         let shortcuts_tip = QString::from_std_str("See/change the shortcuts from here if you don't like them. Changes are applied on restart of the program.");
 
         adjust_columns_to_content_label.set_tool_tip(&adjust_columns_to_content_tip);
@@ -170,6 +176,12 @@ impl SettingsDialog {
         extend_last_column_on_tables_checkbox.set_tool_tip(&extend_last_column_on_tables_tip);
         start_maximized_label.set_tool_tip(&start_maximized_tip);
         start_maximized_checkbox.set_tool_tip(&start_maximized_tip);
+        remember_column_state_label.set_tool_tip(&remember_column_state_tip);
+        remember_column_state_checkbox.set_tool_tip(&remember_column_state_tip);
+        remember_table_state_permanently_label.set_tool_tip(&remember_table_state_permanently_tip);
+        remember_table_state_permanently_checkbox.set_tool_tip(&remember_table_state_permanently_tip);
+        use_dark_theme_label.set_tool_tip(&use_dark_theme_tip);
+        use_dark_theme_checkbox.set_tool_tip(&use_dark_theme_tip);
         shortcuts_label.set_tool_tip(&shortcuts_tip);
         shortcuts_button.set_tool_tip(&shortcuts_tip);
 
@@ -182,8 +194,19 @@ impl SettingsDialog {
         unsafe { ui_settings_grid.as_mut().unwrap().add_widget((start_maximized_label.static_cast_mut() as *mut Widget, 2, 0, 1, 1)); }
         unsafe { ui_settings_grid.as_mut().unwrap().add_widget((start_maximized_checkbox.static_cast_mut() as *mut Widget, 2, 1, 1, 1)); }
 
-        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((shortcuts_label.static_cast_mut() as *mut Widget, 3, 0, 1, 1)); }
-        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((shortcuts_button.static_cast_mut() as *mut Widget, 3, 1, 1, 1)); }
+        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((remember_column_state_label.static_cast_mut() as *mut Widget, 3, 0, 1, 1)); }
+        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((remember_column_state_checkbox.static_cast_mut() as *mut Widget, 3, 1, 1, 1)); }
+
+        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((remember_table_state_permanently_label.static_cast_mut() as *mut Widget, 4, 0, 1, 1)); }
+        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((remember_table_state_permanently_checkbox.static_cast_mut() as *mut Widget, 4, 1, 1, 1)); }
+       
+        if cfg!(target_os = "windows") {
+            unsafe { ui_settings_grid.as_mut().unwrap().add_widget((use_dark_theme_label.static_cast_mut() as *mut Widget, 5, 0, 1, 1)); }
+            unsafe { ui_settings_grid.as_mut().unwrap().add_widget((use_dark_theme_checkbox.static_cast_mut() as *mut Widget, 5, 1, 1, 1)); }
+        }
+
+        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((shortcuts_label.static_cast_mut() as *mut Widget, 6, 0, 1, 1)); }
+        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((shortcuts_button.static_cast_mut() as *mut Widget, 6, 1, 1, 1)); }
 
         // Create the "Extra Settings" frame and Grid.
         let extra_settings_frame = GroupBox::new(&QString::from_std_str("Extra Settings")).into_raw();
@@ -205,12 +228,14 @@ impl SettingsDialog {
         let mut check_schema_updates_on_start_label = Label::new(&QString::from_std_str("Check Schema Updates on Start:"));
         let mut use_pfm_extracting_behavior_label = Label::new(&QString::from_std_str("Use PFM Extracting Behavior:"));
         let mut use_dependency_checker_label = Label::new(&QString::from_std_str("Enable Dependency Checker for DB Tables:"));
+        let mut use_lazy_loading_label = Label::new(&QString::from_std_str("Use Lazy-Loading for PackFiles:"));
 
         let mut allow_editing_of_ca_packfiles_checkbox = CheckBox::new(());
         let mut check_updates_on_start_checkbox = CheckBox::new(());
         let mut check_schema_updates_on_start_checkbox = CheckBox::new(());
         let mut use_pfm_extracting_behavior_checkbox = CheckBox::new(());
         let mut use_dependency_checker_checkbox = CheckBox::new(());
+        let mut use_lazy_loading_checkbox = CheckBox::new(());
 
         // Tips.
         let allow_editing_of_ca_packfiles_tip = QString::from_std_str("By default, only PackFiles of Type 'Mod' and 'Movie' are editables, as those are the only ones used for modding.\nIf you enable this, you'll be able to edit 'Boot', 'Release' and 'Patch' PackFiles too. Just be careful of not writing over one of the game's original PackFiles!");
@@ -218,6 +243,7 @@ impl SettingsDialog {
         let check_schema_updates_on_start_tip = QString::from_std_str("If you enable this, RPFM will check for schema updates at the start of the program,\nand allow you to automatically download it if there is any update available.");
         let use_pfm_extracting_behavior_tip = QString::from_std_str("By default, extracting a file/folder extracts just the file to wherever you want.\nIf you enable this, the file/folder will be extracted wherever you want UNDER HIS ENTIRE PATH.\nThat means that extracting a table go from 'myfolder/table_file' to 'myfolder/db/main_units_tables/table_file'.");
         let use_dependency_checker_tip = QString::from_std_str("If you enable this, when opening a DB Table RPFM will try to get his dependencies and mark all cells with a reference to another table as 'Not Found In Table' (Red), 'Referenced Table Not Found' (Blue) or 'Correct Reference' (Black). It makes opening a big table a bit slower.");
+        let use_lazy_loading_tip = QString::from_std_str("If you enable this, PackFiles will load their data on-demand from the disk instead of loading the entire PackFile to Ram. This reduces Ram usage by a lot, but if something else changes/deletes the PackFile while it's open, the PackFile will likely be unrecoverable and you'll lose whatever is in it.\nIf you mainly mod in Warhammer 2's /data folder LEAVE THIS DISABLED, as a bug in the Assembly Kit causes PackFiles to become broken/be deleted when you have this enabled.");
 
         // Tips for the checkboxes.
         allow_editing_of_ca_packfiles_checkbox.set_tool_tip(&allow_editing_of_ca_packfiles_tip);
@@ -225,6 +251,7 @@ impl SettingsDialog {
         check_schema_updates_on_start_checkbox.set_tool_tip(&check_schema_updates_on_start_tip);
         use_pfm_extracting_behavior_checkbox.set_tool_tip(&use_pfm_extracting_behavior_tip);
         use_dependency_checker_checkbox.set_tool_tip(&use_dependency_checker_tip);
+        use_lazy_loading_checkbox.set_tool_tip(&use_lazy_loading_tip);
 
         // Also, for their labels.
         allow_editing_of_ca_packfiles_label.set_tool_tip(&allow_editing_of_ca_packfiles_tip);
@@ -232,6 +259,7 @@ impl SettingsDialog {
         check_schema_updates_on_start_label.set_tool_tip(&check_schema_updates_on_start_tip);
         use_pfm_extracting_behavior_label.set_tool_tip(&use_pfm_extracting_behavior_tip);
         use_dependency_checker_label.set_tool_tip(&use_dependency_checker_tip);
+        use_lazy_loading_label.set_tool_tip(&use_lazy_loading_tip);
 
         // Add the "Default Game" stuff to the Grid.
         unsafe { extra_settings_grid.as_mut().unwrap().add_widget((default_game_label as *mut Widget, 0, 0, 1, 1)); }
@@ -251,6 +279,9 @@ impl SettingsDialog {
 
         unsafe { extra_settings_grid.as_mut().unwrap().add_widget((use_dependency_checker_label.into_raw() as *mut Widget, 5, 0, 1, 1)); }
         unsafe { extra_settings_grid.as_mut().unwrap().add_widget((use_dependency_checker_checkbox.static_cast_mut() as *mut Widget, 5, 1, 1, 1)); }
+
+        unsafe { extra_settings_grid.as_mut().unwrap().add_widget((use_lazy_loading_label.into_raw() as *mut Widget, 6, 0, 1, 1)); }
+        unsafe { extra_settings_grid.as_mut().unwrap().add_widget((use_lazy_loading_checkbox.static_cast_mut() as *mut Widget, 6, 1, 1, 1)); }
 
         // Add the Path's grid to his Frame, and his Frame to the Main Grid.
         unsafe { paths_frame.as_mut().unwrap().set_layout(paths_grid.static_cast_mut() as *mut Layout); }
@@ -359,12 +390,16 @@ impl SettingsDialog {
             ui_adjust_columns_to_content: adjust_columns_to_content_checkbox.into_raw(),
             ui_extend_last_column_on_tables: extend_last_column_on_tables_checkbox.into_raw(),
             ui_start_maximized: start_maximized_checkbox.into_raw(),
+            ui_remember_column_state: remember_column_state_checkbox.into_raw(),
+            ui_remember_table_state_permanently: remember_table_state_permanently_checkbox.into_raw(),
+            ui_use_dark_theme: use_dark_theme_checkbox.into_raw(),
             extra_default_game_combobox: default_game_combobox.into_raw(),
             extra_allow_editing_of_ca_packfiles: allow_editing_of_ca_packfiles_checkbox.into_raw(),
             extra_check_updates_on_start: check_updates_on_start_checkbox.into_raw(),
             extra_check_schema_updates_on_start: check_schema_updates_on_start_checkbox.into_raw(),
             extra_use_pfm_extracting_behavior: use_pfm_extracting_behavior_checkbox.into_raw(),
             extra_use_dependency_checker: use_dependency_checker_checkbox.into_raw(),
+            extra_use_lazy_loading_checker: use_lazy_loading_checkbox.into_raw(),
         };
 
         //-------------------------------------------------------------------------------------------//
@@ -424,6 +459,9 @@ impl SettingsDialog {
         unsafe { self.ui_adjust_columns_to_content.as_mut().unwrap().set_checked(*settings.settings_bool.get("adjust_columns_to_content").unwrap()); }
         unsafe { self.ui_extend_last_column_on_tables.as_mut().unwrap().set_checked(*settings.settings_bool.get("extend_last_column_on_tables").unwrap()); }
         unsafe { self.ui_start_maximized.as_mut().unwrap().set_checked(*settings.settings_bool.get("start_maximized").unwrap()); }
+        unsafe { self.ui_remember_column_state.as_mut().unwrap().set_checked(*settings.settings_bool.get("remember_column_state").unwrap()); }
+        unsafe { self.ui_remember_table_state_permanently.as_mut().unwrap().set_checked(*settings.settings_bool.get("remember_table_state_permanently").unwrap()); }
+        unsafe { self.ui_use_dark_theme.as_mut().unwrap().set_checked(*settings.settings_bool.get("use_dark_theme").unwrap()); }
 
         // Load the Extra Stuff.
         unsafe { self.extra_allow_editing_of_ca_packfiles.as_mut().unwrap().set_checked(*settings.settings_bool.get("allow_editing_of_ca_packfiles").unwrap()); }
@@ -431,6 +469,7 @@ impl SettingsDialog {
         unsafe { self.extra_check_schema_updates_on_start.as_mut().unwrap().set_checked(*settings.settings_bool.get("check_schema_updates_on_start").unwrap()); }
         unsafe { self.extra_use_pfm_extracting_behavior.as_mut().unwrap().set_checked(*settings.settings_bool.get("use_pfm_extracting_behavior").unwrap()); }
         unsafe { self.extra_use_dependency_checker.as_mut().unwrap().set_checked(*settings.settings_bool.get("use_dependency_checker").unwrap()); }
+        unsafe { self.extra_use_lazy_loading_checker.as_mut().unwrap().set_checked(*settings.settings_bool.get("use_lazy_loading").unwrap()); }
     }
 
     /// This function gets the data from the Settings Dialog and returns a Settings struct with that
@@ -469,6 +508,9 @@ impl SettingsDialog {
         unsafe { settings.settings_bool.insert("adjust_columns_to_content".to_owned(), self.ui_adjust_columns_to_content.as_mut().unwrap().is_checked()); }
         unsafe { settings.settings_bool.insert("extend_last_column_on_tables".to_owned(), self.ui_extend_last_column_on_tables.as_mut().unwrap().is_checked()); }
         unsafe { settings.settings_bool.insert("start_maximized".to_owned(), self.ui_start_maximized.as_mut().unwrap().is_checked()); }
+        unsafe { settings.settings_bool.insert("remember_column_state".to_owned(), self.ui_remember_column_state.as_mut().unwrap().is_checked()); }
+        unsafe { settings.settings_bool.insert("remember_table_state_permanently".to_owned(), self.ui_remember_table_state_permanently.as_mut().unwrap().is_checked()); }
+        unsafe { settings.settings_bool.insert("use_dark_theme".to_owned(), self.ui_use_dark_theme.as_mut().unwrap().is_checked()); }
 
         // Get the Extra Settings.
         unsafe { settings.settings_bool.insert("allow_editing_of_ca_packfiles".to_owned(), self.extra_allow_editing_of_ca_packfiles.as_mut().unwrap().is_checked()); }
@@ -476,6 +518,7 @@ impl SettingsDialog {
         unsafe { settings.settings_bool.insert("check_schema_updates_on_start".to_owned(), self.extra_check_schema_updates_on_start.as_mut().unwrap().is_checked()); }
         unsafe { settings.settings_bool.insert("use_pfm_extracting_behavior".to_owned(), self.extra_use_pfm_extracting_behavior.as_mut().unwrap().is_checked()); }
         unsafe { settings.settings_bool.insert("use_dependency_checker".to_owned(), self.extra_use_dependency_checker.as_mut().unwrap().is_checked()); }
+        unsafe { settings.settings_bool.insert("use_lazy_loading".to_owned(), self.extra_use_lazy_loading_checker.as_mut().unwrap().is_checked()); }
 
         // Return the new Settings.
         settings

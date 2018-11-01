@@ -10,6 +10,7 @@ use std::io::{BufReader, BufWriter};
 use RPFM_PATH;
 use SUPPORTED_GAMES;
 use error::Result;
+use packfile::packfile::PFHVersion;
 
 pub mod shortcuts;
 
@@ -28,7 +29,7 @@ const SETTINGS_FILE: &str = "settings.json";
 #[derive(Clone, Debug)]
 pub struct GameInfo {
     pub display_name: String,
-    pub id: String,
+    pub id: PFHVersion,
     pub schema: String,
     pub db_pack: String,
     pub loc_pack: String,
@@ -70,12 +71,16 @@ impl Settings {
         settings_bool.insert("adjust_columns_to_content".to_owned(), true);
         settings_bool.insert("extend_last_column_on_tables".to_owned(), true);
         settings_bool.insert("start_maximized".to_owned(), false);
+        settings_bool.insert("remember_column_state".to_owned(), true);
+        settings_bool.insert("remember_table_state_permanently".to_owned(), false);
+        settings_bool.insert("use_dark_theme".to_owned(), false);
 
         settings_bool.insert("allow_editing_of_ca_packfiles".to_owned(), false);
         settings_bool.insert("check_updates_on_start".to_owned(), true);
         settings_bool.insert("check_schema_updates_on_start".to_owned(), true);
         settings_bool.insert("use_pfm_extracting_behavior".to_owned(), false);
         settings_bool.insert("use_dependency_checker".to_owned(), false);
+        settings_bool.insert("use_lazy_loading".to_owned(), true);
 
         // Return it.
         Self {
@@ -127,8 +132,8 @@ impl Settings {
         let mut file = BufWriter::new(File::create(path)?);
 
         // Try to save the file, and return the result.
-        let shortcuts = serde_json::to_string_pretty(self);
-        file.write_all(shortcuts.unwrap().as_bytes())?;
+        let settings = serde_json::to_string_pretty(self);
+        file.write_all(settings.unwrap().as_bytes())?;
 
         // Return success.
         Ok(())

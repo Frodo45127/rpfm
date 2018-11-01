@@ -46,6 +46,7 @@ impl Shortcuts {
         menu_bar_packfile.insert("open_packfile".to_owned(), "Ctrl+O".to_owned());
         menu_bar_packfile.insert("save_packfile".to_owned(), "Ctrl+S".to_owned());
         menu_bar_packfile.insert("save_packfile_as".to_owned(), "Ctrl+Shift+S".to_owned());
+        menu_bar_packfile.insert("load_all_ca_packfiles".to_owned(), "Ctrl+G".to_owned());
         menu_bar_packfile.insert("preferences".to_owned(), "Ctrl+P".to_owned());
         menu_bar_packfile.insert("quit".to_owned(), "Ctrl+Q".to_owned());
 
@@ -72,6 +73,7 @@ impl Shortcuts {
         tree_view.insert("open_in_decoder".to_owned(), "Ctrl+J".to_owned());
         tree_view.insert("open_packfiles_list".to_owned(), "Ctrl+M".to_owned());
         tree_view.insert("open_with_external_program".to_owned(), "Ctrl+K".to_owned());
+        tree_view.insert("open_in_multi_view".to_owned(), "Ctrl+B".to_owned());
         tree_view.insert("global_search".to_owned(), "Ctrl+Shift+F".to_owned());
         tree_view.insert("expand_all".to_owned(), "Ctrl++".to_owned());
         tree_view.insert("collapse_all".to_owned(), "Ctrl+-".to_owned());
@@ -87,11 +89,14 @@ impl Shortcuts {
         packed_files_db.insert("insert_row".to_owned(), "Ctrl+I".to_owned());
         packed_files_db.insert("delete_row".to_owned(), "Ctrl+Del".to_owned());
         packed_files_db.insert("clone_row".to_owned(), "Ctrl+D".to_owned());
+        packed_files_db.insert("clone_and_append_row".to_owned(), "Ctrl+Shift+D".to_owned());
         packed_files_db.insert("copy".to_owned(), "Ctrl+C".to_owned());
         packed_files_db.insert("copy_as_lua_table".to_owned(), "Ctrl+Shift+C".to_owned());
         packed_files_db.insert("paste_in_selection".to_owned(), "Ctrl+V".to_owned());
         packed_files_db.insert("paste_as_new_row".to_owned(), "Ctrl+Shift+V".to_owned());
         packed_files_db.insert("paste_to_fill_selection".to_owned(), "Ctrl+Alt+V".to_owned());
+        packed_files_db.insert("apply_maths_to_selection".to_owned(), "Ctrl+B".to_owned());
+        packed_files_db.insert("apply_prefix_to_selection".to_owned(), "Ctrl+Y".to_owned());
         packed_files_db.insert("search".to_owned(), "Ctrl+F".to_owned());
         packed_files_db.insert("import_tsv".to_owned(), "Ctrl+W".to_owned());
         packed_files_db.insert("export_tsv".to_owned(), "Ctrl+E".to_owned());
@@ -102,10 +107,13 @@ impl Shortcuts {
         packed_files_loc.insert("add_row".to_owned(), "Ctrl+Shift+A".to_owned());
         packed_files_loc.insert("insert_row".to_owned(), "Ctrl+I".to_owned());
         packed_files_loc.insert("delete_row".to_owned(), "Ctrl+Del".to_owned());
+        packed_files_loc.insert("clone_row".to_owned(), "Ctrl+D".to_owned());
+        packed_files_loc.insert("clone_and_append_row".to_owned(), "Ctrl+Shift+D".to_owned());
         packed_files_loc.insert("copy".to_owned(), "Ctrl+C".to_owned());
         packed_files_loc.insert("paste_in_selection".to_owned(), "Ctrl+V".to_owned());
         packed_files_loc.insert("paste_as_new_row".to_owned(), "Ctrl+Shift+V".to_owned());
         packed_files_loc.insert("paste_to_fill_selection".to_owned(), "Ctrl+Alt+V".to_owned());
+        packed_files_loc.insert("apply_prefix_to_selection".to_owned(), "Ctrl+Y".to_owned());
         packed_files_loc.insert("search".to_owned(), "Ctrl+F".to_owned());
         packed_files_loc.insert("import_tsv".to_owned(), "Ctrl+W".to_owned());
         packed_files_loc.insert("export_tsv".to_owned(), "Ctrl+E".to_owned());

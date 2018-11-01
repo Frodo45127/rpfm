@@ -3,8 +3,7 @@
 extern crate failure;
 extern crate serde_json;
 extern crate csv;
-extern crate hyper;
-extern crate hyper_tls;
+extern crate reqwest;
 
 use failure::{Backtrace, Context, Fail};
 use serde_json::error::Category;
@@ -32,6 +31,9 @@ pub enum ErrorKind {
 
     // Generic error. For a situation where you just need to throw an error, doesn't matter what kind of error.
     Generic,
+
+    // Error for when someone tries to divide by 0.
+    ThereIsAnSpecialPlaceInHellForYou,
 
     //-----------------------------------------------------//
     //                  Network Errors
@@ -72,11 +74,10 @@ pub enum ErrorKind {
     //-----------------------------------------------------//
 
     // These errors are to be used when importing TSV files. The last one is for any other error it can happen not already covered.
-    ImportTSVIncorrectFirstRow,
+    ImportTSVIncorrectRow(usize, usize),
     ImportTSVWrongTypeTable,
     ImportTSVWrongTypeLoc,
     ImportTSVWrongVersion,
-    ImportTSVIncompatibleFile,
     TSVErrorGeneric,
 
     //-----------------------------------------------------//
@@ -95,14 +96,23 @@ pub enum ErrorKind {
     // Error for when the PackFile's header can be read but it's not decodeable.
     PackFileHeaderNotComplete,
 
+    // Error for when the PackFile Indexes are incomplete.
+    PackFileIndexesNotComplete,
+
     // Error for when we try to open a PackFile and his extension is not ".pack".
     OpenPackFileInvalidExtension,
 
     // Error for when trying to save a non-editable PackFile.
     PackFileIsNonEditable,
 
-    // Error for when the PackFile is not a valid file on disk.
+    // Error for when the PackFile is not a file in the disk.
     PackFileIsNotAFile,
+
+    // Error for when the PackFile is not a valid PackFile.
+    PackFileIsNotAPackFile,
+
+    // Error for when the PackFile size doesn't match what we expect.
+    PackFileSizeIsNotWhatWeExpect(u64, u64),
 
     //-----------------------------------------------------//
     //                PackedFile Errors
@@ -114,21 +124,33 @@ pub enum ErrorKind {
     // Error for when we are trying to do an operation that cannot be done with the PackedFile open.
     PackedFileIsOpen,
 
+    // Error for when we are trying to open a PackedFile in two different views at the same time.
+    PackedFileIsOpenInAnotherView,
+
+    // Error for when a load_data or get_data fails.
+    PackedFileDataCouldNotBeLoaded,
+
+    // Error for when the PackedFile size doesn't match what we expect.
+    PackedFileSizeIsNotWhatWeExpect(usize, usize),
+
     //--------------------------------//
     // DB Table Errors
     //--------------------------------//
 
-    // Error for when we try to open a table with less than 5 bytes.
-    DBTableNotEnoughBytes,
+    // Error for when we try to decode something as a DB Table and it fails.
+    DBTableIsNotADBTable,
 
     // Error for when we try to open a table with a List field on it.
     DBTableContainsListField,
 
-    // Error for when we try to decode something that's not a DB Table as a DB Table.
-    DBTableNotADBTable,
-
     // Error for when data fails to get parsed while encoding DB Tables.
     DBTableParse,
+
+    // Error for when we are trying to use "Search&Replace" to place invalid data into a cell.
+    DBTableReplaceInvalidData,
+
+    // Error for when we hit an overflow in the "Apply maths" feature.
+    DBTableApplyMathsOverflow,
 
     // Error for when a DB Table fails to decode.
     DBTableDecode(String),
@@ -184,6 +206,12 @@ pub enum ErrorKind {
 
     // Error for when a Loc PackedFile fails to decode.
     LocDecode(String),
+
+    // Error for when we try to decode something as a Loc PackedFile and it fails.
+    LocPackedFileIsNotALocPackedFile,
+
+    // Error for when we try to decode a Loc PackedFile and fails for corruption.
+    LocPackedFileCorrupted,
 
     //--------------------------------//
     // Image Errors
@@ -251,7 +279,7 @@ pub enum ErrorKind {
     ExtractError(Vec<String>),
 
     // Errors for when we fail to mass-import/export TSV files.
-    MassImport(Vec<String>),
+    MassImport(String),
 
     // Error for when the introduced input (usually, a name) is empty and it cannot be empty.
     EmptyInput,
@@ -328,6 +356,7 @@ impl Display for ErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             ErrorKind::Generic => write!(f, "<p>Generic error. You should never read this.</p>"),
+            ErrorKind::ThereIsAnSpecialPlaceInHellForYou => write!(f, "<p>There is an special place in hell for you.</p>"),
 
             //-----------------------------------------------------//
             //                  Network Errors
@@ -339,7 +368,7 @@ impl Display for ErrorKind {
             //-----------------------------------------------------//
             ErrorKind::IOPermissionDenied => write!(f, "<p>Error while trying to read/write a file from disk. This can be caused by two reasons:</p><ul><li>It's a file in the data folder of Warhammer 2 and you haven't close the Assembly Kit.</li><li>You don't have permission to read/write the file in question.</li></ul>"),
             ErrorKind::IOFileNotFound => write!(f, "<p>Error while trying to use a file from disk:</p><p>The file with the specified path hasn't been found.</p>"),
-            ErrorKind::IOGeneric => write!(f, "<p>Error while trying to do an IO operation.</p>"),
+            ErrorKind::IOGeneric => write!(f, "<p>Error while trying to do an IO operation. This means RPFM failed to read/write something from/to the disk.</p>"),
             ErrorKind::IOGenericCopy(path) => write!(f, "<p>Error while trying to copy one or more files to the following folder:</p><ul>{:#?}</ul>", path),
             ErrorKind::IOGenericDelete(paths) => write!(f, "<p>Error while trying to delete from disk the following files/folders:</p><ul>{:#?}</ul>", paths),
             ErrorKind::IOGenericWrite(paths) => write!(f, "<p>Error while trying to write to disk the following file/s:</p><ul>{:#?}</ul>", paths),
@@ -349,11 +378,10 @@ impl Display for ErrorKind {
             //-----------------------------------------------------//
             //                TSV-related Errors
             //-----------------------------------------------------//
-            ErrorKind::ImportTSVIncorrectFirstRow => write!(f, "<p>This TSV file's first line is incorrect.</p>"),
-            ErrorKind::ImportTSVWrongTypeTable => write!(f, "<p>This TSV file belongs to another table, to a localisation PackedFile, or it's incompatible with RPFM.</p>"),
-            ErrorKind::ImportTSVWrongTypeLoc => write!(f, "<p>This TSV file belongs to a DB table, or it's incompatible with RPFM.</p>"),
+            ErrorKind::ImportTSVIncorrectRow(row, column) => write!(f, "<p>This TSV file has an error in the <b>row <i>{}</i></b>, <b>field <i>{}</i></b> (both starting at 1). Please, check it and make sure the value in that field is a valid value for that column.</p>", row + 1, column + 1),
+            ErrorKind::ImportTSVWrongTypeTable => write!(f, "<p>This TSV file either belongs to another table, to a localisation PackedFile, it's broken or it's incompatible with RPFM.</p>"),
+            ErrorKind::ImportTSVWrongTypeLoc => write!(f, "<p>This TSV file either belongs to a DB table, it's broken or it's incompatible with RPFM.</p>"),
             ErrorKind::ImportTSVWrongVersion => write!(f, "<p>This TSV file belongs to another version of this table. If you want to use it, consider creating a new empty table, fill it with enough empty rows, open this file in a TSV editor, like Excel or LibreOffice, and copy column by column.</p><p>A more automatic solution is on the way, but not yet there.</p>"),
-            ErrorKind::ImportTSVIncompatibleFile => write!(f, "<p>This TSV file it's not compatible with RPFM.</p>"),
             ErrorKind::TSVErrorGeneric => write!(f, "<p>Error while trying to import/export a TSV file.</p>"),
 
             //-----------------------------------------------------//
@@ -372,6 +400,7 @@ impl Display for ErrorKind {
             <li>- Arena.</li>
             </ul>"),
             ErrorKind::PackFileHeaderNotComplete => write!(f, "<p>The header of the PackFile is incomplete, unsupported or damaged.</p>"),
+            ErrorKind::PackFileIndexesNotComplete => write!(f, "<p>The indexes of this of the PackFile are incomplete, unsupported or damaged.</p>"),
             ErrorKind::OpenPackFileInvalidExtension => write!(f, "<p>RPFM can only open packfiles whose name ends in <i>'.pack'</i></p>"),
             ErrorKind::PackFileIsNonEditable => write!(f, "
             <p>This type of PackFile is supported in Read-Only mode.</p>
@@ -381,22 +410,29 @@ impl Display for ErrorKind {
             <li>The PackFile's type is <i>'Other'</i>.</li>
             <li>One of the greyed checkboxes under <i>'PackFile/Change PackFile Type'</i> is checked.</li>
             </ul>
-            <p>If you really want to save it, go to <i>'PackFile/Change PackFile Type'</i> and change his type to 'Mod' or 'Movie'. Note that if the cause it's the third on the list, there is no way to save the PackFile, yet.</p>"),
+            <p>If you really want to save it, go to <i>'PackFile/Change PackFile Type'</i> and change his type to 'Mod' or 'Movie'. Note that if the cause it's the third on the list, there is no way to save the PackFile, yet.</p>
+            <p><b>NOTE</b>: If you created this PackFile using the <i>'Load All CA PackedFiles'</i> feature, NEVER try to save it unless you have 64GB of ram or more. Otherwise it may hang your entire computer to dead.</p>"),
+            ErrorKind::PackFileIsNotAPackFile => write!(f, "<p>This file is not a valid PackFile.</p>"),
             ErrorKind::PackFileIsNotAFile => write!(f, "<p>This PackFile doesn't exists as a file in the disk.</p>"),
+            ErrorKind::PackFileSizeIsNotWhatWeExpect(reported_size, expected_size) => write!(f, "<p>This PackFile's reported size is <i><b>{}</b></i> bytes, but we expected it to be <i><b>{}</b></i> bytes. This means that either the decoding logic in RPFM is broken for this PackFile, or this PackFile is corrupted.</p>", reported_size, expected_size),
 
             //-----------------------------------------------------//
             //                PackedFile Errors
             //-----------------------------------------------------//
             ErrorKind::PackedFileNotFound => write!(f, "<p>This PackedFile no longer exists in the PackFile.</p>"),
             ErrorKind::PackedFileIsOpen => write!(f, "<p>That operation cannot be done while the PackedFile involved on it is open. Please, close it by selecting a Folder/PackFile in the TreeView and try again.</p>"),
+            ErrorKind::PackedFileIsOpenInAnotherView => write!(f, "<p>That PackedFile is already open in another view. Opening the same PackedFile in multiple views is not supported.</p>"),
+            ErrorKind::PackedFileDataCouldNotBeLoaded => write!(f, "<p>This PackedFile's data could not be loaded. This means RPFM can no longer read the PackFile from the disk.</p>"),
+            ErrorKind::PackedFileSizeIsNotWhatWeExpect(reported_size, expected_size) => write!(f, "<p>This PackedFile's reported size is <i><b>{}</b></i> bytes, but we expected it to be <i><b>{}</b></i> bytes. This means that either the decoding logic in RPFM is broken for this PackedFile, or this PackedFile is corrupted.</p>", reported_size, expected_size),
 
             //--------------------------------//
             // DB Table Errors
             //--------------------------------//
-            ErrorKind::DBTableNotEnoughBytes => write!(f, "<p>This table doesn't have enough bytes to be decoded. This error usually happen if this file is not a table or it's broken (sometimes the Assembly Kit exports broken tables).</p><p>If this table was created with the Assembly Kit, re-export it and try again. If it was not exported with the Assembly Kit and you are sure it's a table, it may be a bug so... report it. I guess.</p>"),
+            ErrorKind::DBTableIsNotADBTable => write!(f, "<p>This is either not a DB Table, or it's a DB Table but it's corrupted.</p>"),
             ErrorKind::DBTableContainsListField => write!(f, "<p>This specific table version uses a currently unimplemented type (List), so is undecodeable, for now.</p>"),
-            ErrorKind::DBTableNotADBTable => write!(f, "<p>This PackedFile is not a DB Table.</p>"),
             ErrorKind::DBTableParse => write!(f, "<p>Error while trying to save the DB Table.</p><p>This is probably caused by one of the fields you just changed. Please, make sure the data in that field it's of the correct type.</p>"),
+            ErrorKind::DBTableReplaceInvalidData => write!(f, "<p>Error while trying to replace the data of a Cell.</p><p>This means you tried to replace a number cell with text, or used a too big, too low or invalid number. Don't do it. It wont end well.</p>"),
+            ErrorKind::DBTableApplyMathsOverflow => write!(f, "<p>The operation you just tried to do gives an invalid result. This means that the result value is bigger or lower than the maximum or minimum admited by the type in the cells.</p>"),
             ErrorKind::DBTableDecode(cause) => write!(f, "<p>Error while trying to decode the DB Table:</p><p>{}</p>", cause),
             ErrorKind::DBTableEmptyWithNoTableDefinition => write!(f, "<p>This DB Table is empty and there is not a Table Definition for it. That means is undecodeable.</p>"),
             ErrorKind::SchemaNotFound => write!(f, "<p>There is no Schema for the Game Selected.</p>"),
@@ -428,6 +464,8 @@ impl Display for ErrorKind {
 
             // Error for when a Loc PackedFile fails to decode.
             ErrorKind::LocDecode(cause) => write!(f, "<p>Error while trying to decode the Loc PackedFile:</p><p>{}</p>", cause),
+            ErrorKind::LocPackedFileIsNotALocPackedFile => write!(f, "<p>This is either not a Loc PackedFile, or it's a Loc PackedFile but it's corrupted.</p>"),
+            ErrorKind::LocPackedFileCorrupted => write!(f, "<p>This Loc PackedFile seems to be corrupted.</p>"),
 
             //--------------------------------//
             // Image Errors
@@ -465,7 +503,7 @@ impl Display for ErrorKind {
             //-----------------------------------------------------//
             ErrorKind::NameAlreadyInUseInThisPath => write!(f, "<p>The provided name is already in use in the current path.</p>"),
             ErrorKind::ExtractError(errors) => write!(f, "<p>There has been a problem extracting the following files:</p><ul>{:#?}</ul>", errors),
-            ErrorKind::MassImport(errors) => write!(f, "<p>The following files returned error when trying to import them:</p><ul>{:#?}</ul><p>No files have been imported.</p>", errors),
+            ErrorKind::MassImport(errors) => write!(f, "<p>The following files returned error when trying to import them:</p><ul>{}</ul><p>No files have been imported.</p>", errors),
             ErrorKind::EmptyInput => write!(f, "<p>Only my hearth can be empty.</p>"),
             ErrorKind::InvalidInput => write!(f, "<p>There are characters that shall never be used.</p>"),
             ErrorKind::UnchangedInput => write!(f, "<p>Like war, nothing changed.</p>"),
@@ -534,19 +572,13 @@ impl From<string::FromUtf8Error> for Error {
     }
 }
 
-/// Implementation to create a custom error from a hyper::Error.
-impl From<hyper::Error> for Error {
-    fn from(_: hyper::Error) -> Error {
+/// Implementation to create a custom error from a Reqwest Error.
+impl From<reqwest::Error> for Error {
+    fn from(_: reqwest::Error) -> Error {
         Error::from(ErrorKind::NetworkGeneric)
     }
 }
 
-/// Implementation to create a custom error from a hyper_tls::Error.
-impl From<hyper_tls::Error> for Error {
-    fn from(_: hyper_tls::Error) -> Error {
-        Error::from(ErrorKind::NetworkGeneric)
-    }
-}
 
 /// Implementation to create a custom error from a std::io::Error. Based on the "From" used to convert it to std::io::Error.
 impl From<io::Error> for Error {

@@ -31,16 +31,6 @@ pub struct PackedFileRigidModelDataView {
 /// Implementation of "PackedFileRigidModelDataView".
 impl PackedFileRigidModelDataView {
 
-    /// This functin returns a dummy struct. Use it for initialization.
-    pub fn new() -> Self {
-
-        // Create some dummy slots and return it.
-        Self {
-            save_changes: SlotNoArgs::new(|| {}),
-            patch_rigid_model: SlotNoArgs::new(|| {}),
-        }
-    }
-
     /// This function creates a "view" with the PackedFile's View as father and returns a
     /// `PackedFileRigidModelDataView` with all his slots.
     pub fn create_data_view(
@@ -49,12 +39,16 @@ impl PackedFileRigidModelDataView {
         receiver_qt: &Rc<RefCell<Receiver<Data>>>,
         is_modified: &Rc<RefCell<bool>>,
         app_ui: &AppUI,
-        packed_file_path: Vec<String>,
+        layout: *mut GridLayout,
+        packed_file_path: &Rc<RefCell<Vec<String>>>,
     ) -> Result<Self> {
+
+        sender_qt.send(Commands::GetSettings).unwrap();
+        let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
         // Get the data of the PackedFile.
         sender_qt.send(Commands::DecodePackedFileRigidModel).unwrap();
-        sender_qt_data.send(Data::VecString(packed_file_path.to_vec())).unwrap();
+        sender_qt_data.send(Data::VecString(packed_file_path.borrow().to_vec())).unwrap();
         let packed_file = match check_message_validity_recv2(&receiver_qt) { 
             Data::RigidModel(data) => data,
             Data::Error(error) => return Err(error),
@@ -173,8 +167,8 @@ impl PackedFileRigidModelDataView {
             unsafe { tabs.as_mut().unwrap().add_tab((tab_widget, &QString::from_std_str("Decal Texture Directory"))); }
 
             // Add everything to the PackedFile's View.
-            unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((info_frame as *mut Widget, 0, 0, 1, 1)); }
-            unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((tabs as *mut Widget, 1, 0, 1, 1)); }
+            unsafe { layout.as_mut().unwrap().add_widget((info_frame as *mut Widget, 0, 0, 1, 1)); }
+            unsafe { layout.as_mut().unwrap().add_widget((tabs as *mut Widget, 1, 0, 1, 1)); }
 
             // Add the LineEdit to the List.
             texture_paths.push(vec![texture_directory_line_edit]);
@@ -260,8 +254,8 @@ impl PackedFileRigidModelDataView {
             }
 
             // Add everything to the PackedFile's View.
-            unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((info_frame as *mut Widget, 0, 0, 1, 1)); }
-            unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((tabs as *mut Widget, 1, 0, 1, 1)); }
+            unsafe { layout.as_mut().unwrap().add_widget((info_frame as *mut Widget, 0, 0, 1, 1)); }
+            unsafe { layout.as_mut().unwrap().add_widget((tabs as *mut Widget, 1, 0, 1, 1)); }
         }
 
         //-------------------------------------------------------------------------------//
@@ -281,6 +275,7 @@ impl PackedFileRigidModelDataView {
                 packed_file,
                 is_modified,
                 app_ui,
+                settings,
                 sender_qt,
                 sender_qt_data => move || {
 
@@ -297,10 +292,11 @@ impl PackedFileRigidModelDataView {
 
                     // Tell the background thread to start saving the PackedFile.
                     sender_qt.send(Commands::EncodePackedFileRigidModel).unwrap();
-                    sender_qt_data.send(Data::RigidModelVecString((packed_file.borrow().clone(), packed_file_path.to_vec()))).unwrap();
+                    sender_qt_data.send(Data::RigidModelVecString((packed_file.borrow().clone(), packed_file_path.borrow().to_vec()))).unwrap();
 
                     // Set the mod as "Modified".
-                    *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(packed_file_path.to_vec()));
+                    let use_dark_theme = settings.settings_bool.get("use_dark_theme").unwrap();
+                    *is_modified.borrow_mut() = set_modified(true, &app_ui, Some((packed_file_path.borrow().to_vec(), *use_dark_theme)));
                 }
             )),
 
@@ -309,6 +305,7 @@ impl PackedFileRigidModelDataView {
                 packed_file_path,
                 packed_file,
                 is_modified,
+                settings,
                 app_ui,
                 sender_qt,
                 sender_qt_data,
@@ -316,7 +313,7 @@ impl PackedFileRigidModelDataView {
 
                     // Send the data to the background to try to patch the rigidmodel.
                     sender_qt.send(Commands::PatchAttilaRigidModelToWarhammer).unwrap();
-                    sender_qt_data.send(Data::VecString(packed_file_path.to_vec())).unwrap();
+                    sender_qt_data.send(Data::RigidModelVecString((packed_file.borrow().clone(), packed_file_path.borrow().to_vec()))).unwrap();
 
                     // Disable the Main Window (so we can't do other stuff).
                     unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
@@ -336,22 +333,12 @@ impl PackedFileRigidModelDataView {
                             unsafe { patch_attila_to_warhammer_button.as_mut().unwrap().set_enabled(false); }
 
                             // Set the mod as "Modified".
-                            *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(packed_file_path.to_vec()));
+                            let use_dark_theme = settings.settings_bool.get("use_dark_theme").unwrap();
+                            *is_modified.borrow_mut() = set_modified(true, &app_ui, Some((packed_file_path.borrow().to_vec(), *use_dark_theme)));
                         }
 
-                        // If we got an error...
-                        Data::Error(error) => {
-
-                            // We must check what kind of error it's.
-                            match error.kind() {
-
-                                // If the patching process failed, report it and break the loop.
-                                ErrorKind::RigidModelPatchToWarhammer(_) => show_dialog(app_ui.window, false, error.kind()),
-
-                                // In ANY other situation, it's a message problem.
-                                _ => panic!(THREADS_MESSAGE_ERROR)
-                            }
-                        }
+                        // If we got an error, report it.
+                        Data::Error(error) => show_dialog(app_ui.window, false, error),
 
                         // In ANY other situation, it's a message problem.
                         _ => panic!(THREADS_MESSAGE_ERROR),

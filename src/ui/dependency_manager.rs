@@ -82,6 +82,15 @@ impl DependencyTableView {
         app_ui: &AppUI,
     ) -> Self {
 
+        sender_qt.send(Commands::GetSettings).unwrap();
+        let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+
+        // Create the widget that'll act as a container for the view.
+        let widget = Widget::new().into_raw();
+        let widget_layout = GridLayout::new().into_raw();
+        unsafe { widget.as_mut().unwrap().set_layout(widget_layout as *mut Layout); }
+        unsafe { app_ui.packed_file_splitter.as_mut().unwrap().insert_widget(0, widget); }
+
         // Send the index back to the background thread, and wait until we get a response.
         sender_qt.send(Commands::GetPackFilesList).unwrap();
         let pack_files = if let Data::VecString(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
@@ -109,7 +118,7 @@ impl DependencyTableView {
 
         // Add Table to the Grid.
         unsafe { table_view.as_mut().unwrap().set_model(model as *mut AbstractItemModel); }
-        unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((table_view as *mut Widget, 0, 0, 1, 1)); }
+        unsafe { widget_layout.as_mut().unwrap().add_widget((table_view as *mut Widget, 0, 0, 1, 1)); }
 
         // Set the title of the column.
         unsafe { model.as_mut().unwrap().set_header_data((0, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("PackFiles List")))); }
@@ -213,7 +222,8 @@ impl DependencyTableView {
                         sender_qt_data.send(Data::VecString(list)).unwrap();
 
                         // Set the mod as "Modified".
-                        unsafe { *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(vec![app_ui.folder_tree_model.as_ref().unwrap().item(0).as_ref().unwrap().text().to_std_string()])); }
+                        let use_dark_theme = settings.settings_bool.get("use_dark_theme").unwrap();
+                        unsafe { *is_modified.borrow_mut() = set_modified(true, &app_ui, Some((vec![app_ui.folder_tree_model.as_ref().unwrap().item(0).as_ref().unwrap().text().to_std_string()], *use_dark_theme))); }
                     }
                 }
             )),

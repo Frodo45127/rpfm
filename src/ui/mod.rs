@@ -6,17 +6,22 @@ extern crate qt_core;
 extern crate cpp_utils;
 extern crate serde_json;
 
+use qt_widgets::abstract_button::AbstractButton;
 use qt_widgets::action::Action;
+use qt_widgets::button_group::ButtonGroup;
 use qt_widgets::combo_box::ComboBox;
 use qt_widgets::dialog::Dialog;
+use qt_widgets::double_spin_box::DoubleSpinBox;
 use qt_widgets::file_dialog::{FileDialog, FileMode};
 use qt_widgets::grid_layout::GridLayout;
+use qt_widgets::group_box::GroupBox;
 use qt_widgets::label::Label;
 use qt_widgets::layout::Layout;
 use qt_widgets::line_edit::LineEdit;
 use qt_widgets::main_window::MainWindow;
 use qt_widgets::message_box::{MessageBox, Icon};
 use qt_widgets::push_button::PushButton;
+use qt_widgets::radio_button::RadioButton;
 use qt_widgets::tree_view::TreeView;
 use qt_widgets::widget::Widget;
 
@@ -32,18 +37,21 @@ use qt_core::connection::Signal;
 use qt_core::flags::Flags;
 use qt_core::item_selection::ItemSelection;
 use qt_core::model_index::ModelIndex;
+use qt_core::object::Object;
 use qt_core::qt::{GlobalColor, ShortcutContext};
 use qt_core::slots::{SlotBool, SlotNoArgs, SlotModelIndexRef};
 use qt_core::variant::Variant;
 use cpp_utils::StaticCast;
 
 use chrono::NaiveDateTime;
+use std::collections::BTreeMap;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::mpsc::{Sender, Receiver};
 use std::cmp::Ordering;
 use std::path::PathBuf;
-use std::fmt::Display;
+use std::{fmt, fmt::Display, fmt::Debug};
+use std::f32;
 
 use RPFM_PATH;
 use TREEVIEW_ICONS;
@@ -67,6 +75,7 @@ pub mod packedfile_image;
 pub mod packedfile_rigidmodel;
 pub mod settings;
 pub mod shortcuts;
+pub mod table_state;
 pub mod updater;
 
 //----------------------------------------------------------------------------//
@@ -129,10 +138,16 @@ impl AddFromPackFileSlots {
         app_ui: AppUI,
         is_folder_tree_view_locked: &Rc<RefCell<bool>>,
         is_modified: &Rc<RefCell<bool>>,
-        is_packedfile_opened: &Rc<RefCell<Option<Vec<String>>>>,
+        packedfiles_open_in_packedfile_view: &Rc<RefCell<BTreeMap<i32, Rc<RefCell<Vec<String>>>>>>,
         global_search_explicit_paths: &Rc<RefCell<Vec<Vec<String>>>>,
         update_global_search_stuff: *mut Action,
     ) -> Self {
+
+        // Create the widget that'll act as a container for the view.
+        let widget = Widget::new().into_raw();
+        let widget_layout = GridLayout::new().into_raw();
+        unsafe { widget.as_mut().unwrap().set_layout(widget_layout as *mut Layout); }
+        unsafe { app_ui.packed_file_splitter.as_mut().unwrap().insert_widget(0, widget); }
         
         // Create the stuff.
         let tree_view = TreeView::new().into_raw();
@@ -146,8 +161,8 @@ impl AddFromPackFileSlots {
         unsafe { tree_view.as_mut().unwrap().set_animated(true); }
 
         // Add all the stuff to the Grid.
-        unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((exit_button as *mut Widget, 0, 0, 1, 1)); }
-        unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((tree_view as *mut Widget, 1, 0, 1, 1)); }
+        unsafe { widget_layout.as_mut().unwrap().add_widget((exit_button as *mut Widget, 0, 0, 1, 1)); }
+        unsafe { widget_layout.as_mut().unwrap().add_widget((tree_view as *mut Widget, 1, 0, 1, 1)); }
 
         // Create the slots for the stuff we need.
         let slots = Self {
@@ -217,14 +232,14 @@ impl AddFromPackFileSlots {
             // This slot is used to exit the "Add from PackFile" view, returning to the normal state of the program.
             exit: SlotNoArgs::new(clone!(
                 sender_qt,
-                is_packedfile_opened,
+                packedfiles_open_in_packedfile_view,
                 is_folder_tree_view_locked => move || {
 
                     // Reset the Secondary PackFile.
                     sender_qt.send(Commands::ResetPackFileExtra).unwrap();
 
                     // Destroy the "Add from PackFile" stuff.
-                    purge_them_all(&app_ui, &is_packedfile_opened);
+                    purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);
 
                     // Show the "Tips".
                     display_help_tips(&app_ui);
@@ -295,6 +310,7 @@ pub fn create_rename_dialog(app_ui: &AppUI, name: &str) -> Option<String> {
 
     // Change his title.
     dialog.set_window_title(&QString::from_std_str("Rename"));
+    dialog.resize((400, 50));
 
     // Set it Modal, so you can't touch the Main Window with this dialog open.
     dialog.set_modal(true);
@@ -528,37 +544,18 @@ pub fn create_new_packed_file_dialog(
             PackedFileType::Loc(_) => Some(Ok(PackedFileType::Loc(packed_file_name))),
             PackedFileType::DB(_,_,_) => {
 
-                // TODO: Dedup this.
-                // Get the current schema.
-                sender.send(Commands::GetSchema).unwrap();
-                let schema = if let Data::OptionSchema(data) = check_message_validity_recv2(&receiver) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                // Get the table and his version.
+                let table = table_dropdown.current_text().to_std_string();
 
-                // Check if we actually have an schema.
-                match schema {
-
-                    // If we have an schema...
-                    Some(schema) => {
-
-                        // Get the table and his version.
-                        let table = table_dropdown.current_text().to_std_string();
-
-                        // Get the data of the table used in the dependency database.
-                        sender.send(Commands::GetTableVersionFromDependencyPackFile).unwrap();
-                        sender_data.send(Data::String(table.to_owned())).unwrap();
-                        let version = if let Data::U32(data) = check_message_validity_recv2(&receiver) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                        let table_schema = schema.tables_definitions.iter().filter(|x| x.name == table).cloned().collect::<Vec<TableDefinitions>>();
-                        let valid_versions = table_schema[0].versions.iter().map(|x| x.version).collect::<Vec<u32>>();
-
-                        if valid_versions.contains(&version) {
-                            Some(Ok(PackedFileType::DB(packed_file_name, table, version)))
-                        }
-                        else { return Some(Err(Error::from(ErrorKind::SchemaTableDefinitionNotFound))) }
-                    }
-
-                    // If we don't have an schema, return Some(Error).
-                    None => return Some(Err(Error::from(ErrorKind::SchemaNotFound))),
-                }
+                // Get the data of the table used in the dependency database.
+                sender.send(Commands::GetTableVersionFromDependencyPackFile).unwrap();
+                sender_data.send(Data::String(table.to_owned())).unwrap();
+                let version = match check_message_validity_recv2(&receiver) { 
+                    Data::U32(data) => data,
+                    Data::Error(error) => return Some(Err(error)),
+                    _ => panic!(THREADS_MESSAGE_ERROR), 
+                };
+                Some(Ok(PackedFileType::DB(packed_file_name, table, version)))
             },
             PackedFileType::Text(_) => Some(Ok(PackedFileType::Text(packed_file_name))),
         }
@@ -576,44 +573,27 @@ pub fn create_mass_import_tsv_dialog(app_ui: &AppUI) -> Option<(String, Vec<Path
     // Creating the Mass-Import TSV Dialog...
     //-------------------------------------------------------------------------------------------//
 
-    // Create the "Mass-Import TSV" Dialog.
-    let dialog;
-    unsafe { dialog = Dialog::new_unsafe(app_ui.window as *mut Widget).into_raw(); }
-
-    // Change his title.
+    // Create the "Mass-Import TSV" Dialog and configure it.
+    let dialog = unsafe { Dialog::new_unsafe(app_ui.window as *mut Widget).into_raw() };
     unsafe { dialog.as_mut().unwrap().set_window_title(&QString::from_std_str("Mass-Import TSV Files")); }
-
-    // Set it Modal, so you can't touch the Main Window with this dialog open.
     unsafe { dialog.as_mut().unwrap().set_modal(true); }
+    unsafe { dialog.as_mut().unwrap().resize((400, 100)); }
 
-    // Resize the Dialog.
-    unsafe { dialog.as_mut().unwrap().resize((300, 0)); }
-
-    // Create the main Grid.
+    // Create the main Grid and his stuff.
     let main_grid = GridLayout::new().into_raw();
-
-    // Create the "Files to import" Label.
     let files_to_import_label = Label::new(&QString::from_std_str("Files to import: 0.")).into_raw();
-
-    // Create the "..." button.
     let select_files_button = PushButton::new(&QString::from_std_str("...")).into_raw();
-
-    // Create the "Imported File's Name" LineEdit.
     let mut imported_files_name_line_edit = LineEdit::new(());
+    let import_button = PushButton::new(&QString::from_std_str("Import")).into_raw();
 
     // Set a dummy name as default.
     imported_files_name_line_edit.set_text(&QString::from_std_str("new_imported_file"));
 
-    // Create the "Import" button.
-    let import_button = PushButton::new(&QString::from_std_str("Import")).into_raw();
-
-    // Add all the widgets to the main grid.
+    // Add all the widgets to the main grid, and the main grid to the dialog.
     unsafe { main_grid.as_mut().unwrap().add_widget((files_to_import_label as *mut Widget, 0, 0, 1, 1)); }
     unsafe { main_grid.as_mut().unwrap().add_widget((select_files_button as *mut Widget, 0, 1, 1, 1)); }
     unsafe { main_grid.as_mut().unwrap().add_widget((imported_files_name_line_edit.static_cast_mut() as *mut Widget, 1, 0, 1, 1)); }
     unsafe { main_grid.as_mut().unwrap().add_widget((import_button as *mut Widget, 1, 1, 1, 1)); }
-
-    // And the Main Grid to the Dialog...
     unsafe { dialog.as_mut().unwrap().set_layout(main_grid as *mut Layout); }
 
     //-------------------------------------------------------------------------------------------//
@@ -627,54 +607,38 @@ pub fn create_mass_import_tsv_dialog(app_ui: &AppUI) -> Option<(String, Vec<Path
     let slot_select_files = SlotNoArgs::new(clone!(
         files_to_import => move || {
 
-            // Create the FileDialog to get the PackFile to open.
-            let mut file_dialog;
-            unsafe { file_dialog = FileDialog::new_unsafe((
+            // Create the FileDialog to get the TSV files, and add them to the list if we accept.
+            let mut file_dialog = unsafe { FileDialog::new_unsafe((
                 dialog as *mut Widget,
                 &QString::from_std_str("Select TSV Files to Import..."),
-            )); }
+            )) };
 
-            // Filter it so it only shows TSV Files.
             file_dialog.set_name_filter(&QString::from_std_str("TSV Files (*.tsv)"));
-
-            // Set it to accept multiple files at once.
             file_dialog.set_file_mode(FileMode::ExistingFiles);
 
-            // Run it and expect a response (1 => Accept, 0 => Cancel).
             if file_dialog.exec() == 1 {
-
-                // Get the path of the selected files and turn it in a Rust's PathBuf.
                 let selected_files = file_dialog.selected_files();
+                files_to_import.borrow_mut().clear();
                 for index in 0..selected_files.count(()) {
                     files_to_import.borrow_mut().push(PathBuf::from(file_dialog.selected_files().at(index).to_std_string()));
                 }
 
-                // Update the label with the amount of files to import.
                 unsafe { files_to_import_label.as_mut().unwrap().set_text(&QString::from_std_str(&format!("Files to import: {}.", selected_files.count(())))); }
             }
         }
     ));
 
-    // What happens when we hit the "..." button.
     unsafe { select_files_button.as_mut().unwrap().signals().released().connect(&slot_select_files); }
-
-    // What happens when we hit the "Import" button.
     unsafe { import_button.as_mut().unwrap().signals().released().connect(&dialog.as_mut().unwrap().slots().accept()); }
 
-    unsafe {
-        // Show the Dialog and, if we hit the "Create" button...
-        if dialog.as_mut().unwrap().exec() == 1 {
-
-            // Get the text from the LineEdit.
-            let packed_file_name = imported_files_name_line_edit.text().to_std_string();
-
-            // Return the name of the files and the list of paths.
-            Some((packed_file_name, files_to_import.borrow().to_vec()))
-        }
-
-        // In any other case, we return None.
-        else { None }
+    // If we hit the "Create" button, take the name you wrote and the list of files, and return them.
+    if unsafe { dialog.as_mut().unwrap().exec() } == 1 {
+        let packed_file_name = imported_files_name_line_edit.text().to_std_string();
+        Some((packed_file_name, files_to_import.borrow().to_vec()))
     }
+
+    // In any other case, we return None.
+    else { None }
 }
 
 /*
@@ -756,6 +720,98 @@ pub fn create_global_search_dialog(app_ui: &AppUI) -> Option<String> {
     
     // Otherwise, return None.
     else { None }
+}
+
+/// This function creates the entire "Apply Maths" dialog for tables. It returns the operation to apply and the value.
+pub fn create_apply_maths_dialog(app_ui: &AppUI) -> Option<(String, f64)> {
+
+    // Create and configure the "Apply Maths" Dialog.
+    let mut dialog = unsafe { Dialog::new_unsafe(app_ui.window as *mut Widget) };
+    dialog.set_window_title(&QString::from_std_str("Apply Maths"));
+    dialog.set_modal(true);
+    let main_grid = GridLayout::new().into_raw();
+
+    // Create the button group with the different operations, and set by default the "+" selected.
+    let operations_frame = GroupBox::new(&QString::from_std_str("Operations")).into_raw();
+    let operations_grid = GridLayout::new().into_raw();
+    unsafe { operations_frame.as_mut().unwrap().set_layout(operations_grid as *mut Layout); }
+
+    let mut button_group = ButtonGroup::new();
+    let mut operation_plus = RadioButton::new(&QString::from_std_str("+"));
+    let mut operation_minus = RadioButton::new(&QString::from_std_str("-"));
+    let mut operation_mult = RadioButton::new(&QString::from_std_str("x"));
+    let mut operation_div = RadioButton::new(&QString::from_std_str("/"));
+    unsafe { button_group.add_button(operation_plus.static_cast_mut() as *mut AbstractButton); }
+    unsafe { button_group.add_button(operation_minus.static_cast_mut() as *mut AbstractButton); }
+    unsafe { button_group.add_button(operation_mult.static_cast_mut() as *mut AbstractButton); }
+    unsafe { button_group.add_button(operation_div.static_cast_mut() as *mut AbstractButton); }
+    operation_plus.click();
+
+    // Create a little frame with some instructions.
+    let instructions_frame = GroupBox::new(&QString::from_std_str("Instructions")).into_raw();
+    let instructions_grid = GridLayout::new().into_raw();
+    unsafe { instructions_frame.as_mut().unwrap().set_layout(instructions_grid as *mut Layout); }
+    let mut instructions_label = Label::new(&QString::from_std_str(
+    "It's easy:
+     - Choose the operation on the left.
+     - Write the operand on the SpinBox.
+     - Click the button on the right.
+     - ???
+     - Profit!
+    "    
+    ));
+    unsafe { instructions_grid.as_mut().unwrap().add_widget((instructions_label.static_cast_mut() as *mut Widget, 0, 0, 1, 1)); }
+
+    // We use a double SpinBox for the value, so we can do any operation with F32 floats.
+    let mut value_spin_box = DoubleSpinBox::new();
+    value_spin_box.set_decimals(3);
+    value_spin_box.set_range(f32::MIN as f64, f32::MAX as f64);
+    let apply_button = PushButton::new(&QString::from_std_str("Apply")).into_raw();
+
+    unsafe { operations_grid.as_mut().unwrap().add_widget((operation_plus.static_cast_mut() as *mut Widget, 0, 0, 1, 1)); }
+    unsafe { operations_grid.as_mut().unwrap().add_widget((operation_minus.static_cast_mut() as *mut Widget, 1, 0, 1, 1)); }
+    unsafe { operations_grid.as_mut().unwrap().add_widget((operation_mult.static_cast_mut() as *mut Widget, 2, 0, 1, 1)); }
+    unsafe { operations_grid.as_mut().unwrap().add_widget((operation_div.static_cast_mut() as *mut Widget, 3, 0, 1, 1)); }
+
+    unsafe { main_grid.as_mut().unwrap().add_widget((operations_frame as *mut Widget, 0, 0, 4, 1)); }
+    unsafe { main_grid.as_mut().unwrap().add_widget((instructions_frame as *mut Widget, 1, 1, 3, 2)); }
+    unsafe { main_grid.as_mut().unwrap().add_widget((value_spin_box.static_cast_mut() as *mut Widget, 0, 1, 1, 1)); }
+    unsafe { main_grid.as_mut().unwrap().add_widget((apply_button as *mut Widget, 0, 2, 1, 1)); }
+    unsafe { dialog.set_layout(main_grid as *mut Layout); }
+
+    unsafe { apply_button.as_mut().unwrap().signals().released().connect(&dialog.slots().accept()); }
+
+    if dialog.exec() == 1 {
+        let operation = unsafe { button_group.checked_button().as_ref().unwrap().text().to_std_string() };
+        let value = value_spin_box.value();
+        Some((operation, value))
+    } else { None }
+}
+
+/// This function creates the entire "Apply Prefix" dialog for tables. It returns the prefix to apply, or None.
+pub fn create_apply_prefix_dialog(app_ui: &AppUI) -> Option<String> {
+
+    // Create and configure the "Apply Maths" Dialog.
+    let mut dialog = unsafe { Dialog::new_unsafe(app_ui.window as *mut Widget) };
+    dialog.set_window_title(&QString::from_std_str("Apply Prefix"));
+    dialog.set_modal(true);
+    dialog.resize((400, 50));
+    let main_grid = GridLayout::new().into_raw();
+
+    let mut prefix_line_edit = LineEdit::new(());
+    prefix_line_edit.set_placeholder_text(&QString::from_std_str("Write here the prefix you want."));
+    let apply_button = PushButton::new(&QString::from_std_str("Apply")).into_raw();
+
+    unsafe { main_grid.as_mut().unwrap().add_widget((prefix_line_edit.static_cast_mut() as *mut Widget, 0, 0, 1, 1)); }
+    unsafe { main_grid.as_mut().unwrap().add_widget((apply_button as *mut Widget, 0, 1, 1, 1)); }
+    unsafe { dialog.set_layout(main_grid as *mut Layout); }
+
+    unsafe { apply_button.as_mut().unwrap().signals().released().connect(&dialog.slots().accept()); }
+
+    if dialog.exec() == 1 { 
+        let prefix = prefix_line_edit.text().to_std_string();
+        if prefix.is_empty() { None } else { Some(prefix_line_edit.text().to_std_string()) } 
+    } else { None }
 }
 
 //----------------------------------------------------------------------------//
@@ -849,21 +905,21 @@ pub enum ItemVisualStatus {
 }
 
 /// Enum to know what operation was done while editing tables, so we can revert them with undo.
-/// - Editing: Intended for any kind of item editing. Holds ((row, column), *mut item).
+/// - Editing: Intended for any kind of item editing. Holds a Vec<((row, column), *mut item)>, so we can do this in batches.
 /// - AddRows: Intended for when adding/inserting rows. It holds a list of positions where the rows where inserted.
 /// - RemoveRows: Intended for when removing rows. It holds a list of positions where the rows where deleted and the deleted rows.
 /// - SmartDelete: Intended for when we are using the smart delete feature. This is a combination of list of edits and list of removed rows.
 /// - RevertSmartDelete: Selfexplanatory. This is a combination of list of edits and list of adding rows.
-/// - ImportTSVDB: It holds a copy of the entire DBData, before importing.
-/// - ImportTSVLOC: It holds a copy of the entire LocData, before importing.
+/// - ImportTSVDB: It holds a copy of the entire DB, before importing.
+/// - ImportTSVLOC: It holds a copy of the entire Loc, before importing.
 pub enum TableOperations {
-    Editing(((i32, i32), *mut StandardItem)),
+    Editing(Vec<((i32, i32), *mut StandardItem)>),
     AddRows(Vec<i32>),
     RemoveRows((Vec<i32>, Vec<ListStandardItemMutPtr>)),
     SmartDelete((Vec<((i32, i32), *mut StandardItem)>, Vec<(i32, ListStandardItemMutPtr)>)),
     RevertSmartDelete((Vec<((i32, i32), *mut StandardItem)>, Vec<i32>)),
-    ImportTSVDB(DBData),
-    ImportTSVLOC(LocData),
+    ImportTSVDB(DB),
+    ImportTSVLOC(Loc),
 }
 
 /// Enum `IconType`: This enum holds all the possible Icon Types we can have in the TreeView,
@@ -907,6 +963,20 @@ pub struct Icons {
 
     // For rigidmodels.
     pub rigid_model: icon::Icon,
+}
+
+/// Debug implementation of TableOperations, so we can at least guess what is in the history.
+impl Debug for TableOperations {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            TableOperations::Editing(data) => write!(f, "Cell/s edited, starting in row {}, column {}.", (data[0].0).0, (data[0].0).1),
+            TableOperations::AddRows(data) => write!(f, "Row/s added in position/s {}.", data.iter().map(|x| format!("{}, ", x)).collect::<String>()),
+            TableOperations::RemoveRows(data) => write!(f, "Row/s removed in position/s {}.", data.0.iter().map(|x| format!("{}, ", x)).collect::<String>()),
+            TableOperations::SmartDelete(_) => write!(f, "Smart deletion."),
+            TableOperations::RevertSmartDelete(_) => write!(f, "Reverted Smart deletion."),
+            TableOperations::ImportTSVDB(_) | TableOperations::ImportTSVLOC(_) => write!(f, "Imported TSV file."),
+        }
+    }
 }
 
 /// Implementation of "Icons".
@@ -1022,7 +1092,7 @@ pub fn show_dialog<T: Display>(
 pub fn set_modified(
     is_modified: bool,
     app_ui: &AppUI,
-    path: Option<Vec<String>>
+    path: Option<(Vec<String>, bool)>
 ) -> bool {
 
     // If the PackFile is modified...
@@ -1036,13 +1106,13 @@ pub fn set_modified(
         unsafe { app_ui.window.as_mut().unwrap().set_window_title(&QString::from_std_str(format!("{} - Modified", pack_file_name))); }
 
         // If we have received a path to mark as "modified"...
-        if let Some(path) = path {
+        if let Some((path, use_dark_theme)) = path {
 
             // Get the item of the Path.
             let item = get_item_from_incomplete_path(app_ui.folder_tree_model, &path);
 
             // Paint the modified item.
-            paint_treeview(item, app_ui.folder_tree_model, ItemVisualStatus::Modified);
+            paint_treeview(item, app_ui.folder_tree_model, ItemVisualStatus::Modified, use_dark_theme);
         }
 
         // And return true.
@@ -1089,11 +1159,11 @@ pub fn set_modified(
 pub fn undo_paint_for_packed_file(
     app_ui: &AppUI,
     model: *mut StandardItemModel,
-    path: &[String]
+    path: &Rc<RefCell<Vec<String>>>,
 ) {
 
     // Get the item and paint it transparent.
-    let item = get_item_from_incomplete_path(app_ui.folder_tree_model, &path);
+    let item = get_item_from_incomplete_path(app_ui.folder_tree_model, &path.borrow());
     unsafe { item.as_mut().unwrap().set_background(&Brush::new(GlobalColor::Transparent)); }
 
     // Get the full path of the item.
@@ -1132,38 +1202,75 @@ pub fn undo_paint_for_packed_file(
 
 /// This function deletes whatever it's in the right side of the screen, leaving it empty.
 /// Also, each time this triggers we consider there is no PackedFile open.
-pub fn purge_them_all(app_ui: &AppUI, is_packedfile_opened: &Rc<RefCell<Option<Vec<String>>>>) {
+pub fn purge_them_all(app_ui: &AppUI, packedfiles_open_in_packedfile_view: &Rc<RefCell<BTreeMap<i32, Rc<RefCell<Vec<String>>>>>>) {
 
     // Black magic.
     unsafe {
-        for _ in 0..app_ui.packed_file_layout.as_mut().unwrap().count() {
-            let child = app_ui.packed_file_layout.as_mut().unwrap().take_at(0);
-            child.as_mut().unwrap().widget().as_mut().unwrap().close();
-            app_ui.packed_file_layout.as_mut().unwrap().remove_item(child);
+        for item in 0..app_ui.packed_file_splitter.as_mut().unwrap().count() {
+            let child = app_ui.packed_file_splitter.as_mut().unwrap().widget(item);
+            child.as_mut().unwrap().hide();
+            (child as *mut Object).as_mut().unwrap().delete_later();
         }
     }
 
     // Set it as not having an opened PackedFile, just in case.
-    *is_packedfile_opened.borrow_mut() = None;
+    packedfiles_open_in_packedfile_view.borrow_mut().clear();
 
     // Just in case what was open before this was a DB Table, make sure the "Game Selected" menu is re-enabled.
     unsafe { app_ui.game_selected_group.as_mut().unwrap().set_enabled(true); }
-
-    // Fix the column and row stretch caused by the DB Decoder.
-    unsafe { app_ui.packed_file_layout.as_mut().unwrap().set_column_stretch(1, 0); }
-    unsafe { app_ui.packed_file_layout.as_mut().unwrap().set_row_stretch(0, 0); }
-    unsafe { app_ui.packed_file_layout.as_mut().unwrap().set_row_stretch(2, 0); }
 }
+
+/// This function deletes whatever it's in the specified position of the right side of the screen.
+/// Also, if there was a PackedFile open there, we remove it from the "open PackedFiles" list.
+pub fn purge_that_one_specifically(app_ui: &AppUI, the_one: i32, packedfiles_open_in_packedfile_view: &Rc<RefCell<BTreeMap<i32, Rc<RefCell<Vec<String>>>>>>) {
+
+    // Turns out that deleting an item alters the order of the other items, so we schedule it for deletion, then put
+    // an invisible item in his place. That does the job.
+    unsafe {
+        if app_ui.packed_file_splitter.as_mut().unwrap().count() > the_one {        
+            let child = app_ui.packed_file_splitter.as_mut().unwrap().widget(the_one);
+            child.as_mut().unwrap().hide();
+            (child as *mut Object).as_mut().unwrap().delete_later();
+        }
+    }
+
+    let widget = Widget::new().into_raw();
+    unsafe { app_ui.packed_file_splitter.as_mut().unwrap().insert_widget(the_one, widget); }
+    unsafe { widget.as_mut().unwrap().hide(); }
+
+    // Set it as not having an opened PackedFile, just in case.
+    packedfiles_open_in_packedfile_view.borrow_mut().remove(&the_one);
+
+    // Just in case what was open before this was a DB Table, make sure the "Game Selected" menu is re-enabled.
+    let mut x = false;
+    for packed_file in packedfiles_open_in_packedfile_view.borrow().values() {
+        if let Some(folder) = packed_file.borrow().get(0) {
+            if folder == "db" {
+                x = true;
+                break;
+            }
+        }
+    }
+
+    if !x { unsafe { app_ui.game_selected_group.as_mut().unwrap().set_enabled(true); }}
+}
+
 
 /// This function shows the tips in the PackedFile View. Remember to call "purge_them_all" before this!
 pub fn display_help_tips(app_ui: &AppUI) {
+
+    // Create the widget that'll act as a container for the view.
+    let widget = Widget::new().into_raw();
+    let widget_layout = GridLayout::new().into_raw();
+    unsafe { widget.as_mut().unwrap().set_layout(widget_layout as *mut Layout); }
+    unsafe { app_ui.packed_file_splitter.as_mut().unwrap().insert_widget(0, widget); }
 
     let label = Label::new(&QString::from_std_str("Welcome to Rusted PackFile Manager! Here you have some tips on how to use it:
     - Read the manual. It's in 'About/Open Manual'. It explains how to configure RPFM and how to use it.
     - To know what each option in 'Preferences' do, left the mouse over the option for one second and a tooltip will pop up.
     - In the 'About' Menu, in 'About RPFM' you can find links to the Source Code and the Patreon of the Project.")).into_raw();
 
-    unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((label as *mut Widget, 0, 0, 1, 1)); }
+    unsafe { widget_layout.as_mut().unwrap().add_widget((label as *mut Widget, 0, 0, 1, 1)); }
 }
 
 /// This function shows a message asking for confirmation. For use in operations that implies unsaved
@@ -1617,60 +1724,53 @@ pub fn get_item_from_incomplete_path(
 pub fn paint_treeview(
     item: *mut StandardItem,
     model: *mut StandardItemModel,
-    status: ItemVisualStatus
+    status: ItemVisualStatus,
+    use_dark_theme: bool,
 ) {
 
-    // Get the color we need to apply.
+    // Get the colors we need to apply.
+    let color_added = if use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green };
+    let color_modified = if use_dark_theme { GlobalColor::DarkYellow } else { GlobalColor::Yellow };
+    let color_added_modified = if use_dark_theme { GlobalColor::DarkMagenta } else { GlobalColor::Magenta };
+    let color_untouched = GlobalColor::Transparent;
     let color = match &status {
-        ItemVisualStatus::Added => GlobalColor::Green,
-        ItemVisualStatus::Modified => GlobalColor::Yellow,
-        ItemVisualStatus::AddedModified => GlobalColor::Magenta,
-        ItemVisualStatus::Untouched => GlobalColor::Transparent,
+        ItemVisualStatus::Added => color_added,
+        ItemVisualStatus::Modified => color_modified,
+        ItemVisualStatus::AddedModified => color_added_modified.clone(),
+        ItemVisualStatus::Untouched => color_untouched,
     };
 
-    // Get the full path of the item.
+    // Get the full path of the item and the times we must to go up until we reach the parent.
     let full_path = get_path_from_item(model, item, true);
-
-    // Get the times we must to go up until we reach the parent.
     let cycles = if full_path.len() > 0 { full_path.len() - 1 } else { 0 };
 
     // Paint it like one of your french girls.
     unsafe { item.as_mut().unwrap().set_background(&Brush::new(color.clone())); }
 
-    // Get his parent.
-    let mut parent;
-    unsafe { parent = item.as_mut().unwrap().parent(); }
-
     // Loop through his parents until we reach the PackFile
+    let mut parent = unsafe { item.as_mut().unwrap().parent() };
     for _ in 0..cycles {
 
-        // Get the color of the Parent.
-        let parent_color;
-        unsafe { parent_color = parent.as_mut().unwrap().background().color().name(()).to_std_string(); }
-
         // Get the status of the Parent depending on his color.
+        let parent_color = unsafe { parent.as_mut().unwrap().background().color().name(()).to_std_string() };
         let parent_status = match &*parent_color {
-            "#00ff00" => ItemVisualStatus::Added,
-            "#ffff00" => ItemVisualStatus::Modified,
-            "#ff00ff" => ItemVisualStatus::AddedModified,
+            "#00ff00" | "800000" => ItemVisualStatus::Added,
+            "#ffff00" | "808000" => ItemVisualStatus::Modified,
+            "#ff00ff" | "800080" => ItemVisualStatus::AddedModified,
             "#000000" | _ => ItemVisualStatus::Untouched,
         };
 
         // Paint it depending on his status.
         match parent_status {
 
-            // If it's Added...
+            // If it's Added and the new status is "Modified", turn it into "AddedModified".
             ItemVisualStatus::Added => {
-
-                // If the new status is "Modified", turn it into "AddedModified"
-                if status == ItemVisualStatus::Modified { unsafe { parent.as_mut().unwrap().set_background(&Brush::new(GlobalColor::Magenta)); } }
+                if status == ItemVisualStatus::Modified { unsafe { parent.as_mut().unwrap().set_background(&Brush::new(color_added_modified.clone())); } }
             },
 
-            // If it's Modified...
+            // If it's Modified and the new status is "Added", turn it into "AddedModified".
             ItemVisualStatus::Modified => {
-
-                // If the new status is "Added", turn it into "AddedModified"
-                if status == ItemVisualStatus::Added { unsafe { parent.as_mut().unwrap().set_background(&Brush::new(GlobalColor::Magenta)); } }
+                if status == ItemVisualStatus::Added { unsafe { parent.as_mut().unwrap().set_background(&Brush::new(color_added_modified.clone())); } }
             },
 
             // If it's AddedModified, left it as is.
@@ -1793,6 +1893,11 @@ pub fn update_treeview(
     model: *mut StandardItemModel,
     operation: TreeViewOperation,
 ) {
+
+    // Get the settings and the use_dark_theme setting, for later use.
+    sender_qt.send(Commands::GetSettings).unwrap();
+    let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+    let use_dark_theme = settings.settings_bool.get("use_dark_theme").unwrap();
 
     // We act depending on the operation requested.
     match operation {
@@ -2018,7 +2123,7 @@ pub fn update_treeview(
                         if &possible_path == path {
 
                             // Just re-paint it like that parrot you painted yesterday.
-                            paint_treeview(possible_item, model, ItemVisualStatus::Added);
+                            paint_treeview(possible_item, model, ItemVisualStatus::Added, *use_dark_theme);
                         }
 
                         // Otherwise, it's a new PackedFile, so do the usual stuff.
@@ -2053,7 +2158,7 @@ pub fn update_treeview(
                             }
 
                             // Paint it like that parrot you painted yesterday.
-                            paint_treeview(item, model, ItemVisualStatus::Added);
+                            paint_treeview(item, model, ItemVisualStatus::Added, *use_dark_theme);
 
                             // Sort the TreeView.
                             sort_item_in_tree_view(
@@ -2404,7 +2509,7 @@ pub fn update_treeview(
                     unsafe { item = model.as_mut().unwrap().item_from_index(selection); }
 
                     // Paint it as "modified".
-                    paint_treeview(item, model, ItemVisualStatus::Modified);
+                    paint_treeview(item, model, ItemVisualStatus::Modified, *use_dark_theme);
 
                     // Sort it.
                     sort_item_in_tree_view(
@@ -2441,7 +2546,7 @@ pub fn update_treeview(
                 new_path.push(new_name);
 
                 // Paint it as "modified".
-                paint_treeview(item, model, ItemVisualStatus::Modified);
+                paint_treeview(item, model, ItemVisualStatus::Modified, *use_dark_theme);
 
                 // Sort it.
                 sort_item_in_tree_view(

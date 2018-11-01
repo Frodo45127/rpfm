@@ -1,20 +1,6 @@
 {
-  "schemas": [
-    {
-      "schema_file": "schema_wh.json",
-      "version": 3
-    },
-    {
-      "schema_file": "schema_att.json",
-      "version": 1
-    },
-    {
-      "schema_file": "schema_rom2.json",
-      "version": 2
-    },
-    {
-      "schema_file": "schema_are.json",
-      "version": 2
-    }
-  ]
+  "schema_are.json": 2,
+  "schema_att.json": 1,
+  "schema_rom2.json": 2,
+  "schema_wh.json": 4
 }

@@ -54,7 +54,7 @@ pub struct Field {
 }
 
 /// Enum FieldType: This enum is used to define the possible types of a field in the schema.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub enum FieldType {
     Boolean,
     Float,
@@ -71,11 +71,9 @@ impl Schema {
 
     /// This function creates a new schema. It should only be needed to create the first table definition
     /// of a game, as the rest will continue using the same schema.
-    pub fn new() -> Schema {
-        let tables_definitions = vec![];
-
-        Schema {
-            tables_definitions,
+    pub fn new() -> Self {
+        Self {
+            tables_definitions: vec![],
         }
     }
 
@@ -113,7 +111,7 @@ impl Schema {
     }
 
     /// This function takes an schema file and reads it into a "Schema" object.
-    pub fn load(schema_file: &str) -> Result<Schema> {
+    pub fn load(schema_file: &str) -> Result<Self> {
 
         let mut schemas_path = RPFM_PATH.to_path_buf();
         schemas_path.push("schemas");
@@ -126,9 +124,9 @@ impl Schema {
     }
 
     /// This function takes an "Schema" object and saves it into a schema file.
-    pub fn save(schema: &Schema, schema_file: &str) -> Result<()> {
+    pub fn save(&self, schema_file: &str) -> Result<()> {
 
-        let schema_json = serde_json::to_string_pretty(schema);
+        let schema_json = serde_json::to_string_pretty(&self);
         let mut schema_path = RPFM_PATH.to_path_buf();
         schema_path.push("schemas");
         schema_path.push(schema_file);

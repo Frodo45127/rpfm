@@ -31,16 +31,6 @@ pub struct PackedFileTextView {
 /// Implementation of PackedFileLocTreeView.
 impl PackedFileTextView {
 
-    /// This functin returns a dummy struct. Use it for initialization.
-    pub fn new() -> Self {
-
-        // Create some dummy slots and return it.
-        Self {
-            save_changes: SlotNoArgs::new(|| {}),
-            check_syntax: SlotNoArgs::new(|| {}),
-        }
-    }
-
     /// This function creates a new TreeView with the PackedFile's View as father and returns a
     /// `PackedFileLocTreeView` with all his data.
     pub fn create_text_view(
@@ -49,8 +39,12 @@ impl PackedFileTextView {
         receiver_qt: &Rc<RefCell<Receiver<Data>>>,
         is_modified: &Rc<RefCell<bool>>,
         app_ui: &AppUI,
-        packed_file_path: Vec<String>,
+        layout: *mut GridLayout,
+        packed_file_path: &Rc<RefCell<Vec<String>>>,
     ) -> Result<Self> {
+
+        sender_qt.send(Commands::GetSettings).unwrap();
+        let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
         // Try to get the Game Selected. This should never fail, so CTD if it does it.
         sender_qt.send(Commands::GetGameSelected).unwrap();
@@ -58,7 +52,7 @@ impl PackedFileTextView {
 
         // Get the text of the PackedFile.
         sender_qt.send(Commands::DecodePackedFileText).unwrap();
-        sender_qt_data.send(Data::VecString(packed_file_path.to_vec())).unwrap();
+        sender_qt_data.send(Data::VecString(packed_file_path.borrow().to_vec())).unwrap();
         let text = match check_message_validity_recv2(&receiver_qt) { 
             Data::String(data) => data,
             Data::Error(error) => return Err(error),
@@ -70,9 +64,9 @@ impl PackedFileTextView {
         let check_syntax_button = PushButton::new(&QString::from_std_str("Check Syntax")).into_raw();
 
         // Add it to the view.
-        unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((plain_text_edit as *mut Widget, 0, 0, 1, 1)); }
-        if packed_file_path.last().unwrap().ends_with(".lua") && SUPPORTED_GAMES.get(&*game_selected).unwrap().ca_types_file.is_some() {
-            unsafe { app_ui.packed_file_layout.as_mut().unwrap().add_widget((check_syntax_button as *mut Widget, 1, 0, 1, 1)); }
+        unsafe { layout.as_mut().unwrap().add_widget((plain_text_edit as *mut Widget, 0, 0, 1, 1)); }
+        if packed_file_path.borrow().last().unwrap().ends_with(".lua") && SUPPORTED_GAMES.get(&*game_selected).unwrap().ca_types_file.is_some() {
+            unsafe { layout.as_mut().unwrap().add_widget((check_syntax_button as *mut Widget, 1, 0, 1, 1)); }
         }
 
         // Create the stuff needed for this to work.
@@ -81,6 +75,7 @@ impl PackedFileTextView {
                 packed_file_path,
                 app_ui,
                 is_modified,
+                settings,
                 sender_qt,
                 sender_qt_data => move || {
 
@@ -90,10 +85,11 @@ impl PackedFileTextView {
 
                     // Tell the background thread to start saving the PackedFile.
                     sender_qt.send(Commands::EncodePackedFileText).unwrap();
-                    sender_qt_data.send(Data::StringVecString((text, packed_file_path.to_vec()))).unwrap();
+                    sender_qt_data.send(Data::StringVecString((text, packed_file_path.borrow().to_vec()))).unwrap();
 
                     // Set the mod as "Modified".
-                    *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(packed_file_path.to_vec()));
+                    let use_dark_theme = settings.settings_bool.get("use_dark_theme").unwrap();
+                    *is_modified.borrow_mut() = set_modified(true, &app_ui, Some((packed_file_path.borrow().to_vec(), *use_dark_theme)));
                 }
             )),
 

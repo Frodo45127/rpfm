@@ -6,7 +6,7 @@
 
 # Should I use this or stick to PFM?
 It depends on what you need. Good things of RPFM are:
-- **It has most of the features from PFM and many of his own.
+- **It has most of the features from PFM** and many of his own.
 - **Is being actively developed**, so new features land from time to time.
 - **Faster by a lot** in... more or less everything.
 - **Far more stable** than PFM.
@@ -43,15 +43,17 @@ In **Windows**, first you need to install the ***Rust Toolchain*** (at least +1.
 To build, move to the repo directory and execute:
 ```bash
 # For Windows
-cargo build --target=x86_64-pc-windows-gnu --release
+cargo run --target=x86_64-pc-windows-gnu
 
 # For Linux
-cargo build --target=x86_64-unknown-linux-gnu --release
+cargo run --target=x86_64-unknown-linux-gnu
 ```
 
 # Known Issues
 - **The program crashes when trying to open an Arena PackFile!!!**: CA recently changed the encryption Arena uses (don't think it was really a coincidence),... so that's something to fix in the future.
 - **Kailua throws useless errors!!!**: That feature is alpha and very experimental.
+- **If I edit a PackedFile, close it, edit it again and undo all the changes, the colors get weird**: It's just a visual bug, but it's quite complex to fix. Don't worry, it doesn't do anything apart of the color change, so you can ignore for now.
+- **My PackFile just vanished from the data folder!!!!!**: If you mod in the data folder of Warhammer 2, ***DISABLE LAZY-LOADING IN THE SETTINGS***. The problem is a bug in the Assembly Kit, not in RPFM. Want it fixed? Ask CA to fix it. If you have lazy-loading disabled, just try to save the PackFile outside the data folder and you'll recover all your data.
 
 # FAQ
 - **Why not helping with PFM instead of reimplementing it?**: because I wanted to learn a new language, and I already now a bit of C#. Also, where is the fun of that?

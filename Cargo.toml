@@ -1,6 +1,6 @@
 [package]
 name = "rpfm-code"
-version = "1.1.1"
+version = "1.2.0"
 authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
 build = "build.rs"
 description = "A modding tool for Total War games."
@@ -17,15 +17,13 @@ serde-xml-rs = "0.2"
 chrono = "0.4"
 failure = "0.1"
 uuid = { version = "0.6", features = ["v4"] }
-restson = "0.3"
-futures = "0.1.24"
-hyper = "0.11"
-hyper-tls = "0.1.4"
-tokio-core = "0.1"
+restson = "0.4"
+reqwest = "0.9"
 open = "*"
 indexmap = "1.0"
+regex = "1"
 
-sentry = "0.11"
+sentry = "0.12"
 
 qt_widgets = "0.2"
 qt_gui = "0.2"
@@ -34,6 +32,7 @@ qt_core = "0.2"
 cpp_utils = "*"
 lazy_static = "*"
 
+bitflags = "1.0"
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1.5"
 

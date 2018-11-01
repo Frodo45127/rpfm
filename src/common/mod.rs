@@ -81,7 +81,7 @@ pub fn get_type_of_selected_path(
         // Now we check if it's a file or a folder.
         let mut is_a_file = false;
 
-        for i in &pack_file_decoded.data.packed_files {
+        for i in &pack_file_decoded.packed_files {
             if i.path == tree_path {
                 is_a_file = true;
                 break;
@@ -95,7 +95,7 @@ pub fn get_type_of_selected_path(
         else {
 
             // We check if the folder actually exists in our PackFile.
-            let is_a_folder = pack_file_decoded.data.folder_exists(&tree_path);
+            let is_a_folder = pack_file_decoded.folder_exists(&tree_path);
 
             // If it exists, we return it as a folder.
             if is_a_folder { return TreePathType::Folder(tree_path) }
@@ -266,6 +266,7 @@ pub fn get_game_selected_data_packfiles_paths(game_selected: &str, settings: &Se
         }
     }
 
+    paths.sort();
     Some(paths)
 }
 
@@ -291,5 +292,6 @@ pub fn get_game_selected_content_packfiles_paths(game_selected: &str, settings: 
         }
     }
 
+    paths.sort();
     Some(paths)
 }
