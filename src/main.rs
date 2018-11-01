@@ -3059,18 +3059,100 @@ fn main() {
                 if path.is_empty() { return }
 
                 // If we have a PackedFile open...
-                for open_path in packedfiles_open_in_packedfile_view.borrow().values() {
+                let packed_files_open = packedfiles_open_in_packedfile_view.borrow().clone();
+                let mut skaven_confirm = false;
+                for (view, open_path) in &packed_files_open {
 
                     // Send the Path to the Background Thread, and get the type of the item.
                     sender_qt.send(Commands::GetTypeOfPath).unwrap();
                     sender_qt_data.send(Data::VecString(path.to_vec())).unwrap();
                     let item_type = if let Data::TreePathType(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
-                    // And that PackedFile is the one we want to delete, or it's on the list of paths to delete...
+                    // And that PackedFile is the one we want to delete, or it's on the list of paths to delete, ask the user to be sure he wants to delete it.
                     match item_type {
-                        TreePathType::File(item_path) => if *open_path.borrow() == item_path { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
-                        TreePathType::Folder(item_path) => if !item_path.is_empty() && open_path.borrow().starts_with(&item_path) { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
-                        TreePathType::PackFile => return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen),
+                        TreePathType::File(item_path) => {
+                            if *open_path.borrow() == item_path { 
+
+                                let mut dialog = unsafe { MessageBox::new_unsafe((
+                                    message_box::Icon::Information,
+                                    &QString::from_std_str("Warning"),
+                                    &QString::from_std_str("<p>The PackedFile you're trying to delete is currently open.</p><p> Are you sure you want to delete it?</p>"),
+                                    Flags::from_int(4194304), // Cancel button.
+                                    app_ui.window as *mut Widget,
+                                )) };
+
+                                dialog.add_button((&QString::from_std_str("&Accept"), message_box::ButtonRole::AcceptRole));
+                                dialog.set_modal(true);
+                                dialog.show();
+
+                                // If we hit "Accept", close the PackedFile and continue. Otherwise return.
+                                if dialog.exec() == 0 { 
+                                    purge_that_one_specifically(&app_ui, *view, &packedfiles_open_in_packedfile_view);
+
+                                    let widgets = unsafe { app_ui.packed_file_splitter.as_mut().unwrap().count() };
+                                    let visible_widgets = (0..widgets).filter(|x| unsafe {app_ui.packed_file_splitter.as_mut().unwrap().widget(*x).as_mut().unwrap().is_visible() } ).count();
+                                    if visible_widgets == 0 { display_help_tips(&app_ui); }
+                                } else { return }
+                            } 
+                        }
+                        TreePathType::Folder(item_path) => {
+                            if !skaven_confirm {
+                                if !item_path.is_empty() && open_path.borrow().starts_with(&item_path) {
+
+                                    let mut dialog = unsafe { MessageBox::new_unsafe((
+                                        message_box::Icon::Information,
+                                        &QString::from_std_str("Warning"),
+                                        &QString::from_std_str("<p>One or more PackedFiles you're trying to delete are currently open.</p><p> Are you sure you want to delete them?</p>"),
+                                        Flags::from_int(4194304), // Cancel button.
+                                        app_ui.window as *mut Widget,
+                                    )) };
+
+                                    dialog.add_button((&QString::from_std_str("&Accept"), message_box::ButtonRole::AcceptRole));
+                                    dialog.set_modal(true);
+                                    dialog.show();
+
+                                    // If we hit "Accept", close the PackedFile and continue. Otherwise return.
+                                    if dialog.exec() == 0 { 
+                                        purge_that_one_specifically(&app_ui, *view, &packedfiles_open_in_packedfile_view);
+
+                                        let widgets = unsafe { app_ui.packed_file_splitter.as_mut().unwrap().count() };
+                                        let visible_widgets = (0..widgets).filter(|x| unsafe {app_ui.packed_file_splitter.as_mut().unwrap().widget(*x).as_mut().unwrap().is_visible() } ).count();
+                                        if visible_widgets == 0 { display_help_tips(&app_ui); }
+                                        skaven_confirm = true;
+                                    } else { return }
+                                } 
+                            }
+
+                            // If we already confirmed it for a PackedFile, don't ask again.
+                            else if !item_path.is_empty() && open_path.borrow().starts_with(&item_path) {
+
+                                purge_that_one_specifically(&app_ui, *view, &packedfiles_open_in_packedfile_view);
+
+                                let widgets = unsafe { app_ui.packed_file_splitter.as_mut().unwrap().count() };
+                                let visible_widgets = (0..widgets).filter(|x| unsafe {app_ui.packed_file_splitter.as_mut().unwrap().widget(*x).as_mut().unwrap().is_visible() } ).count();
+                                if visible_widgets == 0 { display_help_tips(&app_ui); }
+                            }
+                        }
+                        TreePathType::PackFile => {
+                            let mut dialog = unsafe { MessageBox::new_unsafe((
+                                message_box::Icon::Information,
+                                &QString::from_std_str("Warning"),
+                                &QString::from_std_str("<p>One or more PackedFiles you're trying to delete are currently open.</p><p> Are you sure you want to delete them?</p>"),
+                                Flags::from_int(4194304), // Cancel button.
+                                app_ui.window as *mut Widget,
+                            )) };
+
+                            dialog.add_button((&QString::from_std_str("&Accept"), message_box::ButtonRole::AcceptRole));
+                            dialog.set_modal(true);
+                            dialog.show();
+
+                            // If we hit "Accept", close all PackedFiles and stop the loop.
+                            if dialog.exec() == 0 { 
+                                purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);
+                                display_help_tips(&app_ui);
+                                break;
+                            } else { return }
+                        }
                         
                         // We use this for the Dependency Manager, in which case we can continue.
                         TreePathType::None => {},

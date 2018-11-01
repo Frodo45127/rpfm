@@ -1224,7 +1224,8 @@ pub fn purge_them_all(app_ui: &AppUI, packedfiles_open_in_packedfile_view: &Rc<R
 /// Also, if there was a PackedFile open there, we remove it from the "open PackedFiles" list.
 pub fn purge_that_one_specifically(app_ui: &AppUI, the_one: i32, packedfiles_open_in_packedfile_view: &Rc<RefCell<BTreeMap<i32, Rc<RefCell<Vec<String>>>>>>) {
 
-    // Black magic.
+    // Turns out that deleting an item alters the order of the other items, so we schedule it for deletion, then put
+    // an invisible item in his place. That does the job.
     unsafe {
         if app_ui.packed_file_splitter.as_mut().unwrap().count() > the_one {        
             let child = app_ui.packed_file_splitter.as_mut().unwrap().widget(the_one);
@@ -1232,6 +1233,10 @@ pub fn purge_that_one_specifically(app_ui: &AppUI, the_one: i32, packedfiles_ope
             (child as *mut Object).as_mut().unwrap().delete_later();
         }
     }
+
+    let widget = Widget::new().into_raw();
+    unsafe { app_ui.packed_file_splitter.as_mut().unwrap().insert_widget(the_one, widget); }
+    unsafe { widget.as_mut().unwrap().hide(); }
 
     // Set it as not having an opened PackedFile, just in case.
     packedfiles_open_in_packedfile_view.borrow_mut().remove(&the_one);
