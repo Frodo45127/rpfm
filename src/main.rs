@@ -598,29 +598,20 @@ fn main() {
         let _status_bar = window.status_bar();
 
         // Top MenuBar menus.
-        let menu_bar_packfile;
-        let menu_bar_mymod;
-        let menu_bar_game_seleted;
-        let menu_bar_special_stuff;
-        let menu_bar_about;
-        unsafe { menu_bar_packfile = menu_bar.as_mut().unwrap().add_menu(&QString::from_std_str("&PackFile")); }
-        unsafe { menu_bar_mymod = menu_bar.as_mut().unwrap().add_menu(&QString::from_std_str("&MyMod")); }
-        unsafe { menu_bar_game_seleted = menu_bar.as_mut().unwrap().add_menu(&QString::from_std_str("&Game Selected")); }
-        unsafe { menu_bar_special_stuff = menu_bar.as_mut().unwrap().add_menu(&QString::from_std_str("&Special Stuff")); }
-        unsafe { menu_bar_about = menu_bar.as_mut().unwrap().add_menu(&QString::from_std_str("&About")); }
-
+        let menu_bar_packfile = unsafe { menu_bar.as_mut().unwrap().add_menu(&QString::from_std_str("&PackFile")) };
+        let menu_bar_mymod = unsafe { menu_bar.as_mut().unwrap().add_menu(&QString::from_std_str("&MyMod")) };
+        let menu_bar_game_seleted = unsafe { menu_bar.as_mut().unwrap().add_menu(&QString::from_std_str("&Game Selected")) };
+        let menu_bar_special_stuff = unsafe { menu_bar.as_mut().unwrap().add_menu(&QString::from_std_str("&Special Stuff")) };
+        let menu_bar_about = unsafe { menu_bar.as_mut().unwrap().add_menu(&QString::from_std_str("&About")) };
+        
         // Submenus.
         let menu_change_packfile_type = Menu::new(&QString::from_std_str("&Change PackFile Type")).into_raw();
 
-        let menu_warhammer_2;
-        let menu_warhammer;
-        let menu_attila;
-        let menu_rome_2;
-        unsafe { menu_warhammer_2 = menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("&Warhammer 2")); }
-        unsafe { menu_warhammer = menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("War&hammer")); }
-        unsafe { menu_attila = menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("&Attila")); }
-        unsafe { menu_rome_2 = menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("&Rome 2")); }
-
+        let menu_warhammer_2 = unsafe { menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("&Warhammer 2")) };
+        let menu_warhammer = unsafe { menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("War&hammer")) };
+        let menu_attila = unsafe { menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("&Attila")) };
+        let menu_rome_2 = unsafe { menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("&Rome 2")) };
+        
         // Contextual Menu for the TreeView.
         let mut folder_tree_view_context_menu = Menu::new(());
         let menu_add = folder_tree_view_context_menu.add_menu(&QString::from_std_str("&Add..."));
@@ -4953,8 +4944,7 @@ fn open_packedfile(
     if !(*is_folder_tree_view_locked.borrow()) {
 
         // Get the selection to see what we are going to open.
-        let selection;
-        unsafe { selection = app_ui.folder_tree_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection(); }
+        let selection = unsafe { app_ui.folder_tree_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection() };
 
         // Get the path of the selected item.
         let full_path = get_path_from_item_selection(app_ui.folder_tree_model, &selection, true);
@@ -5203,15 +5193,13 @@ fn build_my_mod_menu(
     unsafe { menu_bar_mymod.as_mut().unwrap().clear(); }
 
     // Then, we create the actions again.
-    let mymod_stuff;
-    unsafe {
-        mymod_stuff = MyModStuff {
+    let mymod_stuff = unsafe { MyModStuff {
             new_mymod: menu_bar_mymod.as_mut().unwrap().add_action(&QString::from_std_str("&New MyMod")),
             delete_selected_mymod: menu_bar_mymod.as_mut().unwrap().add_action(&QString::from_std_str("&Delete Selected MyMod")),
             install_mymod: menu_bar_mymod.as_mut().unwrap().add_action(&QString::from_std_str("&Install")),
             uninstall_mymod: menu_bar_mymod.as_mut().unwrap().add_action(&QString::from_std_str("&Uninstall")),
         }
-    }
+    };
 
     // Add a separator in the middle of the menu.
     unsafe { menu_bar_mymod.as_mut().unwrap().insert_separator(mymod_stuff.install_mymod); }
