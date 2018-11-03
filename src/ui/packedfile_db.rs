@@ -1653,7 +1653,7 @@ impl PackedFileDBTreeView {
                 sender_qt_data => move |_| {
 
                     // If whatever it's in the Clipboard is pasteable in our selection...
-                    if check_clipboard_append_rows(&table_definition) {
+                    if check_clipboard_append_rows(table_view, &table_definition) {
                         let use_dark_theme = settings.settings_bool.get("use_dark_theme").unwrap();
 
                         // Get the text from the clipboard.
@@ -1667,9 +1667,11 @@ impl PackedFileDBTreeView {
 
                         // Create a new list of StandardItem, ready to be populated.
                         let mut column = 0;
+                        let mut qlist_unordered = vec![];
                         let mut qlist = ListStandardItemMutPtr::new(());
                         for cell in &text {
-                            let field = &table_definition.fields[column];
+                            let column_logical_index = unsafe { table_view.as_ref().unwrap().horizontal_header().as_ref().unwrap().logical_index(column) };
+                            let field = &table_definition.fields[column_logical_index as usize];
                             let mut item = StandardItem::new(());
 
                             // Depending on the column, we populate the cell with one thing or another.
@@ -1679,7 +1681,7 @@ impl PackedFileDBTreeView {
                                 FieldType::Boolean => {
                                     item.set_editable(false);
                                     item.set_checkable(true);
-                                    item.set_check_state(if *cell == "true" { CheckState::Checked } else { CheckState::Unchecked });
+                                    item.set_check_state(if cell.to_lowercase() == "true" { CheckState::Checked } else { CheckState::Unchecked });
                                     item.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
                                 },
 
@@ -1704,10 +1706,13 @@ impl PackedFileDBTreeView {
                             }
 
                             // Add the cell to the list.
-                            unsafe { qlist.append_unsafe(&item.into_raw()); }
+                            qlist_unordered.push((column_logical_index, item.into_raw()));
 
                             // If we are in the last column, append the list to the Table and reset it.
-                            if column == &table_definition.fields.len() - 1 {
+                            if column as usize == &table_definition.fields.len() - 1 {
+                                qlist_unordered.sort_unstable_by_key(|x| x.0);
+                                for (_, item) in &qlist_unordered { unsafe { qlist.append_unsafe(&item.clone()); }}
+    
                                 unsafe { model.as_mut().unwrap().append_row(&qlist); }
                                 qlist = ListStandardItemMutPtr::new(());
                                 column = 0;
@@ -1721,10 +1726,11 @@ impl PackedFileDBTreeView {
                         if column != 0 {
 
                             // For each columns we lack...
-                            for column in column..table_definition.fields.len() {
+                            for column in column..table_definition.fields.len() as i32 {
 
                                 // Get the new field.
-                                let field = &table_definition.fields[column];
+                                let column_logical_index = unsafe { table_view.as_ref().unwrap().horizontal_header().as_ref().unwrap().logical_index(column) };
+                                let field = &table_definition.fields[column_logical_index as usize];
 
                                 // Create a new Item.
                                 let mut item = match field.field_type {
@@ -1754,10 +1760,12 @@ impl PackedFileDBTreeView {
                                 };
 
                                 item.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
-                                unsafe { qlist.append_unsafe(&item.into_raw()); }
+                                qlist_unordered.push((column_logical_index, item.into_raw()));
                             }
 
                             // Append the list to the Table.
+                            qlist_unordered.sort_unstable_by_key(|x| x.0);
+                            for (_, item) in &qlist_unordered { unsafe { qlist.append_unsafe(&item.clone()); }}
                             unsafe { model.as_mut().unwrap().append_row(&qlist); }
                         }
 
@@ -5243,7 +5251,10 @@ fn check_clipboard_to_fill_selection(
 }
 
 /// This function checks if the data in the clipboard is suitable to be appended as rows at the end of the Table.
-fn check_clipboard_append_rows(definition: &TableDefinition) -> bool {
+fn check_clipboard_append_rows(
+    table_view: *mut TableView,
+    definition: &TableDefinition
+) -> bool {
 
     // Get the text from the clipboard.
     let clipboard = GuiApplication::clipboard();
@@ -5259,8 +5270,9 @@ fn check_clipboard_append_rows(definition: &TableDefinition) -> bool {
     for cell in text {
 
         // Depending on the column, we try to encode the data in one format or another.
-        match definition.fields[column as usize].field_type {
-            FieldType::Boolean => if cell != "true" && cell != "false" { return false },
+        let column_logical_index = unsafe { table_view.as_ref().unwrap().horizontal_header().as_ref().unwrap().logical_index(column) };
+        match definition.fields[column_logical_index as usize].field_type {
+            FieldType::Boolean => if cell.to_lowercase() != "true" && cell.to_lowercase() != "false" { return false },
             FieldType::Float => if cell.parse::<f32>().is_err() { return false },
             FieldType::Integer => if cell.parse::<i32>().is_err() { return false },
             FieldType::LongInteger => if cell.parse::<i64>().is_err() { return false },
@@ -5273,7 +5285,7 @@ fn check_clipboard_append_rows(definition: &TableDefinition) -> bool {
         }
 
         // Reset or increase the column count, if needed.
-        if column == definition.fields.len() - 1 { column = 0; } else { column += 1; }
+        if column as usize == definition.fields.len() - 1 { column = 0; } else { column += 1; }
     }
 
     // If we reach this place, it means none of the cells was incorrect, so we can paste.
