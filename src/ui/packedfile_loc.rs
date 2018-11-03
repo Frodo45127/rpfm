@@ -1081,6 +1081,23 @@ impl PackedFileLocTreeView {
                         let clipboard = GuiApplication::clipboard();
                         let mut text = unsafe { clipboard.as_mut().unwrap().text(()).to_std_string() };
                         let indexes = unsafe { filter_model.as_mut().unwrap().map_selection_to_source(&table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection()).indexes() };
+                        let mut indexes_sorted = vec![];
+                        for index in 0..indexes.count(()) {
+                            indexes_sorted.push(indexes.at(index))
+                        }
+
+                        // Sort the indexes so they follow the visual index, not their logical one. This should fix situations like copying a row and getting a different order in the cells.
+                        let header = unsafe { table_view.as_ref().unwrap().horizontal_header().as_ref().unwrap() };
+                        indexes_sorted.sort_unstable_by(|a, b| {
+                            if a.row() == b.row() {
+                                if header.visual_index(a.column()) < header.visual_index(b.column()) { return Ordering::Less }
+                                else { return Ordering::Greater }
+                            }
+
+                            // If they are in different rows, we order from less to more.
+                            else if a.row() < b.row() { return Ordering::Less }
+                            else { return Ordering::Greater }
+                        });
 
                         // If the text ends in \n, remove it. Excel things. We don't use newlines, so replace them with '\t'.
                         if text.ends_with('\n') { text.pop(); }
@@ -1089,8 +1106,7 @@ impl PackedFileLocTreeView {
 
                         // Get the list of items selected in a format we can deal with easely.
                         let mut items = vec![];
-                        for index in 0..indexes.count(()) {
-                            let model_index = indexes.at(index);
+                        for model_index in &indexes_sorted {
                             if model_index.is_valid() {
                                 unsafe { items.push(model.as_mut().unwrap().item_from_index(&model_index)); }
                             }
@@ -1216,7 +1232,7 @@ impl PackedFileLocTreeView {
                 sender_qt_data => move |_| {
 
                     // If whatever it's in the Clipboard is pasteable...
-                    if check_clipboard_append_rows() {
+                    if check_clipboard_append_rows(table_view) {
                         let use_dark_theme = settings.settings_bool.get("use_dark_theme").unwrap();
 
                         // Get the text from the clipboard.
@@ -1230,15 +1246,17 @@ impl PackedFileLocTreeView {
 
                         // Create a new list of StandardItem, ready to be populated.
                         let mut column = 0;
+                        let mut qlist_unordered = vec![];
                         let mut qlist = ListStandardItemMutPtr::new(());
                         for cell in &text {
                             let mut item = StandardItem::new(());
 
-                            // If we are adding the last column, use a bool.
-                            if column == 2 {
+                            // If the column is "Tooltip", use a bool.
+                            let column_logical_index = unsafe { table_view.as_ref().unwrap().horizontal_header().as_ref().unwrap().logical_index(column) };
+                            if column_logical_index == 2 {
                                 item.set_editable(false);
                                 item.set_checkable(true);
-                                item.set_check_state(if *cell == "true" { CheckState::Checked } else { CheckState::Unchecked });
+                                item.set_check_state(if cell.to_lowercase() == "true" { CheckState::Checked } else { CheckState::Unchecked });
                                 item.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
                             }
 
@@ -1249,15 +1267,17 @@ impl PackedFileLocTreeView {
                             }
 
                             // Add the item to the list.
-                            unsafe { qlist.append_unsafe(&item.into_raw()); }
+                            qlist_unordered.push((column_logical_index, item.into_raw()));
 
                             // If we are in the last column, append the list to the Table and reset it.
                             if column == 2 {
+                                qlist_unordered.sort_unstable_by_key(|x| x.0);
+                                for (_, item) in &qlist_unordered { unsafe { qlist.append_unsafe(&item.clone()); }}
+    
                                 unsafe { model.as_mut().unwrap().append_row(&qlist); }
                                 qlist = ListStandardItemMutPtr::new(());
                                 column = 0;
                             }
-
                             // Otherwise, increase the column count.
                             else { column += 1; }
                         }
@@ -1265,36 +1285,79 @@ impl PackedFileLocTreeView {
                         // If the last list was incomplete...
                         if column != 0 {
 
-                            // If we lack Text and Tooltip.
+                            // If we lack two columns, we have to check all the possible combinations.
                             if column == 1 {
 
-                                // Add the text column.
-                                let mut item = StandardItem::new(&QString::from_std_str(""));
-                                item.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
-                                unsafe { qlist.append_unsafe(&item.into_raw()); }
+                                // In case our table is "XXX, Tooltip, XXX"...
+                                let column_logical_index = unsafe { table_view.as_ref().unwrap().horizontal_header().as_ref().unwrap().logical_index(column) };
+                                if column_logical_index == 2 {
 
-                                // Add the tooltip column.
-                                let mut item = StandardItem::new(());
-                                item.set_editable(false);
-                                item.set_checkable(true);
-                                item.set_check_state(CheckState::Checked);
-                                item.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
-                                unsafe { qlist.append_unsafe(&item.into_raw()); }
+                                    // Add the tooltip column.
+                                    let mut item = StandardItem::new(());
+                                    item.set_editable(false);
+                                    item.set_checkable(true);
+                                    item.set_check_state(CheckState::Checked);
+                                    item.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                                    qlist_unordered.push((column_logical_index, item.into_raw()));
+                                    
+                                    column += 1;
+                                    let column_logical_index = unsafe { table_view.as_ref().unwrap().horizontal_header().as_ref().unwrap().logical_index(column) };
+                                    let mut item = StandardItem::new(&QString::from_std_str(""));
+                                    item.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                                    qlist_unordered.push((column_logical_index, item.into_raw()));
+                                } 
+
+                                else {
+                                    let mut item = StandardItem::new(&QString::from_std_str(""));
+                                    item.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                                    qlist_unordered.push((column_logical_index, item.into_raw()));
+
+                                    // In case our table is "XXX, XXX, Tooltip"...
+                                    column += 1;
+                                    let column_logical_index = unsafe { table_view.as_ref().unwrap().horizontal_header().as_ref().unwrap().logical_index(column) };
+                                    if column_logical_index == 2 {
+                                        let mut item = StandardItem::new(());
+                                        item.set_editable(false);
+                                        item.set_checkable(true);
+                                        item.set_check_state(CheckState::Checked);
+                                        item.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                                        qlist_unordered.push((column_logical_index, item.into_raw()));  
+                                    }
+
+                                    // In case our table is "Tooltip, XXX, XXX"...
+                                    else {
+                                        let mut item = StandardItem::new(&QString::from_std_str(""));
+                                        item.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                                        qlist_unordered.push((column_logical_index, item.into_raw()));
+                                    }
+                                }
                             }
 
                             // Otherwise, we just lack tooltip.
                             else {
 
-                                // Add the tooltip column.
-                                let mut item = StandardItem::new(());
-                                item.set_editable(false);
-                                item.set_checkable(true);
-                                item.set_check_state(CheckState::Checked);
-                                item.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
-                                unsafe { qlist.append_unsafe(&item.into_raw()); }
+                                let column_logical_index = unsafe { table_view.as_ref().unwrap().horizontal_header().as_ref().unwrap().logical_index(column) };
+                                if column_logical_index == 2 { 
+
+                                    // Add the tooltip column.
+                                    let mut item = StandardItem::new(());
+                                    item.set_editable(false);
+                                    item.set_checkable(true);
+                                    item.set_check_state(CheckState::Checked);
+                                    item.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                                    qlist_unordered.push((column_logical_index, item.into_raw()));
+                                } 
+
+                                else { 
+                                    let mut item = StandardItem::new(&QString::from_std_str(""));
+                                    item.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                                    qlist_unordered.push((column_logical_index, item.into_raw()));
+                                }
                             }
 
                             // Append the list to the Table.
+                            qlist_unordered.sort_unstable_by_key(|x| x.0);
+                            for (_, item) in &qlist_unordered { unsafe { qlist.append_unsafe(&item.clone()); }}
                             unsafe { model.as_mut().unwrap().append_row(&qlist); }
                         }
 
@@ -2446,9 +2509,26 @@ fn check_clipboard(
     let clipboard = GuiApplication::clipboard();
     let mut text = unsafe { clipboard.as_mut().unwrap().text(()).to_std_string() };
     let indexes = unsafe { filter_model.as_mut().unwrap().map_selection_to_source(&table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection()).indexes() };
+    let mut indexes_sorted = vec![];
+    for index in 0..indexes.count(()) {
+        indexes_sorted.push(indexes.at(index))
+    }
+
+    // Sort the indexes so they follow the visual index, not their logical one. This should fix situations like copying a row and getting a different order in the cells.
+    let header = unsafe { table_view.as_ref().unwrap().horizontal_header().as_ref().unwrap() };
+    indexes_sorted.sort_unstable_by(|a, b| {
+        if a.row() == b.row() {
+            if header.visual_index(a.column()) < header.visual_index(b.column()) { return Ordering::Less }
+            else { return Ordering::Greater }
+        }
+
+        // If they are in different rows, we order from less to more.
+        else if a.row() < b.row() { return Ordering::Less }
+        else { return Ordering::Greater }
+    });
 
     // If there is nothing selected, don't waste your time.
-    if indexes.count(()) == 0 { return false }
+    if indexes_sorted.is_empty() { return false }
 
     // If the text ends in \n, remove it. Excel things. We don't use newlines, so replace them with '\t'.
     if text.ends_with('\n') { text.pop(); }
@@ -2457,8 +2537,7 @@ fn check_clipboard(
 
     // Get the list of items selected in a format we can deal with easely.
     let mut items = vec![];
-    for index in 0..indexes.count(()) {
-        let model_index = indexes.at(index);
+    for model_index in &indexes_sorted {
         if model_index.is_valid() {
             unsafe { items.push(model.as_mut().unwrap().item_from_index(&model_index)); }
         }
@@ -2515,7 +2594,9 @@ fn check_clipboard_to_fill_selection(
 
 
 /// This function checks if the data in the clipboard is suitable to be appended as rows at the end of the Table.
-fn check_clipboard_append_rows() -> bool {
+fn check_clipboard_append_rows(
+    table_view: *mut TableView,
+) -> bool {
 
     // Get the text from the clipboard.
     let clipboard = GuiApplication::clipboard();
@@ -2526,12 +2607,14 @@ fn check_clipboard_append_rows() -> bool {
     let text = text.replace('\n', "\t");
     let text = text.split('\t').collect::<Vec<&str>>();
 
-    // Get the index for the column.
+    // Get the index for the column, and the position of the "Tooltip" column.
     let mut column = 0;
     for cell in text {
-
-        // If the column is 2, ensure it's a boolean.
-        if column == 2 {
+        
+        // If the column is "Tooltip", ensure it's a boolean.
+        let column_logical_index = unsafe { table_view.as_ref().unwrap().horizontal_header().as_ref().unwrap().logical_index(column) };
+        if column_logical_index == 2 {
+            let cell = cell.to_lowercase();
             if cell != "true" && cell != "false" { return false }
         }
 
