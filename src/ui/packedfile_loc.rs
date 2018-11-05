@@ -1276,6 +1276,7 @@ impl PackedFileLocTreeView {
     
                                 unsafe { model.as_mut().unwrap().append_row(&qlist); }
                                 qlist = ListStandardItemMutPtr::new(());
+                                qlist_unordered.clear();
                                 column = 0;
                             }
                             // Otherwise, increase the column count.
