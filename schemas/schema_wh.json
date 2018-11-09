@@ -556,8 +556,15 @@
               "field_description": ""
             },
             {
+              "field_name": "FIXME",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
               "field_name": "opportune_failure_weighting",
-              "field_type": "OptionalStringU8",
+              "field_type": "Integer",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
@@ -577,20 +584,6 @@
                 "effect_bundle_advancement_stages",
                 "key"
               ],
-              "field_description": ""
-            },
-            {
-              "field_name": "new_field",
-              "field_type": "Boolean",
-              "field_is_key": false,
-              "field_is_reference": null,
-              "field_description": ""
-            },
-            {
-              "field_name": "new_field",
-              "field_type": "OptionalStringU8",
-              "field_is_key": false,
-              "field_is_reference": null,
               "field_description": ""
             }
           ]
@@ -1273,15 +1266,25 @@
               "field_description": "Icon path for deploy button for this action"
             },
             {
-              "field_name": "new_field",
+              "field_name": "show_action_info_in_ui",
               "field_type": "Boolean",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
             },
             {
-              "field_name": "new_field",
+              "field_name": "subculture",
               "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cultures_subcultures",
+                "subculture"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "succeed_always_override",
+              "field_type": "Boolean",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
@@ -7521,8 +7524,25 @@
               "field_description": ""
             },
             {
-              "field_name": "new_field",
+              "field_name": "use_limitation_type_override",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "limitation_type_override",
               "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_entity_type_limitations",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "culling_distance_override",
+              "field_type": "Float",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
@@ -9792,7 +9812,7 @@
               "field_type": "OptionalStringU8",
               "field_is_key": false,
               "field_is_reference": null,
-              "field_description": ""
+              "field_description": "A semi-colon separated list of tile upgrades required to for this entry to be used."
             }
           ]
         }
@@ -12641,7 +12661,10 @@
               "field_name": "campaign_pre_battle_intro_movie",
               "field_type": "OptionalStringU8",
               "field_is_key": false,
-              "field_is_reference": null,
+              "field_is_reference": [
+                "videos",
+                "video_name"
+              ],
               "field_description": ""
             }
           ]
@@ -13265,16 +13288,16 @@
           "version": 0,
           "fields": [
             {
-              "field_name": "vortex_collision_type",
+              "field_name": "description",
               "field_type": "StringU8",
-              "field_is_key": true,
+              "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
             },
             {
-              "field_name": "battle_vortex_collision_responses_tables",
+              "field_name": "vortex_collision_type",
               "field_type": "StringU8",
-              "field_is_key": false,
+              "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
             }
@@ -13289,16 +13312,16 @@
           "version": 0,
           "fields": [
             {
-              "field_name": "suggested_launch_source",
+              "field_name": "description",
               "field_type": "StringU8",
-              "field_is_key": true,
+              "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
             },
             {
-              "field_name": "new_field",
+              "field_name": "suggested_launch_source",
               "field_type": "StringU8",
-              "field_is_key": false,
+              "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
             }
@@ -13891,8 +13914,11 @@
               "field_name": "composite_scene_group",
               "field_type": "OptionalStringU8",
               "field_is_key": false,
-              "field_is_reference": null,
-              "field_description": ""
+              "field_is_reference": [
+                "battle_vortex_composite_scene_groups",
+                "group_id"
+              ],
+              "field_description": "Via group we can configure multiple composite scenes per Vortex Spell"
             }
           ]
         }
@@ -14714,14 +14740,14 @@
               "field_type": "OptionalStringU8",
               "field_is_key": false,
               "field_is_reference": null,
-              "field_description": ""
+              "field_description": "Defines model to use while the engine gets destroyed"
             },
             {
               "field_name": "destruct_anim",
               "field_type": "OptionalStringU8",
               "field_is_key": false,
               "field_is_reference": null,
-              "field_description": ""
+              "field_description": "Defines animation to use while the engine gets destroyed"
             },
             {
               "field_name": "destruct_meta",
@@ -15780,7 +15806,10 @@
               "field_name": "optional_required_horde_commander",
               "field_type": "OptionalStringU8",
               "field_is_key": false,
-              "field_is_reference": null,
+              "field_is_reference": [
+                "agent_subtypes",
+                "key"
+              ],
               "field_description": ""
             }
           ]
@@ -23157,7 +23186,10 @@
               "field_name": "agent_subtype_override",
               "field_type": "OptionalStringU8",
               "field_is_key": false,
-              "field_is_reference": null,
+              "field_is_reference": [
+                "agent_subtypes",
+                "key"
+              ],
               "field_description": ""
             }
           ]
@@ -28506,7 +28538,10 @@
               "field_name": "type",
               "field_type": "StringU8",
               "field_is_key": false,
-              "field_is_reference": null,
+              "field_is_reference": [
+                "campaign_storm_types",
+                "type"
+              ],
               "field_description": ""
             }
           ]
@@ -37635,7 +37670,7 @@
               "field_description": ""
             },
             {
-              "field_name": "new_field",
+              "field_name": "sort_order",
               "field_type": "Integer",
               "field_is_key": false,
               "field_is_reference": null,
@@ -43743,7 +43778,7 @@
               "field_description": ""
             },
             {
-              "field_name": "new_field",
+              "field_name": "description",
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": null,
@@ -46971,21 +47006,21 @@
           "version": 1,
           "fields": [
             {
-              "field_name": "payload",
-              "field_type": "StringU8",
-              "field_is_key": true,
-              "field_is_reference": [
-                "ritual_payloads",
-                "key"
-              ],
-              "field_description": ""
-            },
-            {
               "field_name": "effect_bundle",
               "field_type": "StringU8",
               "field_is_key": true,
               "field_is_reference": [
                 "effect_bundles",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "payload",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "ritual_payloads",
                 "key"
               ],
               "field_description": ""
@@ -49181,10 +49216,20 @@
               "field_description": ""
             },
             {
+              "field_name": "replenish_ammo",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "How much ammunition we want to replenish when phase starts (can be negative if we want to spend), this value is in percentage of unit max ammo"
+            },
+            {
               "field_name": "composite_scene_group",
               "field_type": "OptionalStringU8",
               "field_is_key": false,
-              "field_is_reference": null,
+              "field_is_reference": [
+                "battle_vortex_composite_scene_groups",
+                "group_id"
+              ],
               "field_description": "Composite scene group we need to trigger when the phase starts"
             }
           ]
@@ -54324,11 +54369,24 @@
               "field_description": ""
             },
             {
-              "field_name": "composite_scene_group",
-              "field_type": "StringU8",
+              "field_name": "composite_scene_group_on_wind_up",
+              "field_type": "OptionalStringU8",
               "field_is_key": false,
-              "field_is_reference": null,
-              "field_description": "Composite scene group we need to trigger when the ability starts"
+              "field_is_reference": [
+                "battle_vortex_composite_scene_groups",
+                "group_id"
+              ],
+              "field_description": "Composite scene group we need to trigger when the ability starts winding up"
+            },
+            {
+              "field_name": "composite_scene_group_on_active",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "battle_vortex_composite_scene_groups",
+                "group_id"
+              ],
+              "field_description": "Composite scene group we need to trigger when the ability actives"
             }
           ]
         }
@@ -55776,7 +55834,10 @@
               "field_name": "type",
               "field_type": "StringU8",
               "field_is_key": false,
-              "field_is_reference": null,
+              "field_is_reference": [
+                "campaign_storm_types",
+                "type"
+              ],
               "field_description": ""
             }
           ]
@@ -56845,14 +56906,17 @@
           "version": 1,
           "fields": [
             {
-              "field_name": "culture_sort_order",
+              "field_name": "faction_key",
               "field_type": "StringU8",
-              "field_is_key": false,
-              "field_is_reference": null,
+              "field_is_key": true,
+              "field_is_reference": [
+                "factions",
+                "key"
+              ],
               "field_description": ""
             },
             {
-              "field_name": "new_field",
+              "field_name": "sort_order",
               "field_type": "Integer",
               "field_is_key": false,
               "field_is_reference": null,
@@ -56902,7 +56966,7 @@
             {
               "field_name": "campaign_group",
               "field_type": "StringU8",
-              "field_is_key": false,
+              "field_is_key": true,
               "field_is_reference": [
                 "campaign_groups",
                 "id"
@@ -56914,7 +56978,7 @@
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
-                "start_pos_region_slot_sets",
+                "slot_sets",
                 "key"
               ],
               "field_description": ""
@@ -56940,7 +57004,10 @@
               "field_name": "main_unit_record",
               "field_type": "StringU8",
               "field_is_key": true,
-              "field_is_reference": null,
+              "field_is_reference": [
+                "main_units",
+                "unit"
+              ],
               "field_description": ""
             }
           ]
@@ -56954,24 +57021,30 @@
           "version": 0,
           "fields": [
             {
-              "field_name": "example_field",
+              "field_name": "battle_context",
               "field_type": "StringU8",
               "field_is_key": false,
+              "field_is_reference": [
+                "campaign_bonus_value_battle_context_specifiers",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "key",
+              "field_type": "StringU8",
+              "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
             },
             {
-              "field_name": "new_field",
+              "field_name": "unit_abilities",
               "field_type": "StringU8",
               "field_is_key": false,
-              "field_is_reference": null,
-              "field_description": ""
-            },
-            {
-              "field_name": "new_field",
-              "field_type": "StringU8",
-              "field_is_key": false,
-              "field_is_reference": null,
+              "field_is_reference": [
+                "unit_abilities",
+                "key"
+              ],
               "field_description": ""
             }
           ]
@@ -57002,7 +57075,7 @@
                 "battle_vortex_composite_scene_groups",
                 "group_id"
               ],
-              "field_description": ""
+              "field_description": "Group id, every Vortex Spell under the same group will spawn the same composite scenes"
             },
             {
               "field_name": "id",
@@ -57016,21 +57089,21 @@
               "field_type": "Float",
               "field_is_key": false,
               "field_is_reference": null,
-              "field_description": ""
+              "field_description": "If we need to delay this composite scene triggering"
             },
             {
-              "field_name": "new_field",
+              "field_name": "freeze_position",
               "field_type": "Boolean",
               "field_is_key": false,
               "field_is_reference": null,
-              "field_description": ""
+              "field_description": "Composite scene will respect initial spell position"
             },
             {
-              "field_name": "new_field",
+              "field_name": "freeze_rotation",
               "field_type": "Boolean",
               "field_is_key": false,
               "field_is_reference": null,
-              "field_description": ""
+              "field_description": "Composite scene will respect initial speel rotation"
             }
           ]
         }
@@ -57173,47 +57246,47 @@
             {
               "field_name": "example_field",
               "field_type": "StringU8",
-              "field_is_key": false,
+              "field_is_key": true,
               "field_is_reference": null,
-              "field_description": "delete this field if you see it"
+              "field_description": ""
             },
             {
-              "field_name": "new_field",
+              "field_name": "can_move",
               "field_type": "Boolean",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
             },
             {
-              "field_name": "new_field",
+              "field_name": "can_decay",
               "field_type": "Boolean",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
             },
             {
-              "field_name": "new_field",
+              "field_name": "for_land",
               "field_type": "Boolean",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
             },
             {
-              "field_name": "new_field",
+              "field_name": "for_sea",
               "field_type": "Boolean",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
             },
             {
-              "field_name": "new_field",
+              "field_name": "can_spawn_over_character",
               "field_type": "Boolean",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
             },
             {
-              "field_name": "new_field",
+              "field_name": "respect_excluded_regions_table",
               "field_type": "Boolean",
               "field_is_key": false,
               "field_is_reference": null,
@@ -57273,7 +57346,10 @@
               "field_name": "bonus_value_id",
               "field_type": "StringU8",
               "field_is_key": true,
-              "field_is_reference": null,
+              "field_is_reference": [
+                "campaign_bonus_value_id_unit_missile_weapons",
+                "id"
+              ],
               "field_description": ""
             },
             {
@@ -57314,11 +57390,11 @@
               "field_description": ""
             },
             {
-              "field_name": "slot_set",
+              "field_name": "slot_template",
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
-                "slot_sets",
+                "slot_templates",
                 "key"
               ],
               "field_description": ""
@@ -57334,27 +57410,33 @@
               "field_description": ""
             },
             {
-              "field_name": "slot_template",
+              "field_name": "slot_set",
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
-                "slot_templates",
+                "slot_sets",
                 "key"
               ],
               "field_description": ""
             },
             {
-              "field_name": "new_field",
-              "field_type": "Boolean",
+              "field_name": "building_level",
+              "field_type": "OptionalStringU8",
               "field_is_key": false,
-              "field_is_reference": null,
+              "field_is_reference": [
+                "building_levels",
+                "level_name"
+              ],
               "field_description": ""
             },
             {
-              "field_name": "new_field",
+              "field_name": "composite_scene",
               "field_type": "OptionalStringU8",
               "field_is_key": false,
-              "field_is_reference": null,
+              "field_is_reference": [
+                "campaign_composite_scenes",
+                "id"
+              ],
               "field_description": ""
             }
           ]
@@ -57395,42 +57477,42 @@
               "field_description": ""
             },
             {
-              "field_name": "image_paths_or_button_coordinates",
+              "field_name": "option_2_images",
               "field_type": "OptionalStringU8",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
             },
             {
-              "field_name": "new_field",
+              "field_name": "option_3_images",
               "field_type": "OptionalStringU8",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
             },
             {
-              "field_name": "new_field",
+              "field_name": "option_4_images",
               "field_type": "OptionalStringU8",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
             },
             {
-              "field_name": "new_field",
+              "field_name": "option_1_images",
               "field_type": "OptionalStringU8",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
             },
             {
-              "field_name": "is_buttons",
-              "field_type": "Boolean",
+              "field_name": "color_blind_mode_overlay",
+              "field_type": "OptionalStringU8",
               "field_is_key": false,
               "field_is_reference": null,
-              "field_description": "Is this for buttons on image or images on buttons?"
+              "field_description": ""
             },
             {
-              "field_name": "new_field",
+              "field_name": "overlay_image",
               "field_type": "OptionalStringU8",
               "field_is_key": false,
               "field_is_reference": null,
@@ -57449,21 +57531,27 @@
             {
               "field_name": "missile_weapon",
               "field_type": "StringU8",
-              "field_is_key": true,
-              "field_is_reference": null,
+              "field_is_key": false,
+              "field_is_reference": [
+                "missile_weapons",
+                "key"
+              ],
               "field_description": ""
             },
             {
-              "field_name": "new_field",
+              "field_name": "unit",
               "field_type": "StringU8",
               "field_is_key": false,
-              "field_is_reference": null,
+              "field_is_reference": [
+                "main_units",
+                "unit"
+              ],
               "field_description": ""
             },
             {
               "field_name": "id",
               "field_type": "LongInteger",
-              "field_is_key": false,
+              "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
             }
