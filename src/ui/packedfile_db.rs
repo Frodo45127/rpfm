@@ -3413,7 +3413,7 @@ impl PackedFileDBDecoder {
         // Get the PackedFile.
         sender_qt.send(Commands::GetPackedFile).unwrap();
         sender_qt_data.send(Data::VecString(packed_file_path.to_vec())).unwrap();
-        let packed_file = match check_message_validity_recv2(&receiver_qt) {
+        let mut packed_file = match check_message_validity_recv2(&receiver_qt) {
             Data::PackedFile(data) => data,
             Data::Error(error) => return Err(error),
             _ => panic!(THREADS_MESSAGE_ERROR),
@@ -3475,7 +3475,7 @@ impl PackedFileDBDecoder {
                 };
 
                 // Check if it can be read as a table.
-                let packed_file_data = packed_file.get_data()?;
+                let packed_file_data = packed_file.get_data_and_keep_it()?;
                 match DB::get_header_data(&packed_file_data) {
 
                     // If we succeed at decoding his header...

@@ -610,10 +610,10 @@ impl PackFile {
         self.timestamp = get_current_time();
         file.write(&encode_integer_u32(self.timestamp))?;
 
-        // Write the indexes and the data of the PackedFiles.
+        // Write the indexes and the data of the PackedFiles. No need to keep the data, as it has been preloaded before.
         file.write(&pack_file_index)?;
         file.write(&packed_file_index)?;
-        for packed_file in &mut self.packed_files { file.write(&(packed_file.get_data()?))?; }
+        for packed_file in &self.packed_files { file.write(&(packed_file.get_data()?))?; }
 
         // If nothing has failed, return success.
         Ok(())
@@ -674,7 +674,7 @@ impl PackedFile {
         Ok(())
     }
 
-    /// This function loads the data from the disk if it's not loaded yet.
+    /// This function reads the data from the disk if it's not loaded yet, and return it. This does not store the data in memory.
     pub fn get_data(&self) -> Result<Vec<u8>> {
         match self.data {
             PackedFileData::OnMemory(ref data) => return Ok(data.to_vec()),
@@ -706,6 +706,43 @@ impl PackedFile {
                 }
             }
         }
+    }
+
+    /// This function reads the data from the disk if it's not loaded yet (or from memory otherwise), and keep it in memory for faster access.
+    pub fn get_data_and_keep_it(&mut self) -> Result<Vec<u8>> {
+        let data = match self.data {
+            PackedFileData::OnMemory(ref data) => return Ok(data.to_vec()),
+            PackedFileData::OnDisk(ref file, position, size, (is_encrypted, pack_file_version)) => {
+                if is_encrypted {
+                    match pack_file_version {
+                        PFHVersion::PFH5 => {
+                            let padding = 8 - (size % 8);
+                            let padded_size = if padding < 8 { size + padding } else { size };
+                            let mut data = vec![0; padded_size as usize];
+                            file.lock().unwrap().seek(SeekFrom::Start(position))?;
+                            file.lock().unwrap().read_exact(&mut data)?;
+                            decrypt_file(&data, size as usize, false)
+                        }
+
+                        PFHVersion::PFH4 => {
+                            let mut data = vec![0; size as usize];
+                            file.lock().unwrap().seek(SeekFrom::Start(position))?;
+                            file.lock().unwrap().read_exact(&mut data)?;
+                            decrypt_file2(&data, false)
+                        }
+                    }
+                }
+                else {
+                    let mut data = vec![0; size as usize];
+                    file.lock().unwrap().seek(SeekFrom::Start(position))?;
+                    file.lock().unwrap().read_exact(&mut data)?;
+                    data
+                }
+            }
+        };
+
+        self.data = PackedFileData::OnMemory(data.clone());
+        Ok(data)
     }
 
     /// This function loads the data from the disk if it's not loaded yet.

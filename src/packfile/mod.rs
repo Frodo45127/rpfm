@@ -364,7 +364,7 @@ pub fn add_packedfile_to_packfile(
 
                 // Get the destination PackedFile. If it fails, CTD because it's a code problem.
                 let packed_file = &mut pack_file_destination.packed_files.iter_mut().find(|x| x.path == path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?;
-                packed_file.set_data(pack_file_source.packed_files.iter().find(|x| x.path == path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?.get_data()?.clone());
+                packed_file.set_data(pack_file_source.packed_files.iter().find(|x| x.path == path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?.get_data()?);
 
                 // Return success.
                 Ok(())
@@ -375,7 +375,7 @@ pub fn add_packedfile_to_packfile(
 
                 // We get the PackedFile, clone it and add it to our own PackFile.
                 let mut packed_file = pack_file_source.packed_files.iter().find(|x| x.path == path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?.clone();
-                packed_file.get_data()?;
+                packed_file.load_data()?;
                 pack_file_destination.add_packedfiles(vec![packed_file; 1]);
 
                 // Return success.
@@ -400,7 +400,7 @@ pub fn add_packedfile_to_packfile(
 
                         // Then, we get his data.
                         let index = pack_file_source.packed_files.iter().position(|x| x.path == packed_file.path).unwrap();
-                        packed_file.set_data(pack_file_source.packed_files[index].get_data()?.clone());
+                        packed_file.set_data(pack_file_source.packed_files[index].get_data()?);
                     }
 
                     // Otherwise...
@@ -408,7 +408,7 @@ pub fn add_packedfile_to_packfile(
 
                         // We get the PackedFile, clone it and add it to our own PackFile.
                         let mut packed_file = pack_file_source.packed_files.iter().find(|x| x.path == packed_file.path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?.clone();
-                        packed_file.get_data()?;
+                        packed_file.load_data()?;
                         pack_file_destination.add_packedfiles(vec![packed_file]);
                     }
                 }
@@ -432,7 +432,7 @@ pub fn add_packedfile_to_packfile(
 
                     // Then, we get his data.
                     let index = pack_file_source.packed_files.iter().position(|x| x.path == packed_file.path).unwrap();
-                    packed_file.set_data(pack_file_source.packed_files[index].get_data()?.clone())
+                    packed_file.set_data(pack_file_source.packed_files[index].get_data()?)
                 }
 
                 // Otherwise...
@@ -440,7 +440,7 @@ pub fn add_packedfile_to_packfile(
 
                     // We get the PackedFile.
                     let mut packed_file = pack_file_source.packed_files.iter().find(|x| x.path == packed_file.path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?.clone();
-                    packed_file.get_data()?;
+                    packed_file.load_data()?;
                     pack_file_destination.add_packedfiles(vec![packed_file]);
                 }
             }
@@ -514,13 +514,9 @@ pub fn extract_from_packfile(
     // Get what it's what we want to extract.
     match get_type_of_selected_path(tree_path, pack_file) {
 
-        // If it's a file...
+        // If it's a file, we try to create and write the file.
         TreePathType::File(path) => {
-
-            // We try to create the File.
             let mut file = BufWriter::new(File::create(&extracted_path)?);
-
-            // And try to write it.
             match file.write_all(&pack_file.packed_files.iter().find(|x| x.path == path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?.get_data()?){
                 Ok(_) => Ok(format!("File extracted successfully:\n{}", extracted_path.display())),
                 Err(_) => Err(ErrorKind::ExtractError(vec![format!("<li>{}</li>", extracted_path.display().to_string());1]))?
@@ -840,7 +836,7 @@ pub fn patch_siege_ai (
                 || x == "catchment_08_layer_bmd_data.bin"
                 || x == "catchment_09_layer_bmd_data.bin" {
 
-                    let mut data: Vec<u8> = i.get_data()?.to_vec();
+                    let mut data: Vec<u8> = i.get_data()?;
                     if data.windows(19).find(|window: &&[u8]
                         |String::from_utf8_lossy(window) == "AIH_SIEGE_AREA_NODE") != None {
 
@@ -1113,14 +1109,14 @@ pub fn optimize_packfile(
             .collect::<Vec<DB>>()
     } else { vec![] };
 
-    for mut packed_file in pack_file.packed_files.iter_mut() {
+    for mut packed_file in &mut pack_file.packed_files {
 
         // If it's a DB table and we have an schema...
         if packed_file.path.len() == 3 && packed_file.path[0] == "db" && !game_dbs.is_empty() {
             if let Some(schema) = schema {
 
                 // Try to decode our table.
-                let mut optimized_table = match DB::read(&(packed_file.get_data()?), &packed_file.path[1], &schema) {
+                let mut optimized_table = match DB::read(&(packed_file.get_data_and_keep_it()?), &packed_file.path[1], &schema) {
                     Ok(table) => table,
                     Err(_) => continue,
                 };
@@ -1150,7 +1146,7 @@ pub fn optimize_packfile(
         else if packed_file.path.last().unwrap().ends_with(".loc") && !game_locs.is_empty() {
 
             // Try to decode our Loc. If it's empty, skip it and continue with the next one.
-            let mut optimized_loc = match Loc::read(&(packed_file.get_data()?)) {
+            let mut optimized_loc = match Loc::read(&(packed_file.get_data_and_keep_it()?)) {
                 Ok(loc) => if !loc.entries.is_empty() { loc } else { continue },
                 Err(_) => continue,
             };

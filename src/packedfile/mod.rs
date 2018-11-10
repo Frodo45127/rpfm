@@ -224,7 +224,7 @@ pub fn tsv_mass_import(
 pub fn tsv_mass_export(
     export_path: &PathBuf,
     schema: &Option<Schema>,
-    pack_file: &PackFile
+    pack_file: &mut PackFile
 ) -> Result<String> {
 
     // Lists of PackedFiles that couldn't be exported for one thing or another and exported PackedFile names,
@@ -232,7 +232,7 @@ pub fn tsv_mass_export(
     let mut error_list = vec![];
     let mut exported_files = vec![];
 
-    for packed_file in &pack_file.packed_files {
+    for packed_file in &mut pack_file.packed_files {
 
         // We check if his path is empty first to avoid false positives related with "starts_with" function.
         if !packed_file.path.is_empty() {
@@ -241,7 +241,7 @@ pub fn tsv_mass_export(
             if packed_file.path.starts_with(&["db".to_owned()]) && packed_file.path.len() == 3 {
                 match schema {
                     Some(schema) => {
-                        match DB::read(&(packed_file.get_data()?), &packed_file.path[1], &schema) {
+                        match DB::read(&(packed_file.get_data_and_keep_it()?), &packed_file.path[1], &schema) {
                             Ok(db) => {
 
                                 // His name will be "db_name_file_name.tsv". If that's taken, we'll add an index until we find one available.
@@ -270,7 +270,7 @@ pub fn tsv_mass_export(
 
             // Otherwise, we check if it's a Loc PackedFile, and try to decode it and export it.
             else if packed_file.path.last().unwrap().ends_with(".loc") {
-                match Loc::read(&(packed_file.get_data()?)) {
+                match Loc::read(&(packed_file.get_data_and_keep_it()?)) {
                     Ok(loc) => {
 
                         // His name will be "file_name.tsv". If that's taken, we'll add an index until we find one available.

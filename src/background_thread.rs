@@ -338,7 +338,7 @@ pub fn background_loop(
                             for i in pack_file_decoded.packed_files.iter_mut() {
                                 if i.path.starts_with(&["db".to_owned()]) {
                                     if let Some(ref schema) = schema {
-                                        if let Err(_) = db::DB::read(&(i.get_data().unwrap()), &i.path[1], &schema) {
+                                        if let Err(_) = db::DB::read(&(i.get_data_and_keep_it().unwrap()), &i.path[1], &schema) {
                                             match db::DB::get_header_data(&i.get_data().unwrap()) {
                                                 Ok((_, entry_count, _)) => {
                                                     if entry_count > 0 {
@@ -617,7 +617,7 @@ pub fn background_loop(
 
                         // Try to export all the exportable files to the provided path.
                         let path = if let Data::PathBuf(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-                        match tsv_mass_export(&path, &schema, &pack_file_decoded) {
+                        match tsv_mass_export(&path, &schema, &mut pack_file_decoded) {
                             Ok(result) => sender.send(Data::String(result)).unwrap(),
                             Err(error) => sender.send(Data::Error(error)).unwrap(),
                         }
@@ -630,11 +630,11 @@ pub fn background_loop(
                         let path = if let Data::VecString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                         // Find the PackedFile we want and send back the response.
-                        match pack_file_decoded.packed_files.iter().find(|x| x.path == path) {
-                            Some(packed_file) => {
+                        match pack_file_decoded.packed_files.iter_mut().find(|x| x.path == path) {
+                            Some(mut packed_file) => {
 
                                 // We try to decode it as a Loc PackedFile.
-                                match packed_file.get_data() {
+                                match packed_file.get_data_and_keep_it() {
                                     Ok(data) => {
                                         match Loc::read(&data) {
                                             Ok(packed_file_decoded) => sender.send(Data::Loc(packed_file_decoded)).unwrap(),
@@ -697,11 +697,11 @@ pub fn background_loop(
                             Some(ref schema) => {
 
                                 // Find the PackedFile we want and send back the response.
-                                match pack_file_decoded.packed_files.iter().find(|x| x.path == path) {
-                                    Some(packed_file) => {
+                                match pack_file_decoded.packed_files.iter_mut().find(|x| x.path == path) {
+                                    Some(mut packed_file) => {
 
                                         // We try to decode it as a DB PackedFile.
-                                        match packed_file.get_data() {
+                                        match packed_file.get_data_and_keep_it() {
                                             Ok(data) => {
                                                 match DB::read(
                                                     &data,
@@ -768,9 +768,9 @@ pub fn background_loop(
                         let path = if let Data::VecString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                         // Find the PackedFile we want and send back the response.
-                        match pack_file_decoded.packed_files.iter().find(|x| x.path == path) {
-                            Some(packed_file) => {
-                                match packed_file.get_data() {
+                        match pack_file_decoded.packed_files.iter_mut().find(|x| x.path == path) {
+                            Some(mut packed_file) => {
+                                match packed_file.get_data_and_keep_it() {
                                     Ok(data) => {
                                         
                                         // NOTE: This only works for UTF-8 and ISO_8859_1 encoded files. Check their encoding before adding them here to be decoded.
@@ -821,9 +821,9 @@ pub fn background_loop(
                         let path = if let Data::VecString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                         // Find the PackedFile we want and send back the response.
-                        match pack_file_decoded.packed_files.iter().find(|x| x.path == path) {
-                            Some(packed_file) => {
-                                match packed_file.get_data() {
+                        match pack_file_decoded.packed_files.iter_mut().find(|x| x.path == path) {
+                            Some(mut packed_file) => {
+                                match packed_file.get_data_and_keep_it() {
                                     Ok(data) => {
                                         
                                         // We try to decode it as a RigidModel.
@@ -897,9 +897,9 @@ pub fn background_loop(
                         let path = if let Data::VecString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
 
                         // Find the PackedFile we want and send back the response.
-                        match pack_file_decoded.packed_files.iter().find(|x| x.path == path) {
-                            Some(packed_file) => {
-                                match packed_file.get_data() {
+                        match pack_file_decoded.packed_files.iter_mut().find(|x| x.path == path) {
+                            Some(mut packed_file) => {
+                                match packed_file.get_data_and_keep_it() {
                                     Ok(image_data) => {
                                         
                                         let image_name = &packed_file.path.last().unwrap().to_owned();
@@ -986,8 +986,8 @@ pub fn background_loop(
 
                         // Wait until we get the needed data from the UI thread.
                         let table_name = if let Data::String(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
-                        if let Some(vanilla_table) = dependency_database.iter().filter(|x| x.path.len() == 3).find(|x| x.path[1] == table_name) {
-                            match DB::get_header_data(&vanilla_table.get_data().unwrap()) {
+                        if let Some(mut vanilla_table) = dependency_database.iter_mut().filter(|x| x.path.len() == 3).find(|x| x.path[1] == table_name) {
+                            match DB::get_header_data(&vanilla_table.get_data_and_keep_it().unwrap()) {
                                 Ok(data) => sender.send(Data::U32(data.0)).unwrap(),
                                 Err(error) => sender.send(Data::Error(error)).unwrap(),
                             }
@@ -1040,11 +1040,11 @@ pub fn background_loop(
                         // Wait until we get the needed data from the UI thread.
                         let dependency_data = if let Data::StringString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
                         let mut data = vec![];
-                        let mut iter = dependency_database.iter();
+                        let mut iter = dependency_database.iter_mut();
                         if !dependency_data.0.is_empty() && !dependency_data.1.is_empty() {
-                            while let Some(packed_file) = iter.find(|x| x.path.starts_with(&["db".to_owned(), format!("{}_tables", dependency_data.0)])) {
+                            while let Some(mut packed_file) = iter.find(|x| x.path.starts_with(&["db".to_owned(), format!("{}_tables", dependency_data.0)])) {
                                 if let Some(ref schema) = schema {
-                                    if let Ok(table) = DB::read(&packed_file.get_data().unwrap(), &format!("{}_tables", dependency_data.0), &schema) {
+                                    if let Ok(table) = DB::read(&packed_file.get_data_and_keep_it().unwrap(), &format!("{}_tables", dependency_data.0), &schema) {
                                         if let Some(column_index) = table.table_definition.fields.iter().position(|x| x.field_name == dependency_data.1) {
                                             for row in table.entries.iter() {
 
@@ -1064,11 +1064,11 @@ pub fn background_loop(
                         }
 
                         // The same for our own PackFile.
-                        let mut iter = pack_file_decoded.packed_files.iter();
+                        let mut iter = pack_file_decoded.packed_files.iter_mut();
                         if !dependency_data.0.is_empty() && !dependency_data.1.is_empty() {
-                            while let Some(packed_file) = iter.find(|x| x.path.starts_with(&["db".to_owned(), format!("{}_tables", dependency_data.0)])) {
+                            while let Some(mut packed_file) = iter.find(|x| x.path.starts_with(&["db".to_owned(), format!("{}_tables", dependency_data.0)])) {
                                 if let Some(ref schema) = schema {
-                                    if let Ok(packed_file_data) = packed_file.get_data() {
+                                    if let Ok(packed_file_data) = packed_file.get_data_and_keep_it() {
                                         if let Ok(table) = DB::read(&packed_file_data, &format!("{}_tables", dependency_data.0), &schema) {
                                             if let Some(column_index) = table.table_definition.fields.iter().position(|x| x.field_name == dependency_data.1) {
                                                 for row in table.entries.iter() {
@@ -1113,7 +1113,7 @@ pub fn background_loop(
                                 let mut error = false;
 
                                 // Extract every lua file in the PackFile, respecting his path.
-                                for packed_file in &pack_file_decoded.packed_files {
+                                for packed_file in &mut pack_file_decoded.packed_files {
                                     if packed_file.path.last().unwrap().ends_with(".lua") {
                                         let path: PathBuf = temp_folder_path.to_path_buf().join(packed_file.path.iter().collect::<PathBuf>());
 
@@ -1122,7 +1122,7 @@ pub fn background_loop(
                                         path_base.pop();
                                         if !path_base.is_dir() { DirBuilder::new().recursive(true).create(&path_base).unwrap(); }
 
-                                        match packed_file.get_data() {
+                                        match packed_file.get_data_and_keep_it() {
                                             Ok(data) => {
                                                 File::create(&path).unwrap().write_all(&data).unwrap();
                                                 
@@ -1166,8 +1166,8 @@ pub fn background_loop(
                         let regex = Regex::new(&pattern);
                         let mut matches: Vec<GlobalMatch> = vec![];
                         let mut error = false;
-                        for packed_file in &pack_file_decoded.packed_files {
-                            let path = &packed_file.path;
+                        for packed_file in &mut pack_file_decoded.packed_files {
+                            let path = packed_file.path.to_vec();
                             let packedfile_name = path.last().unwrap().to_owned();
                             let mut packed_file_type: &str =
 
@@ -1209,7 +1209,7 @@ pub fn background_loop(
                                 // Otherwise, we don't have a decoder for that PackedFile... yet.
                                 else { "None" };
 
-                            let data = match packed_file.get_data() {
+                            let data = match packed_file.get_data_and_keep_it() {
                                 Ok(data) => data,
                                 Err(_) => {
                                     sender.send(Data::Error(Error::from(ErrorKind::PackedFileDataCouldNotBeLoaded))).unwrap();
@@ -1298,7 +1298,7 @@ pub fn background_loop(
                         let regex = Regex::new(&pattern);
                         let mut matches: Vec<GlobalMatch> = vec![];
                         let mut error = false;
-                        for packed_file in &pack_file_decoded.packed_files {
+                        for packed_file in &mut pack_file_decoded.packed_files {
 
                             // We need to take into account that we may pass here incomplete paths.
                             let mut is_in_folder = false;
@@ -1312,7 +1312,7 @@ pub fn background_loop(
                             }
 
                             if paths.contains(&packed_file.path) || is_in_folder {
-                                let path = &packed_file.path;
+                                let path = packed_file.path.to_vec();
                                 let packedfile_name = path.last().unwrap().to_owned();
                                 let mut packed_file_type: &str =
 
@@ -1354,7 +1354,7 @@ pub fn background_loop(
                                     // Otherwise, we don't have a decoder for that PackedFile... yet.
                                     else { "None" };
 
-                                let data = match packed_file.get_data() {
+                                let data = match packed_file.get_data_and_keep_it() {
                                     Ok(data) => data,
                                     Err(_) => {
                                         sender.send(Data::Error(Error::from(ErrorKind::PackedFileDataCouldNotBeLoaded))).unwrap();
@@ -1444,15 +1444,14 @@ pub fn background_loop(
 
                         // Find the PackedFile and get a mut ref to it, so we can "update" his data.
                         match pack_file_decoded.packed_files.iter_mut().find(|x| x.path == path) {
-                            Some(ref mut packed_file) => {
-
+                            Some(mut packed_file) => {
 
                                 // Create a temporal file for the PackedFile in the TEMP directory of the filesystem.
                                 let mut temp_path = temp_dir();
                                 temp_path.push(packed_file.path.last().unwrap().to_owned());
                                 match File::create(&temp_path) {
                                     Ok(mut file) => {
-                                        match packed_file.get_data() {
+                                        match packed_file.get_data_and_keep_it() {
                                             Ok(data) => {
 
                                                 // If there is an error while trying to write the image to the TEMP folder, report it.
