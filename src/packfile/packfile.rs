@@ -563,7 +563,8 @@ impl PackFile {
 
         // For some bizarre reason, if the PackedFiles are not alphabetically sorted they may or may not crash the game for particular people.
         // So, to fix it, we have to sort all the PackedFiles here by path.
-        self.packed_files.sort_unstable_by(|a, b| a.path.cmp(&b.path));
+        // NOTE: This sorting has to be CASE INSENSITIVE. This means for "ac", "Ab" and "aa" it'll be "aa", "Ab", "ac".
+        self.packed_files.sort_unstable_by(|a, b| a.path.join("\\").to_lowercase().cmp(&b.path.join("\\").to_lowercase()));
         
         // We ensure that all the data is loaded before attemting to save.
         for packed_file in &mut self.packed_files { packed_file.load_data()?; }
