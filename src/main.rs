@@ -155,8 +155,8 @@ lazy_static! {
             display_name: "Warhammer 2".to_owned(),
             id: PFHVersion::PFH5,
             schema: "schema_wh.json".to_owned(),
-            db_pack: "data.pack".to_owned(),
-            loc_pack: "local_en.pack".to_owned(),
+            db_packs: vec!["data.pack".to_owned()],
+            loc_packs: vec!["local_en.pack".to_owned()],
             steam_id: Some(594570),
             ca_types_file: Some("ca_types_wh2".to_owned()),
             supports_editing: true,
@@ -167,20 +167,32 @@ lazy_static! {
             display_name: "Warhammer".to_owned(),
             id: PFHVersion::PFH4,
             schema: "schema_wh.json".to_owned(),
-            db_pack: "data.pack".to_owned(),
-            loc_pack: "local_en.pack".to_owned(),
+            db_packs: vec!["data.pack".to_owned()],
+            loc_packs: vec!["local_en.pack".to_owned()],
             steam_id: Some(364360),
             ca_types_file: None,
             supports_editing: true,
         });
+
+        // Thrones of Britannia
+        // map.insert("thrones_of_britannia", GameInfo {
+        //     display_name: "Thrones of Britannia".to_owned(),
+        //     id: PFHVersion::PFH4,
+        //     schema: "schema_tob.json".to_owned(),
+        //     db_pack: "data.pack".to_owned(),
+        //     loc_pack: "local_en.pack".to_owned(),
+        //     steam_id: Some(712100),
+        //     ca_types_file: None,
+        //     supports_editing: true,
+        // });
 
         // Attila
         map.insert("attila", GameInfo {
             display_name: "Attila".to_owned(),
             id: PFHVersion::PFH4,
             schema: "schema_att.json".to_owned(),
-            db_pack: "data.pack".to_owned(),
-            loc_pack: "local_en.pack".to_owned(),
+            db_packs: vec!["data.pack".to_owned()],
+            loc_packs: vec!["local_en.pack".to_owned()],
             steam_id: Some(325610),
             ca_types_file: None,
             supports_editing: true,
@@ -191,12 +203,48 @@ lazy_static! {
             display_name: "Rome 2".to_owned(),
             id: PFHVersion::PFH4,
             schema: "schema_rom2.json".to_owned(),
-            db_pack: "data_rome2.pack".to_owned(),
-            loc_pack: "local_en.pack".to_owned(),
+            db_packs: vec!["data_rome2.pack".to_owned()],
+            loc_packs: vec!["local_en.pack".to_owned()],
             steam_id: Some(214950),
             ca_types_file: None,
             supports_editing: true,
         });
+
+        // Shogun 2
+        map.insert("shogun_2", GameInfo {
+            display_name: "Shogun 2".to_owned(),
+            id: PFHVersion::PFH3,
+            schema: "schema_sho2.json".to_owned(),
+            db_packs: vec!["data.pack".to_owned()],
+            loc_packs: vec!["local_en.pack".to_owned()],
+            steam_id: Some(34330),
+            ca_types_file: None,
+            supports_editing: true,
+        });
+
+        // // Napoleon
+        // map.insert("napoleon", GameInfo {
+        //     display_name: "Napoleon".to_owned(),
+        //     id: PFHVersion::PFH2,
+        //     schema: "schema_nap.json".to_owned(),
+        //     db_pack: "data.pack".to_owned(),
+        //     loc_pack: "local_en.pack".to_owned(),
+        //     steam_id: Some(34030),
+        //     ca_types_file: None,
+        //     supports_editing: true,
+        // });
+
+        // // Empire
+        // map.insert("empire", GameInfo {
+        //     display_name: "Empire".to_owned(),
+        //     id: PFHVersion::PFH0,
+        //     schema: "schema_emp.json".to_owned(),
+        //     db_pack: "data.pack".to_owned(),
+        //     loc_pack: "local_en.pack".to_owned(),
+        //     steam_id: Some(10500),
+        //     ca_types_file: None,
+        //     supports_editing: true,
+        // });
 
         // NOTE: There are things that depend on the order of this list, and this game must ALWAYS be the last one.
         // Otherwise, stuff that uses this list will probably break.
@@ -205,8 +253,8 @@ lazy_static! {
             display_name: "Arena".to_owned(),
             id: PFHVersion::PFH5,
             schema: "schema_are.json".to_owned(),
-            db_pack: "wad.pack".to_owned(),
-            loc_pack: "local_ex.pack".to_owned(),
+            db_packs: vec!["wad.pack".to_owned()],
+            loc_packs: vec!["local_ex.pack".to_owned()],
             steam_id: None,
             ca_types_file: None,
             supports_editing: false,
@@ -359,6 +407,7 @@ pub struct AppUI {
     pub warhammer: *mut Action,
     pub attila: *mut Action,
     pub rome_2: *mut Action,
+    pub shogun_2: *mut Action,
     pub arena: *mut Action,
 
     pub game_selected_group: *mut ActionGroup,
@@ -382,6 +431,9 @@ pub struct AppUI {
     
     // Rome 2's actions.
     pub rom2_optimize_packfile: *mut Action,
+
+    // Shogun 2's actions.
+    pub sho2_optimize_packfile: *mut Action,
 
     //-------------------------------------------------------------------------------//
     // "About" menu.
@@ -611,6 +663,7 @@ fn main() {
         let menu_warhammer = unsafe { menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("War&hammer")) };
         let menu_attila = unsafe { menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("&Attila")) };
         let menu_rome_2 = unsafe { menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("&Rome 2")) };
+        let menu_shogun_2 = unsafe { menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("&Shogun 2")) };
         
         // Contextual Menu for the TreeView.
         let mut folder_tree_view_context_menu = Menu::new(());
@@ -667,6 +720,7 @@ fn main() {
             warhammer: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("War&hammer")),
             attila: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("&Attila")),
             rome_2: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("R&ome 2")),
+            shogun_2: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("&Shogun 2")),
             arena: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("A&rena")),
 
             game_selected_group: ActionGroup::new(menu_bar_game_seleted.as_mut().unwrap().static_cast_mut()).into_raw(),
@@ -690,8 +744,11 @@ fn main() {
             // Attila's actions.
             att_optimize_packfile: menu_attila.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
             
-            // Rome 2'a actions.
+            // Rome 2's actions.
             rom2_optimize_packfile: menu_rome_2.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
+
+            // Shogun 2's actions.
+            sho2_optimize_packfile: menu_shogun_2.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
 
             //-------------------------------------------------------------------------------//
             // "About" menu.
@@ -772,11 +829,13 @@ fn main() {
         unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.warhammer); }
         unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.attila); }
         unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.rome_2); }
+        unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.shogun_2); }
         unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.arena); }
         unsafe { app_ui.warhammer_2.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.warhammer.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.attila.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.rome_2.as_mut().unwrap().set_checkable(true); }
+        unsafe { app_ui.shogun_2.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.arena.as_mut().unwrap().set_checkable(true); }
 
         // Arena is special, so separate it from the rest.
@@ -1041,6 +1100,7 @@ fn main() {
         unsafe { app_ui.warhammer.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Warhammer' as 'Game Selected'.")); }
         unsafe { app_ui.attila.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Attila' as 'Game Selected'.")); }
         unsafe { app_ui.rome_2.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Rome 2' as 'Game Selected'.")); }
+        unsafe { app_ui.shogun_2.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Shogun 2' as 'Game Selected'.")); }
         unsafe { app_ui.arena.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Arena' as 'Game Selected'.")); }
 
         // Menu bar, Special Stuff.
@@ -1162,6 +1222,7 @@ fn main() {
         unsafe { app_ui.warhammer.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
         unsafe { app_ui.attila.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
         unsafe { app_ui.rome_2.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
+        unsafe { app_ui.shogun_2.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
         unsafe { app_ui.arena.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
 
         // Try to get the Game Selected. This should never fail, so CTD if it does it.
@@ -1174,7 +1235,8 @@ fn main() {
             "warhammer" => unsafe { app_ui.warhammer.as_mut().unwrap().trigger(); }
             "attila" => unsafe { app_ui.attila.as_mut().unwrap().trigger(); }
             "arena" => unsafe { app_ui.arena.as_mut().unwrap().trigger(); }
-            "rome_2" | _ => unsafe { app_ui.rome_2.as_mut().unwrap().trigger(); }
+            "rome_2" => unsafe { app_ui.rome_2.as_mut().unwrap().trigger(); }
+            "shogun_2" | _ => unsafe { app_ui.shogun_2.as_mut().unwrap().trigger(); }
         }
 
         //-----------------------------------------------------//
@@ -1345,13 +1407,13 @@ fn main() {
                 match check_message_validity_tryrecv(&receiver_qt) {
 
                     // If we succeed, we should receive the new "Last Modified Time".
-                    Data::U32(date) => {
+                    Data::I64(date) => {
 
                         // Set the mod as "Not Modified".
                         *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
 
                         // Update the "Last Modified Date" of the PackFile in the TreeView.
-                        unsafe { app_ui.folder_tree_model.as_mut().unwrap().item(0).as_mut().unwrap().set_tool_tip(&QString::from_std_str(format!("Last Modified: {:?}", NaiveDateTime::from_timestamp(i64::from(date), 0)))); }
+                        unsafe { app_ui.folder_tree_model.as_mut().unwrap().item(0).as_mut().unwrap().set_tool_tip(&QString::from_std_str(format!("Last Modified: {:?}", NaiveDateTime::from_timestamp(date, 0)))); }
                     }
 
                     // If it's an error...
@@ -1461,10 +1523,10 @@ fn main() {
                             match check_message_validity_tryrecv(&receiver_qt) {
 
                                 // If we succeed, we should receive the new "Last Modified Time".
-                                Data::U32(date) => {
+                                Data::I64(date) => {
 
                                     // Update the "Last Modified Date" of the PackFile in the TreeView.
-                                    unsafe { app_ui.folder_tree_model.as_mut().unwrap().item(0).as_mut().unwrap().set_tool_tip(&QString::from_std_str(format!("Last Modified: {:?}", NaiveDateTime::from_timestamp(i64::from(date), 0)))); }
+                                    unsafe { app_ui.folder_tree_model.as_mut().unwrap().item(0).as_mut().unwrap().set_tool_tip(&QString::from_std_str(format!("Last Modified: {:?}", NaiveDateTime::from_timestamp(date, 0)))); }
 
                                     // Get the Selection Model and the Model Index of the PackFile's Cell.
                                     let selection_model;
@@ -1589,6 +1651,7 @@ fn main() {
                                 "warhammer" => unsafe { app_ui.warhammer.as_mut().unwrap().trigger(); },
                                 "attila" => unsafe { app_ui.attila.as_mut().unwrap().trigger(); }
                                 "rome_2" => unsafe { app_ui.rome_2.as_mut().unwrap().trigger(); }
+                                "shogun_2" => unsafe { app_ui.shogun_2.as_mut().unwrap().trigger(); }
                                 "arena" => unsafe { app_ui.arena.as_mut().unwrap().trigger(); },
                                 _ => unreachable!()
                             }
@@ -4692,6 +4755,9 @@ fn enable_packfile_actions(
             "rome_2" => {
                 unsafe { app_ui.rom2_optimize_packfile.as_mut().unwrap().set_enabled(true); }
             },
+            "shogun_2" => {
+                unsafe { app_ui.sho2_optimize_packfile.as_mut().unwrap().set_enabled(true); }
+            },
             _ => {},
         }
     }
@@ -4713,6 +4779,9 @@ fn enable_packfile_actions(
         unsafe { app_ui.att_optimize_packfile.as_mut().unwrap().set_enabled(false); }
 
         // Disable Rome 2 actions...
+        unsafe { app_ui.rom2_optimize_packfile.as_mut().unwrap().set_enabled(false); }
+
+        // Disable Shogun 2 actions...
         unsafe { app_ui.rom2_optimize_packfile.as_mut().unwrap().set_enabled(false); }
     }
 }
@@ -4834,7 +4903,8 @@ fn open_packfile(
                     "warhammer_2" => unsafe { app_ui.warhammer_2.as_mut().unwrap().trigger(); }
                     "warhammer" => unsafe { app_ui.warhammer.as_mut().unwrap().trigger(); }
                     "attila" => unsafe { app_ui.attila.as_mut().unwrap().trigger(); }
-                    "rome_2" | _ => unsafe { app_ui.rome_2.as_mut().unwrap().trigger(); }
+                    "rome_2" => unsafe { app_ui.rome_2.as_mut().unwrap().trigger(); }
+                    "shogun_2" | _ => unsafe { app_ui.shogun_2.as_mut().unwrap().trigger(); }
                 }
 
                 // Set the current "Operational Mode" to `MyMod`.
@@ -4850,14 +4920,12 @@ fn open_packfile(
                     // PFH5 is for Warhammer 2/Arena.
                     PFHVersion::PFH5 => {
 
-                        // If the PackFile has the mysterious byte enabled, it's from Arena.
+                        // If the PackFile has the mysterious byte enabled, it's from Arena. Otherwise, it's from Warhammer 2.
                         if ui_data.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) { unsafe { app_ui.arena.as_mut().unwrap().trigger(); } }
-
-                        // Otherwise, it's from Warhammer 2.
                         else { unsafe { app_ui.warhammer_2.as_mut().unwrap().trigger(); } }
                     },
 
-                    // PFH4 is for Warhammer 1/Attila.
+                    // PFH4 is for Warhammer 1/Attila/Rome 2.
                     PFHVersion::PFH4 => {
 
                         // Get the Game Selected.
@@ -4872,6 +4940,9 @@ fn open_packfile(
                             "rome_2" | _ => unsafe { app_ui.rome_2.as_mut().unwrap().trigger(); }
                         }
                     },
+
+                    // PFH3 is for Shogun 2.
+                    PFHVersion::PFH3 => unsafe { app_ui.shogun_2.as_mut().unwrap().trigger(); }
                 }
 
                 // Set the current "Operational Mode" to `Normal`.
@@ -5239,7 +5310,8 @@ fn build_my_mod_menu(
                             "warhammer_2" => unsafe { app_ui.warhammer_2.as_mut().unwrap().trigger(); }
                             "warhammer" => unsafe { app_ui.warhammer.as_mut().unwrap().trigger(); }
                             "attila" => unsafe { app_ui.attila.as_mut().unwrap().trigger(); }
-                            "rome_2" | _ => unsafe { app_ui.rome_2.as_mut().unwrap().trigger(); }
+                            "rome_2" => unsafe { app_ui.rome_2.as_mut().unwrap().trigger(); }
+                            "shogun_2" | _ => unsafe { app_ui.shogun_2.as_mut().unwrap().trigger(); }
                         }
 
                         // Get his new path from the base "MyMod" path + `mod_game`.
@@ -5276,7 +5348,7 @@ fn build_my_mod_menu(
                         match check_message_validity_tryrecv(&receiver_qt) {
                         
                             // If it's success....
-                            Data::U32(_) => {
+                            Data::I64(_) => {
 
                                 // Destroy whatever it's in the PackedFile's view, to avoid data corruption.
                                 purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);

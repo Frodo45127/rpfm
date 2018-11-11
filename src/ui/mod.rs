@@ -1908,7 +1908,7 @@ pub fn update_treeview(
             // Depending on the PackFile we want to build the TreeView with, we ask for his data.
             if is_extra_packfile { sender_qt.send(Commands::GetPackFileExtraDataForTreeView).unwrap(); }
             else { sender_qt.send(Commands::GetPackFileDataForTreeView).unwrap(); }
-            let pack_file_data = if let Data::StringU32VecVecString(data) = check_message_validity_recv2(&receiver_qt_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+            let pack_file_data = if let Data::StringI64VecVecString(data) = check_message_validity_recv2(&receiver_qt_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
             // First, we clean the TreeStore and whatever was created in the TreeView.
             unsafe { model.as_mut().unwrap().clear(); }
@@ -1918,7 +1918,7 @@ pub fn update_treeview(
             let mut big_parent = StandardItem::new(&QString::from_std_str(pack_file_data.0)).into_raw();
 
             // Get his last modified date and show it in a tooltip.
-            unsafe { big_parent.as_mut().unwrap().set_tool_tip(&QString::from_std_str(format!("Last Modified: {:?}", NaiveDateTime::from_timestamp(i64::from(pack_file_data.1), 0)))); }
+            unsafe { big_parent.as_mut().unwrap().set_tool_tip(&QString::from_std_str(format!("Last Modified: {:?}", NaiveDateTime::from_timestamp(pack_file_data.1, 0)))); }
 
             // Also, set it as not editable by the user. Otherwise will cause problems when renaming.
             unsafe { big_parent.as_mut().unwrap().set_editable(false); }

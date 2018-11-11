@@ -102,6 +102,7 @@ pub enum Data {
 
     Bool(bool),
     U32(u32),
+    I64(i64),
 
     String(String),
     StringBool((String, bool)),
@@ -132,7 +133,7 @@ pub enum Data {
     RigidModel(RigidModel),
     RigidModelVecString((RigidModel, Vec<String>)),
 
-    StringU32VecVecString((String, u32, Vec<Vec<String>>)),
+    StringI64VecVecString((String, i64, Vec<Vec<String>>)),
     StringVecPathBuf((String, Vec<PathBuf>)),
     StringVecTreePathType((String, Vec<TreePathType>)),
     VecPathBufVecVecString((Vec<PathBuf>, Vec<Vec<String>>)),

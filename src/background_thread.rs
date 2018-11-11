@@ -158,7 +158,7 @@ pub fn background_loop(
 
                         // If it passed all the checks, then try to save it and return the result.
                         match packfile::save_packfile(&mut pack_file_decoded, None, *settings.settings_bool.get("allow_editing_of_ca_packfiles").unwrap()) {
-                            Ok(_) => sender.send(Data::U32(pack_file_decoded.timestamp)).unwrap(),
+                            Ok(_) => sender.send(Data::I64(pack_file_decoded.timestamp)).unwrap(),
                             Err(error) => {
                                 match error.kind() {
                                     ErrorKind::PackFileIsNotAFile => sender.send(Data::Error(error)).unwrap(),
@@ -183,7 +183,7 @@ pub fn background_loop(
 
                         // Try to save the PackFile and return the results.
                         match packfile::save_packfile(&mut pack_file_decoded, Some(path.to_path_buf()), *settings.settings_bool.get("allow_editing_of_ca_packfiles").unwrap()) {
-                            Ok(_) => sender.send(Data::U32(pack_file_decoded.timestamp)).unwrap(),
+                            Ok(_) => sender.send(Data::I64(pack_file_decoded.timestamp)).unwrap(),
                             Err(error) => sender.send(Data::Error(Error::from(ErrorKind::SavePackFileGeneric(format!("{}", error))))).unwrap(),
                         }
                     }
@@ -547,7 +547,7 @@ pub fn background_loop(
                     Commands::GetPackFileDataForTreeView => {
 
                         // Get the name and the PackedFile list, and send it.
-                        sender.send(Data::StringU32VecVecString((
+                        sender.send(Data::StringI64VecVecString((
                             pack_file_decoded.get_file_name(), 
                             pack_file_decoded.timestamp,
                             pack_file_decoded.packed_files.iter().map(|x| x.path.to_vec()).collect::<Vec<Vec<String>>>(),
@@ -558,7 +558,7 @@ pub fn background_loop(
                     Commands::GetPackFileExtraDataForTreeView => {
 
                         // Get the name and the PackedFile list, and serialize it.
-                        sender.send(Data::StringU32VecVecString((
+                        sender.send(Data::StringI64VecVecString((
                             pack_file_decoded_extra.get_file_name(), 
                             pack_file_decoded_extra.timestamp,
                             pack_file_decoded_extra.packed_files.iter().map(|x| x.path.to_vec()).collect::<Vec<Vec<String>>>(),

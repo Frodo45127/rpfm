@@ -13,6 +13,10 @@ use common::*;
 use common::coding_helpers::*;
 use error::{ErrorKind, Result};
 
+/// These consts are used for dealing with Time-related operations.
+const WINDOWS_TICK: i64 = 10000000;
+const SEC_TO_UNIX_EPOCH: i64 = 11644473600;
+
 /// These are the different Preamble/Id the PackFiles can have.
 const PFH5_PREAMBLE: &str = "PFH5"; // PFH5
 const PFH4_PREAMBLE: &str = "PFH4"; // PFH4
@@ -49,10 +53,12 @@ bitflags! {
 /// The possible values are:
 /// - `PFH5`: Used in Warhammer 2 and Arena.
 /// - `PFH4`: Used in Warhammer 1, Attila, Rome 2, and Thrones of Brittania.
+/// - `PFH3`: Used in Shogun 2.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PFHVersion {
     PFH5,
     PFH4,
+    PFH3,
 }
 
 /// This enum represents the **Type** of a PackFile. 
@@ -93,7 +99,7 @@ pub struct PackFile {
     pub pfh_version: PFHVersion,
     pub pfh_file_type: PFHFileType,
     pub bitmask: PFHFlags,
-    pub timestamp: u32,
+    pub timestamp: i64,
 
     pub pack_files: Vec<String>,
     pub packed_files: Vec<PackedFile>,
@@ -107,7 +113,7 @@ pub struct PackFileUIData {
     pub pfh_version: PFHVersion,
     pub pfh_file_type: PFHFileType,
     pub bitmask: PFHFlags,
-    pub timestamp: u32,
+    pub timestamp: i64,
 }
 
 /// This `Struct` stores the data of a PackedFile.
@@ -118,7 +124,7 @@ pub struct PackFileUIData {
 /// - `data`: the data of the PackedFile.
 #[derive(Clone, Debug)]
 pub struct PackedFile {
-    pub timestamp: u32,
+    pub timestamp: i64,
     pub path: Vec<String>,
     data: PackedFileData,
 }
@@ -169,6 +175,7 @@ impl PFHVersion {
         match *self {
             PFHVersion::PFH5 => PFH5_PREAMBLE,
             PFHVersion::PFH4 => PFH4_PREAMBLE,
+            PFHVersion::PFH3 => PFH3_PREAMBLE,
         }
     }
 
@@ -177,7 +184,7 @@ impl PFHVersion {
         match version {
             PFH5_PREAMBLE => Ok(PFHVersion::PFH5),
             PFH4_PREAMBLE => Ok(PFHVersion::PFH4),
-            PFH3_PREAMBLE => Err(ErrorKind::PackFileNotSupported)?,
+            PFH3_PREAMBLE => Ok(PFHVersion::PFH3),
             PFH2_PREAMBLE => Err(ErrorKind::PackFileNotSupported)?,
             PFH0_PREAMBLE => Err(ErrorKind::PackFileNotSupported)?,
             _ => Err(ErrorKind::PackFileIsNotAPackFile)?,
@@ -389,6 +396,8 @@ impl PackFile {
                 if pack_file_decoded.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) { buffer = vec![0; 48]; }
                 else { buffer = vec![0; 28]; }
             }
+
+            PFHVersion::PFH3 => buffer = vec![0; 32],
         }
 
         // Restore the cursor of the BufReader to 0, so we can read the full header in one go. The first 8 bytes are
@@ -404,10 +413,12 @@ impl PackFile {
         let packed_file_count = decode_integer_u32(&buffer[16..20])?;
         let packed_file_index_size = decode_integer_u32(&buffer[20..24])?;
 
-        // The creation time is an asshole. We need to get his u32 version.
-        // To get the full timestamp we need to use:
-        // let naive_date_time: NaiveDateTime = NaiveDateTime::from_timestamp(i64::from(decode_integer_u32(&buffer[24..28])?), 0);
-        pack_file_decoded.timestamp = decode_integer_u32(&buffer[24..28])?;
+        // The creation time is a bit of an asshole. Depending on the PackFile Version/Id/Preamble, it uses a type, another or it doesn't exists.
+        // Keep in mind that we store his raw value. If you want his legible value, you have to convert it yourself.
+        pack_file_decoded.timestamp = match pack_file_decoded.pfh_version {
+            PFHVersion::PFH5 | PFHVersion::PFH4 => decode_integer_u32(&buffer[24..28])? as i64,
+            PFHVersion::PFH3 => (decode_integer_i64(&buffer[24..32])? / WINDOWS_TICK) - SEC_TO_UNIX_EPOCH,
+        };
 
         // Ensure the PackFile has all the data needed for the index.
         let mut pack_file_data_position = (buffer.len() as u32 + pack_file_index_size + packed_file_index_size) as u64;
@@ -453,11 +464,11 @@ impl PackFile {
                 // Otherwise, it's a Warhammer 2 PackFile, so we default to 9 (extra and separation byte). Otherwise, we default to 5 (0 between size and path, Warhammer 2).
                 else if pack_file_decoded.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) { 9 } else { 5 }
             }
-            PFHVersion::PFH4 => {
+            // If it has the last modified date of the PackedFiles, we default to 8 (Arena). Otherwise, we default to 4.
+            PFHVersion::PFH4 => if pack_file_decoded.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) { 8 } else { 4 }
 
-                // If it has the last modified date of the PackedFiles, we default to 8 (Arena). Otherwise, we default to 4.
-                if pack_file_decoded.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) { 8 } else { 4 }
-            }
+            // If it has the last modified date of the PackedFiles, we default to 12. Otherwise, we default to 4.
+            PFHVersion::PFH3 => if pack_file_decoded.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) { 12 } else { 4 }
         };
 
         // Offset for the loop to get the PackFiles from the PackFile index.
@@ -480,8 +491,11 @@ impl PackFile {
 
                 // If we have the last modified date of the PackedFiles, get it.
                 let timestamp = if pack_file_decoded.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) {
-                    let encrypted_timestamp = decode_integer_u32(&packed_file_index[packed_file_index_position..(packed_file_index_position + 4)])?;
-                    decrypt_index_item_file_length(encrypted_timestamp, packed_files_after_this_one as u32, &mut packed_file_index_position)
+                    let encrypted_timestamp = match pack_file_decoded.pfh_version {
+                        PFHVersion::PFH5 | PFHVersion::PFH4 => decode_integer_u32(&buffer[packed_file_index_position..(packed_file_index_position + 4)])? as i64,
+                        PFHVersion::PFH3 => (decode_integer_i64(&buffer[packed_file_index_position..(packed_file_index_position + 8)])? / WINDOWS_TICK) - SEC_TO_UNIX_EPOCH,
+                    };
+                    decrypt_index_item_file_length(encrypted_timestamp as u32, packed_files_after_this_one as u32, &mut packed_file_index_position)
                 } else { 0 };
 
                 // Get the decrypted path.
@@ -490,7 +504,7 @@ impl PackFile {
 
                 // Once we are done, we add the PackedFile to the PackFileData.
                 let packed_file = PackedFile::read2(
-                    timestamp,
+                    timestamp as i64,
                     path,
                     PackedFileData::OnDisk(
                         pack_file.clone(),
@@ -513,7 +527,10 @@ impl PackFile {
 
                 // If we have the last modified date of the PackedFiles in the Index, get it.
                 let timestamp = if pack_file_decoded.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) {
-                    decode_integer_u32(&packed_file_index[(packed_file_index_position + 4)..(packed_file_index_position + 8)])?
+                    match pack_file_decoded.pfh_version {
+                        PFHVersion::PFH5 | PFHVersion::PFH4 => decode_integer_u32(&buffer[(packed_file_index_position + 4)..(packed_file_index_position + 8)])? as i64,
+                        PFHVersion::PFH3 => (decode_integer_i64(&buffer[(packed_file_index_position + 4)..(packed_file_index_position + 12)])? / WINDOWS_TICK) - SEC_TO_UNIX_EPOCH,
+                    }
                 } else { 0 };
 
                 // Get his path and update the position of the index.
@@ -532,7 +549,8 @@ impl PackFile {
 
                 // Once we are done, we add the PackedFile to the PackFileData.
                 let packed_file = PackedFile::read2(
-                    timestamp, path, 
+                    timestamp,
+                    path, 
                     PackedFileData::OnDisk(
                         pack_file.clone(), 
                         pack_file_data_position, 
@@ -584,11 +602,14 @@ impl PackFile {
             // Depending on the version of the PackFile and his bitmask, the PackedFile index has one format or another.
             match self.pfh_version {
                 PFHVersion::PFH5 => {
-                    if self.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) { packed_file_index.extend_from_slice(&encode_integer_u32(packed_file.timestamp)); }
+                    if self.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) { packed_file_index.extend_from_slice(&encode_integer_u32(packed_file.timestamp as u32)); }
                     if !self.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) { packed_file_index.push(0); }
                 }
                 PFHVersion::PFH4 => {
-                    if self.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) { packed_file_index.extend_from_slice(&encode_integer_u32(packed_file.timestamp)); }
+                    if self.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) { packed_file_index.extend_from_slice(&encode_integer_u32(packed_file.timestamp as u32)); }
+                }
+                PFHVersion::PFH3 => {
+                    if self.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) { packed_file_index.extend_from_slice(&encode_integer_i64(packed_file.timestamp)); }
                 }
             }
 
@@ -609,7 +630,10 @@ impl PackFile {
 
         // Update the creation time, then save it.
         self.timestamp = get_current_time();
-        file.write(&encode_integer_u32(self.timestamp))?;
+        match self.pfh_version {
+            PFHVersion::PFH5 | PFHVersion::PFH4 => file.write(&encode_integer_u32(self.timestamp as u32))?,
+            PFHVersion::PFH3 => file.write(&encode_integer_i64((self.timestamp + SEC_TO_UNIX_EPOCH) * WINDOWS_TICK))?,
+        };
 
         // Write the indexes and the data of the PackedFiles. No need to keep the data, as it has been preloaded before.
         file.write(&pack_file_index)?;
@@ -625,7 +649,7 @@ impl PackFile {
 impl PackedFile {
 
     /// This function receive all the info of a PackedFile and creates a `PackedFile` with it.
-    pub fn read(timestamp: u32, path: Vec<String>, data: Vec<u8>) -> Self {
+    pub fn read(timestamp: i64, path: Vec<String>, data: Vec<u8>) -> Self {
         Self {
             timestamp,
             path,
@@ -634,7 +658,7 @@ impl PackedFile {
     }
 
     /// This function receive all the info of a PackedFile and creates a `PackedFile` with it.
-    pub fn read2(timestamp: u32, path: Vec<String>, data: PackedFileData) -> Self {
+    pub fn read2(timestamp: i64, path: Vec<String>, data: PackedFileData) -> Self {
         Self {
             timestamp,
             path,
@@ -656,7 +680,7 @@ impl PackedFile {
                         PackedFileData::OnMemory(decrypt_file(&data, size as usize, false))
                     }
 
-                    PFHVersion::PFH4 => {
+                    PFHVersion::PFH4 | _ => {
                         let mut data = vec![0; size as usize];
                         file.lock().unwrap().seek(SeekFrom::Start(position))?;
                         file.lock().unwrap().read_exact(&mut data)?;
@@ -691,7 +715,7 @@ impl PackedFile {
                             Ok(decrypt_file(&data, size as usize, false))
                         }
 
-                        PFHVersion::PFH4 => {
+                        PFHVersion::PFH4 | _ => {
                             let mut data = vec![0; size as usize];
                             file.lock().unwrap().seek(SeekFrom::Start(position))?;
                             file.lock().unwrap().read_exact(&mut data)?;
@@ -725,7 +749,7 @@ impl PackedFile {
                             decrypt_file(&data, size as usize, false)
                         }
 
-                        PFHVersion::PFH4 => {
+                        PFHVersion::PFH4 | _ => {
                             let mut data = vec![0; size as usize];
                             file.lock().unwrap().seek(SeekFrom::Start(position))?;
                             file.lock().unwrap().read_exact(&mut data)?;

@@ -52,45 +52,49 @@ pub fn load_dependency_packfiles(game_selected: &str, settings: &Settings, depen
     let mut packed_files = vec![];
 
     // Get all the paths we need.
-    let main_db_pack_path = get_game_selected_db_pack_path(game_selected, settings);
-    let main_loc_pack_path = get_game_selected_loc_pack_path(game_selected, settings);
+    let main_db_pack_paths = get_game_selected_db_pack_path(game_selected, settings);
+    let main_loc_pack_paths = get_game_selected_loc_pack_path(game_selected, settings);
 
     let data_packs_paths = get_game_selected_data_packfiles_paths(game_selected, settings);
     let content_packs_paths = get_game_selected_content_packfiles_paths(game_selected, settings);
 
-    // Get all the DB Tables from the main DB PackFile, if it's configured.
-    if let Some(path) = main_db_pack_path {
-        if let Ok(pack_file) = open_packfile(path.to_path_buf(), true) {
+    // Get all the DB Tables from the main DB PackFiles, if it's configured.
+    if let Some(paths) = main_db_pack_paths {
+        for path in &paths {
+            if let Ok(pack_file) = open_packfile(path.to_path_buf(), true) {
 
-            // For each PackFile in the data.pack...
-            for packed_file in pack_file.packed_files.iter() {
+                // For each PackFile in the data.pack...
+                for packed_file in pack_file.packed_files.iter() {
 
-                // If it's a DB file...
-                if !packed_file.path.is_empty() && packed_file.path.starts_with(&["db".to_owned()]) {
+                    // If it's a DB file...
+                    if !packed_file.path.is_empty() && packed_file.path.starts_with(&["db".to_owned()]) {
 
-                    // Clone the PackedFile, and add it to the list.
-                    let mut packed_file = packed_file.clone();
-                    let _ = packed_file.load_data();
-                    packed_files.push(packed_file);
+                        // Clone the PackedFile, and add it to the list.
+                        let mut packed_file = packed_file.clone();
+                        let _ = packed_file.load_data();
+                        packed_files.push(packed_file);
+                    }
                 }
             }
         }
     }
 
-    // Get all the Loc PackedFiles from the main Loc PackFile, if it's configured.
-    if let Some(path) = main_loc_pack_path {
-        if let Ok(pack_file) = open_packfile(path.to_path_buf(), true) {
+    // Get all the Loc PackedFiles from the main Loc PackFiles, if it's configured.
+    if let Some(paths) = main_loc_pack_paths {
+        for path in &paths {
+            if let Ok(pack_file) = open_packfile(path.to_path_buf(), true) {
 
-            // For each PackFile in the data.pack...
-            for packed_file in pack_file.packed_files.iter() {
+                // For each PackFile in the data.pack...
+                for packed_file in pack_file.packed_files.iter() {
 
-                // If it's a Loc file...
-                if !packed_file.path.is_empty() && packed_file.path.last().unwrap().ends_with(".loc") {
+                    // If it's a Loc file...
+                    if !packed_file.path.is_empty() && packed_file.path.last().unwrap().ends_with(".loc") {
 
-                    // Clone the PackedFile, and add it to the list.
-                    let mut packed_file = packed_file.clone();
-                    let _ = packed_file.load_data();
-                    packed_files.push(packed_file);
+                        // Clone the PackedFile, and add it to the list.
+                        let mut packed_file = packed_file.clone();
+                        let _ = packed_file.load_data();
+                        packed_files.push(packed_file);
+                    }
                 }
             }
         }
