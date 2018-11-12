@@ -51217,13 +51217,6 @@
           "version": 3,
           "fields": [
             {
-              "field_name": "key",
-              "field_type": "StringU8",
-              "field_is_key": true,
-              "field_is_reference": null,
-              "field_description": ""
-            },
-            {
               "field_name": "effect_bundle",
               "field_type": "StringU8",
               "field_is_key": false,
@@ -51231,6 +51224,13 @@
                 "effect_bundles",
                 "key"
               ],
+              "field_description": ""
+            },
+            {
+              "field_name": "key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
               "field_description": ""
             },
             {
@@ -52593,21 +52593,21 @@
           "version": 1,
           "fields": [
             {
-              "field_name": "payload",
-              "field_type": "StringU8",
-              "field_is_key": true,
-              "field_is_reference": [
-                "ritual_payloads",
-                "key"
-              ],
-              "field_description": ""
-            },
-            {
               "field_name": "effect_bundle",
               "field_type": "StringU8",
               "field_is_key": true,
               "field_is_reference": [
                 "effect_bundles",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "payload",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "ritual_payloads",
                 "key"
               ],
               "field_description": ""
