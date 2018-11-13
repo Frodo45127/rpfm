@@ -338,15 +338,17 @@ pub fn background_loop(
                             for i in pack_file_decoded.packed_files.iter_mut() {
                                 if i.path.starts_with(&["db".to_owned()]) {
                                     if let Some(ref schema) = schema {
-                                        if let Err(_) = db::DB::read(&(i.get_data_and_keep_it().unwrap()), &i.path[1], &schema) {
-                                            match db::DB::get_header_data(&i.get_data().unwrap()) {
-                                                Ok((_, entry_count, _)) => {
-                                                    if entry_count > 0 {
-                                                        counter += 1;
-                                                        println!("{}, {:?}", counter, i.path);
+                                        if let Err(error) = db::DB::read(&(i.get_data_and_keep_it().unwrap()), &i.path[1], &schema) {
+                                            if error.kind() != ErrorKind::DBTableContainsListField {
+                                                match db::DB::get_header_data(&i.get_data().unwrap()) {
+                                                    Ok((_, entry_count, _)) => {
+                                                        if entry_count > 0 {
+                                                            counter += 1;
+                                                            println!("{}, {:?}", counter, i.path);
+                                                        }
                                                     }
+                                                    Err(_) => println!("Error in {:?}", i.path),
                                                 }
-                                                Err(_) => println!("Error in {:?}", i.path),
                                             }
                                         }
                                     }
