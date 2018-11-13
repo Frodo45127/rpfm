@@ -108,15 +108,17 @@ impl DB {
 
         // These tables use the not-yet-implemented type "List" in the following versions:
         // - models_artillery: 0
-        // - models_building: 3, 7.
-        // - models_naval: 11.
+        // - models_building: 0, 3, 7.
+        // - models_naval: 6, 11.
         // - models_sieges: 2, 3.
         // So we disable everything for any problematic version of these tables.
         // TODO: Implement the needed type for these tables.
         if (db_type == "models_artillery_tables" && version == 0) ||
-            (db_type == "models_building_tables" && (version == 3 ||
+            (db_type == "models_building_tables" && (version == 0 ||
+                                                    version == 3 ||
                                                     version == 7)) ||
-            (db_type == "models_naval_tables" && version == 11) ||
+            (db_type == "models_naval_tables" && (version == 6 ||
+                                                    version == 11)) ||
             (db_type == "models_sieges_tables" && (version == 2 ||
                                                     version == 3))
         { return Err(ErrorKind::DBTableContainsListField)? }
