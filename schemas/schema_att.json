@@ -68203,45 +68203,70 @@
           "version": 1,
           "fields": [
             {
-              "field_name": "primary_weapon",
+              "field_name": "theme",
               "field_type": "StringU16",
-              "field_is_key": false,
+              "field_is_key": true,
               "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "primary_weapon",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "warscape_equipment_collections",
+                "collection_key"
+              ],
               "field_description": ""
             },
             {
               "field_name": "secondary_weapon",
               "field_type": "OptionalStringU16",
               "field_is_key": false,
-              "field_is_reference": null,
+              "field_is_reference": [
+                "warscape_equipment_collections",
+                "collection_key"
+              ],
               "field_description": ""
             },
             {
               "field_name": "defensive",
               "field_type": "OptionalStringU16",
               "field_is_key": false,
-              "field_is_reference": null,
+              "field_is_reference": [
+                "warscape_equipment_collections",
+                "collection_key"
+              ],
               "field_description": ""
             },
             {
               "field_name": "ambient",
               "field_type": "OptionalStringU16",
               "field_is_key": false,
-              "field_is_reference": null,
+              "field_is_reference": [
+                "warscape_equipment_collections",
+                "collection_key"
+              ],
               "field_description": ""
             },
             {
               "field_name": "personal",
               "field_type": "OptionalStringU16",
               "field_is_key": false,
-              "field_is_reference": null,
+              "field_is_reference": [
+                "warscape_equipment_collections",
+                "collection_key"
+              ],
               "field_description": ""
             },
             {
               "field_name": "banners",
               "field_type": "OptionalStringU16",
               "field_is_key": false,
-              "field_is_reference": null,
+              "field_is_reference": [
+                "warscape_equipment_collections",
+                "collection_key"
+              ],
               "field_description": ""
             }
           ]

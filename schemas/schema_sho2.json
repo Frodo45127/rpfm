@@ -32,7 +32,7 @@
           "fields": [
             {
               "field_name": "key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
@@ -56,7 +56,7 @@
           "fields": [
             {
               "field_name": "key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
@@ -104,7 +104,7 @@
           "fields": [
             {
               "field_name": "key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
@@ -128,7 +128,7 @@
           "fields": [
             {
               "field_name": "key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
@@ -152,7 +152,7 @@
           "fields": [
             {
               "field_name": "key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
@@ -200,7 +200,7 @@
           "fields": [
             {
               "field_name": "key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
@@ -362,6 +362,45 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "ability",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "associated_attribute",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "agent_attributes",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "associated_cursor_mode",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cursors",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "cannot_fail",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -405,6 +444,28 @@
               "field_type": "StringU8",
               "field_is_key": true,
               "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "aesthetic",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_aesthetics",
+                "key"
+              ],
               "field_description": ""
             }
           ]
@@ -862,6 +923,164 @@
               "field_description": "Link to a movie url in encyclopedia to play"
             }
           ]
+        },
+        {
+          "version": 2,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "advice_thread",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "advice_threads",
+                "thread"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "advice_thread_level",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "points_needed",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "game_area",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "category",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "sub_category",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "max_repeat_count",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "repeat_interval",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "pause_battle",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "Does this advice pause the battle"
+            },
+            {
+              "field_name": "priority_level",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "high_verbosity_only",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "locatable",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "parameter",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "on_display_script",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "on_click_script",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "suppressible",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "uninhibitable",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "audio_clip",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "Audio to play for this advice"
+            },
+            {
+              "field_name": "advisor_name",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "advisors",
+                "advisor_name"
+              ],
+              "field_description": "Name of advisor, determines advisor that presents advice"
+            },
+            {
+              "field_name": "for_loading_screen",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "Specifies whether this bit of advice text should be shown in loading screen AS WELL."
+            }
+          ]
         }
       ]
     },
@@ -925,7 +1144,7 @@
           "fields": [
             {
               "field_name": "thread",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
@@ -942,7 +1161,7 @@
           "fields": [
             {
               "field_name": "advisor_name",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
@@ -1521,6 +1740,25 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "icon_path",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -1789,6 +2027,89 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 3,
+          "fields": [
+            {
+              "field_name": "agent",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "agents",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "culture",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cultures",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "model",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "agent_uniforms",
+                "uniform_name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "generals_unit",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "unit_stats_land",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "key",
+              "field_type": "Integer",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "season",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "level",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "equipement_theme",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "agent_recruited_movie",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "movie_event_strings",
+                "event"
+              ],
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -2028,6 +2349,38 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "agent",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "agents",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "ability",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "abilities",
+                "ability"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "default_value",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -2060,6 +2413,45 @@
             {
               "field_name": "default_value",
               "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "attribute",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "agent_attributes",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "agent",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "agents",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "default_value",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "visible",
+              "field_type": "Boolean",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
@@ -2193,6 +2585,32 @@
             {
               "field_name": "campaign_politician_filename",
               "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 2,
+          "fields": [
+            {
+              "field_name": "filename",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "uniform_name",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "battle_filename",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
@@ -2367,6 +2785,188 @@
             {
               "field_name": "in_encyclopedia",
               "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 5,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "move_points",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "line_of_sight",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "zone_of_control",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "playable",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "portrait_override",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "is_spawnable",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "primary_attribute",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "agent_attributes",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "religion",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "religions",
+                "religion_key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "faction_total_cap",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "faction_cap_lower_bound",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "cost",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "audio_selected",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "sound_events",
+                "name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "audio_move",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "sound_events",
+                "name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "audio_move_complete",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "sound_events",
+                "name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "audio_move_complete_can_move_again",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "sound_events",
+                "name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "audio_move_illegal",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "sound_events",
+                "name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "audio_embark",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "sound_events",
+                "name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "audio_disembark",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "sound_events",
+                "name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "audio_death",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "sound_events",
+                "name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "VO_actor_numbers",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
@@ -2696,6 +3296,53 @@
                 "key"
               ],
               "field_description": "Cinematic event to trigger when receives aide de camp message"
+            }
+          ]
+        },
+        {
+          "version": 2,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "text",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "picture_in_picture",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "offset_angle",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "offset_range",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "circunvent_cooldown",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
             }
           ]
         }
@@ -3438,6 +4085,141 @@
               "field_description": "For spouse ancillaries."
             }
           ]
+        },
+        {
+          "version": 6,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "ancillary_info",
+                "ancillary"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "type",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "ancillary_types",
+                "type"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "applies_to",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "transferrable",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "unique_to_world",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "unique_to_faction",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "precedence",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "start_date",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "end_date",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "avatar_skill",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_skills",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "avatar_special_ability",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "legendary_item",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "mp_localised_source",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_ancillaries_localised_source_lookups",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "mp_exclusive",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "mp_drop_probability",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_drop_probabilities",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "product",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_product_lookups",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -3645,7 +4427,7 @@
           "fields": [
             {
               "field_name": "ancillary",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "ancillary_info",
@@ -3655,7 +4437,7 @@
             },
             {
               "field_name": "subculture",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "cultures_subcultures",
@@ -3675,7 +4457,7 @@
           "fields": [
             {
               "field_name": "ancillary",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
@@ -3692,7 +4474,7 @@
           "fields": [
             {
               "field_name": "ancillary",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "ancillary_info",
@@ -3702,21 +4484,11 @@
             },
             {
               "field_name": "effect",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "effects",
                 "effect"
-              ],
-              "field_description": ""
-            },
-            {
-              "field_name": "effect_scope",
-              "field_type": "StringU8",
-              "field_is_key": false,
-              "field_is_reference": [
-                "campaign_effect_scopes",
-                "key"
               ],
               "field_description": ""
             },
@@ -3739,7 +4511,7 @@
           "fields": [
             {
               "field_name": "ancillary",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "ancillary_info",
@@ -3749,7 +4521,7 @@
             },
             {
               "field_name": "agent",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "agents",
@@ -3769,14 +4541,14 @@
           "fields": [
             {
               "field_name": "type",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
             },
             {
               "field_name": "ui_icon",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
@@ -15388,6 +16160,410 @@
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": "multiplier applied to the rate of damage caused by fire"
+            }
+          ]
+        },
+        {
+          "version": 6,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "category",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "battlefield_building_categories",
+                "category"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "model",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "models_building",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "audio_material",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "battlefield_building_audio_materials",
+                "audio_material"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "hit_points",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "gun_type",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "gun_types",
+                "gun_type"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "transformation",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "battlefield_building_transformations",
+                "transformation"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "capacity_in_men",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "ignition_threshold",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "spawned_unit",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "unit_stats_land",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "radar_icon",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "visible_in_public_ted",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "fortwall_penetration_chance",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 5,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "category",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "battlefield_building_categories",
+                "category"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "model",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "models_building",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "audio_material",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "battlefield_building_audio_materials",
+                "audio_material"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "hit_points",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "gun_type",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "gun_types",
+                "gun_type"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "transformation",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "battlefield_building_transformations",
+                "transformation"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "capacity_in_men",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "ignition_threshold",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "spawned_unit",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "unit_stats_land",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "radar_icon",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "visible_in_public_ted",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 4,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "category",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "battlefield_building_categories",
+                "category"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "model",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "models_building",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "audio_material",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "battlefield_building_audio_materials",
+                "audio_material"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "hit_points",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "gun_type",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "gun_types",
+                "gun_type"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "transformation",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "battlefield_building_transformations",
+                "transformation"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "capacity_in_men",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "ignition_threshold",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "spawned_unit",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "unit_stats_land",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "radar_icon",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 2,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "category",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "battlefield_building_categories",
+                "category"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "model",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "models_building",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "audio_material",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "battlefield_building_audio_materials",
+                "audio_material"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "hit_points",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "gun_type",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "gun_types",
+                "gun_type"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "transformation",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "battlefield_building_transformations",
+                "transformation"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "capacity_in_men",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "ignition_threshold",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
             }
           ]
         }
@@ -68183,6 +69359,35 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "video_name",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "video_type",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "video_types",
+                "video_type"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "audio_tracks",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -68209,6 +69414,35 @@
             {
               "field_name": "category",
               "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "warscape_categories",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "texture_filename_base",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "category",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": [
                 "warscape_categories",
@@ -68258,6 +69492,42 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "filename",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "range",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "animated",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "warscape_animated",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -68269,14 +69539,14 @@
           "fields": [
             {
               "field_name": "key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
             },
             {
               "field_name": "sea_surface",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": [
                 "sea_surfaces",
@@ -69734,21 +71004,21 @@
           "fields": [
             {
               "field_name": "key",
-              "field_type": "StringU8",
-              "field_is_key": false,
+              "field_type": "StringU16",
+              "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
             },
             {
               "field_name": "path",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
             },
             {
               "field_name": "root_node",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
@@ -75021,6 +76291,28 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "equipment_item",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "equipment_key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "warscape_equipment_collections",
+                "collection_key"
+              ],
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -75031,45 +76323,70 @@
           "version": 1,
           "fields": [
             {
-              "field_name": "primary_weapon",
+              "field_name": "theme",
               "field_type": "StringU16",
-              "field_is_key": false,
+              "field_is_key": true,
               "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "primary_weapon",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "warscape_equipment_collections",
+                "collection_key"
+              ],
               "field_description": ""
             },
             {
               "field_name": "secondary_weapon",
               "field_type": "OptionalStringU16",
               "field_is_key": false,
-              "field_is_reference": null,
+              "field_is_reference": [
+                "warscape_equipment_collections",
+                "collection_key"
+              ],
               "field_description": ""
             },
             {
               "field_name": "defensive",
               "field_type": "OptionalStringU16",
               "field_is_key": false,
-              "field_is_reference": null,
+              "field_is_reference": [
+                "warscape_equipment_collections",
+                "collection_key"
+              ],
               "field_description": ""
             },
             {
               "field_name": "ambient",
               "field_type": "OptionalStringU16",
               "field_is_key": false,
-              "field_is_reference": null,
+              "field_is_reference": [
+                "warscape_equipment_collections",
+                "collection_key"
+              ],
               "field_description": ""
             },
             {
               "field_name": "personal",
               "field_type": "OptionalStringU16",
               "field_is_key": false,
-              "field_is_reference": null,
+              "field_is_reference": [
+                "warscape_equipment_collections",
+                "collection_key"
+              ],
               "field_description": ""
             },
             {
               "field_name": "banners",
               "field_type": "OptionalStringU16",
               "field_is_key": false,
-              "field_is_reference": null,
+              "field_is_reference": [
+                "warscape_equipment_collections",
+                "collection_key"
+              ],
               "field_description": ""
             }
           ]
@@ -75086,6 +76403,25 @@
               "field_name": "lod_id",
               "field_type": "StringU8",
               "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "range",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "lod_id",
+              "field_type": "StringU16",
+              "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
             },
@@ -75138,6 +76474,42 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "filename",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "range",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "rigid",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "warscape_rigid",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -75164,6 +76536,35 @@
             {
               "field_name": "building_category",
               "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "warscape_categories",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "texture_directory",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "building_category",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": [
                 "warscape_categories",
@@ -75229,6 +76630,39 @@
             {
               "field_name": "file_path",
               "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "levels",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "underlay_key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "filename",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "file_path",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
@@ -78192,6 +79626,691 @@
               "field_is_key": false,
               "field_is_reference": [
                 "projectiles",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "_kv_special_ability_effects_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "value",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "agent_uniform_colours_tables",
+      "versions": [
+        {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "uniform_name",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "agent_uniforms",
+                "uniform_name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "primary_colour_b",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "primary_colour_g",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "primary_colour_r",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "secondary_colour_b",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "secondary_colour_g",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "secondary_colour_r",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "tertiary_colour_b",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "tertiary_colour_g",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "tertiary_colour_r",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "agent_voice_events_junctions_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "agent_key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "agents",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "sound_event_key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "sound_events",
+                "name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "voice_event_key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "voice_events",
+                "name"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "voice_events_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "name",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "videos_subtitles_junctions_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "video_name",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "videos",
+                "video_name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "start",
+              "field_type": "Integer",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "end",
+              "field_type": "Integer",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "subtitle_key",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "subtitles",
+                "subtitle_key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "avatar_advanced_skills_requirements_tables",
+      "versions": [
+        {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "chain",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "avatar_skill_chain_lookups",
+                "skill_chain"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "points_needed",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "skill",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "avatar_skills",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "product",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_product_lookups",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "avatar_aesthetic_sets_tables",
+      "versions": [
+        {
+          "version": 4,
+          "fields": [
+            {
+              "field_name": "ancillary",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "ancillaries",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "localised_name",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "icon_path",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "product",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_product_lookups",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "avatar_aesthetic_sources_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "avatar_aesthetics_localised_source_lookups_tables",
+      "versions": [
+        {
+          "version": 2,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "second_description",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "achievements",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "avatar_aesthetics_tables",
+      "versions": [
+        {
+          "version": 7,
+          "fields": [
+            {
+              "field_name": "avatar_skill",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_skills",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "avatar_skill_set",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "armour_set",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_aesthetic_sets",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "source",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_aesthetic_sources",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "grouping",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_drop_probabilities",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "model",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "mount_variants",
+                "display_key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "localised_name",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "icon_path",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "model_path",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "category",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_aesthetics_categories_enum",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "onscreen_source",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_aesthetics_localised_source_lookups",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "default_item",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "unique_index",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "warscape_equipment_item",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "warscape_equipment_collections",
+                "collection_key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "product",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_product_lookups",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "avatar_ancillaries_descriptions_tables",
+      "versions": [
+        {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "ancillaries",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "string_order",
+              "field_type": "Integer",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "avatar_ancillaries_localised_source_lookups_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "localised_source_text",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "avatar_ancillaries_to_categories_juncs_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "ancillary_info",
+                "ancillary"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "retainer_category",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "avatar_ancillaries_categories_lookups",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "avatar_ancillaries_to_effects_junctions_tables",
+      "versions": [
+        {
+          "version": 5,
+          "fields": [
+            {
+              "field_name": "effect",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "avatar_effects",
+                "effect"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "ancillaries",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "value",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "multiplier",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "debuff",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "unit_group_key",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_unit_group_ids",
+                "group_id"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "string_order",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "avatar_army_makeup_traits_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "army_percentage",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "avatar_traits",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "unit_category",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "unit_category",
                 "key"
               ],
               "field_description": ""
