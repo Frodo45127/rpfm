@@ -175,16 +175,16 @@ lazy_static! {
         });
 
         // Thrones of Britannia
-        // map.insert("thrones_of_britannia", GameInfo {
-        //     display_name: "Thrones of Britannia".to_owned(),
-        //     id: PFHVersion::PFH4,
-        //     schema: "schema_tob.json".to_owned(),
-        //     db_pack: "data.pack".to_owned(),
-        //     loc_pack: "local_en.pack".to_owned(),
-        //     steam_id: Some(712100),
-        //     ca_types_file: None,
-        //     supports_editing: true,
-        // });
+        map.insert("thrones_of_britannia", GameInfo {
+            display_name: "Thrones of Britannia".to_owned(),
+            id: PFHVersion::PFH4,
+            schema: "schema_tob.json".to_owned(),
+            db_packs: vec!["data.pack".to_owned()],
+            loc_packs: vec!["local_en.pack".to_owned()],
+            steam_id: Some(712100),
+            ca_types_file: None,
+            supports_editing: true,
+        });
 
         // Attila
         map.insert("attila", GameInfo {
@@ -405,6 +405,7 @@ pub struct AppUI {
 
     pub warhammer_2: *mut Action,
     pub warhammer: *mut Action,
+    pub thrones_of_britannia: *mut Action,
     pub attila: *mut Action,
     pub rome_2: *mut Action,
     pub shogun_2: *mut Action,
@@ -425,6 +426,9 @@ pub struct AppUI {
     pub wh_patch_siege_ai: *mut Action,
     pub wh_create_prefab: *mut Action,
     pub wh_optimize_packfile: *mut Action,
+
+    // Thrones of Britannia's actions.
+    pub tob_optimize_packfile: *mut Action,
     
     // Attila's actions.
     pub att_optimize_packfile: *mut Action,
@@ -661,6 +665,7 @@ fn main() {
 
         let menu_warhammer_2 = unsafe { menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("&Warhammer 2")) };
         let menu_warhammer = unsafe { menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("War&hammer")) };
+        let menu_thrones_of_britannia = unsafe { menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("&Thrones of Britannia")) };
         let menu_attila = unsafe { menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("&Attila")) };
         let menu_rome_2 = unsafe { menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("&Rome 2")) };
         let menu_shogun_2 = unsafe { menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("&Shogun 2")) };
@@ -718,6 +723,7 @@ fn main() {
 
             warhammer_2: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("&Warhammer 2")),
             warhammer: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("War&hammer")),
+            thrones_of_britannia: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("&Thrones of Britannia")),
             attila: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("&Attila")),
             rome_2: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("R&ome 2")),
             shogun_2: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("&Shogun 2")),
@@ -741,6 +747,9 @@ fn main() {
             wh_create_prefab: Action::new(&QString::from_std_str("&Create Prefab")).into_raw(),
             wh_optimize_packfile: menu_warhammer.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
             
+            // Thrones of Britannia's actions.
+            tob_optimize_packfile: menu_thrones_of_britannia.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
+
             // Attila's actions.
             att_optimize_packfile: menu_attila.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
             
@@ -827,12 +836,14 @@ fn main() {
         // The "Game Selected" Menu should be an ActionGroup.
         unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.warhammer_2); }
         unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.warhammer); }
+        unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.thrones_of_britannia); }
         unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.attila); }
         unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.rome_2); }
         unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.shogun_2); }
         unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.arena); }
         unsafe { app_ui.warhammer_2.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.warhammer.as_mut().unwrap().set_checkable(true); }
+        unsafe { app_ui.thrones_of_britannia.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.attila.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.rome_2.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.shogun_2.as_mut().unwrap().set_checkable(true); }
@@ -1098,6 +1109,7 @@ fn main() {
         // Menu bar, Game Selected.
         unsafe { app_ui.warhammer_2.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Warhammer 2' as 'Game Selected'.")); }
         unsafe { app_ui.warhammer.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Warhammer' as 'Game Selected'.")); }
+        unsafe { app_ui.thrones_of_britannia.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW: Thrones of Britannia' as 'Game Selected'.")); }
         unsafe { app_ui.attila.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Attila' as 'Game Selected'.")); }
         unsafe { app_ui.rome_2.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Rome 2' as 'Game Selected'.")); }
         unsafe { app_ui.shogun_2.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Shogun 2' as 'Game Selected'.")); }
@@ -1220,6 +1232,7 @@ fn main() {
         // "Game Selected" Menu Actions.
         unsafe { app_ui.warhammer_2.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
         unsafe { app_ui.warhammer.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
+        unsafe { app_ui.thrones_of_britannia.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
         unsafe { app_ui.attila.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
         unsafe { app_ui.rome_2.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
         unsafe { app_ui.shogun_2.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
@@ -1233,6 +1246,7 @@ fn main() {
         match &*game_selected {
             "warhammer_2" => unsafe { app_ui.warhammer_2.as_mut().unwrap().trigger(); }
             "warhammer" => unsafe { app_ui.warhammer.as_mut().unwrap().trigger(); }
+            "thrones_of_britannia" => unsafe { app_ui.thrones_of_britannia.as_mut().unwrap().trigger(); }
             "attila" => unsafe { app_ui.attila.as_mut().unwrap().trigger(); }
             "arena" => unsafe { app_ui.arena.as_mut().unwrap().trigger(); }
             "rome_2" => unsafe { app_ui.rome_2.as_mut().unwrap().trigger(); }
@@ -1649,6 +1663,7 @@ fn main() {
                             match &*game_selected {
                                 "warhammer_2" => unsafe { app_ui.warhammer_2.as_mut().unwrap().trigger(); },
                                 "warhammer" => unsafe { app_ui.warhammer.as_mut().unwrap().trigger(); },
+                                "thrones_of_britannia" => unsafe { app_ui.thrones_of_britannia.as_mut().unwrap().trigger(); }
                                 "attila" => unsafe { app_ui.attila.as_mut().unwrap().trigger(); }
                                 "rome_2" => unsafe { app_ui.rome_2.as_mut().unwrap().trigger(); }
                                 "shogun_2" => unsafe { app_ui.shogun_2.as_mut().unwrap().trigger(); }
@@ -4749,6 +4764,9 @@ fn enable_packfile_actions(
                 unsafe { app_ui.wh_create_prefab.as_mut().unwrap().set_enabled(true); }
                 unsafe { app_ui.wh_optimize_packfile.as_mut().unwrap().set_enabled(true); }
             },
+            "thrones_of_britannia" => {
+                unsafe { app_ui.tob_optimize_packfile.as_mut().unwrap().set_enabled(true); }
+            },
             "attila" => {
                 unsafe { app_ui.att_optimize_packfile.as_mut().unwrap().set_enabled(true); }
             },
@@ -4774,6 +4792,9 @@ fn enable_packfile_actions(
         unsafe { app_ui.wh_patch_siege_ai.as_mut().unwrap().set_enabled(false); }
         unsafe { app_ui.wh_create_prefab.as_mut().unwrap().set_enabled(false); }
         unsafe { app_ui.wh_optimize_packfile.as_mut().unwrap().set_enabled(false); }
+
+        // Disable Thrones of Britannia actions...
+        unsafe { app_ui.tob_optimize_packfile.as_mut().unwrap().set_enabled(false); }
 
         // Disable Attila actions...
         unsafe { app_ui.att_optimize_packfile.as_mut().unwrap().set_enabled(false); }
@@ -4902,6 +4923,7 @@ fn open_packfile(
                 match game_folder {
                     "warhammer_2" => unsafe { app_ui.warhammer_2.as_mut().unwrap().trigger(); }
                     "warhammer" => unsafe { app_ui.warhammer.as_mut().unwrap().trigger(); }
+                    "thrones_of_britannia" => unsafe { app_ui.thrones_of_britannia.as_mut().unwrap().trigger(); }
                     "attila" => unsafe { app_ui.attila.as_mut().unwrap().trigger(); }
                     "rome_2" => unsafe { app_ui.rome_2.as_mut().unwrap().trigger(); }
                     "shogun_2" | _ => unsafe { app_ui.shogun_2.as_mut().unwrap().trigger(); }
@@ -4936,6 +4958,7 @@ fn open_packfile(
                         // In any other case, we select Rome 2 by default.
                         match &*game_selected {
                             "warhammer" => unsafe { app_ui.warhammer.as_mut().unwrap().trigger(); },
+                            "thrones_of_britannia" => unsafe { app_ui.thrones_of_britannia.as_mut().unwrap().trigger(); }
                             "attila" => unsafe { app_ui.attila.as_mut().unwrap().trigger(); }
                             "rome_2" | _ => unsafe { app_ui.rome_2.as_mut().unwrap().trigger(); }
                         }
@@ -5309,6 +5332,7 @@ fn build_my_mod_menu(
                         match &*mod_game {
                             "warhammer_2" => unsafe { app_ui.warhammer_2.as_mut().unwrap().trigger(); }
                             "warhammer" => unsafe { app_ui.warhammer.as_mut().unwrap().trigger(); }
+                            "thrones_of_britannia" => unsafe { app_ui.thrones_of_britannia.as_mut().unwrap().trigger(); }
                             "attila" => unsafe { app_ui.attila.as_mut().unwrap().trigger(); }
                             "rome_2" => unsafe { app_ui.rome_2.as_mut().unwrap().trigger(); }
                             "shogun_2" | _ => unsafe { app_ui.shogun_2.as_mut().unwrap().trigger(); }
