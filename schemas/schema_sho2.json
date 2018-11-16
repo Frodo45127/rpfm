@@ -80318,6 +80318,685 @@
           ]
         }
       ]
+    },
+    {
+      "name": "avatar_campaign_maps_tables",
+      "versions": [
+        {
+          "version": 8,
+          "fields": [
+            {
+              "field_name": "adjacent_1",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_campaign_maps",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "adjacent_10",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_campaign_maps",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "adjacent_11",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_campaign_maps",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "adjacent_12",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_campaign_maps",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "adjacent_13",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_campaign_maps",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "adjacent_14",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_campaign_maps",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "adjacent_15",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_campaign_maps",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "adjacent_2",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_campaign_maps",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "adjacent_3",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_campaign_maps",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "adjacent_4",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_campaign_maps",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "adjacent_5",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_campaign_maps",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "adjacent_6",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_campaign_maps",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "adjacent_7",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_campaign_maps",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "adjacent_8",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_campaign_maps",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "adjacent_9",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_campaign_maps",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "dojo",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_dojo_chains",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "is_land",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "is_starting_region",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "unlock_aesthetic",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_aesthetics",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "unlock_ancillary",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "ancillaries",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "red",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "green",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "blue",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "onscreen_name",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "start_sea_region",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "unique_index",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "product",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_product_lookups",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "region",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_campaign_map_regions",
+                "region"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "avatar_clan_specialisms_tables",
+      "versions": [
+        {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "ancillary",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "ancillary_info",
+                "ancillary"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "product",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_product_lookups",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "avatar_dojo_chains_tables",
+      "versions": [
+        {
+          "version": 2,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "onscreen_name",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "recruitment_requirement_description",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "product",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_product_lookups",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "avatar_dojos_tables",
+      "versions": [
+        {
+          "version": 2,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "chain",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "level",
+              "field_type": "Integer",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "unit",
+              "field_type": "OptionalStringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "units",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "ancillary",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "ancillaries",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "product",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_product_lookups",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "avatar_drop_probabilities_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "drop_chance",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "avatar_effects_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "avatar_faction_flags_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "image_file",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "avatar_flags_tables",
+      "versions": [
+        {
+          "version": 3,
+          "fields": [
+            {
+              "field_name": "unique_index",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "source",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_ancillaries_localised_source_lookups",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "order",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "product",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_product_lookups",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "avatar_gempei_dojos_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "chain",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "level",
+              "field_type": "Integer",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "unit",
+              "field_type": "OptionalStringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "units",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "ancillary",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "ancillaries",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "avatar_product_lookups_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "avatar_ranks_tables",
+      "versions": [
+        {
+          "version": 3,
+          "fields": [
+            {
+              "field_name": "ancillary_slots",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "onscreen_name",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "skill_points",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "rank_sequence",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "veteran_slots",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "xp",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "avatar_unit_cost",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "times_reset",
+              "field_type": "Integer",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "product",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_product_lookups",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
     }
   ]
 }
