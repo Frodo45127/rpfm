@@ -304,7 +304,7 @@ impl PackedFileLocTreeView {
         unsafe { context_menu_add.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("add_row").unwrap()))); }
         unsafe { context_menu_insert.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("insert_row").unwrap()))); }
         unsafe { context_menu_delete.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("delete_row").unwrap()))); }
-        unsafe { context_menu_apply_prefix_to_selection.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_db.get("apply_prefix_to_selection").unwrap()))); }        
+        unsafe { context_menu_apply_prefix_to_selection.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("apply_prefix_to_selection").unwrap()))); }        
         unsafe { context_menu_clone.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("clone_row").unwrap()))); }
         unsafe { context_menu_clone_and_append.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("clone_and_append_row").unwrap()))); }
         unsafe { context_menu_copy.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("copy").unwrap()))); }
@@ -315,8 +315,8 @@ impl PackedFileLocTreeView {
         unsafe { context_menu_import.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("import_tsv").unwrap()))); }
         unsafe { context_menu_export.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("export_tsv").unwrap()))); }
         unsafe { smart_delete.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("smart_delete").unwrap()))); }
-        unsafe { context_menu_undo.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_db.get("undo").unwrap()))); }
-        unsafe { context_menu_redo.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_db.get("redo").unwrap()))); }
+        unsafe { context_menu_undo.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("undo").unwrap()))); }
+        unsafe { context_menu_redo.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("redo").unwrap()))); }
 
         // Set the shortcuts to only trigger in the Table.
         unsafe { context_menu_add.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
