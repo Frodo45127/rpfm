@@ -723,7 +723,7 @@ pub fn create_apply_maths_dialog(app_ui: &AppUI) -> Option<(String, f64)> {
     let mut button_group = ButtonGroup::new();
     let mut operation_plus = RadioButton::new(&QString::from_std_str("+"));
     let mut operation_minus = RadioButton::new(&QString::from_std_str("-"));
-    let mut operation_mult = RadioButton::new(&QString::from_std_str("x"));
+    let mut operation_mult = RadioButton::new(&QString::from_std_str("*"));
     let mut operation_div = RadioButton::new(&QString::from_std_str("/"));
     unsafe { button_group.add_button(operation_plus.static_cast_mut() as *mut AbstractButton); }
     unsafe { button_group.add_button(operation_minus.static_cast_mut() as *mut AbstractButton); }

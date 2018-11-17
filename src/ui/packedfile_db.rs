@@ -1077,7 +1077,7 @@ impl PackedFileDBTreeView {
                                     let result = match &*operation {
                                         "+" => value_to_operate.checked_add(value.round() as i64),
                                         "-" => value_to_operate.checked_sub(value.round() as i64),
-                                        "x" => value_to_operate.checked_mul(value.round() as i64),
+                                        "*" => value_to_operate.checked_mul(value.round() as i64),
                                         "/" => value_to_operate.checked_div(value.round() as i64),
                                         _ => unreachable!()
                                     };
@@ -1105,7 +1105,7 @@ impl PackedFileDBTreeView {
                                     let result = match &*operation {
                                         "+" => value_to_operate + value,
                                         "-" => value_to_operate - value,
-                                        "x" => value_to_operate * value,
+                                        "*" => value_to_operate * value,
                                         "/" => if value != 0f64 { value_to_operate / value } else { return show_dialog(app_ui.window, false, ErrorKind::ThereIsAnSpecialPlaceInHellForYou) },
                                         _ => unreachable!()
                                     };
