@@ -459,43 +459,29 @@ pub fn create_new_packed_file_dialog(
     // Creating the New PackedFile Dialog...
     //-------------------------------------------------------------------------------------------//
 
-    // Create the "New PackedFile" Dialog.
-    let mut dialog;
-    unsafe { dialog = Dialog::new_unsafe(app_ui.window as *mut Widget); }
-
-    // Change his title.
+    // Create and configure the "New PackedFile" Dialog.
+    let mut dialog = unsafe { Dialog::new_unsafe(app_ui.window as *mut Widget) };
     match packed_file_type {
         PackedFileType::Loc(_) => dialog.set_window_title(&QString::from_std_str("New Loc PackedFile")),
         PackedFileType::DB(_,_,_) => dialog.set_window_title(&QString::from_std_str("New DB Table")),
         PackedFileType::Text(_) => dialog.set_window_title(&QString::from_std_str("New Text PackedFile")),
     }
-
-    // Set it Modal, so you can't touch the Main Window with this dialog open.
     dialog.set_modal(true);
 
-    // Create the main Grid.
+    // Create the main Grid and his widgets.
     let main_grid = GridLayout::new().into_raw();
-
-    // Create the "New Name" LineEdit.
     let mut new_packed_file_name_edit = LineEdit::new(());
-
-    // Set the current name as default.
-    new_packed_file_name_edit.set_text(&QString::from_std_str("new_file"));
-
-    // Create the "Create" button.
     let create_button = PushButton::new(&QString::from_std_str("Create")).into_raw();
-
-    // Create a dropdown to select the table.
     let mut table_dropdown = ComboBox::new();
     let mut table_model = StandardItemModel::new(());
+    unsafe { dialog.set_layout(main_grid as *mut Layout); }
+
+    new_packed_file_name_edit.set_text(&QString::from_std_str("new_file"));
     unsafe { table_dropdown.set_model(table_model.static_cast_mut()); }
 
     // Add all the widgets to the main grid.
     unsafe { main_grid.as_mut().unwrap().add_widget((new_packed_file_name_edit.static_cast_mut() as *mut Widget, 0, 0, 1, 1)); }
     unsafe { main_grid.as_mut().unwrap().add_widget((create_button as *mut Widget, 0, 1, 1, 1)); }
-
-    // And the Main Grid to the Dialog...
-    unsafe { dialog.set_layout(main_grid as *mut Layout); }
 
     // If it's a DB Table...
     if let PackedFileType::DB(_,_,_) = packed_file_type {
@@ -516,8 +502,6 @@ pub fn create_new_packed_file_dialog(
 
                 // Add every table to the dropdown if exists in the dependency database.
                 schema.tables_definitions.iter().filter(|x| tables.contains(&x.name)).for_each(|x| table_dropdown.add_item(&QString::from_std_str(&x.name)));
-
-                // Add the dropdown to the dialog.
                 unsafe { main_grid.as_mut().unwrap().add_widget((table_dropdown.static_cast_mut() as *mut Widget, 1, 0, 1, 1)); }
             }
 
