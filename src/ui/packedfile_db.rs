@@ -423,7 +423,7 @@ impl PackedFileDBTreeView {
         
         let mut context_menu_copy_submenu = Menu::new(&QString::from_std_str("&Copy..."));
         let context_menu_copy = context_menu_copy_submenu.add_action(&QString::from_std_str("&Copy"));
-        let context_menu_copy_as_lua_table = context_menu_copy_submenu.add_action(&QString::from_std_str("&Copy as LUA Table"));
+        let context_menu_copy_as_lua_table = context_menu_copy_submenu.add_action(&QString::from_std_str("&Copy as &LUA Table"));
 
         let mut context_menu_paste_submenu = Menu::new(&QString::from_std_str("&Paste..."));
         let context_menu_paste_in_selection = context_menu_paste_submenu.add_action(&QString::from_std_str("&Paste in Selection"));

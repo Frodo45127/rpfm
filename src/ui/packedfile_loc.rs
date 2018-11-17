@@ -72,6 +72,7 @@ pub struct PackedFileLocTreeView {
     pub slot_context_menu_clone: SlotBool<'static>,
     pub slot_context_menu_clone_and_append: SlotBool<'static>,
     pub slot_context_menu_copy: SlotBool<'static>,
+    pub slot_context_menu_copy_as_lua_table: SlotBool<'static>,
     pub slot_context_menu_paste_in_selection: SlotBool<'static>,
     pub slot_context_menu_paste_as_new_lines: SlotBool<'static>,
     pub slot_context_menu_paste_to_fill_selection: SlotBool<'static>,
@@ -279,7 +280,9 @@ impl PackedFileLocTreeView {
         let context_menu_clone = context_menu_clone_submenu.add_action(&QString::from_std_str("&Clone and Insert"));
         let context_menu_clone_and_append = context_menu_clone_submenu.add_action(&QString::from_std_str("Clone and &Append"));
 
-        let context_menu_copy = context_menu.add_action(&QString::from_std_str("&Copy"));
+        let mut context_menu_copy_submenu = Menu::new(&QString::from_std_str("&Copy..."));
+        let context_menu_copy = context_menu_copy_submenu.add_action(&QString::from_std_str("&Copy"));
+        let context_menu_copy_as_lua_table = context_menu_copy_submenu.add_action(&QString::from_std_str("Copy as &LUA Table"));
 
         let mut context_menu_paste_submenu = Menu::new(&QString::from_std_str("&Paste..."));
         let context_menu_paste_in_selection = context_menu_paste_submenu.add_action(&QString::from_std_str("&Paste in Selection"));
@@ -308,6 +311,7 @@ impl PackedFileLocTreeView {
         unsafe { context_menu_clone.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("clone_row").unwrap()))); }
         unsafe { context_menu_clone_and_append.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("clone_and_append_row").unwrap()))); }
         unsafe { context_menu_copy.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("copy").unwrap()))); }
+        unsafe { context_menu_copy_as_lua_table.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("copy_as_lua_table").unwrap()))); }
         unsafe { context_menu_paste_in_selection.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("paste_in_selection").unwrap()))); }
         unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("paste_as_new_row").unwrap()))); }
         unsafe { context_menu_paste_to_fill_selection.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("paste_to_fill_selection").unwrap()))); }
@@ -326,6 +330,7 @@ impl PackedFileLocTreeView {
         unsafe { context_menu_clone.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_clone_and_append.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_copy.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+        unsafe { context_menu_copy_as_lua_table.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_paste_in_selection.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_paste_to_fill_selection.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
@@ -344,6 +349,7 @@ impl PackedFileLocTreeView {
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_clone); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_clone_and_append); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_copy); }
+        unsafe { table_view.as_mut().unwrap().add_action(context_menu_copy_as_lua_table); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_paste_in_selection); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_paste_as_new_lines); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_paste_to_fill_selection); }
@@ -362,6 +368,7 @@ impl PackedFileLocTreeView {
         unsafe { context_menu_clone.as_mut().unwrap().set_status_tip(&QString::from_std_str("Duplicate the selected rows and insert the new rows under the original ones.")); }
         unsafe { context_menu_clone_and_append.as_mut().unwrap().set_status_tip(&QString::from_std_str("Duplicate the selected rows and append the new rows at the end of the table.")); }
         unsafe { context_menu_copy.as_mut().unwrap().set_status_tip(&QString::from_std_str("Copy whatever is selected to the Clipboard.")); }
+        unsafe { context_menu_copy_as_lua_table.as_mut().unwrap().set_status_tip(&QString::from_std_str("Turns the entire Loc PackedFile into a LUA Table and copies it to the clipboard.")); }
         unsafe { context_menu_paste_in_selection.as_mut().unwrap().set_status_tip(&QString::from_std_str("Try to paste whatever is in the Clipboard. Does nothing if the data is not compatible with the cell.")); }
         unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().set_status_tip(&QString::from_std_str("Try to paste whatever is in the Clipboard as new lines at the end of the table. Does nothing if the data is not compatible with the cell.")); }
         unsafe { context_menu_paste_to_fill_selection.as_mut().unwrap().set_status_tip(&QString::from_std_str("Try to paste whatever is in the Clipboard in EVERY CELL selected. Does nothing if the data is not compatible with the cell.")); }
@@ -373,8 +380,9 @@ impl PackedFileLocTreeView {
 
         // Insert some separators to space the menu, and the paste submenu.
         unsafe { context_menu.insert_separator(context_menu_copy); }
-        unsafe { context_menu.insert_menu(context_menu_copy, context_menu_apply_submenu.into_raw()); }
-        unsafe { context_menu.insert_menu(context_menu_copy, context_menu_clone_submenu.into_raw()); }
+        unsafe { context_menu.insert_menu(context_menu_search, context_menu_apply_submenu.into_raw()); }
+        unsafe { context_menu.insert_menu(context_menu_search, context_menu_clone_submenu.into_raw()); }
+        unsafe { context_menu.insert_menu(context_menu_search, context_menu_copy_submenu.into_raw()); }
         unsafe { context_menu.insert_menu(context_menu_search, context_menu_paste_submenu.into_raw()); }
         unsafe { context_menu.insert_separator(context_menu_search); }
         unsafe { context_menu.insert_separator(context_menu_import); }
@@ -1067,6 +1075,33 @@ impl PackedFileLocTreeView {
                 // Put the baby into the oven.
                 unsafe { GuiApplication::clipboard().as_mut().unwrap().set_text(&QString::from_std_str(copy)); }
             }),
+
+            slot_context_menu_copy_as_lua_table: SlotBool::new(clone!(
+                packed_file_data => move |_| {
+
+                    // We form a "Map<String, Map<String, Any>>" using the key column as Key of the map.
+                    let mut lua_table = String::new();
+                    lua_table.push_str("LOC = {\n");
+                    for entry in &packed_file_data.borrow().entries {
+                        lua_table.push_str(&format!("\t[key] = {{"));
+                        lua_table.push_str(&format!(" [\"key\"] = {},", format!("\"{}\"", entry.key.replace('\\', "\\\\"))));
+                        lua_table.push_str(&format!(" [\"text\"] = {},", format!("\"{}\"", entry.text.replace('\\', "\\\\").replace("\"", "\\\""))));
+                        lua_table.push_str(&format!(" [\"tooltip\"] = {},", if entry.tooltip { "true" } else { "false" }));
+
+                        // Take out the last comma and close the row.
+                        lua_table.pop();
+                        lua_table.push_str(" },\n");
+                    }
+
+                    // When we finish, we have to remove the last two chars to remove the comma, and close the table.
+                    lua_table.pop();
+                    lua_table.pop();
+                    lua_table.push_str("\n}");
+
+                    // Put the baby into the oven.
+                    unsafe { GuiApplication::clipboard().as_mut().unwrap().set_text(&QString::from_std_str(lua_table)); }
+                }
+            )),
 
             // NOTE: Saving is not needed in this slot, as this gets detected by the main saving slot.
             // It's needed, however, to deal in a special way here with the undo system.
@@ -2030,6 +2065,7 @@ impl PackedFileLocTreeView {
         unsafe { context_menu_clone.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_clone); }
         unsafe { context_menu_clone_and_append.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_clone_and_append); }
         unsafe { context_menu_copy.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_copy); }
+        unsafe { context_menu_copy_as_lua_table.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_copy_as_lua_table); }
         unsafe { context_menu_paste_in_selection.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_paste_in_selection); }
         unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_paste_as_new_lines); }
         unsafe { context_menu_paste_to_fill_selection.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_paste_to_fill_selection); }
@@ -2064,6 +2100,7 @@ impl PackedFileLocTreeView {
             context_menu_clone.as_mut().unwrap().set_enabled(false);
             context_menu_clone_and_append.as_mut().unwrap().set_enabled(false);
             context_menu_copy.as_mut().unwrap().set_enabled(false);
+            context_menu_copy_as_lua_table.as_mut().unwrap().set_enabled(true);
             context_menu_paste_in_selection.as_mut().unwrap().set_enabled(true);
             context_menu_paste_as_new_lines.as_mut().unwrap().set_enabled(true);
             context_menu_paste_to_fill_selection.as_mut().unwrap().set_enabled(true);
