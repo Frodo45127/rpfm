@@ -3930,8 +3930,10 @@ impl PackedFileDBDecoder {
                                             // We replace his fields with the ones from the TableView.
                                             table_definition.borrow_mut().fields = Self::return_data_from_data_view(&stuff);
 
-                                            // We add our `TableDefinition` to the main `Schema`.
+                                            // We add our `TableDefinition` to the main `Schema` and sort it, so the TableDefinition is in the right place.
                                             schema.borrow_mut().tables_definitions[table_definitions_index as usize].add_table_definition(table_definition.borrow().clone());
+                                            schema.borrow_mut().tables_definitions.sort_unstable_by(|a, b| a.name.cmp(&b.name));
+                                            schema.borrow_mut().tables_definitions.iter_mut().for_each(|x| x.versions.sort_unstable_by(|a, b| b.version.cmp(&a.version)));
 
                                             // Send it back to the background thread for saving it.
                                             sender_qt.send(Commands::SaveSchema).unwrap();
