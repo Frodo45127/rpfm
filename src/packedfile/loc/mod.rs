@@ -64,10 +64,13 @@ impl Loc {
         let mut index = 14 as usize;
         for _ in 0..entry_count {
 
-            // Decode the three fields.
-            let key = if index < packed_file_data.len() { decode_packedfile_string_u16(&packed_file_data[index..], &mut index)? } else { return Err(ErrorKind::LocPackedFileCorrupted)? };
-            let text = if index < packed_file_data.len() { decode_packedfile_string_u16(&packed_file_data[index..], &mut index)? } else { return Err(ErrorKind::LocPackedFileCorrupted)? };
+            // Decode the three fields escaping \t and \n to avoid weird behavior.
+            let mut key = if index < packed_file_data.len() { decode_packedfile_string_u16(&packed_file_data[index..], &mut index)? } else { return Err(ErrorKind::LocPackedFileCorrupted)? };
+            let mut text = if index < packed_file_data.len() { decode_packedfile_string_u16(&packed_file_data[index..], &mut index)? } else { return Err(ErrorKind::LocPackedFileCorrupted)? };
             let tooltip = if index < packed_file_data.len() { decode_packedfile_bool(packed_file_data[index], &mut index)? } else { return Err(ErrorKind::LocPackedFileCorrupted)? };
+            key = key.replace("\t", "\\t").replace("\n", "\\n");
+            text = text.replace("\t", "\\t").replace("\n", "\\n");
+
             let mut entry = LocEntry::new(key, text, tooltip);
             entries.push(entry);
         }
@@ -95,8 +98,8 @@ impl Loc {
 
         // Encode the data.
         for entry in &self.entries {
-            packed_file.append(&mut encode_packedfile_string_u16(&entry.key));
-            packed_file.append(&mut encode_packedfile_string_u16(&entry.text));
+            packed_file.append(&mut encode_packedfile_string_u16(&entry.key.replace("\\t", "\t").replace("\\n", "\n")));
+            packed_file.append(&mut encode_packedfile_string_u16(&entry.text.replace("\\t", "\t").replace("\\n", "\n")));
             packed_file.push(encode_bool(entry.tooltip));
         }
 
