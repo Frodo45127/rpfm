@@ -12272,6 +12272,694 @@
       ]
     },
     {
+      "name": "avatar_skill_chain_lookups_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "skill_chain",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "avatar_skill_effects_juncs_tables",
+      "versions": [
+        {
+          "version": 3,
+          "fields": [
+            {
+              "field_name": "effect",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "avatar_effects",
+                "effect"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "effect_value",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "skill",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "avatar_skills",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "multiplier",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "unit_group",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_unit_group_ids",
+                "group_id"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "avatar_skill_prerequisites_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "points_needed",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "prerequisite",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "avatar_skills",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "skill",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "avatar_skills",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "avatar_skill_sets_tables",
+      "versions": [
+        {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "unknown_1",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "There is no info about this table anywhere, not even in Shogun's Assembly Kit, so I can't get the title and relations for this table."
+            },
+            {
+              "field_name": "unknown_2",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "There is no info about this table anywhere, not even in Shogun's Assembly Kit, so I can't get the title and relations for this table."
+            },
+            {
+              "field_name": "unknown_3",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "There is no info about this table anywhere, not even in Shogun's Assembly Kit, so I can't get the title and relations for this table."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "avatar_skill_tree_traits_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "avatar_traits",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "skill_chain",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_skill_chain_lookups",
+                "skill_chain"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "skill_points_allocated",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "avatar_skills_descriptions_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "avatar_skills",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "avatar_skills_tables",
+      "versions": [
+        {
+          "version": 10,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "level",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_skill_level_lookups",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "skill_chain",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_skill_chain_lookups",
+                "skill_chain"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "icon",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "supersedes_skill",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_skills",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "advanced_skill",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "clan_skill",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_clan_specialisms",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "clan_tokens_required",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "skill_sub_chain",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_skill_sub_chain_lookups",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "cost",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "skill_sub_chain_superceded",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_skill_sub_chain_lookups",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "unique_index",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "product",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_product_lookups",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "avatar_skills_to_units_juncs_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "skill",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "avatar_skills",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "unit",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "units",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "avatar_special_abilities_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "unknown_1",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "There is no info about this table anywhere, not even in Shogun's Assembly Kit, so I can't get the title and relations for this table."
+            },
+            {
+              "field_name": "unknown_2",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "There is no info about this table anywhere, not even in Shogun's Assembly Kit, so I can't get the title and relations for this table."
+            },
+            {
+              "field_name": "unknown_3",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "There is no info about this table anywhere, not even in Shogun's Assembly Kit, so I can't get the title and relations for this table."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "avatar_startpos_units_tables",
+      "versions": [
+        {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "units",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "product",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_product_lookups",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "avatar_traits_tables",
+      "versions": [
+        {
+          "version": 2,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "unique_index",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "avatar_unit_group_ids_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "group_id",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "avatar_unit_groups_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "group_id",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "avatar_unit_group_ids",
+                "group_id"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "unit_key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "avatar_units",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "avatar_unit_info_card_abilites_strings_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "effect",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "icon",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "avatar_unit_levels_tables",
+      "versions": [
+        {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "skill_points",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "xp",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "product",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_product_lookups",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "avatar_unit_ui_categories_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "unit_ui_category",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "avatar_units_tables",
+      "versions": [
+        {
+          "version": 8,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "units",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "xp_scaling_factor",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "default_avatar_general_model_unit",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "unique_index",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "unit_ui_category",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_unit_ui_categories",
+                "unit_ui_category"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "unit_ui_category_order",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "hero_unit",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "product",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_product_lookups",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "start_unit_as_veteran",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "clan_specialism",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_clan_specialisms",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "avatar_xp_rewards_tables",
+      "versions": [
+        {
+          "version": 2,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "xp",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "product",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "avatar_product_lookups",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "banditry_events_tables",
       "versions": [
         {
@@ -12520,7 +13208,7 @@
             },
             {
               "field_name": "source_unit_class",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "unit_class",
@@ -12530,7 +13218,7 @@
             },
             {
               "field_name": "target_unit_class",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "unit_class",
@@ -12775,7 +13463,7 @@
           "fields": [
             {
               "field_name": "key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
@@ -13107,7 +13795,7 @@
           "fields": [
             {
               "field_name": "city",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
@@ -13180,7 +13868,7 @@
           "fields": [
             {
               "field_name": "building",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": [
                 "warscape_rigid",
@@ -13190,7 +13878,7 @@
             },
             {
               "field_name": "city",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": [
                 "battle_cities",
@@ -13210,6 +13898,36 @@
               "field_type": "Integer",
               "field_is_key": false,
               "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "battle_city_subculture_jct_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "subculture",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "cultures_subcultures",
+                "subculture"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "city",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "battle_cities",
+                "city"
+              ],
               "field_description": ""
             }
           ]
@@ -13283,6 +14001,97 @@
             {
               "field_name": "spotting_scalar",
               "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "climate_type",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "climates",
+                "climate_type"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "season",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "seasons",
+                "season"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "weather_type",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "battle_weather_types",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "probability",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "ambient_fog_probability",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "volumetric_fog_probability",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "heat_fatigue",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "cold_fatigue",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "haze_index",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "fog_index",
+              "field_type": "Integer",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
