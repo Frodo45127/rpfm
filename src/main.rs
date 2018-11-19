@@ -89,6 +89,7 @@ use std::rc::Rc;
 use std::thread;
 use std::sync::mpsc::{channel, Sender, Receiver};
 use std::ffi::OsStr;
+use std::panic;
 use std::path::{Path, PathBuf};
 use std::fs::{DirBuilder, copy, remove_file, remove_dir_all};
 
@@ -98,7 +99,7 @@ use sentry::integrations::panic::register_panic_handler;
 
 use common::*;
 use common::communications::*;
-use error::{ErrorKind, Result};
+use error::{ErrorKind, logger::Report, Result};
 use packedfile::*;
 use packedfile::db::schemas_importer::*;
 use packfile::packfile::{PFHVersion, PFHFileType, PFHFlags};
@@ -490,6 +491,9 @@ fn main() {
 
     // If this is a release, register Sentry's Panic Handler, so we get reports on CTD.
     if !cfg!(debug_assertions) { register_panic_handler(); }
+
+    // Sentry fails quite a lot, so log the crashes so the user can send them himself.
+    if !cfg!(debug_assertions) { panic::set_hook(Box::new(move |info: &panic::PanicInfo| { Report::new(info).save().unwrap(); })); }
 
     // Create the application...
     Application::create_and_exit(|app| {

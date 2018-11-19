@@ -4,9 +4,11 @@ extern crate failure;
 extern crate serde_json;
 extern crate csv;
 extern crate reqwest;
+extern crate toml;
 
 use failure::{Backtrace, Context, Fail};
 use serde_json::error::Category;
+use self::toml::ser;
 
 use std::fmt;
 use std::fmt::Display;
@@ -14,6 +16,8 @@ use std::path::PathBuf;
 use std::result;
 use std::io;
 use std::string;
+
+pub mod logger;
 
 /// Alias for handling errors more easely.
 pub type Result<T> = result::Result<T, Error>;
@@ -34,6 +38,9 @@ pub enum ErrorKind {
 
     // Error for when someone tries to divide by 0.
     ThereIsAnSpecialPlaceInHellForYou,
+
+    // Error for when serializing to TOML fails.
+    TOMLSerializerError,
 
     //-----------------------------------------------------//
     //                  Network Errors
@@ -357,6 +364,7 @@ impl Display for ErrorKind {
         match self {
             ErrorKind::Generic => write!(f, "<p>Generic error. You should never read this.</p>"),
             ErrorKind::ThereIsAnSpecialPlaceInHellForYou => write!(f, "<p>There is an special place in hell for you.</p>"),
+            ErrorKind::TOMLSerializerError => write!(f, "<p>This should never happen.</p>"),
 
             //-----------------------------------------------------//
             //                  Network Errors
@@ -579,6 +587,12 @@ impl From<reqwest::Error> for Error {
     }
 }
 
+/// Implementation to create a custom error from a Toml Error.
+impl From<ser::Error> for Error {
+    fn from(_: ser::Error) -> Error {
+        Error::from(ErrorKind::TOMLSerializerError)
+    }
+}
 
 /// Implementation to create a custom error from a std::io::Error. Based on the "From" used to convert it to std::io::Error.
 impl From<io::Error> for Error {

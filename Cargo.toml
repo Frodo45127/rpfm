@@ -31,6 +31,8 @@ qt_core = "0.2"
 
 cpp_utils = "*"
 lazy_static = "*"
+os_info = "1.1.0"
+toml = "0.4.7"
 
 bitflags = "1.0"
 [target.'cfg(windows)'.build-dependencies]
