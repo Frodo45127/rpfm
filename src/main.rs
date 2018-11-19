@@ -2238,17 +2238,13 @@ fn main() {
             packedfiles_open_in_packedfile_view,
             mode => move |_| {
 
-                // Create the FileDialog to get the file/s to add.
-                let mut file_dialog;
-                unsafe { file_dialog = FileDialog::new_unsafe((
+                // Create the FileDialog to get the file/s to add and configure it.
+                let mut file_dialog = unsafe { FileDialog::new_unsafe((
                     app_ui.window as *mut Widget,
                     &QString::from_std_str("Add File/s"),
-                )); }
-
-                // Set it to allow to add multiple files at once.
+                )) };
                 file_dialog.set_file_mode(FileMode::ExistingFiles);
 
-                // Depending on the current Operational Mode...
                 match *mode.borrow() {
 
                     // If we have a "MyMod" selected...
@@ -2311,10 +2307,31 @@ fn main() {
                                     paths_packedfile
                                 };
 
-                                // If we have a PackedFile open and it's on the adding list, stop.
-                                packedfiles_open_in_packedfile_view.borrow().values().for_each(|x| 
-                                    if paths_packedfile.contains(&x.borrow()) { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
-                                );
+                                // If we have a PackedFile open and it's on the adding list, ask the user to be sure. Do it in rev, otherwise it has problems.
+                                let mut views = vec![];
+                                for (view, packed_file) in packedfiles_open_in_packedfile_view.borrow().iter().rev() {
+                                    if paths_packedfile.contains(&packed_file.borrow()) { views.push(*view); }
+                                }
+                                if !views.is_empty() {
+                                    let mut dialog = unsafe { MessageBox::new_unsafe((
+                                        message_box::Icon::Information,
+                                        &QString::from_std_str("One or more of the PackedFiles you want to replace is open."),
+                                        &QString::from_std_str("Are you sure you want to replace it? Hitting yes will close it."),
+                                        Flags::from_int(16384) | Flags::from_int(65536),
+                                        app_ui.window as *mut Widget,
+                                    )) };
+
+                                    // 16384 means yes.
+                                    if dialog.exec() != 16384 { return }
+                                    else { 
+                                        for view in &views {
+                                            purge_that_one_specifically(&app_ui, *view, &packedfiles_open_in_packedfile_view); 
+                                            let widgets = unsafe { app_ui.packed_file_splitter.as_mut().unwrap().count() };
+                                            let visible_widgets = (0..widgets).filter(|x| unsafe {app_ui.packed_file_splitter.as_mut().unwrap().widget(*x).as_mut().unwrap().is_visible() } ).count();
+                                            if visible_widgets == 0 { display_help_tips(&app_ui); }
+                                        }
+                                    }
+                                }
 
                                 // Tell the Background Thread to add the files.
                                 sender_qt.send(Commands::AddPackedFile).unwrap();
@@ -2377,10 +2394,31 @@ fn main() {
                             let mut paths_packedfile: Vec<Vec<String>> = vec![];
                             for path in &paths { paths_packedfile.append(&mut get_path_from_pathbuf(&app_ui, &path, true)); }
 
-                            // If we have a PackedFile open and it's on the adding list, stop.
-                            packedfiles_open_in_packedfile_view.borrow().values().for_each(|x| 
-                                if paths_packedfile.contains(&x.borrow()) { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
-                            );
+                            // If we have a PackedFile open and it's on the adding list, ask the user to be sure. Do it in rev, otherwise it has problems.
+                            let mut views = vec![];
+                            for (view, packed_file) in packedfiles_open_in_packedfile_view.borrow().iter().rev() {
+                                if paths_packedfile.contains(&packed_file.borrow()) { views.push(*view); }
+                            }
+                            if !views.is_empty() {
+                                let mut dialog = unsafe { MessageBox::new_unsafe((
+                                    message_box::Icon::Information,
+                                    &QString::from_std_str("One or more of the PackedFiles you want to replace is open."),
+                                    &QString::from_std_str("Are you sure you want to replace it? Hitting yes will close it."),
+                                    Flags::from_int(16384) | Flags::from_int(65536),
+                                    app_ui.window as *mut Widget,
+                                )) };
+
+                                // 16384 means yes.
+                                if dialog.exec() != 16384 { return }
+                                else { 
+                                    for view in &views {
+                                        purge_that_one_specifically(&app_ui, *view, &packedfiles_open_in_packedfile_view); 
+                                        let widgets = unsafe { app_ui.packed_file_splitter.as_mut().unwrap().count() };
+                                        let visible_widgets = (0..widgets).filter(|x| unsafe {app_ui.packed_file_splitter.as_mut().unwrap().widget(*x).as_mut().unwrap().is_visible() } ).count();
+                                        if visible_widgets == 0 { display_help_tips(&app_ui); }
+                                    }
+                                }
+                            }
 
                             // Tell the Background Thread to add the files.
                             sender_qt.send(Commands::AddPackedFile).unwrap();
@@ -2438,17 +2476,14 @@ fn main() {
             mode => move |_| {
 
                 // Create the FileDialog to get the folder/s to add.
-                let mut file_dialog;
-                unsafe { file_dialog = FileDialog::new_unsafe((
+                let mut file_dialog = unsafe { FileDialog::new_unsafe((
                     app_ui.window as *mut Widget,
                     &QString::from_std_str("Add Folder/s"),
-                )); }
+                )) };
 
                 // TODO: Make this able to select multiple directories at once.
-                // Set it to only allow selecting directories.
                 file_dialog.set_file_mode(FileMode::Directory);
 
-                // Depending on the current Operational Mode...
                 match *mode.borrow() {
 
                     // If we have a "MyMod" selected...
@@ -2515,10 +2550,31 @@ fn main() {
                                     paths_packedfile
                                 };
 
-                                // If we have a PackedFile open and it's on the adding list, stop.
-                                packedfiles_open_in_packedfile_view.borrow().values().for_each(|x| 
-                                    if paths_packedfile.contains(&x.borrow()) { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
-                                );
+                                // If we have a PackedFile open and it's on the adding list, ask the user to be sure. Do it in rev, otherwise it has problems.
+                                let mut views = vec![];
+                                for (view, packed_file) in packedfiles_open_in_packedfile_view.borrow().iter().rev() {
+                                    if paths_packedfile.contains(&packed_file.borrow()) { views.push(*view); }
+                                }
+                                if !views.is_empty() {
+                                    let mut dialog = unsafe { MessageBox::new_unsafe((
+                                        message_box::Icon::Information,
+                                        &QString::from_std_str("One or more of the PackedFiles you want to replace is open."),
+                                        &QString::from_std_str("Are you sure you want to replace it? Hitting yes will close it."),
+                                        Flags::from_int(16384) | Flags::from_int(65536),
+                                        app_ui.window as *mut Widget,
+                                    )) };
+
+                                    // 16384 means yes.
+                                    if dialog.exec() != 16384 { return }
+                                    else { 
+                                        for view in &views {
+                                            purge_that_one_specifically(&app_ui, *view, &packedfiles_open_in_packedfile_view); 
+                                            let widgets = unsafe { app_ui.packed_file_splitter.as_mut().unwrap().count() };
+                                            let visible_widgets = (0..widgets).filter(|x| unsafe {app_ui.packed_file_splitter.as_mut().unwrap().widget(*x).as_mut().unwrap().is_visible() } ).count();
+                                            if visible_widgets == 0 { display_help_tips(&app_ui); }
+                                        }
+                                    }
+                                }
 
                                 // Tell the Background Thread to add the files.
                                 sender_qt.send(Commands::AddPackedFile).unwrap();
@@ -2585,10 +2641,31 @@ fn main() {
                             let mut paths_packedfile: Vec<Vec<String>> = vec![];
                             for path in &folder_paths { paths_packedfile.append(&mut get_path_from_pathbuf(&app_ui, &path, false)); }
 
-                            // If we have a PackedFile open and it's on the adding list, stop.
-                            packedfiles_open_in_packedfile_view.borrow().values().for_each(|x| 
-                                if paths_packedfile.contains(&x.borrow()) { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
-                            );
+                            // If we have a PackedFile open and it's on the adding list, ask the user to be sure. Do it in rev, otherwise it has problems.
+                            let mut views = vec![];
+                            for (view, packed_file) in packedfiles_open_in_packedfile_view.borrow().iter().rev() {
+                                if paths_packedfile.contains(&packed_file.borrow()) { views.push(*view); }
+                            }
+                            if !views.is_empty() {
+                                let mut dialog = unsafe { MessageBox::new_unsafe((
+                                    message_box::Icon::Information,
+                                    &QString::from_std_str("One or more of the PackedFiles you want to replace is open."),
+                                    &QString::from_std_str("Are you sure you want to replace it? Hitting yes will close it."),
+                                    Flags::from_int(16384) | Flags::from_int(65536),
+                                    app_ui.window as *mut Widget,
+                                )) };
+
+                                // 16384 means yes.
+                                if dialog.exec() != 16384 { return }
+                                else { 
+                                    for view in &views {
+                                        purge_that_one_specifically(&app_ui, *view, &packedfiles_open_in_packedfile_view); 
+                                        let widgets = unsafe { app_ui.packed_file_splitter.as_mut().unwrap().count() };
+                                        let visible_widgets = (0..widgets).filter(|x| unsafe {app_ui.packed_file_splitter.as_mut().unwrap().widget(*x).as_mut().unwrap().is_visible() } ).count();
+                                        if visible_widgets == 0 { display_help_tips(&app_ui); }
+                                    }
+                                }
+                            }
 
                             // Tell the Background Thread to add the files.
                             sender_qt.send(Commands::AddPackedFile).unwrap();
