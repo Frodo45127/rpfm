@@ -492,8 +492,8 @@ impl PackFile {
                 // If we have the last modified date of the PackedFiles, get it.
                 let timestamp = if pack_file_decoded.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) {
                     let encrypted_timestamp = match pack_file_decoded.pfh_version {
-                        PFHVersion::PFH5 | PFHVersion::PFH4 => decode_integer_u32(&buffer[packed_file_index_position..(packed_file_index_position + 4)])? as i64,
-                        PFHVersion::PFH3 => (decode_integer_i64(&buffer[packed_file_index_position..(packed_file_index_position + 8)])? / WINDOWS_TICK) - SEC_TO_UNIX_EPOCH,
+                        PFHVersion::PFH5 | PFHVersion::PFH4 => decode_integer_u32(&packed_file_index[packed_file_index_position..(packed_file_index_position + 4)])? as i64,
+                        PFHVersion::PFH3 => (decode_integer_i64(&packed_file_index[packed_file_index_position..(packed_file_index_position + 8)])? / WINDOWS_TICK) - SEC_TO_UNIX_EPOCH,
                     };
                     decrypt_index_item_file_length(encrypted_timestamp as u32, packed_files_after_this_one as u32, &mut packed_file_index_position)
                 } else { 0 };
@@ -528,8 +528,8 @@ impl PackFile {
                 // If we have the last modified date of the PackedFiles in the Index, get it.
                 let timestamp = if pack_file_decoded.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) {
                     match pack_file_decoded.pfh_version {
-                        PFHVersion::PFH5 | PFHVersion::PFH4 => decode_integer_u32(&buffer[(packed_file_index_position + 4)..(packed_file_index_position + 8)])? as i64,
-                        PFHVersion::PFH3 => (decode_integer_i64(&buffer[(packed_file_index_position + 4)..(packed_file_index_position + 12)])? / WINDOWS_TICK) - SEC_TO_UNIX_EPOCH,
+                        PFHVersion::PFH5 | PFHVersion::PFH4 => decode_integer_u32(&packed_file_index[(packed_file_index_position + 4)..(packed_file_index_position + 8)])? as i64,
+                        PFHVersion::PFH3 => (decode_integer_i64(&packed_file_index[(packed_file_index_position + 4)..(packed_file_index_position + 12)])? / WINDOWS_TICK) - SEC_TO_UNIX_EPOCH,
                     }
                 } else { 0 };
 
