@@ -12722,6 +12722,43 @@
       ]
     },
     {
+      "name": "avatar_unit_group_recruitment_limits_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "number_of_units",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "string",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "random_localisation_strings",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "unit_group",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "avatar_unit_group_ids",
+                "group_id"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "avatar_unit_groups_tables",
       "versions": [
         {
@@ -15174,6 +15211,167 @@
               "field_description": "Charge speed of the entity when in the air (as opposed to moving on the ground)"
             }
           ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "class_validation",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "battle_entities_class_validation_enum",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "type",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "battle_entities_types_enum",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "walk_speed",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "run_speed",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "acceleration",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "deceleration",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "Needs to be larger than acceleration value to avoid attack movement bugs"
+            },
+            {
+              "field_name": "charge_speed",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "crawl_speed",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "charge_distance_commence_run",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "charge_distance_adopt_charge_pose",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "charge_distance_pick_target",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "radius",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "shape",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "battle_entities_shape_enum",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "radii_ratio",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "mass",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "height",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "fire_arc_close",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "fire_arc_loose",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "turn_speed",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "hit_points",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -15860,6 +16058,68 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "soldier_model",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "warscape_animated",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "man_animations_table",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "battle_animations_table",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "equipement_theme",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "warscape_equipment_themes",
+                "theme"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "type",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "battle_personality_types_enum",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "missile_type",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "projectiles",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -15878,6 +16138,101 @@
             },
             {
               "field_name": "unit_xp_gain",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "battle_script_advice_strings_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "advisor_name",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "advisors",
+                "advisor_name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "battle_script_strings_tables",
+      "versions": [
+        {
+          "version": 2,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "string",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "advisor_name",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "advisors",
+                "advisor_name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "title",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "battle_sequences_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "battle",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "battles",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "unlock_order",
               "field_type": "Integer",
               "field_is_key": false,
               "field_is_reference": null,
@@ -18021,6 +18376,43 @@
       ]
     },
     {
+      "name": "battle_type_faction_presets_tables",
+      "versions": [
+        {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "faction",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "factions",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "weighting_type",
+              "field_type": "Integer",
+              "field_is_key": true,
+              "field_is_reference": [
+                "battle_type_setup_limits",
+                "id"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "id",
+              "field_type": "LongInteger",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "battle_type_setup_limits_tables",
       "versions": [
         {
@@ -18028,7 +18420,7 @@
           "fields": [
             {
               "field_name": "battle_type",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "battle_types",
@@ -18038,21 +18430,21 @@
             },
             {
               "field_name": "weighting_type",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
             },
             {
               "field_name": "army_size",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
             },
             {
               "field_name": "era",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
@@ -18111,6 +18503,50 @@
       ]
     },
     {
+      "name": "battle_type_unit_to_faction_presets_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "id",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "preset_id",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": [
+                "battle_type_faction_presets",
+                "id"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "unit",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "units",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "experience",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "battle_types_tables",
       "versions": [
         {
@@ -18143,6 +18579,25 @@
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": "Maximum number of armies per alliance for this battle type"
+            }
+          ]
+        },
+        {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "type",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "sort_order",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "Order put in ui"
             }
           ]
         }
@@ -18736,7 +19191,7 @@
           "fields": [
             {
               "field_name": "key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
@@ -18825,6 +19280,35 @@
               "field_description": "Icon path used for any related building icons for radar, etc"
             }
           ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "category",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "onscreen_name",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "default_destruction_effect",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "particle_effects",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -18836,7 +19320,7 @@
           "fields": [
             {
               "field_name": "transformation",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
@@ -20480,6 +20964,53 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "siege_point_cost",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "turns_to_build",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "string",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "icon_name",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "info_pic",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -21903,6 +22434,156 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 4,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "type",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "battle_types",
+                "type"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "is_naval",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "specification",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "screenshot_path",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "map_path",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "team_size_1",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "team_size_2",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "release",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "multiplayer",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "singleplayer",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "intro_movie",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "year",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "defender_funds_ratio",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "has_key_buildings",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "matchmaking",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "battles_to_avatar_product_lookups_junctions_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "battle",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "battles",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "product",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "avatar_product_lookups",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -21995,6 +22676,40 @@
       ]
     },
     {
+      "name": "bombardment_quality_to_artillery_support_modifiers_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "bombardment_quality",
+              "field_type": "Integer",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "effect",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "effects",
+                "effect"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "value",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "bribe_actions_tables",
       "versions": [
         {
@@ -22002,14 +22717,14 @@
           "fields": [
             {
               "field_name": "key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
             },
             {
               "field_name": "name",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
@@ -22140,7 +22855,7 @@
           "fields": [
             {
               "field_name": "chain",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": [
                 "building_chains",
@@ -22150,7 +22865,7 @@
             },
             {
               "field_name": "slot",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": [
                 "slots",
@@ -22278,6 +22993,46 @@
                 "building_superchains",
                 "key"
               ],
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "tech_category_tab",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "tech_category_position",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "chain_category",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "in_encyclopedia",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
               "field_description": ""
             }
           ]
@@ -22498,6 +23253,95 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "building",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "building_levels",
+                "level_name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "culture",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "cultures",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "battlefield_building",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "battlefield_buildings",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "artpiece",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "warscape_rigid",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "artpiece_animated",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "warscape_animated",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "description",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "building_description_texts",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "icon",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "building_description_texts_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -22589,6 +23433,132 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "building",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "building_levels",
+                "level_name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "effect",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "effects",
+                "effect"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "value",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "building_faction_variants_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "building",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "building_levels",
+                "level_name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "faction",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "factions",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "artpiece",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "warscape_rigid",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "description",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "building_description_texts",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "icon",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "building_factionwide_effects_junctions_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "building",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "building_levels",
+                "level_name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "effect",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "effects",
+                "effect"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "effect_value",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -22650,6 +23620,45 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "building_level",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "building_levels",
+                "level_name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "id",
+              "field_type": "LongInteger",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "priority",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "unit",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "units",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -22691,7 +23700,7 @@
           "fields": [
             {
               "field_name": "building_level_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": [
                 "building_levels",
@@ -22701,7 +23710,7 @@
             },
             {
               "field_name": "technology_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": [
                 "technologies",
@@ -23674,6 +24683,256 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 3,
+          "fields": [
+            {
+              "field_name": "level_name",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "chain",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "building_chains",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "level",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "condition",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "create_time",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "create_cost",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "upkeep_cost",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "demolition_cost",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "zoc",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "lower_happiness",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "upper_happiness",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "repression",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "gdp",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "town_wealth_growth",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "pop_change",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "maxpop_change",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "commodity",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "commodities",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "gov_type_key",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "commodity_vol",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "only_in_capital",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "military_prestige",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "naval_prestige",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "economic_prestige",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "enlightenment_prestige",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "destruction_terminator",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "faction_unique",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "religion_requirement",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "religions",
+                "religion_key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "first_in_world_bundle",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "effect_bundles",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "resource_requirement",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "resources",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "working_model",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "warscape_rigid",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "unique_index",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "damage_model",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "warscape_rigid",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -23936,6 +25195,36 @@
       ]
     },
     {
+      "name": "building_to_unit_abilities_junctions_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "ability",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "unit_abilities",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "building_name",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "battlefield_buildings",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "building_units_allowed_tables",
       "versions": [
         {
@@ -24063,6 +25352,69 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 2,
+          "fields": [
+            {
+              "field_name": "building",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "building_levels",
+                "level_name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "unit",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "main_units",
+                "unit"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "xp",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "conditions",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "key",
+              "field_type": "LongInteger",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "faction",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "factions",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "enabled",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -24074,7 +25426,7 @@
           "fields": [
             {
               "field_name": "from",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "building_levels",
@@ -24084,7 +25436,7 @@
             },
             {
               "field_name": "to",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "building_levels",
