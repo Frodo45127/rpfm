@@ -25456,7 +25456,7 @@
           "fields": [
             {
               "field_name": "key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
@@ -25473,7 +25473,7 @@
           "fields": [
             {
               "field_name": "key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
@@ -25641,21 +25641,21 @@
           "version": 0,
           "fields": [
             {
-              "field_name": "agent_type_key",
-              "field_type": "StringU8",
+              "field_name": "agent_record_key",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
-                "cai_agent_types",
+                "agents",
                 "key"
               ],
               "field_description": ""
             },
             {
-              "field_name": "agent_record_key",
-              "field_type": "StringU8",
+              "field_name": "agent_type_key",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
-                "agents",
+                "cai_agent_types",
                 "key"
               ],
               "field_description": ""
@@ -25672,7 +25672,7 @@
           "fields": [
             {
               "field_name": "key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
@@ -25689,7 +25689,7 @@
           "fields": [
             {
               "field_name": "key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
@@ -25706,7 +25706,7 @@
           "fields": [
             {
               "field_name": "agent_type_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "cai_agent_types",
@@ -25716,7 +25716,7 @@
             },
             {
               "field_name": "distribution_profile_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "cai_agent_distribution_profiles",
@@ -25726,7 +25726,7 @@
             },
             {
               "field_name": "distribution_type_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "cai_agent_distribution_types",
@@ -25746,7 +25746,7 @@
           "fields": [
             {
               "field_name": "agent_type_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "cai_agent_types",
@@ -25756,7 +25756,7 @@
             },
             {
               "field_name": "recruitment_profile_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "cai_agent_recruitment_profiles",
@@ -25766,7 +25766,7 @@
             },
             {
               "field_name": "recruitment_type_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "cai_agent_recruitment_types",
@@ -25786,7 +25786,7 @@
           "fields": [
             {
               "field_name": "key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
@@ -25803,7 +25803,7 @@
           "fields": [
             {
               "field_name": "building_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "building_levels",
@@ -25819,7 +25819,7 @@
               "field_description": ""
             },
             {
-              "field_name": "military_value",
+              "field_name": "prestige_value",
               "field_type": "Float",
               "field_is_key": false,
               "field_is_reference": null,
@@ -25833,7 +25833,7 @@
               "field_description": ""
             },
             {
-              "field_name": "prestige_value",
+              "field_name": "military_value",
               "field_type": "Float",
               "field_is_key": false,
               "field_is_reference": null,
@@ -27378,7 +27378,7 @@
           "fields": [
             {
               "field_name": "key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
@@ -27395,7 +27395,7 @@
           "fields": [
             {
               "field_name": "key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
@@ -27447,7 +27447,7 @@
           "fields": [
             {
               "field_name": "budget_allocation_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": [
                 "cai_personalities_budget_allocations",
@@ -27457,7 +27457,7 @@
             },
             {
               "field_name": "budget_context_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": [
                 "cai_strategic_context_types",
@@ -27467,7 +27467,7 @@
             },
             {
               "field_name": "budget_policy_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "cai_personalities_budget_policies",
@@ -27688,6 +27688,195 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "agents_funding_cap",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "agents_funds_allocation_percentage",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "agents_percentage_of_pool_to_save_on_fail",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "agents_turns_of_inactivity_until_cap",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "army_funding_cap",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "army_funds_allocation_percentage",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "army_percentage_of_pool_to_save_on_fail",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "army_turns_of_inactivity_until_cap",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "construction_funding_cap",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "construction_funds_allocation_percentage",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "construction_percentage_of_pool_to_save_on_fail",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "construction_turns_of_inactivity_until_cap",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "diplomacy_funding_cap",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "diplomacy_funds_allocation_percentage",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "diplomacy_percentage_of_pool_to_save_on_fail",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "diplomacy_turns_of_inactivity_until_cap",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "navy_funding_cap",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "navy_funds_allocation_percentage",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "navy_percentage_of_pool_to_save_on_fail",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "navy_turns_of_inactivity_until_cap",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "minimum_settable_tax_level",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "taxes_levels",
+                "tax_level"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "maximum_settable_tax_level",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "taxes_levels",
+                "tax_level"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "cai_personalities_budget_context_types_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -27741,7 +27930,7 @@
           "fields": [
             {
               "field_name": "default_budget_allocation_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": [
                 "cai_personalities_budget_allocations",
@@ -27751,7 +27940,152 @@
             },
             {
               "field_name": "key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "cai_personalities_building_synergies_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "existing_building_chain_key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "building_chains",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "existing_building_level_inclusive_end",
+              "field_type": "OptionalStringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "building_levels",
+                "level_name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "existing_building_level_inclusive_start",
+              "field_type": "OptionalStringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "building_levels",
+                "level_name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "potential_buiding_chain_key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "building_chains",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "potential_building_level_inclusive_end",
+              "field_type": "OptionalStringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "building_levels",
+                "level_name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "potential_building_level_inclusive_start",
+              "field_type": "OptionalStringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "building_levels",
+                "level_name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "synergy_level_key",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cai_personalities_building_synergy_levels",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "synergy_policy_key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "cai_personalities_building_synergy_policies",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "cai_personalities_building_synergy_levels_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "absolute_effect",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "priority",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "relative_effect",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "cai_personalities_building_synergy_policies_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
@@ -27885,8 +28219,59 @@
           "fields": [
             {
               "field_name": "key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "cai_personalities_construction_preference_policy_building_junctions_tables",
+      "versions": [
+        {
+          "version": 2,
+          "fields": [
+            {
+              "field_name": "bias_level",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "building_key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "building_levels",
+                "level_name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "policy_key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "cai_personalities_construction_preference_policies",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "absolute_adjustment",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "building_discount_limit_adjustment",
+              "field_type": "Integer",
+              "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
             }
@@ -27934,6 +28319,66 @@
               "field_is_reference": [
                 "cai_construction_system_strategic_context_template_policies",
                 "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "cai_personalities_faction_junctions_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "campaign_key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "campaigns",
+                "campaign_name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "default_personality",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cai_personalities",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "faction_key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "factions",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "personality_group",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cai_personalities_random_groups",
+                "random_personality_group_key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "randomisation_policy_key",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cai_personalities_randomisation_policies",
+                "randomisation_policy_key"
               ],
               "field_description": ""
             }
@@ -28154,7 +28599,7 @@
           "fields": [
             {
               "field_name": "personality_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": [
                 "cai_personalities",
@@ -28164,7 +28609,7 @@
             },
             {
               "field_name": "random_personality_group_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": [
                 "cai_personalities_random_groups",
@@ -28184,7 +28629,7 @@
           "fields": [
             {
               "field_name": "random_personality_group_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
@@ -28201,7 +28646,7 @@
           "fields": [
             {
               "field_name": "randomisation_policy_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
@@ -28298,6 +28743,18 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 2,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -28347,7 +28804,7 @@
           "fields": [
             {
               "field_name": "key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
@@ -29071,6 +29528,135 @@
               "field_is_reference": [
                 "cai_personality_occupation_decision_components",
                 "id"
+              ],
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 2,
+          "fields": [
+            {
+              "field_name": "agent_distribution_profile_key",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cai_agent_distribution_profiles",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "agent_recruitment_profile_key",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cai_agent_recruitment_profiles",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "budget_policy_key",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cai_personalities_budget_policies",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "character_skill_tree_manager_key",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "campaign_ai_character_skill_tree_managers",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "construction_policy_key",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cai_personalities_construction_preference_policies",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "military_aggressiveness_policy",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cai_military_aggressiveness_policies",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "military_behaviour_policy",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cai_military_behaviour_policies",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "reliability_policy_key",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cai_personalities_reliability_policies",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "religious_conversion_policy",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cai_personalities_religious_conversion_policies",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "technology_manager_key",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "campaign_ai_technology_managers",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "allowed_for_random_selection",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "building_synergy_policy",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cai_personalities_building_synergy_policies",
+                "key"
               ],
               "field_description": ""
             }
@@ -33191,8 +33777,8 @@
           "fields": [
             {
               "field_name": "distribution_key",
-              "field_type": "StringU8",
-              "field_is_key": false,
+              "field_type": "StringU16",
+              "field_is_key": true,
               "field_is_reference": [
                 "campaign_ai_character_skill_tree_agent_managers",
                 "key"
@@ -33201,8 +33787,8 @@
             },
             {
               "field_name": "agent_manager_key",
-              "field_type": "StringU8",
-              "field_is_key": false,
+              "field_type": "StringU16",
+              "field_is_key": true,
               "field_is_reference": [
                 "campaign_ai_character_skill_tree_distributions",
                 "key"
@@ -33228,7 +33814,7 @@
           "fields": [
             {
               "field_name": "agent_manager_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "campaign_ai_character_skill_tree_agent_managers",
@@ -33245,9 +33831,12 @@
             },
             {
               "field_name": "skill_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
-              "field_is_reference": null,
+              "field_is_reference": [
+                "character_skills",
+                "key"
+              ],
               "field_description": ""
             }
           ]
@@ -33262,8 +33851,8 @@
           "fields": [
             {
               "field_name": "agent_key",
-              "field_type": "StringU8",
-              "field_is_key": false,
+              "field_type": "StringU16",
+              "field_is_key": true,
               "field_is_reference": [
                 "character_skill_node_sets",
                 "key"
@@ -33272,8 +33861,8 @@
             },
             {
               "field_name": "agent_manager_key",
-              "field_type": "StringU8",
-              "field_is_key": false,
+              "field_type": "StringU16",
+              "field_is_key": true,
               "field_is_reference": [
                 "campaign_ai_character_skill_tree_agent_managers",
                 "key"
@@ -33282,11 +33871,11 @@
             },
             {
               "field_name": "manager_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": [
                 "campaign_ai_character_skill_tree_managers",
-                "keu"
+                "key"
               ],
               "field_description": ""
             }
@@ -33302,7 +33891,7 @@
           "fields": [
             {
               "field_name": "manager",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "campaign_ai_managers",
@@ -33312,7 +33901,7 @@
             },
             {
               "field_name": "behaviour",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "campaign_ai_behaviours",
@@ -33339,7 +33928,7 @@
           "fields": [
             {
               "field_name": "manager",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
@@ -33356,7 +33945,7 @@
           "fields": [
             {
               "field_name": "personality",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
@@ -33380,17 +33969,17 @@
           "fields": [
             {
               "field_name": "personality",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "campaign_ai_personalities",
                 "personality"
               ],
-              "field_description": "delete this field if you see it"
+              "field_description": ""
             },
             {
               "field_name": "property",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "campaign_ai_personality_properties",
@@ -33417,8 +34006,8 @@
           "fields": [
             {
               "field_name": "manager_key",
-              "field_type": "StringU8",
-              "field_is_key": false,
+              "field_type": "StringU16",
+              "field_is_key": true,
               "field_is_reference": [
                 "campaign_ai_technology_managers",
                 "key"
@@ -33427,8 +34016,8 @@
             },
             {
               "field_name": "path_key",
-              "field_type": "StringU8",
-              "field_is_key": false,
+              "field_type": "StringU16",
+              "field_is_key": true,
               "field_is_reference": [
                 "campaign_ai_technology_paths",
                 "key"
@@ -33471,8 +34060,8 @@
           "fields": [
             {
               "field_name": "path_key",
-              "field_type": "StringU8",
-              "field_is_key": false,
+              "field_type": "StringU16",
+              "field_is_key": true,
               "field_is_reference": [
                 "campaign_ai_technologies_paths",
                 "key"
@@ -33488,8 +34077,8 @@
             },
             {
               "field_name": "technology_key",
-              "field_type": "StringU8",
-              "field_is_key": false,
+              "field_type": "StringU16",
+              "field_is_key": true,
               "field_is_reference": [
                 "technologies",
                 "key"
@@ -34476,6 +35065,199 @@
       ]
     },
     {
+      "name": "campaign_character_anim_set_agent_junctions_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "anim_set",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "campaign_character_anim_sets",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "agent_key",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "agents",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "culture_key",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cultures",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "campaign_character_anim_sets_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "reference_pose",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "anim_reference_poses",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "campaign_character_anim_walk_anim_junctions_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "character_anim_set",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "campaign_character_anim_sets",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "walk_anim_set",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "campaign_walk_anim_sets",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "anim_status",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "campaign_character_anim_status",
+                "status"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "campaign_character_anims_junctions_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "anim_set_key",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "campaign_character_anim_sets",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "anim_status",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "campaign_character_anim_status",
+                "status"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "anim",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "anim_type",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "action_id",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "transition_to_status",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "idle_weighting",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "campaign_character_art_set_inheritance_overrides_tables",
       "versions": [
         {
@@ -34714,6 +35496,86 @@
                 "campaign_character_art_sets_campaign_groups",
                 "key"
               ],
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 3,
+          "fields": [
+            {
+              "field_name": "agent_type",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "agents",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "art_set_id",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "culture",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cultures",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "faction",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "factions",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "is_custom",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "is_male",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "is_married",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "campaign",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "campaigns",
+                "campaign_name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "origin",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
               "field_description": ""
             }
           ]
@@ -35111,6 +35973,90 @@
                 "campaign_anim_set_enums",
                 "name"
               ],
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 2,
+          "fields": [
+            {
+              "field_name": "art_set_id",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "campaign_character_art_sets",
+                "art_set_id"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "equipment",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "warscape_equipment_themes",
+                "theme"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "level",
+              "field_type": "Integer",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "age",
+              "field_type": "Integer",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "portrait",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "season",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "uniform",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "agent_uniforms",
+                "uniform_name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "card",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "info",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "health",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
               "field_description": ""
             }
           ]
@@ -42112,14 +43058,14 @@
           "fields": [
             {
               "field_name": "key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
             },
             {
               "field_name": "campaign",
-              "field_type": "OptionalStringU8",
+              "field_type": "OptionalStringU16",
               "field_is_key": false,
               "field_is_reference": [
                 "campaigns",
