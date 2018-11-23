@@ -3130,6 +3130,11 @@ impl PackedFileDBDecoder {
         // Create the UI of the Decoder View...
         //---------------------------------------------------------------------------------------//
 
+        // Get the settings.
+        sender_qt.send(Commands::GetSettings).unwrap();
+        let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+        let use_dark_theme = *settings.settings_bool.get("use_dark_theme").unwrap();
+
         // Create the widget that'll act as a container for the view.
         let widget = Widget::new().into_raw();
         let widget_layout = GridLayout::new().into_raw();
@@ -3502,7 +3507,7 @@ impl PackedFileDBDecoder {
                                 //---------------------------------------------------------------------------------------//
 
                                 // Load the static data into the Decoder View.
-                                Self::load_data_to_decoder_view(&stuff, &stuff_non_ui);
+                                Self::load_data_to_decoder_view(&stuff, &stuff_non_ui, use_dark_theme);
 
                                 // Update the versions list.
                                 Self::update_versions_list(&stuff, &schema, &stuff_non_ui.packed_file_path[1]);
@@ -3512,7 +3517,8 @@ impl PackedFileDBDecoder {
                                 Self::update_decoder_view(
                                     &stuff, &stuff_non_ui,
                                     (true, &table_definition.borrow().fields),
-                                    &mut index.borrow_mut()
+                                    &mut index.borrow_mut(),
+                                    use_dark_theme
                                 );
 
                                 // Put the schema into a Rc<RefCell<Schema>>, so we can modify it.
@@ -3644,56 +3650,56 @@ impl PackedFileDBDecoder {
                                         index,
                                         stuff,
                                         stuff_non_ui => move || {
-                                            Self::use_this(&stuff, &stuff_non_ui, FieldType::Boolean, &mut index.borrow_mut());
+                                            Self::use_this(&stuff, &stuff_non_ui, FieldType::Boolean, &mut index.borrow_mut(), use_dark_theme);
                                         }
                                     )),
                                     slot_use_this_float: SlotNoArgs::new(clone!(
                                         index,
                                         stuff,
                                         stuff_non_ui => move || {
-                                            Self::use_this(&stuff, &stuff_non_ui, FieldType::Float, &mut index.borrow_mut());
+                                            Self::use_this(&stuff, &stuff_non_ui, FieldType::Float, &mut index.borrow_mut(), use_dark_theme);
                                         }
                                     )),
                                     slot_use_this_integer: SlotNoArgs::new(clone!(
                                         index,
                                         stuff,
                                         stuff_non_ui => move || {
-                                            Self::use_this(&stuff, &stuff_non_ui, FieldType::Integer, &mut index.borrow_mut());
+                                            Self::use_this(&stuff, &stuff_non_ui, FieldType::Integer, &mut index.borrow_mut(), use_dark_theme);
                                         }
                                     )),
                                     slot_use_this_long_integer: SlotNoArgs::new(clone!(
                                         index,
                                         stuff,
                                         stuff_non_ui => move || {
-                                            Self::use_this(&stuff, &stuff_non_ui, FieldType::LongInteger, &mut index.borrow_mut());
+                                            Self::use_this(&stuff, &stuff_non_ui, FieldType::LongInteger, &mut index.borrow_mut(), use_dark_theme);
                                         }
                                     )),
                                     slot_use_this_string_u8: SlotNoArgs::new(clone!(
                                         index,
                                         stuff,
                                         stuff_non_ui => move || {
-                                            Self::use_this(&stuff, &stuff_non_ui, FieldType::StringU8, &mut index.borrow_mut());
+                                            Self::use_this(&stuff, &stuff_non_ui, FieldType::StringU8, &mut index.borrow_mut(), use_dark_theme);
                                         }
                                     )),
                                     slot_use_this_string_u16: SlotNoArgs::new(clone!(
                                         index,
                                         stuff,
                                         stuff_non_ui => move || {
-                                            Self::use_this(&stuff, &stuff_non_ui, FieldType::StringU16, &mut index.borrow_mut());
+                                            Self::use_this(&stuff, &stuff_non_ui, FieldType::StringU16, &mut index.borrow_mut(), use_dark_theme);
                                         }
                                     )),
                                     slot_use_this_optional_string_u8: SlotNoArgs::new(clone!(
                                         index,
                                         stuff,
                                         stuff_non_ui => move || {
-                                            Self::use_this(&stuff, &stuff_non_ui, FieldType::OptionalStringU8, &mut index.borrow_mut());
+                                            Self::use_this(&stuff, &stuff_non_ui, FieldType::OptionalStringU8, &mut index.borrow_mut(), use_dark_theme);
                                         }
                                     )),
                                     slot_use_this_optional_string_u16: SlotNoArgs::new(clone!(
                                         index,
                                         stuff,
                                         stuff_non_ui => move || {
-                                            Self::use_this(&stuff, &stuff_non_ui, FieldType::OptionalStringU16, &mut index.borrow_mut());
+                                            Self::use_this(&stuff, &stuff_non_ui, FieldType::OptionalStringU16, &mut index.borrow_mut(), use_dark_theme);
                                         }
                                     )),
 
@@ -3707,7 +3713,7 @@ impl PackedFileDBDecoder {
                                             if initial_model_index.column() == 1 && final_model_index.column() == 1 {
 
                                                 // Update the "First row decoded" column, and get the new "index" to continue decoding.
-                                                let invalid_rows = Self::update_first_row_decoded(&stuff, &stuff_non_ui, &mut index.borrow_mut());
+                                                let invalid_rows = Self::update_first_row_decoded(&stuff, &stuff_non_ui, &mut index.borrow_mut(), use_dark_theme);
 
                                                 // Fix the broken rows.
                                                 for row in &invalid_rows {
@@ -3790,7 +3796,7 @@ impl PackedFileDBDecoder {
                                             }
 
                                             // Update the "First row decoded" column.
-                                            Self::update_first_row_decoded(&stuff, &stuff_non_ui, &mut index.borrow_mut());
+                                            Self::update_first_row_decoded(&stuff, &stuff_non_ui, &mut index.borrow_mut(), use_dark_theme);
                                         }
                                     )),
                                     slot_table_view_context_menu_move_down: SlotBool::new(clone!(
@@ -3837,7 +3843,7 @@ impl PackedFileDBDecoder {
                                             }
 
                                             // Update the "First row decoded" column.
-                                            Self::update_first_row_decoded(&stuff, &stuff_non_ui, &mut index.borrow_mut());
+                                            Self::update_first_row_decoded(&stuff, &stuff_non_ui, &mut index.borrow_mut(), use_dark_theme);
                                         }
                                     )),
                                     slot_table_view_context_menu_delete: SlotBool::new(clone!(
@@ -3869,7 +3875,7 @@ impl PackedFileDBDecoder {
                                             }
 
                                             // Update the "First row decoded" column.
-                                            Self::update_first_row_decoded(&stuff, &stuff_non_ui, &mut index.borrow_mut());
+                                            Self::update_first_row_decoded(&stuff, &stuff_non_ui, &mut index.borrow_mut(), use_dark_theme);
                                         }
                                     )),
 
@@ -3886,7 +3892,7 @@ impl PackedFileDBDecoder {
                                             *index.borrow_mut() = stuff_non_ui.initial_index;
 
                                             // Update the decoder view.
-                                            Self::update_decoder_view(&stuff, &stuff_non_ui, (false, &[]), &mut index.borrow_mut());
+                                            Self::update_decoder_view(&stuff, &stuff_non_ui, (false, &[]), &mut index.borrow_mut(), use_dark_theme);
                                         }
                                     )),
 
@@ -3998,7 +4004,7 @@ impl PackedFileDBDecoder {
                                                 *index.borrow_mut() = stuff_non_ui.initial_index;
 
                                                 // Update the decoder view.
-                                                Self::update_decoder_view(&stuff, &stuff_non_ui, (true, &table_definition.unwrap().fields), &mut index.borrow_mut());
+                                                Self::update_decoder_view(&stuff, &stuff_non_ui, (true, &table_definition.unwrap().fields), &mut index.borrow_mut(), use_dark_theme);
                                             }
                                         }
                                     )),
@@ -4113,6 +4119,7 @@ impl PackedFileDBDecoder {
     pub fn load_data_to_decoder_view(
         stuff: &PackedFileDBDecoderStuff,
         stuff_non_ui: &PackedFileDBDecoderStuffNonUI,
+        use_dark_theme: bool,
     ) {
         // Get the FontMetrics for the size stuff.
         let font;
@@ -4171,7 +4178,7 @@ impl PackedFileDBDecoder {
 
             // Prepare the format for the header.
             let mut header_format = TextCharFormat::new();
-            header_format.set_background(&Brush::new(GlobalColor::Red));
+            header_format.set_background(&Brush::new(if use_dark_theme { GlobalColor::DarkRed } else { GlobalColor::Red }));
 
             // Get the cursor.
             let mut cursor;
@@ -4221,7 +4228,7 @@ impl PackedFileDBDecoder {
 
             // Prepare the format for the header.
             let mut header_format = TextCharFormat::new();
-            header_format.set_background(&Brush::new(GlobalColor::Red));
+            header_format.set_background(&Brush::new(if use_dark_theme { GlobalColor::DarkRed } else { GlobalColor::Red }));
 
             // Get the cursor.
             let mut cursor;
@@ -4284,7 +4291,8 @@ impl PackedFileDBDecoder {
         stuff: &PackedFileDBDecoderStuff,
         stuff_non_ui: &PackedFileDBDecoderStuffNonUI,
         field_list: (bool, &[Field]),
-        mut index_data: &mut usize
+        mut index_data: &mut usize,
+        use_dark_theme: bool,
     ) {
 
         // Create the variables to hold the values we'll pass to the LineEdits.
@@ -4396,11 +4404,11 @@ impl PackedFileDBDecoder {
 
         // Prepare the format for the decoded row.
         let mut decoded_format = TextCharFormat::new();
-        decoded_format.set_background(&Brush::new(GlobalColor::Yellow));
+        decoded_format.set_background(&Brush::new(if use_dark_theme { GlobalColor::DarkYellow } else { GlobalColor::Yellow }));
 
         // Prepare the format for the current index.
         let mut index_format = TextCharFormat::new();
-        index_format.set_background(&Brush::new(GlobalColor::Magenta));
+        index_format.set_background(&Brush::new(if use_dark_theme { GlobalColor::DarkMagenta } else { GlobalColor::Magenta }));
 
         // Clean both TextEdits.
         {
@@ -4775,6 +4783,7 @@ impl PackedFileDBDecoder {
         stuff_non_ui: &PackedFileDBDecoderStuffNonUI,
         field_type: FieldType,
         mut index_data: &mut usize,
+        use_dark_theme: bool,
     ) {
 
         // Try to add the field, and update the index with it.
@@ -4795,6 +4804,7 @@ impl PackedFileDBDecoder {
             &stuff_non_ui,
             (false, &[]),
             &mut index_data,
+            use_dark_theme,
         );
     }
 
@@ -4803,7 +4813,8 @@ impl PackedFileDBDecoder {
     fn update_first_row_decoded(
         stuff: &PackedFileDBDecoderStuff,
         stuff_non_ui: &PackedFileDBDecoderStuffNonUI,
-        mut index: &mut usize
+        mut index: &mut usize,
+        use_dark_theme: bool,
     ) -> Vec<i32> {
 
         // Create the list of "invalid" types.
@@ -4874,7 +4885,7 @@ impl PackedFileDBDecoder {
         }
 
         // Update the entire decoder to use the new index.
-        Self::update_decoder_view(&stuff, &stuff_non_ui, (false, &[]), &mut index);
+        Self::update_decoder_view(&stuff, &stuff_non_ui, (false, &[]), &mut index, use_dark_theme);
 
         // Return the list of broken rows.
         invalid_types
