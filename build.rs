@@ -8,8 +8,9 @@ fn main() {
 
 	// This is to make RPFM able to see the qt_custom_rpfm lib file while building.
 	println!("cargo:rustc-link-search=native=./libs");
-
-	// Icon/Exe info gets added here.
+    println!("cargo:rustc-link-lib=dylib=qt_custom_rpfm");
+	
+    // Icon/Exe info gets added here.
     let mut res = winres::WindowsResource::new();
     res.set_icon("img/rpfm.ico");
     res.set("LegalCopyright","Copyright (c) 2017-2018 Ismael Gutiérrez González");
@@ -25,6 +26,7 @@ fn main() {
 
 	// This is to make RPFM able to see the qt_custom_rpfm lib file while building.
 	println!("cargo:rustc-link-search=native=./libs");
+    println!("cargo:rustc-link-lib=dylib=qt_custom_rpfm");
 
     // Force cargo to rerun this script if it's changed.
     println!("cargo:rerun-if-changed=build.rs");

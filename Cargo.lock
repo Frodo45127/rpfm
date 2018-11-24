@@ -978,15 +978,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "qt_custom_rpfm"
-version = "0.1.0"
-source = "git+https://github.com/Frodo45127/qt_custom_rpfm#2e5b02f8cde34c3273b69a303b916e1df9e801f5"
-dependencies = [
- "qt_core 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "qt_widgets 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
 name = "qt_generator_common"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1188,7 +1179,6 @@ dependencies = [
  "open 1.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "os_info 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "qt_core 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "qt_custom_rpfm 0.1.0 (git+https://github.com/Frodo45127/qt_custom_rpfm)",
  "qt_gui 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "qt_widgets 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "regex 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2169,7 +2159,6 @@ dependencies = [
 "checksum proc-macro2 0.4.13 (registry+https://github.com/rust-lang/crates.io-index)" = "ee5697238f0d893c7f0ecc59c0999f18d2af85e424de441178bcacc9f9e6cf67"
 "checksum qt_build_tools 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)" = "9bd735d34f0ffc9d882c935506361bbbded02453d491abde05034c7e6c5bb1fd"
 "checksum qt_core 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "1f19047366f10cc5c714b3ee8a743094a40fa997e7dfe6898de3e0de5b895c67"
-"checksum qt_custom_rpfm 0.1.0 (git+https://github.com/Frodo45127/qt_custom_rpfm)" = "<none>"
 "checksum qt_generator_common 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "152a5b24bcf4553fce71f0648688554207592dec1d1ede1d2c43558c9f26f61e"
 "checksum qt_gui 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "6e97fe5fbe935c13131711a89f7e8f752031e20f1050f2ed76d028edb64883b8"
 "checksum qt_widgets 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "a28150040d84ecdca21d890bd40130b1e2424c7ecdebaea897b2edf43e789abc"

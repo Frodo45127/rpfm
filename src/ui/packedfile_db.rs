@@ -2769,7 +2769,7 @@ impl PackedFileDBTreeView {
             let mut list = StringList::new(());
             data.iter().for_each(|x| list.append(&QString::from_std_str(x)));
             let list: *mut StringList = &mut list;
-            unsafe { qt_custom_rpfm::new_combobox_item_delegate(table_view as *mut Object, *column, list as *const StringList, true)};
+            unsafe { qt_custom_stuff::new_combobox_item_delegate(table_view as *mut Object, *column, list as *const StringList, true)};
         }
     }
 
@@ -4697,7 +4697,7 @@ impl PackedFileDBDecoder {
         list.append(&QString::from_std_str("OptionalStringU8"));
         list.append(&QString::from_std_str("OptionalStringU16"));
         let list: *mut StringList = &mut list;
-        unsafe { qt_custom_rpfm::new_combobox_item_delegate(stuff.table_view as *mut Object, 1, list as *const StringList, false)};
+        unsafe { qt_custom_stuff::new_combobox_item_delegate(stuff.table_view as *mut Object, 1, list as *const StringList, false)};
     }
 
     /// This function is a helper to try to decode data in different formats, returning "Error" in case

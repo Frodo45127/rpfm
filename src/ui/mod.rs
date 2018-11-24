@@ -77,6 +77,7 @@ pub mod settings;
 pub mod shortcuts;
 pub mod table_state;
 pub mod updater;
+pub mod qt_custom_stuff;
 
 //----------------------------------------------------------------------------//
 //             UI Structs (to hold slots, actions and what not)
