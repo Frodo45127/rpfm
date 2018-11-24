@@ -37,6 +37,7 @@ use qt_core::variant::Variant;
 use qt_core::item_selection_model::SelectionFlag;
 use qt_core::object::Object;
 use qt_core::slots::{SlotBool, SlotCInt, SlotStringRef, SlotItemSelectionRefItemSelectionRef, SlotModelIndexRefModelIndexRefVectorVectorCIntRef};
+use qt_core::string_list::StringList;
 use qt_core::reg_exp::RegExp;
 use qt_core::qt::{Orientation, CheckState, ContextMenuPolicy, ShortcutContext, SortOrder, CaseSensitivity, GlobalColor, MatchFlag};
 
@@ -237,22 +238,16 @@ impl PackedFileDBTreeView {
 
         // Create the dependency data for this table and populate it.
         let mut dependency_data: BTreeMap<i32, Vec<String>> = BTreeMap::new();
+        for (index, field) in table_definition.fields.iter().enumerate() {
+            if let Some(ref dependency) = field.field_is_reference {
 
-        // If we have the dependency stuff enabled...
-        if *settings.settings_bool.get("use_dependency_checker").unwrap() {
-
-            // For each field we have in the table...
-            for (index, field) in table_definition.fields.iter().enumerate() {
-                if let Some(ref dependency) = field.field_is_reference {
-
-                    // Send the index back to the background thread, and wait until we get a response.
-                    sender_qt.send(Commands::DecodeDependencyDB).unwrap();
-                    sender_qt_data.send(Data::StringString(dependency.clone())).unwrap();
-                    match check_message_validity_recv2(&receiver_qt) { 
-                        Data::VecString(data) => { dependency_data.insert(index as i32, data); },
-                        Data::Error(_) => {},
-                        _ => panic!(THREADS_MESSAGE_ERROR), 
-                    }
+                // Send the index back to the background thread, and wait until we get a response.
+                sender_qt.send(Commands::DecodeDependencyDB).unwrap();
+                sender_qt_data.send(Data::StringString(dependency.clone())).unwrap();
+                match check_message_validity_recv2(&receiver_qt) { 
+                    Data::VecString(data) => { dependency_data.insert(index as i32, data); },
+                    Data::Error(_) => {},
+                    _ => panic!(THREADS_MESSAGE_ERROR), 
                 }
             }
         }
@@ -304,7 +299,7 @@ impl PackedFileDBTreeView {
 
         // Load the data to the Table. For some reason, if we do this after setting the titles of
         // the columns, the titles will be reseted to 1, 2, 3,... so we do this here.
-        Self::load_data_to_table_view(&dependency_data, &packed_file_data.borrow(), model, &settings);
+        Self::load_data_to_table_view(&dependency_data, &packed_file_data.borrow(), table_view, model, &settings);
 
         // Add Table to the Grid.
         unsafe { filter_model.as_mut().unwrap().set_source_model(model as *mut AbstractItemModel); }
@@ -1901,7 +1896,7 @@ impl PackedFileDBTreeView {
                         sender_qt_data.send(Data::DBPathBuf((packed_file_data.borrow().clone(), path))).unwrap();
 
                         match check_message_validity_recv2(&receiver_qt) {
-                            Data::DB(new_db_data) => Self::load_data_to_table_view(&dependency_data, &new_db_data, model, &settings),
+                            Data::DB(new_db_data) => Self::load_data_to_table_view(&dependency_data, &new_db_data, table_view, model, &settings),
                             Data::Error(error) => return show_dialog(app_ui.window, false, error),
                             _ => panic!(THREADS_MESSAGE_ERROR),
                         }
@@ -2673,6 +2668,7 @@ impl PackedFileDBTreeView {
     pub fn load_data_to_table_view(
         dependency_data: &BTreeMap<i32, Vec<String>>,
         packed_file_data: &DB,
+        table_view: *mut TableView,
         model: *mut StandardItemModel,
         settings: &Settings,
     ) {
@@ -2766,6 +2762,14 @@ impl PackedFileDBTreeView {
             }
             unsafe { model.as_mut().unwrap().append_row(&qlist); }
             unsafe { model.as_mut().unwrap().remove_rows((0, 1)); }
+        }
+
+        // We build the combos lists here, so it get's rebuilt if we import a TSV and clear the table.   
+        for (column, data) in dependency_data {
+            let mut list = StringList::new(());
+            data.iter().for_each(|x| list.append(&QString::from_std_str(x)));
+            let list: *mut StringList = &mut list;
+            unsafe { qt_custom_rpfm::new_combobox_item_delegate(table_view as *mut Object, *column, list as *const StringList, true)};
         }
     }
 
@@ -3051,7 +3055,7 @@ impl PackedFileDBTreeView {
                 // Prepare the redo operation.
                 history_opposite.borrow_mut().push(TableOperations::ImportTSVDB(data.borrow().clone()));
 
-                Self::load_data_to_table_view(&dependency_data, &table_data, model, &settings);
+                Self::load_data_to_table_view(&dependency_data, &table_data, table_view, model, &settings);
                 build_columns(&data.borrow().table_definition, table_view, model);
 
                 // If we want to let the columns resize themselfs...
@@ -4681,6 +4685,19 @@ impl PackedFileDBDecoder {
         unsafe { stuff.table_model.as_mut().unwrap().set_header_data((4, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Ref. to Column")))); }
         unsafe { stuff.table_model.as_mut().unwrap().set_header_data((5, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("First Row Decoded")))); }
         unsafe { stuff.table_model.as_mut().unwrap().set_header_data((6, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Description")))); }
+
+        // The second field should be a combobox.
+        let mut list = StringList::new(());
+        list.append(&QString::from_std_str("Bool"));
+        list.append(&QString::from_std_str("Float"));
+        list.append(&QString::from_std_str("Integer"));
+        list.append(&QString::from_std_str("LongInteger"));
+        list.append(&QString::from_std_str("StringU8"));
+        list.append(&QString::from_std_str("StringU16"));
+        list.append(&QString::from_std_str("OptionalStringU8"));
+        list.append(&QString::from_std_str("OptionalStringU16"));
+        let list: *mut StringList = &mut list;
+        unsafe { qt_custom_rpfm::new_combobox_item_delegate(stuff.table_view as *mut Object, 1, list as *const StringList, false)};
     }
 
     /// This function is a helper to try to decode data in different formats, returning "Error" in case

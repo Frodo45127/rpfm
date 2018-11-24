@@ -25,9 +25,10 @@ regex = "1"
 
 sentry = "0.12"
 
-qt_widgets = "0.2"
-qt_gui = "0.2"
 qt_core = "0.2"
+qt_gui = "0.2"
+qt_widgets = "0.2"
+qt_custom_rpfm = { git = "https://github.com/Frodo45127/qt_custom_rpfm" }
 
 cpp_utils = "*"
 lazy_static = "*"

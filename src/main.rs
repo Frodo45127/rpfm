@@ -28,9 +28,10 @@ extern crate regex;
 #[macro_use]
 extern crate sentry;
 extern crate open;
-extern crate qt_widgets;
-extern crate qt_gui;
 extern crate qt_core;
+extern crate qt_gui;
+extern crate qt_widgets;
+extern crate qt_custom_rpfm;
 extern crate cpp_utils;
 
 #[macro_use]
