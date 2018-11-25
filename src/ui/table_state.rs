@@ -1,10 +1,8 @@
 // Usually this kind of stuff goes into the background thread, but this is only used in the UI. And I'm tired, so this'll stay here for the moment.
-// TODO: Move this to the settings submodule of the background thread.
-// TODO2: Make this update-proof.
-
 extern crate serde_json;
 
 use RPFM_PATH;
+use HISTORY_TABLE_STATE;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::fs::File;
@@ -82,15 +80,16 @@ impl TableState {
     }
 
     /// This function takes the Settings object and saves it into a settings.json file.
-    pub fn save(states: &BTreeMap<Vec<String>, Self>) -> Result<()> {
+    pub fn save() -> Result<()> {
 
         // Try to open the settings file.
         let path = RPFM_PATH.to_path_buf().join(PathBuf::from(TABLES_STATE_FILE));
         let mut file = BufWriter::new(File::create(path)?);
 
         // Same than when loading. We have to process the states to make them compatible with serde.
+        let history = &*HISTORY_TABLE_STATE.lock().unwrap();
         let mut states_processed = BTreeMap::new();
-        for entry in states { states_processed.insert(entry.0.join("\\"), entry.1); }
+        for entry in history { states_processed.insert(entry.0.join("\\"), entry.1); }
         let states = serde_json::to_string_pretty(&states_processed);
         file.write_all(states.unwrap().as_bytes())?;
 

@@ -40,6 +40,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::mpsc::{Sender, Receiver};
 
+use HISTORY_TABLE_STATE;
 use AppUI;
 use Commands;
 use Data;
@@ -106,12 +107,7 @@ impl PackedFileLocTreeView {
         packed_file_path: &Rc<RefCell<Vec<String>>>,
         global_search_explicit_paths: &Rc<RefCell<Vec<Vec<String>>>>,
         update_global_search_stuff: *mut Action,
-        history_state: &Rc<RefCell<BTreeMap<Vec<String>, TableState>>>,
     ) -> Result<Self> {
-
-        // Get the settings.
-        sender_qt.send(Commands::GetSettings).unwrap();
-        let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
         // Send the index back to the background thread, and wait until we get a response.
         sender_qt.send(Commands::DecodePackedFileLoc).unwrap();
@@ -135,7 +131,7 @@ impl PackedFileLocTreeView {
         let model = StandardItemModel::new(()).into_raw();
 
         // Make the last column fill all the available space, if the setting says so.
-        if *settings.settings_bool.get("extend_last_column_on_tables").unwrap() { 
+        if *SETTINGS.lock().unwrap().settings_bool.get("extend_last_column_on_tables").unwrap() { 
             unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_stretch_last_section(true); }
         }
 
@@ -260,7 +256,7 @@ impl PackedFileLocTreeView {
         update_undo_model(model, undo_model);
 
         // If we want to let the columns resize themselfs...
-        if *settings.settings_bool.get("adjust_columns_to_content").unwrap() {
+        if *SETTINGS.lock().unwrap().settings_bool.get("adjust_columns_to_content").unwrap() {
             unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().resize_sections(ResizeMode::ResizeToContents); }
         }
 
@@ -299,28 +295,24 @@ impl PackedFileLocTreeView {
         let context_menu_undo = context_menu.add_action(&QString::from_std_str("&Undo"));
         let context_menu_redo = context_menu.add_action(&QString::from_std_str("&Redo"));
 
-        // Get the current shortcuts.
-        sender_qt.send(Commands::GetShortcuts).unwrap();
-        let shortcuts = if let Data::Shortcuts(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
         // Set the shortcuts for these actions.
-        unsafe { context_menu_add.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("add_row").unwrap()))); }
-        unsafe { context_menu_insert.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("insert_row").unwrap()))); }
-        unsafe { context_menu_delete.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("delete_row").unwrap()))); }
-        unsafe { context_menu_apply_prefix_to_selection.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("apply_prefix_to_selection").unwrap()))); }        
-        unsafe { context_menu_clone.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("clone_row").unwrap()))); }
-        unsafe { context_menu_clone_and_append.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("clone_and_append_row").unwrap()))); }
-        unsafe { context_menu_copy.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("copy").unwrap()))); }
-        unsafe { context_menu_copy_as_lua_table.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("copy_as_lua_table").unwrap()))); }
-        unsafe { context_menu_paste_in_selection.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("paste_in_selection").unwrap()))); }
-        unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("paste_as_new_row").unwrap()))); }
-        unsafe { context_menu_paste_to_fill_selection.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("paste_to_fill_selection").unwrap()))); }
-        unsafe { context_menu_search.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("search").unwrap()))); }
-        unsafe { context_menu_import.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("import_tsv").unwrap()))); }
-        unsafe { context_menu_export.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("export_tsv").unwrap()))); }
-        unsafe { smart_delete.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("smart_delete").unwrap()))); }
-        unsafe { context_menu_undo.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("undo").unwrap()))); }
-        unsafe { context_menu_redo.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("redo").unwrap()))); }
+        unsafe { context_menu_add.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_loc.get("add_row").unwrap()))); }
+        unsafe { context_menu_insert.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_loc.get("insert_row").unwrap()))); }
+        unsafe { context_menu_delete.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_loc.get("delete_row").unwrap()))); }
+        unsafe { context_menu_apply_prefix_to_selection.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_loc.get("apply_prefix_to_selection").unwrap()))); }        
+        unsafe { context_menu_clone.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_loc.get("clone_row").unwrap()))); }
+        unsafe { context_menu_clone_and_append.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_loc.get("clone_and_append_row").unwrap()))); }
+        unsafe { context_menu_copy.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_loc.get("copy").unwrap()))); }
+        unsafe { context_menu_copy_as_lua_table.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_loc.get("copy_as_lua_table").unwrap()))); }
+        unsafe { context_menu_paste_in_selection.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_loc.get("paste_in_selection").unwrap()))); }
+        unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_loc.get("paste_as_new_row").unwrap()))); }
+        unsafe { context_menu_paste_to_fill_selection.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_loc.get("paste_to_fill_selection").unwrap()))); }
+        unsafe { context_menu_search.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_loc.get("search").unwrap()))); }
+        unsafe { context_menu_import.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_loc.get("import_tsv").unwrap()))); }
+        unsafe { context_menu_export.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_loc.get("export_tsv").unwrap()))); }
+        unsafe { smart_delete.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_loc.get("smart_delete").unwrap()))); }
+        unsafe { context_menu_undo.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_loc.get("undo").unwrap()))); }
+        unsafe { context_menu_redo.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_loc.get("redo").unwrap()))); }
 
         // Set the shortcuts to only trigger in the Table.
         unsafe { context_menu_add.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
@@ -396,12 +388,11 @@ impl PackedFileLocTreeView {
         for column in 0..3 {
 
             let hide_show_slot = SlotBool::new(clone!(
-                packed_file_path,
-                history_state => move |state| {
+                packed_file_path => move |state| {
                     unsafe { table_view.as_mut().unwrap().set_column_hidden(column as i32, state); }
 
                     // Update the state of the column in the table history.
-                    if let Some(history_state) = history_state.borrow_mut().get_mut(&packed_file_path.borrow().to_vec()) {
+                    if let Some(history_state) = HISTORY_TABLE_STATE.lock().unwrap().get_mut(&packed_file_path.borrow().to_vec()) {
                         if state {
                             if !history_state.columns_state.hidden_columns.contains(&(column as i32)) {
                                 history_state.columns_state.hidden_columns.push(column as i32);
@@ -426,18 +417,16 @@ impl PackedFileLocTreeView {
         // Slots for the TableView...
         let slots = Self {
             slot_column_moved: SlotCIntCIntCInt::new(clone!(
-                packed_file_path,
-                history_state => move |_, visual_base, visual_new| {
-                    if let Some(state) = history_state.borrow_mut().get_mut(&*packed_file_path.borrow()) {
+                packed_file_path => move |_, visual_base, visual_new| {
+                    if let Some(state) = HISTORY_TABLE_STATE.lock().unwrap().get_mut(&*packed_file_path.borrow()) {
                         state.columns_state.visual_order.push((visual_base, visual_new));
                     }
                 }
             )),
 
             slot_sort_order_column_changed: SlotCIntQtCoreQtSortOrder::new(clone!(
-                packed_file_path,
-                history_state => move |column, order| {
-                    if let Some(state) = history_state.borrow_mut().get_mut(&*packed_file_path.borrow()) {
+                packed_file_path => move |column, order| {
+                    if let Some(state) = HISTORY_TABLE_STATE.lock().unwrap().get_mut(&*packed_file_path.borrow()) {
                         state.columns_state.sorting_column = (column, if let SortOrder::Ascending = order { false } else { true });
                     }
                 }
@@ -451,7 +440,6 @@ impl PackedFileLocTreeView {
                 packed_file_data,
                 sender_qt,
                 sender_qt_data,
-                receiver_qt,
                 undo_lock,
                 history_redo,
                 history => move || {
@@ -460,7 +448,6 @@ impl PackedFileLocTreeView {
                         &app_ui,
                         &sender_qt,
                         &sender_qt_data,
-                        &receiver_qt,
                         &is_modified,
                         &packed_file_path,
                         &packed_file_data,
@@ -488,7 +475,6 @@ impl PackedFileLocTreeView {
                 packed_file_data,
                 sender_qt,
                 sender_qt_data,
-                receiver_qt,
                 undo_lock,
                 history_redo,
                 history => move || {
@@ -497,7 +483,6 @@ impl PackedFileLocTreeView {
                         &app_ui,
                         &sender_qt,
                         &sender_qt_data,
-                        &receiver_qt,
                         &is_modified,
                         &packed_file_path,
                         &packed_file_data,
@@ -582,7 +567,6 @@ impl PackedFileLocTreeView {
                 app_ui,
                 is_modified,
                 packed_file_data,
-                receiver_qt,
                 sender_qt,
                 sender_qt_data => move |_,_,roles| {
 
@@ -595,7 +579,6 @@ impl PackedFileLocTreeView {
                         Self::save_to_packed_file(
                             &sender_qt,
                             &sender_qt_data,
-                            &receiver_qt,
                             &is_modified,
                             &app_ui,
                             &packed_file_data,
@@ -611,7 +594,6 @@ impl PackedFileLocTreeView {
                 }
             )),
             slot_item_changed: SlotStandardItemMutPtr::new(clone!(
-                settings,
                 undo_lock,
                 history,
                 history_redo => move |item| {
@@ -624,8 +606,7 @@ impl PackedFileLocTreeView {
 
                         // We block the saving for painting, so this doesn't get rettriggered again.
                         let mut blocker = unsafe { SignalBlocker::new(model.as_mut().unwrap().static_cast_mut() as &mut Object) };
-                        let use_dark_theme = settings.settings_bool.get("use_dark_theme").unwrap();
-                        unsafe { item.as_mut().unwrap().set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkYellow } else { GlobalColor::Yellow })); }
+                        unsafe { item.as_mut().unwrap().set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkYellow } else { GlobalColor::Yellow })); }
                         blocker.unblock();
 
                         update_undo_model(model, undo_model);
@@ -635,8 +616,7 @@ impl PackedFileLocTreeView {
             )),
 
             slot_row_filter_change_text: SlotStringRef::new(clone!(
-                packed_file_path,
-                history_state => move |filter_text| {
+                packed_file_path => move |filter_text| {
                     filter_table(
                         Some(QString::from_std_str(filter_text.to_std_string())),
                         None,
@@ -647,13 +627,11 @@ impl PackedFileLocTreeView {
                         row_filter_case_sensitive_button,
                         update_search_stuff,
                         &packed_file_path,
-                        &history_state,
                     ); 
                 }
             )),
             slot_row_filter_change_column: SlotCInt::new(clone!(
-                packed_file_path,
-                history_state => move |index| {
+                packed_file_path => move |index| {
                     filter_table(
                         None,
                         Some(index),
@@ -664,13 +642,11 @@ impl PackedFileLocTreeView {
                         row_filter_case_sensitive_button,
                         update_search_stuff,
                         &packed_file_path,
-                        &history_state,
                     ); 
                 }
             )),
             slot_row_filter_change_case_sensitive: SlotBool::new(clone!(
-                packed_file_path,
-                history_state => move |case_sensitive| {
+                packed_file_path => move |case_sensitive| {
                     filter_table(
                         None,
                         None,
@@ -681,12 +657,10 @@ impl PackedFileLocTreeView {
                         row_filter_case_sensitive_button,
                         update_search_stuff,
                         &packed_file_path,
-                        &history_state,
                     ); 
                 }
             )),
             slot_context_menu_add: SlotBool::new(clone!(
-                settings,
                 history,
                 history_redo => move |_| {
 
@@ -702,10 +676,9 @@ impl PackedFileLocTreeView {
                     tooltip.set_check_state(CheckState::Checked);
 
                     // Paint the cells.
-                    let use_dark_theme = settings.settings_bool.get("use_dark_theme").unwrap();
-                    key.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
-                    text.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
-                    tooltip.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                    key.set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                    text.set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                    tooltip.set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green }));
 
                     // Add an empty row to the list.
                     unsafe { qlist.append_unsafe(&key.into_raw()); }
@@ -724,7 +697,6 @@ impl PackedFileLocTreeView {
             )),
 
             slot_context_menu_insert: SlotBool::new(clone!(
-                settings,
                 history,
                 history_redo => move |_| {
 
@@ -740,10 +712,9 @@ impl PackedFileLocTreeView {
                     tooltip.set_check_state(CheckState::Checked);
 
                     // Paint the cells.
-                    let use_dark_theme = settings.settings_bool.get("use_dark_theme").unwrap();
-                    key.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
-                    text.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
-                    tooltip.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                    key.set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                    text.set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                    tooltip.set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green }));
 
                     // Add an empty row to the list.
                     unsafe { qlist.append_unsafe(&key.into_raw()); }
@@ -780,7 +751,6 @@ impl PackedFileLocTreeView {
                 packed_file_data,
                 history,
                 history_redo,
-                receiver_qt,
                 sender_qt,
                 sender_qt_data => move |_| {
 
@@ -806,7 +776,6 @@ impl PackedFileLocTreeView {
                         Self::save_to_packed_file(
                             &sender_qt,
                             &sender_qt_data,
-                            &receiver_qt,
                             &is_modified,
                             &app_ui,
                             &packed_file_data,
@@ -880,14 +849,10 @@ impl PackedFileLocTreeView {
                 app_ui,
                 is_modified,
                 packed_file_data,
-                settings,
                 history,
                 history_redo,
-                receiver_qt,
                 sender_qt,
                 sender_qt_data => move |_| {
-
-                    let use_dark_theme = settings.settings_bool.get("use_dark_theme").unwrap();
 
                     // Get all the selected rows.
                     let indexes = unsafe { filter_model.as_mut().unwrap().map_selection_to_source(&table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection()).indexes() };
@@ -910,7 +875,7 @@ impl PackedFileLocTreeView {
                             // Get the original item and his clone.
                             let original_item = unsafe { model.as_mut().unwrap().item((*row, column as i32)) };
                             let item = unsafe { original_item.as_mut().unwrap().clone() };
-                            unsafe { item.as_mut().unwrap().set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green })); }
+                            unsafe { item.as_mut().unwrap().set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green })); }
                             unsafe { qlist.append_unsafe(&item); }
                         }
 
@@ -923,7 +888,6 @@ impl PackedFileLocTreeView {
                         Self::save_to_packed_file(
                             &sender_qt,
                             &sender_qt_data,
-                            &receiver_qt,
                             &is_modified,
                             &app_ui,
                             &packed_file_data,
@@ -952,14 +916,10 @@ impl PackedFileLocTreeView {
                 app_ui,
                 is_modified,
                 packed_file_data,
-                settings,
                 history,
                 history_redo,
-                receiver_qt,
                 sender_qt,
                 sender_qt_data => move |_| {
-
-                    let use_dark_theme = settings.settings_bool.get("use_dark_theme").unwrap();
 
                     // Get all the selected rows.
                     let indexes = unsafe { filter_model.as_mut().unwrap().map_selection_to_source(&table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection()).indexes() };
@@ -981,7 +941,7 @@ impl PackedFileLocTreeView {
                             // Get the original item and his clone.
                             let original_item = unsafe { model.as_mut().unwrap().item((*row, column as i32)) };
                             let item = unsafe { original_item.as_mut().unwrap().clone() };
-                            unsafe { item.as_mut().unwrap().set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green })); }
+                            unsafe { item.as_mut().unwrap().set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green })); }
                             unsafe { qlist.append_unsafe(&item); }
                         }
 
@@ -994,7 +954,6 @@ impl PackedFileLocTreeView {
                         Self::save_to_packed_file(
                             &sender_qt,
                             &sender_qt_data,
-                            &receiver_qt,
                             &is_modified,
                             &app_ui,
                             &packed_file_data,
@@ -1251,16 +1210,13 @@ impl PackedFileLocTreeView {
                 app_ui,
                 is_modified,
                 packed_file_data,
-                settings,
                 history,
                 history_redo,
-                receiver_qt,
                 sender_qt,
                 sender_qt_data => move |_| {
 
                     // If whatever it's in the Clipboard is pasteable...
                     if check_clipboard_append_rows(table_view) {
-                        let use_dark_theme = settings.settings_bool.get("use_dark_theme").unwrap();
 
                         // Get the text from the clipboard.
                         let clipboard = GuiApplication::clipboard();
@@ -1284,13 +1240,13 @@ impl PackedFileLocTreeView {
                                 item.set_editable(false);
                                 item.set_checkable(true);
                                 item.set_check_state(if cell.to_lowercase() == "true" { CheckState::Checked } else { CheckState::Unchecked });
-                                item.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                                item.set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green }));
                             }
 
                             // Otherwise, create a normal cell.
                             else {
                                 item.set_text(&QString::from_std_str(cell));
-                                item.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                                item.set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green }));
                             }
 
                             // Add the item to the list.
@@ -1325,19 +1281,19 @@ impl PackedFileLocTreeView {
                                     item.set_editable(false);
                                     item.set_checkable(true);
                                     item.set_check_state(CheckState::Checked);
-                                    item.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                                    item.set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green }));
                                     qlist_unordered.push((column_logical_index, item.into_raw()));
                                     
                                     column += 1;
                                     let column_logical_index = unsafe { table_view.as_ref().unwrap().horizontal_header().as_ref().unwrap().logical_index(column) };
                                     let mut item = StandardItem::new(&QString::from_std_str(""));
-                                    item.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                                    item.set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green }));
                                     qlist_unordered.push((column_logical_index, item.into_raw()));
                                 } 
 
                                 else {
                                     let mut item = StandardItem::new(&QString::from_std_str(""));
-                                    item.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                                    item.set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green }));
                                     qlist_unordered.push((column_logical_index, item.into_raw()));
 
                                     // In case our table is "XXX, XXX, Tooltip"...
@@ -1348,14 +1304,14 @@ impl PackedFileLocTreeView {
                                         item.set_editable(false);
                                         item.set_checkable(true);
                                         item.set_check_state(CheckState::Checked);
-                                        item.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                                        item.set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green }));
                                         qlist_unordered.push((column_logical_index, item.into_raw()));  
                                     }
 
                                     // In case our table is "Tooltip, XXX, XXX"...
                                     else {
                                         let mut item = StandardItem::new(&QString::from_std_str(""));
-                                        item.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                                        item.set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green }));
                                         qlist_unordered.push((column_logical_index, item.into_raw()));
                                     }
                                 }
@@ -1372,13 +1328,13 @@ impl PackedFileLocTreeView {
                                     item.set_editable(false);
                                     item.set_checkable(true);
                                     item.set_check_state(CheckState::Checked);
-                                    item.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                                    item.set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green }));
                                     qlist_unordered.push((column_logical_index, item.into_raw()));
                                 } 
 
                                 else { 
                                     let mut item = StandardItem::new(&QString::from_std_str(""));
-                                    item.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                                    item.set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green }));
                                     qlist_unordered.push((column_logical_index, item.into_raw()));
                                 }
                             }
@@ -1394,7 +1350,6 @@ impl PackedFileLocTreeView {
                             Self::save_to_packed_file(
                                 &sender_qt,
                                 &sender_qt_data,
-                                &receiver_qt,
                                 &is_modified,
                                 &app_ui,
                                 &packed_file_data,
@@ -1461,11 +1416,7 @@ impl PackedFileLocTreeView {
 
                         // Build the columns.
                         build_columns(table_view, model);
-
-                        // Get the settings and resize the columns, if the setting for it is enabled.
-                        sender_qt.send(Commands::GetSettings).unwrap();
-                        let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-                        if *settings.settings_bool.get("adjust_columns_to_content").unwrap() {
+                        if *SETTINGS.lock().unwrap().settings_bool.get("adjust_columns_to_content").unwrap() {
                             unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().resize_sections(ResizeMode::ResizeToContents); }
                         }
 
@@ -1476,7 +1427,6 @@ impl PackedFileLocTreeView {
                         Self::save_to_packed_file(
                             &sender_qt,
                             &sender_qt_data,
-                            &receiver_qt,
                             &is_modified,
                             &app_ui,
                             &packed_file_data,
@@ -1540,7 +1490,6 @@ impl PackedFileLocTreeView {
                 packed_file_path,
                 history,
                 history_redo,
-                receiver_qt,
                 sender_qt,
                 sender_qt_data => move |_| {
 
@@ -1604,7 +1553,6 @@ impl PackedFileLocTreeView {
                         Self::save_to_packed_file(
                             &sender_qt,
                             &sender_qt_data,
-                            &receiver_qt,
                             &is_modified,
                             &app_ui,
                             &packed_file_data,
@@ -1635,7 +1583,6 @@ impl PackedFileLocTreeView {
             slot_update_search_stuff: SlotNoArgs::new(clone!(
                 matches,
                 position,
-                history_state,
                 packed_file_path,
                 search_data => move || {
 
@@ -1739,7 +1686,7 @@ impl PackedFileLocTreeView {
                     }
 
                     // Add the new search data to the state history.
-                    if let Some(state) = history_state.borrow_mut().get_mut(&*packed_file_path.borrow()) {
+                    if let Some(state) = HISTORY_TABLE_STATE.lock().unwrap().get_mut(&*packed_file_path.borrow()) {
                         unsafe { state.search_state = SearchState::new(search_line_edit.as_mut().unwrap().text().to_std_string(), replace_line_edit.as_mut().unwrap().text().to_std_string(), column_selector.as_ref().unwrap().current_index(), case_sensitive_button.as_mut().unwrap().is_checked()); }
                     }
                 }
@@ -1748,7 +1695,6 @@ impl PackedFileLocTreeView {
             // Slot for the search button.
             slot_search: SlotNoArgs::new(clone!(
                 matches,
-                history_state,
                 packed_file_path,
                 position => move || {
 
@@ -1870,7 +1816,7 @@ impl PackedFileLocTreeView {
                             _ => unreachable!(),
                         }
                     );
-                    if let Some(state) = history_state.borrow_mut().get_mut(&*packed_file_path.borrow()) {
+                    if let Some(state) = HISTORY_TABLE_STATE.lock().unwrap().get_mut(&*packed_file_path.borrow()) {
                         unsafe { state.search_state = SearchState::new(search_line_edit.as_mut().unwrap().text().to_std_string(), replace_line_edit.as_mut().unwrap().text().to_std_string(), column_selector.as_ref().unwrap().current_index(), case_sensitive_button.as_mut().unwrap().is_checked()); }
                     }
                 }
@@ -2106,8 +2052,8 @@ impl PackedFileLocTreeView {
         unsafe { table_view.as_mut().unwrap().selection_model().as_ref().unwrap().signals().selection_changed().connect(&slots.slot_context_menu_enabler); }
 
         // If we got an entry for this PackedFile in the state's history, use it.
-        if history_state.borrow().get(&*packed_file_path.borrow()).is_some() {
-            if let Some(state_data) = history_state.borrow_mut().get_mut(&*packed_file_path.borrow()) {
+        if HISTORY_TABLE_STATE.lock().unwrap().get(&*packed_file_path.borrow()).is_some() {
+            if let Some(state_data) = HISTORY_TABLE_STATE.lock().unwrap().get_mut(&*packed_file_path.borrow()) {
 
                 // Block the signals during this, so we don't trigger a borrow error.
                 let mut blocker1 = unsafe { SignalBlocker::new(row_filter_line_edit.as_mut().unwrap().static_cast_mut() as &mut Object) };
@@ -2138,7 +2084,7 @@ impl PackedFileLocTreeView {
                 let mut blocker1 = unsafe { SignalBlocker::new(table_view.as_mut().unwrap().static_cast_mut() as &mut Object) };
                 let mut blocker2 = unsafe { SignalBlocker::new(table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().static_cast_mut() as &mut Object) };
                 
-                if *settings.settings_bool.get("remember_column_state").unwrap() {
+                if *SETTINGS.lock().unwrap().settings_bool.get("remember_column_state").unwrap() {
                     let sort_order = if state_data.columns_state.sorting_column.1 { SortOrder::Descending } else { SortOrder::Ascending };
                     unsafe { table_view.as_mut().unwrap().sort_by_column((state_data.columns_state.sorting_column.0, sort_order)); }
       
@@ -2162,7 +2108,7 @@ impl PackedFileLocTreeView {
         }
 
         // Otherwise, we create a basic state.
-        else { history_state.borrow_mut().insert(packed_file_path.borrow().to_vec(), TableState::new_empty()); }
+        else { HISTORY_TABLE_STATE.lock().unwrap().insert(packed_file_path.borrow().to_vec(), TableState::new_empty()); }
 
         // Retrigger the filter, so the table get's updated properly.
         unsafe { row_filter_case_sensitive_button.as_mut().unwrap().set_checked(!row_filter_case_sensitive_button.as_mut().unwrap().is_checked()); }
@@ -2257,7 +2203,6 @@ impl PackedFileLocTreeView {
     pub fn save_to_packed_file(
         sender_qt: &Sender<Commands>,
         sender_qt_data: &Sender<Data>,
-        receiver_qt: &Rc<RefCell<Receiver<Data>>>,
         is_modified: &Rc<RefCell<bool>>,
         app_ui: &AppUI,
         data: &Rc<RefCell<Loc>>,
@@ -2266,11 +2211,6 @@ impl PackedFileLocTreeView {
         global_search_explicit_paths: &Rc<RefCell<Vec<Vec<String>>>>,
         update_global_search_stuff: *mut Action,
     ) {
-        // Get the settings before saving, so we don't wait for the background thread to save.
-        sender_qt.send(Commands::GetSettings).unwrap();
-        let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-        let use_dark_theme = settings.settings_bool.get("use_dark_theme").unwrap();
-
         // Update our LocData.
         Self::return_data_from_tree_view(&mut data.borrow_mut(), model);
 
@@ -2279,7 +2219,7 @@ impl PackedFileLocTreeView {
         sender_qt_data.send(Data::LocVecString((data.borrow().clone(), packed_file_path.borrow().to_vec()))).unwrap();
 
         // Set the mod as "Modified".
-        *is_modified.borrow_mut() = set_modified(true, &app_ui, Some((packed_file_path.borrow().to_vec(), *use_dark_theme)));
+        *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(packed_file_path.borrow().to_vec()));
         
         // Update the global search stuff, if needed.
         global_search_explicit_paths.borrow_mut().push(packed_file_path.borrow().to_vec());
@@ -2294,7 +2234,6 @@ impl PackedFileLocTreeView {
         app_ui: &AppUI,
         sender_qt: &Sender<Commands>,
         sender_qt_data: &Sender<Data>,
-        receiver_qt: &Rc<RefCell<Receiver<Data>>>,
         is_modified: &Rc<RefCell<bool>>,
         packed_file_path: &Rc<RefCell<Vec<String>>>,
         data: &Rc<RefCell<Loc>>,
@@ -2355,7 +2294,6 @@ impl PackedFileLocTreeView {
                 Self::save_to_packed_file(
                     &sender_qt,
                     &sender_qt_data,
-                    &receiver_qt,
                     &is_modified,
                     &app_ui,
                     &data,
@@ -2461,7 +2399,6 @@ impl PackedFileLocTreeView {
                 Self::save_to_packed_file(
                     &sender_qt,
                     &sender_qt_data,
-                    &receiver_qt,
                     &is_modified,
                     &app_ui,
                     &data,
@@ -2475,10 +2412,6 @@ impl PackedFileLocTreeView {
             // This action is special and we have to manually trigger a save for it.
             TableOperations::ImportTSVLOC(table_data) => {
 
-                // Get the settings.
-                sender_qt.send(Commands::GetSettings).unwrap();
-                let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
                 // Prepare the redo operation.
                 history_opposite.borrow_mut().push(TableOperations::ImportTSVLOC(data.borrow().clone()));
 
@@ -2486,7 +2419,7 @@ impl PackedFileLocTreeView {
                 build_columns(table_view, model);
 
                 // If we want to let the columns resize themselfs...
-                if *settings.settings_bool.get("adjust_columns_to_content").unwrap() {
+                if *SETTINGS.lock().unwrap().settings_bool.get("adjust_columns_to_content").unwrap() {
                     unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().resize_sections(ResizeMode::ResizeToContents); }
                 }
 
@@ -2494,7 +2427,6 @@ impl PackedFileLocTreeView {
                 Self::save_to_packed_file(
                     &sender_qt,
                     &sender_qt_data,
-                    &receiver_qt,
                     &is_modified,
                     &app_ui,
                     &data,
@@ -2663,7 +2595,6 @@ fn filter_table(
     case_sensitive_button: *mut PushButton,
     update_search_stuff: *mut Action,
     packed_file_path: &Rc<RefCell<Vec<String>>>,
-    history_state: &Rc<RefCell<BTreeMap<Vec<String>, TableState>>>, 
 ) {
 
     // Set the pattern to search.
@@ -2693,7 +2624,7 @@ fn filter_table(
     unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
 
     // Add the new filter data to the state history.
-    if let Some(state) = history_state.borrow_mut().get_mut(&*packed_file_path.borrow()) {
+    if let Some(state) = HISTORY_TABLE_STATE.lock().unwrap().get_mut(&*packed_file_path.borrow()) {
         unsafe { state.filter_state = FilterState::new(filter_line_edit.as_mut().unwrap().text().to_std_string(), column_selector.as_mut().unwrap().current_index(), case_sensitive_button.as_mut().unwrap().is_checked()); }
     }
 }

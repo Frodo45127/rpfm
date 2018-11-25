@@ -9,14 +9,15 @@ use std::io::BufReader;
 use std::io::BufWriter;
 
 use SUPPORTED_GAMES;
+use GAME_SELECTED;
+use DEPENDENCY_DATABASE;
+use SCHEMA;
 use common::*;
 use error::{Error, ErrorKind, Result};
 use packfile::packfile::PFHFileType;
 use packedfile::loc::Loc;
 use packedfile::db::DB;
-use packedfile::db::schemas::Schema;
 use packedfile::rigidmodel::RigidModel;
-use settings::Settings;
 
 pub mod packfile;
 
@@ -46,17 +47,17 @@ pub fn open_packfile(pack_file_path: PathBuf, use_lazy_loading: bool) -> Result<
 
 /// This function is a special open function, to get all the DB and LOC PackedFiles for a game, and a mod if that mode requires another mod.
 /// It returns all the PackedFiles in a big Vec<PackedFile>.
-pub fn load_dependency_packfiles(game_selected: &str, settings: &Settings, dependencies: &[String]) -> Vec<packfile::PackedFile> {
+pub fn load_dependency_packfiles(dependencies: &[String]) -> Vec<packfile::PackedFile> {
 
     // Create the empty list.
     let mut packed_files = vec![];
 
     // Get all the paths we need.
-    let main_db_pack_paths = get_game_selected_db_pack_path(game_selected, settings);
-    let main_loc_pack_paths = get_game_selected_loc_pack_path(game_selected, settings);
+    let main_db_pack_paths = get_game_selected_db_pack_path();
+    let main_loc_pack_paths = get_game_selected_loc_pack_path();
 
-    let data_packs_paths = get_game_selected_data_packfiles_paths(game_selected, settings);
-    let content_packs_paths = get_game_selected_content_packfiles_paths(game_selected, settings);
+    let data_packs_paths = get_game_selected_data_packfiles_paths();
+    let content_packs_paths = get_game_selected_content_packfiles_paths();
 
     // Get all the DB Tables from the main DB PackFiles, if it's configured.
     if let Some(paths) = main_db_pack_paths {
@@ -192,14 +193,14 @@ pub fn load_dependency_packfiles(game_selected: &str, settings: &Settings, depen
 
 /// This function is another special open function, to get all the PackedFiles from every CA PackFile of a game.
 /// It returns a fake PackFile with them.
-pub fn load_all_ca_packfiles(game_selected: &str, settings: &Settings) -> Result<packfile::PackFile> {
+pub fn load_all_ca_packfiles() -> Result<packfile::PackFile> {
 
     // Create the fake PackFile.
-    let pfh_version = SUPPORTED_GAMES.get(&*game_selected).unwrap().id;
-    let mut pack_file = packfile::PackFile::new_with_name(game_selected.to_owned(), pfh_version);
+    let pfh_version = SUPPORTED_GAMES.get(&**GAME_SELECTED.lock().unwrap()).unwrap().id;
+    let mut pack_file = packfile::PackFile::new_with_name(GAME_SELECTED.lock().unwrap().to_owned(), pfh_version);
 
     // Get all the paths we need and open them one by one.
-    let packs_paths = if let Some(paths) = get_game_selected_data_packfiles_paths(game_selected, settings) { paths } else { Err(ErrorKind::GamePathNotConfigured)? };
+    let packs_paths = if let Some(paths) = get_game_selected_data_packfiles_paths() { paths } else { Err(ErrorKind::GamePathNotConfigured)? };
     let mut ca_pack_files = vec![];
     for path in packs_paths {
         ca_pack_files.push(packfile::PackFile::read(path, true)?);
@@ -1086,11 +1087,7 @@ pub fn create_prefab_from_catchment(
 /// This function is used to optimize the size of a PackFile. It does two things: removes unchanged rows
 /// from tables (and if the table is empty, it removes it too) and it cleans the PackFile of extra .xml files 
 /// often created by map editors. It requires just the PackFile to optimize and the dependency PackFile.
-pub fn optimize_packfile(
-    pack_file: &mut packfile::PackFile,
-    game_packed_files: &[packfile::PackedFile],
-    schema: &Option<Schema>
-) -> Result<Vec<TreePathType>> {
+pub fn optimize_packfile(pack_file: &mut packfile::PackFile)-> Result<Vec<TreePathType>> {
 
     // List of PackedFiles to delete. This includes empty DB Tables and empty Loc PackedFiles.
     let mut files_to_delete: Vec<Vec<String>> = vec![];
@@ -1098,14 +1095,14 @@ pub fn optimize_packfile(
 
     // Get a list of every Loc and DB PackedFiles in our dependency's files. For performance reasons, we decode every one of them here.
     // Otherwise, they may have to be decoded multiple times, making this function take ages to finish. 
-    let game_locs = game_packed_files.iter()
+    let game_locs = DEPENDENCY_DATABASE.lock().unwrap().iter()
         .filter(|x| x.path.last().unwrap().ends_with(".loc"))
         .filter_map(|x| x.get_data().ok())
         .filter_map(|x| Loc::read(&x).ok())
         .collect::<Vec<Loc>>();
 
-    let game_dbs = if let Some(schema) = schema {
-        game_packed_files.iter()
+    let game_dbs = if let Some(ref schema) = *SCHEMA.lock().unwrap() {
+        DEPENDENCY_DATABASE.lock().unwrap().iter()
             .filter(|x| x.path.len() == 3 && x.path[0] == "db")
             .map(|x| (x.get_data(), x.path[1].to_owned()))
             .filter(|x| x.0.is_ok())
@@ -1117,7 +1114,7 @@ pub fn optimize_packfile(
 
         // If it's a DB table and we have an schema...
         if packed_file.path.len() == 3 && packed_file.path[0] == "db" && !game_dbs.is_empty() {
-            if let Some(schema) = schema {
+            if let Some(ref schema) = *SCHEMA.lock().unwrap() {
 
                 // Try to decode our table.
                 let mut optimized_table = match DB::read(&(packed_file.get_data_and_keep_it()?), &packed_file.path[1], &schema) {

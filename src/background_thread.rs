@@ -11,6 +11,11 @@ use regex::Regex;
 use RPFM_PATH;
 use SUPPORTED_GAMES;
 use SHOW_TABLE_ERRORS;
+use SHORTCUTS;
+use SETTINGS;
+use SCHEMA;
+use DEPENDENCY_DATABASE;
+use GAME_SELECTED;
 use GlobalMatch;
 use common::*;
 use common::coding_helpers::*;
@@ -23,8 +28,6 @@ use packedfile::loc::*;
 use packedfile::db::*;
 use packedfile::db::schemas::*;
 use packedfile::rigidmodel::*;
-use settings::*;
-use settings::shortcuts::Shortcuts;
 use updater::*;
 
 /// This is the background loop that's going to be executed in a parallel thread to the UI. No UI or "Unsafe" stuff here.
@@ -46,21 +49,6 @@ pub fn background_loop(
     // - `pack_file_decoded_extra`: This one will hold the PackFile opened for the `add_from_packfile` feature.
     let mut pack_file_decoded = PackFile::new();
     let mut pack_file_decoded_extra = PackFile::new();
-
-    // We load the settings here, and in case they doesn't exist or they are not valid, we create them.
-    let mut settings = Settings::load().unwrap_or_else(|_|Settings::new());
-
-    // Same with the shortcuts.
-    let mut shortcuts = Shortcuts::load().unwrap_or_else(|_|Shortcuts::new());
-
-    // We prepare the schema object to hold an Schema, leaving it as `None` by default.
-    let mut schema: Option<Schema> = None;
-
-    // And we prepare the stuff for the default game (paths, and those things).
-    let mut game_selected = settings.settings_string.get("default_game").unwrap().to_owned();
-
-    // This will be populated once the program tries to select the default game, so leave it empty here.
-    let mut dependency_database = vec![];
 
     //---------------------------------------------------------------------------------------//
     // Looping forever and ever...
@@ -95,40 +83,21 @@ pub fn background_loop(
 
                     // In case we want to create a "New PackFile"...
                     Commands::NewPackFile => {
-
-                        // Get the ID for the new PackFile.
-                        let pack_version = SUPPORTED_GAMES.get(&*game_selected).unwrap().id;
-
-                        // Create the new PackFile.
+                        let game_selected = GAME_SELECTED.lock().unwrap();
+                        let pack_version = SUPPORTED_GAMES.get(&**game_selected).unwrap().id;
                         pack_file_decoded = packfile::new_packfile("unknown.pack".to_string(), pack_version);
-
-                        // Try to load the Schema for this PackFile's game.
-                        schema = Schema::load(&SUPPORTED_GAMES.get(&*game_selected).unwrap().schema).ok();
-
-                        // Send a response with the PackFile's type to the UI thread.
+                        *SCHEMA.lock().unwrap() = Schema::load(&SUPPORTED_GAMES.get(&**game_selected).unwrap().schema).ok();
                         sender.send(Data::U32(pack_file_decoded.pfh_file_type.get_value())).unwrap();
                     }
 
                     // In case we want to "Open a PackFile"...
                     Commands::OpenPackFile => {
-
-                        // Get the path to open.
                         let path: PathBuf = if let Data::PathBuf(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                        // Open the PackFile (Or die trying it).
-                        match packfile::open_packfile(path, *settings.settings_bool.get("use_lazy_loading").unwrap()) {
-
-                            // If we succeed at opening the PackFile...
+                        match packfile::open_packfile(path, *SETTINGS.lock().unwrap().settings_bool.get("use_lazy_loading").unwrap()) {
                             Ok(pack_file) => {
-
-                                // Get the decoded PackFile.
                                 pack_file_decoded = pack_file;
-
-                                // Get the PackFile's Header we must return to the UI thread and send it back.
                                 sender.send(Data::PackFileUIData(pack_file_decoded.create_ui_data())).unwrap();
                             }
-
-                            // If there is an error, send it back to the UI.
                             Err(error) => sender.send(Data::Error(Error::from(ErrorKind::OpenPackFileGeneric(format!("{}", error))))).unwrap(),
                         }
                     }
@@ -157,7 +126,7 @@ pub fn background_loop(
                     Commands::SavePackFile => {
 
                         // If it passed all the checks, then try to save it and return the result.
-                        match packfile::save_packfile(&mut pack_file_decoded, None, *settings.settings_bool.get("allow_editing_of_ca_packfiles").unwrap()) {
+                        match packfile::save_packfile(&mut pack_file_decoded, None, *SETTINGS.lock().unwrap().settings_bool.get("allow_editing_of_ca_packfiles").unwrap()) {
                             Ok(_) => sender.send(Data::I64(pack_file_decoded.timestamp)).unwrap(),
                             Err(error) => {
                                 match error.kind() {
@@ -182,7 +151,7 @@ pub fn background_loop(
                         };
 
                         // Try to save the PackFile and return the results.
-                        match packfile::save_packfile(&mut pack_file_decoded, Some(path.to_path_buf()), *settings.settings_bool.get("allow_editing_of_ca_packfiles").unwrap()) {
+                        match packfile::save_packfile(&mut pack_file_decoded, Some(path.to_path_buf()), *SETTINGS.lock().unwrap().settings_bool.get("allow_editing_of_ca_packfiles").unwrap()) {
                             Ok(_) => sender.send(Data::I64(pack_file_decoded.timestamp)).unwrap(),
                             Err(error) => sender.send(Data::Error(Error::from(ErrorKind::SavePackFileGeneric(format!("{}", error))))).unwrap(),
                         }
@@ -190,9 +159,7 @@ pub fn background_loop(
 
                     // In case we want to "Load All CA PackFiles"...
                     Commands::LoadAllCAPackFiles => {
-
-                        // Open the PackFile (Or die trying it).
-                        match packfile::load_all_ca_packfiles(&game_selected, &settings) {
+                        match packfile::load_all_ca_packfiles() {
 
                             // If we succeed at opening the PackFile...
                             Ok(pack_file) => {
@@ -225,110 +192,63 @@ pub fn background_loop(
                         pack_file_decoded.bitmask.set(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS, state);
                     }
 
-                    // In case we want to get the currently loaded Schema...
-                    Commands::GetSchema => {
-
-                        // Send the schema back to the UI thread.
-                        sender.send(Data::OptionSchema(schema.clone())).unwrap();
-                    }
-
                     // In case we want to save an schema...
                     Commands::SaveSchema => {
 
                         // Wait until we get the needed data from the UI thread.
                         let new_schema: Schema = if let Data::Schema(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                        // Try to save it to disk.
-                        match Schema::save(&new_schema, &SUPPORTED_GAMES.get(&*game_selected).unwrap().schema) {
-
-                            // If we managed to save it...
+                        match Schema::save(&new_schema, &SUPPORTED_GAMES.get(&**GAME_SELECTED.lock().unwrap()).unwrap().schema) {
                             Ok(_) => {
-
-                                // Update the current schema.
-                                schema = Some(new_schema);
-
-                                // Send success back.
+                                *SCHEMA.lock().unwrap() = Some(new_schema);
                                 sender.send(Data::Success).unwrap();
                             },
-
-                            // If there was an error, report it.
                             Err(error) => sender.send(Data::Error(error)).unwrap()
                         }
                     }
 
-                    // In case we want to get the current settings...
-                    Commands::GetSettings => {
-
-                        // Send the current settings back to the UI thread.
-                        sender.send(Data::Settings(settings.clone())).unwrap();
-                    }
-
                     // In case we want to change the current settings...
                     Commands::SetSettings => {
-
-                        // Wait until we get the needed data from the UI thread.
                         let new_settings = if let Data::Settings(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                        // Update our current settings with the ones we received from the UI.
-                        settings = new_settings;
-
-                        // Save our Settings to a settings file, and report in case of error.
-                        match settings.save() {
+                        *SETTINGS.lock().unwrap() = new_settings;
+                        match SETTINGS.lock().unwrap().save() {
                             Ok(()) => sender.send(Data::Success).unwrap(),
                             Err(error) => sender.send(Data::Error(error)).unwrap(),
                         }
-                    }
-
-                    // In case we want to get the current shortcuts...
-                    Commands::GetShortcuts => {
-
-                        // Send the current shortcuts back to the UI thread.
-                        sender.send(Data::Shortcuts(shortcuts.clone())).unwrap();
                     }
 
                     // In case we want to change the current shortcuts...
                     Commands::SetShortcuts => {
 
-                        // Wait until we get the needed data from the UI thread.
+                        // Wait until we get the needed data from the UI thread, then save our Shortcuts to a shortcuts file, and report in case of error.
                         let new_shortcuts = if let Data::Shortcuts(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                        // Update our current settings with the ones we received from the UI.
-                        shortcuts = new_shortcuts;
-
-                        // Save our Shortcuts to a shortcuts file, and report in case of error.
-                        match shortcuts.save() {
-                            Ok(()) => sender.send(Data::Success).unwrap(),
-                            Err(error) => sender.send(Data::Error(error)).unwrap(),
-                        }
-                    }
-
-                    // In case we want get our current Game Selected...
-                    Commands::GetGameSelected => {
-
-                        // Send the current Game Selected back to the UI thread.
-                        sender.send(Data::String(game_selected.to_owned())).unwrap();
+                        loop { if let Ok(ref mut shortcuts) = SHORTCUTS.try_lock() { 
+                            **shortcuts = new_shortcuts;
+                            match shortcuts.save() {
+                                Ok(()) => sender.send(Data::Success).unwrap(),
+                                Err(error) => sender.send(Data::Error(error)).unwrap(),
+                            }
+                            break;
+                        }};
                     }
 
                     // In case we want to change the current Game Selected...
                     Commands::SetGameSelected => {
 
-                        // Wait until we get the needed data from the UI thread.
-                        let game_name = if let Data::String(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                        // Get the new Game Selected, and set it.
-                        game_selected = game_name;
+                        // Wait until we get the needed data from the UI thread and change the GameSelected.
+                        let game_selected = if let Data::String(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                        *GAME_SELECTED.lock().unwrap() = game_selected.to_owned();
 
                         // Send back the new Game Selected, and a bool indicating if there is a PackFile open.
-                        sender.send(Data::StringBool((game_selected.to_owned(), pack_file_decoded.get_file_name().is_empty()))).unwrap();
+                        sender.send(Data::Bool(!pack_file_decoded.get_file_name().is_empty())).unwrap();
 
                         // Try to load the Schema for this game.
-                        schema = Schema::load(&SUPPORTED_GAMES.get(&*game_selected).unwrap().schema).ok();
+                        *SCHEMA.lock().unwrap() = Schema::load(&SUPPORTED_GAMES.get(&*game_selected).unwrap().schema).ok();
 
                         // Change the `dependency_database` for that game.
-                        dependency_database = packfile::load_dependency_packfiles(&game_selected, &settings, &pack_file_decoded.pack_files);
+                        *DEPENDENCY_DATABASE.lock().unwrap() = packfile::load_dependency_packfiles(&pack_file_decoded.pack_files);
 
                         // If there is a PackFile open, change his id to match the one of the new GameSelected.
-                        if !pack_file_decoded.get_file_name().is_empty() { pack_file_decoded.pfh_version = SUPPORTED_GAMES.get(&*game_selected).unwrap().id; }
+                        if !pack_file_decoded.get_file_name().is_empty() { pack_file_decoded.pfh_version = SUPPORTED_GAMES.get(&**GAME_SELECTED.lock().unwrap()).unwrap().id; }
 
                         // Test to see if every DB Table can be decoded. This is slow and only useful when
                         // a new patch lands and you want to know what tables you need to decode. So, unless you want 
@@ -337,7 +257,7 @@ pub fn background_loop(
                             let mut counter = 0;
                             for i in pack_file_decoded.packed_files.iter_mut() {
                                 if i.path.starts_with(&["db".to_owned()]) {
-                                    if let Some(ref schema) = schema {
+                                    if let Some(ref schema) = *SCHEMA.lock().unwrap() {
                                         if let Err(error) = db::DB::read(&(i.get_data_and_keep_it().unwrap()), &i.path[1], &schema) {
                                             if error.kind() != ErrorKind::DBTableContainsListField {
                                                 match db::DB::get_header_data(&i.get_data().unwrap()) {
@@ -357,22 +277,15 @@ pub fn background_loop(
                         }
                     }
 
-                    // In case we want to get the current PackFile's Header...
-                    // Commands::GetPackFileHeader => {
-
-                    //     // Send the header of the currently open PackFile.
-                    //     sender.send(Data::PackFileHeader(pack_file_decoded.header.clone())).unwrap();
-                    // }
-
                     // In case we want to check if there is a current Dependency Database loaded...
                     Commands::IsThereADependencyDatabase => {
-                        if !dependency_database.is_empty() { sender.send(Data::Bool(true)).unwrap(); }
+                        if !DEPENDENCY_DATABASE.lock().unwrap().is_empty() { sender.send(Data::Bool(true)).unwrap(); }
                         else { sender.send(Data::Bool(false)).unwrap(); }
                     }
 
                     // In case we want to check if there is an Schema loaded...
                     Commands::IsThereASchema => {
-                        match schema {
+                        match *SCHEMA.lock().unwrap() {
                             Some(_) => sender.send(Data::Bool(true)).unwrap(),
                             None => sender.send(Data::Bool(false)).unwrap(),
                         }
@@ -395,23 +308,13 @@ pub fn background_loop(
                     // In case we want to update our Schemas...
                     Commands::UpdateSchemas => {
 
-                        // Wait until we get the needed data from the UI thread.
+                        // Reload the currently loaded schema, just in case it was updated.
                         let data = if let Data::VersionsVersions(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                        // Try to update the schemas...
                         match update_schemas(data.0, data.1) {
-
-                            // If there is success...
                             Ok(_) => {
-
-                                // Reload the currently loaded schema, just in case it was updated.
-                                schema = Schema::load(&SUPPORTED_GAMES.get(&*game_selected).unwrap().schema).ok();
-
-                                // Return success.
+                                *SCHEMA.lock().unwrap() = Schema::load(&SUPPORTED_GAMES.get(&**GAME_SELECTED.lock().unwrap()).unwrap().schema).ok();
                                 sender.send(Data::Success).unwrap();
                             }
-
-                            // If there is an error while updating, report it.
                             Err(error) => sender.send(Data::Error(error)).unwrap(),
                         }
                     }
@@ -519,7 +422,6 @@ pub fn background_loop(
                             &mut pack_file_decoded,
                             data.1,
                             data.0,
-                            &schema,
                         ) {
                             // Send the result back.
                             Ok(_) => sender.send(Data::Success).unwrap(),
@@ -608,7 +510,7 @@ pub fn background_loop(
 
                         // Try to import all the importable files from the provided path.
                         let data = if let Data::StringVecPathBuf(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-                        match tsv_mass_import(&data.1, &data.0, &schema, &mut pack_file_decoded) {
+                        match tsv_mass_import(&data.1, &data.0, &mut pack_file_decoded) {
                             Ok(result) => sender.send(Data::VecVecStringVecVecString(result)).unwrap(),
                             Err(error) => sender.send(Data::Error(error)).unwrap(),
                         }
@@ -619,7 +521,7 @@ pub fn background_loop(
 
                         // Try to export all the exportable files to the provided path.
                         let path = if let Data::PathBuf(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-                        match tsv_mass_export(&path, &schema, &mut pack_file_decoded) {
+                        match tsv_mass_export(&path, &mut pack_file_decoded) {
                             Ok(result) => sender.send(Data::String(result)).unwrap(),
                             Err(error) => sender.send(Data::Error(error)).unwrap(),
                         }
@@ -693,12 +595,8 @@ pub fn background_loop(
                         let path = if let Data::VecString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                         // Depending if there is an Schema for this game or not...
-                        match schema {
-
-                            // If there is an Schema loaded for this game...
+                        match *SCHEMA.lock().unwrap() {
                             Some(ref schema) => {
-
-                                // Find the PackedFile we want and send back the response.
                                 match pack_file_decoded.packed_files.iter_mut().find(|x| x.path == path) {
                                     Some(mut packed_file) => {
 
@@ -979,7 +877,7 @@ pub fn background_loop(
                     // In case we want to get the list of tables in the dependency database...
                     Commands::GetTableListFromDependencyPackFile => {
 
-                        let tables = dependency_database.iter().filter(|x| x.path.len() > 2).filter(|x| x.path[1].ends_with("_tables")).map(|x| x.path[1].to_owned()).collect::<Vec<String>>();
+                        let tables = DEPENDENCY_DATABASE.lock().unwrap().iter().filter(|x| x.path.len() > 2).filter(|x| x.path[1].ends_with("_tables")).map(|x| x.path[1].to_owned()).collect::<Vec<String>>();
                         sender.send(Data::VecString(tables)).unwrap();
                     }
 
@@ -988,7 +886,7 @@ pub fn background_loop(
 
                         // Wait until we get the needed data from the UI thread.
                         let table_name = if let Data::String(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
-                        if let Some(mut vanilla_table) = dependency_database.iter_mut().filter(|x| x.path.len() == 3).find(|x| x.path[1] == table_name) {
+                        if let Some(mut vanilla_table) = DEPENDENCY_DATABASE.lock().unwrap().iter_mut().filter(|x| x.path.len() == 3).find(|x| x.path[1] == table_name) {
                             match DB::get_header_data(&vanilla_table.get_data_and_keep_it().unwrap()) {
                                 Ok(data) => sender.send(Data::U32(data.0)).unwrap(),
                                 Err(error) => sender.send(Data::Error(error)).unwrap(),
@@ -996,7 +894,7 @@ pub fn background_loop(
                         }
 
                         // If our table is not in the dependencies, we fall back to use the version in the schema.
-                        else if let Some(ref schema) = schema {
+                        else if let Some(ref schema) = *SCHEMA.lock().unwrap() {
                             if let Some(definition) = schema.tables_definitions.iter().find(|x| x.name == table_name) {
                                 let mut versions = definition.versions.to_vec();
                                 versions.sort_unstable_by(|x, y| x.version.cmp(&y.version));
@@ -1014,7 +912,7 @@ pub fn background_loop(
 
                     // In case we want to optimize our PackFile...
                     Commands::OptimizePackFile => {
-                        match packfile::optimize_packfile(&mut pack_file_decoded, &dependency_database, &schema) {
+                        match packfile::optimize_packfile(&mut pack_file_decoded) {
                             Ok(deleted_packed_files) => sender.send(Data::VecTreePathType(deleted_packed_files)).unwrap(),
                             Err(_) => sender.send(Data::Error(Error::from(ErrorKind::PackedFileDataCouldNotBeLoaded))).unwrap(),
                         }
@@ -1033,7 +931,7 @@ pub fn background_loop(
                         pack_file_decoded.save_packfiles_list(list);
 
                         // Update the dependency database.
-                        dependency_database = packfile::load_dependency_packfiles(&game_selected, &settings, &pack_file_decoded.pack_files);
+                        *DEPENDENCY_DATABASE.lock().unwrap() = packfile::load_dependency_packfiles(&pack_file_decoded.pack_files);
                     }
 
                     // In case we want to get the dependency data for a table's column....
@@ -1042,10 +940,9 @@ pub fn background_loop(
                         // Wait until we get the needed data from the UI thread.
                         let dependency_data = if let Data::StringString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
                         let mut data = vec![];
-                        let mut iter = dependency_database.iter_mut();
                         if !dependency_data.0.is_empty() && !dependency_data.1.is_empty() {
-                            while let Some(mut packed_file) = iter.find(|x| x.path.starts_with(&["db".to_owned(), format!("{}_tables", dependency_data.0)])) {
-                                if let Some(ref schema) = schema {
+                            while let Some(mut packed_file) = DEPENDENCY_DATABASE.lock().unwrap().iter_mut().find(|x| x.path.starts_with(&["db".to_owned(), format!("{}_tables", dependency_data.0)])) {
+                                if let Some(ref schema) = *SCHEMA.lock().unwrap() {
                                     if let Ok(table) = DB::read(&packed_file.get_data_and_keep_it().unwrap(), &format!("{}_tables", dependency_data.0), &schema) {
                                         if let Some(column_index) = table.table_definition.fields.iter().position(|x| x.field_name == dependency_data.1) {
                                             for row in table.entries.iter() {
@@ -1069,7 +966,7 @@ pub fn background_loop(
                         let mut iter = pack_file_decoded.packed_files.iter_mut();
                         if !dependency_data.0.is_empty() && !dependency_data.1.is_empty() {
                             while let Some(mut packed_file) = iter.find(|x| x.path.starts_with(&["db".to_owned(), format!("{}_tables", dependency_data.0)])) {
-                                if let Some(ref schema) = schema {
+                                if let Some(ref schema) = *SCHEMA.lock().unwrap() {
                                     if let Ok(packed_file_data) = packed_file.get_data_and_keep_it() {
                                         if let Ok(table) = DB::read(&packed_file_data, &format!("{}_tables", dependency_data.0), &schema) {
                                             if let Some(column_index) = table.table_definition.fields.iter().position(|x| x.field_name == dependency_data.1) {
@@ -1105,7 +1002,7 @@ pub fn background_loop(
                         let mut results = vec![];
 
                         // Get the paths we need.
-                        if let Some(ref ca_types_file) = SUPPORTED_GAMES.get(&*game_selected).unwrap().ca_types_file {
+                        if let Some(ref ca_types_file) = SUPPORTED_GAMES.get(&**GAME_SELECTED.lock().unwrap()).unwrap().ca_types_file {
                             let types_path = RPFM_PATH.to_path_buf().join(PathBuf::from("lua_types")).join(PathBuf::from(ca_types_file));
                             let mut temp_folder_path = temp_dir().join(PathBuf::from("rpfm/scripts"));
                             let mut config_path = temp_folder_path.to_path_buf();
@@ -1249,7 +1146,7 @@ pub fn background_loop(
                                 // If the file is a DB PackedFile...
                                 "DB" => {
 
-                                    if let Some(ref schema) = schema {   
+                                    if let Some(ref schema) = *SCHEMA.lock().unwrap() {   
                                         if let Ok(packed_file) = DB::read(&data, &path[1], &schema) {
 
                                             let mut matches_in_file = vec![];
@@ -1394,7 +1291,7 @@ pub fn background_loop(
                                     // If the file is a DB PackedFile...
                                     "DB" => {
 
-                                        if let Some(ref schema) = schema {   
+                                        if let Some(ref schema) = *SCHEMA.lock().unwrap() {   
                                             if let Ok(packed_file) = DB::read(&data, &path[1], &schema) {
 
                                                 let mut matches_in_file = vec![];
