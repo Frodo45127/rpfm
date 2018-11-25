@@ -101,6 +101,7 @@ use sentry::integrations::panic::register_panic_handler;
 use common::*;
 use common::communications::*;
 use error::{ErrorKind, logger::Report, Result};
+use packfile::packfile::PackedFile;
 use packedfile::*;
 use packedfile::db::schemas_importer::*;
 use packfile::packfile::{PFHVersion, PFHFileType, PFHFlags};
@@ -327,6 +328,9 @@ lazy_static! {
 
     /// The current GameSelected. Same as the one above, only edited from the background thread.
     static ref GAME_SELECTED: Arc<Mutex<String>> = Arc::new(Mutex::new(SETTINGS.lock().unwrap().settings_string.get("default_game").unwrap().to_owned()));
+
+    /// PackedFiles from the dependencies of the currently open PackFile.
+    static ref DEPENDENCY_DATABASE: Mutex<Vec<PackedFile>> = Mutex::new(vec![]);
 }
 
 /// This constant gets RPFM's version from the `Cargo.toml` file, so we don't have to change it

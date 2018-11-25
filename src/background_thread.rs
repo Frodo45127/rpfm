@@ -13,6 +13,7 @@ use SUPPORTED_GAMES;
 use SHOW_TABLE_ERRORS;
 use SHORTCUTS;
 use SETTINGS;
+use DEPENDENCY_DATABASE;
 use GAME_SELECTED;
 use GlobalMatch;
 use common::*;
@@ -50,9 +51,6 @@ pub fn background_loop(
 
     // We prepare the schema object to hold an Schema, leaving it as `None` by default.
     let mut schema: Option<Schema> = None;
-
-    // This will be populated once the program tries to select the default game, so leave it empty here.
-    let mut dependency_database = vec![];
 
     //---------------------------------------------------------------------------------------//
     // Looping forever and ever...
@@ -256,7 +254,7 @@ pub fn background_loop(
                         schema = Schema::load(&SUPPORTED_GAMES.get(&*game_selected).unwrap().schema).ok();
 
                         // Change the `dependency_database` for that game.
-                        dependency_database = packfile::load_dependency_packfiles(&pack_file_decoded.pack_files);
+                        *DEPENDENCY_DATABASE.lock().unwrap() = packfile::load_dependency_packfiles(&pack_file_decoded.pack_files);
 
                         // If there is a PackFile open, change his id to match the one of the new GameSelected.
                         if !pack_file_decoded.get_file_name().is_empty() { pack_file_decoded.pfh_version = SUPPORTED_GAMES.get(&**GAME_SELECTED.lock().unwrap()).unwrap().id; }
@@ -290,7 +288,7 @@ pub fn background_loop(
 
                     // In case we want to check if there is a current Dependency Database loaded...
                     Commands::IsThereADependencyDatabase => {
-                        if !dependency_database.is_empty() { sender.send(Data::Bool(true)).unwrap(); }
+                        if !DEPENDENCY_DATABASE.lock().unwrap().is_empty() { sender.send(Data::Bool(true)).unwrap(); }
                         else { sender.send(Data::Bool(false)).unwrap(); }
                     }
 
@@ -893,7 +891,7 @@ pub fn background_loop(
                     // In case we want to get the list of tables in the dependency database...
                     Commands::GetTableListFromDependencyPackFile => {
 
-                        let tables = dependency_database.iter().filter(|x| x.path.len() > 2).filter(|x| x.path[1].ends_with("_tables")).map(|x| x.path[1].to_owned()).collect::<Vec<String>>();
+                        let tables = DEPENDENCY_DATABASE.lock().unwrap().iter().filter(|x| x.path.len() > 2).filter(|x| x.path[1].ends_with("_tables")).map(|x| x.path[1].to_owned()).collect::<Vec<String>>();
                         sender.send(Data::VecString(tables)).unwrap();
                     }
 
@@ -902,7 +900,7 @@ pub fn background_loop(
 
                         // Wait until we get the needed data from the UI thread.
                         let table_name = if let Data::String(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
-                        if let Some(mut vanilla_table) = dependency_database.iter_mut().filter(|x| x.path.len() == 3).find(|x| x.path[1] == table_name) {
+                        if let Some(mut vanilla_table) = DEPENDENCY_DATABASE.lock().unwrap().iter_mut().filter(|x| x.path.len() == 3).find(|x| x.path[1] == table_name) {
                             match DB::get_header_data(&vanilla_table.get_data_and_keep_it().unwrap()) {
                                 Ok(data) => sender.send(Data::U32(data.0)).unwrap(),
                                 Err(error) => sender.send(Data::Error(error)).unwrap(),
@@ -928,7 +926,7 @@ pub fn background_loop(
 
                     // In case we want to optimize our PackFile...
                     Commands::OptimizePackFile => {
-                        match packfile::optimize_packfile(&mut pack_file_decoded, &dependency_database, &schema) {
+                        match packfile::optimize_packfile(&mut pack_file_decoded, &schema) {
                             Ok(deleted_packed_files) => sender.send(Data::VecTreePathType(deleted_packed_files)).unwrap(),
                             Err(_) => sender.send(Data::Error(Error::from(ErrorKind::PackedFileDataCouldNotBeLoaded))).unwrap(),
                         }
@@ -947,7 +945,7 @@ pub fn background_loop(
                         pack_file_decoded.save_packfiles_list(list);
 
                         // Update the dependency database.
-                        dependency_database = packfile::load_dependency_packfiles(&pack_file_decoded.pack_files);
+                        *DEPENDENCY_DATABASE.lock().unwrap() = packfile::load_dependency_packfiles(&pack_file_decoded.pack_files);
                     }
 
                     // In case we want to get the dependency data for a table's column....
@@ -956,9 +954,8 @@ pub fn background_loop(
                         // Wait until we get the needed data from the UI thread.
                         let dependency_data = if let Data::StringString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
                         let mut data = vec![];
-                        let mut iter = dependency_database.iter_mut();
                         if !dependency_data.0.is_empty() && !dependency_data.1.is_empty() {
-                            while let Some(mut packed_file) = iter.find(|x| x.path.starts_with(&["db".to_owned(), format!("{}_tables", dependency_data.0)])) {
+                            while let Some(mut packed_file) = DEPENDENCY_DATABASE.lock().unwrap().iter_mut().find(|x| x.path.starts_with(&["db".to_owned(), format!("{}_tables", dependency_data.0)])) {
                                 if let Some(ref schema) = schema {
                                     if let Ok(table) = DB::read(&packed_file.get_data_and_keep_it().unwrap(), &format!("{}_tables", dependency_data.0), &schema) {
                                         if let Some(column_index) = table.table_definition.fields.iter().position(|x| x.field_name == dependency_data.1) {

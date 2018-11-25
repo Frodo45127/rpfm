@@ -10,6 +10,7 @@ use std::io::BufWriter;
 
 use SUPPORTED_GAMES;
 use GAME_SELECTED;
+use DEPENDENCY_DATABASE;
 use common::*;
 use error::{Error, ErrorKind, Result};
 use packfile::packfile::PFHFileType;
@@ -1088,7 +1089,6 @@ pub fn create_prefab_from_catchment(
 /// often created by map editors. It requires just the PackFile to optimize and the dependency PackFile.
 pub fn optimize_packfile(
     pack_file: &mut packfile::PackFile,
-    game_packed_files: &[packfile::PackedFile],
     schema: &Option<Schema>
 ) -> Result<Vec<TreePathType>> {
 
@@ -1098,14 +1098,14 @@ pub fn optimize_packfile(
 
     // Get a list of every Loc and DB PackedFiles in our dependency's files. For performance reasons, we decode every one of them here.
     // Otherwise, they may have to be decoded multiple times, making this function take ages to finish. 
-    let game_locs = game_packed_files.iter()
+    let game_locs = DEPENDENCY_DATABASE.lock().unwrap().iter()
         .filter(|x| x.path.last().unwrap().ends_with(".loc"))
         .filter_map(|x| x.get_data().ok())
         .filter_map(|x| Loc::read(&x).ok())
         .collect::<Vec<Loc>>();
 
     let game_dbs = if let Some(schema) = schema {
-        game_packed_files.iter()
+        DEPENDENCY_DATABASE.lock().unwrap().iter()
             .filter(|x| x.path.len() == 3 && x.path[0] == "db")
             .map(|x| (x.get_data(), x.path[1].to_owned()))
             .filter(|x| x.0.is_ok())
