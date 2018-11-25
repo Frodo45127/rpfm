@@ -56,6 +56,7 @@ use std::f32;
 use RPFM_PATH;
 use SHORTCUTS;
 use SETTINGS;
+use SCHEMA;
 use TREEVIEW_ICONS;
 use QString;
 use AppUI;
@@ -489,15 +490,9 @@ pub fn create_new_packed_file_dialog(
         sender.send(Commands::GetTableListFromDependencyPackFile).unwrap();
         let tables = if let Data::VecString(data) = check_message_validity_recv2(&receiver) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
-        // Get the current schema.
-        sender.send(Commands::GetSchema).unwrap();
-        let schema = if let Data::OptionSchema(data) = check_message_validity_recv2(&receiver) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
         // Check if we actually have an schema.
-        match schema {
-
-            // If we have an schema...
-            Some(schema) => {
+        match *SCHEMA.lock().unwrap() {
+            Some(ref schema) => {
 
                 // Add every table to the dropdown if exists in the dependency database.
                 schema.tables_definitions.iter().filter(|x| tables.contains(&x.name)).for_each(|x| table_dropdown.add_item(&QString::from_std_str(&x.name)));

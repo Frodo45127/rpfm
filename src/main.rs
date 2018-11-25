@@ -103,6 +103,7 @@ use common::communications::*;
 use error::{ErrorKind, logger::Report, Result};
 use packfile::packfile::PackedFile;
 use packedfile::*;
+use packedfile::db::schemas::Schema;
 use packedfile::db::schemas_importer::*;
 use packfile::packfile::{PFHVersion, PFHFileType, PFHFlags};
 use settings::*;
@@ -331,6 +332,9 @@ lazy_static! {
 
     /// PackedFiles from the dependencies of the currently open PackFile.
     static ref DEPENDENCY_DATABASE: Mutex<Vec<PackedFile>> = Mutex::new(vec![]);
+
+    /// Currently loaded schema.
+    static ref SCHEMA: Arc<Mutex<Option<Schema>>> = Arc::new(Mutex::new(None));
 }
 
 /// This constant gets RPFM's version from the `Cargo.toml` file, so we don't have to change it

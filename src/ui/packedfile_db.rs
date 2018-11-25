@@ -3354,10 +3354,6 @@ impl PackedFileDBDecoder {
             _ => panic!(THREADS_MESSAGE_ERROR),
         };
 
-        // Get the schema of the Game Selected.
-        sender_qt.send(Commands::GetSchema).unwrap();
-        let schema = if let Data::OptionSchema(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
         // If the PackedFile is in the db folder...
         if packed_file.path.len() == 3 {
             if packed_file.path[0] == "db" {
@@ -3429,6 +3425,7 @@ impl PackedFileDBDecoder {
                         let index = Rc::new(RefCell::new(stuff_non_ui.initial_index));
 
                         // Check if we have an schema.
+                        let mut schema = SCHEMA.lock().unwrap().clone();
                         match schema {
 
                             // If we have an schema...

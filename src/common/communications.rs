@@ -36,7 +36,6 @@ pub enum Commands {
     LoadAllCAPackFiles,
     SetPackFileType,
     ChangeIndexIncludesTimestamp,
-    GetSchema,
     SaveSchema,
     SetSettings,
     SetShortcuts,
@@ -110,7 +109,6 @@ pub enum Data {
     Settings(Settings),
     Shortcuts(Shortcuts),
     Schema(Schema),
-    OptionSchema(Option<Schema>),
 
     PFHFileType(PFHFileType),
     PackFileUIData(PackFileUIData),

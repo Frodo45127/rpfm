@@ -11,12 +11,12 @@ use std::io::BufWriter;
 use SUPPORTED_GAMES;
 use GAME_SELECTED;
 use DEPENDENCY_DATABASE;
+use SCHEMA;
 use common::*;
 use error::{Error, ErrorKind, Result};
 use packfile::packfile::PFHFileType;
 use packedfile::loc::Loc;
 use packedfile::db::DB;
-use packedfile::db::schemas::Schema;
 use packedfile::rigidmodel::RigidModel;
 
 pub mod packfile;
@@ -1087,10 +1087,7 @@ pub fn create_prefab_from_catchment(
 /// This function is used to optimize the size of a PackFile. It does two things: removes unchanged rows
 /// from tables (and if the table is empty, it removes it too) and it cleans the PackFile of extra .xml files 
 /// often created by map editors. It requires just the PackFile to optimize and the dependency PackFile.
-pub fn optimize_packfile(
-    pack_file: &mut packfile::PackFile,
-    schema: &Option<Schema>
-) -> Result<Vec<TreePathType>> {
+pub fn optimize_packfile(pack_file: &mut packfile::PackFile)-> Result<Vec<TreePathType>> {
 
     // List of PackedFiles to delete. This includes empty DB Tables and empty Loc PackedFiles.
     let mut files_to_delete: Vec<Vec<String>> = vec![];
@@ -1104,7 +1101,7 @@ pub fn optimize_packfile(
         .filter_map(|x| Loc::read(&x).ok())
         .collect::<Vec<Loc>>();
 
-    let game_dbs = if let Some(schema) = schema {
+    let game_dbs = if let Some(ref schema) = *SCHEMA.lock().unwrap() {
         DEPENDENCY_DATABASE.lock().unwrap().iter()
             .filter(|x| x.path.len() == 3 && x.path[0] == "db")
             .map(|x| (x.get_data(), x.path[1].to_owned()))
@@ -1117,7 +1114,7 @@ pub fn optimize_packfile(
 
         // If it's a DB table and we have an schema...
         if packed_file.path.len() == 3 && packed_file.path[0] == "db" && !game_dbs.is_empty() {
-            if let Some(schema) = schema {
+            if let Some(ref schema) = *SCHEMA.lock().unwrap() {
 
                 // Try to decode our table.
                 let mut optimized_table = match DB::read(&(packed_file.get_data_and_keep_it()?), &packed_file.path[1], &schema) {
