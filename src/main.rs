@@ -324,6 +324,9 @@ lazy_static! {
     /// The current Settings and Shortcuts. To avoid reference and lock issues, this should be edited ONLY in the background thread.
     static ref SETTINGS: Arc<Mutex<Settings>> = Arc::new(Mutex::new(Settings::load().unwrap_or_else(|_|Settings::new())));
     static ref SHORTCUTS: Arc<Mutex<Shortcuts>> = Arc::new(Mutex::new(Shortcuts::load().unwrap_or_else(|_|Shortcuts::new())));
+
+    /// The current GameSelected. Same as the one above, only edited from the background thread.
+    static ref GAME_SELECTED: Arc<Mutex<String>> = Arc::new(Mutex::new(SETTINGS.lock().unwrap().settings_string.get("default_game").unwrap().to_owned()));
 }
 
 /// This constant gets RPFM's version from the `Cargo.toml` file, so we don't have to change it
@@ -1219,13 +1222,13 @@ fn main() {
                 *open_from_submenu_menu_needs_rebuild.borrow_mut() = true;
 
                 // Get the response from the background thread.
-                let response = if let Data::StringBool(data) = check_message_validity_tryrecv(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                let is_a_packfile_open = if let Data::Bool(data) = check_message_validity_tryrecv(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                 // Disable the "PackFile Management" actions.
-                enable_packfile_actions(&app_ui, &response.0, &mymod_stuff, settings.clone(), false);
+                enable_packfile_actions(&app_ui, &mymod_stuff, settings.clone(), false);
 
                 // If we have a PackFile opened, re-enable the "PackFile Management" actions, so the "Special Stuff" menu gets updated properly.
-                if !response.1 { enable_packfile_actions(&app_ui, &response.0, &mymod_stuff, settings, true); }
+                if is_a_packfile_open { enable_packfile_actions(&app_ui, &mymod_stuff, settings, true); }
 
                 // Set the current "Operational Mode" to `Normal` (In case we were in `MyMod` mode).
                 set_my_mod_mode(&mymod_stuff, &mode, None);
@@ -1244,11 +1247,8 @@ fn main() {
         unsafe { app_ui.shogun_2.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
         unsafe { app_ui.arena.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
 
-        // Try to get the Game Selected. This should never fail, so CTD if it does it.
-        sender_qt.send(Commands::GetGameSelected).unwrap();
-        let game_selected = if let Data::String(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
         // Update the "Game Selected" here, so we can skip some steps when initializing.
+        let game_selected = GAME_SELECTED.lock().unwrap().to_owned();
         match &*game_selected {
             "warhammer_2" => unsafe { app_ui.warhammer_2.as_mut().unwrap().trigger(); }
             "warhammer" => unsafe { app_ui.warhammer.as_mut().unwrap().trigger(); }
@@ -1333,12 +1333,8 @@ fn main() {
                     // Set the new mod as "Not modified".
                     *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
 
-                    // Try to get the Game Selected. This should never fail, so CTD if it does it.
-                    sender_qt.send(Commands::GetGameSelected).unwrap();
-                    let game_selected = if let Data::String(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
                     // Enable the actions available for the PackFile from the `MenuBar`.
-                    enable_packfile_actions(&app_ui, &game_selected, &mymod_stuff, settings, true);
+                    enable_packfile_actions(&app_ui, &mymod_stuff, settings, true);
 
                     // Set the current "Operational Mode" to Normal, as this is a "New" mod.
                     set_my_mod_mode(&mymod_stuff, &mode, None);
@@ -1370,16 +1366,12 @@ fn main() {
                     // Filter it so it only shows PackFiles.
                     file_dialog.set_name_filter(&QString::from_std_str("PackFiles (*.pack)"));
 
-                    // Try to get the Game Selected. This should never fail, so CTD if it does it.
-                    sender_qt.send(Commands::GetGameSelected).unwrap();
-                    let game_selected = if let Data::String(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
                     // Try to get the settings.
                     sender_qt.send(Commands::GetSettings).unwrap();
                     let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                     // In case we have a default path for the Game Selected, we use it as base path for opening files.
-                    if let Some(ref path) = get_game_selected_data_path(&game_selected, &settings) {
+                    if let Some(ref path) = get_game_selected_data_path(&settings) {
 
                         // We check that actually exists before setting it.
                         if path.is_dir() { file_dialog.set_directory(&QString::from_std_str(&path.to_string_lossy().as_ref().to_owned())); }
@@ -1471,10 +1463,6 @@ fn main() {
             sender_qt_data,
             receiver_qt => move |_| {
 
-                // Try to get the Game Selected. This should never fail, so CTD if it does it.
-                sender_qt.send(Commands::GetGameSelected).unwrap();
-                let game_selected = if let Data::String(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
                 // Try to get the settings.
                 sender_qt.send(Commands::GetSettings).unwrap();
                 let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
@@ -1519,7 +1507,7 @@ fn main() {
 
                         // In case we have a default path for the Game Selected and that path is valid,
                         // we use his data folder as base path for saving our PackFile.
-                        else if let Some(ref path) = get_game_selected_data_path(&game_selected, &settings) {
+                        else if let Some(ref path) = get_game_selected_data_path(&settings) {
 
                             // We check it actually exists before setting it.
                             if path.is_dir() {
@@ -1663,9 +1651,7 @@ fn main() {
                             // Set the new mod as "Not modified".
                             *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
 
-                            // Reset the Game Selected, so the UI get's updated properly.
-                            sender_qt.send(Commands::GetGameSelected).unwrap();
-                            let game_selected = if let Data::String(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                            let game_selected = GAME_SELECTED.lock().unwrap().to_owned();
                             match &*game_selected {
                                 "warhammer_2" => unsafe { app_ui.warhammer_2.as_mut().unwrap().trigger(); },
                                 "warhammer" => unsafe { app_ui.warhammer.as_mut().unwrap().trigger(); },
@@ -1800,11 +1786,8 @@ fn main() {
                                 }
                             } 
 
-                            // Get the current GameSelected.
-                            sender_qt.send(Commands::GetGameSelected).unwrap();
-                            let game_selected = if let Data::String(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
                             // If our current `GameSelected` is in the `games_with_changed_paths` list...
+                            let game_selected = GAME_SELECTED.lock().unwrap().to_owned();
                             if games_with_changed_paths.contains(&game_selected) {
 
                                 // Re-select the same game, so `GameSelected` update his paths.
@@ -4650,10 +4633,6 @@ fn main() {
                     sender_qt.send(Commands::GetSettings).unwrap();
                     let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
-                    // Change the Game Selected in the Background Thread.
-                    sender_qt.send(Commands::GetGameSelected).unwrap();
-                    let game_selected = if let Data::String(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
                     // Then rebuild it.
                     *open_from_slots.borrow_mut() = build_open_from_submenus(
                         sender_qt.clone(),
@@ -4663,7 +4642,6 @@ fn main() {
                         app_ui,
                         &menu_open_from_content,
                         &menu_open_from_data,
-                        &game_selected,
                         &is_modified,
                         &mode,
                         &packedfiles_open_in_packedfile_view,
@@ -4788,14 +4766,13 @@ fn main() {
 /// NOTE: To disable the "Special Stuff" actions, we use `enable` => false.
 fn enable_packfile_actions(
     app_ui: &AppUI,
-    game_selected: &str,
     mymod_stuff: &Rc<RefCell<MyModStuff>>,
     settings: Settings,
     enable: bool
 ) {
 
     // If the game is Arena, no matter what we're doing, these ones ALWAYS have to be disabled.
-    if game_selected == "arena" {
+    if &**GAME_SELECTED.lock().unwrap() == "arena" {
 
         // Disable the actions that allow to create and save PackFiles.
         unsafe { app_ui.new_packfile.as_mut().unwrap().set_enabled(false); }
@@ -4836,7 +4813,7 @@ fn enable_packfile_actions(
     if enable {
 
         // Check the Game Selected and enable the actions corresponding to out game.
-        match game_selected {
+        match &**GAME_SELECTED.lock().unwrap() {
             "warhammer_2" => {
                 unsafe { app_ui.wh2_patch_siege_ai.as_mut().unwrap().set_enabled(true); }
                 unsafe { app_ui.wh2_create_prefab.as_mut().unwrap().set_enabled(true); }
@@ -5030,15 +5007,11 @@ fn open_packfile(
                         else { unsafe { app_ui.warhammer_2.as_mut().unwrap().trigger(); } }
                     },
 
-                    // PFH4 is for Warhammer 1/Attila/Rome 2.
+                    // PFH4 is for Thrones of Britannia/Warhammer 1/Attila/Rome 2.
                     PFHVersion::PFH4 => {
 
-                        // Get the Game Selected.
-                        sender_qt.send(Commands::GetGameSelected).unwrap();
-                        let game_selected = if let Data::String(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                        // If we have Warhammer selected, we keep Warhammer. If we have Attila, we keep Attila.
-                        // In any other case, we select Rome 2 by default.
+                        // If we have Warhammer selected, we keep Warhammer. If we have Attila, we keep Attila. That's the logic.
+                        let game_selected = GAME_SELECTED.lock().unwrap().to_owned();
                         match &*game_selected {
                             "warhammer" => unsafe { app_ui.warhammer.as_mut().unwrap().trigger(); },
                             "thrones_of_britannia" => unsafe { app_ui.thrones_of_britannia.as_mut().unwrap().trigger(); }
@@ -5494,12 +5467,8 @@ fn build_my_mod_menu(
                                 // Set the new "MyMod" as "Not modified".
                                 *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
 
-                                // Get the Game Selected.
-                                sender_qt.send(Commands::GetGameSelected).unwrap();
-                                let game_selected = if let Data::String(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
                                 // Enable the actions available for the PackFile from the `MenuBar`.
-                                enable_packfile_actions(&app_ui, &game_selected, &Rc::new(RefCell::new(mymod_stuff.clone())), settings, true);
+                                enable_packfile_actions(&app_ui, &Rc::new(RefCell::new(mymod_stuff.clone())), settings, true);
 
                                 // Set the current "Operational Mode" to `MyMod`.
                                 set_my_mod_mode(&Rc::new(RefCell::new(mymod_stuff.clone())), &mode, Some(mymod_path));
@@ -5610,16 +5579,12 @@ fn build_my_mod_menu(
                         // Create a "dummy" PackFile, effectively closing the currently open PackFile.
                         sender_qt.send(Commands::ResetPackFile).unwrap();
 
-                        // Get the Game Selected.
-                        sender_qt.send(Commands::GetGameSelected).unwrap();
-                        let game_selected = if let Data::String(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
                         // Try to get the settings.
                         sender_qt.send(Commands::GetSettings).unwrap();
                         let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                         // Disable the actions available for the PackFile from the `MenuBar`.
-                        enable_packfile_actions(&app_ui, &game_selected, &Rc::new(RefCell::new(mymod_stuff.clone())), settings, false);
+                        enable_packfile_actions(&app_ui, &Rc::new(RefCell::new(mymod_stuff.clone())), settings, false);
 
                         // Clear the TreeView.
                         unsafe { app_ui.folder_tree_model.as_mut().unwrap().clear(); }
@@ -5654,16 +5619,12 @@ fn build_my_mod_menu(
                         // And the "MyMod" path is configured...
                         if let Some(ref mymods_base_path) = settings.paths.get("mymods_base_path").unwrap() {
 
-                            // Get the Game Selected.
-                            sender_qt.send(Commands::GetGameSelected).unwrap();
-                            let game_selected = if let Data::String(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
                             // Try to get the settings.
                             sender_qt.send(Commands::GetSettings).unwrap();
                             let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                             // If we have a `game_data_path` for the current `GameSelected`...
-                            if let Some(mut game_data_path) = get_game_selected_data_path(&game_selected, &settings) {
+                            if let Some(mut game_data_path) = get_game_selected_data_path(&settings) {
 
                                 // We get the "MyMod"s PackFile path.
                                 let mut mymod_path = mymods_base_path.to_path_buf();
@@ -5715,16 +5676,12 @@ fn build_my_mod_menu(
                     // If we have a "MyMod" selected...
                     Mode::MyMod {ref mod_name,..} => {
 
-                        // Get the Game Selected.
-                        sender_qt.send(Commands::GetGameSelected).unwrap();
-                        let game_selected = if let Data::String(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-                       
                         // Try to get the settings.
                         sender_qt.send(Commands::GetSettings).unwrap();
                         let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                         // If we have a `game_data_path` for the current `GameSelected`...
-                        if let Some(mut game_data_path) = get_game_selected_data_path(&game_selected, &settings) {
+                        if let Some(mut game_data_path) = get_game_selected_data_path(&settings) {
 
                             // Get the destination path for the PackFile with the PackFile included.
                             game_data_path.push(&mod_name);
@@ -5905,7 +5862,6 @@ fn build_open_from_submenus(
     app_ui: AppUI,
     submenu_open_from_content: &*mut Menu,
     submenu_open_from_data: &*mut Menu,
-    game_selected: &str,
     is_modified: &Rc<RefCell<bool>>,
     mode: &Rc<RefCell<Mode>>,
     packedfiles_open_in_packedfile_view: &Rc<RefCell<BTreeMap<i32, Rc<RefCell<Vec<String>>>>>>,
@@ -5926,7 +5882,7 @@ fn build_open_from_submenus(
     //---------------------------------------------------------------------------------------//
 
     // Get the path of every PackFile in the data folder (if it's configured) and make an action for each one of them.
-    if let Some(ref mut paths) = get_game_selected_content_packfiles_paths(game_selected, &settings) {
+    if let Some(ref mut paths) = get_game_selected_content_packfiles_paths(&settings) {
         paths.sort_unstable_by_key(|x| x.file_name().unwrap().to_string_lossy().as_ref().to_owned());
         for path in paths {
 
@@ -5981,7 +5937,7 @@ fn build_open_from_submenus(
     }
 
     // Get the path of every PackFile in the data folder (if it's configured) and make an action for each one of them.
-    if let Some(ref mut paths) = get_game_selected_data_packfiles_paths(game_selected, &settings) {
+    if let Some(ref mut paths) = get_game_selected_data_packfiles_paths(&settings) {
         paths.sort_unstable_by_key(|x| x.file_name().unwrap().to_string_lossy().as_ref().to_owned());
         for path in paths {
 

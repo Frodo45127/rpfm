@@ -14,6 +14,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use SUPPORTED_GAMES;
+use GAME_SELECTED;
 use AppUI;
 use Commands;
 use Data;
@@ -46,10 +47,6 @@ impl PackedFileTextView {
         sender_qt.send(Commands::GetSettings).unwrap();
         let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
-        // Try to get the Game Selected. This should never fail, so CTD if it does it.
-        sender_qt.send(Commands::GetGameSelected).unwrap();
-        let game_selected = if let Data::String(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
         // Get the text of the PackedFile.
         sender_qt.send(Commands::DecodePackedFileText).unwrap();
         sender_qt_data.send(Data::VecString(packed_file_path.borrow().to_vec())).unwrap();
@@ -65,7 +62,7 @@ impl PackedFileTextView {
 
         // Add it to the view.
         unsafe { layout.as_mut().unwrap().add_widget((plain_text_edit as *mut Widget, 0, 0, 1, 1)); }
-        if packed_file_path.borrow().last().unwrap().ends_with(".lua") && SUPPORTED_GAMES.get(&*game_selected).unwrap().ca_types_file.is_some() {
+        if packed_file_path.borrow().last().unwrap().ends_with(".lua") && SUPPORTED_GAMES.get(&**GAME_SELECTED.lock().unwrap()).unwrap().ca_types_file.is_some() {
             unsafe { layout.as_mut().unwrap().add_widget((check_syntax_button as *mut Widget, 1, 0, 1, 1)); }
         }
 

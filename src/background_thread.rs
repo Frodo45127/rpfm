@@ -12,6 +12,7 @@ use RPFM_PATH;
 use SUPPORTED_GAMES;
 use SHOW_TABLE_ERRORS;
 use SHORTCUTS;
+use GAME_SELECTED;
 use GlobalMatch;
 use common::*;
 use common::coding_helpers::*;
@@ -53,9 +54,6 @@ pub fn background_loop(
     // We prepare the schema object to hold an Schema, leaving it as `None` by default.
     let mut schema: Option<Schema> = None;
 
-    // And we prepare the stuff for the default game (paths, and those things).
-    let mut game_selected = settings.settings_string.get("default_game").unwrap().to_owned();
-
     // This will be populated once the program tries to select the default game, so leave it empty here.
     let mut dependency_database = vec![];
 
@@ -92,17 +90,10 @@ pub fn background_loop(
 
                     // In case we want to create a "New PackFile"...
                     Commands::NewPackFile => {
-
-                        // Get the ID for the new PackFile.
-                        let pack_version = SUPPORTED_GAMES.get(&*game_selected).unwrap().id;
-
-                        // Create the new PackFile.
+                        let game_selected = GAME_SELECTED.lock().unwrap();
+                        let pack_version = SUPPORTED_GAMES.get(&**game_selected).unwrap().id;
                         pack_file_decoded = packfile::new_packfile("unknown.pack".to_string(), pack_version);
-
-                        // Try to load the Schema for this PackFile's game.
-                        schema = Schema::load(&SUPPORTED_GAMES.get(&*game_selected).unwrap().schema).ok();
-
-                        // Send a response with the PackFile's type to the UI thread.
+                        schema = Schema::load(&SUPPORTED_GAMES.get(&**game_selected).unwrap().schema).ok();
                         sender.send(Data::U32(pack_file_decoded.pfh_file_type.get_value())).unwrap();
                     }
 
@@ -187,9 +178,7 @@ pub fn background_loop(
 
                     // In case we want to "Load All CA PackFiles"...
                     Commands::LoadAllCAPackFiles => {
-
-                        // Open the PackFile (Or die trying it).
-                        match packfile::load_all_ca_packfiles(&game_selected, &settings) {
+                        match packfile::load_all_ca_packfiles(&settings) {
 
                             // If we succeed at opening the PackFile...
                             Ok(pack_file) => {
@@ -234,21 +223,11 @@ pub fn background_loop(
 
                         // Wait until we get the needed data from the UI thread.
                         let new_schema: Schema = if let Data::Schema(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                        // Try to save it to disk.
-                        match Schema::save(&new_schema, &SUPPORTED_GAMES.get(&*game_selected).unwrap().schema) {
-
-                            // If we managed to save it...
+                        match Schema::save(&new_schema, &SUPPORTED_GAMES.get(&**GAME_SELECTED.lock().unwrap()).unwrap().schema) {
                             Ok(_) => {
-
-                                // Update the current schema.
                                 schema = Some(new_schema);
-
-                                // Send success back.
                                 sender.send(Data::Success).unwrap();
                             },
-
-                            // If there was an error, report it.
                             Err(error) => sender.send(Data::Error(error)).unwrap()
                         }
                     }
@@ -291,33 +270,24 @@ pub fn background_loop(
                         }};
                     }
 
-                    // In case we want get our current Game Selected...
-                    Commands::GetGameSelected => {
-
-                        // Send the current Game Selected back to the UI thread.
-                        sender.send(Data::String(game_selected.to_owned())).unwrap();
-                    }
-
                     // In case we want to change the current Game Selected...
                     Commands::SetGameSelected => {
 
-                        // Wait until we get the needed data from the UI thread.
-                        let game_name = if let Data::String(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                        // Get the new Game Selected, and set it.
-                        game_selected = game_name;
+                        // Wait until we get the needed data from the UI thread and change the GameSelected.
+                        let game_selected = if let Data::String(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                        *GAME_SELECTED.lock().unwrap() = game_selected.to_owned();
 
                         // Send back the new Game Selected, and a bool indicating if there is a PackFile open.
-                        sender.send(Data::StringBool((game_selected.to_owned(), pack_file_decoded.get_file_name().is_empty()))).unwrap();
+                        sender.send(Data::Bool(!pack_file_decoded.get_file_name().is_empty())).unwrap();
 
                         // Try to load the Schema for this game.
                         schema = Schema::load(&SUPPORTED_GAMES.get(&*game_selected).unwrap().schema).ok();
 
                         // Change the `dependency_database` for that game.
-                        dependency_database = packfile::load_dependency_packfiles(&game_selected, &settings, &pack_file_decoded.pack_files);
+                        dependency_database = packfile::load_dependency_packfiles(&settings, &pack_file_decoded.pack_files);
 
                         // If there is a PackFile open, change his id to match the one of the new GameSelected.
-                        if !pack_file_decoded.get_file_name().is_empty() { pack_file_decoded.pfh_version = SUPPORTED_GAMES.get(&*game_selected).unwrap().id; }
+                        if !pack_file_decoded.get_file_name().is_empty() { pack_file_decoded.pfh_version = SUPPORTED_GAMES.get(&**GAME_SELECTED.lock().unwrap()).unwrap().id; }
 
                         // Test to see if every DB Table can be decoded. This is slow and only useful when
                         // a new patch lands and you want to know what tables you need to decode. So, unless you want 
@@ -345,13 +315,6 @@ pub fn background_loop(
                             }
                         }
                     }
-
-                    // In case we want to get the current PackFile's Header...
-                    // Commands::GetPackFileHeader => {
-
-                    //     // Send the header of the currently open PackFile.
-                    //     sender.send(Data::PackFileHeader(pack_file_decoded.header.clone())).unwrap();
-                    // }
 
                     // In case we want to check if there is a current Dependency Database loaded...
                     Commands::IsThereADependencyDatabase => {
@@ -384,23 +347,13 @@ pub fn background_loop(
                     // In case we want to update our Schemas...
                     Commands::UpdateSchemas => {
 
-                        // Wait until we get the needed data from the UI thread.
+                        // Reload the currently loaded schema, just in case it was updated.
                         let data = if let Data::VersionsVersions(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                        // Try to update the schemas...
                         match update_schemas(data.0, data.1) {
-
-                            // If there is success...
                             Ok(_) => {
-
-                                // Reload the currently loaded schema, just in case it was updated.
-                                schema = Schema::load(&SUPPORTED_GAMES.get(&*game_selected).unwrap().schema).ok();
-
-                                // Return success.
+                                schema = Schema::load(&SUPPORTED_GAMES.get(&**GAME_SELECTED.lock().unwrap()).unwrap().schema).ok();
                                 sender.send(Data::Success).unwrap();
                             }
-
-                            // If there is an error while updating, report it.
                             Err(error) => sender.send(Data::Error(error)).unwrap(),
                         }
                     }
@@ -1022,7 +975,7 @@ pub fn background_loop(
                         pack_file_decoded.save_packfiles_list(list);
 
                         // Update the dependency database.
-                        dependency_database = packfile::load_dependency_packfiles(&game_selected, &settings, &pack_file_decoded.pack_files);
+                        dependency_database = packfile::load_dependency_packfiles(&settings, &pack_file_decoded.pack_files);
                     }
 
                     // In case we want to get the dependency data for a table's column....
@@ -1094,7 +1047,7 @@ pub fn background_loop(
                         let mut results = vec![];
 
                         // Get the paths we need.
-                        if let Some(ref ca_types_file) = SUPPORTED_GAMES.get(&*game_selected).unwrap().ca_types_file {
+                        if let Some(ref ca_types_file) = SUPPORTED_GAMES.get(&**GAME_SELECTED.lock().unwrap()).unwrap().ca_types_file {
                             let types_path = RPFM_PATH.to_path_buf().join(PathBuf::from("lua_types")).join(PathBuf::from(ca_types_file));
                             let mut temp_folder_path = temp_dir().join(PathBuf::from("rpfm/scripts"));
                             let mut config_path = temp_folder_path.to_path_buf();

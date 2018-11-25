@@ -11,6 +11,7 @@ use std::fs::{File, read_dir};
 use std::path::{Path, PathBuf};
 
 use SUPPORTED_GAMES;
+use GAME_SELECTED;
 use error::{ErrorKind, Result};
 use packfile::packfile::PackFile;
 use settings::Settings;
@@ -207,18 +208,18 @@ pub fn get_last_modified_time_from_file(file: &File) -> i64 {
 
 /// Get the `/data` path of the game selected, straighoutta settings, if it's configured.
 #[allow(dead_code)]
-pub fn get_game_selected_data_path(game_selected: &str, settings: &Settings) -> Option<PathBuf> {
-    let mut path = settings.paths.get(game_selected).unwrap().clone()?;
+pub fn get_game_selected_data_path(settings: &Settings) -> Option<PathBuf> {
+    let mut path = settings.paths.get(&**GAME_SELECTED.lock().unwrap()).unwrap().clone()?;
     path.push("data");
     Some(path)
 }
 
 /// Get the `/data/xxx.pack` path of the PackFile with db tables of the game selected, straighoutta settings, if it's configured.
 #[allow(dead_code)]
-pub fn get_game_selected_db_pack_path(game_selected: &str, settings: &Settings) -> Option<Vec<PathBuf>> {
+pub fn get_game_selected_db_pack_path(settings: &Settings) -> Option<Vec<PathBuf>> {
 
-    let base_path = settings.paths.get(game_selected).unwrap().clone()?;
-    let db_packs = &SUPPORTED_GAMES.get(game_selected).unwrap().db_packs;
+    let base_path = settings.paths.get(&**GAME_SELECTED.lock().unwrap()).unwrap().clone()?;
+    let db_packs = &SUPPORTED_GAMES.get(&**GAME_SELECTED.lock().unwrap()).unwrap().db_packs;
     let mut db_paths = vec![];
     for pack in db_packs {
         let mut path = base_path.to_path_buf();
@@ -231,10 +232,10 @@ pub fn get_game_selected_db_pack_path(game_selected: &str, settings: &Settings) 
 
 /// Get the `/data/xxx.pack` path of the PackFile with the english loc files of the game selected, straighoutta settings, if it's configured.
 #[allow(dead_code)]
-pub fn get_game_selected_loc_pack_path(game_selected: &str, settings: &Settings) -> Option<Vec<PathBuf>> {
+pub fn get_game_selected_loc_pack_path(settings: &Settings) -> Option<Vec<PathBuf>> {
 
-    let base_path = settings.paths.get(game_selected).unwrap().clone()?;
-    let loc_packs = &SUPPORTED_GAMES.get(game_selected).unwrap().loc_packs;
+    let base_path = settings.paths.get(&**GAME_SELECTED.lock().unwrap()).unwrap().clone()?;
+    let loc_packs = &SUPPORTED_GAMES.get(&**GAME_SELECTED.lock().unwrap()).unwrap().loc_packs;
     let mut loc_paths = vec![];
     for pack in loc_packs {
         let mut path = base_path.to_path_buf();
@@ -247,10 +248,10 @@ pub fn get_game_selected_loc_pack_path(game_selected: &str, settings: &Settings)
 
 /// Get a list of all the PackFiles in the `/data` folder of the game straighoutta settings, if it's configured.
 #[allow(dead_code)]
-pub fn get_game_selected_data_packfiles_paths(game_selected: &str, settings: &Settings) -> Option<Vec<PathBuf>> {
+pub fn get_game_selected_data_packfiles_paths(settings: &Settings) -> Option<Vec<PathBuf>> {
 
     let mut paths = vec![];
-    let data_path = get_game_selected_data_path(game_selected, settings)?;
+    let data_path = get_game_selected_data_path(settings)?;
 
     for path in get_files_from_subdir(&data_path).ok()?.iter() {
         match path.extension() {
@@ -265,10 +266,10 @@ pub fn get_game_selected_data_packfiles_paths(game_selected: &str, settings: &Se
 
 /// Get a list of all the PackFiles in the `content` folder of the game straighoutta settings, if it's configured.
 #[allow(dead_code)]
-pub fn get_game_selected_content_packfiles_paths(game_selected: &str, settings: &Settings) -> Option<Vec<PathBuf>> {
+pub fn get_game_selected_content_packfiles_paths(settings: &Settings) -> Option<Vec<PathBuf>> {
 
-    let mut path = settings.paths.get(game_selected)?.clone()?;
-    let id = SUPPORTED_GAMES.get(game_selected)?.steam_id?.to_string();
+    let mut path = settings.paths.get(&**GAME_SELECTED.lock().unwrap())?.clone()?;
+    let id = SUPPORTED_GAMES.get(&**GAME_SELECTED.lock().unwrap())?.steam_id?.to_string();
 
     path.pop();
     path.pop();

@@ -9,6 +9,7 @@ use std::io::BufReader;
 use std::io::BufWriter;
 
 use SUPPORTED_GAMES;
+use GAME_SELECTED;
 use common::*;
 use error::{Error, ErrorKind, Result};
 use packfile::packfile::PFHFileType;
@@ -46,17 +47,17 @@ pub fn open_packfile(pack_file_path: PathBuf, use_lazy_loading: bool) -> Result<
 
 /// This function is a special open function, to get all the DB and LOC PackedFiles for a game, and a mod if that mode requires another mod.
 /// It returns all the PackedFiles in a big Vec<PackedFile>.
-pub fn load_dependency_packfiles(game_selected: &str, settings: &Settings, dependencies: &[String]) -> Vec<packfile::PackedFile> {
+pub fn load_dependency_packfiles(settings: &Settings, dependencies: &[String]) -> Vec<packfile::PackedFile> {
 
     // Create the empty list.
     let mut packed_files = vec![];
 
     // Get all the paths we need.
-    let main_db_pack_paths = get_game_selected_db_pack_path(game_selected, settings);
-    let main_loc_pack_paths = get_game_selected_loc_pack_path(game_selected, settings);
+    let main_db_pack_paths = get_game_selected_db_pack_path(settings);
+    let main_loc_pack_paths = get_game_selected_loc_pack_path(settings);
 
-    let data_packs_paths = get_game_selected_data_packfiles_paths(game_selected, settings);
-    let content_packs_paths = get_game_selected_content_packfiles_paths(game_selected, settings);
+    let data_packs_paths = get_game_selected_data_packfiles_paths(settings);
+    let content_packs_paths = get_game_selected_content_packfiles_paths(settings);
 
     // Get all the DB Tables from the main DB PackFiles, if it's configured.
     if let Some(paths) = main_db_pack_paths {
@@ -192,14 +193,14 @@ pub fn load_dependency_packfiles(game_selected: &str, settings: &Settings, depen
 
 /// This function is another special open function, to get all the PackedFiles from every CA PackFile of a game.
 /// It returns a fake PackFile with them.
-pub fn load_all_ca_packfiles(game_selected: &str, settings: &Settings) -> Result<packfile::PackFile> {
+pub fn load_all_ca_packfiles(settings: &Settings) -> Result<packfile::PackFile> {
 
     // Create the fake PackFile.
-    let pfh_version = SUPPORTED_GAMES.get(&*game_selected).unwrap().id;
-    let mut pack_file = packfile::PackFile::new_with_name(game_selected.to_owned(), pfh_version);
+    let pfh_version = SUPPORTED_GAMES.get(&**GAME_SELECTED.lock().unwrap()).unwrap().id;
+    let mut pack_file = packfile::PackFile::new_with_name(GAME_SELECTED.lock().unwrap().to_owned(), pfh_version);
 
     // Get all the paths we need and open them one by one.
-    let packs_paths = if let Some(paths) = get_game_selected_data_packfiles_paths(game_selected, settings) { paths } else { Err(ErrorKind::GamePathNotConfigured)? };
+    let packs_paths = if let Some(paths) = get_game_selected_data_packfiles_paths(settings) { paths } else { Err(ErrorKind::GamePathNotConfigured)? };
     let mut ca_pack_files = vec![];
     for path in packs_paths {
         ca_pack_files.push(packfile::PackFile::read(path, true)?);

@@ -41,7 +41,6 @@ pub enum Commands {
     GetSettings,
     SetSettings,
     SetShortcuts,
-    GetGameSelected,
     SetGameSelected,
     IsThereADependencyDatabase,
     IsThereASchema,
@@ -104,7 +103,6 @@ pub enum Data {
     I64(i64),
 
     String(String),
-    StringBool((String, bool)),
     StringString((String, String)),
     StringVecString((String, Vec<String>)),
     StringVecVecString((String, Vec<Vec<String>>)),
