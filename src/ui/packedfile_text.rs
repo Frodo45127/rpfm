@@ -44,9 +44,6 @@ impl PackedFileTextView {
         packed_file_path: &Rc<RefCell<Vec<String>>>,
     ) -> Result<Self> {
 
-        sender_qt.send(Commands::GetSettings).unwrap();
-        let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
         // Get the text of the PackedFile.
         sender_qt.send(Commands::DecodePackedFileText).unwrap();
         sender_qt_data.send(Data::VecString(packed_file_path.borrow().to_vec())).unwrap();
@@ -72,7 +69,6 @@ impl PackedFileTextView {
                 packed_file_path,
                 app_ui,
                 is_modified,
-                settings,
                 sender_qt,
                 sender_qt_data => move || {
 
@@ -85,8 +81,7 @@ impl PackedFileTextView {
                     sender_qt_data.send(Data::StringVecString((text, packed_file_path.borrow().to_vec()))).unwrap();
 
                     // Set the mod as "Modified".
-                    let use_dark_theme = settings.settings_bool.get("use_dark_theme").unwrap();
-                    *is_modified.borrow_mut() = set_modified(true, &app_ui, Some((packed_file_path.borrow().to_vec(), *use_dark_theme)));
+                    *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(packed_file_path.borrow().to_vec()));
                 }
             )),
 

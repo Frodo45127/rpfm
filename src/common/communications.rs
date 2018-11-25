@@ -38,7 +38,6 @@ pub enum Commands {
     ChangeIndexIncludesTimestamp,
     GetSchema,
     SaveSchema,
-    GetSettings,
     SetSettings,
     SetShortcuts,
     SetGameSelected,

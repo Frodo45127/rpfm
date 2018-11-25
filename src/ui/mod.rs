@@ -55,6 +55,7 @@ use std::f32;
 
 use RPFM_PATH;
 use SHORTCUTS;
+use SETTINGS;
 use TREEVIEW_ICONS;
 use QString;
 use AppUI;
@@ -1074,7 +1075,7 @@ pub fn show_dialog<T: Display>(
 pub fn set_modified(
     is_modified: bool,
     app_ui: &AppUI,
-    path: Option<(Vec<String>, bool)>
+    path: Option<Vec<String>>
 ) -> bool {
 
     // If the PackFile is modified...
@@ -1088,13 +1089,13 @@ pub fn set_modified(
         unsafe { app_ui.window.as_mut().unwrap().set_window_title(&QString::from_std_str(format!("{} - Modified", pack_file_name))); }
 
         // If we have received a path to mark as "modified"...
-        if let Some((path, use_dark_theme)) = path {
+        if let Some(path) = path {
 
             // Get the item of the Path.
             let item = get_item_from_incomplete_path(app_ui.folder_tree_model, &path);
 
             // Paint the modified item.
-            paint_treeview(item, app_ui.folder_tree_model, ItemVisualStatus::Modified, use_dark_theme);
+            paint_treeview(item, app_ui.folder_tree_model, ItemVisualStatus::Modified);
         }
 
         // And return true.
@@ -1707,13 +1708,12 @@ pub fn paint_treeview(
     item: *mut StandardItem,
     model: *mut StandardItemModel,
     status: ItemVisualStatus,
-    use_dark_theme: bool,
 ) {
 
     // Get the colors we need to apply.
-    let color_added = if use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green };
-    let color_modified = if use_dark_theme { GlobalColor::DarkYellow } else { GlobalColor::Yellow };
-    let color_added_modified = if use_dark_theme { GlobalColor::DarkMagenta } else { GlobalColor::Magenta };
+    let color_added = if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green };
+    let color_modified = if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkYellow } else { GlobalColor::Yellow };
+    let color_added_modified = if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkMagenta } else { GlobalColor::Magenta };
     let color_untouched = GlobalColor::Transparent;
     let color = match &status {
         ItemVisualStatus::Added => color_added,
@@ -1875,11 +1875,6 @@ pub fn update_treeview(
     model: *mut StandardItemModel,
     operation: TreeViewOperation,
 ) {
-
-    // Get the settings and the use_dark_theme setting, for later use.
-    sender_qt.send(Commands::GetSettings).unwrap();
-    let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-    let use_dark_theme = settings.settings_bool.get("use_dark_theme").unwrap();
 
     // We act depending on the operation requested.
     match operation {
@@ -2105,7 +2100,7 @@ pub fn update_treeview(
                         if &possible_path == path {
 
                             // Just re-paint it like that parrot you painted yesterday.
-                            paint_treeview(possible_item, model, ItemVisualStatus::Added, *use_dark_theme);
+                            paint_treeview(possible_item, model, ItemVisualStatus::Added);
                         }
 
                         // Otherwise, it's a new PackedFile, so do the usual stuff.
@@ -2140,7 +2135,7 @@ pub fn update_treeview(
                             }
 
                             // Paint it like that parrot you painted yesterday.
-                            paint_treeview(item, model, ItemVisualStatus::Added, *use_dark_theme);
+                            paint_treeview(item, model, ItemVisualStatus::Added);
 
                             // Sort the TreeView.
                             sort_item_in_tree_view(
@@ -2491,7 +2486,7 @@ pub fn update_treeview(
                     unsafe { item = model.as_mut().unwrap().item_from_index(selection); }
 
                     // Paint it as "modified".
-                    paint_treeview(item, model, ItemVisualStatus::Modified, *use_dark_theme);
+                    paint_treeview(item, model, ItemVisualStatus::Modified);
 
                     // Sort it.
                     sort_item_in_tree_view(
@@ -2528,7 +2523,7 @@ pub fn update_treeview(
                 new_path.push(new_name);
 
                 // Paint it as "modified".
-                paint_treeview(item, model, ItemVisualStatus::Modified, *use_dark_theme);
+                paint_treeview(item, model, ItemVisualStatus::Modified);
 
                 // Sort it.
                 sort_item_in_tree_view(

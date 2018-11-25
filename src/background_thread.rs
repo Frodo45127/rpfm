@@ -12,6 +12,7 @@ use RPFM_PATH;
 use SUPPORTED_GAMES;
 use SHOW_TABLE_ERRORS;
 use SHORTCUTS;
+use SETTINGS;
 use GAME_SELECTED;
 use GlobalMatch;
 use common::*;
@@ -25,7 +26,6 @@ use packedfile::loc::*;
 use packedfile::db::*;
 use packedfile::db::schemas::*;
 use packedfile::rigidmodel::*;
-use settings::*;
 use updater::*;
 
 /// This is the background loop that's going to be executed in a parallel thread to the UI. No UI or "Unsafe" stuff here.
@@ -47,9 +47,6 @@ pub fn background_loop(
     // - `pack_file_decoded_extra`: This one will hold the PackFile opened for the `add_from_packfile` feature.
     let mut pack_file_decoded = PackFile::new();
     let mut pack_file_decoded_extra = PackFile::new();
-
-    // We load the settings here, and in case they doesn't exist or they are not valid, we create them.
-    let mut settings = Settings::load().unwrap_or_else(|_|Settings::new());
 
     // We prepare the schema object to hold an Schema, leaving it as `None` by default.
     let mut schema: Option<Schema> = None;
@@ -99,24 +96,12 @@ pub fn background_loop(
 
                     // In case we want to "Open a PackFile"...
                     Commands::OpenPackFile => {
-
-                        // Get the path to open.
                         let path: PathBuf = if let Data::PathBuf(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                        // Open the PackFile (Or die trying it).
-                        match packfile::open_packfile(path, *settings.settings_bool.get("use_lazy_loading").unwrap()) {
-
-                            // If we succeed at opening the PackFile...
+                        match packfile::open_packfile(path, *SETTINGS.lock().unwrap().settings_bool.get("use_lazy_loading").unwrap()) {
                             Ok(pack_file) => {
-
-                                // Get the decoded PackFile.
                                 pack_file_decoded = pack_file;
-
-                                // Get the PackFile's Header we must return to the UI thread and send it back.
                                 sender.send(Data::PackFileUIData(pack_file_decoded.create_ui_data())).unwrap();
                             }
-
-                            // If there is an error, send it back to the UI.
                             Err(error) => sender.send(Data::Error(Error::from(ErrorKind::OpenPackFileGeneric(format!("{}", error))))).unwrap(),
                         }
                     }
@@ -145,7 +130,7 @@ pub fn background_loop(
                     Commands::SavePackFile => {
 
                         // If it passed all the checks, then try to save it and return the result.
-                        match packfile::save_packfile(&mut pack_file_decoded, None, *settings.settings_bool.get("allow_editing_of_ca_packfiles").unwrap()) {
+                        match packfile::save_packfile(&mut pack_file_decoded, None, *SETTINGS.lock().unwrap().settings_bool.get("allow_editing_of_ca_packfiles").unwrap()) {
                             Ok(_) => sender.send(Data::I64(pack_file_decoded.timestamp)).unwrap(),
                             Err(error) => {
                                 match error.kind() {
@@ -170,7 +155,7 @@ pub fn background_loop(
                         };
 
                         // Try to save the PackFile and return the results.
-                        match packfile::save_packfile(&mut pack_file_decoded, Some(path.to_path_buf()), *settings.settings_bool.get("allow_editing_of_ca_packfiles").unwrap()) {
+                        match packfile::save_packfile(&mut pack_file_decoded, Some(path.to_path_buf()), *SETTINGS.lock().unwrap().settings_bool.get("allow_editing_of_ca_packfiles").unwrap()) {
                             Ok(_) => sender.send(Data::I64(pack_file_decoded.timestamp)).unwrap(),
                             Err(error) => sender.send(Data::Error(Error::from(ErrorKind::SavePackFileGeneric(format!("{}", error))))).unwrap(),
                         }
@@ -178,7 +163,7 @@ pub fn background_loop(
 
                     // In case we want to "Load All CA PackFiles"...
                     Commands::LoadAllCAPackFiles => {
-                        match packfile::load_all_ca_packfiles(&settings) {
+                        match packfile::load_all_ca_packfiles() {
 
                             // If we succeed at opening the PackFile...
                             Ok(pack_file) => {
@@ -232,24 +217,11 @@ pub fn background_loop(
                         }
                     }
 
-                    // In case we want to get the current settings...
-                    Commands::GetSettings => {
-
-                        // Send the current settings back to the UI thread.
-                        sender.send(Data::Settings(settings.clone())).unwrap();
-                    }
-
                     // In case we want to change the current settings...
                     Commands::SetSettings => {
-
-                        // Wait until we get the needed data from the UI thread.
                         let new_settings = if let Data::Settings(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                        // Update our current settings with the ones we received from the UI.
-                        settings = new_settings;
-
-                        // Save our Settings to a settings file, and report in case of error.
-                        match settings.save() {
+                        *SETTINGS.lock().unwrap() = new_settings;
+                        match SETTINGS.lock().unwrap().save() {
                             Ok(()) => sender.send(Data::Success).unwrap(),
                             Err(error) => sender.send(Data::Error(error)).unwrap(),
                         }
@@ -284,7 +256,7 @@ pub fn background_loop(
                         schema = Schema::load(&SUPPORTED_GAMES.get(&*game_selected).unwrap().schema).ok();
 
                         // Change the `dependency_database` for that game.
-                        dependency_database = packfile::load_dependency_packfiles(&settings, &pack_file_decoded.pack_files);
+                        dependency_database = packfile::load_dependency_packfiles(&pack_file_decoded.pack_files);
 
                         // If there is a PackFile open, change his id to match the one of the new GameSelected.
                         if !pack_file_decoded.get_file_name().is_empty() { pack_file_decoded.pfh_version = SUPPORTED_GAMES.get(&**GAME_SELECTED.lock().unwrap()).unwrap().id; }
@@ -975,7 +947,7 @@ pub fn background_loop(
                         pack_file_decoded.save_packfiles_list(list);
 
                         // Update the dependency database.
-                        dependency_database = packfile::load_dependency_packfiles(&settings, &pack_file_decoded.pack_files);
+                        dependency_database = packfile::load_dependency_packfiles(&pack_file_decoded.pack_files);
                     }
 
                     // In case we want to get the dependency data for a table's column....

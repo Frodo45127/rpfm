@@ -32,6 +32,7 @@ use std::rc::Rc;
 use std::path::{Path, PathBuf};
 
 use SUPPORTED_GAMES;
+use SETTINGS;
 use AppUI;
 use Commands;
 use Data;
@@ -78,7 +79,6 @@ impl SettingsDialog {
     /// the window to. It returns the new Settings, or None if we are cancelling.
     pub fn create_settings_dialog(
         app_ui: &AppUI,
-        settings: &Settings,
         sender_qt: &Sender<Commands>,
         sender_qt_data: &Sender<Data>,
         receiver_qt: Rc<RefCell<Receiver<Data>>>, 
@@ -403,7 +403,7 @@ impl SettingsDialog {
         //-------------------------------------------------------------------------------------------//
 
         // Load the MyMod Path, if exists.
-        settings_dialog.load_to_settings_dialog(&settings);
+        settings_dialog.load_to_settings_dialog();
 
         //-------------------------------------------------------------------------------------------//
         // Actions that must exectute at the end...
@@ -414,8 +414,8 @@ impl SettingsDialog {
         let slot_restore_default = SlotNoArgs::new(clone!(
             settings_dialog => move || {
 
-                let new_settings = Settings::new();
-                (*settings_dialog.borrow_mut()).load_to_settings_dialog(&new_settings)
+                *SETTINGS.lock().unwrap() = Settings::new();
+                (*settings_dialog.borrow_mut()).load_to_settings_dialog()
             }
         ));
 
@@ -430,42 +430,39 @@ impl SettingsDialog {
     }
 
     /// This function loads the data from the Settings struct to the Settings Dialog.
-    pub fn load_to_settings_dialog(
-        &mut self,
-        settings: &Settings,
-    ) {
+    pub fn load_to_settings_dialog(&mut self) {
 
         // Load the MyMod Path, if exists.
-        unsafe { self.paths_mymod_line_edit.as_mut().unwrap().set_text(&QString::from_std_str(settings.paths.get("mymods_base_path").unwrap().clone().unwrap_or_else(||PathBuf::new()).to_string_lossy())); }
+        unsafe { self.paths_mymod_line_edit.as_mut().unwrap().set_text(&QString::from_std_str(SETTINGS.lock().unwrap().paths.get("mymods_base_path").unwrap().clone().unwrap_or_else(||PathBuf::new()).to_string_lossy())); }
 
         // Load the Game Paths, if they exists.
         for (key, path) in self.paths_games_line_edits.iter_mut() {
-            unsafe { path.as_mut().unwrap().set_text(&QString::from_std_str(&settings.paths.get(key).unwrap().clone().unwrap_or_else(||PathBuf::new()).to_string_lossy())); }
+            unsafe { path.as_mut().unwrap().set_text(&QString::from_std_str(&SETTINGS.lock().unwrap().paths.get(key).unwrap().clone().unwrap_or_else(||PathBuf::new()).to_string_lossy())); }
         }
 
         // Get the Default Game.
         for (index, (folder_name,_)) in SUPPORTED_GAMES.iter().enumerate() {
-            if folder_name.to_string() == *settings.settings_string.get("default_game").unwrap() {
+            if folder_name.to_string() == *SETTINGS.lock().unwrap().settings_string.get("default_game").unwrap() {
                 unsafe { self.extra_default_game_combobox.as_mut().unwrap().set_current_index(index as i32); }
                 break;
             }
         }
 
         // Load the UI Stuff.
-        unsafe { self.ui_adjust_columns_to_content.as_mut().unwrap().set_checked(*settings.settings_bool.get("adjust_columns_to_content").unwrap()); }
-        unsafe { self.ui_extend_last_column_on_tables.as_mut().unwrap().set_checked(*settings.settings_bool.get("extend_last_column_on_tables").unwrap()); }
-        unsafe { self.ui_start_maximized.as_mut().unwrap().set_checked(*settings.settings_bool.get("start_maximized").unwrap()); }
-        unsafe { self.ui_remember_column_state.as_mut().unwrap().set_checked(*settings.settings_bool.get("remember_column_state").unwrap()); }
-        unsafe { self.ui_remember_table_state_permanently.as_mut().unwrap().set_checked(*settings.settings_bool.get("remember_table_state_permanently").unwrap()); }
-        unsafe { self.ui_use_dark_theme.as_mut().unwrap().set_checked(*settings.settings_bool.get("use_dark_theme").unwrap()); }
+        unsafe { self.ui_adjust_columns_to_content.as_mut().unwrap().set_checked(*SETTINGS.lock().unwrap().settings_bool.get("adjust_columns_to_content").unwrap()); }
+        unsafe { self.ui_extend_last_column_on_tables.as_mut().unwrap().set_checked(*SETTINGS.lock().unwrap().settings_bool.get("extend_last_column_on_tables").unwrap()); }
+        unsafe { self.ui_start_maximized.as_mut().unwrap().set_checked(*SETTINGS.lock().unwrap().settings_bool.get("start_maximized").unwrap()); }
+        unsafe { self.ui_remember_column_state.as_mut().unwrap().set_checked(*SETTINGS.lock().unwrap().settings_bool.get("remember_column_state").unwrap()); }
+        unsafe { self.ui_remember_table_state_permanently.as_mut().unwrap().set_checked(*SETTINGS.lock().unwrap().settings_bool.get("remember_table_state_permanently").unwrap()); }
+        unsafe { self.ui_use_dark_theme.as_mut().unwrap().set_checked(*SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap()); }
 
         // Load the Extra Stuff.
-        unsafe { self.extra_allow_editing_of_ca_packfiles.as_mut().unwrap().set_checked(*settings.settings_bool.get("allow_editing_of_ca_packfiles").unwrap()); }
-        unsafe { self.extra_check_updates_on_start.as_mut().unwrap().set_checked(*settings.settings_bool.get("check_updates_on_start").unwrap()); }
-        unsafe { self.extra_check_schema_updates_on_start.as_mut().unwrap().set_checked(*settings.settings_bool.get("check_schema_updates_on_start").unwrap()); }
-        unsafe { self.extra_use_pfm_extracting_behavior.as_mut().unwrap().set_checked(*settings.settings_bool.get("use_pfm_extracting_behavior").unwrap()); }
-        unsafe { self.extra_use_dependency_checker.as_mut().unwrap().set_checked(*settings.settings_bool.get("use_dependency_checker").unwrap()); }
-        unsafe { self.extra_use_lazy_loading_checker.as_mut().unwrap().set_checked(*settings.settings_bool.get("use_lazy_loading").unwrap()); }
+        unsafe { self.extra_allow_editing_of_ca_packfiles.as_mut().unwrap().set_checked(*SETTINGS.lock().unwrap().settings_bool.get("allow_editing_of_ca_packfiles").unwrap()); }
+        unsafe { self.extra_check_updates_on_start.as_mut().unwrap().set_checked(*SETTINGS.lock().unwrap().settings_bool.get("check_updates_on_start").unwrap()); }
+        unsafe { self.extra_check_schema_updates_on_start.as_mut().unwrap().set_checked(*SETTINGS.lock().unwrap().settings_bool.get("check_schema_updates_on_start").unwrap()); }
+        unsafe { self.extra_use_pfm_extracting_behavior.as_mut().unwrap().set_checked(*SETTINGS.lock().unwrap().settings_bool.get("use_pfm_extracting_behavior").unwrap()); }
+        unsafe { self.extra_use_dependency_checker.as_mut().unwrap().set_checked(*SETTINGS.lock().unwrap().settings_bool.get("use_dependency_checker").unwrap()); }
+        unsafe { self.extra_use_lazy_loading_checker.as_mut().unwrap().set_checked(*SETTINGS.lock().unwrap().settings_bool.get("use_lazy_loading").unwrap()); }
     }
 
     /// This function gets the data from the Settings Dialog and returns a Settings struct with that
@@ -526,18 +523,14 @@ impl NewMyModDialog {
 
     /// This function creates the entire "New Mod" dialog. It returns the name of the mod and the
     /// folder_name of the game.
-    pub fn create_new_mymod_dialog(
-        app_ui: &AppUI,
-        settings: &Settings,
-    ) -> Option<(String, String)> {
+    pub fn create_new_mymod_dialog(app_ui: &AppUI) -> Option<(String, String)> {
 
         //-------------------------------------------------------------------------------------------//
         // Creating the New MyMod Dialog...
         //-------------------------------------------------------------------------------------------//
 
         // Create the "New MyMod" Dialog.
-        let mut dialog;
-        unsafe { dialog = Dialog::new_unsafe(app_ui.window as *mut Widget); }
+        let mut dialog = unsafe { Dialog::new_unsafe(app_ui.window as *mut Widget) };
 
         // Change his title.
         dialog.set_window_title(&QString::from_std_str("New MyMod"));
@@ -631,14 +624,14 @@ impl NewMyModDialog {
         // What happens when we change the name of the mod.
         let slot_mymod_line_edit_change = SlotNoArgs::new(clone!(
             new_mymod_dialog => move || {
-                check_my_mod_validity(&new_mymod_dialog, &settings);
+                check_my_mod_validity(&new_mymod_dialog);
             }
         ));
 
         // What happens when we change the game of the mod.
         let slot_mymod_combobox_change = SlotNoArgs::new(clone!(
             new_mymod_dialog => move || {
-                check_my_mod_validity(&new_mymod_dialog, &settings);
+                check_my_mod_validity(&new_mymod_dialog);
             }
         ));
 
@@ -722,10 +715,7 @@ fn update_entry_path(
 }
 
 /// Check if the new MyMod's name is valid or not, disabling or enabling the "Accept" button in response.
-fn check_my_mod_validity(
-    mymod_dialog: &NewMyModDialog,
-    settings: &Settings,
-) {
+fn check_my_mod_validity(mymod_dialog: &NewMyModDialog) {
 
     // Get the text from the LineEdit.
     let mod_name;
@@ -742,7 +732,7 @@ fn check_my_mod_validity(
     if !mod_name.is_empty() && !mod_name.contains(' ') {
 
         // If we have "MyMod" path configured (we SHOULD have it to access this window, but just in case...).
-        if let Some(ref mod_path) = settings.paths.get("mymods_base_path").unwrap() {
+        if let Some(ref mod_path) = SETTINGS.lock().unwrap().paths.get("mymods_base_path").unwrap() {
             let mut mod_path = mod_path.clone();
             mod_path.push(mod_game);
             mod_path.push(format!("{}.pack", mod_name));

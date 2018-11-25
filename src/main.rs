@@ -1210,10 +1210,6 @@ fn main() {
                 // Disable the Main Window (so we can't do other stuff).
                 unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
 
-                // Get the current settings.
-                sender_qt.send(Commands::GetSettings).unwrap();
-                let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
                 // Change the Game Selected in the Background Thread.
                 sender_qt.send(Commands::SetGameSelected).unwrap();
                 sender_qt_data.send(Data::String(new_game_selected_folder_name.to_owned())).unwrap();
@@ -1225,10 +1221,10 @@ fn main() {
                 let is_a_packfile_open = if let Data::Bool(data) = check_message_validity_tryrecv(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                 // Disable the "PackFile Management" actions.
-                enable_packfile_actions(&app_ui, &mymod_stuff, settings.clone(), false);
+                enable_packfile_actions(&app_ui, &mymod_stuff, false);
 
                 // If we have a PackFile opened, re-enable the "PackFile Management" actions, so the "Special Stuff" menu gets updated properly.
-                if is_a_packfile_open { enable_packfile_actions(&app_ui, &mymod_stuff, settings, true); }
+                if is_a_packfile_open { enable_packfile_actions(&app_ui, &mymod_stuff, true); }
 
                 // Set the current "Operational Mode" to `Normal` (In case we were in `MyMod` mode).
                 set_my_mod_mode(&mymod_stuff, &mode, None);
@@ -1280,13 +1276,9 @@ fn main() {
                     // Destroy whatever it's in the PackedFile's view, to avoid data corruption. Also hide the Global Search stuff.
                     purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);
 
-                    // Try to get the settings.
-                    sender_qt.send(Commands::GetSettings).unwrap();
-                    let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
                     // Close the Global Search stuff and reset the filter's history.
                     unsafe { close_global_search_action.as_mut().unwrap().trigger(); }
-                    if !settings.settings_bool.get("remember_table_state_permanently").unwrap() { history_state_tables.borrow_mut().clear(); }
+                    if !SETTINGS.lock().unwrap().settings_bool.get("remember_table_state_permanently").unwrap() { history_state_tables.borrow_mut().clear(); }
 
                     // Show the "Tips".
                     display_help_tips(&app_ui);
@@ -1334,7 +1326,7 @@ fn main() {
                     *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
 
                     // Enable the actions available for the PackFile from the `MenuBar`.
-                    enable_packfile_actions(&app_ui, &mymod_stuff, settings, true);
+                    enable_packfile_actions(&app_ui, &mymod_stuff, true);
 
                     // Set the current "Operational Mode" to Normal, as this is a "New" mod.
                     set_my_mod_mode(&mymod_stuff, &mode, None);
@@ -1366,12 +1358,8 @@ fn main() {
                     // Filter it so it only shows PackFiles.
                     file_dialog.set_name_filter(&QString::from_std_str("PackFiles (*.pack)"));
 
-                    // Try to get the settings.
-                    sender_qt.send(Commands::GetSettings).unwrap();
-                    let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
                     // In case we have a default path for the Game Selected, we use it as base path for opening files.
-                    if let Some(ref path) = get_game_selected_data_path(&settings) {
+                    if let Some(ref path) = get_game_selected_data_path() {
 
                         // We check that actually exists before setting it.
                         if path.is_dir() { file_dialog.set_directory(&QString::from_std_str(&path.to_string_lossy().as_ref().to_owned())); }
@@ -1463,10 +1451,6 @@ fn main() {
             sender_qt_data,
             receiver_qt => move |_| {
 
-                // Try to get the settings.
-                sender_qt.send(Commands::GetSettings).unwrap();
-                let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
                 // Tell the Background Thread that we want to save the PackFile, and wait for confirmation.
                 sender_qt.send(Commands::SavePackFileAs).unwrap();
 
@@ -1507,7 +1491,7 @@ fn main() {
 
                         // In case we have a default path for the Game Selected and that path is valid,
                         // we use his data folder as base path for saving our PackFile.
-                        else if let Some(ref path) = get_game_selected_data_path(&settings) {
+                        else if let Some(ref path) = get_game_selected_data_path() {
 
                             // We check it actually exists before setting it.
                             if path.is_dir() {
@@ -1669,13 +1653,9 @@ fn main() {
                             // Destroy whatever it's in the PackedFile's view, to avoid data corruption.
                             purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);
 
-                            // Get the current settings.
-                            sender_qt.send(Commands::GetSettings).unwrap();
-                            let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-                        
                             // Close the Global Search stuff and reset the filter's history.
                             unsafe { close_global_search_action.as_mut().unwrap().trigger(); }
-                            if !settings.settings_bool.get("remember_table_state_permanently").unwrap() { history_state_tables.borrow_mut().clear(); }
+                            if !SETTINGS.lock().unwrap().settings_bool.get("remember_table_state_permanently").unwrap() { history_state_tables.borrow_mut().clear(); }
 
                             // Show the "Tips".
                             display_help_tips(&app_ui);
@@ -1698,8 +1678,7 @@ fn main() {
         let slot_change_packfile_type = SlotBool::new(clone!(
             is_modified,
             sender_qt,
-            sender_qt_data,
-            receiver_qt => move |_| {
+            sender_qt_data => move |_| {
 
                 // Get the currently selected PackFile's Type.
                 let packfile_type;
@@ -1716,11 +1695,7 @@ fn main() {
                 sender_qt.send(Commands::SetPackFileType).unwrap();
                 sender_qt_data.send(Data::PFHFileType(packfile_type)).unwrap();
 
-                // Set the mod as "Modified".
-                sender_qt.send(Commands::GetSettings).unwrap();
-                let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-                let use_dark_theme = settings.settings_bool.get("use_dark_theme").unwrap();
-                unsafe { *is_modified.borrow_mut() = set_modified(true, &app_ui, Some((vec![app_ui.folder_tree_model.as_ref().unwrap().item(0).as_ref().unwrap().text().to_std_string()], *use_dark_theme))); }
+                unsafe { *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(vec![app_ui.folder_tree_model.as_ref().unwrap().item(0).as_ref().unwrap().text().to_std_string()])); }
             }
         ));
 
@@ -1748,12 +1723,10 @@ fn main() {
             mymod_stuff,
             mymod_menu_needs_rebuild => move |_| {
 
-                // Try to get the current Settings. This should never fail, so CTD if it does it.
-                sender_qt.send(Commands::GetSettings).unwrap();
-                let old_settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                 // Create the Settings Dialog. If we got new settings...
-                if let Some(settings) = SettingsDialog::create_settings_dialog(&app_ui, &old_settings, &sender_qt, &sender_qt_data, receiver_qt.clone()) {
+                let old_settings = SETTINGS.lock().unwrap().clone();
+                if let Some(settings) = SettingsDialog::create_settings_dialog(&app_ui, &sender_qt, &sender_qt_data, receiver_qt.clone()) {
 
                     // Send the signal to save them.
                     sender_qt.send(Commands::SetSettings).unwrap();
@@ -2239,12 +2212,8 @@ fn main() {
                     // If we have a "MyMod" selected...
                     Mode::MyMod {ref game_folder_name, ref mod_name} => {
 
-                        // Get the settings.
-                        sender_qt.send(Commands::GetSettings).unwrap();
-                        let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
                         // In theory, if we reach this line this should always exist. In theory I should be rich.
-                        if let Some(ref mymods_base_path) = settings.paths.get("mymods_base_path").unwrap() {
+                        if let Some(ref mymods_base_path) = SETTINGS.lock().unwrap().paths.get("mymods_base_path").unwrap() {
 
                             // We get the assets folder of our mod (without .pack extension).
                             let mut assets_folder = mymods_base_path.to_path_buf();
@@ -2478,12 +2447,8 @@ fn main() {
                     // If we have a "MyMod" selected...
                     Mode::MyMod {ref game_folder_name, ref mod_name} => {
 
-                        // Get the settings.
-                        sender_qt.send(Commands::GetSettings).unwrap();
-                        let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
                         // In theory, if we reach this line this should always exist. In theory I should be rich.
-                        if let Some(ref mymods_base_path) = settings.paths.get("mymods_base_path").unwrap() {
+                        if let Some(ref mymods_base_path) = SETTINGS.lock().unwrap().paths.get("mymods_base_path").unwrap() {
 
                             // We get the assets folder of our mod (without .pack extension).
                             let mut assets_folder = mymods_base_path.to_path_buf();
@@ -3346,10 +3311,6 @@ fn main() {
                 sender_qt_data.send(Data::VecString(path.to_vec())).unwrap();
                 let item_type = if let Data::TreePathType(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
-                // Get the settings.
-                sender_qt.send(Commands::GetSettings).unwrap();
-                let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
                 // Depending on the current Operational Mode...
                 match *mode.borrow() {
 
@@ -3357,7 +3318,7 @@ fn main() {
                     Mode::MyMod {ref game_folder_name, ref mod_name} => {
 
                         // In theory, if we reach this line this should always exist. In theory I should be rich.
-                        if let Some(ref mymods_base_path) = settings.paths.get("mymods_base_path").unwrap() {
+                        if let Some(ref mymods_base_path) = SETTINGS.lock().unwrap().paths.get("mymods_base_path").unwrap() {
 
                             // We get the assets folder of our mod (without .pack extension).
                             let mut assets_folder = mymods_base_path.to_path_buf();
@@ -3446,7 +3407,7 @@ fn main() {
                     Mode::Normal => {
 
                         // If we want the old PFM behavior (extract full path)...
-                        if *settings.settings_bool.get("use_pfm_extracting_behavior").unwrap() {
+                        if *SETTINGS.lock().unwrap().settings_bool.get("use_pfm_extracting_behavior").unwrap() {
 
                             // Get a "Folder-only" FileDialog.
                             let extraction_path;
@@ -4626,19 +4587,12 @@ fn main() {
             close_global_search_action,
             open_from_submenu_menu_needs_rebuild => move || {
 
-                // If we need to rebuild the "MyMod" menu...
+                // If we need to rebuild the "MyMod" menu, do it.
                 if *open_from_submenu_menu_needs_rebuild.borrow() {
-
-                    // Get the current settings.
-                    sender_qt.send(Commands::GetSettings).unwrap();
-                    let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                    // Then rebuild it.
                     *open_from_slots.borrow_mut() = build_open_from_submenus(
                         sender_qt.clone(),
                         &sender_qt_data,
                         receiver_qt.clone(),
-                        &settings,
                         app_ui,
                         &menu_open_from_content,
                         &menu_open_from_data,
@@ -4733,16 +4687,12 @@ fn main() {
             }
         }
 
-        // Get the settings.
-        sender_qt.send(Commands::GetSettings).unwrap();
-        let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
         // If we want the window to start maximized...
-        if *settings.settings_bool.get("start_maximized").unwrap() { unsafe { (app_ui.window as *mut Widget).as_mut().unwrap().set_window_state(Flags::from_enum(WindowState::Maximized)); } }
+        if *SETTINGS.lock().unwrap().settings_bool.get("start_maximized").unwrap() { unsafe { (app_ui.window as *mut Widget).as_mut().unwrap().set_window_state(Flags::from_enum(WindowState::Maximized)); } }
 
         // If we want to use the dark theme (Only in windows)...
         if cfg!(target_os = "windows") {
-            if *settings.settings_bool.get("use_dark_theme").unwrap() { 
+            if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { 
                 Application::set_style(&QString::from_std_str("fusion"));
                 Application::set_palette(&DARK_PALETTE); 
             } else { 
@@ -4752,10 +4702,10 @@ fn main() {
         }
 
         // If we have it enabled in the prefs, check if there are updates.
-        if *settings.settings_bool.get("check_updates_on_start").unwrap() { check_updates(&app_ui, false) };
+        if *SETTINGS.lock().unwrap().settings_bool.get("check_updates_on_start").unwrap() { check_updates(&app_ui, false) };
 
         // If we have it enabled in the prefs, check if there are schema updates.
-        if *settings.settings_bool.get("check_schema_updates_on_start").unwrap() { check_schema_updates(&app_ui, false, &sender_qt, &sender_qt_data, &receiver_qt) };
+        if *SETTINGS.lock().unwrap().settings_bool.get("check_schema_updates_on_start").unwrap() { check_schema_updates(&app_ui, false, &sender_qt, &sender_qt_data, &receiver_qt) };
 
         // And launch it.
         Application::exec()
@@ -4767,7 +4717,6 @@ fn main() {
 fn enable_packfile_actions(
     app_ui: &AppUI,
     mymod_stuff: &Rc<RefCell<MyModStuff>>,
-    settings: Settings,
     enable: bool
 ) {
 
@@ -4792,7 +4741,7 @@ fn enable_packfile_actions(
         unsafe { app_ui.save_packfile_as.as_mut().unwrap().set_enabled(enable); }
 
         // If there is a "MyMod" path set in the settings...
-        if let Some(ref path) = settings.paths.get("mymods_base_path").unwrap() {
+        if let Some(ref path) = SETTINGS.lock().unwrap().paths.get("mymods_base_path").unwrap() {
 
             // And it's a valid directory, enable the "New MyMod" button.
             if path.is_dir() { unsafe { mymod_stuff.borrow().new_mymod.as_mut().unwrap().set_enabled(true); }}
@@ -5034,13 +4983,9 @@ fn open_packfile(
             // Destroy whatever it's in the PackedFile's view, to avoid data corruption.
             purge_them_all(&app_ui, packedfiles_open_in_packedfile_view);
 
-            // Get the current settings.
-            sender_qt.send(Commands::GetSettings).unwrap();
-            let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-        
             // Close the Global Search stuff and reset the filter's history.
             unsafe { close_global_search_action.as_mut().unwrap().trigger(); }
-            if !settings.settings_bool.get("remember_table_state_permanently").unwrap() { history_state_tables.borrow_mut().clear(); }
+            if !SETTINGS.lock().unwrap().settings_bool.get("remember_table_state_permanently").unwrap() { history_state_tables.borrow_mut().clear(); }
 
             // Show the "Tips".
             display_help_tips(&app_ui);
@@ -5331,10 +5276,6 @@ fn build_my_mod_menu(
     history_state_tables: &Rc<RefCell<BTreeMap<Vec<String>, TableState>>>,
 ) -> (MyModStuff, MyModSlots) {
 
-    // Get the current Settings, as we are going to need them later.
-    sender_qt.send(Commands::GetSettings).unwrap();
-    let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
     //---------------------------------------------------------------------------------------//
     // Build the "Static" part of the menu...
     //---------------------------------------------------------------------------------------//
@@ -5366,12 +5307,11 @@ fn build_my_mod_menu(
             packedfiles_open_in_packedfile_view,
             app_ui,
             mode,
-            settings,
             is_modified,
             needs_rebuild => move |_| {
 
                 // Create the "New MyMod" Dialog, and get the result.
-                match NewMyModDialog::create_new_mymod_dialog(&app_ui, &settings) {
+                match NewMyModDialog::create_new_mymod_dialog(&app_ui) {
 
                     // If we accepted...
                     Some(data) => {
@@ -5395,7 +5335,7 @@ fn build_my_mod_menu(
                         }
 
                         // Get his new path from the base "MyMod" path + `mod_game`.
-                        let mut mymod_path = settings.paths.get("mymods_base_path").unwrap().clone().unwrap();
+                        let mut mymod_path = SETTINGS.lock().unwrap().paths.get("mymods_base_path").unwrap().clone().unwrap();
                         mymod_path.push(&mod_game);
 
                         // Just in case the folder doesn't exist, we try to create it.
@@ -5433,13 +5373,9 @@ fn build_my_mod_menu(
                                 // Destroy whatever it's in the PackedFile's view, to avoid data corruption.
                                 purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);
 
-                                // Try to get the settings.
-                                sender_qt.send(Commands::GetSettings).unwrap();
-                                let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
                                 // Close the Global Search stuff and reset the filter's history.
                                 unsafe { close_global_search_action.as_mut().unwrap().trigger(); }
-                                if !settings.settings_bool.get("remember_table_state_permanently").unwrap() { history_state_tables.borrow_mut().clear(); }
+                                if !SETTINGS.lock().unwrap().settings_bool.get("remember_table_state_permanently").unwrap() { history_state_tables.borrow_mut().clear(); }
 
                                 // Show the "Tips".
                                 display_help_tips(&app_ui);
@@ -5468,7 +5404,7 @@ fn build_my_mod_menu(
                                 *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
 
                                 // Enable the actions available for the PackFile from the `MenuBar`.
-                                enable_packfile_actions(&app_ui, &Rc::new(RefCell::new(mymod_stuff.clone())), settings, true);
+                                enable_packfile_actions(&app_ui, &Rc::new(RefCell::new(mymod_stuff.clone())), true);
 
                                 // Set the current "Operational Mode" to `MyMod`.
                                 set_my_mod_mode(&Rc::new(RefCell::new(mymod_stuff.clone())), &mode, Some(mymod_path));
@@ -5505,8 +5441,6 @@ fn build_my_mod_menu(
         // This slot is used for the "Delete Selected MyMod" action.
         delete_selected_mymod: SlotBool::new(clone!(
             sender_qt,
-            receiver_qt,
-            settings,
             mode,
             is_modified,
             app_ui => move |_| {
@@ -5527,7 +5461,7 @@ fn build_my_mod_menu(
                             old_mod_name = mod_name.to_owned();
 
                             // And the "MyMod" path is configured...
-                            if let Some(ref mymods_base_path) = settings.paths.get("mymods_base_path").unwrap() {
+                            if let Some(ref mymods_base_path) = SETTINGS.lock().unwrap().paths.get("mymods_base_path").unwrap() {
 
                                 // We get his path.
                                 let mut mymod_path = mymods_base_path.to_path_buf();
@@ -5579,12 +5513,8 @@ fn build_my_mod_menu(
                         // Create a "dummy" PackFile, effectively closing the currently open PackFile.
                         sender_qt.send(Commands::ResetPackFile).unwrap();
 
-                        // Try to get the settings.
-                        sender_qt.send(Commands::GetSettings).unwrap();
-                        let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
                         // Disable the actions available for the PackFile from the `MenuBar`.
-                        enable_packfile_actions(&app_ui, &Rc::new(RefCell::new(mymod_stuff.clone())), settings, false);
+                        enable_packfile_actions(&app_ui, &Rc::new(RefCell::new(mymod_stuff.clone())), false);
 
                         // Clear the TreeView.
                         unsafe { app_ui.folder_tree_model.as_mut().unwrap().clear(); }
@@ -5604,9 +5534,6 @@ fn build_my_mod_menu(
 
         // This slot is used for the "Install MyMod" action.
         install_mymod: SlotBool::new(clone!(
-            sender_qt,
-            receiver_qt,
-            settings,
             mode,
             app_ui => move |_| {
 
@@ -5617,14 +5544,10 @@ fn build_my_mod_menu(
                     Mode::MyMod {ref game_folder_name, ref mod_name} => {
 
                         // And the "MyMod" path is configured...
-                        if let Some(ref mymods_base_path) = settings.paths.get("mymods_base_path").unwrap() {
-
-                            // Try to get the settings.
-                            sender_qt.send(Commands::GetSettings).unwrap();
-                            let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                        if let Some(ref mymods_base_path) = SETTINGS.lock().unwrap().paths.get("mymods_base_path").unwrap() {
 
                             // If we have a `game_data_path` for the current `GameSelected`...
-                            if let Some(mut game_data_path) = get_game_selected_data_path(&settings) {
+                            if let Some(mut game_data_path) = get_game_selected_data_path() {
 
                                 // We get the "MyMod"s PackFile path.
                                 let mut mymod_path = mymods_base_path.to_path_buf();
@@ -5665,8 +5588,6 @@ fn build_my_mod_menu(
 
         // This slot is used for the "Uninstall MyMod" action.
         uninstall_mymod: SlotBool::new(clone!(
-            sender_qt,
-            receiver_qt,
             mode,
             app_ui => move |_| {
 
@@ -5676,12 +5597,8 @@ fn build_my_mod_menu(
                     // If we have a "MyMod" selected...
                     Mode::MyMod {ref mod_name,..} => {
 
-                        // Try to get the settings.
-                        sender_qt.send(Commands::GetSettings).unwrap();
-                        let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
                         // If we have a `game_data_path` for the current `GameSelected`...
-                        if let Some(mut game_data_path) = get_game_selected_data_path(&settings) {
+                        if let Some(mut game_data_path) = get_game_selected_data_path() {
 
                             // Get the destination path for the PackFile with the PackFile included.
                             game_data_path.push(&mod_name);
@@ -5729,7 +5646,7 @@ fn build_my_mod_menu(
     unsafe { menu_bar_mymod.as_mut().unwrap().add_separator(); }
 
     // If we have the "MyMod" path configured...
-    if let Some(ref mymod_base_path) = settings.paths.get("mymods_base_path").unwrap() {
+    if let Some(ref mymod_base_path) = SETTINGS.lock().unwrap().paths.get("mymods_base_path").unwrap() {
 
         // And can get without errors the folders in that path...
         if let Ok(game_folder_list) = mymod_base_path.read_dir() {
@@ -5830,7 +5747,7 @@ fn build_my_mod_menu(
     }
 
     // If there is a "MyMod" path set in the settings...
-    if let Some(ref path) = settings.paths.get("mymods_base_path").unwrap() {
+    if let Some(ref path) = SETTINGS.lock().unwrap().paths.get("mymods_base_path").unwrap() {
 
         // And it's a valid directory, enable the "New MyMod" button.
         if path.is_dir() { unsafe { mymod_stuff.new_mymod.as_mut().unwrap().set_enabled(true); }}
@@ -5858,7 +5775,6 @@ fn build_open_from_submenus(
     sender_qt: Sender<Commands>,
     sender_qt_data: &Sender<Data>,
     receiver_qt: Rc<RefCell<Receiver<Data>>>,
-    settings: &Settings,
     app_ui: AppUI,
     submenu_open_from_content: &*mut Menu,
     submenu_open_from_data: &*mut Menu,
@@ -5882,7 +5798,7 @@ fn build_open_from_submenus(
     //---------------------------------------------------------------------------------------//
 
     // Get the path of every PackFile in the data folder (if it's configured) and make an action for each one of them.
-    if let Some(ref mut paths) = get_game_selected_content_packfiles_paths(&settings) {
+    if let Some(ref mut paths) = get_game_selected_content_packfiles_paths() {
         paths.sort_unstable_by_key(|x| x.file_name().unwrap().to_string_lossy().as_ref().to_owned());
         for path in paths {
 
@@ -5937,7 +5853,7 @@ fn build_open_from_submenus(
     }
 
     // Get the path of every PackFile in the data folder (if it's configured) and make an action for each one of them.
-    if let Some(ref mut paths) = get_game_selected_data_packfiles_paths(&settings) {
+    if let Some(ref mut paths) = get_game_selected_data_packfiles_paths() {
         paths.sort_unstable_by_key(|x| x.file_name().unwrap().to_string_lossy().as_ref().to_owned());
         for path in paths {
 

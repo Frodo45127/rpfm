@@ -83,9 +83,6 @@ impl DependencyTableView {
         app_ui: &AppUI,
     ) -> Self {
 
-        sender_qt.send(Commands::GetSettings).unwrap();
-        let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
         // Create the widget that'll act as a container for the view.
         let widget = Widget::new().into_raw();
         let widget_layout = GridLayout::new().into_raw();
@@ -219,8 +216,7 @@ impl DependencyTableView {
                         sender_qt_data.send(Data::VecString(list)).unwrap();
 
                         // Set the mod as "Modified".
-                        let use_dark_theme = settings.settings_bool.get("use_dark_theme").unwrap();
-                        unsafe { *is_modified.borrow_mut() = set_modified(true, &app_ui, Some((vec![app_ui.folder_tree_model.as_ref().unwrap().item(0).as_ref().unwrap().text().to_std_string()], *use_dark_theme))); }
+                        unsafe { *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(vec![app_ui.folder_tree_model.as_ref().unwrap().item(0).as_ref().unwrap().text().to_std_string()])); }
                     }
                 }
             )),
