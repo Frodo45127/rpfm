@@ -36208,6 +36208,64 @@
       ]
     },
     {
+      "name": "campaign_clan_level_infos_tables",
+      "versions": [
+        {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "clan_level",
+              "field_type": "Integer",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "effect_bundle",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "effect_bundles",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "modernisation_threshold",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "optional_faction_key",
+              "field_type": "OptionalStringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "factions",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "technology_unlock_level",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "optional_difficulty_level",
+              "field_type": "OptionalStringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "campaign_climate_change_phases_tables",
       "versions": [
         {
@@ -36370,6 +36428,52 @@
     {
       "name": "campaign_difficulty_handicap_effects_tables",
       "versions": [
+        {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "campaign_difficulty_handicap",
+              "field_type": "Integer",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "human",
+              "field_type": "Boolean",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "effect",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "effects",
+                "effect"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "effect_value",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "optional_campaign_key",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "campaigns",
+                "campaign_name"
+              ],
+              "field_description": ""
+            }
+          ]
+        },
         {
           "version": 0,
           "fields": [
@@ -37045,6 +37149,53 @@
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": "icon for tooltips"
+            }
+          ]
+        },
+        {
+          "version": 2,
+          "fields": [
+            {
+              "field_name": "type",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "movement_modifier",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "can_ambush",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "causes_heat_attrition",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "causes_cold_attrition",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "causes_sea_attrition",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
             }
           ]
         }
@@ -39406,6 +39557,74 @@
               "field_description": "Determines whether this maps tilemap is selectable in custom battle screen to pick battle maps"
             }
           ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "index",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "sea_trade",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "map_file",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "overlay_file",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "radar_file",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "meaningful_id",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "preview_width",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "preview_height",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "preview_border",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -39486,6 +39705,33 @@
             {
               "field_name": "turns_required_to_downgrade_from",
               "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "campaign_map_settlement_sprawl_descriptions_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "settlement",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "campaign_map_settlements",
+                "settlement_id"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "sprawl_desc",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
@@ -39597,14 +39843,14 @@
           "fields": [
             {
               "field_name": "settlement_id",
-              "field_type": "StringU8",
-              "field_is_key": false,
+              "field_type": "StringU16",
+              "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
             },
             {
               "field_name": "region",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": [
                 "regions",
@@ -39614,14 +39860,14 @@
             },
             {
               "field_name": "default_onscreen_name",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
             },
             {
               "field_name": "template_name",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": [
                 "campaign_map_settlement_templates",
@@ -39638,11 +39884,75 @@
             },
             {
               "field_name": "slot_type",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": [
                 "slots",
                 "slot"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "campaign_map_slots_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "slot_id",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "region",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "regions",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "slot_type",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "slots",
+                "slot"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "template",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "campaign_map_slots_templates",
+                "template_name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "rotation",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "underlay",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "warscape_underlay_textures",
+                "underlay_key"
               ],
               "field_description": ""
             }
@@ -39705,6 +40015,95 @@
                 "key"
               ],
               "field_description": "first line in the tooltip"
+            }
+          ]
+        },
+        {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "select_context",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "campaign_map_tooltip_select_contexts",
+                "select_context"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "over_context",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "campaign_map_tooltip_over_contexts",
+                "over_contexts"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "tooltip_line",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "campaign_map_tooltip_texts",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "advice_line",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "campaign_map_tooltip_texts",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "campaign_map_towns_and_ports_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "town_id",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "slot_type",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "slots",
+                "slot"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "onscreen_name",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "template",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "campaign_map_slots_templates",
+                "template_name"
+              ],
+              "field_description": ""
             }
           ]
         }
@@ -42537,6 +42936,36 @@
       ]
     },
     {
+      "name": "campaign_unit_art_set_junctions_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "unit_key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "units",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "art_set_id",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "campaign_character_art_sets",
+                "art_set_id"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "campaign_unit_stat_bonuses_tables",
       "versions": [
         {
@@ -42596,7 +43025,7 @@
           "fields": [
             {
               "field_name": "variable_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
@@ -42829,6 +43258,131 @@
       ]
     },
     {
+      "name": "campaign_walk_anim_sets_tables",
+      "versions": [
+        {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "reference_pose",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "anim_reference_poses",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "pre_step_to",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "step_to",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "post_step_to",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "pre_stand_to_walk",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "stand_to_walk",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "stand_to_walk_distance",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "walk",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "walk_distance",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "walk_to_stand",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "mid_walk_to_stand",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "walk_to_stand_distance",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "post_walk_to_stand",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "post_mid_walk_to_stand",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "mid_walk_to_stand_distance",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "campaigns_campaign_variables_junctions_tables",
       "versions": [
         {
@@ -42836,7 +43390,7 @@
           "fields": [
             {
               "field_name": "variable_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "campaign_variables",
@@ -42846,7 +43400,7 @@
             },
             {
               "field_name": "campaign_name",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "campaigns",
@@ -42863,14 +43417,14 @@
             },
             {
               "field_name": "optional_difficulty_level",
-              "field_type": "OptionalStringU8",
+              "field_type": "OptionalStringU16",
               "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
             },
             {
               "field_name": "optional_campaign_type",
-              "field_type": "OptionalStringU8",
+              "field_type": "OptionalStringU16",
               "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
@@ -43085,7 +43639,7 @@
           "fields": [
             {
               "field_name": "campaign_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "cdir_campaign_junctions",
@@ -43095,7 +43649,7 @@
             },
             {
               "field_name": "faction_key",
-              "field_type": "OptionalStringU8",
+              "field_type": "OptionalStringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "cdir_faction_junctions",
@@ -43105,7 +43659,7 @@
             },
             {
               "field_name": "cdir_config_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "cdir_config_values",
@@ -43115,7 +43669,7 @@
             },
             {
               "field_name": "value",
-              "field_type": "OptionalStringU8",
+              "field_type": "OptionalStringU16",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
@@ -43132,7 +43686,7 @@
           "fields": [
             {
               "field_name": "campaign_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "cdir_campaign_junctions",
@@ -43142,7 +43696,7 @@
             },
             {
               "field_name": "desire_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "cdir_desires",
@@ -43308,21 +43862,21 @@
           "fields": [
             {
               "field_name": "choice_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
             },
             {
               "field_name": "dilemma_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
             },
             {
               "field_name": "incident_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
@@ -43375,7 +43929,7 @@
           "fields": [
             {
               "field_name": "dilemma_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": [
                 "dilemmas",
@@ -43392,7 +43946,7 @@
             },
             {
               "field_name": "option_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": [
                 "cdir_events_options",
@@ -43402,7 +43956,7 @@
             },
             {
               "field_name": "value",
-              "field_type": "OptionalStringU8",
+              "field_type": "OptionalStringU16",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
@@ -43419,14 +43973,14 @@
           "fields": [
             {
               "field_name": "choice_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
             },
             {
               "field_name": "dilemma_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
@@ -43440,7 +43994,7 @@
             },
             {
               "field_name": "payload_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": [
                 "cdir_events_payloads",
@@ -43450,7 +44004,7 @@
             },
             {
               "field_name": "value",
-              "field_type": "OptionalStringU8",
+              "field_type": "OptionalStringU16",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
@@ -43600,7 +44154,7 @@
             },
             {
               "field_name": "incident_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": [
                 "incidents",
@@ -43610,7 +44164,7 @@
             },
             {
               "field_name": "option_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": [
                 "cdir_events_options",
@@ -43620,7 +44174,7 @@
             },
             {
               "field_name": "value",
-              "field_type": "OptionalStringU8",
+              "field_type": "OptionalStringU16",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
@@ -43683,14 +44237,14 @@
             },
             {
               "field_name": "incident_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
             },
             {
               "field_name": "payload_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": [
                 "cdir_events_payloads",
@@ -43700,7 +44254,7 @@
             },
             {
               "field_name": "value",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
@@ -43797,21 +44351,21 @@
           "fields": [
             {
               "field_name": "incident_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
             },
             {
               "field_name": "mission_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
             },
             {
               "field_name": "status_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
@@ -43828,7 +44382,7 @@
           "fields": [
             {
               "field_name": "issuer_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "mission_issuers",
@@ -43838,7 +44392,7 @@
             },
             {
               "field_name": "mission_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
@@ -43898,7 +44452,7 @@
             },
             {
               "field_name": "mission_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": [
                 "missions",
@@ -43908,7 +44462,7 @@
             },
             {
               "field_name": "option_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": [
                 "cdir_events_options",
@@ -43918,7 +44472,7 @@
             },
             {
               "field_name": "value",
-              "field_type": "OptionalStringU8",
+              "field_type": "OptionalStringU16",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
@@ -43942,14 +44496,14 @@
             },
             {
               "field_name": "mission_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
             },
             {
               "field_name": "payload_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": [
                 "cdir_events_payloads",
@@ -43959,14 +44513,14 @@
             },
             {
               "field_name": "status_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
             },
             {
               "field_name": "value",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
@@ -44007,14 +44561,14 @@
           "fields": [
             {
               "field_name": "effect_bundle_key",
-              "field_type": "OptionalStringU8",
+              "field_type": "OptionalStringU16",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
             },
             {
               "field_name": "payload_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
@@ -44031,14 +44585,14 @@
           "fields": [
             {
               "field_name": "key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
             },
             {
               "field_name": "faction",
-              "field_type": "OptionalStringU8",
+              "field_type": "OptionalStringU16",
               "field_is_key": false,
               "field_is_reference": [
                 "factions",
@@ -44220,22 +44774,22 @@
           "fields": [
             {
               "field_name": "config_key",
-              "field_type": "StringU8",
-              "field_is_key": false,
+              "field_type": "StringU16",
+              "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
             },
             {
               "field_name": "group_key",
-              "field_type": "StringU8",
-              "field_is_key": false,
+              "field_type": "StringU16",
+              "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
             },
             {
               "field_name": "quality_group_key",
-              "field_type": "StringU8",
-              "field_is_key": false,
+              "field_type": "StringU16",
+              "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
             },
@@ -44258,8 +44812,8 @@
           "fields": [
             {
               "field_name": "key",
-              "field_type": "StringU8",
-              "field_is_key": false,
+              "field_type": "StringU16",
+              "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
             },
@@ -44282,15 +44836,15 @@
           "fields": [
             {
               "field_name": "config_key",
-              "field_type": "StringU8",
-              "field_is_key": false,
+              "field_type": "StringU16",
+              "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
             },
             {
               "field_name": "template_key",
-              "field_type": "StringU8",
-              "field_is_key": false,
+              "field_type": "StringU16",
+              "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
             },
@@ -44313,29 +44867,29 @@
           "fields": [
             {
               "field_name": "template_key",
-              "field_type": "StringU8",
-              "field_is_key": false,
+              "field_type": "StringU16",
+              "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
             },
             {
               "field_name": "min_units",
               "field_type": "Integer",
-              "field_is_key": false,
+              "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
             },
             {
               "field_name": "max_units",
               "field_type": "Integer",
-              "field_is_key": false,
+              "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
             },
             {
               "field_name": "group_key",
-              "field_type": "StringU8",
-              "field_is_key": false,
+              "field_type": "StringU16",
+              "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
             },
@@ -44372,22 +44926,22 @@
           "fields": [
             {
               "field_name": "config_key",
-              "field_type": "StringU8",
-              "field_is_key": false,
+              "field_type": "StringU16",
+              "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
             },
             {
               "field_name": "group_key",
-              "field_type": "StringU8",
-              "field_is_key": false,
+              "field_type": "StringU16",
+              "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
             },
             {
               "field_name": "unit_key",
-              "field_type": "StringU8",
-              "field_is_key": false,
+              "field_type": "StringU16",
+              "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
             },
@@ -44498,6 +45052,52 @@
               "field_type": "Boolean",
               "field_is_key": true,
               "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "agent_key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "agents",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "experience_threshold",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "skill_points",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "skill_tier_level",
+              "field_type": "Integer",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "optional_campaign_key",
+              "field_type": "OptionalStringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "campaigns",
+                "campaign_name"
+              ],
               "field_description": ""
             }
           ]
@@ -44733,7 +45333,7 @@
           "fields": [
             {
               "field_name": "character_skill_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "character_skills",
@@ -44743,21 +45343,11 @@
             },
             {
               "field_name": "effect_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "effects",
                 "effect"
-              ],
-              "field_description": ""
-            },
-            {
-              "field_name": "effect_scope",
-              "field_type": "StringU8",
-              "field_is_key": false,
-              "field_is_reference": [
-                "campaign_effect_scopes",
-                "key"
               ],
               "field_description": ""
             },
@@ -44771,6 +45361,13 @@
             {
               "field_name": "value",
               "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "is_factionwide",
+              "field_type": "Boolean",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
@@ -44964,7 +45561,7 @@
           "fields": [
             {
               "field_name": "child_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "character_skill_nodes",
@@ -44981,7 +45578,7 @@
             },
             {
               "field_name": "parent_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "character_skill_nodes",
@@ -45147,6 +45744,48 @@
               "field_name": "for_navy",
               "field_type": "Boolean",
               "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "agent_key",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "agents",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "campaign_key",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "campaigns",
+                "campaign_name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "faction_key",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "factions",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
             }
@@ -45449,6 +46088,72 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "campaign_key",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "campaigns",
+                "campaign_name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "character_skill_key",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "character_skills",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "character_skill_node_set_key",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "character_skill_node_sets",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "faction_key",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "factions",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "indent",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "tier",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -45719,6 +46424,49 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "image_path",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "localised_description",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "localised_name",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "pre_battle_speech_parameter",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "pre_battle_speech_parameters_enum",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -45810,7 +46558,7 @@
           "fields": [
             {
               "field_name": "key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
@@ -45824,11 +46572,11 @@
             },
             {
               "field_name": "trait",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": [
-                "trait_info",
-                "trait"
+                "character_traits",
+                "key"
               ],
               "field_description": ""
             },
@@ -45914,7 +46662,7 @@
           "fields": [
             {
               "field_name": "key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "trait_info",
@@ -45945,7 +46693,7 @@
             },
             {
               "field_name": "icon",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": [
                 "trait_categories",
@@ -45955,7 +46703,7 @@
             },
             {
               "field_name": "pre_battle_speech_parameter",
-              "field_type": "OptionalStringU8",
+              "field_type": "OptionalStringU16",
               "field_is_key": false,
               "field_is_reference": [
                 "pre_battle_speech_parameters_enum",
@@ -46031,7 +46779,7 @@
           "fields": [
             {
               "field_name": "climate_type",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
@@ -46237,6 +46985,67 @@
       ]
     },
     {
+      "name": "commodities_demand_drivers_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "demand_driver",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "commodities_demand_junction_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "commodity",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "commodities",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "driver",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "commodities_demand_drivers",
+                "demand_driver"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "constantK",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "weight",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "commodities_tables",
       "versions": [
         {
@@ -46266,7 +47075,7 @@
           "fields": [
             {
               "field_name": "key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "resources",
@@ -46300,7 +47109,7 @@
           "fields": [
             {
               "field_name": "unit",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
@@ -46940,14 +47749,14 @@
           "fields": [
             {
               "field_name": "subculture",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
             },
             {
               "field_name": "culture",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": [
                 "cultures",
@@ -46964,7 +47773,7 @@
             },
             {
               "field_name": "farm",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": [
                 "battle_terrain_farms",
@@ -47140,6 +47949,32 @@
             {
               "field_name": "fallback_ui_culture",
               "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "index",
+              "field_type": "LongInteger",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "fallback_ui_culture",
+              "field_type": "OptionalStringU16",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
@@ -47392,6 +48227,81 @@
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": "Whether animation loops indefinately"
+            },
+            {
+              "field_name": "width",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "Width of cursor image"
+            },
+            {
+              "field_name": "height",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "Height of cursor image"
+            }
+          ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "image",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ".cur file to use for cursor"
+            },
+            {
+              "field_name": "frames",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "Number of frames cursor has"
+            },
+            {
+              "field_name": "framerate",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "Frame rate of cursor animation"
+            },
+            {
+              "field_name": "hotspotx",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "hotspoty",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "loop",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "Whether animation loops indefinately"
+            },
+            {
+              "field_name": "reverse",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
             },
             {
               "field_name": "width",
@@ -48543,6 +49453,126 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "generate",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "localised_description",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "localised_first_choice_label",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "localised_second_choice_label",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "localised_title",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "ui_icon",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "ui_image",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "localised_first_choice_label",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "localised_second_choice_title",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "prioritized",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "diplomacy_attitudes_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "attitude",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "cap",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "drift",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "value",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -48594,6 +49624,23 @@
                 "diplomacy_strings",
                 "key"
               ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "diplomacy_factor_strings_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
               "field_description": ""
             }
           ]
@@ -48847,7 +49894,7 @@
           "fields": [
             {
               "field_name": "key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "diplomacy_keys",
@@ -48857,7 +49904,7 @@
             },
             {
               "field_name": "culture",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "cultures",
@@ -48867,7 +49914,7 @@
             },
             {
               "field_name": "government_type",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "government_types",
@@ -48877,20 +49924,10 @@
             },
             {
               "field_name": "faction",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "factions",
-                "key"
-              ],
-              "field_description": ""
-            },
-            {
-              "field_name": "string",
-              "field_type": "StringU8",
-              "field_is_key": false,
-              "field_is_reference": [
-                "diplomacy_strings",
                 "key"
               ],
               "field_description": ""
@@ -48900,6 +49937,80 @@
               "field_type": "Integer",
               "field_is_key": true,
               "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "string",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "diplomacy_strings",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "diplomacy_negotiation_religion_override_strings_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "culture",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "cultures",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "government_type",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "government_types",
+                "government_type"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "option",
+              "field_type": "Integer",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "religion",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "religions",
+                "religion_key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "string",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "diplomacy_strings",
+                "key"
+              ],
               "field_description": ""
             }
           ]
@@ -49044,12 +50155,96 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "culture",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "cultures",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "government_type",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "government_types",
+                "government_type"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
     {
       "name": "diplomacy_negotiation_strings_tables",
       "versions": [
+        {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "diplomacy_keys",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "culture",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "cultures",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "government_type",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "government_types",
+                "government_type"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "option",
+              "field_type": "Integer",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "string",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "diplomacy_strings",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        },
         {
           "version": 0,
           "fields": [
@@ -49095,7 +50290,7 @@
           "fields": [
             {
               "field_name": "key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
@@ -49225,13 +50420,57 @@
           "fields": [
             {
               "field_name": "attitude",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
             },
             {
               "field_name": "value",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "diplomatic_relations_government_type_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "government_type_from",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "government_types",
+                "government_type"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "government_type_to",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "government_types",
+                "government_type"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "attitude_on_change",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "base_attitude",
               "field_type": "Integer",
               "field_is_key": false,
               "field_is_reference": null,
@@ -49281,7 +50520,7 @@
           "fields": [
             {
               "field_name": "religion_a",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "religions",
@@ -49291,7 +50530,7 @@
             },
             {
               "field_name": "religion_b",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "religions",
