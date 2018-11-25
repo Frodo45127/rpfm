@@ -46,7 +46,6 @@ impl ShortcutsDialog {
     /// This function creates the entire `Shortcuts` Window and shows it.
     pub fn create_shortcuts_dialog(
         window: *mut Dialog,
-        shortcuts: &Shortcuts,
     ) -> Option<Shortcuts> {
 
         //-------------------------------------------------------------------------------------------//
@@ -54,8 +53,7 @@ impl ShortcutsDialog {
         //-------------------------------------------------------------------------------------------//
 
         // Create the Shortcuts Dialog.
-        let dialog;
-        unsafe { dialog = Dialog::new_unsafe(window as *mut Widget).into_raw(); }
+        let dialog = unsafe { Dialog::new_unsafe(window as *mut Widget).into_raw() };
 
         // Change his title.
         unsafe { dialog.as_mut().unwrap().set_window_title(&QString::from_std_str("Shortcuts")); }
@@ -304,7 +302,7 @@ impl ShortcutsDialog {
         //-------------------------------------------------------------------------------------------//
 
         // Load the MyMod Path, if exists.
-        shortcuts_dialog.load_to_shortcuts_dialog(&shortcuts);
+        shortcuts_dialog.load_to_shortcuts_dialog();
 
         //-------------------------------------------------------------------------------------------//
         // Slots and stuff...
@@ -316,8 +314,8 @@ impl ShortcutsDialog {
         let slot_restore_default = SlotNoArgs::new(clone!(
             shortcuts_dialog => move || {
 
-                let new_shortcuts = Shortcuts::new();
-                (*shortcuts_dialog.borrow_mut()).load_to_shortcuts_dialog(&new_shortcuts)
+                *SHORTCUTS.lock().unwrap() = Shortcuts::new();
+                (*shortcuts_dialog.borrow_mut()).load_to_shortcuts_dialog()
             }
         ));
 
@@ -338,10 +336,7 @@ impl ShortcutsDialog {
     }
 
     /// This function loads the data from the Shortcuts struct to the Shortcuts Dialog.
-    pub fn load_to_shortcuts_dialog(
-        &mut self,
-        shortcuts: &Shortcuts,
-    ) {
+    pub fn load_to_shortcuts_dialog(&mut self) {
 
         // Clear all the models, just in case this is a restore default operation.
         unsafe { self.menu_bar_packfile.as_mut().unwrap().clear(); }
@@ -354,7 +349,7 @@ impl ShortcutsDialog {
         unsafe { self.db_decoder_definitions.as_mut().unwrap().clear(); }
 
         // Just add in mass the shortcuts to the Models.
-        for (key, value) in shortcuts.menu_bar_packfile.iter() {
+        for (key, value) in SHORTCUTS.lock().unwrap().menu_bar_packfile.iter() {
             let mut row_list = ListStandardItemMutPtr::new(());
             unsafe { row_list.append_unsafe(&StandardItem::new(&QString::from_std_str(key)).into_raw()); }
             unsafe { row_list.append_unsafe(&StandardItem::new(&QString::from_std_str(value)).into_raw()); }
@@ -362,7 +357,7 @@ impl ShortcutsDialog {
             unsafe { self.menu_bar_packfile.as_mut().unwrap().append_row(&row_list); }
         }
 
-        for (key, value) in shortcuts.menu_bar_about.iter() {
+        for (key, value) in SHORTCUTS.lock().unwrap().menu_bar_about.iter() {
             let mut row_list = ListStandardItemMutPtr::new(());
             unsafe { row_list.append_unsafe(&StandardItem::new(&QString::from_std_str(key)).into_raw()); }
             unsafe { row_list.append_unsafe(&StandardItem::new(&QString::from_std_str(value)).into_raw()); }
@@ -370,7 +365,7 @@ impl ShortcutsDialog {
             unsafe { self.menu_bar_about.as_mut().unwrap().append_row(&row_list); }
         }
 
-        for (key, value) in shortcuts.tree_view.iter() {
+        for (key, value) in SHORTCUTS.lock().unwrap().tree_view.iter() {
             let mut row_list = ListStandardItemMutPtr::new(());
             unsafe { row_list.append_unsafe(&StandardItem::new(&QString::from_std_str(key)).into_raw()); }
             unsafe { row_list.append_unsafe(&StandardItem::new(&QString::from_std_str(value)).into_raw()); }
@@ -378,7 +373,7 @@ impl ShortcutsDialog {
             unsafe { self.tree_view.as_mut().unwrap().append_row(&row_list); }
         }
 
-        for (key, value) in shortcuts.pack_files_list.iter() {
+        for (key, value) in SHORTCUTS.lock().unwrap().pack_files_list.iter() {
             let mut row_list = ListStandardItemMutPtr::new(());
             unsafe { row_list.append_unsafe(&StandardItem::new(&QString::from_std_str(key)).into_raw()); }
             unsafe { row_list.append_unsafe(&StandardItem::new(&QString::from_std_str(value)).into_raw()); }
@@ -386,7 +381,7 @@ impl ShortcutsDialog {
             unsafe { self.pack_files_list.as_mut().unwrap().append_row(&row_list); }
         }
 
-        for (key, value) in shortcuts.packed_files_db.iter() {
+        for (key, value) in SHORTCUTS.lock().unwrap().packed_files_db.iter() {
             let mut row_list = ListStandardItemMutPtr::new(());
             unsafe { row_list.append_unsafe(&StandardItem::new(&QString::from_std_str(key)).into_raw()); }
             unsafe { row_list.append_unsafe(&StandardItem::new(&QString::from_std_str(value)).into_raw()); }
@@ -394,7 +389,7 @@ impl ShortcutsDialog {
             unsafe { self.packed_files_db.as_mut().unwrap().append_row(&row_list); }
         }
 
-        for (key, value) in shortcuts.packed_files_loc.iter() {
+        for (key, value) in SHORTCUTS.lock().unwrap().packed_files_loc.iter() {
             let mut row_list = ListStandardItemMutPtr::new(());
             unsafe { row_list.append_unsafe(&StandardItem::new(&QString::from_std_str(key)).into_raw()); }
             unsafe { row_list.append_unsafe(&StandardItem::new(&QString::from_std_str(value)).into_raw()); }
@@ -402,7 +397,7 @@ impl ShortcutsDialog {
             unsafe { self.packed_files_loc.as_mut().unwrap().append_row(&row_list); }
         }
 
-        for (key, value) in shortcuts.db_decoder_fields.iter() {
+        for (key, value) in SHORTCUTS.lock().unwrap().db_decoder_fields.iter() {
             let mut row_list = ListStandardItemMutPtr::new(());
             unsafe { row_list.append_unsafe(&StandardItem::new(&QString::from_std_str(key)).into_raw()); }
             unsafe { row_list.append_unsafe(&StandardItem::new(&QString::from_std_str(value)).into_raw()); }
@@ -410,7 +405,7 @@ impl ShortcutsDialog {
             unsafe { self.db_decoder_fields.as_mut().unwrap().append_row(&row_list); }
         }
 
-        for (key, value) in shortcuts.db_decoder_definitions.iter() {
+        for (key, value) in SHORTCUTS.lock().unwrap().db_decoder_definitions.iter() {
             let mut row_list = ListStandardItemMutPtr::new(());
             unsafe { row_list.append_unsafe(&StandardItem::new(&QString::from_std_str(key)).into_raw()); }
             unsafe { row_list.append_unsafe(&StandardItem::new(&QString::from_std_str(value)).into_raw()); }

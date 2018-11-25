@@ -330,12 +330,8 @@ impl SettingsDialog {
             sender_qt_data,
             receiver_qt => move || {
 
-                // Try to get the current Shortcuts.
-                sender_qt.send(Commands::GetShortcuts).unwrap();
-                let old_shortcuts = if let Data::Shortcuts(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
                 // Create the Shortcuts Dialog. If we got new shortcuts...
-                if let Some(shortcuts) = ShortcutsDialog::create_shortcuts_dialog(dialog, &old_shortcuts) {
+                if let Some(shortcuts) = ShortcutsDialog::create_shortcuts_dialog(dialog) {
 
                     // Send the signal to save them.
                     sender_qt.send(Commands::SetShortcuts).unwrap();

@@ -11,6 +11,7 @@ use regex::Regex;
 use RPFM_PATH;
 use SUPPORTED_GAMES;
 use SHOW_TABLE_ERRORS;
+use SHORTCUTS;
 use GlobalMatch;
 use common::*;
 use common::coding_helpers::*;
@@ -24,7 +25,6 @@ use packedfile::db::*;
 use packedfile::db::schemas::*;
 use packedfile::rigidmodel::*;
 use settings::*;
-use settings::shortcuts::Shortcuts;
 use updater::*;
 
 /// This is the background loop that's going to be executed in a parallel thread to the UI. No UI or "Unsafe" stuff here.
@@ -49,9 +49,6 @@ pub fn background_loop(
 
     // We load the settings here, and in case they doesn't exist or they are not valid, we create them.
     let mut settings = Settings::load().unwrap_or_else(|_|Settings::new());
-
-    // Same with the shortcuts.
-    let mut shortcuts = Shortcuts::load().unwrap_or_else(|_|Shortcuts::new());
 
     // We prepare the schema object to hold an Schema, leaving it as `None` by default.
     let mut schema: Option<Schema> = None;
@@ -279,27 +276,19 @@ pub fn background_loop(
                         }
                     }
 
-                    // In case we want to get the current shortcuts...
-                    Commands::GetShortcuts => {
-
-                        // Send the current shortcuts back to the UI thread.
-                        sender.send(Data::Shortcuts(shortcuts.clone())).unwrap();
-                    }
-
                     // In case we want to change the current shortcuts...
                     Commands::SetShortcuts => {
 
-                        // Wait until we get the needed data from the UI thread.
+                        // Wait until we get the needed data from the UI thread, then save our Shortcuts to a shortcuts file, and report in case of error.
                         let new_shortcuts = if let Data::Shortcuts(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                        // Update our current settings with the ones we received from the UI.
-                        shortcuts = new_shortcuts;
-
-                        // Save our Shortcuts to a shortcuts file, and report in case of error.
-                        match shortcuts.save() {
-                            Ok(()) => sender.send(Data::Success).unwrap(),
-                            Err(error) => sender.send(Data::Error(error)).unwrap(),
-                        }
+                        loop { if let Ok(ref mut shortcuts) = SHORTCUTS.try_lock() { 
+                            **shortcuts = new_shortcuts;
+                            match shortcuts.save() {
+                                Ok(()) => sender.send(Data::Success).unwrap(),
+                                Err(error) => sender.send(Data::Error(error)).unwrap(),
+                            }
+                            break;
+                        }};
                     }
 
                     // In case we want get our current Game Selected...

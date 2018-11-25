@@ -40,7 +40,6 @@ pub enum Commands {
     SaveSchema,
     GetSettings,
     SetSettings,
-    GetShortcuts,
     SetShortcuts,
     GetGameSelected,
     SetGameSelected,

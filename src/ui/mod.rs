@@ -54,6 +54,7 @@ use std::{fmt, fmt::Display, fmt::Debug};
 use std::f32;
 
 use RPFM_PATH;
+use SHORTCUTS;
 use TREEVIEW_ICONS;
 use QString;
 use AppUI;
@@ -257,10 +258,6 @@ impl AddFromPackFileSlots {
 
         let tree_view_expand_all = Action::new(&QString::from_std_str("&Expand All")).into_raw();
         let tree_view_collapse_all = Action::new(&QString::from_std_str("&Collapse All")).into_raw();
-
-        // Get the current shortcuts.
-        sender_qt.send(Commands::GetShortcuts).unwrap();
-        let shortcuts = if let Data::Shortcuts(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
         
         // Actions for the slots...
         unsafe { tree_view.as_ref().unwrap().signals().double_clicked().connect(&slots.copy); }
@@ -268,8 +265,8 @@ impl AddFromPackFileSlots {
         unsafe { tree_view_expand_all.as_ref().unwrap().signals().triggered().connect(&slots.slot_tree_view_expand_all); }
         unsafe { tree_view_collapse_all.as_ref().unwrap().signals().triggered().connect(&slots.slot_tree_view_collapse_all); }
 
-        unsafe { tree_view_expand_all.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("expand_all").unwrap()))); }
-        unsafe { tree_view_collapse_all.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("collapse_all").unwrap()))); }
+        unsafe { tree_view_expand_all.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().tree_view.get("expand_all").unwrap()))); }
+        unsafe { tree_view_collapse_all.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().tree_view.get("collapse_all").unwrap()))); }
 
         unsafe { tree_view_expand_all.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { tree_view_collapse_all.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
