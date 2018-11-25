@@ -40,6 +40,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::mpsc::{Sender, Receiver};
 
+use HISTORY_TABLE_STATE;
 use AppUI;
 use Commands;
 use Data;
@@ -106,7 +107,6 @@ impl PackedFileLocTreeView {
         packed_file_path: &Rc<RefCell<Vec<String>>>,
         global_search_explicit_paths: &Rc<RefCell<Vec<Vec<String>>>>,
         update_global_search_stuff: *mut Action,
-        history_state: &Rc<RefCell<BTreeMap<Vec<String>, TableState>>>,
     ) -> Result<Self> {
 
         // Send the index back to the background thread, and wait until we get a response.
@@ -388,12 +388,11 @@ impl PackedFileLocTreeView {
         for column in 0..3 {
 
             let hide_show_slot = SlotBool::new(clone!(
-                packed_file_path,
-                history_state => move |state| {
+                packed_file_path => move |state| {
                     unsafe { table_view.as_mut().unwrap().set_column_hidden(column as i32, state); }
 
                     // Update the state of the column in the table history.
-                    if let Some(history_state) = history_state.borrow_mut().get_mut(&packed_file_path.borrow().to_vec()) {
+                    if let Some(history_state) = HISTORY_TABLE_STATE.lock().unwrap().get_mut(&packed_file_path.borrow().to_vec()) {
                         if state {
                             if !history_state.columns_state.hidden_columns.contains(&(column as i32)) {
                                 history_state.columns_state.hidden_columns.push(column as i32);
@@ -418,18 +417,16 @@ impl PackedFileLocTreeView {
         // Slots for the TableView...
         let slots = Self {
             slot_column_moved: SlotCIntCIntCInt::new(clone!(
-                packed_file_path,
-                history_state => move |_, visual_base, visual_new| {
-                    if let Some(state) = history_state.borrow_mut().get_mut(&*packed_file_path.borrow()) {
+                packed_file_path => move |_, visual_base, visual_new| {
+                    if let Some(state) = HISTORY_TABLE_STATE.lock().unwrap().get_mut(&*packed_file_path.borrow()) {
                         state.columns_state.visual_order.push((visual_base, visual_new));
                     }
                 }
             )),
 
             slot_sort_order_column_changed: SlotCIntQtCoreQtSortOrder::new(clone!(
-                packed_file_path,
-                history_state => move |column, order| {
-                    if let Some(state) = history_state.borrow_mut().get_mut(&*packed_file_path.borrow()) {
+                packed_file_path => move |column, order| {
+                    if let Some(state) = HISTORY_TABLE_STATE.lock().unwrap().get_mut(&*packed_file_path.borrow()) {
                         state.columns_state.sorting_column = (column, if let SortOrder::Ascending = order { false } else { true });
                     }
                 }
@@ -619,8 +616,7 @@ impl PackedFileLocTreeView {
             )),
 
             slot_row_filter_change_text: SlotStringRef::new(clone!(
-                packed_file_path,
-                history_state => move |filter_text| {
+                packed_file_path => move |filter_text| {
                     filter_table(
                         Some(QString::from_std_str(filter_text.to_std_string())),
                         None,
@@ -631,13 +627,11 @@ impl PackedFileLocTreeView {
                         row_filter_case_sensitive_button,
                         update_search_stuff,
                         &packed_file_path,
-                        &history_state,
                     ); 
                 }
             )),
             slot_row_filter_change_column: SlotCInt::new(clone!(
-                packed_file_path,
-                history_state => move |index| {
+                packed_file_path => move |index| {
                     filter_table(
                         None,
                         Some(index),
@@ -648,13 +642,11 @@ impl PackedFileLocTreeView {
                         row_filter_case_sensitive_button,
                         update_search_stuff,
                         &packed_file_path,
-                        &history_state,
                     ); 
                 }
             )),
             slot_row_filter_change_case_sensitive: SlotBool::new(clone!(
-                packed_file_path,
-                history_state => move |case_sensitive| {
+                packed_file_path => move |case_sensitive| {
                     filter_table(
                         None,
                         None,
@@ -665,7 +657,6 @@ impl PackedFileLocTreeView {
                         row_filter_case_sensitive_button,
                         update_search_stuff,
                         &packed_file_path,
-                        &history_state,
                     ); 
                 }
             )),
@@ -1592,7 +1583,6 @@ impl PackedFileLocTreeView {
             slot_update_search_stuff: SlotNoArgs::new(clone!(
                 matches,
                 position,
-                history_state,
                 packed_file_path,
                 search_data => move || {
 
@@ -1696,7 +1686,7 @@ impl PackedFileLocTreeView {
                     }
 
                     // Add the new search data to the state history.
-                    if let Some(state) = history_state.borrow_mut().get_mut(&*packed_file_path.borrow()) {
+                    if let Some(state) = HISTORY_TABLE_STATE.lock().unwrap().get_mut(&*packed_file_path.borrow()) {
                         unsafe { state.search_state = SearchState::new(search_line_edit.as_mut().unwrap().text().to_std_string(), replace_line_edit.as_mut().unwrap().text().to_std_string(), column_selector.as_ref().unwrap().current_index(), case_sensitive_button.as_mut().unwrap().is_checked()); }
                     }
                 }
@@ -1705,7 +1695,6 @@ impl PackedFileLocTreeView {
             // Slot for the search button.
             slot_search: SlotNoArgs::new(clone!(
                 matches,
-                history_state,
                 packed_file_path,
                 position => move || {
 
@@ -1827,7 +1816,7 @@ impl PackedFileLocTreeView {
                             _ => unreachable!(),
                         }
                     );
-                    if let Some(state) = history_state.borrow_mut().get_mut(&*packed_file_path.borrow()) {
+                    if let Some(state) = HISTORY_TABLE_STATE.lock().unwrap().get_mut(&*packed_file_path.borrow()) {
                         unsafe { state.search_state = SearchState::new(search_line_edit.as_mut().unwrap().text().to_std_string(), replace_line_edit.as_mut().unwrap().text().to_std_string(), column_selector.as_ref().unwrap().current_index(), case_sensitive_button.as_mut().unwrap().is_checked()); }
                     }
                 }
@@ -2063,8 +2052,8 @@ impl PackedFileLocTreeView {
         unsafe { table_view.as_mut().unwrap().selection_model().as_ref().unwrap().signals().selection_changed().connect(&slots.slot_context_menu_enabler); }
 
         // If we got an entry for this PackedFile in the state's history, use it.
-        if history_state.borrow().get(&*packed_file_path.borrow()).is_some() {
-            if let Some(state_data) = history_state.borrow_mut().get_mut(&*packed_file_path.borrow()) {
+        if HISTORY_TABLE_STATE.lock().unwrap().get(&*packed_file_path.borrow()).is_some() {
+            if let Some(state_data) = HISTORY_TABLE_STATE.lock().unwrap().get_mut(&*packed_file_path.borrow()) {
 
                 // Block the signals during this, so we don't trigger a borrow error.
                 let mut blocker1 = unsafe { SignalBlocker::new(row_filter_line_edit.as_mut().unwrap().static_cast_mut() as &mut Object) };
@@ -2119,7 +2108,7 @@ impl PackedFileLocTreeView {
         }
 
         // Otherwise, we create a basic state.
-        else { history_state.borrow_mut().insert(packed_file_path.borrow().to_vec(), TableState::new_empty()); }
+        else { HISTORY_TABLE_STATE.lock().unwrap().insert(packed_file_path.borrow().to_vec(), TableState::new_empty()); }
 
         // Retrigger the filter, so the table get's updated properly.
         unsafe { row_filter_case_sensitive_button.as_mut().unwrap().set_checked(!row_filter_case_sensitive_button.as_mut().unwrap().is_checked()); }
@@ -2606,7 +2595,6 @@ fn filter_table(
     case_sensitive_button: *mut PushButton,
     update_search_stuff: *mut Action,
     packed_file_path: &Rc<RefCell<Vec<String>>>,
-    history_state: &Rc<RefCell<BTreeMap<Vec<String>, TableState>>>, 
 ) {
 
     // Set the pattern to search.
@@ -2636,7 +2624,7 @@ fn filter_table(
     unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
 
     // Add the new filter data to the state history.
-    if let Some(state) = history_state.borrow_mut().get_mut(&*packed_file_path.borrow()) {
+    if let Some(state) = HISTORY_TABLE_STATE.lock().unwrap().get_mut(&*packed_file_path.borrow()) {
         unsafe { state.filter_state = FilterState::new(filter_line_edit.as_mut().unwrap().text().to_std_string(), column_selector.as_mut().unwrap().current_index(), case_sensitive_button.as_mut().unwrap().is_checked()); }
     }
 }
