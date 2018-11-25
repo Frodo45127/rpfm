@@ -50604,7 +50604,7 @@
           "fields": [
             {
               "field_name": "effect",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "effects",
@@ -50614,7 +50614,7 @@
             },
             {
               "field_name": "bonus_value_id",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "campaign_bonus_value_ids_agent",
@@ -50624,7 +50624,7 @@
             },
             {
               "field_name": "agent",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "agents",
@@ -50724,7 +50724,7 @@
           "fields": [
             {
               "field_name": "effect",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "effects",
@@ -50734,7 +50734,7 @@
             },
             {
               "field_name": "bonus_value_id",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "campaign_bonus_value_ids_basic",
@@ -50914,8 +50914,8 @@
           "fields": [
             {
               "field_name": "effect",
-              "field_type": "StringU8",
-              "field_is_key": false,
+              "field_type": "StringU16",
+              "field_is_key": true,
               "field_is_reference": [
                 "effects",
                 "effect"
@@ -50924,8 +50924,8 @@
             },
             {
               "field_name": "bonus_value_id",
-              "field_type": "StringU8",
-              "field_is_key": false,
+              "field_type": "StringU16",
+              "field_is_key": true,
               "field_is_reference": [
                 "campaign_bonus_value_ids_building_chain",
                 "key"
@@ -50934,8 +50934,8 @@
             },
             {
               "field_name": "building_chain",
-              "field_type": "StringU8",
-              "field_is_key": false,
+              "field_type": "StringU16",
+              "field_is_key": true,
               "field_is_reference": [
                 "building_chains",
                 "key"
@@ -50979,6 +50979,46 @@
               "field_is_reference": [
                 "effects",
                 "effect"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "effect_bonus_value_commodity_junction_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "effect",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "effects",
+                "effect"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "bonus_value_id",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "campaign_bonus_value_ids_commodity",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "commodity",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "commodities",
+                "key"
               ],
               "field_description": ""
             }
@@ -51307,6 +51347,96 @@
       ]
     },
     {
+      "name": "effect_bonus_value_population_class_and_religion_junction_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "effect",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "effects",
+                "effect"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "bonus_value_id",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "campaign_bonus_value_ids_population_class_and_religion",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "population_class",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "population_classes",
+                "population_class"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "religion",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "religions",
+                "religion_key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "effect_bonus_value_population_class_junction_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "effect",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "effects",
+                "effect"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "bonus_value_id",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "campaign_bonus_value_ids_population_class",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "population_class",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "population_classes",
+                "population_class"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "effect_bonus_value_projectile_junctions_tables",
       "versions": [
         {
@@ -51394,7 +51524,7 @@
           "fields": [
             {
               "field_name": "effect",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "effects",
@@ -51404,7 +51534,7 @@
             },
             {
               "field_name": "bonus_value_id",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "campaign_bonus_value_ids_religion",
@@ -51414,7 +51544,7 @@
             },
             {
               "field_name": "religion",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "religions",
@@ -51434,7 +51564,7 @@
           "fields": [
             {
               "field_name": "effect",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "effects",
@@ -51444,7 +51574,7 @@
             },
             {
               "field_name": "bonus_value_id",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "campaign_bonus_value_ids_resource",
@@ -51454,7 +51584,7 @@
             },
             {
               "field_name": "resource",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "resources",
@@ -51498,6 +51628,46 @@
               "field_is_key": true,
               "field_is_reference": [
                 "rituals",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "effect_bonus_value_shot_type_junctions_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "effect",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "effects",
+                "effect"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "bonus_value_id",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "campaign_bonus_value_ids_projectile_shot_type_enum",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "shot_type",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "projectile_shot_type_enum",
                 "key"
               ],
               "field_description": ""
@@ -51714,7 +51884,7 @@
           "fields": [
             {
               "field_name": "effect",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "effects",
@@ -51724,7 +51894,7 @@
             },
             {
               "field_name": "bonus_value_id",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "campaign_bonus_value_ids_unit_ability",
@@ -51734,7 +51904,7 @@
             },
             {
               "field_name": "unit_ability",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "unit_abilities",
@@ -51794,17 +51964,17 @@
           "fields": [
             {
               "field_name": "bonus_value_id",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "campaign_bonus_value_ids_unit_caste",
                 "key"
               ],
-              "field_description": "delete this field if you see it"
+              "field_description": ""
             },
             {
               "field_name": "caste",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "unit_castes",
@@ -51814,7 +51984,7 @@
             },
             {
               "field_name": "effect",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "effects",
@@ -51834,8 +52004,8 @@
           "fields": [
             {
               "field_name": "effect",
-              "field_type": "StringU8",
-              "field_is_key": false,
+              "field_type": "StringU16",
+              "field_is_key": true,
               "field_is_reference": [
                 "effects",
                 "effect"
@@ -51844,16 +52014,22 @@
             },
             {
               "field_name": "bonus_value_id",
-              "field_type": "StringU8",
-              "field_is_key": false,
-              "field_is_reference": null,
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "campaign_bonus_value_ids_unit_category",
+                "key"
+              ],
               "field_description": ""
             },
             {
               "field_name": "unit_category",
-              "field_type": "StringU8",
-              "field_is_key": false,
-              "field_is_reference": null,
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "unit_category",
+                "key"
+              ],
               "field_description": ""
             }
           ]
@@ -51868,8 +52044,8 @@
           "fields": [
             {
               "field_name": "effect",
-              "field_type": "StringU8",
-              "field_is_key": false,
+              "field_type": "StringU16",
+              "field_is_key": true,
               "field_is_reference": [
                 "effects",
                 "effect"
@@ -51878,8 +52054,8 @@
             },
             {
               "field_name": "bonus_value_id",
-              "field_type": "StringU8",
-              "field_is_key": false,
+              "field_type": "StringU16",
+              "field_is_key": true,
               "field_is_reference": [
                 "campaign_bonus_value_ids_unit_class",
                 "key"
@@ -51888,8 +52064,8 @@
             },
             {
               "field_name": "unit_class",
-              "field_type": "StringU8",
-              "field_is_key": false,
+              "field_type": "StringU16",
+              "field_is_key": true,
               "field_is_reference": [
                 "unit_class",
                 "key"
@@ -51908,8 +52084,8 @@
           "fields": [
             {
               "field_name": "bonus_value_id",
-              "field_type": "StringU8",
-              "field_is_key": false,
+              "field_type": "StringU16",
+              "field_is_key": true,
               "field_is_reference": [
                 "campaign_bonus_value_ids_unit_records",
                 "key"
@@ -51918,7 +52094,7 @@
             },
             {
               "field_name": "effect",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "effects",
@@ -51928,11 +52104,11 @@
             },
             {
               "field_name": "unit_record_key",
-              "field_type": "StringU8",
-              "field_is_key": false,
+              "field_type": "StringU16",
+              "field_is_key": true,
               "field_is_reference": [
-                "main_units",
-                "unit"
+                "units",
+                "key"
               ],
               "field_description": ""
             }
@@ -52082,6 +52258,39 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "localised_description",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "localised_title",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "ui_icon",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -52136,6 +52345,38 @@
                 "effect_bundle_advancement_stages",
                 "key"
               ],
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "effect_bundle_key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "effect_bundles",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "effect_key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "effects",
+                "effect"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "value",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
               "field_description": ""
             }
           ]
@@ -52266,6 +52507,32 @@
             {
               "field_name": "icon_negative",
               "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "effect",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "icon",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "priority",
+              "field_type": "Integer",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
