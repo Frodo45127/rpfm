@@ -936,12 +936,14 @@ pub fn background_loop(
 
                     // In case we want to get the dependency data for a table's column....
                     Commands::DecodeDependencyDB => {
-                       
+
                         // Wait until we get the needed data from the UI thread.
                         let dependency_data = if let Data::StringString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
                         let mut data = vec![];
+                        let mut iter = DEPENDENCY_DATABASE.lock().unwrap();
+                        let mut iter = iter.iter_mut();
                         if !dependency_data.0.is_empty() && !dependency_data.1.is_empty() {
-                            while let Some(mut packed_file) = DEPENDENCY_DATABASE.lock().unwrap().iter_mut().find(|x| x.path.starts_with(&["db".to_owned(), format!("{}_tables", dependency_data.0)])) {
+                            while let Some(mut packed_file) = iter.find(|x| x.path.starts_with(&["db".to_owned(), format!("{}_tables", dependency_data.0)])) {
                                 if let Some(ref schema) = *SCHEMA.lock().unwrap() {
                                     if let Ok(table) = DB::read(&packed_file.get_data_and_keep_it().unwrap(), &format!("{}_tables", dependency_data.0), &schema) {
                                         if let Some(column_index) = table.table_definition.fields.iter().position(|x| x.field_name == dependency_data.1) {
