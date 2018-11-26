@@ -291,6 +291,7 @@ impl PackedFileDBTreeView {
         unsafe { table_view.as_mut().unwrap().set_sorting_enabled(true); }
         unsafe { table_view.as_mut().unwrap().sort_by_column((-1, SortOrder::Ascending)); }
         unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_sections_movable(true); }
+        unsafe { table_view.as_mut().unwrap().set_alternating_row_colors(true); };
 
         // Load the data to the Table. For some reason, if we do this after setting the titles of
         // the columns, the titles will be reseted to 1, 2, 3,... so we do this here.
@@ -3187,6 +3188,7 @@ impl PackedFileDBDecoder {
         unsafe { table_view.as_mut().unwrap().set_model(table_model as *mut AbstractItemModel); }
         unsafe { table_view.as_mut().unwrap().set_context_menu_policy(ContextMenuPolicy::Custom); }
         unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_stretch_last_section(true); }
+        unsafe { table_view.as_mut().unwrap().set_alternating_row_colors(true); };
 
         // Create the Contextual Menu for the TableView.
         let mut table_view_context_menu = Menu::new(());
@@ -3353,6 +3355,7 @@ impl PackedFileDBDecoder {
         let table_view_old_versions = TableView::new().into_raw();
         let table_model_old_versions = StandardItemModel::new(()).into_raw();
         unsafe { table_view_old_versions.as_mut().unwrap().set_model(table_model_old_versions as *mut AbstractItemModel); }
+        unsafe { table_view_old_versions.as_mut().unwrap().set_alternating_row_colors(true); };
 
         // Set it as not editable.
         unsafe { table_view_old_versions.as_mut().unwrap().set_edit_triggers(Flags::from_enum(EditTrigger::NoEditTriggers)); };
