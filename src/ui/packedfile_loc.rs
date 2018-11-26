@@ -1107,7 +1107,7 @@ impl PackedFileLocTreeView {
                             // so we have to do the same check ourselfs and skip the repeated values.
                             if unsafe { cell.0.as_mut().unwrap().is_checkable() } {
                                 let current_value = unsafe { cell.0.as_mut().unwrap().check_state() };
-                                let new_value = if cell.1 == "true" { CheckState::Checked } else { CheckState::Unchecked };
+                                let new_value = if cell.1.to_lowercase() == "true" || cell.1 == "1" { CheckState::Checked } else { CheckState::Unchecked };
                                 if current_value != new_value { 
                                     unsafe { cell.0.as_mut().unwrap().set_check_state(new_value); }
                                     changed_cells += 1;
@@ -1167,7 +1167,7 @@ impl PackedFileLocTreeView {
                                 // so we have to do the same check ourselfs and skip the repeated values.
                                 if unsafe { item.as_mut().unwrap().is_checkable() } {
                                     let current_value = unsafe { item.as_mut().unwrap().check_state() };
-                                    let new_value = if text == "true" { CheckState::Checked } else { CheckState::Unchecked };
+                                    let new_value = if text.to_lowercase() == "true" || text == "1"  { CheckState::Checked } else { CheckState::Unchecked };
                                     if current_value != new_value { 
                                         unsafe { item.as_mut().unwrap().set_check_state(new_value); }
                                         changed_cells += 1;
@@ -1239,7 +1239,7 @@ impl PackedFileLocTreeView {
                             if column_logical_index == 2 {
                                 item.set_editable(false);
                                 item.set_checkable(true);
-                                item.set_check_state(if cell.to_lowercase() == "true" { CheckState::Checked } else { CheckState::Unchecked });
+                                item.set_check_state(if cell.to_lowercase() == "true" || *cell == "1" { CheckState::Checked } else { CheckState::Unchecked });
                                 item.set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green }));
                             }
 
@@ -2510,7 +2510,7 @@ fn check_clipboard(
 
         // If it's checkable, we need to see if his text it's a bool. Otherwise, it's just a string.
         if unsafe { cell.0.as_mut().unwrap().is_checkable() } {
-            if cell.1 == "true" || cell.1 == "false" { continue } else { return false }
+            if cell.1.to_lowercase() != "true" && cell.1.to_lowercase() != "false" && cell.1 != "1" && cell.1 != "0" { return false }
         } else { continue }
     }
 
@@ -2541,7 +2541,7 @@ fn check_clipboard_to_fill_selection(
 
             // If it's checkable, we need to see if his text it's a bool. Otherwise, it's just a string.
             if unsafe { item.as_mut().unwrap().is_checkable() } {
-                if text == "true" || text == "false" { continue } else { return false }
+                if text.to_lowercase() != "true" && text.to_lowercase() != "false" && text != "1" && text != "0" { return false }
             } else { continue }
         }
     }
@@ -2572,8 +2572,7 @@ fn check_clipboard_append_rows(
         // If the column is "Tooltip", ensure it's a boolean.
         let column_logical_index = unsafe { table_view.as_ref().unwrap().horizontal_header().as_ref().unwrap().logical_index(column) };
         if column_logical_index == 2 {
-            let cell = cell.to_lowercase();
-            if cell != "true" && cell != "false" { return false }
+            if cell.to_lowercase() != "true" && cell.to_lowercase() != "false" && cell != "1" && cell != "0" { return false }
         }
 
         // Reset or increase the column count, if needed.

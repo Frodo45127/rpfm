@@ -1546,7 +1546,7 @@ impl PackedFileDBTreeView {
 
                                 FieldType::Boolean => {
                                     let current_value = unsafe { cell.0.as_mut().unwrap().check_state() };
-                                    let new_value = if cell.1 == "true" { CheckState::Checked } else { CheckState::Unchecked };
+                                    let new_value = if cell.1.to_lowercase() == "true" || cell.1 == "1" { CheckState::Checked } else { CheckState::Unchecked };
                                     if current_value != new_value { 
                                         unsafe { cell.0.as_mut().unwrap().set_check_state(new_value); }
                                         changed_cells += 1;
@@ -1647,7 +1647,7 @@ impl PackedFileDBTreeView {
                                 FieldType::Boolean => {
                                     item.set_editable(false);
                                     item.set_checkable(true);
-                                    item.set_check_state(if cell.to_lowercase() == "true" { CheckState::Checked } else { CheckState::Unchecked });
+                                    item.set_check_state(if cell.to_lowercase() == "true" || *cell == "1" { CheckState::Checked } else { CheckState::Unchecked });
                                     item.set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green }));
                                 },
                                 
@@ -1810,7 +1810,7 @@ impl PackedFileDBTreeView {
                                 match table_definition.fields[column as usize].field_type {
                                     FieldType::Boolean => {
                                         let current_value = unsafe { item.as_mut().unwrap().check_state() };
-                                        let new_value = if text == "true" { CheckState::Checked } else { CheckState::Unchecked };
+                                        let new_value = if text.to_lowercase() == "true" || text == "1" { CheckState::Checked } else { CheckState::Unchecked };
                                         if current_value != new_value { 
                                             unsafe { item.as_mut().unwrap().set_check_state(new_value); }
                                             changed_cells += 1;
@@ -5219,10 +5219,10 @@ fn check_clipboard(
         // Depending on the column, we try to encode the data in one format or another.
         let column = unsafe { cell.0.as_mut().unwrap().index().column() };
         match definition.fields[column as usize].field_type {
-            FieldType::Boolean => if cell.1 == "true" || cell.1 == "false" { continue } else { return false },
-            FieldType::Float => if cell.1.parse::<f32>().is_ok() { continue } else { return false },
-            FieldType::Integer => if cell.1.parse::<i32>().is_ok() { continue } else { return false },
-            FieldType::LongInteger => if cell.1.parse::<i64>().is_ok() { continue } else { return false },
+            FieldType::Boolean =>  if cell.1.to_lowercase() != "true" && cell.1.to_lowercase() != "false" && cell.1 != "1" && cell.1 != "0" { return false },
+            FieldType::Float => if cell.1.parse::<f32>().is_err() { return false },
+            FieldType::Integer => if cell.1.parse::<i32>().is_err() { return false },
+            FieldType::LongInteger => if cell.1.parse::<i64>().is_err() { return false },
 
             // All these are Strings, so we can skip their checks....
             FieldType::StringU8 |
@@ -5261,16 +5261,16 @@ fn check_clipboard_to_fill_selection(
             let item = unsafe { model.as_mut().unwrap().item_from_index(&model_index) };
             let column = unsafe { item.as_mut().unwrap().index().column() };
             match definition.fields[column as usize].field_type {
-                FieldType::Boolean => if text == "true" || text == "false" { continue } else { return false },
-                FieldType::Float => if text.parse::<f32>().is_ok() { continue } else { return false },
-                FieldType::Integer => if text.parse::<i32>().is_ok() { continue } else { return false },
-                FieldType::LongInteger => if text.parse::<i64>().is_ok() { continue } else { return false },
+                FieldType::Boolean => if text.to_lowercase() != "true" && text.to_lowercase() != "false" && text != "1" && text != "0" { return false },
+                FieldType::Float => if text.parse::<f32>().is_err() { return false },
+                FieldType::Integer => if text.parse::<i32>().is_err() { return false },
+                FieldType::LongInteger => if text.parse::<i64>().is_err() { return false },
 
                 // All these are Strings, so we can skip their checks....
                 FieldType::StringU8 |
                 FieldType::StringU16 |
                 FieldType::OptionalStringU8 |
-                FieldType::OptionalStringU16 => continue
+                FieldType::OptionalStringU16 => {}
             }
         }
     }
@@ -5301,7 +5301,7 @@ fn check_clipboard_append_rows(
         // Depending on the column, we try to encode the data in one format or another.
         let column_logical_index = unsafe { table_view.as_ref().unwrap().horizontal_header().as_ref().unwrap().logical_index(column) };
         match definition.fields[column_logical_index as usize].field_type {
-            FieldType::Boolean => if cell.to_lowercase() != "true" && cell.to_lowercase() != "false" { return false },
+            FieldType::Boolean => if cell.to_lowercase() != "true" && cell.to_lowercase() != "false" && cell != "1" && cell != "0" { return false },
             FieldType::Float => if cell.parse::<f32>().is_err() { return false },
             FieldType::Integer => if cell.parse::<i32>().is_err() { return false },
             FieldType::LongInteger => if cell.parse::<i64>().is_err() { return false },
