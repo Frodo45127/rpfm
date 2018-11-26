@@ -53,7 +53,7 @@ use Data;
 use QString;
 use common::*;
 use common::communications::*;
-use error::{Error, ErrorKind, Result};
+use error::{ErrorKind, Result};
 use ui::*;
 use ui::table_state::*;
 

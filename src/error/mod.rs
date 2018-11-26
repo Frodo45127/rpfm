@@ -150,9 +150,6 @@ pub enum ErrorKind {
     // Error for when we try to open a table with a List field on it.
     DBTableContainsListField,
 
-    // Error for when data fails to get parsed while encoding DB Tables.
-    DBTableParse,
-
     // Error for when we are trying to use "Search&Replace" to place invalid data into a cell.
     DBTableReplaceInvalidData,
 
@@ -438,7 +435,6 @@ impl Display for ErrorKind {
             //--------------------------------//
             ErrorKind::DBTableIsNotADBTable => write!(f, "<p>This is either not a DB Table, or it's a DB Table but it's corrupted.</p>"),
             ErrorKind::DBTableContainsListField => write!(f, "<p>This specific table version uses a currently unimplemented type (List), so is undecodeable, for now.</p>"),
-            ErrorKind::DBTableParse => write!(f, "<p>Error while trying to save the DB Table.</p><p>This is probably caused by one of the fields you just changed. Please, make sure the data in that field it's of the correct type.</p>"),
             ErrorKind::DBTableReplaceInvalidData => write!(f, "<p>Error while trying to replace the data of a Cell.</p><p>This means you tried to replace a number cell with text, or used a too big, too low or invalid number. Don't do it. It wont end well.</p>"),
             ErrorKind::DBTableApplyMathsOverflow => write!(f, "<p>The operation you just tried to do gives an invalid result. This means that the result value is bigger or lower than the maximum or minimum admited by the type in the cells.</p>"),
             ErrorKind::DBTableDecode(cause) => write!(f, "<p>Error while trying to decode the DB Table:</p><p>{}</p>", cause),
