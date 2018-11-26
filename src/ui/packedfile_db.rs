@@ -725,7 +725,6 @@ impl PackedFileDBTreeView {
                 app_ui,
                 is_modified,
                 packed_file_data,
-                history_redo,
                 sender_qt,
                 sender_qt_data => move |_,_,roles| {
 
@@ -736,7 +735,7 @@ impl PackedFileDBTreeView {
 
                         // Try to save the PackedFile to the main PackFile. If it fails, revert the last change, 
                         // In theory, only a manual bad edit or a replace current/all of a number column are the only things that can cause this to fail. 
-                        if let Err(_) = Self::save_to_packed_file(
+                        if let Err(error) = Self::save_to_packed_file(
                             &sender_qt,
                             &sender_qt_data,
                             &is_modified,
@@ -746,16 +745,10 @@ impl PackedFileDBTreeView {
                             model,
                             &global_search_explicit_paths,
                             update_global_search_stuff,
-                        ) { 
-
-                            // After the undo, make sure to remove the automatically-created redo operation.
-                            unsafe { context_menu_undo.as_mut().unwrap().trigger(); }
-                            history_redo.borrow_mut().pop();
-                            unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
-                        }
+                        ) { show_dialog(app_ui.window, false, error); }
 
                         // Otherwise, update the needed stuff.
-                        else { unsafe { update_search_stuff.as_mut().unwrap().trigger(); }}
+                        unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
                     }
                 }
             )),
@@ -859,15 +852,22 @@ impl PackedFileDBTreeView {
                                 item.set_checkable(true);
                                 item.set_check_state(CheckState::Checked);
                                 item
-                            }
-
-                            FieldType::Float => StandardItem::new(&QString::from_std_str(format!("{}", 0.0))),
-                            FieldType::Integer => {
+                            },
+                            FieldType::Float => {
                                 let mut item = StandardItem::new(());
-                                item.set_data((&Variant::new0(0), 2));
+                                item.set_data((&Variant::new2(0.0f32), 2));
                                 item
                             },
-                            FieldType::LongInteger => StandardItem::new(&QString::from_std_str(format!("{}", 0))),
+                            FieldType::Integer => {
+                                let mut item = StandardItem::new(());
+                                item.set_data((&Variant::new0(0i32), 2));
+                                item
+                            },
+                            FieldType::LongInteger => {
+                                let mut item = StandardItem::new(());
+                                item.set_data((&Variant::new2(0i64), 2));
+                                item
+                            },
 
                             // All these are Strings, so it can be together.
                             FieldType::StringU8 |
@@ -914,16 +914,22 @@ impl PackedFileDBTreeView {
                                 item.set_checkable(true);
                                 item.set_check_state(CheckState::Checked);
                                 item
-                            }
-
-                            FieldType::Float => StandardItem::new(&QString::from_std_str(format!("{}", 0.0))),
-                            FieldType::Integer => {
+                            },
+                            FieldType::Float => {
                                 let mut item = StandardItem::new(());
-                                item.set_data((&Variant::new0(0), 2));
+                                item.set_data((&Variant::new2(0.0f32), 2));
                                 item
                             },
-                            FieldType::LongInteger => StandardItem::new(&QString::from_std_str(format!("{}", 0))),
-
+                            FieldType::Integer => {
+                                let mut item = StandardItem::new(());
+                                item.set_data((&Variant::new0(0i32), 2));
+                                item
+                            },
+                            FieldType::LongInteger => {
+                                let mut item = StandardItem::new(());
+                                item.set_data((&Variant::new2(0i64), 2));
+                                item
+                            },
                             // All these are Strings, so it can be together.
                             FieldType::StringU8 |
                             FieldType::StringU16 |
@@ -1035,7 +1041,7 @@ impl PackedFileDBTreeView {
                                 // For Integers and Long Integers is easy. Just try to do the operation and return an error if it fails.
                                 let field_type = &table_definition.fields[model_index.column() as usize].field_type;
                                 if *field_type == FieldType::LongInteger || *field_type == FieldType::Integer {
-                                    let value_to_operate = unsafe { model.as_ref().unwrap().item_from_index(model_index).as_ref().unwrap().text().to_std_string().parse::<i64>().unwrap() };
+                                    let value_to_operate = unsafe { model.as_ref().unwrap().item_from_index(model_index).as_ref().unwrap().data(2).to_long_long() };
 
                                     let result = match &*operation {
                                         "+" => value_to_operate.checked_add(value.round() as i64),
@@ -1063,7 +1069,7 @@ impl PackedFileDBTreeView {
                                 // There is not a built-in method to check for overflow with floats, so we have to do some thinking.
                                 // Yo, maths! Ere I go again!
                                 else if *field_type == FieldType::Float {
-                                    let value_to_operate = unsafe { model.as_ref().unwrap().item_from_index(model_index).as_ref().unwrap().text().to_std_string().parse::<f64>().unwrap() };
+                                    let value_to_operate = unsafe { model.as_ref().unwrap().item_from_index(model_index).as_ref().unwrap().data(2).to_double() };
 
                                     let result = match &*operation {
                                         "+" => value_to_operate + value,
@@ -1087,8 +1093,8 @@ impl PackedFileDBTreeView {
                             let model_index = indexes.at(index);
                             match results[index as usize] {
                                 MathOperationResult::Integer(x) => unsafe { model.as_mut().unwrap().item_from_index(model_index).as_mut().unwrap().set_data((&Variant::new0(x), 2)) },
-                                MathOperationResult::LongInteger(x) => unsafe { model.as_mut().unwrap().item_from_index(model_index).as_mut().unwrap().set_text(&QString::from_std_str(format!("{}", x))) }
-                                MathOperationResult::Float(x) => unsafe { model.as_mut().unwrap().item_from_index(model_index).as_mut().unwrap().set_text(&QString::from_std_str(format!("{}", x))) }
+                                MathOperationResult::LongInteger(x) => unsafe { model.as_mut().unwrap().item_from_index(model_index).as_mut().unwrap().set_data((&Variant::new2(x), 2)) },
+                                MathOperationResult::Float(x) => unsafe { model.as_mut().unwrap().item_from_index(model_index).as_mut().unwrap().set_data((&Variant::new2(x), 2)) }
                                 MathOperationResult::None => continue,
                             }
                         }
@@ -1547,10 +1553,26 @@ impl PackedFileDBTreeView {
                                     }
                                 },
 
+                                FieldType::Float => {
+                                    let current_value = unsafe { cell.0.as_mut().unwrap().text().to_std_string() };
+                                    if &*current_value != cell.1 {
+                                        unsafe { cell.0.as_mut().unwrap().set_data((&Variant::new2(cell.1.parse::<f32>().unwrap()), 2)); }
+                                        changed_cells += 1;
+                                    }
+                                },
+
                                 FieldType::Integer => {
                                     let current_value = unsafe { cell.0.as_mut().unwrap().text().to_std_string() };
                                     if &*current_value != cell.1 {
                                         unsafe { cell.0.as_mut().unwrap().set_data((&Variant::new0(cell.1.parse::<i32>().unwrap()), 2)); }
+                                        changed_cells += 1;
+                                    }
+                                },
+
+                                FieldType::LongInteger => {
+                                    let current_value = unsafe { cell.0.as_mut().unwrap().text().to_std_string() };
+                                    if &*current_value != cell.1 {
+                                        unsafe { cell.0.as_mut().unwrap().set_data((&Variant::new2(cell.1.parse::<i64>().unwrap()), 2)); }
                                         changed_cells += 1;
                                     }
                                 },
@@ -1628,10 +1650,19 @@ impl PackedFileDBTreeView {
                                     item.set_check_state(if cell.to_lowercase() == "true" { CheckState::Checked } else { CheckState::Unchecked });
                                     item.set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green }));
                                 },
+                                
+                                FieldType::Float => {
+                                    item.set_data((&Variant::new2(cell.parse::<f32>().unwrap()), 2));
+                                    item.set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                                },
 
-                                // Integers need to be created appart of the rest here.
                                 FieldType::Integer => {
                                     item.set_data((&Variant::new0(cell.parse::<i32>().unwrap()), 2));
+                                    item.set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                                },
+
+                                FieldType::LongInteger => {
+                                    item.set_data((&Variant::new2(cell.parse::<i64>().unwrap()), 2));
                                     item.set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green }));
                                 },
 
@@ -1689,13 +1720,23 @@ impl PackedFileDBTreeView {
                                         item
                                     }
 
-                                    FieldType::Float => StandardItem::new(&QString::from_std_str(format!("{}", 0.0))),
-                                    FieldType::Integer => {
+                                    FieldType::Float => {
                                         let mut item = StandardItem::new(());
-                                        item.set_data((&Variant::new0(0), 2));
+                                        item.set_data((&Variant::new2(0.0f32), 2));
                                         item
                                     },
-                                    FieldType::LongInteger => StandardItem::new(&QString::from_std_str(format!("{}", 0))),
+
+                                    FieldType::Integer => {
+                                        let mut item = StandardItem::new(());
+                                        item.set_data((&Variant::new0(0i32), 2));
+                                        item
+                                    },
+                                    
+                                    FieldType::LongInteger => {
+                                        let mut item = StandardItem::new(());
+                                        item.set_data((&Variant::new2(0i64), 2));
+                                        item
+                                    },
 
                                     // All these are Strings, so it can be together.
                                     FieldType::StringU8 |
@@ -1776,10 +1817,26 @@ impl PackedFileDBTreeView {
                                         }
                                     },
 
+                                    FieldType::Float => {
+                                        let current_value = unsafe { item.as_mut().unwrap().text().to_std_string() };
+                                        if &*current_value != text {
+                                            unsafe { item.as_mut().unwrap().set_data((&Variant::new2(text.parse::<f32>().unwrap()), 2)); }
+                                            changed_cells += 1;
+                                        }
+                                    },
+
                                     FieldType::Integer => {
                                         let current_value = unsafe { item.as_mut().unwrap().text().to_std_string() };
                                         if &*current_value != text {
                                             unsafe { item.as_mut().unwrap().set_data((&Variant::new0(text.parse::<i32>().unwrap()), 2)); }
+                                            changed_cells += 1;
+                                        }
+                                    },
+
+                                    FieldType::LongInteger => {
+                                        let current_value = unsafe { item.as_mut().unwrap().text().to_std_string() };
+                                        if &*current_value != text {
+                                            unsafe { item.as_mut().unwrap().set_data((&Variant::new2(text.parse::<i64>().unwrap()), 2)); }
                                             changed_cells += 1;
                                         }
                                     },
@@ -1981,17 +2038,26 @@ impl PackedFileDBTreeView {
                                         let current_value = unsafe { item.as_mut().unwrap().text().to_std_string() };
                                         if !current_value.is_empty() {
                                             unsafe { edits.push(((*key, *column), (&*item).clone())); }
-                                            unsafe { item.as_mut().unwrap().set_text(&QString::from_std_str("0.0")); }
+                                            unsafe { item.as_mut().unwrap().set_data((&Variant::new2(0.0f32), 2)); }
                                         }
                                     }
 
-                                    FieldType::Integer | FieldType::LongInteger => {
+                                    FieldType::Integer => {
                                         let current_value = unsafe { item.as_mut().unwrap().text().to_std_string() };
                                         if !current_value.is_empty() {
                                             unsafe { edits.push(((*key, *column), (&*item).clone())); }
-                                            unsafe { item.as_mut().unwrap().set_data((&Variant::new0(0), 2)); }
+                                            unsafe { item.as_mut().unwrap().set_data((&Variant::new0(0i32), 2)); }
                                         }
                                     }
+
+                                    FieldType::LongInteger => {
+                                        let current_value = unsafe { item.as_mut().unwrap().text().to_std_string() };
+                                        if !current_value.is_empty() {
+                                            unsafe { edits.push(((*key, *column), (&*item).clone())); }
+                                            unsafe { item.as_mut().unwrap().set_data((&Variant::new2(0i64), 2)); }
+                                        }
+                                    }
+
                                     _ => {
                                         let current_value = unsafe { item.as_mut().unwrap().text().to_std_string() };
                                         if !current_value.is_empty() {
@@ -2378,7 +2444,9 @@ impl PackedFileDBTreeView {
                         } else { return }
 
                         match table_definition.fields[unsafe { item.as_mut().unwrap().column() as usize }].field_type {
+                            FieldType::Float => unsafe { item.as_mut().unwrap().set_data((&Variant::new2(replaced_text.parse::<f32>().unwrap()), 2)); }
                             FieldType::Integer => unsafe { item.as_mut().unwrap().set_data((&Variant::new0(replaced_text.parse::<i32>().unwrap()), 2)); }
+                            FieldType::LongInteger => unsafe { item.as_mut().unwrap().set_data((&Variant::new2(replaced_text.parse::<i64>().unwrap()), 2)); }
                             _ => unsafe { item.as_mut().unwrap().set_text(&QString::from_std_str(&replaced_text)); }
                         }
 
@@ -2450,7 +2518,9 @@ impl PackedFileDBTreeView {
                             let item = unsafe { model.as_mut().unwrap().item(((data.0).0, (data.0).1)) };
 
                             match table_definition.fields[unsafe { item.as_mut().unwrap().column() as usize }].field_type {
+                                FieldType::Float => unsafe { item.as_mut().unwrap().set_data((&Variant::new2(data.1.parse::<f32>().unwrap()), 2)); }
                                 FieldType::Integer => unsafe { item.as_mut().unwrap().set_data((&Variant::new0(data.1.parse::<i32>().unwrap()), 2)); }
+                                FieldType::LongInteger => unsafe { item.as_mut().unwrap().set_data((&Variant::new2(data.1.parse::<i64>().unwrap()), 2)); }
                                 _ => unsafe { item.as_mut().unwrap().set_text(&QString::from_std_str(&data.1)); }
                             }
 
@@ -2639,27 +2709,32 @@ impl PackedFileDBTreeView {
                     }
 
                     // Floats need to be tweaked to fix trailing zeroes and precission issues, like turning 0.5000004 into 0.5.
+                    // Also, they should be limited to 3 decimals.
                     DecodedData::Float(ref data) => {
                         let data = {
                             let data_str = format!("{}", data);
-
-                            // If we have more than 3 decimals, we limit it to three, then do magic to remove trailing zeroes.
                             if let Some(position) = data_str.find('.') {
                                 let decimals = &data_str[position..].len();
-                                if decimals > &3 { format!("{}", format!("{:.3}", data).parse::<f32>().unwrap()) }
-                                else { data_str }
+                                if decimals > &3 { format!("{:.3}", data).parse::<f32>().unwrap() }
+                                else { *data }
                             }
-                            else { data_str }
+                            else { *data }
                         };
-                        StandardItem::new(&QString::from_std_str(data))
+
+                        let mut item = StandardItem::new(());
+                        item.set_data((&Variant::new2(data), 2));
+                        item
                     },
                     DecodedData::Integer(ref data) => {
                         let mut item = StandardItem::new(());
                         item.set_data((&Variant::new0(*data), 2));
                         item
                     },
-                    DecodedData::LongInteger(ref data) => StandardItem::new(&QString::from_std_str(format!("{}", data))),
-
+                    DecodedData::LongInteger(ref data) => {
+                        let mut item = StandardItem::new(());
+                        item.set_data((&Variant::new2(*data), 2));
+                        item
+                    },
                     // All these are Strings, so it can be together,
                     DecodedData::StringU8(ref data) |
                     DecodedData::StringU16(ref data) |
@@ -2690,15 +2765,21 @@ impl PackedFileDBTreeView {
                         item.set_check_state(CheckState::Checked);
                         item
                     }
-
-                    FieldType::Float => StandardItem::new(&QString::from_std_str(format!("{}", 0.0))),
-                    FieldType::Integer => {
+                    FieldType::Float => {
                         let mut item = StandardItem::new(());
-                        item.set_data((&Variant::new0(0), 2));
+                        item.set_data((&Variant::new2(0.0f32), 2));
                         item
                     },
-                    FieldType::LongInteger => StandardItem::new(&QString::from_std_str(format!("{}", 0))),
-
+                    FieldType::Integer => {
+                        let mut item = StandardItem::new(());
+                        item.set_data((&Variant::new0(0i32), 2));
+                        item
+                    },
+                    FieldType::LongInteger => {
+                        let mut item = StandardItem::new(());
+                        item.set_data((&Variant::new2(0i64), 2));
+                        item
+                    },
                     FieldType::StringU8 |
                     FieldType::StringU16 |
                     FieldType::OptionalStringU8 |
@@ -2708,6 +2789,22 @@ impl PackedFileDBTreeView {
             }
             unsafe { model.as_mut().unwrap().append_row(&qlist); }
             unsafe { model.as_mut().unwrap().remove_rows((0, 1)); }
+        }
+
+        // Here we assing the ItemDelegates, so each type has his own widget with validation included.
+        // LongInteger uses normal string controls due to QSpinBox being limited to i32.
+        // The rest don't need any kind of validation. For now.
+        for (column, field) in packed_file_data.table_definition.fields.iter().enumerate() {
+            match field.field_type {
+                FieldType::Boolean => {},
+                FieldType::Float => unsafe { qt_custom_stuff::new_doublespinbox_item_delegate(table_view as *mut Object, column as i32) },
+                FieldType::Integer => unsafe { qt_custom_stuff::new_spinbox_item_delegate(table_view as *mut Object, column as i32, 32) },
+                FieldType::LongInteger => unsafe { qt_custom_stuff::new_spinbox_item_delegate(table_view as *mut Object, column as i32, 64) },
+                FieldType::StringU8 => {},
+                FieldType::StringU16 => {},
+                FieldType::OptionalStringU8 => {},
+                FieldType::OptionalStringU16 => {},
+            }
         }
 
         // We build the combos lists here, so it get's rebuilt if we import a TSV and clear the table.   
@@ -2743,9 +2840,9 @@ impl PackedFileDBTreeView {
                         FieldType::Boolean => DecodedData::Boolean(if model.as_mut().unwrap().item((row as i32, column as i32)).as_mut().unwrap().check_state() == CheckState::Checked { true } else { false }),
 
                         // Numbers need parsing, and this can fail.
-                        FieldType::Float => DecodedData::Float(QString::to_std_string(&model.as_mut().unwrap().item((row as i32, column as i32)).as_mut().unwrap().text()).parse::<f32>().map_err(|_| Error::from(ErrorKind::DBTableParse))?),
-                        FieldType::Integer => DecodedData::Integer(QString::to_std_string(&model.as_mut().unwrap().item((row as i32, column as i32)).as_mut().unwrap().text()).parse::<i32>().map_err(|_| Error::from(ErrorKind::DBTableParse))?),
-                        FieldType::LongInteger => DecodedData::LongInteger(QString::to_std_string(&model.as_mut().unwrap().item((row as i32, column as i32)).as_mut().unwrap().text()).parse::<i64>().map_err(|_| Error::from(ErrorKind::DBTableParse))?),
+                        FieldType::Float => DecodedData::Float(model.as_mut().unwrap().item((row as i32, column as i32)).as_mut().unwrap().data(2).to_float()),
+                        FieldType::Integer => DecodedData::Integer(model.as_mut().unwrap().item((row as i32, column as i32)).as_mut().unwrap().data(2).to_int()),
+                        FieldType::LongInteger => DecodedData::LongInteger(model.as_mut().unwrap().item((row as i32, column as i32)).as_mut().unwrap().data(2).to_long_long()),
 
                         // All these are just normal Strings.
                         FieldType::StringU8 => DecodedData::StringU8(QString::to_std_string(&model.as_mut().unwrap().item((row as i32, column as i32)).as_mut().unwrap().text())),
@@ -2781,7 +2878,7 @@ impl PackedFileDBTreeView {
     ) -> Result<()> {
 
         // Update the DB with the data in the table, or report error if it fails.
-        if let Err(error) = Self::return_data_from_table_view(&mut data.borrow_mut(), model) { return Err(error) }
+        Self::return_data_from_table_view(&mut data.borrow_mut(), model)?;
 
         // Tell the background thread to start saving the PackedFile.
         sender_qt.send(Commands::EncodePackedFileDB).unwrap();
