@@ -4316,18 +4316,37 @@ impl PackedFileDBDecoder {
 
         // If we are loading data to the table for the first time, we'll load to the table all the data
         // directly from the existing definition and update the initial index for decoding.
+        // If there is no data in the definition, we'll add an empty row and delete it, so the table remembers the
+        // columns data.
         if field_list.0 {
-            for field in field_list.1 {
+            if field_list.1.is_empty() {
                 Self::add_field_to_data_view(
                     &stuff,
                     &stuff_non_ui,
-                    &field.field_name,
-                    field.field_type.to_owned(),
-                    field.field_is_key,
-                    &field.field_is_reference,
-                    &field.field_description,
+                    "",
+                    FieldType::Boolean,
+                    false,
+                    &None,
+                    "",
                     &mut index_data,
                 );
+                unsafe { stuff.table_model.as_mut().unwrap().remove_rows((0, 1)); }
+                unsafe { stuff.table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().resize_sections(ResizeMode::ResizeToContents); }
+            }
+
+            else {
+                for field in field_list.1 {
+                    Self::add_field_to_data_view(
+                        &stuff,
+                        &stuff_non_ui,
+                        &field.field_name,
+                        field.field_type.to_owned(),
+                        field.field_is_key,
+                        &field.field_is_reference,
+                        &field.field_description,
+                        &mut index_data,
+                    );
+                }
             }
         }
 
