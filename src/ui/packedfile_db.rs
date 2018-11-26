@@ -733,9 +733,8 @@ impl PackedFileDBTreeView {
                     // 16 is a role we use as an special trigger for this.
                     if roles.contains(&0) || roles.contains(&2) || roles.contains(&10) || roles.contains(&16) {
 
-                        // Try to save the PackedFile to the main PackFile. If it fails, revert the last change, 
-                        // In theory, only a manual bad edit or a replace current/all of a number column are the only things that can cause this to fail. 
-                        if let Err(error) = Self::save_to_packed_file(
+                        // Thanks to validation, this should NEVER fail. If this fails, revise the validation stuff.
+                        Self::save_to_packed_file(
                             &sender_qt,
                             &sender_qt_data,
                             &is_modified,
@@ -745,7 +744,7 @@ impl PackedFileDBTreeView {
                             model,
                             &global_search_explicit_paths,
                             update_global_search_stuff,
-                        ) { show_dialog(app_ui.window, false, error); }
+                        );
 
                         // Otherwise, update the needed stuff.
                         unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
@@ -996,7 +995,7 @@ impl PackedFileDBTreeView {
 
                     // If we deleted something, try to save the PackedFile to the main PackFile. This cannot fail here, so we can ignore the result
                     if !rows.is_empty() {
-                        let _y = Self::save_to_packed_file(
+                        Self::save_to_packed_file(
                             &sender_qt,
                             &sender_qt_data,
                             &is_modified,
@@ -1211,7 +1210,7 @@ impl PackedFileDBTreeView {
 
                     // If we cloned something, try to save the PackedFile to the main PackFile.
                     if !rows.is_empty() {
-                        let _y = Self::save_to_packed_file(
+                        Self::save_to_packed_file(
                             &sender_qt,
                             &sender_qt_data,
                             &is_modified,
@@ -1278,7 +1277,7 @@ impl PackedFileDBTreeView {
 
                     // If we cloned something, try to save the PackedFile to the main PackFile.
                     if !rows.is_empty() {
-                        let _y = Self::save_to_packed_file(
+                        Self::save_to_packed_file(
                             &sender_qt,
                             &sender_qt_data,
                             &is_modified,
@@ -1757,7 +1756,7 @@ impl PackedFileDBTreeView {
 
                         // If we pasted something, try to save the PackedFile to the main PackFile.
                         if !text.is_empty() {
-                            let _y = Self::save_to_packed_file(
+                            Self::save_to_packed_file(
                                 &sender_qt,
                                 &sender_qt_data,
                                 &is_modified,
@@ -1924,7 +1923,7 @@ impl PackedFileDBTreeView {
                         let old_data = packed_file_data.borrow().clone();
 
                         // Try to save the PackedFile to the main PackFile.
-                        let _y = Self::save_to_packed_file(
+                        Self::save_to_packed_file(
                             &sender_qt,
                             &sender_qt_data,
                             &is_modified,
@@ -2072,7 +2071,7 @@ impl PackedFileDBTreeView {
 
                     // When you delete a row, the save has to be triggered manually. For cell edits it get's triggered automatically.
                     if !cells.is_empty() {
-                        let _y = Self::save_to_packed_file(
+                        Self::save_to_packed_file(
                             &sender_qt,
                             &sender_qt_data,
                             &is_modified,
@@ -2821,12 +2820,11 @@ impl PackedFileDBTreeView {
     pub fn return_data_from_table_view(
         packed_file_data: &mut DB,
         model: *mut StandardItemModel,
-    ) -> Result<()> {
+    ) {
 
-        // This list is to store the new data before passing it to the PackedFile, just in case it fails.
-        let mut new_data: Vec<Vec<DecodedData>> = vec![];
-
-        // Get the data from the table, row by row, ensuring their type is correct.
+        // Remove every entry from the DB, then add each one again from the model.
+        // The model already validates the data BEFORE accepting it, so all the data here should be valid.
+        packed_file_data.entries.clear();
         let rows = unsafe { model.as_mut().unwrap().row_count(()) };
         for row in 0..rows {
             let mut new_row: Vec<DecodedData> = vec![];
@@ -2853,15 +2851,8 @@ impl PackedFileDBTreeView {
                 };
                 new_row.push(item);
             }
-            new_data.push(new_row);
+            packed_file_data.entries.push(new_row);
         }
-
-        // If we reached this place, it means there has been no errors while parsing the data, so we
-        // replace the old entries with the new ones.
-        packed_file_data.entries = new_data;
-
-        // Return success.
-        Ok(())
     }
 
     /// Function to save the data from the current StandardItemModel to the PackFile.
@@ -2875,10 +2866,10 @@ impl PackedFileDBTreeView {
         model: *mut StandardItemModel,
         global_search_explicit_paths: &Rc<RefCell<Vec<Vec<String>>>>,
         update_global_search_stuff: *mut Action,
-    ) -> Result<()> {
+    ) {
 
         // Update the DB with the data in the table, or report error if it fails.
-        Self::return_data_from_table_view(&mut data.borrow_mut(), model)?;
+        Self::return_data_from_table_view(&mut data.borrow_mut(), model);
 
         // Tell the background thread to start saving the PackedFile.
         sender_qt.send(Commands::EncodePackedFileDB).unwrap();
@@ -2890,9 +2881,6 @@ impl PackedFileDBTreeView {
         // Update the global search stuff, if needed.
         global_search_explicit_paths.borrow_mut().push(packed_file_path.borrow().to_vec());
         unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
-
-        // If the table has been saved without problems, return success.
-        Ok(())
     }
 
     /// Function to undo/redo an operation in the table.
@@ -2961,7 +2949,7 @@ impl PackedFileDBTreeView {
                 unsafe { rows.iter().rev().for_each(|x| new_rows.push(model.as_mut().unwrap().take_row(*x))); }
                 history_opposite.borrow_mut().push(TableOperations::RemoveRows((rows.to_vec(), new_rows)));
 
-                let _y = Self::save_to_packed_file(
+                Self::save_to_packed_file(
                     &sender_qt,
                     &sender_qt_data,
                     &is_modified,
@@ -3066,7 +3054,7 @@ impl PackedFileDBTreeView {
                 }
 
                 // Try to save the PackedFile to the main PackFile.
-                let _y = Self::save_to_packed_file(
+                Self::save_to_packed_file(
                     &sender_qt,
                     &sender_qt_data,
                     &is_modified,
@@ -3094,7 +3082,7 @@ impl PackedFileDBTreeView {
                 }
 
                 // Try to save the PackedFile to the main PackFile.
-                let _y = Self::save_to_packed_file(
+                Self::save_to_packed_file(
                     &sender_qt,
                     &sender_qt_data,
                     &is_modified,
