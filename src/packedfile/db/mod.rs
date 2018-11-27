@@ -133,35 +133,51 @@ impl DB {
 
                     let decoded_cell = match table_definition.fields[column].field_type {
                         FieldType::Boolean => {
-                            if packed_file_data.get(index).is_some() { DecodedData::Boolean(decode_packedfile_bool(packed_file_data[index], &mut index)?) }
+                            if packed_file_data.get(index).is_some() { 
+                                if let Ok(data) = decode_packedfile_bool(packed_file_data[index], &mut index) { DecodedData::Boolean(data) }
+                                else { return Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>Boolean</b></i> value: the value is not a boolean.</p>", row, column + 1)))? }}
                             else { return Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>Boolean</b></i> value: insufficient bytes to decode.</p>", row, column + 1)))? }
                         }
                         FieldType::Float => {
-                            if packed_file_data.get(index + 3).is_some() { DecodedData::Float(decode_packedfile_float_f32(&packed_file_data[index..(index + 4)], &mut index)?) }
+                            if packed_file_data.get(index + 3).is_some() {
+                                if let Ok(data) = decode_packedfile_float_f32(&packed_file_data[index..(index + 4)], &mut index) { DecodedData::Float(data) }
+                                else { return Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>F32</b></i> value: the value is not a valid F32.</p>", row, column + 1)))? }}
                             else { return Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>F32</b></i> value: insufficient bytes to decode.</p>", row, column + 1)))? }
                         }
                         FieldType::Integer => {
-                            if packed_file_data.get(index + 3).is_some() { DecodedData::Integer(decode_packedfile_integer_i32(&packed_file_data[index..(index + 4)], &mut index)?) }
-                            else { return Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as an <b><i>I32</b></i> value: insufficient bytes to decode.</p>", row, column + 1)))? }
+                            if packed_file_data.get(index + 3).is_some() {
+                                if let Ok(data) = decode_packedfile_integer_i32(&packed_file_data[index..(index + 4)], &mut index) { DecodedData::Integer(data) }
+                                else { return Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>I32</b></i> value: the value is not a valid I32.</p>", row, column + 1)))? }}
+                            else { return Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>I32</b></i> value: insufficient bytes to decode.</p>", row, column + 1)))? }
                         }
                         FieldType::LongInteger => {
-                            if packed_file_data.get(index + 7).is_some() { DecodedData::LongInteger(decode_packedfile_integer_i64(&packed_file_data[index..(index + 8)], &mut index)?) }
-                            else { return Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as an <b><i>I64</b></i> value: insufficient bytes to decode.</p>", row, column + 1)))? }
+                            if packed_file_data.get(index + 7).is_some() {
+                                if let Ok(data) = decode_packedfile_integer_i64(&packed_file_data[index..(index + 8)], &mut index) { DecodedData::LongInteger(data) }
+                                else { return Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>I64</b></i> value: the value is not a valid I64.</p>", row, column + 1)))? }}
+                            else { return Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>I64</b></i> value: insufficient bytes to decode.</p>", row, column + 1)))? }
                         }
                         FieldType::StringU8 => {
-                            if packed_file_data.get(index + 1).is_some() { DecodedData::StringU8(decode_packedfile_string_u8(&packed_file_data[index..], &mut index)?) }
+                            if packed_file_data.get(index + 1).is_some() { 
+                                if let Ok(data) = decode_packedfile_string_u8(&packed_file_data[index..], &mut index) { DecodedData::StringU8(data) }
+                                else { return Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as an <b><i>UTF-8 String</b></i> value: the value is not a valid UTF-8 String.</p>", row, column + 1)))? }}
                             else { return Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as an <b><i>UTF-8 String</b></i> value: insufficient bytes to decode.</p>", row, column + 1)))? }
                         }
                         FieldType::StringU16 => {
-                            if packed_file_data.get(index + 1).is_some() { DecodedData::StringU16(decode_packedfile_string_u16(&packed_file_data[index..], &mut index)?) }
+                            if packed_file_data.get(index + 1).is_some() { 
+                                if let Ok(data) = decode_packedfile_string_u16(&packed_file_data[index..], &mut index) { DecodedData::StringU16(data) }
+                                else { return Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as an <b><i>UTF-16 String</b></i> value: the value is not a valid UTF-16 String.</p>", row, column + 1)))? }}
                             else { return Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as an <b><i>UTF-16 String</b></i> value: insufficient bytes to decode.</p>", row, column + 1)))? }
                         }
                         FieldType::OptionalStringU8 => {
-                            if packed_file_data.get(index).is_some() { DecodedData::OptionalStringU8(decode_packedfile_optional_string_u8(&packed_file_data[index..], &mut index)?) }
+                            if packed_file_data.get(index).is_some() { 
+                                if let Ok(data) = decode_packedfile_optional_string_u8(&packed_file_data[index..], &mut index) { DecodedData::OptionalStringU8(data) }
+                                else { return Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as an <b><i>Optional UTF-8 String</b></i> value: the value is not a valid Optional UTF-8 String.</p>", row, column + 1)))? }}
                             else { return Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as an <b><i>Optional UTF-8 String</b></i> value: insufficient bytes to decode.</p>", row, column + 1)))? }
                         }
                         FieldType::OptionalStringU16 => {
-                            if packed_file_data.get(index).is_some() { DecodedData::OptionalStringU16(decode_packedfile_optional_string_u16(&packed_file_data[index..], &mut index)?) }
+                            if packed_file_data.get(index).is_some() { 
+                                if let Ok(data) = decode_packedfile_optional_string_u16(&packed_file_data[index..], &mut index) { DecodedData::OptionalStringU16(data) }
+                                else { return Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as an <b><i>Optional UTF-16 String</b></i> value: the value is not a valid Optional UTF-16 String.</p>", row, column + 1)))? }}
                             else { return Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as an <b><i>Optional UTF-16 String</b></i> value: insufficient bytes to decode.</p>", row, column + 1)))? }
                         }
                     };
