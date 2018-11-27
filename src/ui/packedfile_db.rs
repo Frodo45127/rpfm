@@ -4320,18 +4320,20 @@ impl PackedFileDBDecoder {
         // columns data.
         if field_list.0 {
             if field_list.1.is_empty() {
-                Self::add_field_to_data_view(
-                    &stuff,
-                    &stuff_non_ui,
-                    "",
-                    FieldType::Boolean,
-                    false,
-                    &None,
-                    "",
-                    &mut index_data,
-                );
-                unsafe { stuff.table_model.as_mut().unwrap().remove_rows((0, 1)); }
+
+                let mut qlist = ListStandardItemMutPtr::new(());
+                (0..7).for_each(|_| unsafe { qlist.append_unsafe(&StandardItem::new(()).into_raw()) });
+                unsafe { stuff.table_model.as_mut().unwrap().append_row(&qlist); }
+                unsafe { stuff.table_model.as_mut().unwrap().set_header_data((0, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Field Name")))); }
+                unsafe { stuff.table_model.as_mut().unwrap().set_header_data((1, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Field Type")))); }
+                unsafe { stuff.table_model.as_mut().unwrap().set_header_data((2, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Is key?")))); }
+                unsafe { stuff.table_model.as_mut().unwrap().set_header_data((3, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Ref. to Table")))); }
+                unsafe { stuff.table_model.as_mut().unwrap().set_header_data((4, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Ref. to Column")))); }
+                unsafe { stuff.table_model.as_mut().unwrap().set_header_data((5, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("First Row Decoded")))); }
+                unsafe { stuff.table_model.as_mut().unwrap().set_header_data((6, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Description")))); }
+                unsafe { stuff.table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_stretch_last_section(true); }
                 unsafe { stuff.table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().resize_sections(ResizeMode::ResizeToContents); }
+                unsafe { stuff.table_model.as_mut().unwrap().remove_rows((0, 1)); }
             }
 
             else {
