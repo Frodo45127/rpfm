@@ -28712,7 +28712,7 @@
               "field_is_key": false,
               "field_is_reference": [
                 "campaign_ai_character_skill_tree_managers",
-                "keu"
+                "key"
               ],
               "field_description": ""
             }

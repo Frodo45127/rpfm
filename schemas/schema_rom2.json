@@ -21179,7 +21179,7 @@
               "field_description": ""
             },
             {
-              "field_name": "military_value",
+              "field_name": "prestige_value",
               "field_type": "Float",
               "field_is_key": false,
               "field_is_reference": null,
@@ -21193,7 +21193,7 @@
               "field_description": ""
             },
             {
-              "field_name": "prestige_value",
+              "field_name": "military_value",
               "field_type": "Float",
               "field_is_key": false,
               "field_is_reference": null,
@@ -28646,7 +28646,7 @@
               "field_is_key": false,
               "field_is_reference": [
                 "campaign_ai_character_skill_tree_managers",
-                "keu"
+                "key"
               ],
               "field_description": ""
             }
@@ -50796,13 +50796,6 @@
               "field_description": ""
             },
             {
-              "field_name": "nearby_morale_bonus",
-              "field_type": "Integer",
-              "field_is_key": false,
-              "field_is_reference": null,
-              "field_description": ""
-            },
-            {
               "field_name": "melee_attack_bonus",
               "field_type": "Integer",
               "field_is_key": false,
@@ -50811,6 +50804,13 @@
             },
             {
               "field_name": "melee_defence_bonus",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "nearby_morale_bonus",
               "field_type": "Integer",
               "field_is_key": false,
               "field_is_reference": null,
