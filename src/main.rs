@@ -1207,8 +1207,7 @@ fn main() {
             receiver_qt => move |_| {
 
                 // Get the new Game Selected.
-                let mut new_game_selected;
-                unsafe { new_game_selected = QString::to_std_string(&app_ui.game_selected_group.as_mut().unwrap().checked_action().as_mut().unwrap().text()); }
+                let mut new_game_selected = unsafe { QString::to_std_string(&app_ui.game_selected_group.as_mut().unwrap().checked_action().as_mut().unwrap().text()) };
 
                 // Remove the '&' from the game's name, and turn it into a `folder_name`.
                 if let Some(index) = new_game_selected.find('&') { new_game_selected.remove(index); }
@@ -1290,10 +1289,8 @@ fn main() {
                     display_help_tips(&app_ui);
 
                     // Tell the Background Thread to create a new PackFile.
-                    sender_qt.send(Commands::NewPackFile).unwrap();
-
-                    // Disable the Main Window (so we can't do other stuff).
                     unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+                    sender_qt.send(Commands::NewPackFile).unwrap();
 
                     // Wait until you get the PackFile's type.
                     let pack_file_type = if let Data::U32(data) = check_message_validity_tryrecv(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
@@ -1403,7 +1400,6 @@ fn main() {
             sender_qt,
             sender_qt_data,
             receiver_qt => move |_| {
-
                 if let Err(error) = save_packfile(
                     false,
                     &app_ui,
@@ -1413,7 +1409,7 @@ fn main() {
                     &sender_qt,
                     &sender_qt_data,
                     &receiver_qt,
-                ) { show_dialog(app_ui.window, false, error); }         
+                ) { show_dialog(app_ui.window, false, error); }
             }
         ));
 
@@ -1453,8 +1449,8 @@ fn main() {
                 if are_you_sure(&app_ui, &is_modified, false) {
 
                     // Tell the Background Thread to try to load the PackFiles.
-                    sender_qt.send(Commands::LoadAllCAPackFiles).unwrap();
                     unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+                    sender_qt.send(Commands::LoadAllCAPackFiles).unwrap();
                     match check_message_validity_tryrecv(&receiver_qt) {
                     
                         // If it's success....
@@ -1678,8 +1674,8 @@ fn main() {
             sender_qt_data => move |_| {
 
                 // Ask the background loop to patch the PackFile, and wait for a response.
-                sender_qt.send(Commands::PatchSiegeAI).unwrap();
                 unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+                sender_qt.send(Commands::PatchSiegeAI).unwrap();
                 match check_message_validity_tryrecv(&receiver_qt) {
                     Data::StringVecTreePathType(response) => {
 
@@ -1741,8 +1737,8 @@ fn main() {
                 if !packedfiles_open_in_packedfile_view.borrow().is_empty() { return show_dialog(app_ui.window, false, ErrorKind::OperationNotAllowedWithPackedFileOpen); }
             
                 // If there is no problem, ere we go.
-                sender_qt.send(Commands::OptimizePackFile).unwrap();
                 unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+                sender_qt.send(Commands::OptimizePackFile).unwrap();
                 match check_message_validity_tryrecv(&receiver_qt) {
                     Data::VecTreePathType(response) => {
 
@@ -2135,11 +2131,10 @@ fn main() {
                                 }
 
                                 // Tell the Background Thread to add the files.
+                                unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
                                 sender_qt.send(Commands::AddPackedFile).unwrap();
                                 sender_qt_data.send(Data::VecPathBufVecVecString((paths.to_vec(), paths_packedfile.to_vec()))).unwrap();
 
-                                // Disable the Main Window (so we can't do other stuff).
-                                unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
 
                                 // Get the data from the operation...
                                 match check_message_validity_tryrecv(&receiver_qt) {
@@ -2222,11 +2217,9 @@ fn main() {
                             }
 
                             // Tell the Background Thread to add the files.
+                            unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
                             sender_qt.send(Commands::AddPackedFile).unwrap();
                             sender_qt_data.send(Data::VecPathBufVecVecString((paths.to_vec(), paths_packedfile.to_vec()))).unwrap();
-
-                            // Disable the Main Window (so we can't do other stuff).
-                            unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
 
                             // Get the data from the operation...
                             match check_message_validity_tryrecv(&receiver_qt) {
@@ -2374,11 +2367,9 @@ fn main() {
                                 }
 
                                 // Tell the Background Thread to add the files.
+                                unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
                                 sender_qt.send(Commands::AddPackedFile).unwrap();
                                 sender_qt_data.send(Data::VecPathBufVecVecString((paths.to_vec(), paths_packedfile.to_vec()))).unwrap();
-
-                                // Disable the Main Window (so we can't do other stuff).
-                                unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
 
                                 // Get the data from the operation...
                                 match check_message_validity_tryrecv(&receiver_qt) {
@@ -2465,11 +2456,9 @@ fn main() {
                             }
 
                             // Tell the Background Thread to add the files.
+                            unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
                             sender_qt.send(Commands::AddPackedFile).unwrap();
                             sender_qt_data.send(Data::VecPathBufVecVecString((paths.to_vec(), paths_packedfile.to_vec()))).unwrap();
-
-                            // Disable the Main Window (so we can't do other stuff).
-                            unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
 
                             // Get the data from the operation...
                             match check_message_validity_tryrecv(&receiver_qt) {
@@ -2537,11 +2526,9 @@ fn main() {
                     let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
 
                     // Tell the Background Thread to open the secondary PackFile.
+                    unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
                     sender_qt.send(Commands::OpenPackFileExtra).unwrap();
                     sender_qt_data.send(Data::PathBuf(path)).unwrap();
-
-                    // Disable the Main Window (so we can't do other stuff).
-                    unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
 
                     // Get the data from the operation...
                     match check_message_validity_tryrecv(&receiver_qt) {
@@ -2912,10 +2899,9 @@ fn main() {
 
                     // Otherwise, try to import all of them and report the result.
                     else {
+                        unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
                         sender_qt.send(Commands::MassImportTSV).unwrap();
                         sender_qt_data.send(Data::StringVecPathBuf(data)).unwrap();
-
-                        unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
                         match check_message_validity_tryrecv(&receiver_qt) {
                             
                             // If it's success....
@@ -2971,11 +2957,9 @@ fn main() {
                 if !export_path.is_empty() {
                     let export_path = PathBuf::from(export_path.to_std_string());
                     if export_path.is_dir() {
+                        unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
                         sender_qt.send(Commands::MassExportTSV).unwrap();
                         sender_qt_data.send(Data::PathBuf(export_path)).unwrap();
-
-                        // Depending on the result, report success or an error.
-                        unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
                         match check_message_validity_tryrecv(&receiver_qt) {
                             Data::String(response) => show_dialog(app_ui.window, true, response),
                             Data::Error(error) => show_dialog(app_ui.window, true, error),
@@ -3200,11 +3184,9 @@ fn main() {
                             }
 
                             // Tell the Background Thread to delete the selected stuff.
+                            unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
                             sender_qt.send(Commands::ExtractPackedFile).unwrap();
                             sender_qt_data.send(Data::VecStringPathBuf((path.to_vec(), assets_folder.to_path_buf()))).unwrap();
-
-                            // Disable the Main Window (so we can't do other stuff).
-                            unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
 
                             // Check what response we got.
                             match check_message_validity_tryrecv(&receiver_qt) {
@@ -3299,11 +3281,9 @@ fn main() {
                                 };
 
                                 // Tell the Background Thread to delete the selected stuff.
+                                unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
                                 sender_qt.send(Commands::ExtractPackedFile).unwrap();
                                 sender_qt_data.send(Data::VecStringPathBuf((path.to_vec(), final_extraction_path.to_path_buf()))).unwrap();
-
-                                // Disable the Main Window (so we can't do other stuff).
-                                unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
 
                                 // Check what response we got.
                                 match check_message_validity_tryrecv(&receiver_qt) {
@@ -3382,11 +3362,9 @@ fn main() {
                                 let mut extraction_path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
 
                                 // Tell the Background Thread to delete the selected stuff.
+                                unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
                                 sender_qt.send(Commands::ExtractPackedFile).unwrap();
                                 sender_qt_data.send(Data::VecStringPathBuf((path.to_vec(), extraction_path.to_path_buf()))).unwrap();
-
-                                // Disable the Main Window (so we can't do other stuff).
-                                unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
 
                                 // Check what response we got.
                                 match check_message_validity_tryrecv(&receiver_qt) {

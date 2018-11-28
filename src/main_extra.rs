@@ -21,11 +21,9 @@ pub fn open_packfile(
 ) -> Result<()> {
 
     // Tell the Background Thread to create a new PackFile.
+    unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
     sender_qt.send(Commands::OpenPackFile).unwrap();
     sender_qt_data.send(Data::PathBuf(pack_file_path.to_path_buf())).unwrap();
-
-    // Disable the Main Window (so we can't do other stuff).
-    unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
 
     // Check what response we got.
     match check_message_validity_tryrecv(&receiver_qt) {
@@ -410,8 +408,8 @@ pub fn save_packfile(
     let mut result = Ok(());
     let mut do_we_need_to_save_as = false;
     if !is_as_other_file {
-        sender_qt.send(Commands::SavePackFile).unwrap();
         unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+        sender_qt.send(Commands::SavePackFile).unwrap();
 
         match check_message_validity_tryrecv(&receiver_qt) {
             Data::I64(date) => {
@@ -435,6 +433,7 @@ pub fn save_packfile(
     // If we want instead to save as, or the normal save has default to this, we try to save the PackFile as another
     // Packfile, asking for a path first.
     if is_as_other_file || do_we_need_to_save_as {
+        unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
         sender_qt.send(Commands::SavePackFileAs).unwrap();
         match check_message_validity_recv2(&receiver_qt) {
             Data::PathBuf(file_path) => {
