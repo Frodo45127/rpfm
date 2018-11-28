@@ -1398,51 +1398,22 @@ fn main() {
         // What happens when we trigger the "Save PackFile" action.
         let slot_save_packfile = SlotBool::new(clone!(
             is_modified,
+            mode,
+            mymod_stuff,
             sender_qt,
+            sender_qt_data,
             receiver_qt => move |_| {
 
-                // Tell the Background Thread to save the PackFile.
-                sender_qt.send(Commands::SavePackFile).unwrap();
-
-                // Disable the Main Window (so we can't do other stuff).
-                unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
-
-                // Check what happened when we tried to save the PackFile.
-                match check_message_validity_tryrecv(&receiver_qt) {
-
-                    // If we succeed, we should receive the new "Last Modified Time".
-                    Data::I64(date) => {
-
-                        // Set the mod as "Not Modified".
-                        *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
-
-                        // Update the "Last Modified Date" of the PackFile in the TreeView.
-                        unsafe { app_ui.folder_tree_model.as_mut().unwrap().item(0).as_mut().unwrap().set_tool_tip(&QString::from_std_str(format!("Last Modified: {:?}", NaiveDateTime::from_timestamp(date, 0)))); }
-                    }
-
-                    // If it's an error...
-                    Data::Error(error) => {
-
-                        // We must check what kind of error it's.
-                        match error.kind() {
-
-                            // If the PackFile is not a file, we trigger the "Save Packfile As" action and break the loop.
-                            ErrorKind::PackFileIsNotAFile => unsafe { Action::trigger(app_ui.save_packfile_as.as_mut().unwrap()); },
-
-                            // If there was any other error while saving the PackFile, report it and break the loop.
-                            ErrorKind::SavePackFileGeneric(_) => show_dialog(app_ui.window, false, error),
-
-                            // In ANY other situation, it's a message problem.
-                            _ => panic!(THREADS_MESSAGE_ERROR)
-                        }
-                    }
-
-                    // In ANY other situation, it's a message problem.
-                    _ => panic!(THREADS_MESSAGE_ERROR)
-                }
-
-                // Re-enable the Main Window.
-                unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }              
+                if let Err(error) = save_packfile(
+                    false,
+                    &app_ui,
+                    &is_modified,
+                    &mode,
+                    &mymod_stuff,
+                    &sender_qt,
+                    &sender_qt_data,
+                    &receiver_qt,
+                ) { show_dialog(app_ui.window, false, error); }         
             }
         ));
 
@@ -1455,143 +1426,16 @@ fn main() {
             sender_qt_data,
             receiver_qt => move |_| {
 
-                // Tell the Background Thread that we want to save the PackFile, and wait for confirmation.
-                sender_qt.send(Commands::SavePackFileAs).unwrap();
-
-                // Check what response we got.
-                match check_message_validity_recv2(&receiver_qt) {
-
-                    // If we got confirmation....
-                    Data::PathBuf(file_path) => {
-
-                        // Create the FileDialog to get the PackFile to open.
-                        let mut file_dialog;
-                        unsafe { file_dialog = FileDialog::new_unsafe((
-                            app_ui.window as *mut Widget,
-                            &QString::from_std_str("Save PackFile"),
-                        )); }
-
-                        // Set it to save mode.
-                        file_dialog.set_accept_mode(qt_widgets::file_dialog::AcceptMode::Save);
-
-                        // Filter it so it only shows PackFiles.
-                        file_dialog.set_name_filter(&QString::from_std_str("PackFiles (*.pack)"));
-
-                        // Ask for confirmation in case of overwrite.
-                        file_dialog.set_confirm_overwrite(true);
-
-                        // Set the default suffix to ".pack", in case we forgot to write it.
-                        file_dialog.set_default_suffix(&QString::from_std_str("pack"));
-
-                        // Set the current name of the PackFile as default name.
-                        file_dialog.select_file(&QString::from_std_str(&file_path.file_name().unwrap().to_string_lossy()));
-
-                        // If we are saving an existing PackFile with another name, we start in his current path.
-                        if file_path.is_file() {
-                            let mut path = file_path.to_path_buf();
-                            path.pop();
-                            file_dialog.set_directory(&QString::from_std_str(path.to_string_lossy().as_ref().to_owned()));
-                        }
-
-                        // In case we have a default path for the Game Selected and that path is valid,
-                        // we use his data folder as base path for saving our PackFile.
-                        else if let Some(ref path) = get_game_selected_data_path() {
-
-                            // We check it actually exists before setting it.
-                            if path.is_dir() {
-                                file_dialog.set_directory(&QString::from_std_str(path.to_string_lossy().as_ref().to_owned()));
-                            }
-                        }
-
-                        // Run it and expect a response (1 => Accept, 0 => Cancel).
-                        if file_dialog.exec() == 1 {
-
-                            // Get the Path we choose to save the file.
-                            let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
-
-                            // Pass it to the worker thread.
-                            sender_qt_data.send(Data::PathBuf(path.to_path_buf())).unwrap();
-
-                            // Disable the Main Window (so we can't do other stuff).
-                            unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
-
-                            // Check what happened when we tried to save the PackFile.
-                            match check_message_validity_tryrecv(&receiver_qt) {
-
-                                // If we succeed, we should receive the new "Last Modified Time".
-                                Data::I64(date) => {
-
-                                    // Update the "Last Modified Date" of the PackFile in the TreeView.
-                                    unsafe { app_ui.folder_tree_model.as_mut().unwrap().item(0).as_mut().unwrap().set_tool_tip(&QString::from_std_str(format!("Last Modified: {:?}", NaiveDateTime::from_timestamp(date, 0)))); }
-
-                                    // Get the Selection Model and the Model Index of the PackFile's Cell.
-                                    let selection_model;
-                                    let model_index;
-                                    unsafe { selection_model = app_ui.folder_tree_view.as_mut().unwrap().selection_model(); }
-                                    unsafe { model_index = app_ui.folder_tree_model.as_ref().unwrap().index((0, 0)); }
-
-                                    // Select the PackFile's Cell with a "Clear & Select".
-                                    unsafe { selection_model.as_mut().unwrap().select((&model_index, Flags::from_int(3))); }
-
-                                    // Rename it with the new name.
-                                    update_treeview(
-                                        &sender_qt,
-                                        &sender_qt_data,
-                                        receiver_qt.clone(),
-                                        app_ui.window,
-                                        app_ui.folder_tree_view,
-                                        app_ui.folder_tree_model,
-                                        TreeViewOperation::Rename(TreePathType::PackFile, path.file_name().unwrap().to_string_lossy().as_ref().to_owned()),
-                                    );
-
-                                    // Set the mod as "Not Modified".
-                                    *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
-
-                                    // Set the current "Operational Mode" to Normal, as this is a "New" mod.
-                                    set_my_mod_mode(&mymod_stuff, &mode, None);
-
-                                    // Report success.
-                                    show_dialog(app_ui.window, true, "PackFile successfully saved."); 
-                                }
-
-                                // If it's an error...
-                                Data::Error(error) => {
-                                    match error.kind() {
-                                        ErrorKind::SavePackFileGeneric(_) => show_dialog(app_ui.window, false, error),
-                                        _ => panic!(THREADS_MESSAGE_ERROR),
-                                    }
-                                }
-
-                                // In ANY other situation, it's a message problem.
-                                _ => panic!(THREADS_MESSAGE_ERROR)
-                            }
-
-                            // Re-enable the Main Window.
-                            unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
-                        }
-
-                        // Otherwise, we take it as we canceled the save in some way, so we tell the
-                        // Background Loop to stop waiting.
-                        else { sender_qt_data.send(Data::Cancel).unwrap(); }
-                    }
-
-                    // If there was an error...
-                    Data::Error(error) => {
-
-                        // We must check what kind of error it's.
-                        match error.kind() {
-
-                            // If the PackFile is non-editable, we show the error.
-                            ErrorKind::PackFileIsNonEditable => show_dialog(app_ui.window, false, error),
-
-                            // In ANY other situation, it's a message problem.
-                            _ => panic!(THREADS_MESSAGE_ERROR)
-                        }
-                    }
-
-                    // In ANY other situation, it's a message problem.
-                    _ => panic!(THREADS_MESSAGE_ERROR)
-                }
+                if let Err(error) = save_packfile(
+                    true,
+                    &app_ui,
+                    &is_modified,
+                    &mode,
+                    &mymod_stuff,
+                    &sender_qt,
+                    &sender_qt_data,
+                    &receiver_qt,
+                ) { show_dialog(app_ui.window, false, error); }   
             }
         ));
 
@@ -1828,26 +1672,19 @@ fn main() {
         let slot_patch_siege_ai = SlotBool::new(clone!(
             is_modified,
             receiver_qt,
+            mode,
+            mymod_stuff,
             sender_qt,
             sender_qt_data => move |_| {
 
-                // Ask the background loop to create the Dependency PackFile.
+                // Ask the background loop to patch the PackFile, and wait for a response.
                 sender_qt.send(Commands::PatchSiegeAI).unwrap();
-
-                // Disable the Main Window (so we can't do other stuff).
                 unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
-
-                // Get the data from the patching operation...
                 match check_message_validity_tryrecv(&receiver_qt) {
                     Data::StringVecTreePathType(response) => {
 
-                        // Get the success message and show it.
-                        show_dialog(app_ui.window, true, &response.0);
-
-                        // For each file to delete...
+                        // If we got a success, remove the files deleted by the patcher function.
                         for item_type in response.1 {
-
-                            // Remove it from the TreeView.
                             update_treeview(
                                 &sender_qt,
                                 &sender_qt_data,
@@ -1859,31 +1696,29 @@ fn main() {
                             );
                         }
 
-                        // Set the mod as "Not Modified", because this action includes saving the PackFile.
+                        // Save the patched PackFile and report the result.
                         *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
-
-                        // Trigger a save and break the loop.
-                        unsafe { Action::trigger(app_ui.save_packfile.as_mut().unwrap()); }
+                        if let Err(error) = save_packfile(
+                            false,
+                            &app_ui,
+                            &is_modified,
+                            &mode,
+                            &mymod_stuff,
+                            &sender_qt,
+                            &sender_qt_data,
+                            &receiver_qt,
+                        ) { show_dialog(app_ui.window, false, error); }
+                        else { show_dialog(app_ui.window, true, &response.0); }
                     }
 
-                    // If it's an error...
+                    // If the PackFile is empty or is not patchable, report it. Otherwise, praise the nine divines.
                     Data::Error(error) => {
-
-                        // We must check what kind of error it's.
                         match error.kind() {
-
-                            // If the PackFile is empty, report it.
-                            ErrorKind::PatchSiegeAIEmptyPackFile => show_dialog(app_ui.window, false, error.kind()),
-
-                            // If no patchable files have been found, report it and break the loop.
-                            ErrorKind::PatchSiegeAINoPatchableFiles => show_dialog(app_ui.window, false, error.kind()),
-
-                            // In ANY other situation, it's a message problem.
+                            ErrorKind::PatchSiegeAIEmptyPackFile => show_dialog(app_ui.window, false, error),
+                            ErrorKind::PatchSiegeAINoPatchableFiles => show_dialog(app_ui.window, false, error),
                             _ => panic!(THREADS_MESSAGE_ERROR)
                         }
                     }
-
-                    // In ANY other situation, it's a message problem.
                     _ => panic!(THREADS_MESSAGE_ERROR)
                 }
 
@@ -1895,30 +1730,25 @@ fn main() {
         // What happens when we trigger the "Optimize PackFile" action.
         let slot_optimize_packfile = SlotBool::new(clone!(
             packedfiles_open_in_packedfile_view,
+            is_modified,
+            mode,
+            mymod_stuff,
             receiver_qt,
             sender_qt,
             sender_qt_data => move |_| {
 
-                // This cannot be done if there is a PackedFile open.
+                // This cannot be done if there is a PackedFile open. Well, can be done, but it's a pain in the ass to do it.
                 if !packedfiles_open_in_packedfile_view.borrow().is_empty() { return show_dialog(app_ui.window, false, ErrorKind::OperationNotAllowedWithPackedFileOpen); }
             
-                // Ask the background loop to create the Dependency PackFile.
+                // If there is no problem, ere we go.
                 sender_qt.send(Commands::OptimizePackFile).unwrap();
-
-                // Disable the Main Window (so we can't do other stuff).
                 unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
-
-                // Get the data from the operation...
                 match check_message_validity_tryrecv(&receiver_qt) {
                     Data::VecTreePathType(response) => {
 
-                        // Get the success message and show it.
-                        show_dialog(app_ui.window, true, "PackFile optimized and saved.");
 
-                        // For each file to delete...
+                        // Delete the files removed by the optimizer.
                         for item_type in response {
-
-                            // Remove it from the TreeView.
                             update_treeview(
                                 &sender_qt,
                                 &sender_qt_data,
@@ -1930,16 +1760,26 @@ fn main() {
                             );
                         }
 
-                        // Trigger a save and break the loop.
-                        unsafe { Action::trigger(app_ui.save_packfile.as_mut().unwrap()); }
+                        // Save the optimized PackFile.
+                        *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
+                        if let Err(error) = save_packfile(
+                            false,
+                            &app_ui,
+                            &is_modified,
+                            &mode,
+                            &mymod_stuff,
+                            &sender_qt,
+                            &sender_qt_data,
+                            &receiver_qt,
+                        ) { show_dialog(app_ui.window, false, error); }
+                        else { show_dialog(app_ui.window, true, "PackFile optimized and saved."); }
 
                         // Update the global search stuff, if needed.
                         unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
                     }
 
+                    // If there was an error while optimizing... we got the wrong side of the coin.
                     Data::Error(error) => show_dialog(app_ui.window, false, error),
-                    
-                    // In ANY other situation, it's a message problem.
                     _ => panic!(THREADS_MESSAGE_ERROR),
                 }
 
