@@ -187,11 +187,9 @@ impl AddFromPackFileSlots {
                     let item_path = get_path_from_item_selection(tree_model, &selection_file_to_move, true);
 
                     // Ask the Background Thread to move the files, and send him the path.
+                    unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
                     sender_qt.send(Commands::AddPackedFileFromPackFile).unwrap();
                     sender_qt_data.send(Data::VecString(item_path)).unwrap();
-
-                    // Disable the Main Window (so we can't do other stuff).
-                    unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
 
                     // Check what response we got.
                     match check_message_validity_tryrecv(&receiver_qt) {

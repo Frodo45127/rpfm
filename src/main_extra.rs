@@ -21,11 +21,9 @@ pub fn open_packfile(
 ) -> Result<()> {
 
     // Tell the Background Thread to create a new PackFile.
+    unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
     sender_qt.send(Commands::OpenPackFile).unwrap();
     sender_qt_data.send(Data::PathBuf(pack_file_path.to_path_buf())).unwrap();
-
-    // Disable the Main Window (so we can't do other stuff).
-    unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
 
     // Check what response we got.
     match check_message_validity_tryrecv(&receiver_qt) {
@@ -390,6 +388,144 @@ pub fn open_packedfile(
     }
 
     Ok(())
+}
+
+/// This function is used to save ANY supported PackFile. If the PackFile doesn't exist or we want to save it
+/// with another name, it opens a dialog asking for a path.
+pub fn save_packfile(
+    is_as_other_file: bool,
+    app_ui: &AppUI,
+    is_modified: &Rc<RefCell<bool>>,
+    mode: &Rc<RefCell<Mode>>,
+    mymod_stuff: &Rc<RefCell<MyModStuff>>,
+    sender_qt: &Sender<Commands>,
+    sender_qt_data: &Sender<Data>,
+    receiver_qt: &Rc<RefCell<Receiver<Data>>>,
+) -> Result<()> {
+
+    // If we are saving with the "Save PackFile" button, we try to save it. If we detect the PackFile doesn't exist,
+    // we fall back to the "Save PackFile As" behavior, asking the user for a Path.
+    let mut result = Ok(());
+    let mut do_we_need_to_save_as = false;
+    if !is_as_other_file {
+        unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+        sender_qt.send(Commands::SavePackFile).unwrap();
+
+        match check_message_validity_tryrecv(&receiver_qt) {
+            Data::I64(date) => {
+                *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
+                unsafe { app_ui.folder_tree_model.as_mut().unwrap().item(0).as_mut().unwrap().set_tool_tip(&QString::from_std_str(format!("Last Modified: {:?}", NaiveDateTime::from_timestamp(date, 0)))); }
+            }
+
+            Data::Error(error) => {
+                match error.kind() {
+                    ErrorKind::PackFileIsNotAFile => do_we_need_to_save_as = true,
+
+                    // If there was any other error while saving the PackFile, report it. Any other error should trigger a Panic.
+                    ErrorKind::SavePackFileGeneric(_) => result = Err(error),
+                    _ => panic!(THREADS_MESSAGE_ERROR)
+                }
+            }
+            _ => panic!(THREADS_MESSAGE_ERROR)
+        }
+    }
+
+    // If we want instead to save as, or the normal save has default to this, we try to save the PackFile as another
+    // Packfile, asking for a path first.
+    if is_as_other_file || do_we_need_to_save_as {
+        unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+        sender_qt.send(Commands::SavePackFileAs).unwrap();
+        match check_message_validity_recv2(&receiver_qt) {
+            Data::PathBuf(file_path) => {
+
+                // Create the FileDialog to save the PackFile and configure it.
+                let mut file_dialog = unsafe { FileDialog::new_unsafe((
+                    app_ui.window as *mut Widget,
+                    &QString::from_std_str("Save PackFile"),
+                )) };
+                file_dialog.set_accept_mode(qt_widgets::file_dialog::AcceptMode::Save);
+                file_dialog.set_name_filter(&QString::from_std_str("PackFiles (*.pack)"));
+                file_dialog.set_confirm_overwrite(true);
+                file_dialog.set_default_suffix(&QString::from_std_str("pack"));
+                file_dialog.select_file(&QString::from_std_str(&file_path.file_name().unwrap().to_string_lossy()));
+
+                // If we are saving an existing PackFile with another name, we start in his current path.
+                if file_path.is_file() {
+                    let mut path = file_path.to_path_buf();
+                    path.pop();
+                    file_dialog.set_directory(&QString::from_std_str(path.to_string_lossy().as_ref().to_owned()));
+                }
+
+                // In case we have a default path for the Game Selected and that path is valid,
+                // we use his data folder as base path for saving our PackFile.
+                else if let Some(ref path) = get_game_selected_data_path() {
+                    if path.is_dir() { file_dialog.set_directory(&QString::from_std_str(path.to_string_lossy().as_ref().to_owned())); }
+                }
+
+                // Run it and act depending on the response we get (1 => Accept, 0 => Cancel).
+                if file_dialog.exec() == 1 {
+                    let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
+                    sender_qt_data.send(Data::PathBuf(path.to_path_buf())).unwrap();
+
+                    // Check what happened when we tried to save the PackFile.
+                    match check_message_validity_tryrecv(&receiver_qt) {
+                        Data::I64(date) => {
+
+                            // Update the "Last Modified Date" of the PackFile in the TreeView.
+                            unsafe { app_ui.folder_tree_model.as_mut().unwrap().item(0).as_mut().unwrap().set_tool_tip(&QString::from_std_str(format!("Last Modified: {:?}", NaiveDateTime::from_timestamp(date, 0)))); }
+
+                            // Get the Selection Model and the Model Index of the PackFile's Cell, so the rename function works properly in the UI.
+                            let selection_model = unsafe { app_ui.folder_tree_view.as_mut().unwrap().selection_model() };
+                            let model_index = unsafe { app_ui.folder_tree_model.as_ref().unwrap().index((0, 0)) };
+                            unsafe { selection_model.as_mut().unwrap().select((&model_index, Flags::from_int(3))); }
+
+                            // Rename it with the new name.
+                            update_treeview(
+                                &sender_qt,
+                                &sender_qt_data,
+                                receiver_qt.clone(),
+                                app_ui.window,
+                                app_ui.folder_tree_view,
+                                app_ui.folder_tree_model,
+                                TreeViewOperation::Rename(TreePathType::PackFile, path.file_name().unwrap().to_string_lossy().as_ref().to_owned()),
+                            );
+
+                            // Set the mod as "Not Modified".
+                            *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
+
+                            // Set the current "Operational Mode" to Normal, as this is a "New" mod.
+                            set_my_mod_mode(&mymod_stuff, &mode, None);
+                        }
+
+                        // If it's an error we can dealt with, report it.
+                        Data::Error(error) => {
+                            match error.kind() {
+                                ErrorKind::SavePackFileGeneric(_) => result = Err(error),
+                                _ => panic!(THREADS_MESSAGE_ERROR),
+                            }
+                        }
+                        _ => panic!(THREADS_MESSAGE_ERROR)
+                    }
+                }
+
+                // Otherwise, we take it as we canceled the save in some way, so we tell the Background Loop to stop waiting.
+                else { sender_qt_data.send(Data::Cancel).unwrap(); }
+            }
+
+            // If there was an error report it, if we can.
+            Data::Error(error) => {
+                match error.kind() {
+                    ErrorKind::PackFileIsNonEditable => result = Err(error),
+                    _ => panic!(THREADS_MESSAGE_ERROR)
+                }
+            }
+            _ => panic!(THREADS_MESSAGE_ERROR)
+        }
+    }
+
+    // Then we re-enable the main Window and return whatever we've received.
+    unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }              
+    result
 }
 
 /// This function takes care of the re-creation of the "MyMod" list in the following moments:

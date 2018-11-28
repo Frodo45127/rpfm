@@ -306,11 +306,9 @@ impl PackedFileRigidModelDataView {
                 receiver_qt => move || {
 
                     // Send the data to the background to try to patch the rigidmodel.
+                    unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
                     sender_qt.send(Commands::PatchAttilaRigidModelToWarhammer).unwrap();
                     sender_qt_data.send(Data::RigidModelVecString((packed_file.borrow().clone(), packed_file_path.borrow().to_vec()))).unwrap();
-
-                    // Disable the Main Window (so we can't do other stuff).
-                    unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
 
                     // Check what response we got.
                     match check_message_validity_tryrecv(&receiver_qt) {
