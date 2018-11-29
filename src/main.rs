@@ -4026,12 +4026,13 @@ fn main() {
                         message_box::Icon::Information,
                         &QString::from_std_str("Global search"),
                         &QString::from_std_str("<p>Searching in progress... Please wait.</p>"),
-                        Flags::from_int(2097152), // Close button.
+                        Flags::from_int(0), // No button.
                         app_ui.window as *mut Widget,
                     )); }
 
                     // Set it to be modal, and show it. Don't execute it, just show it.
                     dialog.set_modal(true);
+                    dialog.set_standard_buttons(Flags::from_int(0));
                     dialog.show();
 
                     // Get the data from the operation...
@@ -4040,6 +4041,7 @@ fn main() {
 
                             // If there are no matches, just report it.
                             if matches.is_empty() { 
+                                dialog.set_standard_buttons(Flags::from_int(2097152));
                                 dialog.set_text(&QString::from_std_str("<p>No matches found.</p>")); 
                                 dialog.exec();
                             }
