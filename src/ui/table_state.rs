@@ -1,14 +1,18 @@
 // Usually this kind of stuff goes into the background thread, but this is only used in the UI. And I'm tired, so this'll stay here for the moment.
 extern crate serde_json;
 
+use qt_gui::standard_item_model::StandardItemModel;
+
 use RPFM_PATH;
-use HISTORY_TABLE_STATE;
+use TABLE_STATES_UI;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::fs::File;
 use std::io::Write;
 use std::io::{BufReader, BufWriter};
+
 use error::Result;
+use ui::TableOperations;
 
 /// Name of the file to load/save from.
 const TABLES_STATE_FILE: &str = "table_state.json";
@@ -18,7 +22,7 @@ const TABLES_STATE_FILE: &str = "table_state.json";
 /// - Search: Keeps the `String` used search, the `String` used to replace, the column filtered, if it's case sensitive or not and the currently selected match.
 /// - Columns: Keeps the order the user sets for the columns.
 #[derive(Serialize, Deserialize)]
-pub struct TableState {
+pub struct TableStateUI {
     pub filter_state: FilterState,
     pub search_state: SearchState,
     pub columns_state: ColumnsState,
@@ -49,8 +53,16 @@ pub struct ColumnsState {
     pub hidden_columns: Vec<i32>,
 }
 
+/// This struct stores the "data" changes of a table, like the undo/redo history, and the painted cells.
+pub struct TableStateData {
+    pub undo_history: Vec<TableOperations>,
+    pub redo_history: Vec<TableOperations>,
+    pub undo_model: *mut StandardItemModel,
+    pub is_renamed: bool,
+}
+
 /// Implementation of TableState.
-impl TableState {
+impl TableStateUI {
 
     /// This function creates a BTreeMap with the different TableStates needed for RPFM.
     pub fn new() -> BTreeMap<Vec<String>, Self> {
@@ -87,7 +99,7 @@ impl TableState {
         let mut file = BufWriter::new(File::create(path)?);
 
         // Same than when loading. We have to process the states to make them compatible with serde.
-        let history = &*HISTORY_TABLE_STATE.lock().unwrap();
+        let history = &*TABLE_STATES_UI.lock().unwrap();
         let mut states_processed = BTreeMap::new();
         for entry in history { states_processed.insert(entry.0.join("\\"), entry.1); }
         let states = serde_json::to_string_pretty(&states_processed);
@@ -134,6 +146,25 @@ impl ColumnsState {
             sorting_column,
             visual_order,
             hidden_columns,
+        }
+    }
+}
+
+/// Implementation of TableStateData.
+impl TableStateData {
+
+    /// This function creates a BTreeMap with the different TableStates needed for RPFM.
+    pub fn new() -> BTreeMap<Vec<String>, Self> {
+        BTreeMap::new()
+    }
+
+    /// This function creates a single empty TableStateData.
+    pub fn new_empty() -> Self {
+        Self {
+            undo_history: vec![],
+            redo_history: vec![],
+            undo_model: StandardItemModel::new(()).into_raw(),
+            is_renamed: false,
         }
     }
 }

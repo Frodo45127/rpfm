@@ -340,7 +340,7 @@ lazy_static! {
 
     /// History for the filters, search, columns...., so table and loc filters are remembered when zapping files, and cleared when the open PackFile changes.
     /// NOTE: This affects both DB Tables and Loc PackedFiles.
-    static ref HISTORY_TABLE_STATE: Mutex<BTreeMap<Vec<String>, TableState>> = Mutex::new(TableState::load().unwrap_or_else(|_| TableState::new()));
+    static ref TABLE_STATES_UI: Mutex<BTreeMap<Vec<String>, TableStateUI>> = Mutex::new(TableStateUI::load().unwrap_or_else(|_| TableStateUI::new()));
 }
 
 /// This constant gets RPFM's version from the `Cargo.toml` file, so we don't have to change it
@@ -951,6 +951,9 @@ fn main() {
         // Preparing initial state of the Main Window...
         //---------------------------------------------------------------------------------------//
 
+        // This cannot go into lazy_static because StandardItem is not send.
+        let table_state_data = Rc::new(RefCell::new(TableStateData::new()));
+
         // Put the stuff we need to move to the slots in Rc<Refcell<>>, so we can clone it without issues.
         let receiver_qt = Rc::new(RefCell::new(receiver_qt));
         let is_modified = Rc::new(RefCell::new(set_modified(false, &app_ui, None)));
@@ -977,7 +980,7 @@ fn main() {
 
         // Signal to save the tables states to disk when we're about to close RPFM. We ignore the error here, as at this point we cannot report it to the user.
         let slot_save_states = SlotNoArgs::new(move || {
-            let _y = TableState::save();
+            let _y = TableStateUI::save();
         });
         app.deref_mut().signals().about_to_quit().connect(&slot_save_states);
 
@@ -996,6 +999,7 @@ fn main() {
             mymod_menu_needs_rebuild.clone(),
             &packedfiles_open_in_packedfile_view,
             close_global_search_action,
+            &table_state_data
         );
 
         let mymod_stuff = Rc::new(RefCell::new(result.0));
@@ -1270,6 +1274,7 @@ fn main() {
             is_modified,
             mymod_stuff,
             mode,
+            table_state_data,
             packedfiles_open_in_packedfile_view,
             sender_qt,
             sender_qt_data,
@@ -1283,7 +1288,7 @@ fn main() {
 
                     // Close the Global Search stuff and reset the filter's history.
                     unsafe { close_global_search_action.as_mut().unwrap().trigger(); }
-                    if !SETTINGS.lock().unwrap().settings_bool.get("remember_table_state_permanently").unwrap() { HISTORY_TABLE_STATE.lock().unwrap().clear(); }
+                    if !SETTINGS.lock().unwrap().settings_bool.get("remember_table_state_permanently").unwrap() { TABLE_STATES_UI.lock().unwrap().clear(); }
 
                     // Show the "Tips".
                     display_help_tips(&app_ui);
@@ -1333,6 +1338,9 @@ fn main() {
 
                     // Set the current "Operational Mode" to Normal, as this is a "New" mod.
                     set_my_mod_mode(&mymod_stuff, &mode, None);
+
+                    // Clean the TableStateData.
+                    *table_state_data.borrow_mut() = TableStateData::new(); 
                 }
             }
         ));
@@ -1342,6 +1350,7 @@ fn main() {
             is_modified,
             mode,
             mymod_stuff,
+            table_state_data,
             sender_qt,
             sender_qt_data,
             packedfiles_open_in_packedfile_view,
@@ -1386,6 +1395,7 @@ fn main() {
                             "",
                             &packedfiles_open_in_packedfile_view,
                             close_global_search_action,
+                            &table_state_data,
                         ) { show_dialog(app_ui.window, false, error); }
                     }
                 }
@@ -1397,6 +1407,7 @@ fn main() {
             is_modified,
             mode,
             mymod_stuff,
+            table_state_data,
             sender_qt,
             sender_qt_data,
             receiver_qt => move |_| {
@@ -1409,6 +1420,7 @@ fn main() {
                     &sender_qt,
                     &sender_qt_data,
                     &receiver_qt,
+                    &table_state_data
                 ) { show_dialog(app_ui.window, false, error); }
             }
         ));
@@ -1418,10 +1430,10 @@ fn main() {
             is_modified,
             mode,
             mymod_stuff,
+            table_state_data,
             sender_qt,
             sender_qt_data,
             receiver_qt => move |_| {
-
                 if let Err(error) = save_packfile(
                     true,
                     &app_ui,
@@ -1431,6 +1443,7 @@ fn main() {
                     &sender_qt,
                     &sender_qt_data,
                     &receiver_qt,
+                    &table_state_data
                 ) { show_dialog(app_ui.window, false, error); }   
             }
         ));
@@ -1442,6 +1455,7 @@ fn main() {
             mymod_stuff,
             sender_qt,
             sender_qt_data,
+            table_state_data,
             packedfiles_open_in_packedfile_view,
             receiver_qt => move |_| {
 
@@ -1498,10 +1512,13 @@ fn main() {
 
                             // Close the Global Search stuff and reset the filter's history.
                             unsafe { close_global_search_action.as_mut().unwrap().trigger(); }
-                            if !SETTINGS.lock().unwrap().settings_bool.get("remember_table_state_permanently").unwrap() { HISTORY_TABLE_STATE.lock().unwrap().clear(); }
+                            if !SETTINGS.lock().unwrap().settings_bool.get("remember_table_state_permanently").unwrap() { TABLE_STATES_UI.lock().unwrap().clear(); }
 
                             // Show the "Tips".
                             display_help_tips(&app_ui);
+
+                            // Clean the TableStateData.
+                            *table_state_data.borrow_mut() = TableStateData::new(); 
                         }
 
                         // If we got an error...
@@ -1669,6 +1686,7 @@ fn main() {
             is_modified,
             receiver_qt,
             mode,
+            table_state_data,
             mymod_stuff,
             sender_qt,
             sender_qt_data => move |_| {
@@ -1703,6 +1721,7 @@ fn main() {
                             &sender_qt,
                             &sender_qt_data,
                             &receiver_qt,
+                            &table_state_data,
                         ) { show_dialog(app_ui.window, false, error); }
                         else { show_dialog(app_ui.window, true, &response.0); }
                     }
@@ -1729,6 +1748,7 @@ fn main() {
             is_modified,
             mode,
             mymod_stuff,
+            table_state_data,
             receiver_qt,
             sender_qt,
             sender_qt_data => move |_| {
@@ -1741,7 +1761,6 @@ fn main() {
                 sender_qt.send(Commands::OptimizePackFile).unwrap();
                 match check_message_validity_tryrecv(&receiver_qt) {
                     Data::VecTreePathType(response) => {
-
 
                         // Delete the files removed by the optimizer.
                         for item_type in response {
@@ -1767,6 +1786,7 @@ fn main() {
                             &sender_qt,
                             &sender_qt_data,
                             &receiver_qt,
+                            &table_state_data
                         ) { show_dialog(app_ui.window, false, error); }
                         else { show_dialog(app_ui.window, true, "PackFile optimized and saved."); }
 
@@ -2036,6 +2056,7 @@ fn main() {
             sender_qt_data,
             receiver_qt,
             is_modified,
+            table_state_data,
             packedfiles_open_in_packedfile_view,
             mode => move |_| {
 
@@ -2135,7 +2156,6 @@ fn main() {
                                 sender_qt.send(Commands::AddPackedFile).unwrap();
                                 sender_qt_data.send(Data::VecPathBufVecVecString((paths.to_vec(), paths_packedfile.to_vec()))).unwrap();
 
-
                                 // Get the data from the operation...
                                 match check_message_validity_tryrecv(&receiver_qt) {
                                     Data::Success => {
@@ -2155,8 +2175,15 @@ fn main() {
                                         *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
 
                                         // Update the global search stuff, if needed.
-                                        global_search_explicit_paths.borrow_mut().append(&mut paths_packedfile);
+                                        global_search_explicit_paths.borrow_mut().append(&mut paths_packedfile.to_vec());
                                         unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
+
+                                        // For each file added, remove it from the data history if exists.
+                                        for path in &paths_packedfile {
+                                            if table_state_data.borrow().get(path).is_some() {
+                                                table_state_data.borrow_mut().remove(path);
+                                            }
+                                        }
                                     }
 
                                     // If we got an error, just show it.
@@ -2240,8 +2267,15 @@ fn main() {
                                     *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
 
                                     // Update the global search stuff, if needed.
-                                    global_search_explicit_paths.borrow_mut().append(&mut paths_packedfile);
+                                    global_search_explicit_paths.borrow_mut().append(&mut paths_packedfile.to_vec());
                                     unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
+
+                                    // For each file added, remove it from the data history if exists.
+                                    for path in &paths_packedfile {
+                                        if table_state_data.borrow().get(path).is_some() {
+                                            table_state_data.borrow_mut().remove(path);
+                                        }
+                                    }
                                 }
 
                                 // If we got an error, just show it.
@@ -2266,6 +2300,7 @@ fn main() {
             sender_qt_data,
             receiver_qt,
             is_modified,
+            table_state_data,
             packedfiles_open_in_packedfile_view,
             mode => move |_| {
 
@@ -2390,8 +2425,15 @@ fn main() {
                                         *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
 
                                         // Update the global search stuff, if needed.
-                                        global_search_explicit_paths.borrow_mut().append(&mut paths_packedfile);
+                                        global_search_explicit_paths.borrow_mut().append(&mut paths_packedfile.to_vec());
                                         unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
+
+                                        // For each file added, remove it from the data history if exists.
+                                        for path in &paths_packedfile {
+                                            if table_state_data.borrow().get(path).is_some() {
+                                                table_state_data.borrow_mut().remove(path);
+                                            }
+                                        }
                                     }
 
                                     // If we got an error, just show it.
@@ -2479,8 +2521,15 @@ fn main() {
                                     *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
 
                                     // Update the global search stuff, if needed.
-                                    global_search_explicit_paths.borrow_mut().append(&mut paths_packedfile);
+                                    global_search_explicit_paths.borrow_mut().append(&mut paths_packedfile.to_vec());
                                     unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
+
+                                    // For each file added, remove it from the data history if exists.
+                                    for path in &paths_packedfile {
+                                        if table_state_data.borrow().get(path).is_some() {
+                                            table_state_data.borrow_mut().remove(path);
+                                        }
+                                    }
                                 }
 
                                 // If we got an error, just show it.
@@ -2504,17 +2553,17 @@ fn main() {
             sender_qt,
             sender_qt_data,
             receiver_qt,
+            table_state_data,
             packedfiles_open_in_packedfile_view,
             is_folder_tree_view_locked,
             is_modified,
             add_from_packfile_slots => move |_| {
 
                 // Create the FileDialog to get the PackFile to open.
-                let mut file_dialog;
-                unsafe { file_dialog = FileDialog::new_unsafe((
+                let mut file_dialog = unsafe { FileDialog::new_unsafe((
                     app_ui.window as *mut Widget,
                     &QString::from_std_str("Select PackFile"),
-                )); }
+                )) };
 
                 // Filter it so it only shows PackFiles.
                 file_dialog.set_name_filter(&QString::from_std_str("PackFiles (*.pack)"));
@@ -2552,7 +2601,8 @@ fn main() {
                                 &is_modified,
                                 &packedfiles_open_in_packedfile_view,
                                 &global_search_explicit_paths,
-                                update_global_search_stuff
+                                update_global_search_stuff,
+                                &table_state_data
                             );
                         }
 
@@ -2882,6 +2932,7 @@ fn main() {
         let slot_contextual_menu_mass_import_tsv = SlotBool::new(clone!(
             packedfiles_open_in_packedfile_view,
             global_search_explicit_paths,
+            table_state_data,
             is_modified,
             sender_qt,
             sender_qt_data,
@@ -2928,6 +2979,13 @@ fn main() {
                                 // Update the global search stuff, if needed.
                                 global_search_explicit_paths.borrow_mut().append(&mut paths_to_add);
                                 unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
+
+                                // For each file added, remove it from the data history if exists.
+                                for path in &paths.1 {
+                                    if table_state_data.borrow().get(path).is_some() {
+                                        table_state_data.borrow_mut().remove(path);
+                                    }
+                                }
                             }
 
                             Data::Error(error) => show_dialog(app_ui.window, true, error),
@@ -2976,6 +3034,7 @@ fn main() {
             sender_qt,
             sender_qt_data,
             receiver_qt,
+            table_state_data,
             packedfiles_open_in_packedfile_view,
             is_modified => move |_| {
 
@@ -3020,7 +3079,11 @@ fn main() {
                                     let visible_widgets = (0..widgets).filter(|x| unsafe {app_ui.packed_file_splitter.as_mut().unwrap().widget(*x).as_mut().unwrap().is_visible() } ).count();
                                     if visible_widgets == 0 { display_help_tips(&app_ui); }
                                 } else { return }
-                            } 
+                            }
+
+                            if table_state_data.borrow().get(&item_path).is_some() {
+                                table_state_data.borrow_mut().remove(&item_path);
+                            }
                         }
                         TreePathType::Folder(item_path) => {
                             if !skaven_confirm {
@@ -3047,7 +3110,13 @@ fn main() {
                                         if visible_widgets == 0 { display_help_tips(&app_ui); }
                                         skaven_confirm = true;
                                     } else { return }
-                                } 
+                                }
+
+                                // For each file added, remove it from the data history if exists.
+                                let coincidences = table_state_data.borrow().iter().filter(|(x, _)| x.starts_with(&item_path) && !x.is_empty()).map(|x| x.0.to_vec()).collect::<Vec<Vec<String>>>();
+                                for path in &coincidences { 
+                                    table_state_data.borrow_mut().remove(path);
+                                }
                             }
 
                             // If we already confirmed it for a PackedFile, don't ask again.
@@ -3077,6 +3146,7 @@ fn main() {
                             if dialog.exec() == 0 { 
                                 purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);
                                 display_help_tips(&app_ui);
+                                table_state_data.borrow_mut().clear();
                                 break;
                             } else { return }
                         }
@@ -3500,6 +3570,7 @@ fn main() {
             db_slots,
             loc_slots,
             text_slots,
+            table_state_data,
             rigid_model_slots,
             is_folder_tree_view_locked,
             packedfiles_open_in_packedfile_view => move |_| {
@@ -3518,6 +3589,7 @@ fn main() {
                     &text_slots,
                     &rigid_model_slots,
                     update_global_search_stuff,
+                    &table_state_data,
                     1
                 ) { show_dialog(app_ui.window, false, error); }
             }
@@ -3549,6 +3621,7 @@ fn main() {
         let slot_contextual_menu_rename_current = SlotBool::new(clone!(
             global_search_explicit_paths,
             is_modified,
+            table_state_data,
             sender_qt,
             sender_qt_data,
             packedfiles_open_in_packedfile_view,
@@ -3632,6 +3705,33 @@ fn main() {
                                         }
                                     }
 
+                                    // Same for the TableStateData stuff. If we find one of the paths in it, we remove it and re-insert it with the new name.
+                                    match item_type {
+                                        TreePathType::File(ref item_path) => {
+                                            if table_state_data.borrow().get(item_path).is_some() {
+                                                let mut new_path = path.to_vec();
+                                                *new_path.last_mut().unwrap() = new_name.to_owned();
+                                                
+                                                let mut data = table_state_data.borrow_mut().remove(item_path).unwrap();
+                                                data.is_renamed = true;
+                                                table_state_data.borrow_mut().insert(new_path.to_vec(), data);
+                                            }
+                                        } 
+
+                                        TreePathType::Folder(ref item_path) => {
+                                            let matches = table_state_data.borrow().keys().filter(|x| x.starts_with(item_path) && !x.is_empty()).cloned().collect::<Vec<Vec<String>>>();
+                                            for old_path in matches {
+                                                let mut new_path = path.to_vec();
+                                                *new_path.last_mut().unwrap() = new_name.to_owned();
+                                                
+                                                let mut data = table_state_data.borrow_mut().remove(&old_path).unwrap();
+                                                data.is_renamed = true;
+                                                table_state_data.borrow_mut().insert(new_path.to_vec(), data);
+                                            }
+                                        }
+                                        _ => unreachable!(),
+                                    }
+
                                     unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
                                 }
 
@@ -3672,6 +3772,7 @@ fn main() {
 
         let slot_contextual_menu_apply_prefix_to_selected = SlotBool::new(clone!(
             global_search_explicit_paths,
+            table_state_data,
             is_modified,
             sender_qt,
             sender_qt_data,
@@ -3726,6 +3827,19 @@ fn main() {
                                     }
                                 }
 
+                                for old_path in &old_paths {
+                                    if table_state_data.borrow().get(old_path).is_some() {
+
+                                        let mut new_path = old_path.to_vec();
+                                        let mut new_name = format!("{}{}", prefix, *new_path.last().unwrap());
+                                        *new_path.last_mut().unwrap() = new_name.to_owned();
+                                        
+                                        let mut data = table_state_data.borrow_mut().remove(old_path).unwrap();
+                                        data.is_renamed = true;
+                                        table_state_data.borrow_mut().insert(new_path, data);
+                                    }
+                                }
+
                                 // Update the global search stuff, if needed.
                                 let mut new_paths = old_paths.to_vec();
                                 for path in &mut new_paths {
@@ -3761,6 +3875,7 @@ fn main() {
 
         let slot_contextual_menu_apply_prefix_to_all = SlotBool::new(clone!(
             global_search_explicit_paths,
+            table_state_data,
             is_modified,
             sender_qt,
             sender_qt_data,
@@ -3799,6 +3914,19 @@ fn main() {
                                 if !open_path.borrow().is_empty() {
                                     let mut new_name = format!("{}{}", prefix, *open_path.borrow().last().unwrap());
                                     *open_path.borrow_mut().last_mut().unwrap() = new_name.to_owned();
+                                }
+                            }
+
+                            for old_path in &old_paths {
+                                if table_state_data.borrow().get(old_path).is_some() {
+
+                                    let mut new_path = old_path.to_vec();
+                                    let mut new_name = format!("{}{}", prefix, *new_path.last().unwrap());
+                                    *new_path.last_mut().unwrap() = new_name.to_owned();
+                                    
+                                    let mut data = table_state_data.borrow_mut().remove(old_path).unwrap();
+                                    data.is_renamed = true;
+                                    table_state_data.borrow_mut().insert(new_path, data);
                                 }
                             }
 
@@ -3854,6 +3982,7 @@ fn main() {
             sender_qt_data,
             receiver_qt,
             is_modified,
+            table_state_data,
             is_folder_tree_view_locked,
             packedfiles_open_in_packedfile_view => move || {
 
@@ -3871,6 +4000,7 @@ fn main() {
                     &text_slots,
                     &rigid_model_slots,
                     update_global_search_stuff,
+                    &table_state_data,
                     0
                 ) { show_dialog(app_ui.window, false, error); }
             }
@@ -4400,6 +4530,7 @@ fn main() {
             receiver_qt,
             is_modified,
             mode,
+            table_state_data,
             close_global_search_action,
             open_from_submenu_menu_needs_rebuild => move || {
 
@@ -4417,6 +4548,7 @@ fn main() {
                         &packedfiles_open_in_packedfile_view,
                         &mymod_stuff,
                         close_global_search_action,
+                        &table_state_data,
                     );
 
                     // Disable the rebuild for the next time.
@@ -4434,6 +4566,7 @@ fn main() {
             sender_qt_data,
             receiver_qt,
             is_modified,
+            table_state_data,
             mode,
             close_global_search_action,
             mymod_menu_needs_rebuild => move || {
@@ -4453,6 +4586,7 @@ fn main() {
                         mymod_menu_needs_rebuild.clone(),
                         &packedfiles_open_in_packedfile_view,
                         close_global_search_action,
+                        &table_state_data,
                     );
 
                     // And store the new values.
@@ -4495,6 +4629,7 @@ fn main() {
                     "",
                     &packedfiles_open_in_packedfile_view,
                     close_global_search_action,
+                    &table_state_data,
                 ) { show_dialog(app_ui.window, false, error); }
             }
         }

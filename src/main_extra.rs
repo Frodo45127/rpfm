@@ -18,6 +18,7 @@ pub fn open_packfile(
     game_folder: &str,
     packedfiles_open_in_packedfile_view: &Rc<RefCell<BTreeMap<i32, Rc<RefCell<Vec<String>>>>>>,
     close_global_search_action: *mut Action,
+    table_state_data: &Rc<RefCell<BTreeMap<Vec<String>, TableStateData>>>,
 ) -> Result<()> {
 
     // Tell the Background Thread to create a new PackFile.
@@ -122,10 +123,13 @@ pub fn open_packfile(
 
             // Close the Global Search stuff and reset the filter's history.
             unsafe { close_global_search_action.as_mut().unwrap().trigger(); }
-            if !SETTINGS.lock().unwrap().settings_bool.get("remember_table_state_permanently").unwrap() { HISTORY_TABLE_STATE.lock().unwrap().clear(); }
+            if !SETTINGS.lock().unwrap().settings_bool.get("remember_table_state_permanently").unwrap() { TABLE_STATES_UI.lock().unwrap().clear(); }
 
             // Show the "Tips".
             display_help_tips(&app_ui);
+
+            // Clean the TableStateData.
+            *table_state_data.borrow_mut() = TableStateData::new(); 
         }
 
         // If we got an error...
@@ -168,6 +172,7 @@ pub fn open_packedfile(
     text_slots: &Rc<RefCell<BTreeMap<i32, PackedFileTextView>>>,
     rigid_model_slots: &Rc<RefCell<BTreeMap<i32, PackedFileRigidModelDataView>>>,
     update_global_search_stuff: *mut Action,
+    table_state_data: &Rc<RefCell<BTreeMap<Vec<String>, TableStateData>>>,
     view_position: i32,
 ) -> Result<()> {
 
@@ -268,6 +273,7 @@ pub fn open_packedfile(
                             &path,
                             &global_search_explicit_paths,
                             update_global_search_stuff,
+                            table_state_data,
                         ) {
                             Ok(new_loc_slots) => { loc_slots.borrow_mut().insert(view_position, new_loc_slots); },
                             Err(error) => return Err(ErrorKind::LocDecode(format!("{}", error)))?,
@@ -293,6 +299,7 @@ pub fn open_packedfile(
                             &path,
                             &global_search_explicit_paths,
                             update_global_search_stuff,
+                            table_state_data
                         ) {
                             Ok(new_db_slots) => { db_slots.borrow_mut().insert(view_position, new_db_slots); },
                             Err(error) => return Err(ErrorKind::DBTableDecode(format!("{}", error)))?,
@@ -401,6 +408,7 @@ pub fn save_packfile(
     sender_qt: &Sender<Commands>,
     sender_qt_data: &Sender<Data>,
     receiver_qt: &Rc<RefCell<Receiver<Data>>>,
+    table_state_data: &Rc<RefCell<BTreeMap<Vec<String>, TableStateData>>>,
 ) -> Result<()> {
 
     // If we are saving with the "Save PackFile" button, we try to save it. If we detect the PackFile doesn't exist,
@@ -524,7 +532,8 @@ pub fn save_packfile(
     }
 
     // Then we re-enable the main Window and return whatever we've received.
-    unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }              
+    unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
+    if result.is_ok() { *table_state_data.borrow_mut() = TableStateData::new(); }
     result
 }
 
@@ -545,6 +554,7 @@ pub fn build_my_mod_menu(
     needs_rebuild: Rc<RefCell<bool>>,
     packedfiles_open_in_packedfile_view: &Rc<RefCell<BTreeMap<i32, Rc<RefCell<Vec<String>>>>>>,
     close_global_search_action: *mut Action,
+    table_state_data: &Rc<RefCell<BTreeMap<Vec<String>, TableStateData>>>,
 ) -> (MyModStuff, MyModSlots) {
 
     //---------------------------------------------------------------------------------------//
@@ -645,7 +655,7 @@ pub fn build_my_mod_menu(
 
                                 // Close the Global Search stuff and reset the filter's history.
                                 unsafe { close_global_search_action.as_mut().unwrap().trigger(); }
-                                if !SETTINGS.lock().unwrap().settings_bool.get("remember_table_state_permanently").unwrap() { HISTORY_TABLE_STATE.lock().unwrap().clear(); }
+                                if !SETTINGS.lock().unwrap().settings_bool.get("remember_table_state_permanently").unwrap() { TABLE_STATES_UI.lock().unwrap().clear(); }
 
                                 // Show the "Tips".
                                 display_help_tips(&app_ui);
@@ -970,6 +980,7 @@ pub fn build_my_mod_menu(
                                         pack_file,
                                         packedfiles_open_in_packedfile_view,
                                         close_global_search_action,
+                                        table_state_data,
                                         sender_qt,
                                         sender_qt_data,
                                         receiver_qt => move |_| {
@@ -990,6 +1001,7 @@ pub fn build_my_mod_menu(
                                                     &game_folder_name,
                                                     &packedfiles_open_in_packedfile_view,
                                                     close_global_search_action,
+                                                    &table_state_data,
                                                 ) { show_dialog(app_ui.window, false, error) }
                                             }
                                         }
@@ -1051,6 +1063,7 @@ pub fn build_open_from_submenus(
     packedfiles_open_in_packedfile_view: &Rc<RefCell<BTreeMap<i32, Rc<RefCell<Vec<String>>>>>>,
     mymod_stuff: &Rc<RefCell<MyModStuff>>,
     close_global_search_action: *mut Action,
+    table_state_data: &Rc<RefCell<BTreeMap<Vec<String>, TableStateData>>>,
 ) -> Vec<SlotBool<'static>> {
 
     // First, we clear the list, just in case this is a "Rebuild" of the menu.
@@ -1084,6 +1097,7 @@ pub fn build_open_from_submenus(
                 path,
                 packedfiles_open_in_packedfile_view,
                 close_global_search_action,
+                table_state_data,
                 sender_qt,
                 sender_qt_data,
                 receiver_qt => move |_| {
@@ -1104,6 +1118,7 @@ pub fn build_open_from_submenus(
                             "",
                             &packedfiles_open_in_packedfile_view,
                             close_global_search_action,
+                            &table_state_data,
                         ) { show_dialog(app_ui.window, false, error); }
                     }
                 }
@@ -1137,6 +1152,7 @@ pub fn build_open_from_submenus(
                 path,
                 packedfiles_open_in_packedfile_view,
                 close_global_search_action,
+                table_state_data,
                 sender_qt,
                 sender_qt_data,
                 receiver_qt => move |_| {
@@ -1157,6 +1173,7 @@ pub fn build_open_from_submenus(
                             "",
                             &packedfiles_open_in_packedfile_view,
                             close_global_search_action,
+                            &table_state_data,
                         ) { show_dialog(app_ui.window, false, error); }
                     }
                 }

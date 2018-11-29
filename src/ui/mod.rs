@@ -69,6 +69,7 @@ use packedfile::*;
 use packedfile::db::*;
 use packedfile::db::schemas::*;
 use packedfile::loc::*;
+use ui::table_state::TableStateData;
 
 pub mod dependency_manager;
 pub mod packedfile_db;
@@ -145,6 +146,7 @@ impl AddFromPackFileSlots {
         packedfiles_open_in_packedfile_view: &Rc<RefCell<BTreeMap<i32, Rc<RefCell<Vec<String>>>>>>,
         global_search_explicit_paths: &Rc<RefCell<Vec<Vec<String>>>>,
         update_global_search_stuff: *mut Action,
+        table_state_data: &Rc<RefCell<BTreeMap<Vec<String>, TableStateData>>>
     ) -> Self {
 
         // Create the widget that'll act as a container for the view.
@@ -176,6 +178,7 @@ impl AddFromPackFileSlots {
                 global_search_explicit_paths,
                 is_modified,
                 sender_qt,
+                table_state_data,
                 sender_qt_data,
                 receiver_qt => move |_| {
 
@@ -195,7 +198,7 @@ impl AddFromPackFileSlots {
                     match check_message_validity_tryrecv(&receiver_qt) {
                     
                         // If it's success....
-                        Data::VecVecString(mut paths) => {
+                        Data::VecVecString(paths) => {
 
                             // Update the TreeView.
                             update_treeview(
@@ -212,8 +215,15 @@ impl AddFromPackFileSlots {
                             *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
 
                             // Update the global search stuff, if needed.
-                            global_search_explicit_paths.borrow_mut().append(&mut paths);
+                            global_search_explicit_paths.borrow_mut().append(&mut paths.to_vec());
                             unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
+
+                            // For each file added, remove it from the data history if exists.
+                            for path in &paths {
+                                if table_state_data.borrow().get(path).is_some() {
+                                    table_state_data.borrow_mut().remove(path);
+                                }
+                            }
                         }
 
                         // If we got an error...
@@ -845,6 +855,20 @@ fn update_undo_model(model: *mut StandardItemModel, undo_model: *mut StandardIte
             for column in 0..model.as_mut().unwrap().column_count(()) {
                 let item = &*model.as_mut().unwrap().item((row, column));
                 undo_model.as_mut().unwrap().set_item((row, column, item.clone()));
+            }    
+        }
+    }
+}
+
+/// This function causes the model to use the same colors the undo_model uses. It's for loading the "modified" state
+/// of the table when you modify it, close it and open it again.
+/// NOTE: This assumes both models are a copy one from another. Any discrepance in their sizes will send the program crashing to hell.
+fn load_colors_from_undo_model(model: *mut StandardItemModel, undo_model: *mut StandardItemModel) {
+    unsafe {
+        for row in 0..undo_model.as_mut().unwrap().row_count(()) {
+            for column in 0..undo_model.as_mut().unwrap().column_count(()) {
+                let color = &undo_model.as_mut().unwrap().item((row, column)).as_mut().unwrap().background();
+                model.as_mut().unwrap().item((row, column)).as_mut().unwrap().set_background(color);
             }    
         }
     }
