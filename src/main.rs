@@ -163,7 +163,21 @@ lazy_static! {
             id: PFHVersion::PFH5,
             schema: "schema_wh.json".to_owned(),
             db_packs: vec!["data.pack".to_owned()],
-            loc_packs: vec!["local_en.pack".to_owned()],
+            loc_packs: vec![
+                "local_en.pack".to_owned(),     // English
+                "local_br.pack".to_owned(),     // Brazilian
+                "local_cz.pack".to_owned(),     // Czech
+                "local_ge.pack".to_owned(),     // German
+                "local_sp.pack".to_owned(),     // Spanish
+                "local_fr.pack".to_owned(),     // French
+                "local_it.pack".to_owned(),     // Italian
+                "local_kr.pack".to_owned(),     // Korean
+                "local_pl.pack".to_owned(),     // Polish
+                "local_ru.pack".to_owned(),     // Russian
+                "local_tr.pack".to_owned(),     // Turkish
+                "local_cn.pack".to_owned(),     // Simplified Chinese
+                "local_zh.pack".to_owned(),     // Traditional Chinese
+            ],
             steam_id: Some(594570),
             ca_types_file: Some("ca_types_wh2".to_owned()),
             supports_editing: true,
@@ -175,7 +189,21 @@ lazy_static! {
             id: PFHVersion::PFH4,
             schema: "schema_wh.json".to_owned(),
             db_packs: vec!["data.pack".to_owned()],
-            loc_packs: vec!["local_en.pack".to_owned()],
+            loc_packs: vec![
+                "local_en.pack".to_owned(),     // English
+                "local_br.pack".to_owned(),     // Brazilian
+                "local_cz.pack".to_owned(),     // Czech
+                "local_ge.pack".to_owned(),     // German
+                "local_sp.pack".to_owned(),     // Spanish
+                "local_fr.pack".to_owned(),     // French
+                "local_it.pack".to_owned(),     // Italian
+                "local_kr.pack".to_owned(),     // Korean
+                "local_pl.pack".to_owned(),     // Polish
+                "local_ru.pack".to_owned(),     // Russian
+                "local_tr.pack".to_owned(),     // Turkish
+                "local_cn.pack".to_owned(),     // Simplified Chinese
+                "local_zh.pack".to_owned(),     // Traditional Chinese
+            ],
             steam_id: Some(364360),
             ca_types_file: None,
             supports_editing: true,
@@ -187,7 +215,21 @@ lazy_static! {
             id: PFHVersion::PFH4,
             schema: "schema_tob.json".to_owned(),
             db_packs: vec!["data.pack".to_owned()],
-            loc_packs: vec!["local_en.pack".to_owned()],
+            loc_packs: vec![
+                "local_en.pack".to_owned(),     // English
+                "local_br.pack".to_owned(),     // Brazilian
+                "local_cz.pack".to_owned(),     // Czech
+                "local_ge.pack".to_owned(),     // German
+                "local_sp.pack".to_owned(),     // Spanish
+                "local_fr.pack".to_owned(),     // French
+                "local_it.pack".to_owned(),     // Italian
+                "local_kr.pack".to_owned(),     // Korean
+                "local_pl.pack".to_owned(),     // Polish
+                "local_ru.pack".to_owned(),     // Russian
+                "local_tr.pack".to_owned(),     // Turkish
+                "local_cn.pack".to_owned(),     // Simplified Chinese
+                "local_zh.pack".to_owned(),     // Traditional Chinese
+            ],
             steam_id: Some(712100),
             ca_types_file: None,
             supports_editing: true,
@@ -199,7 +241,21 @@ lazy_static! {
             id: PFHVersion::PFH4,
             schema: "schema_att.json".to_owned(),
             db_packs: vec!["data.pack".to_owned()],
-            loc_packs: vec!["local_en.pack".to_owned()],
+            loc_packs: vec![
+                "local_en.pack".to_owned(),     // English
+                "local_br.pack".to_owned(),     // Brazilian
+                "local_cz.pack".to_owned(),     // Czech
+                "local_ge.pack".to_owned(),     // German
+                "local_sp.pack".to_owned(),     // Spanish
+                "local_fr.pack".to_owned(),     // French
+                "local_it.pack".to_owned(),     // Italian
+                "local_kr.pack".to_owned(),     // Korean
+                "local_pl.pack".to_owned(),     // Polish
+                "local_ru.pack".to_owned(),     // Russian
+                "local_tr.pack".to_owned(),     // Turkish
+                "local_cn.pack".to_owned(),     // Simplified Chinese
+                "local_zh.pack".to_owned(),     // Traditional Chinese
+            ],
             steam_id: Some(325610),
             ca_types_file: None,
             supports_editing: true,
@@ -211,7 +267,21 @@ lazy_static! {
             id: PFHVersion::PFH4,
             schema: "schema_rom2.json".to_owned(),
             db_packs: vec!["data_rome2.pack".to_owned()],
-            loc_packs: vec!["local_en.pack".to_owned()],
+            loc_packs: vec![
+                "local_en.pack".to_owned(),     // English
+                "local_br.pack".to_owned(),     // Brazilian
+                "local_cz.pack".to_owned(),     // Czech
+                "local_ge.pack".to_owned(),     // German
+                "local_sp.pack".to_owned(),     // Spanish
+                "local_fr.pack".to_owned(),     // French
+                "local_it.pack".to_owned(),     // Italian
+                "local_kr.pack".to_owned(),     // Korean
+                "local_pl.pack".to_owned(),     // Polish
+                "local_ru.pack".to_owned(),     // Russian
+                "local_tr.pack".to_owned(),     // Turkish
+                "local_cn.pack".to_owned(),     // Simplified Chinese
+                "local_zh.pack".to_owned(),     // Traditional Chinese
+            ],
             steam_id: Some(214950),
             ca_types_file: None,
             supports_editing: true,
@@ -223,7 +293,21 @@ lazy_static! {
             id: PFHVersion::PFH3,
             schema: "schema_sho2.json".to_owned(),
             db_packs: vec!["data.pack".to_owned()],
-            loc_packs: vec!["local_en.pack".to_owned()],
+            loc_packs: vec![
+                "local_en.pack".to_owned(),     // English
+                "local_br.pack".to_owned(),     // Brazilian
+                "local_cz.pack".to_owned(),     // Czech
+                "local_ge.pack".to_owned(),     // German
+                "local_sp.pack".to_owned(),     // Spanish
+                "local_fr.pack".to_owned(),     // French
+                "local_it.pack".to_owned(),     // Italian
+                "local_kr.pack".to_owned(),     // Korean
+                "local_pl.pack".to_owned(),     // Polish
+                "local_ru.pack".to_owned(),     // Russian
+                "local_tr.pack".to_owned(),     // Turkish
+                "local_cn.pack".to_owned(),     // Simplified Chinese
+                "local_zh.pack".to_owned(),     // Traditional Chinese
+            ],
             steam_id: Some(34330),
             ca_types_file: None,
             supports_editing: true,
