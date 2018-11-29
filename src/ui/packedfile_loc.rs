@@ -1088,7 +1088,7 @@ impl PackedFileLocTreeView {
                     lua_table.push_str("LOC = {\n");
                     for entry in &packed_file_data.borrow().entries {
                         lua_table.push_str(&format!("\t[key] = {{"));
-                        lua_table.push_str(&format!(" [\"key\"] = {},", format!("\"{}\"", entry.key.replace('\\', "\\\\"))));
+                        lua_table.push_str(&format!(" [\"key\"] = {},", format!("\"{}\"", entry.key.replace('\\', "\\\\").replace('\"', "\\\""))));
                         lua_table.push_str(&format!(" [\"text\"] = {},", format!("\"{}\"", entry.text.replace('\\', "\\\\").replace("\"", "\\\""))));
                         lua_table.push_str(&format!(" [\"tooltip\"] = {},", if entry.tooltip { "true" } else { "false" }));
 

@@ -1445,7 +1445,7 @@ impl PackedFileDBTreeView {
                                 DecodedData::StringU8(ref data) |
                                 DecodedData::StringU16(ref data) |
                                 DecodedData::OptionalStringU8(ref data) |
-                                DecodedData::OptionalStringU16(ref data) => format!("\"{}\"", data.replace('\\', "\\\\")),
+                                DecodedData::OptionalStringU16(ref data) => format!("\"{}\"", data.replace('\\', "\\\\").replace('\"', "\\\"")),
                             };
 
                             // And push it to the list.
