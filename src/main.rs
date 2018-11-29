@@ -574,6 +574,7 @@ fn main() {
         let global_search_widget = Widget::new().into_raw();
         let global_search_grid = GridLayout::new().into_raw();
         unsafe { global_search_widget.as_mut().unwrap().set_layout(global_search_grid as *mut Layout); }
+        unsafe { global_search_grid.as_mut().unwrap().set_margin(3); }
 
         let close_matches_button = PushButton::new(&QString::from_std_str("Close Matches")).into_raw();
         let table_view_matches_db = TableView::new().into_raw();
