@@ -409,6 +409,7 @@ pub fn save_packfile(
     sender_qt_data: &Sender<Data>,
     receiver_qt: &Rc<RefCell<Receiver<Data>>>,
     table_state_data: &Rc<RefCell<BTreeMap<Vec<String>, TableStateData>>>,
+    packedfiles_open_in_packedfile_view: &Rc<RefCell<BTreeMap<i32, Rc<RefCell<Vec<String>>>>>>,
 ) -> Result<()> {
 
     // If we are saving with the "Save PackFile" button, we try to save it. If we detect the PackFile doesn't exist,
@@ -533,7 +534,16 @@ pub fn save_packfile(
 
     // Then we re-enable the main Window and return whatever we've received.
     unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
-    if result.is_ok() { *table_state_data.borrow_mut() = TableStateData::new(); }
+
+    // Clean all the modified items EXCEPT those open. That way we can still undo changes there.
+    if result.is_ok() { 
+        let iter = table_state_data.borrow().iter().map(|x| x.0).cloned().collect::<Vec<Vec<String>>>();
+        for path in &iter {
+            if !packedfiles_open_in_packedfile_view.borrow().values().any(|x| *x.borrow() == *path) {
+                table_state_data.borrow_mut().remove(path);
+            }
+        }
+    }
     result
 }
 
@@ -585,6 +595,7 @@ pub fn build_my_mod_menu(
             sender_qt_data,
             receiver_qt,
             packedfiles_open_in_packedfile_view,
+            table_state_data,
             app_ui,
             mode,
             is_modified,
@@ -691,6 +702,9 @@ pub fn build_my_mod_menu(
 
                                 // Set it to rebuild next time we try to open the "MyMod" Menu.
                                 *needs_rebuild.borrow_mut() = true;
+
+                                // Clean the TableStateData.
+                                *table_state_data.borrow_mut() = TableStateData::new(); 
                             },
 
                             // If we got an error...

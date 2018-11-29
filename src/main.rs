@@ -1410,6 +1410,7 @@ fn main() {
             table_state_data,
             sender_qt,
             sender_qt_data,
+            packedfiles_open_in_packedfile_view,
             receiver_qt => move |_| {
                 if let Err(error) = save_packfile(
                     false,
@@ -1420,7 +1421,8 @@ fn main() {
                     &sender_qt,
                     &sender_qt_data,
                     &receiver_qt,
-                    &table_state_data
+                    &table_state_data,
+                    &packedfiles_open_in_packedfile_view
                 ) { show_dialog(app_ui.window, false, error); }
             }
         ));
@@ -1433,6 +1435,7 @@ fn main() {
             table_state_data,
             sender_qt,
             sender_qt_data,
+            packedfiles_open_in_packedfile_view,
             receiver_qt => move |_| {
                 if let Err(error) = save_packfile(
                     true,
@@ -1443,7 +1446,8 @@ fn main() {
                     &sender_qt,
                     &sender_qt_data,
                     &receiver_qt,
-                    &table_state_data
+                    &table_state_data,
+                    &packedfiles_open_in_packedfile_view
                 ) { show_dialog(app_ui.window, false, error); }   
             }
         ));
@@ -1687,6 +1691,7 @@ fn main() {
             receiver_qt,
             mode,
             table_state_data,
+            packedfiles_open_in_packedfile_view,
             mymod_stuff,
             sender_qt,
             sender_qt_data => move |_| {
@@ -1722,6 +1727,7 @@ fn main() {
                             &sender_qt_data,
                             &receiver_qt,
                             &table_state_data,
+                            &packedfiles_open_in_packedfile_view
                         ) { show_dialog(app_ui.window, false, error); }
                         else { show_dialog(app_ui.window, true, &response.0); }
                     }
@@ -1749,6 +1755,7 @@ fn main() {
             mode,
             mymod_stuff,
             table_state_data,
+            packedfiles_open_in_packedfile_view,
             receiver_qt,
             sender_qt,
             sender_qt_data => move |_| {
@@ -1786,7 +1793,8 @@ fn main() {
                             &sender_qt,
                             &sender_qt_data,
                             &receiver_qt,
-                            &table_state_data
+                            &table_state_data,
+                            &packedfiles_open_in_packedfile_view
                         ) { show_dialog(app_ui.window, false, error); }
                         else { show_dialog(app_ui.window, true, "PackFile optimized and saved."); }
 
