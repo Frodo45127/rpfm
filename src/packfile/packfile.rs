@@ -786,17 +786,18 @@ impl PackedFile {
 }
 
 //-----------------------------------------------------------------------------------------------//
-//                Decryption Functions (for Arena), copied from twa_pack_lib
+//                     Decryption Functions, copied from tw_pack_lib
 //-----------------------------------------------------------------------------------------------//
 
 // NOTE: The reason all these functions are here is because the `twa_pack_lib` doesn't make them public.
 
 // Decryption key.
-static KEY: &str = "L2{B3dPL7L*v&+Q3ZsusUhy[BGQn(Uq$f>JQdnvdlf{-K:>OssVDr#TlYU|13B}r";
+// static KEY: &str = "L2{B3dPL7L*v&+Q3ZsusUhy[BGQn(Uq$f>JQdnvdlf{-K:>OssVDr#TlYU|13B}r";
+static INDEX_KEY: &str = "#:AhppdV-!PEfz&}[]Nv?6w4guU%dF5.fq:n*-qGuhBJJBm&?2tPy!geW/+k#pG?";
 
 /// Function to get the byte we want from the key above. I guess...
 fn get_key_at(pos: usize) -> u8 {
-    KEY.as_bytes()[pos % KEY.len()]
+    INDEX_KEY.as_bytes()[pos % INDEX_KEY.len()]
 }
 
 /// This function decrypts the size of a PackedFile. Requires:
@@ -806,7 +807,7 @@ fn get_key_at(pos: usize) -> u8 {
 fn decrypt_index_item_file_length(ciphertext: u32, packed_files_after_this_one: u32, offset: &mut usize) -> u32 {
 
     // Decrypt the size of the PackedFile by xoring it. No idea where the 0x15091984 came from.
-    let decrypted_size = packed_files_after_this_one ^ ciphertext ^ 0x15091984;
+    let decrypted_size = !packed_files_after_this_one ^ ciphertext ^ 0xE10B73F4;
 
     // Increase the offset.
     *offset += 4;
@@ -831,7 +832,7 @@ fn decrypt_index_item_filename(ciphertext: &[u8], decrypted_size: u8, offset: &m
     loop {
 
         // Get the character by xoring it.
-        let character = ciphertext[index] ^ decrypted_size ^ get_key_at(index);
+        let character = ciphertext[index] ^ !decrypted_size ^ get_key_at(index);
 
         // Increase the index for the next cycle.
         index += 1;
