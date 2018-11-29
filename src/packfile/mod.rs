@@ -16,7 +16,7 @@ use common::*;
 use error::{Error, ErrorKind, Result};
 use packfile::packfile::PFHFileType;
 use packedfile::loc::Loc;
-use packedfile::db::DB;
+use packedfile::db::{DB, DecodedData};
 use packedfile::rigidmodel::RigidModel;
 
 pub mod packfile;
@@ -1101,7 +1101,7 @@ pub fn optimize_packfile(pack_file: &mut packfile::PackFile)-> Result<Vec<TreePa
         .filter_map(|x| Loc::read(&x).ok())
         .collect::<Vec<Loc>>();
 
-    let game_dbs = if let Some(ref schema) = *SCHEMA.lock().unwrap() {
+    let mut game_dbs = if let Some(ref schema) = *SCHEMA.lock().unwrap() {
         DEPENDENCY_DATABASE.lock().unwrap().iter()
             .filter(|x| x.path.len() == 3 && x.path[0] == "db")
             .map(|x| (x.get_data(), x.path[1].to_owned()))
@@ -1109,6 +1109,12 @@ pub fn optimize_packfile(pack_file: &mut packfile::PackFile)-> Result<Vec<TreePa
             .filter_map(|x| DB::read(&x.0.unwrap(), &x.1, &schema).ok())
             .collect::<Vec<DB>>()
     } else { vec![] };
+
+    // Due to precision issues with float fields, we have to round every float field from the tables to 3 decimals max.
+    game_dbs.iter_mut().for_each(|x| x.entries.iter_mut()
+        .for_each(|x| x.iter_mut()
+        .for_each(|x| if let DecodedData::Float(data) = x { *data = (*data * 1000f32).round() / 1000f32 })
+    ));
 
     for mut packed_file in &mut pack_file.packed_files {
 
@@ -1121,6 +1127,12 @@ pub fn optimize_packfile(pack_file: &mut packfile::PackFile)-> Result<Vec<TreePa
                     Ok(table) => table,
                     Err(_) => continue,
                 };
+
+                // We have to round our floats too.
+                optimized_table.entries.iter_mut()
+                    .for_each(|x| x.iter_mut()
+                    .for_each(|x| if let DecodedData::Float(data) = x { *data = (*data * 1000f32).round() / 1000f32 })
+                );
 
                 // For each vanilla DB Table that coincide with our own, compare it row by row, cell by cell, with our own DB Table. Then delete in reverse every coincidence.
                 for game_db in &game_dbs {
