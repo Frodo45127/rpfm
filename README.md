@@ -14,14 +14,16 @@ It depends on what you need. Good things of RPFM are:
 - **UI similar to PFM**, so it's not hard to get used to when coming from PFM.
 
 Bad things are:
-- **Doesn't support as many games as PFM**.
+- **Doesn't support Napoleon or Empire (yet)**.
 
 # Status of the Project
 RPFM currently supports:
 - **TW: Warhammer 2**.
 - **TW: Warhammer**.
+- **TW: Thrones of Britannia**.
 - **TW: Attila**.
 - **TW: Rome 2**.
+- **TW: Shogun 2**.
 - **TW: Arena** (Read-Only and not complete table support).
 
 It can do more or less what PFM can do, but faster and, in some times, even better. If you want to know all the features RPFM has to offer, you can check the manual that it comes with it. It's included in RPFM release since 1.0, and you can open it by going to ***About/Open Manual***.
@@ -43,16 +45,17 @@ In **Windows**, first you need to install the ***Rust Toolchain*** (at least +1.
 To build, move to the repo directory and execute:
 ```bash
 # For Windows
-cargo run --target=x86_64-pc-windows-gnu
+cargo run
 
 # For Linux
-cargo run --target=x86_64-unknown-linux-gnu
+cargo run
 ```
 
 # Known Issues
-- **The program crashes when trying to open an Arena PackFile!!!**: CA recently changed the encryption Arena uses (don't think it was really a coincidence),... so that's something to fix in the future.
 - **Kailua throws useless errors!!!**: That feature is alpha and very experimental.
-- **If I edit a PackedFile, close it, edit it again and undo all the changes, the colors get weird**: It's just a visual bug, but it's quite complex to fix. Don't worry, it doesn't do anything apart of the color change, so you can ignore for now.
+- **Linux paths doesn't work properly**: The linux version of some of the games have their files with a different structure than in Windows. To be fixed in another update.
+- **Trying to extract a folder in a folder with a folder of the same name of the folder we are trying to extract gets you inside the folder instead of extracting your folder**: Weird behavior of the FileChooser. Still trying to find the cause.
+- **Selecting an encrypted RigidModel crashes the game**: The RigidModel module is a bit unstable. To be fixed in the next update.
 - **My PackFile just vanished from the data folder!!!!!**: If you mod in the data folder of Warhammer 2, ***DISABLE LAZY-LOADING IN THE SETTINGS***. The problem is a bug in the Assembly Kit, not in RPFM. Want it fixed? Ask CA to fix it. If you have lazy-loading disabled, just try to save the PackFile outside the data folder and you'll recover all your data.
 
 # FAQ
