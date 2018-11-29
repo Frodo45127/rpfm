@@ -54,6 +54,9 @@ use std::{fmt, fmt::Display, fmt::Debug};
 use std::f32;
 
 use RPFM_PATH;
+use SHORTCUTS;
+use SETTINGS;
+use SCHEMA;
 use TREEVIEW_ICONS;
 use QString;
 use AppUI;
@@ -66,6 +69,7 @@ use packedfile::*;
 use packedfile::db::*;
 use packedfile::db::schemas::*;
 use packedfile::loc::*;
+use ui::table_state::TableStateData;
 
 pub mod dependency_manager;
 pub mod packedfile_db;
@@ -77,6 +81,7 @@ pub mod settings;
 pub mod shortcuts;
 pub mod table_state;
 pub mod updater;
+pub mod qt_custom_stuff;
 
 //----------------------------------------------------------------------------//
 //             UI Structs (to hold slots, actions and what not)
@@ -141,6 +146,7 @@ impl AddFromPackFileSlots {
         packedfiles_open_in_packedfile_view: &Rc<RefCell<BTreeMap<i32, Rc<RefCell<Vec<String>>>>>>,
         global_search_explicit_paths: &Rc<RefCell<Vec<Vec<String>>>>,
         update_global_search_stuff: *mut Action,
+        table_state_data: &Rc<RefCell<BTreeMap<Vec<String>, TableStateData>>>
     ) -> Self {
 
         // Create the widget that'll act as a container for the view.
@@ -172,6 +178,7 @@ impl AddFromPackFileSlots {
                 global_search_explicit_paths,
                 is_modified,
                 sender_qt,
+                table_state_data,
                 sender_qt_data,
                 receiver_qt => move |_| {
 
@@ -183,17 +190,15 @@ impl AddFromPackFileSlots {
                     let item_path = get_path_from_item_selection(tree_model, &selection_file_to_move, true);
 
                     // Ask the Background Thread to move the files, and send him the path.
+                    unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
                     sender_qt.send(Commands::AddPackedFileFromPackFile).unwrap();
                     sender_qt_data.send(Data::VecString(item_path)).unwrap();
-
-                    // Disable the Main Window (so we can't do other stuff).
-                    unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
 
                     // Check what response we got.
                     match check_message_validity_tryrecv(&receiver_qt) {
                     
                         // If it's success....
-                        Data::VecVecString(mut paths) => {
+                        Data::VecVecString(paths) => {
 
                             // Update the TreeView.
                             update_treeview(
@@ -210,8 +215,15 @@ impl AddFromPackFileSlots {
                             *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
 
                             // Update the global search stuff, if needed.
-                            global_search_explicit_paths.borrow_mut().append(&mut paths);
+                            global_search_explicit_paths.borrow_mut().append(&mut paths.to_vec());
                             unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
+
+                            // For each file added, remove it from the data history if exists.
+                            for path in &paths {
+                                if table_state_data.borrow().get(path).is_some() {
+                                    table_state_data.borrow_mut().remove(path);
+                                }
+                            }
                         }
 
                         // If we got an error...
@@ -256,10 +268,6 @@ impl AddFromPackFileSlots {
 
         let tree_view_expand_all = Action::new(&QString::from_std_str("&Expand All")).into_raw();
         let tree_view_collapse_all = Action::new(&QString::from_std_str("&Collapse All")).into_raw();
-
-        // Get the current shortcuts.
-        sender_qt.send(Commands::GetShortcuts).unwrap();
-        let shortcuts = if let Data::Shortcuts(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
         
         // Actions for the slots...
         unsafe { tree_view.as_ref().unwrap().signals().double_clicked().connect(&slots.copy); }
@@ -267,8 +275,8 @@ impl AddFromPackFileSlots {
         unsafe { tree_view_expand_all.as_ref().unwrap().signals().triggered().connect(&slots.slot_tree_view_expand_all); }
         unsafe { tree_view_collapse_all.as_ref().unwrap().signals().triggered().connect(&slots.slot_tree_view_collapse_all); }
 
-        unsafe { tree_view_expand_all.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("expand_all").unwrap()))); }
-        unsafe { tree_view_collapse_all.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.tree_view.get("collapse_all").unwrap()))); }
+        unsafe { tree_view_expand_all.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().tree_view.get("expand_all").unwrap()))); }
+        unsafe { tree_view_collapse_all.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().tree_view.get("collapse_all").unwrap()))); }
 
         unsafe { tree_view_expand_all.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { tree_view_collapse_all.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
@@ -459,43 +467,29 @@ pub fn create_new_packed_file_dialog(
     // Creating the New PackedFile Dialog...
     //-------------------------------------------------------------------------------------------//
 
-    // Create the "New PackedFile" Dialog.
-    let mut dialog;
-    unsafe { dialog = Dialog::new_unsafe(app_ui.window as *mut Widget); }
-
-    // Change his title.
+    // Create and configure the "New PackedFile" Dialog.
+    let mut dialog = unsafe { Dialog::new_unsafe(app_ui.window as *mut Widget) };
     match packed_file_type {
         PackedFileType::Loc(_) => dialog.set_window_title(&QString::from_std_str("New Loc PackedFile")),
         PackedFileType::DB(_,_,_) => dialog.set_window_title(&QString::from_std_str("New DB Table")),
         PackedFileType::Text(_) => dialog.set_window_title(&QString::from_std_str("New Text PackedFile")),
     }
-
-    // Set it Modal, so you can't touch the Main Window with this dialog open.
     dialog.set_modal(true);
 
-    // Create the main Grid.
+    // Create the main Grid and his widgets.
     let main_grid = GridLayout::new().into_raw();
-
-    // Create the "New Name" LineEdit.
     let mut new_packed_file_name_edit = LineEdit::new(());
-
-    // Set the current name as default.
-    new_packed_file_name_edit.set_text(&QString::from_std_str("new_file"));
-
-    // Create the "Create" button.
     let create_button = PushButton::new(&QString::from_std_str("Create")).into_raw();
-
-    // Create a dropdown to select the table.
     let mut table_dropdown = ComboBox::new();
     let mut table_model = StandardItemModel::new(());
+    unsafe { dialog.set_layout(main_grid as *mut Layout); }
+
+    new_packed_file_name_edit.set_text(&QString::from_std_str("new_file"));
     unsafe { table_dropdown.set_model(table_model.static_cast_mut()); }
 
     // Add all the widgets to the main grid.
     unsafe { main_grid.as_mut().unwrap().add_widget((new_packed_file_name_edit.static_cast_mut() as *mut Widget, 0, 0, 1, 1)); }
     unsafe { main_grid.as_mut().unwrap().add_widget((create_button as *mut Widget, 0, 1, 1, 1)); }
-
-    // And the Main Grid to the Dialog...
-    unsafe { dialog.set_layout(main_grid as *mut Layout); }
 
     // If it's a DB Table...
     if let PackedFileType::DB(_,_,_) = packed_file_type {
@@ -504,20 +498,12 @@ pub fn create_new_packed_file_dialog(
         sender.send(Commands::GetTableListFromDependencyPackFile).unwrap();
         let tables = if let Data::VecString(data) = check_message_validity_recv2(&receiver) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
-        // Get the current schema.
-        sender.send(Commands::GetSchema).unwrap();
-        let schema = if let Data::OptionSchema(data) = check_message_validity_recv2(&receiver) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
         // Check if we actually have an schema.
-        match schema {
-
-            // If we have an schema...
-            Some(schema) => {
+        match *SCHEMA.lock().unwrap() {
+            Some(ref schema) => {
 
                 // Add every table to the dropdown if exists in the dependency database.
                 schema.tables_definitions.iter().filter(|x| tables.contains(&x.name)).for_each(|x| table_dropdown.add_item(&QString::from_std_str(&x.name)));
-
-                // Add the dropdown to the dialog.
                 unsafe { main_grid.as_mut().unwrap().add_widget((table_dropdown.static_cast_mut() as *mut Widget, 1, 0, 1, 1)); }
             }
 
@@ -739,7 +725,7 @@ pub fn create_apply_maths_dialog(app_ui: &AppUI) -> Option<(String, f64)> {
     let mut button_group = ButtonGroup::new();
     let mut operation_plus = RadioButton::new(&QString::from_std_str("+"));
     let mut operation_minus = RadioButton::new(&QString::from_std_str("-"));
-    let mut operation_mult = RadioButton::new(&QString::from_std_str("x"));
+    let mut operation_mult = RadioButton::new(&QString::from_std_str("*"));
     let mut operation_div = RadioButton::new(&QString::from_std_str("/"));
     unsafe { button_group.add_button(operation_plus.static_cast_mut() as *mut AbstractButton); }
     unsafe { button_group.add_button(operation_minus.static_cast_mut() as *mut AbstractButton); }
@@ -869,6 +855,20 @@ fn update_undo_model(model: *mut StandardItemModel, undo_model: *mut StandardIte
             for column in 0..model.as_mut().unwrap().column_count(()) {
                 let item = &*model.as_mut().unwrap().item((row, column));
                 undo_model.as_mut().unwrap().set_item((row, column, item.clone()));
+            }    
+        }
+    }
+}
+
+/// This function causes the model to use the same colors the undo_model uses. It's for loading the "modified" state
+/// of the table when you modify it, close it and open it again.
+/// NOTE: This assumes both models are a copy one from another. Any discrepance in their sizes will send the program crashing to hell.
+fn load_colors_from_undo_model(model: *mut StandardItemModel, undo_model: *mut StandardItemModel) {
+    unsafe {
+        for row in 0..undo_model.as_mut().unwrap().row_count(()) {
+            for column in 0..undo_model.as_mut().unwrap().column_count(()) {
+                let color = &undo_model.as_mut().unwrap().item((row, column)).as_mut().unwrap().background();
+                model.as_mut().unwrap().item((row, column)).as_mut().unwrap().set_background(color);
             }    
         }
     }
@@ -1092,7 +1092,7 @@ pub fn show_dialog<T: Display>(
 pub fn set_modified(
     is_modified: bool,
     app_ui: &AppUI,
-    path: Option<(Vec<String>, bool)>
+    path: Option<Vec<String>>
 ) -> bool {
 
     // If the PackFile is modified...
@@ -1106,13 +1106,13 @@ pub fn set_modified(
         unsafe { app_ui.window.as_mut().unwrap().set_window_title(&QString::from_std_str(format!("{} - Modified", pack_file_name))); }
 
         // If we have received a path to mark as "modified"...
-        if let Some((path, use_dark_theme)) = path {
+        if let Some(path) = path {
 
             // Get the item of the Path.
             let item = get_item_from_incomplete_path(app_ui.folder_tree_model, &path);
 
             // Paint the modified item.
-            paint_treeview(item, app_ui.folder_tree_model, ItemVisualStatus::Modified, use_dark_theme);
+            paint_treeview(item, app_ui.folder_tree_model, ItemVisualStatus::Modified);
         }
 
         // And return true.
@@ -1725,13 +1725,12 @@ pub fn paint_treeview(
     item: *mut StandardItem,
     model: *mut StandardItemModel,
     status: ItemVisualStatus,
-    use_dark_theme: bool,
 ) {
 
     // Get the colors we need to apply.
-    let color_added = if use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green };
-    let color_modified = if use_dark_theme { GlobalColor::DarkYellow } else { GlobalColor::Yellow };
-    let color_added_modified = if use_dark_theme { GlobalColor::DarkMagenta } else { GlobalColor::Magenta };
+    let color_added = if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green };
+    let color_modified = if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkYellow } else { GlobalColor::Yellow };
+    let color_added_modified = if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkMagenta } else { GlobalColor::Magenta };
     let color_untouched = GlobalColor::Transparent;
     let color = match &status {
         ItemVisualStatus::Added => color_added,
@@ -1894,11 +1893,6 @@ pub fn update_treeview(
     operation: TreeViewOperation,
 ) {
 
-    // Get the settings and the use_dark_theme setting, for later use.
-    sender_qt.send(Commands::GetSettings).unwrap();
-    let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-    let use_dark_theme = settings.settings_bool.get("use_dark_theme").unwrap();
-
     // We act depending on the operation requested.
     match operation {
 
@@ -1908,7 +1902,7 @@ pub fn update_treeview(
             // Depending on the PackFile we want to build the TreeView with, we ask for his data.
             if is_extra_packfile { sender_qt.send(Commands::GetPackFileExtraDataForTreeView).unwrap(); }
             else { sender_qt.send(Commands::GetPackFileDataForTreeView).unwrap(); }
-            let pack_file_data = if let Data::StringU32VecVecString(data) = check_message_validity_recv2(&receiver_qt_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+            let pack_file_data = if let Data::StringI64VecVecString(data) = check_message_validity_recv2(&receiver_qt_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
             // First, we clean the TreeStore and whatever was created in the TreeView.
             unsafe { model.as_mut().unwrap().clear(); }
@@ -1918,7 +1912,7 @@ pub fn update_treeview(
             let mut big_parent = StandardItem::new(&QString::from_std_str(pack_file_data.0)).into_raw();
 
             // Get his last modified date and show it in a tooltip.
-            unsafe { big_parent.as_mut().unwrap().set_tool_tip(&QString::from_std_str(format!("Last Modified: {:?}", NaiveDateTime::from_timestamp(i64::from(pack_file_data.1), 0)))); }
+            unsafe { big_parent.as_mut().unwrap().set_tool_tip(&QString::from_std_str(format!("Last Modified: {:?}", NaiveDateTime::from_timestamp(pack_file_data.1, 0)))); }
 
             // Also, set it as not editable by the user. Otherwise will cause problems when renaming.
             unsafe { big_parent.as_mut().unwrap().set_editable(false); }
@@ -2123,7 +2117,7 @@ pub fn update_treeview(
                         if &possible_path == path {
 
                             // Just re-paint it like that parrot you painted yesterday.
-                            paint_treeview(possible_item, model, ItemVisualStatus::Added, *use_dark_theme);
+                            paint_treeview(possible_item, model, ItemVisualStatus::Added);
                         }
 
                         // Otherwise, it's a new PackedFile, so do the usual stuff.
@@ -2158,7 +2152,7 @@ pub fn update_treeview(
                             }
 
                             // Paint it like that parrot you painted yesterday.
-                            paint_treeview(item, model, ItemVisualStatus::Added, *use_dark_theme);
+                            paint_treeview(item, model, ItemVisualStatus::Added);
 
                             // Sort the TreeView.
                             sort_item_in_tree_view(
@@ -2509,7 +2503,7 @@ pub fn update_treeview(
                     unsafe { item = model.as_mut().unwrap().item_from_index(selection); }
 
                     // Paint it as "modified".
-                    paint_treeview(item, model, ItemVisualStatus::Modified, *use_dark_theme);
+                    paint_treeview(item, model, ItemVisualStatus::Modified);
 
                     // Sort it.
                     sort_item_in_tree_view(
@@ -2546,7 +2540,7 @@ pub fn update_treeview(
                 new_path.push(new_name);
 
                 // Paint it as "modified".
-                paint_treeview(item, model, ItemVisualStatus::Modified, *use_dark_theme);
+                paint_treeview(item, model, ItemVisualStatus::Modified);
 
                 // Sort it.
                 sort_item_in_tree_view(

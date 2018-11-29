@@ -32,6 +32,7 @@ use AppUI;
 use Commands;
 use Data;
 use QString;
+use SHORTCUTS;
 use common::*;
 use common::communications::*;
 use ui::*;
@@ -82,9 +83,6 @@ impl DependencyTableView {
         app_ui: &AppUI,
     ) -> Self {
 
-        sender_qt.send(Commands::GetSettings).unwrap();
-        let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
         // Create the widget that'll act as a container for the view.
         let widget = Widget::new().into_raw();
         let widget_layout = GridLayout::new().into_raw();
@@ -133,17 +131,13 @@ impl DependencyTableView {
         let context_menu_paste = context_menu_paste_submenu.add_action(&QString::from_std_str("&Paste in Selection"));
         let context_menu_paste_as_new_lines = context_menu_paste_submenu.add_action(&QString::from_std_str("&Paste as New Rows"));
 
-        // Get the current shortcuts.
-        sender_qt.send(Commands::GetShortcuts).unwrap();
-        let shortcuts = if let Data::Shortcuts(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
         // Set the shortcuts for these actions.
-        unsafe { context_menu_add.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.pack_files_list.get("add_row").unwrap()))); }
-        unsafe { context_menu_insert.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.pack_files_list.get("insert_row").unwrap()))); }
-        unsafe { context_menu_delete.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.pack_files_list.get("delete_row").unwrap()))); }
-        unsafe { context_menu_copy.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.pack_files_list.get("copy").unwrap()))); }
-        unsafe { context_menu_paste.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.pack_files_list.get("paste").unwrap()))); }
-        unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.pack_files_list.get("paste_as_new_row").unwrap()))); }
+        unsafe { context_menu_add.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().pack_files_list.get("add_row").unwrap()))); }
+        unsafe { context_menu_insert.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().pack_files_list.get("insert_row").unwrap()))); }
+        unsafe { context_menu_delete.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().pack_files_list.get("delete_row").unwrap()))); }
+        unsafe { context_menu_copy.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().pack_files_list.get("copy").unwrap()))); }
+        unsafe { context_menu_paste.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().pack_files_list.get("paste").unwrap()))); }
+        unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().pack_files_list.get("paste_as_new_row").unwrap()))); }
 
         // Set the shortcuts to only trigger in the Table.
         unsafe { context_menu_add.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
@@ -222,8 +216,7 @@ impl DependencyTableView {
                         sender_qt_data.send(Data::VecString(list)).unwrap();
 
                         // Set the mod as "Modified".
-                        let use_dark_theme = settings.settings_bool.get("use_dark_theme").unwrap();
-                        unsafe { *is_modified.borrow_mut() = set_modified(true, &app_ui, Some((vec![app_ui.folder_tree_model.as_ref().unwrap().item(0).as_ref().unwrap().text().to_std_string()], *use_dark_theme))); }
+                        unsafe { *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(vec![app_ui.folder_tree_model.as_ref().unwrap().item(0).as_ref().unwrap().text().to_std_string()])); }
                     }
                 }
             )),

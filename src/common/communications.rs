@@ -36,13 +36,9 @@ pub enum Commands {
     LoadAllCAPackFiles,
     SetPackFileType,
     ChangeIndexIncludesTimestamp,
-    GetSchema,
     SaveSchema,
-    GetSettings,
     SetSettings,
-    GetShortcuts,
     SetShortcuts,
-    GetGameSelected,
     SetGameSelected,
     IsThereADependencyDatabase,
     IsThereASchema,
@@ -102,9 +98,9 @@ pub enum Data {
 
     Bool(bool),
     U32(u32),
+    I64(i64),
 
     String(String),
-    StringBool((String, bool)),
     StringString((String, String)),
     StringVecString((String, Vec<String>)),
     StringVecVecString((String, Vec<Vec<String>>)),
@@ -113,7 +109,6 @@ pub enum Data {
     Settings(Settings),
     Shortcuts(Shortcuts),
     Schema(Schema),
-    OptionSchema(Option<Schema>),
 
     PFHFileType(PFHFileType),
     PackFileUIData(PackFileUIData),
@@ -132,7 +127,7 @@ pub enum Data {
     RigidModel(RigidModel),
     RigidModelVecString((RigidModel, Vec<String>)),
 
-    StringU32VecVecString((String, u32, Vec<Vec<String>>)),
+    StringI64VecVecString((String, i64, Vec<Vec<String>>)),
     StringVecPathBuf((String, Vec<PathBuf>)),
     StringVecTreePathType((String, Vec<TreePathType>)),
     VecPathBufVecVecString((Vec<PathBuf>, Vec<Vec<String>>)),

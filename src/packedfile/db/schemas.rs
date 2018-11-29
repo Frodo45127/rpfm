@@ -199,7 +199,7 @@ impl TableDefinition {
     pub fn new(version: u32) -> TableDefinition {
         TableDefinition {
             version,
-            fields: vec![Field::new("example_field".to_owned(), FieldType::StringU8, false, None, "delete this field if you see it".to_owned())],
+            fields: vec![],
         }
     }
 

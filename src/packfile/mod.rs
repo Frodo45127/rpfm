@@ -9,14 +9,15 @@ use std::io::BufReader;
 use std::io::BufWriter;
 
 use SUPPORTED_GAMES;
+use GAME_SELECTED;
+use DEPENDENCY_DATABASE;
+use SCHEMA;
 use common::*;
 use error::{Error, ErrorKind, Result};
 use packfile::packfile::PFHFileType;
 use packedfile::loc::Loc;
-use packedfile::db::DB;
-use packedfile::db::schemas::Schema;
+use packedfile::db::{DB, DecodedData};
 use packedfile::rigidmodel::RigidModel;
-use settings::Settings;
 
 pub mod packfile;
 
@@ -46,51 +47,55 @@ pub fn open_packfile(pack_file_path: PathBuf, use_lazy_loading: bool) -> Result<
 
 /// This function is a special open function, to get all the DB and LOC PackedFiles for a game, and a mod if that mode requires another mod.
 /// It returns all the PackedFiles in a big Vec<PackedFile>.
-pub fn load_dependency_packfiles(game_selected: &str, settings: &Settings, dependencies: &[String]) -> Vec<packfile::PackedFile> {
+pub fn load_dependency_packfiles(dependencies: &[String]) -> Vec<packfile::PackedFile> {
 
     // Create the empty list.
     let mut packed_files = vec![];
 
     // Get all the paths we need.
-    let main_db_pack_path = get_game_selected_db_pack_path(game_selected, settings);
-    let main_loc_pack_path = get_game_selected_loc_pack_path(game_selected, settings);
+    let main_db_pack_paths = get_game_selected_db_pack_path();
+    let main_loc_pack_paths = get_game_selected_loc_pack_path();
 
-    let data_packs_paths = get_game_selected_data_packfiles_paths(game_selected, settings);
-    let content_packs_paths = get_game_selected_content_packfiles_paths(game_selected, settings);
+    let data_packs_paths = get_game_selected_data_packfiles_paths();
+    let content_packs_paths = get_game_selected_content_packfiles_paths();
 
-    // Get all the DB Tables from the main DB PackFile, if it's configured.
-    if let Some(path) = main_db_pack_path {
-        if let Ok(pack_file) = open_packfile(path.to_path_buf(), true) {
+    // Get all the DB Tables from the main DB PackFiles, if it's configured.
+    if let Some(paths) = main_db_pack_paths {
+        for path in &paths {
+            if let Ok(pack_file) = open_packfile(path.to_path_buf(), true) {
 
-            // For each PackFile in the data.pack...
-            for packed_file in pack_file.packed_files.iter() {
+                // For each PackFile in the data.pack...
+                for packed_file in pack_file.packed_files.iter() {
 
-                // If it's a DB file...
-                if !packed_file.path.is_empty() && packed_file.path.starts_with(&["db".to_owned()]) {
+                    // If it's a DB file...
+                    if !packed_file.path.is_empty() && packed_file.path.starts_with(&["db".to_owned()]) {
 
-                    // Clone the PackedFile, and add it to the list.
-                    let mut packed_file = packed_file.clone();
-                    let _ = packed_file.load_data();
-                    packed_files.push(packed_file);
+                        // Clone the PackedFile, and add it to the list.
+                        let mut packed_file = packed_file.clone();
+                        let _ = packed_file.load_data();
+                        packed_files.push(packed_file);
+                    }
                 }
             }
         }
     }
 
-    // Get all the Loc PackedFiles from the main Loc PackFile, if it's configured.
-    if let Some(path) = main_loc_pack_path {
-        if let Ok(pack_file) = open_packfile(path.to_path_buf(), true) {
+    // Get all the Loc PackedFiles from the main Loc PackFiles, if it's configured.
+    if let Some(paths) = main_loc_pack_paths {
+        for path in &paths {
+            if let Ok(pack_file) = open_packfile(path.to_path_buf(), true) {
 
-            // For each PackFile in the data.pack...
-            for packed_file in pack_file.packed_files.iter() {
+                // For each PackFile in the data.pack...
+                for packed_file in pack_file.packed_files.iter() {
 
-                // If it's a Loc file...
-                if !packed_file.path.is_empty() && packed_file.path.last().unwrap().ends_with(".loc") {
+                    // If it's a Loc file...
+                    if !packed_file.path.is_empty() && packed_file.path.last().unwrap().ends_with(".loc") {
 
-                    // Clone the PackedFile, and add it to the list.
-                    let mut packed_file = packed_file.clone();
-                    let _ = packed_file.load_data();
-                    packed_files.push(packed_file);
+                        // Clone the PackedFile, and add it to the list.
+                        let mut packed_file = packed_file.clone();
+                        let _ = packed_file.load_data();
+                        packed_files.push(packed_file);
+                    }
                 }
             }
         }
@@ -188,14 +193,14 @@ pub fn load_dependency_packfiles(game_selected: &str, settings: &Settings, depen
 
 /// This function is another special open function, to get all the PackedFiles from every CA PackFile of a game.
 /// It returns a fake PackFile with them.
-pub fn load_all_ca_packfiles(game_selected: &str, settings: &Settings) -> Result<packfile::PackFile> {
+pub fn load_all_ca_packfiles() -> Result<packfile::PackFile> {
 
     // Create the fake PackFile.
-    let pfh_version = SUPPORTED_GAMES.get(&*game_selected).unwrap().id;
-    let mut pack_file = packfile::PackFile::new_with_name(game_selected.to_owned(), pfh_version);
+    let pfh_version = SUPPORTED_GAMES.get(&**GAME_SELECTED.lock().unwrap()).unwrap().id;
+    let mut pack_file = packfile::PackFile::new_with_name(GAME_SELECTED.lock().unwrap().to_owned(), pfh_version);
 
     // Get all the paths we need and open them one by one.
-    let packs_paths = if let Some(paths) = get_game_selected_data_packfiles_paths(game_selected, settings) { paths } else { Err(ErrorKind::GamePathNotConfigured)? };
+    let packs_paths = if let Some(paths) = get_game_selected_data_packfiles_paths() { paths } else { Err(ErrorKind::GamePathNotConfigured)? };
     let mut ca_pack_files = vec![];
     for path in packs_paths {
         ca_pack_files.push(packfile::PackFile::read(path, true)?);
@@ -364,7 +369,7 @@ pub fn add_packedfile_to_packfile(
 
                 // Get the destination PackedFile. If it fails, CTD because it's a code problem.
                 let packed_file = &mut pack_file_destination.packed_files.iter_mut().find(|x| x.path == path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?;
-                packed_file.set_data(pack_file_source.packed_files.iter().find(|x| x.path == path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?.get_data()?.clone());
+                packed_file.set_data(pack_file_source.packed_files.iter().find(|x| x.path == path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?.get_data()?);
 
                 // Return success.
                 Ok(())
@@ -375,7 +380,7 @@ pub fn add_packedfile_to_packfile(
 
                 // We get the PackedFile, clone it and add it to our own PackFile.
                 let mut packed_file = pack_file_source.packed_files.iter().find(|x| x.path == path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?.clone();
-                packed_file.get_data()?;
+                packed_file.load_data()?;
                 pack_file_destination.add_packedfiles(vec![packed_file; 1]);
 
                 // Return success.
@@ -400,7 +405,7 @@ pub fn add_packedfile_to_packfile(
 
                         // Then, we get his data.
                         let index = pack_file_source.packed_files.iter().position(|x| x.path == packed_file.path).unwrap();
-                        packed_file.set_data(pack_file_source.packed_files[index].get_data()?.clone());
+                        packed_file.set_data(pack_file_source.packed_files[index].get_data()?);
                     }
 
                     // Otherwise...
@@ -408,7 +413,7 @@ pub fn add_packedfile_to_packfile(
 
                         // We get the PackedFile, clone it and add it to our own PackFile.
                         let mut packed_file = pack_file_source.packed_files.iter().find(|x| x.path == packed_file.path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?.clone();
-                        packed_file.get_data()?;
+                        packed_file.load_data()?;
                         pack_file_destination.add_packedfiles(vec![packed_file]);
                     }
                 }
@@ -432,7 +437,7 @@ pub fn add_packedfile_to_packfile(
 
                     // Then, we get his data.
                     let index = pack_file_source.packed_files.iter().position(|x| x.path == packed_file.path).unwrap();
-                    packed_file.set_data(pack_file_source.packed_files[index].get_data()?.clone())
+                    packed_file.set_data(pack_file_source.packed_files[index].get_data()?)
                 }
 
                 // Otherwise...
@@ -440,7 +445,7 @@ pub fn add_packedfile_to_packfile(
 
                     // We get the PackedFile.
                     let mut packed_file = pack_file_source.packed_files.iter().find(|x| x.path == packed_file.path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?.clone();
-                    packed_file.get_data()?;
+                    packed_file.load_data()?;
                     pack_file_destination.add_packedfiles(vec![packed_file]);
                 }
             }
@@ -514,13 +519,9 @@ pub fn extract_from_packfile(
     // Get what it's what we want to extract.
     match get_type_of_selected_path(tree_path, pack_file) {
 
-        // If it's a file...
+        // If it's a file, we try to create and write the file.
         TreePathType::File(path) => {
-
-            // We try to create the File.
             let mut file = BufWriter::new(File::create(&extracted_path)?);
-
-            // And try to write it.
             match file.write_all(&pack_file.packed_files.iter().find(|x| x.path == path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?.get_data()?){
                 Ok(_) => Ok(format!("File extracted successfully:\n{}", extracted_path.display())),
                 Err(_) => Err(ErrorKind::ExtractError(vec![format!("<li>{}</li>", extracted_path.display().to_string());1]))?
@@ -840,7 +841,7 @@ pub fn patch_siege_ai (
                 || x == "catchment_08_layer_bmd_data.bin"
                 || x == "catchment_09_layer_bmd_data.bin" {
 
-                    let mut data: Vec<u8> = i.get_data()?.to_vec();
+                    let mut data: Vec<u8> = i.get_data()?;
                     if data.windows(19).find(|window: &&[u8]
                         |String::from_utf8_lossy(window) == "AIH_SIEGE_AREA_NODE") != None {
 
@@ -1086,11 +1087,7 @@ pub fn create_prefab_from_catchment(
 /// This function is used to optimize the size of a PackFile. It does two things: removes unchanged rows
 /// from tables (and if the table is empty, it removes it too) and it cleans the PackFile of extra .xml files 
 /// often created by map editors. It requires just the PackFile to optimize and the dependency PackFile.
-pub fn optimize_packfile(
-    pack_file: &mut packfile::PackFile,
-    game_packed_files: &[packfile::PackedFile],
-    schema: &Option<Schema>
-) -> Result<Vec<TreePathType>> {
+pub fn optimize_packfile(pack_file: &mut packfile::PackFile)-> Result<Vec<TreePathType>> {
 
     // List of PackedFiles to delete. This includes empty DB Tables and empty Loc PackedFiles.
     let mut files_to_delete: Vec<Vec<String>> = vec![];
@@ -1098,14 +1095,14 @@ pub fn optimize_packfile(
 
     // Get a list of every Loc and DB PackedFiles in our dependency's files. For performance reasons, we decode every one of them here.
     // Otherwise, they may have to be decoded multiple times, making this function take ages to finish. 
-    let game_locs = game_packed_files.iter()
+    let game_locs = DEPENDENCY_DATABASE.lock().unwrap().iter()
         .filter(|x| x.path.last().unwrap().ends_with(".loc"))
         .filter_map(|x| x.get_data().ok())
         .filter_map(|x| Loc::read(&x).ok())
         .collect::<Vec<Loc>>();
 
-    let game_dbs = if let Some(schema) = schema {
-        game_packed_files.iter()
+    let mut game_dbs = if let Some(ref schema) = *SCHEMA.lock().unwrap() {
+        DEPENDENCY_DATABASE.lock().unwrap().iter()
             .filter(|x| x.path.len() == 3 && x.path[0] == "db")
             .map(|x| (x.get_data(), x.path[1].to_owned()))
             .filter(|x| x.0.is_ok())
@@ -1113,17 +1110,29 @@ pub fn optimize_packfile(
             .collect::<Vec<DB>>()
     } else { vec![] };
 
-    for mut packed_file in pack_file.packed_files.iter_mut() {
+    // Due to precision issues with float fields, we have to round every float field from the tables to 3 decimals max.
+    game_dbs.iter_mut().for_each(|x| x.entries.iter_mut()
+        .for_each(|x| x.iter_mut()
+        .for_each(|x| if let DecodedData::Float(data) = x { *data = (*data * 1000f32).round() / 1000f32 })
+    ));
+
+    for mut packed_file in &mut pack_file.packed_files {
 
         // If it's a DB table and we have an schema...
         if packed_file.path.len() == 3 && packed_file.path[0] == "db" && !game_dbs.is_empty() {
-            if let Some(schema) = schema {
+            if let Some(ref schema) = *SCHEMA.lock().unwrap() {
 
                 // Try to decode our table.
-                let mut optimized_table = match DB::read(&(packed_file.get_data()?), &packed_file.path[1], &schema) {
+                let mut optimized_table = match DB::read(&(packed_file.get_data_and_keep_it()?), &packed_file.path[1], &schema) {
                     Ok(table) => table,
                     Err(_) => continue,
                 };
+
+                // We have to round our floats too.
+                optimized_table.entries.iter_mut()
+                    .for_each(|x| x.iter_mut()
+                    .for_each(|x| if let DecodedData::Float(data) = x { *data = (*data * 1000f32).round() / 1000f32 })
+                );
 
                 // For each vanilla DB Table that coincide with our own, compare it row by row, cell by cell, with our own DB Table. Then delete in reverse every coincidence.
                 for game_db in &game_dbs {
@@ -1150,7 +1159,7 @@ pub fn optimize_packfile(
         else if packed_file.path.last().unwrap().ends_with(".loc") && !game_locs.is_empty() {
 
             // Try to decode our Loc. If it's empty, skip it and continue with the next one.
-            let mut optimized_loc = match Loc::read(&(packed_file.get_data()?)) {
+            let mut optimized_loc = match Loc::read(&(packed_file.get_data_and_keep_it()?)) {
                 Ok(loc) => if !loc.entries.is_empty() { loc } else { continue },
                 Err(_) => continue,
             };

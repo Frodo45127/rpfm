@@ -4,9 +4,11 @@ extern crate failure;
 extern crate serde_json;
 extern crate csv;
 extern crate reqwest;
+extern crate toml;
 
 use failure::{Backtrace, Context, Fail};
 use serde_json::error::Category;
+use self::toml::ser;
 
 use std::fmt;
 use std::fmt::Display;
@@ -14,6 +16,8 @@ use std::path::PathBuf;
 use std::result;
 use std::io;
 use std::string;
+
+pub mod logger;
 
 /// Alias for handling errors more easely.
 pub type Result<T> = result::Result<T, Error>;
@@ -34,6 +38,9 @@ pub enum ErrorKind {
 
     // Error for when someone tries to divide by 0.
     ThereIsAnSpecialPlaceInHellForYou,
+
+    // Error for when serializing to TOML fails.
+    TOMLSerializerError,
 
     //-----------------------------------------------------//
     //                  Network Errors
@@ -142,9 +149,6 @@ pub enum ErrorKind {
 
     // Error for when we try to open a table with a List field on it.
     DBTableContainsListField,
-
-    // Error for when data fails to get parsed while encoding DB Tables.
-    DBTableParse,
 
     // Error for when we are trying to use "Search&Replace" to place invalid data into a cell.
     DBTableReplaceInvalidData,
@@ -357,6 +361,7 @@ impl Display for ErrorKind {
         match self {
             ErrorKind::Generic => write!(f, "<p>Generic error. You should never read this.</p>"),
             ErrorKind::ThereIsAnSpecialPlaceInHellForYou => write!(f, "<p>There is an special place in hell for you.</p>"),
+            ErrorKind::TOMLSerializerError => write!(f, "<p>This should never happen.</p>"),
 
             //-----------------------------------------------------//
             //                  Network Errors
@@ -430,7 +435,6 @@ impl Display for ErrorKind {
             //--------------------------------//
             ErrorKind::DBTableIsNotADBTable => write!(f, "<p>This is either not a DB Table, or it's a DB Table but it's corrupted.</p>"),
             ErrorKind::DBTableContainsListField => write!(f, "<p>This specific table version uses a currently unimplemented type (List), so is undecodeable, for now.</p>"),
-            ErrorKind::DBTableParse => write!(f, "<p>Error while trying to save the DB Table.</p><p>This is probably caused by one of the fields you just changed. Please, make sure the data in that field it's of the correct type.</p>"),
             ErrorKind::DBTableReplaceInvalidData => write!(f, "<p>Error while trying to replace the data of a Cell.</p><p>This means you tried to replace a number cell with text, or used a too big, too low or invalid number. Don't do it. It wont end well.</p>"),
             ErrorKind::DBTableApplyMathsOverflow => write!(f, "<p>The operation you just tried to do gives an invalid result. This means that the result value is bigger or lower than the maximum or minimum admited by the type in the cells.</p>"),
             ErrorKind::DBTableDecode(cause) => write!(f, "<p>Error while trying to decode the DB Table:</p><p>{}</p>", cause),
@@ -579,6 +583,12 @@ impl From<reqwest::Error> for Error {
     }
 }
 
+/// Implementation to create a custom error from a Toml Error.
+impl From<ser::Error> for Error {
+    fn from(_: ser::Error) -> Error {
+        Error::from(ErrorKind::TOMLSerializerError)
+    }
+}
 
 /// Implementation to create a custom error from a std::io::Error. Based on the "From" used to convert it to std::io::Error.
 impl From<io::Error> for Error {

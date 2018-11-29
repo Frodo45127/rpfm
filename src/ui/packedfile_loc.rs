@@ -40,6 +40,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::mpsc::{Sender, Receiver};
 
+use TABLE_STATES_UI;
 use AppUI;
 use Commands;
 use Data;
@@ -72,6 +73,7 @@ pub struct PackedFileLocTreeView {
     pub slot_context_menu_clone: SlotBool<'static>,
     pub slot_context_menu_clone_and_append: SlotBool<'static>,
     pub slot_context_menu_copy: SlotBool<'static>,
+    pub slot_context_menu_copy_as_lua_table: SlotBool<'static>,
     pub slot_context_menu_paste_in_selection: SlotBool<'static>,
     pub slot_context_menu_paste_as_new_lines: SlotBool<'static>,
     pub slot_context_menu_paste_to_fill_selection: SlotBool<'static>,
@@ -105,12 +107,8 @@ impl PackedFileLocTreeView {
         packed_file_path: &Rc<RefCell<Vec<String>>>,
         global_search_explicit_paths: &Rc<RefCell<Vec<Vec<String>>>>,
         update_global_search_stuff: *mut Action,
-        history_state: &Rc<RefCell<BTreeMap<Vec<String>, TableState>>>,
+        table_state_data: &Rc<RefCell<BTreeMap<Vec<String>, TableStateData>>>,
     ) -> Result<Self> {
-
-        // Get the settings.
-        sender_qt.send(Commands::GetSettings).unwrap();
-        let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
         // Send the index back to the background thread, and wait until we get a response.
         sender_qt.send(Commands::DecodePackedFileLoc).unwrap();
@@ -121,12 +119,12 @@ impl PackedFileLocTreeView {
             _ => panic!(THREADS_MESSAGE_ERROR), 
         };
 
-        // Create the "Undo" history for the table.
-        let history = Rc::new(RefCell::new(vec![]));
-        let history_redo = Rc::new(RefCell::new(vec![]));
+        // Create the "Undo" stuff needed for the Undo/Redo functions to work.
         let undo_lock = Rc::new(RefCell::new(false));
-        let undo_model = StandardItemModel::new(()).into_raw();
         let undo_redo_enabler = Action::new(()).into_raw();
+        if table_state_data.borrow().get(&*packed_file_path.borrow()).is_none() {
+            let _y = table_state_data.borrow_mut().insert(packed_file_path.borrow().to_vec(), TableStateData::new_empty());
+        }
 
         // Create the TableView.
         let table_view = TableView::new().into_raw();
@@ -134,7 +132,7 @@ impl PackedFileLocTreeView {
         let model = StandardItemModel::new(()).into_raw();
 
         // Make the last column fill all the available space, if the setting says so.
-        if *settings.settings_bool.get("extend_last_column_on_tables").unwrap() { 
+        if *SETTINGS.lock().unwrap().settings_bool.get("extend_last_column_on_tables").unwrap() { 
             unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_stretch_last_section(true); }
         }
 
@@ -156,11 +154,12 @@ impl PackedFileLocTreeView {
         // Prepare the TableView to have a Contextual Menu.
         unsafe { table_view.as_mut().unwrap().set_context_menu_policy(ContextMenuPolicy::Custom); }
         unsafe { table_view.as_mut().unwrap().set_horizontal_scroll_mode(ScrollMode::Pixel); }
-
+        
         // Enable sorting the columns.
         unsafe { table_view.as_mut().unwrap().set_sorting_enabled(true); }
         unsafe { table_view.as_mut().unwrap().sort_by_column((-1, SortOrder::Ascending)); }
         unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_sections_movable(true); }
+        unsafe { table_view.as_mut().unwrap().set_alternating_row_colors(true); };
 
         // Load the data to the Table. For some reason, if we do this after setting the titles of
         // the columns, the titles will be reseted to 1, 2, 3,... so we do this here.
@@ -254,12 +253,20 @@ impl PackedFileLocTreeView {
         // Action to update the search stuff when needed.
         let update_search_stuff = Action::new(()).into_raw();
 
-        // Build the columns.
+        // Build the columns. If we have a model from before, use it to paint our cells as they were last time we painted them.
         build_columns(table_view, model);
-        update_undo_model(model, undo_model);
+
+        {
+            let mut table_state_data = table_state_data.borrow_mut();
+            let table_state_data = table_state_data.get_mut(&*packed_file_path.borrow()).unwrap();
+            let undo_model = table_state_data.undo_model;
+
+            if unsafe { undo_model.as_ref().unwrap().row_count(()) > 0 && undo_model.as_ref().unwrap().column_count(()) > 0 } { load_colors_from_undo_model(model, undo_model); }
+            else { update_undo_model(model, undo_model); }
+        }
 
         // If we want to let the columns resize themselfs...
-        if *settings.settings_bool.get("adjust_columns_to_content").unwrap() {
+        if *SETTINGS.lock().unwrap().settings_bool.get("adjust_columns_to_content").unwrap() {
             unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().resize_sections(ResizeMode::ResizeToContents); }
         }
 
@@ -279,7 +286,9 @@ impl PackedFileLocTreeView {
         let context_menu_clone = context_menu_clone_submenu.add_action(&QString::from_std_str("&Clone and Insert"));
         let context_menu_clone_and_append = context_menu_clone_submenu.add_action(&QString::from_std_str("Clone and &Append"));
 
-        let context_menu_copy = context_menu.add_action(&QString::from_std_str("&Copy"));
+        let mut context_menu_copy_submenu = Menu::new(&QString::from_std_str("&Copy..."));
+        let context_menu_copy = context_menu_copy_submenu.add_action(&QString::from_std_str("&Copy"));
+        let context_menu_copy_as_lua_table = context_menu_copy_submenu.add_action(&QString::from_std_str("Copy as &LUA Table"));
 
         let mut context_menu_paste_submenu = Menu::new(&QString::from_std_str("&Paste..."));
         let context_menu_paste_in_selection = context_menu_paste_submenu.add_action(&QString::from_std_str("&Paste in Selection"));
@@ -296,27 +305,24 @@ impl PackedFileLocTreeView {
         let context_menu_undo = context_menu.add_action(&QString::from_std_str("&Undo"));
         let context_menu_redo = context_menu.add_action(&QString::from_std_str("&Redo"));
 
-        // Get the current shortcuts.
-        sender_qt.send(Commands::GetShortcuts).unwrap();
-        let shortcuts = if let Data::Shortcuts(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
         // Set the shortcuts for these actions.
-        unsafe { context_menu_add.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("add_row").unwrap()))); }
-        unsafe { context_menu_insert.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("insert_row").unwrap()))); }
-        unsafe { context_menu_delete.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("delete_row").unwrap()))); }
-        unsafe { context_menu_apply_prefix_to_selection.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_db.get("apply_prefix_to_selection").unwrap()))); }        
-        unsafe { context_menu_clone.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("clone_row").unwrap()))); }
-        unsafe { context_menu_clone_and_append.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("clone_and_append_row").unwrap()))); }
-        unsafe { context_menu_copy.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("copy").unwrap()))); }
-        unsafe { context_menu_paste_in_selection.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("paste_in_selection").unwrap()))); }
-        unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("paste_as_new_row").unwrap()))); }
-        unsafe { context_menu_paste_to_fill_selection.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("paste_to_fill_selection").unwrap()))); }
-        unsafe { context_menu_search.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("search").unwrap()))); }
-        unsafe { context_menu_import.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("import_tsv").unwrap()))); }
-        unsafe { context_menu_export.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("export_tsv").unwrap()))); }
-        unsafe { smart_delete.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_loc.get("smart_delete").unwrap()))); }
-        unsafe { context_menu_undo.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_db.get("undo").unwrap()))); }
-        unsafe { context_menu_redo.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(shortcuts.packed_files_db.get("redo").unwrap()))); }
+        unsafe { context_menu_add.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_loc.get("add_row").unwrap()))); }
+        unsafe { context_menu_insert.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_loc.get("insert_row").unwrap()))); }
+        unsafe { context_menu_delete.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_loc.get("delete_row").unwrap()))); }
+        unsafe { context_menu_apply_prefix_to_selection.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_loc.get("apply_prefix_to_selection").unwrap()))); }        
+        unsafe { context_menu_clone.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_loc.get("clone_row").unwrap()))); }
+        unsafe { context_menu_clone_and_append.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_loc.get("clone_and_append_row").unwrap()))); }
+        unsafe { context_menu_copy.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_loc.get("copy").unwrap()))); }
+        unsafe { context_menu_copy_as_lua_table.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_loc.get("copy_as_lua_table").unwrap()))); }
+        unsafe { context_menu_paste_in_selection.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_loc.get("paste_in_selection").unwrap()))); }
+        unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_loc.get("paste_as_new_row").unwrap()))); }
+        unsafe { context_menu_paste_to_fill_selection.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_loc.get("paste_to_fill_selection").unwrap()))); }
+        unsafe { context_menu_search.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_loc.get("search").unwrap()))); }
+        unsafe { context_menu_import.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_loc.get("import_tsv").unwrap()))); }
+        unsafe { context_menu_export.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_loc.get("export_tsv").unwrap()))); }
+        unsafe { smart_delete.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_loc.get("smart_delete").unwrap()))); }
+        unsafe { context_menu_undo.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_loc.get("undo").unwrap()))); }
+        unsafe { context_menu_redo.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_loc.get("redo").unwrap()))); }
 
         // Set the shortcuts to only trigger in the Table.
         unsafe { context_menu_add.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
@@ -326,6 +332,7 @@ impl PackedFileLocTreeView {
         unsafe { context_menu_clone.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_clone_and_append.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_copy.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+        unsafe { context_menu_copy_as_lua_table.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_paste_in_selection.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_paste_to_fill_selection.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
@@ -344,6 +351,7 @@ impl PackedFileLocTreeView {
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_clone); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_clone_and_append); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_copy); }
+        unsafe { table_view.as_mut().unwrap().add_action(context_menu_copy_as_lua_table); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_paste_in_selection); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_paste_as_new_lines); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_paste_to_fill_selection); }
@@ -362,6 +370,7 @@ impl PackedFileLocTreeView {
         unsafe { context_menu_clone.as_mut().unwrap().set_status_tip(&QString::from_std_str("Duplicate the selected rows and insert the new rows under the original ones.")); }
         unsafe { context_menu_clone_and_append.as_mut().unwrap().set_status_tip(&QString::from_std_str("Duplicate the selected rows and append the new rows at the end of the table.")); }
         unsafe { context_menu_copy.as_mut().unwrap().set_status_tip(&QString::from_std_str("Copy whatever is selected to the Clipboard.")); }
+        unsafe { context_menu_copy_as_lua_table.as_mut().unwrap().set_status_tip(&QString::from_std_str("Turns the entire Loc PackedFile into a LUA Table and copies it to the clipboard.")); }
         unsafe { context_menu_paste_in_selection.as_mut().unwrap().set_status_tip(&QString::from_std_str("Try to paste whatever is in the Clipboard. Does nothing if the data is not compatible with the cell.")); }
         unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().set_status_tip(&QString::from_std_str("Try to paste whatever is in the Clipboard as new lines at the end of the table. Does nothing if the data is not compatible with the cell.")); }
         unsafe { context_menu_paste_to_fill_selection.as_mut().unwrap().set_status_tip(&QString::from_std_str("Try to paste whatever is in the Clipboard in EVERY CELL selected. Does nothing if the data is not compatible with the cell.")); }
@@ -373,8 +382,9 @@ impl PackedFileLocTreeView {
 
         // Insert some separators to space the menu, and the paste submenu.
         unsafe { context_menu.insert_separator(context_menu_copy); }
-        unsafe { context_menu.insert_menu(context_menu_copy, context_menu_apply_submenu.into_raw()); }
-        unsafe { context_menu.insert_menu(context_menu_copy, context_menu_clone_submenu.into_raw()); }
+        unsafe { context_menu.insert_menu(context_menu_search, context_menu_apply_submenu.into_raw()); }
+        unsafe { context_menu.insert_menu(context_menu_search, context_menu_clone_submenu.into_raw()); }
+        unsafe { context_menu.insert_menu(context_menu_search, context_menu_copy_submenu.into_raw()); }
         unsafe { context_menu.insert_menu(context_menu_search, context_menu_paste_submenu.into_raw()); }
         unsafe { context_menu.insert_separator(context_menu_search); }
         unsafe { context_menu.insert_separator(context_menu_import); }
@@ -388,12 +398,11 @@ impl PackedFileLocTreeView {
         for column in 0..3 {
 
             let hide_show_slot = SlotBool::new(clone!(
-                packed_file_path,
-                history_state => move |state| {
+                packed_file_path => move |state| {
                     unsafe { table_view.as_mut().unwrap().set_column_hidden(column as i32, state); }
 
                     // Update the state of the column in the table history.
-                    if let Some(history_state) = history_state.borrow_mut().get_mut(&packed_file_path.borrow().to_vec()) {
+                    if let Some(history_state) = TABLE_STATES_UI.lock().unwrap().get_mut(&packed_file_path.borrow().to_vec()) {
                         if state {
                             if !history_state.columns_state.hidden_columns.contains(&(column as i32)) {
                                 history_state.columns_state.hidden_columns.push(column as i32);
@@ -418,18 +427,16 @@ impl PackedFileLocTreeView {
         // Slots for the TableView...
         let slots = Self {
             slot_column_moved: SlotCIntCIntCInt::new(clone!(
-                packed_file_path,
-                history_state => move |_, visual_base, visual_new| {
-                    if let Some(state) = history_state.borrow_mut().get_mut(&*packed_file_path.borrow()) {
+                packed_file_path => move |_, visual_base, visual_new| {
+                    if let Some(state) = TABLE_STATES_UI.lock().unwrap().get_mut(&*packed_file_path.borrow()) {
                         state.columns_state.visual_order.push((visual_base, visual_new));
                     }
                 }
             )),
 
             slot_sort_order_column_changed: SlotCIntQtCoreQtSortOrder::new(clone!(
-                packed_file_path,
-                history_state => move |column, order| {
-                    if let Some(state) = history_state.borrow_mut().get_mut(&*packed_file_path.borrow()) {
+                packed_file_path => move |column, order| {
+                    if let Some(state) = TABLE_STATES_UI.lock().unwrap().get_mut(&*packed_file_path.borrow()) {
                         state.columns_state.sorting_column = (column, if let SortOrder::Ascending = order { false } else { true });
                     }
                 }
@@ -441,32 +448,33 @@ impl PackedFileLocTreeView {
                 app_ui,
                 is_modified,
                 packed_file_data,
+                table_state_data,
                 sender_qt,
                 sender_qt_data,
-                receiver_qt,
                 undo_lock,
-                history_redo,
-                history => move || {
+                table_state_data => move || {
+                    {
+                        let mut table_state_data = table_state_data.borrow_mut();
+                        let table_state_data = table_state_data.get_mut(&*packed_file_path.borrow()).unwrap();
+                        Self::undo_redo(
+                            &app_ui,
+                            &sender_qt,
+                            &sender_qt_data,
+                            &is_modified,
+                            &packed_file_path,
+                            &packed_file_data,
+                            table_view,
+                            model,
+                            filter_model,
+                            &mut table_state_data.undo_history,
+                            &mut table_state_data.redo_history,
+                            &global_search_explicit_paths,
+                            update_global_search_stuff,
+                            &undo_lock,
+                        );
 
-                    Self::undo_redo(
-                        &app_ui,
-                        &sender_qt,
-                        &sender_qt_data,
-                        &receiver_qt,
-                        &is_modified,
-                        &packed_file_path,
-                        &packed_file_data,
-                        table_view,
-                        model,
-                        filter_model,
-                        &history,
-                        &history_redo,
-                        &global_search_explicit_paths,
-                        update_global_search_stuff,
-                        &undo_lock,
-                    );
-
-                    update_undo_model(model, undo_model);
+                        update_undo_model(model, table_state_data.undo_model); 
+                    }
                     unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
                     unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
                 }
@@ -478,32 +486,33 @@ impl PackedFileLocTreeView {
                 app_ui,
                 is_modified,
                 packed_file_data,
+                table_state_data,
                 sender_qt,
                 sender_qt_data,
-                receiver_qt,
                 undo_lock,
-                history_redo,
-                history => move || {
+                table_state_data => move || {
+                    {
+                        let mut table_state_data = table_state_data.borrow_mut();
+                        let table_state_data = table_state_data.get_mut(&*packed_file_path.borrow()).unwrap();
+                        Self::undo_redo(
+                            &app_ui,
+                            &sender_qt,
+                            &sender_qt_data,
+                            &is_modified,
+                            &packed_file_path,
+                            &packed_file_data,
+                            table_view,
+                            model,
+                            filter_model,
+                            &mut table_state_data.redo_history,
+                            &mut table_state_data.undo_history,
+                            &global_search_explicit_paths,
+                            update_global_search_stuff,
+                            &undo_lock,
+                        );
 
-                    Self::undo_redo(
-                        &app_ui,
-                        &sender_qt,
-                        &sender_qt_data,
-                        &receiver_qt,
-                        &is_modified,
-                        &packed_file_path,
-                        &packed_file_data,
-                        table_view,
-                        model,
-                        filter_model,
-                        &history_redo,
-                        &history,
-                        &global_search_explicit_paths,
-                        update_global_search_stuff,
-                        &undo_lock,
-                    );
-
-                    update_undo_model(model, undo_model);
+                        update_undo_model(model, table_state_data.undo_model); 
+                    }
                     unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
                     unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
                 }
@@ -511,17 +520,18 @@ impl PackedFileLocTreeView {
 
             slot_undo_redo_enabler: SlotNoArgs::new(clone!(
                 app_ui,
-                history_redo,
-                packed_file_path,
-                history => move || { 
+                table_state_data,
+                packed_file_path => move || { 
+                    let table_state_data = table_state_data.borrow_mut();
+                    let table_state_data = table_state_data.get(&*packed_file_path.borrow()).unwrap();
                     unsafe {
-                        if history.borrow().is_empty() { 
+                        if table_state_data.undo_history.is_empty() && !table_state_data.is_renamed { 
                             context_menu_undo.as_mut().unwrap().set_enabled(false); 
                             undo_paint_for_packed_file(&app_ui, model, &packed_file_path);
                         }
                         else { context_menu_undo.as_mut().unwrap().set_enabled(true); }
 
-                        if history_redo.borrow().is_empty() { context_menu_redo.as_mut().unwrap().set_enabled(false); }
+                        if table_state_data.redo_history.is_empty() { context_menu_redo.as_mut().unwrap().set_enabled(false); }
                         else { context_menu_redo.as_mut().unwrap().set_enabled(true); }
                     }
                 }
@@ -574,7 +584,6 @@ impl PackedFileLocTreeView {
                 app_ui,
                 is_modified,
                 packed_file_data,
-                receiver_qt,
                 sender_qt,
                 sender_qt_data => move |_,_,roles| {
 
@@ -587,7 +596,6 @@ impl PackedFileLocTreeView {
                         Self::save_to_packed_file(
                             &sender_qt,
                             &sender_qt_data,
-                            &receiver_qt,
                             &is_modified,
                             &app_ui,
                             &packed_file_data,
@@ -603,32 +611,34 @@ impl PackedFileLocTreeView {
                 }
             )),
             slot_item_changed: SlotStandardItemMutPtr::new(clone!(
-                settings,
-                undo_lock,
-                history,
-                history_redo => move |item| {
+                packed_file_path,
+                table_state_data,
+                undo_lock => move |item| {
 
                     // If we are NOT UNDOING, paint the item as edited and add the edition to the undo list.
                     if !*undo_lock.borrow() {
-                        let item_old = unsafe { &*undo_model.as_mut().unwrap().item((item.as_mut().unwrap().row(), item.as_mut().unwrap().column())) };
-                        unsafe { history.borrow_mut().push(TableOperations::Editing(vec![((item.as_mut().unwrap().row(), item.as_mut().unwrap().column()), item_old.clone()); 1])); }
-                        history_redo.borrow_mut().clear();
+                        {
+                            let mut table_state_data = table_state_data.borrow_mut();
+                            let table_state_data = table_state_data.get_mut(&*packed_file_path.borrow()).unwrap();
+                            let item_old = unsafe { &*table_state_data.undo_model.as_mut().unwrap().item((item.as_mut().unwrap().row(), item.as_mut().unwrap().column())) };
+                            unsafe { table_state_data.undo_history.push(TableOperations::Editing(vec![((item.as_mut().unwrap().row(), item.as_mut().unwrap().column()), item_old.clone()); 1])); }
+                            table_state_data.redo_history.clear();
 
-                        // We block the saving for painting, so this doesn't get rettriggered again.
-                        let mut blocker = unsafe { SignalBlocker::new(model.as_mut().unwrap().static_cast_mut() as &mut Object) };
-                        let use_dark_theme = settings.settings_bool.get("use_dark_theme").unwrap();
-                        unsafe { item.as_mut().unwrap().set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkYellow } else { GlobalColor::Yellow })); }
-                        blocker.unblock();
+                            // We block the saving for painting, so this doesn't get rettriggered again.
+                            let mut blocker = unsafe { SignalBlocker::new(model.as_mut().unwrap().static_cast_mut() as &mut Object) };
+                            unsafe { item.as_mut().unwrap().set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkYellow } else { GlobalColor::Yellow })); }
+                            blocker.unblock();
 
-                        update_undo_model(model, undo_model);
+                            update_undo_model(model, table_state_data.undo_model); 
+                        }
+
                         unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
                     }
                 }
             )),
 
             slot_row_filter_change_text: SlotStringRef::new(clone!(
-                packed_file_path,
-                history_state => move |filter_text| {
+                packed_file_path => move |filter_text| {
                     filter_table(
                         Some(QString::from_std_str(filter_text.to_std_string())),
                         None,
@@ -639,13 +649,11 @@ impl PackedFileLocTreeView {
                         row_filter_case_sensitive_button,
                         update_search_stuff,
                         &packed_file_path,
-                        &history_state,
                     ); 
                 }
             )),
             slot_row_filter_change_column: SlotCInt::new(clone!(
-                packed_file_path,
-                history_state => move |index| {
+                packed_file_path => move |index| {
                     filter_table(
                         None,
                         Some(index),
@@ -656,13 +664,11 @@ impl PackedFileLocTreeView {
                         row_filter_case_sensitive_button,
                         update_search_stuff,
                         &packed_file_path,
-                        &history_state,
                     ); 
                 }
             )),
             slot_row_filter_change_case_sensitive: SlotBool::new(clone!(
-                packed_file_path,
-                history_state => move |case_sensitive| {
+                packed_file_path => move |case_sensitive| {
                     filter_table(
                         None,
                         None,
@@ -673,14 +679,12 @@ impl PackedFileLocTreeView {
                         row_filter_case_sensitive_button,
                         update_search_stuff,
                         &packed_file_path,
-                        &history_state,
                     ); 
                 }
             )),
             slot_context_menu_add: SlotBool::new(clone!(
-                settings,
-                history,
-                history_redo => move |_| {
+                packed_file_path,
+                table_state_data => move |_| {
 
                     // Create a new list of StandardItem.
                     let mut qlist = ListStandardItemMutPtr::new(());
@@ -694,10 +698,9 @@ impl PackedFileLocTreeView {
                     tooltip.set_check_state(CheckState::Checked);
 
                     // Paint the cells.
-                    let use_dark_theme = settings.settings_bool.get("use_dark_theme").unwrap();
-                    key.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
-                    text.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
-                    tooltip.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                    key.set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                    text.set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                    tooltip.set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green }));
 
                     // Add an empty row to the list.
                     unsafe { qlist.append_unsafe(&key.into_raw()); }
@@ -708,17 +711,20 @@ impl PackedFileLocTreeView {
                     unsafe { model.as_mut().unwrap().append_row(&qlist); }
 
                     // Add the operation to the undo history.
-                    unsafe { history.borrow_mut().push(TableOperations::AddRows(vec![model.as_mut().unwrap().row_count(()) - 1; 1])); }
-                    history_redo.borrow_mut().clear();
-                    update_undo_model(model, undo_model);
+                    {
+                        let mut table_state_data = table_state_data.borrow_mut();
+                        let table_state_data = table_state_data.get_mut(&*packed_file_path.borrow()).unwrap();
+                        unsafe { table_state_data.undo_history.push(TableOperations::AddRows(vec![model.as_mut().unwrap().row_count(()) - 1; 1])); }
+                        table_state_data.redo_history.clear();
+                        update_undo_model(model, table_state_data.undo_model); 
+                    }
                     unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
                 }
             )),
 
             slot_context_menu_insert: SlotBool::new(clone!(
-                settings,
-                history,
-                history_redo => move |_| {
+                packed_file_path,
+                table_state_data => move |_| {
 
                     // Create a new list of StandardItem.
                     let mut qlist = ListStandardItemMutPtr::new(());
@@ -732,10 +738,9 @@ impl PackedFileLocTreeView {
                     tooltip.set_check_state(CheckState::Checked);
 
                     // Paint the cells.
-                    let use_dark_theme = settings.settings_bool.get("use_dark_theme").unwrap();
-                    key.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
-                    text.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
-                    tooltip.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                    key.set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                    text.set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                    tooltip.set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green }));
 
                     // Add an empty row to the list.
                     unsafe { qlist.append_unsafe(&key.into_raw()); }
@@ -758,9 +763,13 @@ impl PackedFileLocTreeView {
                         unsafe { model.as_mut().unwrap().row_count(()) - 1 }
                     };
 
-                    history.borrow_mut().push(TableOperations::AddRows(vec![row; 1]));
-                    history_redo.borrow_mut().clear();
-                    update_undo_model(model, undo_model);
+                    {
+                        let mut table_state_data = table_state_data.borrow_mut();
+                        let table_state_data = table_state_data.get_mut(&*packed_file_path.borrow()).unwrap();
+                        table_state_data.undo_history.push(TableOperations::AddRows(vec![row; 1]));
+                        table_state_data.redo_history.clear();
+                        update_undo_model(model, table_state_data.undo_model); 
+                    }
                     unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
                 }
             )),
@@ -770,9 +779,7 @@ impl PackedFileLocTreeView {
                 app_ui,
                 is_modified,
                 packed_file_data,
-                history,
-                history_redo,
-                receiver_qt,
+                table_state_data,
                 sender_qt,
                 sender_qt_data => move |_| {
 
@@ -798,7 +805,6 @@ impl PackedFileLocTreeView {
                         Self::save_to_packed_file(
                             &sender_qt,
                             &sender_qt_data,
-                            &receiver_qt,
                             &is_modified,
                             &app_ui,
                             &packed_file_data,
@@ -811,17 +817,22 @@ impl PackedFileLocTreeView {
                         // Update the search stuff, if needed.
                         unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
 
-                        history.borrow_mut().push(TableOperations::RemoveRows((rows, rows_data)));
-                        history_redo.borrow_mut().clear();
-                        update_undo_model(model, undo_model);
+                        {
+                            let mut table_state_data = table_state_data.borrow_mut();
+                            let table_state_data = table_state_data.get_mut(&*packed_file_path.borrow()).unwrap();
+                            table_state_data.undo_history.push(TableOperations::RemoveRows((rows, rows_data)));
+                            table_state_data.redo_history.clear();
+                            update_undo_model(model, table_state_data.undo_model); 
+                        }
+
                         unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
                     }
                 }
             )),
 
             slot_context_menu_apply_prefix_to_selection: SlotBool::new(clone!(
-                history,
-                history_redo,
+                packed_file_path,
+                table_state_data,
                 app_ui => move |_| {
 
                     // If we got a prefix, get all the cells in the selection, try to apply it to them.
@@ -848,19 +859,24 @@ impl PackedFileLocTreeView {
                             unsafe { model.as_mut().unwrap().item_from_index(model_index).as_mut().unwrap().set_text(&QString::from_std_str(&results[index as usize])) };
                         }
 
-                        // If we finished appling prefixes, fix the undo history to have all the previous changes merged into one.
-                        // Keep in mind that `None` results should be ignored here.
-                        let len = history.borrow().len();
-                        let mut edits_data = vec![];
                         {
-                            let mut history = history.borrow_mut();
-                            let mut edits = history.drain((len - results.len())..);
-                            for edit in &mut edits { if let TableOperations::Editing(mut edit) = edit { edits_data.append(&mut edit); }}
-                        }
+                            let mut table_state_data = table_state_data.borrow_mut();
+                            let table_state_data = table_state_data.get_mut(&*packed_file_path.borrow()).unwrap();
 
-                        history.borrow_mut().push(TableOperations::Editing(edits_data));
-                        history_redo.borrow_mut().clear();
-                        update_undo_model(model, undo_model);
+                            // If we finished appling prefixes, fix the undo history to have all the previous changes merged into one.
+                            // Keep in mind that `None` results should be ignored here.
+                            let len = table_state_data.undo_history.len();
+                            let mut edits_data = vec![];
+                            
+                            {
+                                let mut edits = table_state_data.undo_history.drain((len - results.len())..);
+                                for edit in &mut edits { if let TableOperations::Editing(mut edit) = edit { edits_data.append(&mut edit); }}
+                            }
+
+                            table_state_data.undo_history.push(TableOperations::Editing(edits_data));
+                            table_state_data.redo_history.clear();
+                            update_undo_model(model, table_state_data.undo_model); 
+                        }
                         unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
                     }
                 }
@@ -872,14 +888,9 @@ impl PackedFileLocTreeView {
                 app_ui,
                 is_modified,
                 packed_file_data,
-                settings,
-                history,
-                history_redo,
-                receiver_qt,
+                table_state_data,
                 sender_qt,
                 sender_qt_data => move |_| {
-
-                    let use_dark_theme = settings.settings_bool.get("use_dark_theme").unwrap();
 
                     // Get all the selected rows.
                     let indexes = unsafe { filter_model.as_mut().unwrap().map_selection_to_source(&table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection()).indexes() };
@@ -902,7 +913,7 @@ impl PackedFileLocTreeView {
                             // Get the original item and his clone.
                             let original_item = unsafe { model.as_mut().unwrap().item((*row, column as i32)) };
                             let item = unsafe { original_item.as_mut().unwrap().clone() };
-                            unsafe { item.as_mut().unwrap().set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green })); }
+                            unsafe { item.as_mut().unwrap().set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green })); }
                             unsafe { qlist.append_unsafe(&item); }
                         }
 
@@ -915,7 +926,6 @@ impl PackedFileLocTreeView {
                         Self::save_to_packed_file(
                             &sender_qt,
                             &sender_qt_data,
-                            &receiver_qt,
                             &is_modified,
                             &app_ui,
                             &packed_file_data,
@@ -930,9 +940,15 @@ impl PackedFileLocTreeView {
 
                         // Update the undo stuff. Cloned rows are their equivalent + 1 starting from the top, so we need to take that into account.
                         rows.iter_mut().for_each(|x| *x += 1);
-                        history.borrow_mut().push(TableOperations::AddRows(rows));
-                        history_redo.borrow_mut().clear();
-                        update_undo_model(model, undo_model);
+
+                        {
+                            let mut table_state_data = table_state_data.borrow_mut();
+                            let table_state_data = table_state_data.get_mut(&*packed_file_path.borrow()).unwrap();
+                            table_state_data.undo_history.push(TableOperations::AddRows(rows));
+                            table_state_data.redo_history.clear();
+                            update_undo_model(model, table_state_data.undo_model); 
+                        }
+
                         unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
                     }
                 }
@@ -944,14 +960,9 @@ impl PackedFileLocTreeView {
                 app_ui,
                 is_modified,
                 packed_file_data,
-                settings,
-                history,
-                history_redo,
-                receiver_qt,
+                table_state_data,
                 sender_qt,
                 sender_qt_data => move |_| {
-
-                    let use_dark_theme = settings.settings_bool.get("use_dark_theme").unwrap();
 
                     // Get all the selected rows.
                     let indexes = unsafe { filter_model.as_mut().unwrap().map_selection_to_source(&table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection()).indexes() };
@@ -973,7 +984,7 @@ impl PackedFileLocTreeView {
                             // Get the original item and his clone.
                             let original_item = unsafe { model.as_mut().unwrap().item((*row, column as i32)) };
                             let item = unsafe { original_item.as_mut().unwrap().clone() };
-                            unsafe { item.as_mut().unwrap().set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green })); }
+                            unsafe { item.as_mut().unwrap().set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green })); }
                             unsafe { qlist.append_unsafe(&item); }
                         }
 
@@ -986,7 +997,6 @@ impl PackedFileLocTreeView {
                         Self::save_to_packed_file(
                             &sender_qt,
                             &sender_qt_data,
-                            &receiver_qt,
                             &is_modified,
                             &app_ui,
                             &packed_file_data,
@@ -1002,9 +1012,15 @@ impl PackedFileLocTreeView {
                         // Update the undo stuff. Cloned rows are the amount of rows - the amount of cloned rows.
                         let total_rows = unsafe { model.as_ref().unwrap().row_count(()) };
                         let range = (total_rows - rows.len() as i32..total_rows).collect::<Vec<i32>>();
-                        history.borrow_mut().push(TableOperations::AddRows(range));
-                        history_redo.borrow_mut().clear();
-                        update_undo_model(model, undo_model);
+
+                        {
+                            let mut table_state_data = table_state_data.borrow_mut();
+                            let table_state_data = table_state_data.get_mut(&*packed_file_path.borrow()).unwrap();
+                            table_state_data.undo_history.push(TableOperations::AddRows(range));
+                            table_state_data.redo_history.clear();
+                            update_undo_model(model, table_state_data.undo_model); 
+                        }
+
                         unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
                     }
                 }
@@ -1028,11 +1044,7 @@ impl PackedFileLocTreeView {
                     if a.row() == b.row() {
                         if header.visual_index(a.column()) < header.visual_index(b.column()) { return Ordering::Less }
                         else { return Ordering::Greater }
-                    }
-
-                    // If they are in different rows, we order from less to more.
-                    else if a.row() < b.row() { return Ordering::Less }
-                    else { return Ordering::Greater }
+                    } else { return Ordering::Equal }
                 });
 
                 // Build the copy String.
@@ -1068,11 +1080,38 @@ impl PackedFileLocTreeView {
                 unsafe { GuiApplication::clipboard().as_mut().unwrap().set_text(&QString::from_std_str(copy)); }
             }),
 
+            slot_context_menu_copy_as_lua_table: SlotBool::new(clone!(
+                packed_file_data => move |_| {
+
+                    // We form a "Map<String, Map<String, Any>>" using the key column as Key of the map.
+                    let mut lua_table = String::new();
+                    lua_table.push_str("LOC = {\n");
+                    for entry in &packed_file_data.borrow().entries {
+                        lua_table.push_str(&format!("\t[key] = {{"));
+                        lua_table.push_str(&format!(" [\"key\"] = {},", format!("\"{}\"", entry.key.replace('\\', "\\\\").replace('\"', "\\\""))));
+                        lua_table.push_str(&format!(" [\"text\"] = {},", format!("\"{}\"", entry.text.replace('\\', "\\\\").replace("\"", "\\\""))));
+                        lua_table.push_str(&format!(" [\"tooltip\"] = {},", if entry.tooltip { "true" } else { "false" }));
+
+                        // Take out the last comma and close the row.
+                        lua_table.pop();
+                        lua_table.push_str(" },\n");
+                    }
+
+                    // When we finish, we have to remove the last two chars to remove the comma, and close the table.
+                    lua_table.pop();
+                    lua_table.pop();
+                    lua_table.push_str("\n}");
+
+                    // Put the baby into the oven.
+                    unsafe { GuiApplication::clipboard().as_mut().unwrap().set_text(&QString::from_std_str(lua_table)); }
+                }
+            )),
+
             // NOTE: Saving is not needed in this slot, as this gets detected by the main saving slot.
             // It's needed, however, to deal in a special way here with the undo system.
             slot_context_menu_paste_in_selection: SlotBool::new(clone!(
-                history,
-                history_redo => move |_| {
+                packed_file_path,
+                table_state_data => move |_| {
 
                     // If whatever it's in the Clipboard is pasteable in our selection...
                     if check_clipboard(table_view, model, filter_model) {
@@ -1092,11 +1131,7 @@ impl PackedFileLocTreeView {
                             if a.row() == b.row() {
                                 if header.visual_index(a.column()) < header.visual_index(b.column()) { return Ordering::Less }
                                 else { return Ordering::Greater }
-                            }
-
-                            // If they are in different rows, we order from less to more.
-                            else if a.row() < b.row() { return Ordering::Less }
-                            else { return Ordering::Greater }
+                            } else { return Ordering::Equal }
                         });
 
                         // If the text ends in \n, remove it. Excel things. We don't use newlines, so replace them with '\t'.
@@ -1121,7 +1156,7 @@ impl PackedFileLocTreeView {
                             // so we have to do the same check ourselfs and skip the repeated values.
                             if unsafe { cell.0.as_mut().unwrap().is_checkable() } {
                                 let current_value = unsafe { cell.0.as_mut().unwrap().check_state() };
-                                let new_value = if cell.1 == "true" { CheckState::Checked } else { CheckState::Unchecked };
+                                let new_value = if cell.1.to_lowercase() == "true" || cell.1 == "1" { CheckState::Checked } else { CheckState::Unchecked };
                                 if current_value != new_value { 
                                     unsafe { cell.0.as_mut().unwrap().set_check_state(new_value); }
                                     changed_cells += 1;
@@ -1140,17 +1175,21 @@ impl PackedFileLocTreeView {
 
                         // Fix the undo history to have all the previous changed merged into one.
                         if changed_cells > 0 {
-                            let len = history.borrow().len();
-                            let mut edits_data = vec![];
-                            {
-                                let mut history = history.borrow_mut();
-                                let mut edits = history.drain((len - changed_cells)..);
-                                for edit in &mut edits { if let TableOperations::Editing(mut edit) = edit { edits_data.append(&mut edit); }}
-                            }
 
-                            history.borrow_mut().push(TableOperations::Editing(edits_data));
-                            history_redo.borrow_mut().clear();
-                            update_undo_model(model, undo_model);
+                            {
+                                let mut table_state_data = table_state_data.borrow_mut();
+                                let table_state_data = table_state_data.get_mut(&*packed_file_path.borrow()).unwrap();
+                                let len = table_state_data.undo_history.len();
+                                let mut edits_data = vec![];
+                                {
+                                    let mut edits = table_state_data.undo_history.drain((len - changed_cells)..);
+                                    for edit in &mut edits { if let TableOperations::Editing(mut edit) = edit { edits_data.append(&mut edit); }}
+                                }
+
+                                table_state_data.undo_history.push(TableOperations::Editing(edits_data));
+                                table_state_data.redo_history.clear();
+                                update_undo_model(model, table_state_data.undo_model); 
+                            }
                             unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }                           
                         }
                     }
@@ -1158,8 +1197,8 @@ impl PackedFileLocTreeView {
             )),
 
             slot_context_menu_paste_to_fill_selection: SlotBool::new(clone!(
-                history,
-                history_redo => move |_| {
+                packed_file_path,
+                table_state_data => move |_| {
                 
                     // If whatever it's in the Clipboard is pasteable in our selection...
                     if check_clipboard_to_fill_selection(table_view, model, filter_model) {
@@ -1181,7 +1220,7 @@ impl PackedFileLocTreeView {
                                 // so we have to do the same check ourselfs and skip the repeated values.
                                 if unsafe { item.as_mut().unwrap().is_checkable() } {
                                     let current_value = unsafe { item.as_mut().unwrap().check_state() };
-                                    let new_value = if text == "true" { CheckState::Checked } else { CheckState::Unchecked };
+                                    let new_value = if text.to_lowercase() == "true" || text == "1"  { CheckState::Checked } else { CheckState::Unchecked };
                                     if current_value != new_value { 
                                         unsafe { item.as_mut().unwrap().set_check_state(new_value); }
                                         changed_cells += 1;
@@ -1201,17 +1240,21 @@ impl PackedFileLocTreeView {
 
                         // Fix the undo history to have all the previous changed merged into one.
                         if changed_cells > 0 {
-                            let len = history.borrow().len();
-                            let mut edits_data = vec![];
                             {
-                                let mut history = history.borrow_mut();
-                                let mut edits = history.drain((len - changed_cells)..);
-                                for edit in &mut edits { if let TableOperations::Editing(mut edit) = edit { edits_data.append(&mut edit); }}
+                                let mut table_state_data = table_state_data.borrow_mut();
+                                let table_state_data = table_state_data.get_mut(&*packed_file_path.borrow()).unwrap();
+                                let len = table_state_data.undo_history.len();
+                                let mut edits_data = vec![];
+                                {
+                                    let mut edits = table_state_data.undo_history.drain((len - changed_cells)..);
+                                    for edit in &mut edits { if let TableOperations::Editing(mut edit) = edit { edits_data.append(&mut edit); }}
+                                }
+
+                                table_state_data.undo_history.push(TableOperations::Editing(edits_data));
+                                table_state_data.redo_history.clear();
+                                update_undo_model(model, table_state_data.undo_model); 
                             }
 
-                            history.borrow_mut().push(TableOperations::Editing(edits_data));
-                            history_redo.borrow_mut().clear();
-                            update_undo_model(model, undo_model);
                             unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }                           
                         }
                     }
@@ -1224,16 +1267,12 @@ impl PackedFileLocTreeView {
                 app_ui,
                 is_modified,
                 packed_file_data,
-                settings,
-                history,
-                history_redo,
-                receiver_qt,
+                table_state_data,
                 sender_qt,
                 sender_qt_data => move |_| {
 
                     // If whatever it's in the Clipboard is pasteable...
                     if check_clipboard_append_rows(table_view) {
-                        let use_dark_theme = settings.settings_bool.get("use_dark_theme").unwrap();
 
                         // Get the text from the clipboard.
                         let clipboard = GuiApplication::clipboard();
@@ -1256,14 +1295,14 @@ impl PackedFileLocTreeView {
                             if column_logical_index == 2 {
                                 item.set_editable(false);
                                 item.set_checkable(true);
-                                item.set_check_state(if cell.to_lowercase() == "true" { CheckState::Checked } else { CheckState::Unchecked });
-                                item.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                                item.set_check_state(if cell.to_lowercase() == "true" || *cell == "1" { CheckState::Checked } else { CheckState::Unchecked });
+                                item.set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green }));
                             }
 
                             // Otherwise, create a normal cell.
                             else {
                                 item.set_text(&QString::from_std_str(cell));
-                                item.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                                item.set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green }));
                             }
 
                             // Add the item to the list.
@@ -1298,19 +1337,19 @@ impl PackedFileLocTreeView {
                                     item.set_editable(false);
                                     item.set_checkable(true);
                                     item.set_check_state(CheckState::Checked);
-                                    item.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                                    item.set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green }));
                                     qlist_unordered.push((column_logical_index, item.into_raw()));
                                     
                                     column += 1;
                                     let column_logical_index = unsafe { table_view.as_ref().unwrap().horizontal_header().as_ref().unwrap().logical_index(column) };
                                     let mut item = StandardItem::new(&QString::from_std_str(""));
-                                    item.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                                    item.set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green }));
                                     qlist_unordered.push((column_logical_index, item.into_raw()));
                                 } 
 
                                 else {
                                     let mut item = StandardItem::new(&QString::from_std_str(""));
-                                    item.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                                    item.set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green }));
                                     qlist_unordered.push((column_logical_index, item.into_raw()));
 
                                     // In case our table is "XXX, XXX, Tooltip"...
@@ -1321,14 +1360,14 @@ impl PackedFileLocTreeView {
                                         item.set_editable(false);
                                         item.set_checkable(true);
                                         item.set_check_state(CheckState::Checked);
-                                        item.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                                        item.set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green }));
                                         qlist_unordered.push((column_logical_index, item.into_raw()));  
                                     }
 
                                     // In case our table is "Tooltip, XXX, XXX"...
                                     else {
                                         let mut item = StandardItem::new(&QString::from_std_str(""));
-                                        item.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                                        item.set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green }));
                                         qlist_unordered.push((column_logical_index, item.into_raw()));
                                     }
                                 }
@@ -1345,13 +1384,13 @@ impl PackedFileLocTreeView {
                                     item.set_editable(false);
                                     item.set_checkable(true);
                                     item.set_check_state(CheckState::Checked);
-                                    item.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                                    item.set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green }));
                                     qlist_unordered.push((column_logical_index, item.into_raw()));
                                 } 
 
                                 else { 
                                     let mut item = StandardItem::new(&QString::from_std_str(""));
-                                    item.set_background(&Brush::new(if *use_dark_theme { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                                    item.set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green }));
                                     qlist_unordered.push((column_logical_index, item.into_raw()));
                                 }
                             }
@@ -1367,7 +1406,6 @@ impl PackedFileLocTreeView {
                             Self::save_to_packed_file(
                                 &sender_qt,
                                 &sender_qt_data,
-                                &receiver_qt,
                                 &is_modified,
                                 &app_ui,
                                 &packed_file_data,
@@ -1381,11 +1419,16 @@ impl PackedFileLocTreeView {
                             unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
 
                             // Update the undo stuff.
-                            let mut rows = vec![];
-                            unsafe { (undo_model.as_mut().unwrap().row_count(())..model.as_mut().unwrap().row_count(())).for_each(|x| rows.push(x)); }
-                            history.borrow_mut().push(TableOperations::AddRows(rows));
-                            history_redo.borrow_mut().clear();
-                            update_undo_model(model, undo_model);
+                            {
+                                let mut table_state_data = table_state_data.borrow_mut();
+                                let table_state_data = table_state_data.get_mut(&*packed_file_path.borrow()).unwrap();
+                                let mut rows = vec![];
+                                unsafe { (table_state_data.undo_model.as_mut().unwrap().row_count(())..model.as_mut().unwrap().row_count(())).for_each(|x| rows.push(x)); }
+                                table_state_data.undo_history.push(TableOperations::AddRows(rows));
+                                table_state_data.redo_history.clear();
+                                update_undo_model(model, table_state_data.undo_model); 
+                            }
+
                             unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
                         }
                     }
@@ -1405,8 +1448,7 @@ impl PackedFileLocTreeView {
                 is_modified,
                 packed_file_data,
                 packed_file_path,
-                history,
-                history_redo,
+                table_state_data,
                 sender_qt,
                 sender_qt_data,
                 receiver_qt => move |_| {
@@ -1434,11 +1476,7 @@ impl PackedFileLocTreeView {
 
                         // Build the columns.
                         build_columns(table_view, model);
-
-                        // Get the settings and resize the columns, if the setting for it is enabled.
-                        sender_qt.send(Commands::GetSettings).unwrap();
-                        let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-                        if *settings.settings_bool.get("adjust_columns_to_content").unwrap() {
+                        if *SETTINGS.lock().unwrap().settings_bool.get("adjust_columns_to_content").unwrap() {
                             unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().resize_sections(ResizeMode::ResizeToContents); }
                         }
 
@@ -1449,7 +1487,6 @@ impl PackedFileLocTreeView {
                         Self::save_to_packed_file(
                             &sender_qt,
                             &sender_qt_data,
-                            &receiver_qt,
                             &is_modified,
                             &app_ui,
                             &packed_file_data,
@@ -1462,10 +1499,14 @@ impl PackedFileLocTreeView {
                         // Update the search stuff, if needed.
                         unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
 
-                        // Update the undo stuff.
-                        history.borrow_mut().push(TableOperations::ImportTSVLOC(old_data));
-                        history_redo.borrow_mut().clear();
-                        update_undo_model(model, undo_model);
+                        {
+                            let mut table_state_data = table_state_data.borrow_mut();
+                            let table_state_data = table_state_data.get_mut(&*packed_file_path.borrow()).unwrap();
+                            table_state_data.undo_history.push(TableOperations::ImportTSVLOC(old_data));
+                            table_state_data.redo_history.clear();
+                            update_undo_model(model, table_state_data.undo_model); 
+                        }
+
                         unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
                     }
                 }
@@ -1511,9 +1552,7 @@ impl PackedFileLocTreeView {
                 is_modified,
                 packed_file_data,
                 packed_file_path,
-                history,
-                history_redo,
-                receiver_qt,
+                table_state_data,
                 sender_qt,
                 sender_qt_data => move |_| {
 
@@ -1577,7 +1616,6 @@ impl PackedFileLocTreeView {
                         Self::save_to_packed_file(
                             &sender_qt,
                             &sender_qt_data,
-                            &receiver_qt,
                             &is_modified,
                             &app_ui,
                             &packed_file_data,
@@ -1590,12 +1628,17 @@ impl PackedFileLocTreeView {
                         // Update the search stuff, if needed.
                         unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
 
-                        // Update the undo stuff. This is a bit special, as we have to remove all the automatically created "Editing" undos.
-                        let len = history.borrow().len();
-                        history.borrow_mut().truncate(len - edits.len());
-                        history.borrow_mut().push(TableOperations::SmartDelete((edits, removed_rows)));
-                        history_redo.borrow_mut().clear();
-                        update_undo_model(model, undo_model);
+                        {
+                            // Update the undo stuff. This is a bit special, as we have to remove all the automatically created "Editing" undos.
+                            let mut table_state_data = table_state_data.borrow_mut();
+                            let table_state_data = table_state_data.get_mut(&*packed_file_path.borrow()).unwrap();
+                            let len = table_state_data.undo_history.len();
+                            table_state_data.undo_history.truncate(len - edits.len());
+                            table_state_data.undo_history.push(TableOperations::SmartDelete((edits, removed_rows)));
+                            table_state_data.redo_history.clear();
+                            update_undo_model(model, table_state_data.undo_model); 
+                        }
+
                         unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
                     }
                 }
@@ -1608,7 +1651,6 @@ impl PackedFileLocTreeView {
             slot_update_search_stuff: SlotNoArgs::new(clone!(
                 matches,
                 position,
-                history_state,
                 packed_file_path,
                 search_data => move || {
 
@@ -1712,7 +1754,7 @@ impl PackedFileLocTreeView {
                     }
 
                     // Add the new search data to the state history.
-                    if let Some(state) = history_state.borrow_mut().get_mut(&*packed_file_path.borrow()) {
+                    if let Some(state) = TABLE_STATES_UI.lock().unwrap().get_mut(&*packed_file_path.borrow()) {
                         unsafe { state.search_state = SearchState::new(search_line_edit.as_mut().unwrap().text().to_std_string(), replace_line_edit.as_mut().unwrap().text().to_std_string(), column_selector.as_ref().unwrap().current_index(), case_sensitive_button.as_mut().unwrap().is_checked()); }
                     }
                 }
@@ -1721,7 +1763,6 @@ impl PackedFileLocTreeView {
             // Slot for the search button.
             slot_search: SlotNoArgs::new(clone!(
                 matches,
-                history_state,
                 packed_file_path,
                 position => move || {
 
@@ -1843,7 +1884,7 @@ impl PackedFileLocTreeView {
                             _ => unreachable!(),
                         }
                     );
-                    if let Some(state) = history_state.borrow_mut().get_mut(&*packed_file_path.borrow()) {
+                    if let Some(state) = TABLE_STATES_UI.lock().unwrap().get_mut(&*packed_file_path.borrow()) {
                         unsafe { state.search_state = SearchState::new(search_line_edit.as_mut().unwrap().text().to_std_string(), replace_line_edit.as_mut().unwrap().text().to_std_string(), column_selector.as_ref().unwrap().current_index(), case_sensitive_button.as_mut().unwrap().is_checked()); }
                     }
                 }
@@ -1965,6 +2006,8 @@ impl PackedFileLocTreeView {
 
             // Slot for the "Replace All" button. This triggers the main save function, so we can let that one update the search stuff.
             slot_replace_all: SlotNoArgs::new(clone!(
+                packed_file_path,
+                table_state_data,
                 matches => move || {
                     
                     // Get the texts and only proceed if the source is not empty.
@@ -1998,17 +2041,23 @@ impl PackedFileLocTreeView {
 
                             // If we finished replacing, fix the undo history to have all the previous changed merged into one.
                             if index == positions_and_texts.len() - 1 {
-                                let len = history.borrow().len();
-                                let mut edits_data = vec![];
+
                                 {
-                                    let mut history = history.borrow_mut();
-                                    let mut edits = history.drain((len - positions_and_texts.len())..);
-                                    for edit in &mut edits { if let TableOperations::Editing(mut edit) = edit { edits_data.append(&mut edit); }}
+                                    let mut table_state_data = table_state_data.borrow_mut();
+                                    let table_state_data = table_state_data.get_mut(&*packed_file_path.borrow()).unwrap();
+                                    let len = table_state_data.undo_history.len();
+                                    let mut edits_data = vec![];
+                                    
+                                    {
+                                        let mut edits = table_state_data.undo_history.drain((len - positions_and_texts.len())..);
+                                        for edit in &mut edits { if let TableOperations::Editing(mut edit) = edit { edits_data.append(&mut edit); }}
+                                    }
+
+                                    table_state_data.undo_history.push(TableOperations::Editing(edits_data));
+                                    table_state_data.redo_history.clear();
+                                    update_undo_model(model, table_state_data.undo_model); 
                                 }
 
-                                history.borrow_mut().push(TableOperations::Editing(edits_data));
-                                history_redo.borrow_mut().clear();
-                                update_undo_model(model, undo_model);
                                 unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
                             }
                         }
@@ -2030,6 +2079,7 @@ impl PackedFileLocTreeView {
         unsafe { context_menu_clone.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_clone); }
         unsafe { context_menu_clone_and_append.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_clone_and_append); }
         unsafe { context_menu_copy.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_copy); }
+        unsafe { context_menu_copy_as_lua_table.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_copy_as_lua_table); }
         unsafe { context_menu_paste_in_selection.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_paste_in_selection); }
         unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_paste_as_new_lines); }
         unsafe { context_menu_paste_to_fill_selection.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_paste_to_fill_selection); }
@@ -2064,21 +2114,21 @@ impl PackedFileLocTreeView {
             context_menu_clone.as_mut().unwrap().set_enabled(false);
             context_menu_clone_and_append.as_mut().unwrap().set_enabled(false);
             context_menu_copy.as_mut().unwrap().set_enabled(false);
+            context_menu_copy_as_lua_table.as_mut().unwrap().set_enabled(true);
             context_menu_paste_in_selection.as_mut().unwrap().set_enabled(true);
             context_menu_paste_as_new_lines.as_mut().unwrap().set_enabled(true);
             context_menu_paste_to_fill_selection.as_mut().unwrap().set_enabled(true);
             context_menu_import.as_mut().unwrap().set_enabled(true);
             context_menu_export.as_mut().unwrap().set_enabled(true);
-            context_menu_undo.as_mut().unwrap().set_enabled(false);
-            context_menu_redo.as_mut().unwrap().set_enabled(false);
+            undo_redo_enabler.as_mut().unwrap().trigger();
         }
 
         // Trigger the "Enable/Disable" slot every time we change the selection in the TreeView.
         unsafe { table_view.as_mut().unwrap().selection_model().as_ref().unwrap().signals().selection_changed().connect(&slots.slot_context_menu_enabler); }
 
         // If we got an entry for this PackedFile in the state's history, use it.
-        if history_state.borrow().get(&*packed_file_path.borrow()).is_some() {
-            if let Some(state_data) = history_state.borrow_mut().get_mut(&*packed_file_path.borrow()) {
+        if TABLE_STATES_UI.lock().unwrap().get(&*packed_file_path.borrow()).is_some() {
+            if let Some(state_data) = TABLE_STATES_UI.lock().unwrap().get_mut(&*packed_file_path.borrow()) {
 
                 // Block the signals during this, so we don't trigger a borrow error.
                 let mut blocker1 = unsafe { SignalBlocker::new(row_filter_line_edit.as_mut().unwrap().static_cast_mut() as &mut Object) };
@@ -2109,7 +2159,7 @@ impl PackedFileLocTreeView {
                 let mut blocker1 = unsafe { SignalBlocker::new(table_view.as_mut().unwrap().static_cast_mut() as &mut Object) };
                 let mut blocker2 = unsafe { SignalBlocker::new(table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().static_cast_mut() as &mut Object) };
                 
-                if *settings.settings_bool.get("remember_column_state").unwrap() {
+                if *SETTINGS.lock().unwrap().settings_bool.get("remember_column_state").unwrap() {
                     let sort_order = if state_data.columns_state.sorting_column.1 { SortOrder::Descending } else { SortOrder::Ascending };
                     unsafe { table_view.as_mut().unwrap().sort_by_column((state_data.columns_state.sorting_column.0, sort_order)); }
       
@@ -2133,7 +2183,7 @@ impl PackedFileLocTreeView {
         }
 
         // Otherwise, we create a basic state.
-        else { history_state.borrow_mut().insert(packed_file_path.borrow().to_vec(), TableState::new_empty()); }
+        else { TABLE_STATES_UI.lock().unwrap().insert(packed_file_path.borrow().to_vec(), TableStateUI::new_empty()); }
 
         // Retrigger the filter, so the table get's updated properly.
         unsafe { row_filter_case_sensitive_button.as_mut().unwrap().set_checked(!row_filter_case_sensitive_button.as_mut().unwrap().is_checked()); }
@@ -2228,7 +2278,6 @@ impl PackedFileLocTreeView {
     pub fn save_to_packed_file(
         sender_qt: &Sender<Commands>,
         sender_qt_data: &Sender<Data>,
-        receiver_qt: &Rc<RefCell<Receiver<Data>>>,
         is_modified: &Rc<RefCell<bool>>,
         app_ui: &AppUI,
         data: &Rc<RefCell<Loc>>,
@@ -2237,11 +2286,6 @@ impl PackedFileLocTreeView {
         global_search_explicit_paths: &Rc<RefCell<Vec<Vec<String>>>>,
         update_global_search_stuff: *mut Action,
     ) {
-        // Get the settings before saving, so we don't wait for the background thread to save.
-        sender_qt.send(Commands::GetSettings).unwrap();
-        let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-        let use_dark_theme = settings.settings_bool.get("use_dark_theme").unwrap();
-
         // Update our LocData.
         Self::return_data_from_tree_view(&mut data.borrow_mut(), model);
 
@@ -2250,7 +2294,7 @@ impl PackedFileLocTreeView {
         sender_qt_data.send(Data::LocVecString((data.borrow().clone(), packed_file_path.borrow().to_vec()))).unwrap();
 
         // Set the mod as "Modified".
-        *is_modified.borrow_mut() = set_modified(true, &app_ui, Some((packed_file_path.borrow().to_vec(), *use_dark_theme)));
+        *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(packed_file_path.borrow().to_vec()));
         
         // Update the global search stuff, if needed.
         global_search_explicit_paths.borrow_mut().push(packed_file_path.borrow().to_vec());
@@ -2265,29 +2309,28 @@ impl PackedFileLocTreeView {
         app_ui: &AppUI,
         sender_qt: &Sender<Commands>,
         sender_qt_data: &Sender<Data>,
-        receiver_qt: &Rc<RefCell<Receiver<Data>>>,
         is_modified: &Rc<RefCell<bool>>,
         packed_file_path: &Rc<RefCell<Vec<String>>>,
         data: &Rc<RefCell<Loc>>,
         table_view: *mut TableView,
         model: *mut StandardItemModel,
         filter_model: *mut SortFilterProxyModel,
-        history_source: &Rc<RefCell<Vec<TableOperations>>>, 
-        history_opposite: &Rc<RefCell<Vec<TableOperations>>>,
+        history_source: &mut Vec<TableOperations>, 
+        history_opposite: &mut Vec<TableOperations>,
         global_search_explicit_paths: &Rc<RefCell<Vec<Vec<String>>>>,
         update_global_search_stuff: *mut Action,
         undo_lock: &Rc<RefCell<bool>>, 
     ) {
         
         // Get the last operation in the Undo History, or return if there is none.
-        let operation = if let Some(operation) = history_source.borrow_mut().pop() { operation } else { return };
+        let operation = if let Some(operation) = history_source.pop() { operation } else { return };
         match operation {
             TableOperations::Editing(editions) => {
 
                 // Prepare the redo operation, then do the rest.
                 let mut redo_editions = vec![];
                 unsafe { editions.iter().for_each(|x| redo_editions.push((((x.0).0, (x.0).1), (&*model.as_mut().unwrap().item(((x.0).0, (x.0).1))).clone()))); }
-                history_opposite.borrow_mut().push(TableOperations::Editing(redo_editions));
+                history_opposite.push(TableOperations::Editing(redo_editions));
     
                 *undo_lock.borrow_mut() = true;
                 for (index, edit) in editions.iter().enumerate() {
@@ -2321,12 +2364,11 @@ impl PackedFileLocTreeView {
                 // Prepare the redo operation. Rows are removed from top to bottom, so we have to receive them sorted from bottom to top (9->1).
                 let mut new_rows = vec![];
                 unsafe { rows.iter().rev().for_each(|x| new_rows.push(model.as_mut().unwrap().take_row(*x))); }
-                history_opposite.borrow_mut().push(TableOperations::RemoveRows((rows.to_vec(), new_rows)));
+                history_opposite.push(TableOperations::RemoveRows((rows.to_vec(), new_rows)));
 
                 Self::save_to_packed_file(
                     &sender_qt,
                     &sender_qt_data,
-                    &receiver_qt,
                     &is_modified,
                     &app_ui,
                     &data,
@@ -2341,7 +2383,7 @@ impl PackedFileLocTreeView {
 
                 // Prepare the redo operation and insert the removed rows. Then select the new rows.
                 unsafe { rows.iter().enumerate().rev().for_each(|(index, x)| model.as_mut().unwrap().insert_row((*x, &rows_data[index]))); }
-                history_opposite.borrow_mut().push(TableOperations::AddRows(rows.to_vec()));
+                history_opposite.push(TableOperations::AddRows(rows.to_vec()));
                 
                 let selection_model = unsafe { table_view.as_mut().unwrap().selection_model() };
                 unsafe { selection_model.as_mut().unwrap().clear(); }
@@ -2371,7 +2413,7 @@ impl PackedFileLocTreeView {
                 *undo_lock.borrow_mut() = false;
 
                 // Prepare the redo operation.
-                history_opposite.borrow_mut().push(TableOperations::RevertSmartDelete((edits_before, rows.iter().map(|x| x.0).collect())));
+                history_opposite.push(TableOperations::RevertSmartDelete((edits_before, rows.iter().map(|x| x.0).collect())));
 
                 // Select all the edited items/rows.
                 let selection_model = unsafe { table_view.as_mut().unwrap().selection_model() };
@@ -2412,7 +2454,7 @@ impl PackedFileLocTreeView {
                 unsafe { rows.iter().for_each(|x| removed_rows.push((*x, model.as_mut().unwrap().take_row(*x)))); }
 
                 // Prepare the redo operation.
-                history_opposite.borrow_mut().push(TableOperations::SmartDelete((edits_before, removed_rows)));
+                history_opposite.push(TableOperations::SmartDelete((edits_before, removed_rows)));
 
                 // Select all the edited items, if any.
                 let selection_model = unsafe { table_view.as_mut().unwrap().selection_model() };
@@ -2432,7 +2474,6 @@ impl PackedFileLocTreeView {
                 Self::save_to_packed_file(
                     &sender_qt,
                     &sender_qt_data,
-                    &receiver_qt,
                     &is_modified,
                     &app_ui,
                     &data,
@@ -2446,18 +2487,14 @@ impl PackedFileLocTreeView {
             // This action is special and we have to manually trigger a save for it.
             TableOperations::ImportTSVLOC(table_data) => {
 
-                // Get the settings.
-                sender_qt.send(Commands::GetSettings).unwrap();
-                let settings = if let Data::Settings(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
                 // Prepare the redo operation.
-                history_opposite.borrow_mut().push(TableOperations::ImportTSVLOC(data.borrow().clone()));
+                history_opposite.push(TableOperations::ImportTSVLOC(data.borrow().clone()));
 
                 Self::load_data_to_tree_view(&table_data, model);
                 build_columns(table_view, model);
 
                 // If we want to let the columns resize themselfs...
-                if *settings.settings_bool.get("adjust_columns_to_content").unwrap() {
+                if *SETTINGS.lock().unwrap().settings_bool.get("adjust_columns_to_content").unwrap() {
                     unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().resize_sections(ResizeMode::ResizeToContents); }
                 }
 
@@ -2465,7 +2502,6 @@ impl PackedFileLocTreeView {
                 Self::save_to_packed_file(
                     &sender_qt,
                     &sender_qt_data,
-                    &receiver_qt,
                     &is_modified,
                     &app_ui,
                     &data,
@@ -2521,11 +2557,7 @@ fn check_clipboard(
         if a.row() == b.row() {
             if header.visual_index(a.column()) < header.visual_index(b.column()) { return Ordering::Less }
             else { return Ordering::Greater }
-        }
-
-        // If they are in different rows, we order from less to more.
-        else if a.row() < b.row() { return Ordering::Less }
-        else { return Ordering::Greater }
+        } else { return Ordering::Equal }
     });
 
     // If there is nothing selected, don't waste your time.
@@ -2553,7 +2585,7 @@ fn check_clipboard(
 
         // If it's checkable, we need to see if his text it's a bool. Otherwise, it's just a string.
         if unsafe { cell.0.as_mut().unwrap().is_checkable() } {
-            if cell.1 == "true" || cell.1 == "false" { continue } else { return false }
+            if cell.1.to_lowercase() != "true" && cell.1.to_lowercase() != "false" && cell.1 != "1" && cell.1 != "0" { return false }
         } else { continue }
     }
 
@@ -2584,7 +2616,7 @@ fn check_clipboard_to_fill_selection(
 
             // If it's checkable, we need to see if his text it's a bool. Otherwise, it's just a string.
             if unsafe { item.as_mut().unwrap().is_checkable() } {
-                if text == "true" || text == "false" { continue } else { return false }
+                if text.to_lowercase() != "true" && text.to_lowercase() != "false" && text != "1" && text != "0" { return false }
             } else { continue }
         }
     }
@@ -2615,8 +2647,7 @@ fn check_clipboard_append_rows(
         // If the column is "Tooltip", ensure it's a boolean.
         let column_logical_index = unsafe { table_view.as_ref().unwrap().horizontal_header().as_ref().unwrap().logical_index(column) };
         if column_logical_index == 2 {
-            let cell = cell.to_lowercase();
-            if cell != "true" && cell != "false" { return false }
+            if cell.to_lowercase() != "true" && cell.to_lowercase() != "false" && cell != "1" && cell != "0" { return false }
         }
 
         // Reset or increase the column count, if needed.
@@ -2638,7 +2669,6 @@ fn filter_table(
     case_sensitive_button: *mut PushButton,
     update_search_stuff: *mut Action,
     packed_file_path: &Rc<RefCell<Vec<String>>>,
-    history_state: &Rc<RefCell<BTreeMap<Vec<String>, TableState>>>, 
 ) {
 
     // Set the pattern to search.
@@ -2668,7 +2698,7 @@ fn filter_table(
     unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
 
     // Add the new filter data to the state history.
-    if let Some(state) = history_state.borrow_mut().get_mut(&*packed_file_path.borrow()) {
+    if let Some(state) = TABLE_STATES_UI.lock().unwrap().get_mut(&*packed_file_path.borrow()) {
         unsafe { state.filter_state = FilterState::new(filter_line_edit.as_mut().unwrap().text().to_std_string(), column_selector.as_mut().unwrap().current_index(), case_sensitive_button.as_mut().unwrap().is_checked()); }
     }
 }

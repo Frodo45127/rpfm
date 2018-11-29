@@ -1,6 +1,6 @@
 [package]
 name = "rpfm-code"
-version = "1.2.2"
+version = "1.3.0"
 authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
 build = "build.rs"
 description = "A modding tool for Total War games."
@@ -25,12 +25,14 @@ regex = "1"
 
 sentry = "0.12"
 
-qt_widgets = "0.2"
-qt_gui = "0.2"
 qt_core = "0.2"
+qt_gui = "0.2"
+qt_widgets = "0.2"
 
 cpp_utils = "*"
 lazy_static = "*"
+os_info = "1.1.0"
+toml = "0.4.7"
 
 bitflags = "1.0"
 [target.'cfg(windows)'.build-dependencies]

@@ -12,8 +12,8 @@ use packfile::packfile::PackFile;
 use packfile::packfile::PackedFile;
 use packedfile::loc::*;
 use packedfile::db::*;
-use packedfile::db::schemas::*;
 
+use SCHEMA;
 pub mod loc;
 pub mod db;
 pub mod rigidmodel;
@@ -62,7 +62,6 @@ pub fn create_packed_file(
     pack_file: &mut PackFile,
     packed_file_type: PackedFileType,
     path: Vec<String>,
-    schema: &Option<Schema>,
 ) -> Result<()> {
 
     // Depending on their type, we do different things to prepare the PackedFile and get his data.
@@ -75,8 +74,8 @@ pub fn create_packed_file(
         PackedFileType::DB(_, table, version) => {
 
             // Try to get his table definition.
-            let table_definition = match schema {
-                Some(schema) => DB::get_schema(&table, version, &schema),
+            let table_definition = match *SCHEMA.lock().unwrap() {
+                Some(ref schema) => DB::get_schema(&table, version, &schema),
                 None => return Err(ErrorKind::SchemaNotFound)?
             };
 
@@ -103,7 +102,6 @@ pub fn create_packed_file(
 pub fn tsv_mass_import(
     tsv_paths: &[PathBuf],
     name: &str,
-    schema: &Option<Schema>,
     pack_file: &mut PackFile
 ) -> Result<(Vec<Vec<String>>, Vec<Vec<String>>)> {
 
@@ -159,7 +157,7 @@ pub fn tsv_mass_import(
                 let table_type = tsv_info[0];
                 let table_version = tsv_info[1].parse::<u32>().unwrap();
                 
-                let table_definition = if let Some(ref schema) = schema {
+                let table_definition = if let Some(ref schema) = *SCHEMA.lock().unwrap() {
                     if let Some(table_definition) = DB::get_schema(&table_type, table_version, &schema) { table_definition }
                     else { error_files.push(path.to_string_lossy().to_string()); continue }
                 } else { error_files.push(path.to_string_lossy().to_string()); continue };
@@ -223,8 +221,7 @@ pub fn tsv_mass_import(
 /// existing file that has a name conflict with the TSV files provided.
 pub fn tsv_mass_export(
     export_path: &PathBuf,
-    schema: &Option<Schema>,
-    pack_file: &PackFile
+    pack_file: &mut PackFile
 ) -> Result<String> {
 
     // Lists of PackedFiles that couldn't be exported for one thing or another and exported PackedFile names,
@@ -232,16 +229,16 @@ pub fn tsv_mass_export(
     let mut error_list = vec![];
     let mut exported_files = vec![];
 
-    for packed_file in &pack_file.packed_files {
+    for packed_file in &mut pack_file.packed_files {
 
         // We check if his path is empty first to avoid false positives related with "starts_with" function.
         if !packed_file.path.is_empty() {
 
             // If the PackedFile is a DB Table and we have an schema, try to decode it and export it.
             if packed_file.path.starts_with(&["db".to_owned()]) && packed_file.path.len() == 3 {
-                match schema {
-                    Some(schema) => {
-                        match DB::read(&(packed_file.get_data()?), &packed_file.path[1], &schema) {
+                match *SCHEMA.lock().unwrap() {
+                    Some(ref schema) => {
+                        match DB::read(&(packed_file.get_data_and_keep_it()?), &packed_file.path[1], &schema) {
                             Ok(db) => {
 
                                 // His name will be "db_name_file_name.tsv". If that's taken, we'll add an index until we find one available.
@@ -270,7 +267,7 @@ pub fn tsv_mass_export(
 
             // Otherwise, we check if it's a Loc PackedFile, and try to decode it and export it.
             else if packed_file.path.last().unwrap().ends_with(".loc") {
-                match Loc::read(&(packed_file.get_data()?)) {
+                match Loc::read(&(packed_file.get_data_and_keep_it()?)) {
                     Ok(loc) => {
 
                         // His name will be "file_name.tsv". If that's taken, we'll add an index until we find one available.
