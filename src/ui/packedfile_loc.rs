@@ -820,6 +820,8 @@ impl PackedFileLocTreeView {
                         {
                             let mut table_state_data = table_state_data.borrow_mut();
                             let table_state_data = table_state_data.get_mut(&*packed_file_path.borrow()).unwrap();
+                            rows.reverse();
+                            rows_data.reverse();
                             table_state_data.undo_history.push(TableOperations::RemoveRows((rows, rows_data)));
                             table_state_data.redo_history.clear();
                             update_undo_model(model, table_state_data.undo_model); 
@@ -939,7 +941,7 @@ impl PackedFileLocTreeView {
                         unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
 
                         // Update the undo stuff. Cloned rows are their equivalent + 1 starting from the top, so we need to take that into account.
-                        rows.iter_mut().for_each(|x| *x += 1);
+                        rows.iter_mut().rev().enumerate().for_each(|(y, x)| *x += 1 + y as i32);
 
                         {
                             let mut table_state_data = table_state_data.borrow_mut();
@@ -1011,7 +1013,7 @@ impl PackedFileLocTreeView {
 
                         // Update the undo stuff. Cloned rows are the amount of rows - the amount of cloned rows.
                         let total_rows = unsafe { model.as_ref().unwrap().row_count(()) };
-                        let range = (total_rows - rows.len() as i32..total_rows).collect::<Vec<i32>>();
+                        let range = (total_rows - rows.len() as i32..total_rows).rev().collect::<Vec<i32>>();
 
                         {
                             let mut table_state_data = table_state_data.borrow_mut();
@@ -1044,7 +1046,9 @@ impl PackedFileLocTreeView {
                     if a.row() == b.row() {
                         if header.visual_index(a.column()) < header.visual_index(b.column()) { return Ordering::Less }
                         else { return Ordering::Greater }
-                    } else { return Ordering::Equal }
+                    } 
+                    else if a.row() < b.row() { return Ordering::Less }
+                    else { return Ordering::Greater }
                 });
 
                 // Build the copy String.
@@ -1131,7 +1135,9 @@ impl PackedFileLocTreeView {
                             if a.row() == b.row() {
                                 if header.visual_index(a.column()) < header.visual_index(b.column()) { return Ordering::Less }
                                 else { return Ordering::Greater }
-                            } else { return Ordering::Equal }
+                            } 
+                            else if a.row() < b.row() { return Ordering::Less }
+                            else { return Ordering::Greater }
                         });
 
                         // If the text ends in \n, remove it. Excel things. We don't use newlines, so replace them with '\t'.
@@ -1423,7 +1429,7 @@ impl PackedFileLocTreeView {
                                 let mut table_state_data = table_state_data.borrow_mut();
                                 let table_state_data = table_state_data.get_mut(&*packed_file_path.borrow()).unwrap();
                                 let mut rows = vec![];
-                                unsafe { (table_state_data.undo_model.as_mut().unwrap().row_count(())..model.as_mut().unwrap().row_count(())).for_each(|x| rows.push(x)); }
+                                unsafe { (table_state_data.undo_model.as_mut().unwrap().row_count(())..model.as_mut().unwrap().row_count(())).rev().for_each(|x| rows.push(x)); }
                                 table_state_data.undo_history.push(TableOperations::AddRows(rows));
                                 table_state_data.redo_history.clear();
                                 update_undo_model(model, table_state_data.undo_model); 
@@ -2359,11 +2365,16 @@ impl PackedFileLocTreeView {
             }
 
             // This action is special and we have to manually trigger a save for it.
+            // This actions if for undoing "add rows" actions. It deletes the stored rows.
+            // NOTE: the rows list must ALWAYS be in 9->1 order. Otherwise this breaks.
             TableOperations::AddRows(rows) => {
 
-                // Prepare the redo operation. Rows are removed from top to bottom, so we have to receive them sorted from bottom to top (9->1).
                 let mut new_rows = vec![];
-                unsafe { rows.iter().rev().for_each(|x| new_rows.push(model.as_mut().unwrap().take_row(*x))); }
+                let mut rows = rows.to_vec();
+                unsafe { rows.iter().for_each(|x| new_rows.push(model.as_mut().unwrap().take_row(*x))); }
+                rows.reverse();
+                new_rows.reverse();
+
                 history_opposite.push(TableOperations::RemoveRows((rows.to_vec(), new_rows)));
 
                 Self::save_to_packed_file(
@@ -2379,11 +2390,13 @@ impl PackedFileLocTreeView {
                 );
             }
 
+            // NOTE: the rows list must ALWAYS be in 1->9 order. Otherwise this breaks.
             TableOperations::RemoveRows((rows, rows_data)) => {
 
-                // Prepare the redo operation and insert the removed rows. Then select the new rows.
-                unsafe { rows.iter().enumerate().rev().for_each(|(index, x)| model.as_mut().unwrap().insert_row((*x, &rows_data[index]))); }
-                history_opposite.push(TableOperations::AddRows(rows.to_vec()));
+                unsafe { rows.iter().enumerate().for_each(|(index, x)| model.as_mut().unwrap().insert_row((*x, &rows_data[index]))); }
+                let mut rows_to_add = rows.to_vec();
+                rows_to_add.reverse();
+                history_opposite.push(TableOperations::AddRows(rows_to_add));
                 
                 let selection_model = unsafe { table_view.as_mut().unwrap().selection_model() };
                 unsafe { selection_model.as_mut().unwrap().clear(); }
@@ -2557,7 +2570,9 @@ fn check_clipboard(
         if a.row() == b.row() {
             if header.visual_index(a.column()) < header.visual_index(b.column()) { return Ordering::Less }
             else { return Ordering::Greater }
-        } else { return Ordering::Equal }
+        } 
+        else if a.row() < b.row() { return Ordering::Less }
+        else { return Ordering::Greater }
     });
 
     // If there is nothing selected, don't waste your time.
