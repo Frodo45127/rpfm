@@ -1376,7 +1376,9 @@ impl PackedFileDBTreeView {
                     if a.row() == b.row() {
                         if header.visual_index(a.column()) < header.visual_index(b.column()) { return Ordering::Less }
                         else { return Ordering::Greater }
-                    } else { return Ordering::Equal }
+                    } 
+                    else if a.row() < b.row() { return Ordering::Less }
+                    else { return Ordering::Greater }
                 });
 
                 // Build the copy String.
@@ -1575,7 +1577,9 @@ impl PackedFileDBTreeView {
                             if a.row() == b.row() {
                                 if header.visual_index(a.column()) < header.visual_index(b.column()) { return Ordering::Less }
                                 else { return Ordering::Greater }
-                            } else { return Ordering::Equal }
+                            } 
+                            else if a.row() < b.row() { return Ordering::Less }
+                            else { return Ordering::Greater }
                         });
 
                         // If the text ends in \n, remove it. Excel things. We don't use newlines, so replace them with '\t'.
@@ -5279,7 +5283,9 @@ fn check_clipboard(
         if a.row() == b.row() {
             if header.visual_index(a.column()) < header.visual_index(b.column()) { return Ordering::Less }
             else { return Ordering::Greater }
-        } else { return Ordering::Equal }
+        } 
+        else if a.row() < b.row() { return Ordering::Less }
+        else { return Ordering::Greater }
     });
 
     // If there is nothing selected, don't waste your time.
