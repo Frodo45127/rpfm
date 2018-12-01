@@ -683,8 +683,14 @@ impl PackedFileLocTreeView {
                 }
             )),
             slot_context_menu_add: SlotBool::new(clone!(
+                global_search_explicit_paths,
                 packed_file_path,
-                table_state_data => move |_| {
+                app_ui,
+                is_modified,
+                packed_file_data,
+                table_state_data,
+                sender_qt,
+                sender_qt_data => move |_| {
 
                     // Create a new list of StandardItem.
                     let mut qlist = ListStandardItemMutPtr::new(());
@@ -710,6 +716,22 @@ impl PackedFileLocTreeView {
                     // Append the new row.
                     unsafe { model.as_mut().unwrap().append_row(&qlist); }
 
+                    // Save, so there are no discrepances between the normal and undo models.
+                    Self::save_to_packed_file(
+                        &sender_qt,
+                        &sender_qt_data,
+                        &is_modified,
+                        &app_ui,
+                        &packed_file_data,
+                        &packed_file_path,
+                        model,
+                        &global_search_explicit_paths,
+                        update_global_search_stuff,
+                    );
+
+                    // Update the search stuff, if needed.
+                    unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
+
                     // Add the operation to the undo history.
                     {
                         let mut table_state_data = table_state_data.borrow_mut();
@@ -723,8 +745,14 @@ impl PackedFileLocTreeView {
             )),
 
             slot_context_menu_insert: SlotBool::new(clone!(
+                global_search_explicit_paths,
                 packed_file_path,
-                table_state_data => move |_| {
+                app_ui,
+                is_modified,
+                packed_file_data,
+                table_state_data,
+                sender_qt,
+                sender_qt_data => move |_| {
 
                     // Create a new list of StandardItem.
                     let mut qlist = ListStandardItemMutPtr::new(());
@@ -762,6 +790,22 @@ impl PackedFileLocTreeView {
                         unsafe { model.as_mut().unwrap().append_row(&qlist); } 
                         unsafe { model.as_mut().unwrap().row_count(()) - 1 }
                     };
+
+                    // Save, so there are no discrepances between the normal and undo models.
+                    Self::save_to_packed_file(
+                        &sender_qt,
+                        &sender_qt_data,
+                        &is_modified,
+                        &app_ui,
+                        &packed_file_data,
+                        &packed_file_path,
+                        model,
+                        &global_search_explicit_paths,
+                        update_global_search_stuff,
+                    );
+
+                    // Update the search stuff, if needed.
+                    unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
 
                     {
                         let mut table_state_data = table_state_data.borrow_mut();
