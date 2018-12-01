@@ -482,7 +482,9 @@ impl PackFile {
 
             // These PackedFiles have their data always starting in multiples of 8.
             let pack_file = Arc::new(Mutex::new(pack_file));
-            pack_file_data_position = if (pack_file_data_position % 8) > 0 { pack_file_data_position + 8 - (pack_file_data_position % 8) } else { pack_file_data_position };
+            if pack_file_decoded.bitmask.contains(PFHFlags::HAS_ENCRYPTED_DATA) {
+                pack_file_data_position = if (pack_file_data_position % 8) > 0 { pack_file_data_position + 8 - (pack_file_data_position % 8) } else { pack_file_data_position };
+            }
             for packed_files_after_this_one in (0..packed_file_count).rev() {
 
                 // Get his size.
@@ -514,6 +516,13 @@ impl PackFile {
                     )
                 );
                 pack_file_decoded.packed_files.push(packed_file);
+                if pack_file_decoded.bitmask.contains(PFHFlags::HAS_ENCRYPTED_DATA) {
+                    let padding = 8 - (size % 8);
+                    let padded_size = if padding < 8 { size + padding } else { size };
+                    pack_file_data_position += padded_size as u64;
+                }
+
+                else { pack_file_data_position += size as u64; }
             }
         }
 
@@ -856,13 +865,15 @@ static FILE_KEY: Wrapping<u64> = Wrapping(0x8FEB2A6740A6920E);
 
 // Don't make me try to explain this. Is magic for me.
 pub fn decrypt_file(ciphertext: &[u8], length: usize, verbose: bool) -> Vec<u8> {
-    assert!(ciphertext.len() % 8 == 0, "ciphertext is not a multiple of 8");
     let mut plaintext = Vec::with_capacity(ciphertext.len());
+    let padded_length = ciphertext.len() + 7 & !7;
+    assert!(padded_length % 8 == 0);
+    assert!(padded_length < ciphertext.len() + 8);
     let mut edi: u32 = 0;
     let mut esi = 0;
     let mut eax;
     let mut edx;
-    for _ in 0..ciphertext.len()/8 {
+        for _ in 0..padded_length/8 {
         // push 0x8FEB2A67
         // push 0x40A6920E
         // mov eax, edi
