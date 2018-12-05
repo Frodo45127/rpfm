@@ -2932,12 +2932,14 @@ impl PackedFileDBTreeView {
             }
         }
 
-        // We build the combos lists here, so it get's rebuilt if we import a TSV and clear the table.   
-        for (column, data) in dependency_data {
-            let mut list = StringList::new(());
-            data.iter().for_each(|x| list.append(&QString::from_std_str(x)));
-            let list: *mut StringList = &mut list;
-            unsafe { qt_custom_stuff::new_combobox_item_delegate(table_view as *mut Object, *column, list as *const StringList, true)};
+        // We build the combos lists here, so it get's rebuilt if we import a TSV and clear the table.
+        if !*SETTINGS.lock().unwrap().settings_bool.get("disable_combos_on_tables").unwrap() {
+            for (column, data) in dependency_data {
+                let mut list = StringList::new(());
+                data.iter().for_each(|x| list.append(&QString::from_std_str(x)));
+                let list: *mut StringList = &mut list;
+                unsafe { qt_custom_stuff::new_combobox_item_delegate(table_view as *mut Object, *column, list as *const StringList, true)};
+            }
         }
     }
 
