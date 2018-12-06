@@ -28,7 +28,6 @@ use qt_widgets::widget::Widget;
 use qt_gui::brush::Brush;
 use qt_gui::icon;
 use qt_gui::key_sequence::KeySequence;
-use qt_gui::list::ListStandardItemMutPtr;
 use qt_gui::standard_item::StandardItem;
 use qt_gui::standard_item_model::StandardItemModel;
 
@@ -916,7 +915,7 @@ pub enum TableOperations {
     Editing(Vec<((i32, i32), *mut StandardItem)>),
     AddRows(Vec<i32>),
     RemoveRows((Vec<Vec<(i32, Vec<*mut StandardItem>)>>)),
-    SmartDelete((Vec<((i32, i32), *mut StandardItem)>, Vec<(i32, ListStandardItemMutPtr)>)),
+    SmartDelete((Vec<((i32, i32), *mut StandardItem)>, Vec<Vec<(i32, Vec<*mut StandardItem>)>>)),
     RevertSmartDelete((Vec<((i32, i32), *mut StandardItem)>, Vec<i32>)),
     ImportTSVDB(DB),
     ImportTSVLOC(Loc),
