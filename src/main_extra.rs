@@ -838,7 +838,9 @@ pub fn build_my_mod_menu(
                     Mode::MyMod {ref game_folder_name, ref mod_name} => {
 
                         // And the "MyMod" path is configured...
-                        if let Some(ref mymods_base_path) = SETTINGS.lock().unwrap().paths.get("mymods_base_path").unwrap() {
+                        let settings = SETTINGS.lock().unwrap().clone();
+                        let mymods_base_path = settings.paths.get("mymods_base_path").unwrap();
+                        if let Some(ref mymods_base_path) = mymods_base_path {
 
                             // If we have a `game_data_path` for the current `GameSelected`...
                             if let Some(mut game_data_path) = get_game_selected_data_path() {
@@ -1053,10 +1055,19 @@ pub fn build_my_mod_menu(
     // Otherwise, disable it.
     else { unsafe { mymod_stuff.new_mymod.as_mut().unwrap().set_enabled(false); }}
 
-    // Disable by default the rest of the actions.
-    unsafe { mymod_stuff.delete_selected_mymod.as_mut().unwrap().set_enabled(false); }
-    unsafe { mymod_stuff.install_mymod.as_mut().unwrap().set_enabled(false); }
-    unsafe { mymod_stuff.uninstall_mymod.as_mut().unwrap().set_enabled(false); }
+    // If we just created a MyMod, these options should be enabled.
+    if let Mode::MyMod{game_folder_name: _, mod_name: _} = *mode.borrow() {
+        unsafe { mymod_stuff.delete_selected_mymod.as_mut().unwrap().set_enabled(true); }
+        unsafe { mymod_stuff.install_mymod.as_mut().unwrap().set_enabled(true); }
+        unsafe { mymod_stuff.uninstall_mymod.as_mut().unwrap().set_enabled(true); }
+    }
+
+    // Otherwise, disable by default the rest of the actions.
+    else {   
+        unsafe { mymod_stuff.delete_selected_mymod.as_mut().unwrap().set_enabled(false); }
+        unsafe { mymod_stuff.install_mymod.as_mut().unwrap().set_enabled(false); }
+        unsafe { mymod_stuff.uninstall_mymod.as_mut().unwrap().set_enabled(false); }
+    }
 
     // Return the MyModStuff with all the new actions.
     (mymod_stuff, mymod_slots)

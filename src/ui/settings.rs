@@ -50,6 +50,7 @@ pub struct SettingsDialog {
     pub paths_games_line_edits: BTreeMap<String, *mut LineEdit>,
     pub ui_adjust_columns_to_content: *mut CheckBox,
     pub ui_extend_last_column_on_tables: *mut CheckBox,
+    pub ui_disable_combos_on_tables: *mut CheckBox,
     pub ui_start_maximized: *mut CheckBox,
     pub ui_remember_column_state: *mut CheckBox,
     pub ui_remember_table_state_permanently: *mut CheckBox,
@@ -146,6 +147,7 @@ impl SettingsDialog {
         // Create the UI options.
         let mut adjust_columns_to_content_label = Label::new(&QString::from_std_str("Adjust Columns to Content:"));
         let mut extend_last_column_on_tables_label = Label::new(&QString::from_std_str("Extend Last Column on Tables:"));
+        let mut disable_combos_on_tables_label = Label::new(&QString::from_std_str("Disable ComboBoxes on Tables:"));
         let mut start_maximized_label = Label::new(&QString::from_std_str("Start Maximized:"));
         let mut remember_column_state_label = Label::new(&QString::from_std_str("Remember Column State on Tables:"));
         let mut remember_table_state_permanently_label = Label::new(&QString::from_std_str("Remember Table State Across PackFiles:"));
@@ -153,6 +155,7 @@ impl SettingsDialog {
 
         let mut adjust_columns_to_content_checkbox = CheckBox::new(());
         let mut extend_last_column_on_tables_checkbox = CheckBox::new(());
+        let mut disable_combos_on_tables_checkbox = CheckBox::new(());
         let mut start_maximized_checkbox = CheckBox::new(());
         let mut remember_column_state_checkbox = CheckBox::new(());
         let mut remember_table_state_permanently_checkbox = CheckBox::new(());
@@ -164,6 +167,7 @@ impl SettingsDialog {
         // Tips for the UI settings.
         let adjust_columns_to_content_tip = QString::from_std_str("If you enable this, when you open a DB Table or Loc File, all columns will be automatically resized depending on their content's size.\nOtherwise, columns will have a predefined size. Either way, you'll be able to resize them manually after the initial resize.\nNOTE: This can make very big tables take more time to load.");
         let extend_last_column_on_tables_tip = QString::from_std_str("If you enable this, the last column on DB Tables and Loc PackedFiles will extend itself to fill the empty space at his right, if there is any.");
+        let disable_combos_on_tables_tip = QString::from_std_str("If you disable this, no more combos will be shown in referenced columns in tables. This means no combos nor autocompletion on DB Tables.\nNow shut up Baldy.");
         let start_maximized_tip = QString::from_std_str("If you enable this, RPFM will start maximized.");
         let remember_column_state_tip = QString::from_std_str("If you enable this, RPFM will remember how did you left a DB Table or Loc PackedFile (columns moved, what column was sorting the Table,...) when you re-open it again. This memory is temporary, until the opened PackFile changes.");
         let remember_table_state_permanently_tip = QString::from_std_str("If you enable this, RPFM will remember the state of a DB Table or Loc PackedFile (filter data, columns moved, what column was sorting the Table,...) even when you close RPFM and open it again. If you don't want this behavior, leave this disabled.");
@@ -174,6 +178,8 @@ impl SettingsDialog {
         adjust_columns_to_content_checkbox.set_tool_tip(&adjust_columns_to_content_tip);
         extend_last_column_on_tables_label.set_tool_tip(&extend_last_column_on_tables_tip);
         extend_last_column_on_tables_checkbox.set_tool_tip(&extend_last_column_on_tables_tip);
+        disable_combos_on_tables_label.set_tool_tip(&disable_combos_on_tables_tip);
+        disable_combos_on_tables_checkbox.set_tool_tip(&disable_combos_on_tables_tip);
         start_maximized_label.set_tool_tip(&start_maximized_tip);
         start_maximized_checkbox.set_tool_tip(&start_maximized_tip);
         remember_column_state_label.set_tool_tip(&remember_column_state_tip);
@@ -191,22 +197,25 @@ impl SettingsDialog {
         unsafe { ui_settings_grid.as_mut().unwrap().add_widget((extend_last_column_on_tables_label.static_cast_mut() as *mut Widget, 1, 0, 1, 1)); }
         unsafe { ui_settings_grid.as_mut().unwrap().add_widget((extend_last_column_on_tables_checkbox.static_cast_mut() as *mut Widget, 1, 1, 1, 1)); }
 
-        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((start_maximized_label.static_cast_mut() as *mut Widget, 2, 0, 1, 1)); }
-        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((start_maximized_checkbox.static_cast_mut() as *mut Widget, 2, 1, 1, 1)); }
+        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((disable_combos_on_tables_label.static_cast_mut() as *mut Widget, 2, 0, 1, 1)); }
+        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((disable_combos_on_tables_checkbox.static_cast_mut() as *mut Widget, 2, 1, 1, 1)); }
 
-        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((remember_column_state_label.static_cast_mut() as *mut Widget, 3, 0, 1, 1)); }
-        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((remember_column_state_checkbox.static_cast_mut() as *mut Widget, 3, 1, 1, 1)); }
+        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((start_maximized_label.static_cast_mut() as *mut Widget, 3, 0, 1, 1)); }
+        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((start_maximized_checkbox.static_cast_mut() as *mut Widget, 3, 1, 1, 1)); }
 
-        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((remember_table_state_permanently_label.static_cast_mut() as *mut Widget, 4, 0, 1, 1)); }
-        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((remember_table_state_permanently_checkbox.static_cast_mut() as *mut Widget, 4, 1, 1, 1)); }
+        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((remember_column_state_label.static_cast_mut() as *mut Widget, 4, 0, 1, 1)); }
+        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((remember_column_state_checkbox.static_cast_mut() as *mut Widget, 4, 1, 1, 1)); }
+
+        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((remember_table_state_permanently_label.static_cast_mut() as *mut Widget, 5, 0, 1, 1)); }
+        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((remember_table_state_permanently_checkbox.static_cast_mut() as *mut Widget, 5, 1, 1, 1)); }
        
         if cfg!(target_os = "windows") {
-            unsafe { ui_settings_grid.as_mut().unwrap().add_widget((use_dark_theme_label.static_cast_mut() as *mut Widget, 5, 0, 1, 1)); }
-            unsafe { ui_settings_grid.as_mut().unwrap().add_widget((use_dark_theme_checkbox.static_cast_mut() as *mut Widget, 5, 1, 1, 1)); }
+            unsafe { ui_settings_grid.as_mut().unwrap().add_widget((use_dark_theme_label.static_cast_mut() as *mut Widget, 6, 0, 1, 1)); }
+            unsafe { ui_settings_grid.as_mut().unwrap().add_widget((use_dark_theme_checkbox.static_cast_mut() as *mut Widget, 6, 1, 1, 1)); }
         }
 
-        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((shortcuts_label.static_cast_mut() as *mut Widget, 6, 0, 1, 1)); }
-        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((shortcuts_button.static_cast_mut() as *mut Widget, 6, 1, 1, 1)); }
+        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((shortcuts_label.static_cast_mut() as *mut Widget, 7, 0, 1, 1)); }
+        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((shortcuts_button.static_cast_mut() as *mut Widget, 7, 1, 1, 1)); }
 
         // Create the "Extra Settings" frame and Grid.
         let extra_settings_frame = GroupBox::new(&QString::from_std_str("Extra Settings")).into_raw();
@@ -385,6 +394,7 @@ impl SettingsDialog {
             paths_games_line_edits: game_paths.clone(),
             ui_adjust_columns_to_content: adjust_columns_to_content_checkbox.into_raw(),
             ui_extend_last_column_on_tables: extend_last_column_on_tables_checkbox.into_raw(),
+            ui_disable_combos_on_tables: disable_combos_on_tables_checkbox.into_raw(),
             ui_start_maximized: start_maximized_checkbox.into_raw(),
             ui_remember_column_state: remember_column_state_checkbox.into_raw(),
             ui_remember_table_state_permanently: remember_table_state_permanently_checkbox.into_raw(),
@@ -451,6 +461,7 @@ impl SettingsDialog {
         // Load the UI Stuff.
         unsafe { self.ui_adjust_columns_to_content.as_mut().unwrap().set_checked(*SETTINGS.lock().unwrap().settings_bool.get("adjust_columns_to_content").unwrap()); }
         unsafe { self.ui_extend_last_column_on_tables.as_mut().unwrap().set_checked(*SETTINGS.lock().unwrap().settings_bool.get("extend_last_column_on_tables").unwrap()); }
+        unsafe { self.ui_disable_combos_on_tables.as_mut().unwrap().set_checked(*SETTINGS.lock().unwrap().settings_bool.get("disable_combos_on_tables").unwrap()); }
         unsafe { self.ui_start_maximized.as_mut().unwrap().set_checked(*SETTINGS.lock().unwrap().settings_bool.get("start_maximized").unwrap()); }
         unsafe { self.ui_remember_column_state.as_mut().unwrap().set_checked(*SETTINGS.lock().unwrap().settings_bool.get("remember_column_state").unwrap()); }
         unsafe { self.ui_remember_table_state_permanently.as_mut().unwrap().set_checked(*SETTINGS.lock().unwrap().settings_bool.get("remember_table_state_permanently").unwrap()); }
@@ -500,6 +511,7 @@ impl SettingsDialog {
         // Get the UI Settings.
         unsafe { settings.settings_bool.insert("adjust_columns_to_content".to_owned(), self.ui_adjust_columns_to_content.as_mut().unwrap().is_checked()); }
         unsafe { settings.settings_bool.insert("extend_last_column_on_tables".to_owned(), self.ui_extend_last_column_on_tables.as_mut().unwrap().is_checked()); }
+        unsafe { settings.settings_bool.insert("disable_combos_on_tables".to_owned(), self.ui_disable_combos_on_tables.as_mut().unwrap().is_checked()); }
         unsafe { settings.settings_bool.insert("start_maximized".to_owned(), self.ui_start_maximized.as_mut().unwrap().is_checked()); }
         unsafe { settings.settings_bool.insert("remember_column_state".to_owned(), self.ui_remember_column_state.as_mut().unwrap().is_checked()); }
         unsafe { settings.settings_bool.insert("remember_table_state_permanently".to_owned(), self.ui_remember_table_state_permanently.as_mut().unwrap().is_checked()); }

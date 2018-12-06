@@ -28,7 +28,6 @@ use qt_widgets::widget::Widget;
 use qt_gui::brush::Brush;
 use qt_gui::icon;
 use qt_gui::key_sequence::KeySequence;
-use qt_gui::list::ListStandardItemMutPtr;
 use qt_gui::standard_item::StandardItem;
 use qt_gui::standard_item_model::StandardItemModel;
 
@@ -907,7 +906,7 @@ pub enum ItemVisualStatus {
 /// Enum to know what operation was done while editing tables, so we can revert them with undo.
 /// - Editing: Intended for any kind of item editing. Holds a Vec<((row, column), *mut item)>, so we can do this in batches.
 /// - AddRows: Intended for when adding/inserting rows. It holds a list of positions where the rows where inserted.
-/// - RemoveRows: Intended for when removing rows. It holds a list of positions where the rows where deleted and the deleted rows.
+/// - RemoveRows: Intended for when removing rows. It holds a list of positions where the rows where deleted and the deleted rows data, in consecutive batches.
 /// - SmartDelete: Intended for when we are using the smart delete feature. This is a combination of list of edits and list of removed rows.
 /// - RevertSmartDelete: Selfexplanatory. This is a combination of list of edits and list of adding rows.
 /// - ImportTSVDB: It holds a copy of the entire DB, before importing.
@@ -915,8 +914,8 @@ pub enum ItemVisualStatus {
 pub enum TableOperations {
     Editing(Vec<((i32, i32), *mut StandardItem)>),
     AddRows(Vec<i32>),
-    RemoveRows((Vec<i32>, Vec<ListStandardItemMutPtr>)),
-    SmartDelete((Vec<((i32, i32), *mut StandardItem)>, Vec<(i32, ListStandardItemMutPtr)>)),
+    RemoveRows((Vec<Vec<(i32, Vec<*mut StandardItem>)>>)),
+    SmartDelete((Vec<((i32, i32), *mut StandardItem)>, Vec<Vec<(i32, Vec<*mut StandardItem>)>>)),
     RevertSmartDelete((Vec<((i32, i32), *mut StandardItem)>, Vec<i32>)),
     ImportTSVDB(DB),
     ImportTSVLOC(Loc),
@@ -971,7 +970,7 @@ impl Debug for TableOperations {
         match self {
             TableOperations::Editing(data) => write!(f, "Cell/s edited, starting in row {}, column {}.", (data[0].0).0, (data[0].0).1),
             TableOperations::AddRows(data) => write!(f, "Row/s added in position/s {}.", data.iter().map(|x| format!("{}, ", x)).collect::<String>()),
-            TableOperations::RemoveRows(data) => write!(f, "Row/s removed in position/s {}.", data.0.iter().map(|x| format!("{}, ", x)).collect::<String>()),
+            TableOperations::RemoveRows(data) => write!(f, "Row/s removed in {} batches.", data.len()),
             TableOperations::SmartDelete(_) => write!(f, "Smart deletion."),
             TableOperations::RevertSmartDelete(_) => write!(f, "Reverted Smart deletion."),
             TableOperations::ImportTSVDB(_) | TableOperations::ImportTSVLOC(_) => write!(f, "Imported TSV file."),

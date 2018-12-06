@@ -29,6 +29,7 @@ use qt_core::abstract_item_model::AbstractItemModel;
 use qt_core::object::Object;
 use qt_core::connection::Signal;
 use qt_core::signal_blocker::SignalBlocker;
+use qt_core::item_selection::ItemSelection;
 use qt_core::item_selection_model::SelectionFlag;
 use qt_core::variant::Variant;
 use qt_core::slots::{SlotBool, SlotCInt, SlotStringRef, SlotItemSelectionRefItemSelectionRef, SlotModelIndexRefModelIndexRefVectorVectorCIntRef};
@@ -840,9 +841,36 @@ impl PackedFileLocTreeView {
                     rows.dedup();
                     rows.reverse();
 
-                    // Delete every selected row.
-                    let mut rows_data = vec![];
-                    unsafe { rows.iter().for_each(|x| rows_data.push(model.as_mut().unwrap().take_row(*x))); }
+                    // Split the row list in consecutive rows, get their data, and remove them in batches.
+                    let mut rows_splitted = vec![];
+                    let mut current_row_pack = vec![];
+                    let mut current_row_index = -2;
+                    for (index, row) in rows.iter().enumerate() {
+
+                        let mut items = vec![];                        
+                        for column in 0..unsafe { model.as_mut().unwrap().column_count(()) } {
+                            let item = unsafe { &*model.as_mut().unwrap().item((*row, column)) };
+                            items.push(item.clone());
+                        }
+
+                        if (*row == current_row_index - 1) || index == 0 { 
+                            current_row_pack.push((*row, items)); 
+                            current_row_index = *row;
+                        }
+                        else {
+                            current_row_pack.reverse();
+                            rows_splitted.push(current_row_pack.to_vec());
+                            current_row_pack.clear();
+                            current_row_pack.push((*row, items)); 
+                            current_row_index = *row;
+                        }
+                    }
+                    current_row_pack.reverse();
+                    rows_splitted.push(current_row_pack);
+
+                    for row_pack in rows_splitted.iter() {
+                        unsafe { model.as_mut().unwrap().remove_rows((row_pack[0].0, row_pack.len() as i32)); }
+                    }
 
                     // If we deleted something, save the PackedFile to the main PackFile.
                     if !rows.is_empty() {
@@ -864,9 +892,8 @@ impl PackedFileLocTreeView {
                         {
                             let mut table_state_data = table_state_data.borrow_mut();
                             let table_state_data = table_state_data.get_mut(&*packed_file_path.borrow()).unwrap();
-                            rows.reverse();
-                            rows_data.reverse();
-                            table_state_data.undo_history.push(TableOperations::RemoveRows((rows, rows_data)));
+                            rows_splitted.reverse();
+                            table_state_data.undo_history.push(TableOperations::RemoveRows(rows_splitted));
                             table_state_data.redo_history.clear();
                             update_undo_model(model, table_state_data.undo_model); 
                         }
@@ -1627,20 +1654,16 @@ impl PackedFileLocTreeView {
                         }
                     }
 
+                    // First, we do all the edits needed.
                     let mut edits = vec![];
-                    let mut removed_rows = vec![];
-                    for (key, values) in cells.iter().rev() {
-
-                        // If we have selected all the cells from a row, delete the row.
-                        if values.len() == 3 { unsafe { removed_rows.push((*key, model.as_mut().unwrap().take_row(*key))); }}
-
-                        // Otherwise, delete the values on the cells, not the cells themselfs.
-                        else { 
+                    for (key, values) in cells.iter() {
+                        if values.len() < unsafe { model.as_ref().unwrap().column_count(()) as usize } {
                             for column in values {
                                 let item = unsafe { model.as_mut().unwrap().item((*key, *column)) };
 
                                 // Qt doesn't notify when you try to set a value to the same value it has. Two days with this fucking bug.....
                                 // so we have to do the same check ourselfs and skip the repeated values.
+                                // If it's checkable, it's the last column.
                                 if unsafe { item.as_mut().unwrap().is_checkable() } {
                                     let current_value = unsafe { item.as_mut().unwrap().check_state() };
                                     if current_value != CheckState::Unchecked { 
@@ -1659,6 +1682,38 @@ impl PackedFileLocTreeView {
                                 }
                             }
                         }
+                    }
+
+                    // Then, we delete all the fully selected rows. This time in reverse.
+                    let mut removed_rows_splitted = vec![];
+                    let mut current_row_pack = vec![];
+                    let mut current_row_index = -2;
+                    for (index, (row, _)) in cells.iter().rev().filter(|x| x.1.len() == unsafe { model.as_ref().unwrap().column_count(()) as usize }).enumerate() {
+
+                        let mut items = vec![];                        
+                        for column in 0..unsafe { model.as_mut().unwrap().column_count(()) } {
+                            let item = unsafe { &*model.as_mut().unwrap().item((*row, column)) };
+                            items.push(item.clone());
+                        }
+
+                        if (*row == current_row_index - 1) || index == 0 { 
+                            current_row_pack.push((*row, items)); 
+                            current_row_index = *row;
+                        }
+                        else {
+                            current_row_pack.reverse();
+                            removed_rows_splitted.push(current_row_pack.to_vec());
+                            current_row_pack.clear();
+                            current_row_pack.push((*row, items)); 
+                            current_row_index = *row;
+                        }
+                    }
+                    
+                    current_row_pack.reverse();
+                    removed_rows_splitted.push(current_row_pack);
+
+                    for row_pack in removed_rows_splitted.iter() {
+                        unsafe { model.as_mut().unwrap().remove_rows((row_pack[0].0, row_pack.len() as i32)); }
                     }
 
                     // If something was deleted, save the changes.
@@ -1684,7 +1739,8 @@ impl PackedFileLocTreeView {
                             let table_state_data = table_state_data.get_mut(&*packed_file_path.borrow()).unwrap();
                             let len = table_state_data.undo_history.len();
                             table_state_data.undo_history.truncate(len - edits.len());
-                            table_state_data.undo_history.push(TableOperations::SmartDelete((edits, removed_rows)));
+                            removed_rows_splitted.reverse();
+                            table_state_data.undo_history.push(TableOperations::SmartDelete((edits, removed_rows_splitted)));
                             table_state_data.redo_history.clear();
                             update_undo_model(model, table_state_data.undo_model); 
                         }
@@ -2413,13 +2469,39 @@ impl PackedFileLocTreeView {
             // NOTE: the rows list must ALWAYS be in 9->1 order. Otherwise this breaks.
             TableOperations::AddRows(rows) => {
 
-                let mut new_rows = vec![];
-                let mut rows = rows.to_vec();
-                unsafe { rows.iter().for_each(|x| new_rows.push(model.as_mut().unwrap().take_row(*x))); }
-                rows.reverse();
-                new_rows.reverse();
+                // Split the row list in consecutive rows, get their data, and remove them in batches.
+                let mut rows_splitted = vec![];
+                let mut current_row_pack = vec![];
+                let mut current_row_index = -2;
+                for (index, row) in rows.iter().enumerate() {
 
-                history_opposite.push(TableOperations::RemoveRows((rows.to_vec(), new_rows)));
+                    let mut items = vec![];                        
+                    for column in 0..unsafe { model.as_mut().unwrap().column_count(()) } {
+                        let item = unsafe { &*model.as_mut().unwrap().item((*row, column)) };
+                        items.push(item.clone());
+                    }
+
+                    if (*row == current_row_index - 1) || index == 0 { 
+                        current_row_pack.push((*row, items)); 
+                        current_row_index = *row;
+                    }
+                    else {
+                        current_row_pack.reverse();
+                        rows_splitted.push(current_row_pack.to_vec());
+                        current_row_pack.clear();
+                        current_row_pack.push((*row, items)); 
+                        current_row_index = *row;
+                    }
+                }
+                current_row_pack.reverse();
+                rows_splitted.push(current_row_pack);
+
+                for row_pack in rows_splitted.iter() {
+                    unsafe { model.as_mut().unwrap().remove_rows((row_pack[0].0, row_pack.len() as i32)); }
+                }
+
+                rows_splitted.reverse();
+                history_opposite.push(TableOperations::RemoveRows(rows_splitted));
 
                 Self::save_to_packed_file(
                     &sender_qt,
@@ -2435,53 +2517,74 @@ impl PackedFileLocTreeView {
             }
 
             // NOTE: the rows list must ALWAYS be in 1->9 order. Otherwise this breaks.
-            TableOperations::RemoveRows((rows, rows_data)) => {
+            TableOperations::RemoveRows(rows) => {
 
-                unsafe { rows.iter().enumerate().for_each(|(index, x)| model.as_mut().unwrap().insert_row((*x, &rows_data[index]))); }
-                let mut rows_to_add = rows.to_vec();
+                // First, we re-insert each pack of rows.
+                for row_pack in &rows {
+                    for (row, items) in row_pack {
+                        let mut qlist = ListStandardItemMutPtr::new(());
+                        unsafe { items.iter().for_each(|x| qlist.append_unsafe(x)); }
+                        unsafe { model.as_mut().unwrap().insert_row((*row, &qlist)); }
+                    }
+                }
+
+                // Then, create the "redo" action for this one.
+                let mut rows_to_add = vec![];
+                rows.to_vec().iter_mut().map(|x| x.iter_mut().map(|y| y.0).collect::<Vec<i32>>()).for_each(|mut x| rows_to_add.append(&mut x));
                 rows_to_add.reverse();
                 history_opposite.push(TableOperations::AddRows(rows_to_add));
                 
+                // Select all the re-inserted rows that are in the filter. We need to block signals here because the bigger this gets, the slower it gets. And it gets very slow.
                 let selection_model = unsafe { table_view.as_mut().unwrap().selection_model() };
                 unsafe { selection_model.as_mut().unwrap().clear(); }
-                for row in rows.iter().rev() {
-                    let model_index_filtered = unsafe { filter_model.as_ref().unwrap().map_from_source(&model.as_mut().unwrap().index((*row, 0))) };
-                    if model_index_filtered.is_valid() {
-                        unsafe { selection_model.as_mut().unwrap().select((
-                            &model_index_filtered,
-                            Flags::from_enum(SelectionFlag::Select) | Flags::from_enum(SelectionFlag::Rows)
-                        )); }
+                for row_pack in &rows {
+                    let initial_model_index_filtered = unsafe { filter_model.as_ref().unwrap().map_from_source(&model.as_mut().unwrap().index((row_pack[0].0, 0))) };
+                    let final_model_index_filtered = unsafe { filter_model.as_ref().unwrap().map_from_source(&model.as_mut().unwrap().index((row_pack.last().unwrap().0 as i32, 0))) };
+                    if initial_model_index_filtered.is_valid() && final_model_index_filtered.is_valid() {
+                        let selection = ItemSelection::new((&initial_model_index_filtered, &final_model_index_filtered));
+                        unsafe { selection_model.as_mut().unwrap().select((&selection, Flags::from_enum(SelectionFlag::Select) | Flags::from_enum(SelectionFlag::Rows))); }
                     }
                 }
-                
+
                 // Trick to tell the model to update everything.
                 *undo_lock.borrow_mut() = true;
                 unsafe { model.as_mut().unwrap().item((0, 0)).as_mut().unwrap().set_data((&Variant::new0(()), 16)); }
                 *undo_lock.borrow_mut() = false;
             }
 
+            // "rows" has to come in the same format than in RemoveRows.
             TableOperations::SmartDelete((edits, rows)) => {
 
-                // Re-insert all the removed rows and restore all the edits.
+                // First, we re-insert each pack of rows.
+                for row_pack in &rows {
+                    for (row, items) in row_pack {
+                        let mut qlist = ListStandardItemMutPtr::new(());
+                        unsafe { items.iter().for_each(|x| qlist.append_unsafe(x)); }
+                        unsafe { model.as_mut().unwrap().insert_row((*row, &qlist)); }
+                    }
+                }
+
+                // Then, restore all the edits and keep their old state for the undo/redo action.
                 *undo_lock.borrow_mut() = true;
-                unsafe { rows.iter().rev().for_each(|x| model.as_mut().unwrap().insert_row((x.0, &x.1))); }
                 let edits_before = unsafe { edits.iter().map(|x| (((x.0).0, (x.0).1), (&*model.as_mut().unwrap().item(((x.0).0, (x.0).1))).clone())).collect::<Vec<((i32, i32), *mut StandardItem)>>() };
                 unsafe { edits.iter().for_each(|x| model.as_mut().unwrap().set_item(((x.0).0, (x.0).1, x.1.clone()))); }
                 *undo_lock.borrow_mut() = false;
 
-                // Prepare the redo operation.
-                history_opposite.push(TableOperations::RevertSmartDelete((edits_before, rows.iter().map(|x| x.0).collect())));
+                // Next, prepare the redo operation.
+                let mut rows_to_add = vec![];
+                rows.to_vec().iter_mut().map(|x| x.iter_mut().map(|y| y.0).collect::<Vec<i32>>()).for_each(|mut x| rows_to_add.append(&mut x));
+                rows_to_add.reverse();
+                history_opposite.push(TableOperations::RevertSmartDelete((edits_before, rows_to_add)));
 
-                // Select all the edited items/rows.
+                // Select all the edited items/restored rows.
                 let selection_model = unsafe { table_view.as_mut().unwrap().selection_model() };
                 unsafe { selection_model.as_mut().unwrap().clear(); }
-                for row in rows.iter().rev() {
-                    let model_index_filtered = unsafe { filter_model.as_ref().unwrap().map_from_source(&model.as_mut().unwrap().index((row.0, 0))) };
-                    if model_index_filtered.is_valid() {
-                        unsafe { selection_model.as_mut().unwrap().select((
-                            &model_index_filtered,
-                            Flags::from_enum(SelectionFlag::Select) | Flags::from_enum(SelectionFlag::Rows)
-                        )); }
+                for row_pack in &rows {
+                    let initial_model_index_filtered = unsafe { filter_model.as_ref().unwrap().map_from_source(&model.as_mut().unwrap().index((row_pack[0].0, 0))) };
+                    let final_model_index_filtered = unsafe { filter_model.as_ref().unwrap().map_from_source(&model.as_mut().unwrap().index((row_pack.last().unwrap().0 as i32, 0))) };
+                    if initial_model_index_filtered.is_valid() && final_model_index_filtered.is_valid() {
+                        let selection = ItemSelection::new((&initial_model_index_filtered, &final_model_index_filtered));
+                        unsafe { selection_model.as_mut().unwrap().select((&selection, Flags::from_enum(SelectionFlag::Select) | Flags::from_enum(SelectionFlag::Rows))); }
                     }
                 }
 
@@ -2502,21 +2605,18 @@ impl PackedFileLocTreeView {
             }
 
             // This action is special and we have to manually trigger a save for it.
+            // "rows" has to come in the same format than in AddRows.
             TableOperations::RevertSmartDelete((edits, rows)) => {
 
-                // Remake all the "edits" and remove the restored rows.
+                // First, redo all the "edits".
+                *undo_lock.borrow_mut() = true;
                 let edits_before = unsafe { edits.iter().map(|x| (((x.0).0, (x.0).1), (&*model.as_mut().unwrap().item(((x.0).0, (x.0).1))).clone())).collect::<Vec<((i32, i32), *mut StandardItem)>>() };
                 unsafe { edits.iter().for_each(|x| model.as_mut().unwrap().set_item(((x.0).0, (x.0).1, x.1.clone()))); }
-                let mut removed_rows = vec![];
-                unsafe { rows.iter().for_each(|x| removed_rows.push((*x, model.as_mut().unwrap().take_row(*x)))); }
+                *undo_lock.borrow_mut() = false;
 
-                // Prepare the redo operation.
-                history_opposite.push(TableOperations::SmartDelete((edits_before, removed_rows)));
-
-                // Select all the edited items, if any.
+                // Select all the edited items, if any, before removing rows. Otherwise, the selection will not match the editions.
                 let selection_model = unsafe { table_view.as_mut().unwrap().selection_model() };
                 unsafe { selection_model.as_mut().unwrap().clear(); }
-
                 for edit in edits.iter() {
                     let model_index_filtered = unsafe { filter_model.as_ref().unwrap().map_from_source(&model.as_mut().unwrap().index(((edit.0).0, (edit.0).1))) };
                     if model_index_filtered.is_valid() {
@@ -2526,6 +2626,42 @@ impl PackedFileLocTreeView {
                         )); }
                     }
                 }
+
+                // Then, remove the restored tables after undoing a "SmartDelete".
+                // Same thing as with "AddRows": split the row list in consecutive rows, get their data, and remove them in batches.
+                let mut rows_splitted = vec![];
+                let mut current_row_pack = vec![];
+                let mut current_row_index = -2;
+                for (index, row) in rows.iter().enumerate() {
+
+                    let mut items = vec![];                        
+                    for column in 0..unsafe { model.as_mut().unwrap().column_count(()) } {
+                        let item = unsafe { &*model.as_mut().unwrap().item((*row, column)) };
+                        items.push(item.clone());
+                    }
+
+                    if (*row == current_row_index - 1) || index == 0 { 
+                        current_row_pack.push((*row, items)); 
+                        current_row_index = *row;
+                    }
+                    else {
+                        current_row_pack.reverse();
+                        rows_splitted.push(current_row_pack.to_vec());
+                        current_row_pack.clear();
+                        current_row_pack.push((*row, items)); 
+                        current_row_index = *row;
+                    }
+                }
+                current_row_pack.reverse();
+                rows_splitted.push(current_row_pack);
+
+                for row_pack in rows_splitted.iter() {
+                    unsafe { model.as_mut().unwrap().remove_rows((row_pack[0].0, row_pack.len() as i32)); }
+                }
+
+                // Prepare the redo operation.
+                rows_splitted.reverse();
+                history_opposite.push(TableOperations::SmartDelete((edits_before, rows_splitted)));
 
                 // Try to save the PackedFile to the main PackFile.
                 Self::save_to_packed_file(

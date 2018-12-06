@@ -70,6 +70,7 @@ impl Settings {
 
         settings_bool.insert("adjust_columns_to_content".to_owned(), true);
         settings_bool.insert("extend_last_column_on_tables".to_owned(), true);
+        settings_bool.insert("disable_combos_on_tables".to_owned(), false);
         settings_bool.insert("start_maximized".to_owned(), false);
         settings_bool.insert("remember_column_state".to_owned(), true);
         settings_bool.insert("remember_table_state_permanently".to_owned(), false);
