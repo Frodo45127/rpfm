@@ -1055,10 +1055,19 @@ pub fn build_my_mod_menu(
     // Otherwise, disable it.
     else { unsafe { mymod_stuff.new_mymod.as_mut().unwrap().set_enabled(false); }}
 
-    // Disable by default the rest of the actions.
-    unsafe { mymod_stuff.delete_selected_mymod.as_mut().unwrap().set_enabled(false); }
-    unsafe { mymod_stuff.install_mymod.as_mut().unwrap().set_enabled(false); }
-    unsafe { mymod_stuff.uninstall_mymod.as_mut().unwrap().set_enabled(false); }
+    // If we just created a MyMod, these options should be enabled.
+    if let Mode::MyMod{game_folder_name: _, mod_name: _} = *mode.borrow() {
+        unsafe { mymod_stuff.delete_selected_mymod.as_mut().unwrap().set_enabled(true); }
+        unsafe { mymod_stuff.install_mymod.as_mut().unwrap().set_enabled(true); }
+        unsafe { mymod_stuff.uninstall_mymod.as_mut().unwrap().set_enabled(true); }
+    }
+
+    // Otherwise, disable by default the rest of the actions.
+    else {   
+        unsafe { mymod_stuff.delete_selected_mymod.as_mut().unwrap().set_enabled(false); }
+        unsafe { mymod_stuff.install_mymod.as_mut().unwrap().set_enabled(false); }
+        unsafe { mymod_stuff.uninstall_mymod.as_mut().unwrap().set_enabled(false); }
+    }
 
     // Return the MyModStuff with all the new actions.
     (mymod_stuff, mymod_slots)

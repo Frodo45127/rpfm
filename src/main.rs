@@ -451,7 +451,7 @@ type QString = qt_core::string::String;
 ///   This mode holds a tuple `(game_folder_name, mod_name)`:
 ///  - `game_folder_name` is the folder name for that game in "MyMod"s folder, like `warhammer_2` or `rome_2`).
 ///  - `mod_name` is the name of the PackFile with `.pack` at the end.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum Mode {
     MyMod{ game_folder_name: String, mod_name: String },
     Normal,
