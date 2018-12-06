@@ -838,7 +838,9 @@ pub fn build_my_mod_menu(
                     Mode::MyMod {ref game_folder_name, ref mod_name} => {
 
                         // And the "MyMod" path is configured...
-                        if let Some(ref mymods_base_path) = SETTINGS.lock().unwrap().paths.get("mymods_base_path").unwrap() {
+                        let settings = SETTINGS.lock().unwrap().clone();
+                        let mymods_base_path = settings.paths.get("mymods_base_path").unwrap();
+                        if let Some(ref mymods_base_path) = mymods_base_path {
 
                             // If we have a `game_data_path` for the current `GameSelected`...
                             if let Some(mut game_data_path) = get_game_selected_data_path() {
