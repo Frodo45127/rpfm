@@ -8,10 +8,10 @@ use std::path::PathBuf;
 use std::fs::File;
 use std::io::{Write, BufWriter};
 
-use RPFM_PATH;
-use error;
+use crate::RPFM_PATH;
+use crate::error;
 use self::restson::RestPath;
-use packedfile::db::schemas::Schema;
+use crate::packedfile::db::schemas::Schema;
 
 /// Custom type for the versions of the schemas.
 pub type Versions = BTreeMap<String, u32>;

@@ -5,15 +5,15 @@ use std::io::{ BufReader, Read };
 use std::fs::File;
 use std::path::PathBuf;
 
-use common::*;
-use common::coding_helpers::*;
-use error::{Error, ErrorKind, Result};
-use packfile::packfile::PackFile;
-use packfile::packfile::PackedFile;
-use packedfile::loc::*;
-use packedfile::db::*;
+use crate::common::*;
+use crate::common::coding_helpers::*;
+use crate::error::{Error, ErrorKind, Result};
+use crate::packfile::packfile::PackFile;
+use crate::packfile::packfile::PackedFile;
+use crate::packedfile::loc::*;
+use crate::packedfile::db::*;
 
-use SCHEMA;
+use crate::SCHEMA;
 pub mod loc;
 pub mod db;
 pub mod rigidmodel;

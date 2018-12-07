@@ -12,11 +12,11 @@ use qt_core::flags::Flags;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use Commands;
-use Data;
-use common::communications::*;
-use ui::*;
-use error::Result;
+use crate::Commands;
+use crate::Data;
+use crate::common::communications::*;
+use crate::ui::*;
+use crate::error::Result;
 
 /// This function creates a new TreeView with the PackedFile's View as father and returns a
 /// `PackedFileLocTreeView` with all his data.

@@ -41,16 +41,16 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::mpsc::{Sender, Receiver};
 
-use TABLE_STATES_UI;
-use AppUI;
-use Commands;
-use Data;
-use QString;
-use common::*;
-use common::communications::*;
-use error::Result;
-use ui::*;
-use ui::table_state::*;
+use crate::TABLE_STATES_UI;
+use crate::AppUI;
+use crate::Commands;
+use crate::Data;
+use crate::QString;
+use crate::common::*;
+use crate::common::communications::*;
+use crate::error::Result;
+use crate::ui::*;
+use crate::ui::table_state::*;
 
 /// Struct `PackedFileLocTreeView`: contains all the stuff we need to give to the program to show a
 /// `TreeView` with the data of a Loc PackedFile, allowing us to manipulate it.

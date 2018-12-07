@@ -13,14 +13,14 @@ use qt_core::connection::Signal;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use SUPPORTED_GAMES;
-use GAME_SELECTED;
-use AppUI;
-use Commands;
-use Data;
-use common::communications::*;
-use ui::*;
-use error::Result;
+use crate::SUPPORTED_GAMES;
+use crate::GAME_SELECTED;
+use crate::AppUI;
+use crate::Commands;
+use crate::Data;
+use crate::common::communications::*;
+use crate::ui::*;
+use crate::error::Result;
 
 /// Struct `PackedFileTextView`: contains all the stuff we need to give to the program to show a
 /// `PlainTextEdit` with the data of a plain text PackedFile, allowing us to manipulate it.

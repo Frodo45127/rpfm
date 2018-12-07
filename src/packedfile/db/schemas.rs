@@ -6,8 +6,8 @@ use std::fs::File;
 use std::io::Write;
 use std::io::BufReader;
 
-use RPFM_PATH;
-use error::{ErrorKind, Result};
+use crate::RPFM_PATH;
+use crate::error::{ErrorKind, Result};
 use super::schemas_importer;
 
 /// This struct holds the entire schema for the currently selected game (by "game" I mean the PackFile

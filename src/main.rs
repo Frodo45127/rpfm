@@ -98,26 +98,26 @@ use indexmap::map::IndexMap;
 use chrono::NaiveDateTime;
 use sentry::integrations::panic::register_panic_handler;
 
-use common::*;
-use common::communications::*;
-use error::{ErrorKind, logger::Report, Result};
-use main_extra::*;
-use packfile::packfile::PackedFile;
-use packedfile::*;
-use packedfile::db::schemas::Schema;
-use packedfile::db::schemas_importer::*;
-use packfile::packfile::{PFHVersion, PFHFileType, PFHFlags};
-use settings::*;
-use settings::shortcuts::Shortcuts;
-use ui::*;
-use ui::dependency_manager::*;
-use ui::packedfile_db::*;
-use ui::packedfile_loc::*;
-use ui::packedfile_text::*;
-use ui::packedfile_rigidmodel::*;
-use ui::settings::*;
-use ui::table_state::*;
-use ui::updater::*;
+use crate::common::*;
+use crate::common::communications::*;
+use crate::error::{ErrorKind, logger::Report, Result};
+use crate::main_extra::*;
+use crate::packfile::packfile::PackedFile;
+use crate::packedfile::*;
+use crate::packedfile::db::schemas::Schema;
+use crate::packedfile::db::schemas_importer::*;
+use crate::packfile::packfile::{PFHVersion, PFHFileType, PFHFlags};
+use crate::settings::*;
+use crate::settings::shortcuts::Shortcuts;
+use crate::ui::*;
+use crate::ui::dependency_manager::*;
+use crate::ui::packedfile_db::*;
+use crate::ui::packedfile_loc::*;
+use crate::ui::packedfile_text::*;
+use crate::ui::packedfile_rigidmodel::*;
+use crate::ui::settings::*;
+use crate::ui::table_state::*;
+use crate::ui::updater::*;
 
 /// This macro is used to clone the variables into the closures without the compiler complaining.
 /// This should be BEFORE the `mod xxx` stuff, so submodules can use it too.

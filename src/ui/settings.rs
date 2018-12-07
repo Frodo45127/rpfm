@@ -31,16 +31,16 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::path::{Path, PathBuf};
 
-use SUPPORTED_GAMES;
-use SETTINGS;
-use AppUI;
-use Commands;
-use Data;
-use QString;
-use common::*;
-use common::communications::*;
-use error::ErrorKind;
-use settings::Settings;
+use crate::SUPPORTED_GAMES;
+use crate::SETTINGS;
+use crate::AppUI;
+use crate::Commands;
+use crate::Data;
+use crate::QString;
+use crate::common::*;
+use crate::common::communications::*;
+use crate::error::ErrorKind;
+use crate::settings::Settings;
 use super::shortcuts::ShortcutsDialog;
 use super::show_dialog;
 

@@ -28,14 +28,14 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::mpsc::{Sender, Receiver};
 
-use AppUI;
-use Commands;
-use Data;
-use QString;
-use SHORTCUTS;
-use common::*;
-use common::communications::*;
-use ui::*;
+use crate::AppUI;
+use crate::Commands;
+use crate::Data;
+use crate::QString;
+use crate::SHORTCUTS;
+use crate::common::*;
+use crate::common::communications::*;
+use crate::ui::*;
 
 /// Struct `DependencyTableView`: contains all the stuff we need to give to the program to show a
 /// `TableView` with the dependency list of the PackFile, allowing us to manipulate it.

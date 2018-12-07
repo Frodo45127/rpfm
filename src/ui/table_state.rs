@@ -3,16 +3,16 @@ extern crate serde_json;
 
 use qt_gui::standard_item_model::StandardItemModel;
 
-use RPFM_PATH;
-use TABLE_STATES_UI;
+use crate::RPFM_PATH;
+use crate::TABLE_STATES_UI;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::fs::File;
 use std::io::Write;
 use std::io::{BufReader, BufWriter};
 
-use error::Result;
-use ui::TableOperations;
+use crate::error::Result;
+use crate::ui::TableOperations;
 
 /// Name of the file to load/save from.
 const TABLES_STATE_FILE: &str = "table_state.json";

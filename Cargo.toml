@@ -4,6 +4,7 @@ version = "1.3.3"
 authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
 build = "build.rs"
 description = "A modding tool for Total War games."
+edition = "2018"
 
 [dependencies]
 byteorder = "1.2"

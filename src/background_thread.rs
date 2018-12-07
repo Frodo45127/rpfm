@@ -8,27 +8,27 @@ use std::io::Write;
 use std::process::Command;
 use regex::Regex;
 
-use RPFM_PATH;
-use SUPPORTED_GAMES;
-use SHOW_TABLE_ERRORS;
-use SHORTCUTS;
-use SETTINGS;
-use SCHEMA;
-use DEPENDENCY_DATABASE;
-use GAME_SELECTED;
-use GlobalMatch;
-use common::*;
-use common::coding_helpers::*;
-use common::communications::*;
-use error::{Error, ErrorKind};
-use packfile;
-use packfile::packfile::{PackFile, PFHFlags};
-use packedfile::*;
-use packedfile::loc::*;
-use packedfile::db::*;
-use packedfile::db::schemas::*;
-use packedfile::rigidmodel::*;
-use updater::*;
+use crate::RPFM_PATH;
+use crate::SUPPORTED_GAMES;
+use crate::SHOW_TABLE_ERRORS;
+use crate::SHORTCUTS;
+use crate::SETTINGS;
+use crate::SCHEMA;
+use crate::DEPENDENCY_DATABASE;
+use crate::GAME_SELECTED;
+use crate::GlobalMatch;
+use crate::common::*;
+use crate::common::coding_helpers::*;
+use crate::common::communications::*;
+use crate::error::{Error, ErrorKind};
+use crate::packfile;
+use crate::packfile::packfile::{PackFile, PFHFlags};
+use crate::packedfile::*;
+use crate::packedfile::loc::*;
+use crate::packedfile::db::*;
+use crate::packedfile::db::schemas::*;
+use crate::packedfile::rigidmodel::*;
+use crate::updater::*;
 
 /// This is the background loop that's going to be executed in a parallel thread to the UI. No UI or "Unsafe" stuff here.
 /// The sender is to send stuff back (from Data enum) to the UI.

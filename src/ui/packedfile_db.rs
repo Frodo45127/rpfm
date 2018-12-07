@@ -47,16 +47,16 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::mpsc::{Sender, Receiver};
 
-use TABLE_STATES_UI;
-use AppUI;
-use Commands;
-use Data;
-use QString;
-use common::*;
-use common::communications::*;
-use error::{ErrorKind, Result};
-use ui::*;
-use ui::table_state::*;
+use crate::TABLE_STATES_UI;
+use crate::AppUI;
+use crate::Commands;
+use crate::Data;
+use crate::QString;
+use crate::common::*;
+use crate::common::communications::*;
+use crate::error::{ErrorKind, Result};
+use crate::ui::*;
+use crate::ui::table_state::*;
 
 /// Struct `PackedFileDBTreeView`: contains all the stuff we need to give to the program to show a
 /// TableView with the data of a DB PackedFile, allowing us to manipulate it.

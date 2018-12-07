@@ -9,9 +9,9 @@ use std::io::{ BufReader, BufWriter, Read, Write, SeekFrom };
 use std::fs::File;
 use std::sync::{Arc, Mutex};
 
-use common::*;
-use common::coding_helpers::*;
-use error::{ErrorKind, Result};
+use crate::common::*;
+use crate::common::coding_helpers::*;
+use crate::error::{ErrorKind, Result};
 
 /// These consts are used for dealing with Time-related operations.
 const WINDOWS_TICK: i64 = 10000000;
