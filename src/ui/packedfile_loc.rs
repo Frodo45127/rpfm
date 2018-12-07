@@ -1777,7 +1777,7 @@ impl PackedFileLocTreeView {
 
                             // Get all the matches from all the columns. Once you got them, process them and get their ModelIndex.
                             for index in 0..3 {
-                                let mut matches_unprocessed = unsafe { model.as_mut().unwrap().find_items((&QString::from_std_str(text), flags.clone(), index)) };
+                                let matches_unprocessed = unsafe { model.as_mut().unwrap().find_items((&QString::from_std_str(text), flags.clone(), index)) };
                                 for index in 0..matches_unprocessed.count() {
                                     let model_index = unsafe { matches_unprocessed.at(index).as_mut().unwrap().index() };
                                     let filter_model_index = unsafe { filter_model.as_mut().unwrap().map_from_source(&model_index) };
@@ -1792,7 +1792,7 @@ impl PackedFileLocTreeView {
                         _ => {
 
                             // Once you got them, process them and get their ModelIndex.
-                            let mut matches_unprocessed = unsafe { model.as_mut().unwrap().find_items((&QString::from_std_str(text), flags.clone(), column)) };
+                            let matches_unprocessed = unsafe { model.as_mut().unwrap().find_items((&QString::from_std_str(text), flags.clone(), column)) };
                             for index in 0..matches_unprocessed.count() {
                                 let model_index = unsafe { matches_unprocessed.at(index).as_mut().unwrap().index() };
                                 let filter_model_index = unsafe { filter_model.as_mut().unwrap().map_from_source(&model_index) };
@@ -1903,7 +1903,7 @@ impl PackedFileLocTreeView {
                             for index in 0..3 {
                                 
                                 // Get all the matches from all the columns. Once you got them, process them and get their ModelIndex.
-                                let mut matches_unprocessed = unsafe { model.as_mut().unwrap().find_items((&text, flags.clone(), index)) };
+                                let matches_unprocessed = unsafe { model.as_mut().unwrap().find_items((&text, flags.clone(), index)) };
                                 for index in 0..matches_unprocessed.count() {
                                     let model_index = unsafe { matches_unprocessed.at(index).as_mut().unwrap().index() };
                                     let filter_model_index = unsafe { filter_model.as_mut().unwrap().map_from_source(&model_index) };
@@ -1924,7 +1924,7 @@ impl PackedFileLocTreeView {
                             };
 
                             // Once you got them, process them and get their ModelIndex.
-                            let mut matches_unprocessed = unsafe { model.as_mut().unwrap().find_items((&text, flags.clone(), column)) };
+                            let matches_unprocessed = unsafe { model.as_mut().unwrap().find_items((&text, flags.clone(), column)) };
                             for index in 0..matches_unprocessed.count() {
                                 let model_index = unsafe { matches_unprocessed.at(index).as_mut().unwrap().index() };
                                 let filter_model_index = unsafe { filter_model.as_mut().unwrap().map_from_source(&model_index) };

@@ -51,14 +51,14 @@ pub fn update_schemas(
             // If it's an update over our own schema, we download it and overwrite the current schema.
             // NOTE: Github's API has a limit of 1MB per file, so we take it directly from raw.githubusercontent.com instead.
             if remote_schema_version > local_schema_version {
-                let mut response: Schema = reqwest::get(&format!("https://raw.githubusercontent.com/Frodo45127/rpfm/master/schemas/{}", remote_schema_name))?.json()?;
+                let response: Schema = reqwest::get(&format!("https://raw.githubusercontent.com/Frodo45127/rpfm/master/schemas/{}", remote_schema_name))?.json()?;
                 response.save(remote_schema_name)?;
             }
         }
 
         // Otherwise, it's a new schema, so we just download it.
         else {
-            let mut response: Schema = reqwest::get(&format!("https://raw.githubusercontent.com/Frodo45127/rpfm/master/schemas/{}", remote_schema_name))?.json()?;
+            let response: Schema = reqwest::get(&format!("https://raw.githubusercontent.com/Frodo45127/rpfm/master/schemas/{}", remote_schema_name))?.json()?;
             response.save(remote_schema_name)?;
         }
     }

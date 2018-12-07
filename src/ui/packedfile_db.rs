@@ -277,7 +277,7 @@ impl PackedFileDBTreeView {
         let row_filter_column_list = StandardItemModel::new(()).into_raw();
         unsafe { row_filter_column_selector.as_mut().unwrap().set_model(row_filter_column_list as *mut AbstractItemModel); }
         for column in &table_definition.fields {
-            let mut name = clean_column_names(&column.field_name);
+            let name = clean_column_names(&column.field_name);
             unsafe { row_filter_column_selector.as_mut().unwrap().add_item(&QString::from_std_str(&name)); }
         }
 
@@ -2299,7 +2299,7 @@ impl PackedFileDBTreeView {
 
                             // Get all the matches from all the columns.
                             for index in 0..table_definition.fields.len() {
-                                let mut matches_unprocessed = unsafe { model.as_mut().unwrap().find_items((&QString::from_std_str(text), flags.clone(), index as i32)) };
+                                let matches_unprocessed = unsafe { model.as_mut().unwrap().find_items((&QString::from_std_str(text), flags.clone(), index as i32)) };
                                 for index in 0..matches_unprocessed.count() {
                                     let model_index = unsafe { matches_unprocessed.at(index).as_mut().unwrap().index() };
                                     let filter_model_index = unsafe { filter_model.as_mut().unwrap().map_from_source(&model_index) };
@@ -2314,7 +2314,7 @@ impl PackedFileDBTreeView {
                         _ => {
 
                             // Once you got them, process them and get their ModelIndex.
-                            let mut matches_unprocessed = unsafe { model.as_mut().unwrap().find_items((&QString::from_std_str(text), flags.clone(), column)) };
+                            let matches_unprocessed = unsafe { model.as_mut().unwrap().find_items((&QString::from_std_str(text), flags.clone(), column)) };
                             for index in 0..matches_unprocessed.count() {
                                 let model_index = unsafe { matches_unprocessed.at(index).as_mut().unwrap().index() };
                                 let filter_model_index = unsafe { filter_model.as_mut().unwrap().map_from_source(&model_index) };
@@ -2426,7 +2426,7 @@ impl PackedFileDBTreeView {
                             for index in 0..table_definition.fields.len() {
                                 
                                 // Get all the matches from all the columns. Once you got them, process them and get their ModelIndex.
-                                let mut matches_unprocessed = unsafe { model.as_mut().unwrap().find_items((&text, flags.clone(), index as i32)) };
+                                let matches_unprocessed = unsafe { model.as_mut().unwrap().find_items((&text, flags.clone(), index as i32)) };
                                 for index in 0..matches_unprocessed.count() {
                                     let model_index = unsafe { matches_unprocessed.at(index).as_mut().unwrap().index() };
                                     let filter_model_index = unsafe { filter_model.as_mut().unwrap().map_from_source(&model_index) };
@@ -2442,7 +2442,7 @@ impl PackedFileDBTreeView {
                             let column = table_definition.fields.iter().position(|x| x.field_name == column).unwrap();
 
                             // Once you got them, process them and get their ModelIndex.
-                            let mut matches_unprocessed = unsafe { model.as_mut().unwrap().find_items((&text, flags.clone(), column as i32)) };
+                            let matches_unprocessed = unsafe { model.as_mut().unwrap().find_items((&text, flags.clone(), column as i32)) };
                             for index in 0..matches_unprocessed.count() {
                                 let model_index = unsafe { matches_unprocessed.at(index).as_mut().unwrap().index() };
                                 let filter_model_index = unsafe { filter_model.as_mut().unwrap().map_from_source(&model_index) };
@@ -2877,7 +2877,7 @@ impl PackedFileDBTreeView {
             for (index, field) in entry.iter().enumerate() {
 
                 // Create a new Item.
-                let mut item = match *field {
+                let item = match *field {
 
                     // This one needs a couple of changes before turning it into an item in the table.
                     DecodedData::Boolean(ref data) => {
@@ -3771,7 +3771,7 @@ impl PackedFileDBDecoder {
                         let index = Rc::new(RefCell::new(stuff_non_ui.initial_index));
 
                         // Check if we have an schema.
-                        let mut schema = SCHEMA.lock().unwrap().clone();
+                        let schema = SCHEMA.lock().unwrap().clone();
                         match schema {
 
                             // If we have an schema...

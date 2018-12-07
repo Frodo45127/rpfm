@@ -7,7 +7,7 @@
 // Disable these two clippy linters. They throw a lot of false positives, and it's a pain in the ass
 // to separate their warnings from the rest. Also, disable "match_bool" because the methods it suggest
 // are harder to read than a match. And "redundant_closure", because the suggerences it gives doesn't work.
-#![allow(doc_markdown,useless_format,match_bool,redundant_closure)]
+#![allow(clippy::doc_markdown, clippy::useless_format, clippy::match_bool, clippy::redundant_closure)]
 
 // This disables the terminal window, so it doesn't show up when executing RPFM in Windows.
 #![windows_subsystem = "windows"]
@@ -18,8 +18,6 @@ extern crate bitflags;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde_json;
-
-#[macro_use]
 extern crate failure;
 extern crate num;
 extern crate chrono;
@@ -2192,7 +2190,7 @@ fn main() {
                                 for index in 0..paths_qt.size() { paths.push(PathBuf::from(paths_qt.at(index).to_std_string())); }
 
                                 // Check if the files are in the Assets Folder. All are in the same folder, so we can just check the first one.
-                                let mut paths_packedfile = if paths[0].starts_with(&assets_folder) {
+                                let paths_packedfile = if paths[0].starts_with(&assets_folder) {
 
                                     // Get their final paths in the PackFile.
                                     let mut paths_packedfile: Vec<Vec<String>> = vec![];
@@ -2442,7 +2440,7 @@ fn main() {
                                 for path in &folder_paths { paths.append(&mut get_files_from_subdir(&path).unwrap()); }
 
                                 // Check if the files are in the Assets Folder. All are in the same folder, so we can just check the first one.
-                                let mut paths_packedfile = if paths[0].starts_with(&assets_folder) {
+                                let paths_packedfile = if paths[0].starts_with(&assets_folder) {
 
                                     // Get their final paths in the PackFile.
                                     let mut paths_packedfile: Vec<Vec<String>> = vec![];
@@ -2789,7 +2787,7 @@ fn main() {
                                 if !name.is_empty() {
 
                                     // Get his Path, without the name of the PackFile.
-                                    let mut complete_path = vec!["db".to_owned(), table, name];
+                                    let complete_path = vec!["db".to_owned(), table, name];
 
                                     // Check if the PackedFile already exists.
                                     sender_qt.send(Commands::PackedFileExists).unwrap();
@@ -3419,7 +3417,7 @@ fn main() {
                                     else {
 
                                         // Get the Path we choose to save the file/folder.
-                                        let mut base_extraction_path = PathBuf::from(extraction_path.to_std_string());
+                                        let base_extraction_path = PathBuf::from(extraction_path.to_std_string());
 
                                         // Add the full path to the extraction path.
                                         let mut addon_path = path.to_vec();
@@ -3522,7 +3520,7 @@ fn main() {
                             if file_dialog.exec() == 1 {
 
                                 // Get the Path we choose to save the file/folder.
-                                let mut extraction_path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
+                                let extraction_path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
 
                                 // Tell the Background Thread to delete the selected stuff.
                                 unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
@@ -3914,7 +3912,7 @@ fn main() {
                                 for open_path in packedfiles_open_in_packedfile_view.borrow().values() {
                                     if !open_path.borrow().is_empty() { 
                                         if !path.is_empty() && open_path.borrow().starts_with(&path) {
-                                            let mut new_name = format!("{}{}", prefix, *open_path.borrow().last().unwrap());
+                                            let new_name = format!("{}{}", prefix, *open_path.borrow().last().unwrap());
                                             *open_path.borrow_mut().last_mut().unwrap() = new_name.to_owned();
                                         }
                                     }
@@ -3924,7 +3922,7 @@ fn main() {
                                     if table_state_data.borrow().get(old_path).is_some() {
 
                                         let mut new_path = old_path.to_vec();
-                                        let mut new_name = format!("{}{}", prefix, *new_path.last().unwrap());
+                                        let new_name = format!("{}{}", prefix, *new_path.last().unwrap());
                                         *new_path.last_mut().unwrap() = new_name.to_owned();
                                         
                                         let mut data = table_state_data.borrow_mut().remove(old_path).unwrap();
@@ -3936,7 +3934,7 @@ fn main() {
                                 // Update the global search stuff, if needed.
                                 let mut new_paths = old_paths.to_vec();
                                 for path in &mut new_paths {
-                                    let mut new_name = format!("{}{}", prefix, *path.last().unwrap());
+                                    let new_name = format!("{}{}", prefix, *path.last().unwrap());
                                     *path.last_mut().unwrap() = new_name.to_owned();
                                 }
                                 global_search_explicit_paths.borrow_mut().append(&mut new_paths);
@@ -4005,7 +4003,7 @@ fn main() {
                             // If we have a PackedFile open, we have to rename it in that list too. Note that a path can be empty (the dep manager), so we have to check that too.
                             for open_path in packedfiles_open_in_packedfile_view.borrow().values() {
                                 if !open_path.borrow().is_empty() {
-                                    let mut new_name = format!("{}{}", prefix, *open_path.borrow().last().unwrap());
+                                    let new_name = format!("{}{}", prefix, *open_path.borrow().last().unwrap());
                                     *open_path.borrow_mut().last_mut().unwrap() = new_name.to_owned();
                                 }
                             }
@@ -4014,7 +4012,7 @@ fn main() {
                                 if table_state_data.borrow().get(old_path).is_some() {
 
                                     let mut new_path = old_path.to_vec();
-                                    let mut new_name = format!("{}{}", prefix, *new_path.last().unwrap());
+                                    let new_name = format!("{}{}", prefix, *new_path.last().unwrap());
                                     *new_path.last_mut().unwrap() = new_name.to_owned();
                                     
                                     let mut data = table_state_data.borrow_mut().remove(old_path).unwrap();
@@ -4026,7 +4024,7 @@ fn main() {
                             // Update the global search stuff, if needed.
                             let mut new_paths = old_paths.to_vec();
                             for path in &mut new_paths {
-                                let mut new_name = format!("{}{}", prefix, *path.last().unwrap());
+                                let new_name = format!("{}{}", prefix, *path.last().unwrap());
                                 *path.last_mut().unwrap() = new_name.to_owned();
                             }
                             global_search_explicit_paths.borrow_mut().append(&mut new_paths);

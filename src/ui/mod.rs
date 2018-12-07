@@ -1908,7 +1908,7 @@ pub fn update_treeview(
 
             // Second, we set as the big_parent, the base for the folders of the TreeView, a fake folder
             // with the name of the PackFile. All big things start with a lie.
-            let mut big_parent = StandardItem::new(&QString::from_std_str(pack_file_data.0)).into_raw();
+            let big_parent = StandardItem::new(&QString::from_std_str(pack_file_data.0)).into_raw();
 
             // Get his last modified date and show it in a tooltip.
             unsafe { big_parent.as_mut().unwrap().set_tool_tip(&QString::from_std_str(format!("Last Modified: {:?}", NaiveDateTime::from_timestamp(pack_file_data.1, 0)))); }
@@ -1989,7 +1989,7 @@ pub fn update_treeview(
                     if name == path.last().unwrap() {
 
                         // Create the item.
-                        let mut file = StandardItem::new(&QString::from_std_str(name)).into_raw();
+                        let file = StandardItem::new(&QString::from_std_str(name)).into_raw();
 
                         // Set it as not editable by the user. Otherwise will cause problems when renaming.
                         unsafe { file.as_mut().unwrap().set_editable(false); }
@@ -2026,7 +2026,7 @@ pub fn update_treeview(
                                 for index in 0..parent.as_ref().unwrap().row_count() {
 
                                     // Get the child.
-                                    let mut child = parent.as_mut().unwrap().child((index, 0));
+                                    let child = parent.as_mut().unwrap().child((index, 0));
 
                                     // Get his text.
                                     let child_text = child.as_ref().unwrap().text().to_std_string();
@@ -2048,7 +2048,7 @@ pub fn update_treeview(
                                 else {
 
                                     // Create the item.
-                                    let mut folder = StandardItem::new(&QString::from_std_str(name)).into_raw();
+                                    let folder = StandardItem::new(&QString::from_std_str(name)).into_raw();
 
                                     // Set it as not editable by the user. Otherwise will cause problems when renaming.
                                     folder.as_mut().unwrap().set_editable(false);
@@ -2069,7 +2069,7 @@ pub fn update_treeview(
                             else {
 
                                 // Create the item.
-                                let mut folder = StandardItem::new(&QString::from_std_str(name)).into_raw();
+                                let folder = StandardItem::new(&QString::from_std_str(name)).into_raw();
 
                                 // Set it as not editable by the user. Otherwise will cause problems when renaming.
                                 folder.as_mut().unwrap().set_editable(false);
@@ -2180,7 +2180,7 @@ pub fn update_treeview(
                                 for index in 0..parent.as_ref().unwrap().row_count() {
 
                                     // Get the child.
-                                    let mut child = parent.as_mut().unwrap().child((index, 0));
+                                    let child = parent.as_mut().unwrap().child((index, 0));
 
                                     // Get his text.
                                     let child_text = child.as_ref().unwrap().text().to_std_string();
@@ -2202,7 +2202,7 @@ pub fn update_treeview(
                                 else {
 
                                     // Create the item.
-                                    let mut folder = StandardItem::new(&QString::from_std_str(field)).into_raw();
+                                    let folder = StandardItem::new(&QString::from_std_str(field)).into_raw();
 
                                     // Set it as not editable by the user. Otherwise will cause problems when renaming.
                                     folder.as_mut().unwrap().set_editable(false);
@@ -2231,7 +2231,7 @@ pub fn update_treeview(
                             else {
 
                                 // Create the Item.
-                                let mut folder = StandardItem::new(&QString::from_std_str(field)).into_raw();
+                                let folder = StandardItem::new(&QString::from_std_str(field)).into_raw();
 
                                 // Set it as not editable by the user. Otherwise will cause problems when renaming.
                                 folder.as_mut().unwrap().set_editable(false);
@@ -2463,7 +2463,7 @@ pub fn update_treeview(
                     unsafe { model.as_mut().unwrap().clear(); }
 
                     // Then we add the PackFile to it. This effectively deletes all the PackedFiles in the PackFile.
-                    let mut pack_file = StandardItem::new(&name);
+                    let pack_file = StandardItem::new(&name);
                     unsafe { model.as_mut().unwrap().append_row_unsafe(pack_file.into_raw()); }
                 },
 
@@ -2527,7 +2527,7 @@ pub fn update_treeview(
             for path in old_paths {
 
                 // Get the item and the new text.
-                let mut item = get_item_from_incomplete_path(model, &path);
+                let item = get_item_from_incomplete_path(model, &path);
                 let text;
                 unsafe { text = item.as_mut().unwrap().text().to_std_string(); }
                 let new_name = format!("{}{}", prefix, text); 

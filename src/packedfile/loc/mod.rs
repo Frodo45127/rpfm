@@ -71,7 +71,7 @@ impl Loc {
             key = key.replace("\t", "\\t").replace("\n", "\\n");
             text = text.replace("\t", "\\t").replace("\n", "\\n");
 
-            let mut entry = LocEntry::new(key, text, tooltip);
+            let entry = LocEntry::new(key, text, tooltip);
             entries.push(entry);
         }
 

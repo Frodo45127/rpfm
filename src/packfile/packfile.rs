@@ -488,7 +488,7 @@ impl PackFile {
             for packed_files_after_this_one in (0..packed_file_count).rev() {
 
                 // Get his size.
-                let mut encrypted_size = decode_integer_u32(&packed_file_index[packed_file_index_position..(packed_file_index_position + 4)])?;
+                let encrypted_size = decode_integer_u32(&packed_file_index[packed_file_index_position..(packed_file_index_position + 4)])?;
                 let size = decrypt_index_item_file_length(encrypted_size, packed_files_after_this_one as u32, &mut packed_file_index_position);
 
                 // If we have the last modified date of the PackedFiles, get it.
