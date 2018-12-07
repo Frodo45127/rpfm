@@ -14,7 +14,7 @@ extern crate encoding;
 use self::byteorder::{ByteOrder, LittleEndian};
 use self::encoding::{Encoding, DecoderTrap};
 use self::encoding::all::ISO_8859_1;
-use error::{Error, ErrorKind, Result};
+use crate::error::{Error, ErrorKind, Result};
 
 //-----------------------------------------------------//
 //          Decoding helpers (Common decoders)

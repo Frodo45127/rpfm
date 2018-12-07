@@ -2,7 +2,7 @@
 // a update, as these are used all over the program and if one of them breaks, half of the program
 // will break with it.
 
-use coding_helpers::*;
+use crate::coding_helpers::*;
 
 //-----------------------------------------------------//
 //          Decoding helpers (Common decoders)

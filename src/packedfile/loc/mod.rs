@@ -7,8 +7,8 @@ use std::io::Write;
 use std::path::PathBuf;
 use self::csv::{ ReaderBuilder, WriterBuilder, QuoteStyle };
 
-use common::coding_helpers::*;
-use error::{Error, ErrorKind, Result};
+use crate::common::coding_helpers::*;
+use crate::error::{Error, ErrorKind, Result};
 use super::SerializableToTSV;
 
 /// This const represents the value that every LOC PackedFile has in their first 2 bytes.
@@ -71,7 +71,7 @@ impl Loc {
             key = key.replace("\t", "\\t").replace("\n", "\\n");
             text = text.replace("\t", "\\t").replace("\n", "\\n");
 
-            let mut entry = LocEntry::new(key, text, tooltip);
+            let entry = LocEntry::new(key, text, tooltip);
             entries.push(entry);
         }
 

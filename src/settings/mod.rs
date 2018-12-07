@@ -7,10 +7,10 @@ use std::fs::File;
 use std::io::Write;
 use std::io::{BufReader, BufWriter};
 
-use RPFM_PATH;
-use SUPPORTED_GAMES;
-use error::Result;
-use packfile::packfile::PFHVersion;
+use crate::RPFM_PATH;
+use crate::SUPPORTED_GAMES;
+use crate::error::Result;
+use crate::packfile::packfile::PFHVersion;
 
 pub mod shortcuts;
 

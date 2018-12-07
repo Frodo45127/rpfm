@@ -207,7 +207,7 @@ pub fn open_packedfile(
                 let packedfile_name = path.last().unwrap().to_owned();
 
                 // We get his type to decode it properly
-                let mut packed_file_type: &str =
+                let packed_file_type: &str =
 
                     // If it's in the "db" folder, it's a DB PackedFile (or you put something were it shouldn't be).
                     if path[0] == "db" { "DB" }

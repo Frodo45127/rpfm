@@ -25,8 +25,8 @@ use qt_core::qt::Orientation;
 use cpp_utils::StaticCast;
 
 use super::*;
-use QString;
-use settings::shortcuts::Shortcuts;
+use crate::QString;
+use crate::settings::shortcuts::Shortcuts;
 
 /// ShortcutsDialog struct. To hold the TreeViews for easy loading/saving.
 pub struct ShortcutsDialog {

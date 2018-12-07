@@ -20,16 +20,16 @@ use std::path::PathBuf;
 use std::fs::File;
 use std::io::BufReader;
 
-use RPFM_PATH;
-use VERSION;
-use AppUI;
-use QString;
-use Commands;
-use Data;
-use common::*;
-use common::communications::*;
-use ui::*;
-use updater::*;
+use crate::RPFM_PATH;
+use crate::VERSION;
+use crate::AppUI;
+use crate::QString;
+use crate::Commands;
+use crate::Data;
+use crate::common::*;
+use crate::common::communications::*;
+use crate::ui::*;
+use crate::updater::*;
 
 /// This enum controls the posible responses from the server.
 #[derive(Serialize, Deserialize)]

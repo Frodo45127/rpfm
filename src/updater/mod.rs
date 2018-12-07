@@ -8,10 +8,10 @@ use std::path::PathBuf;
 use std::fs::File;
 use std::io::{Write, BufWriter};
 
-use RPFM_PATH;
-use error;
+use crate::RPFM_PATH;
+use crate::error;
 use self::restson::RestPath;
-use packedfile::db::schemas::Schema;
+use crate::packedfile::db::schemas::Schema;
 
 /// Custom type for the versions of the schemas.
 pub type Versions = BTreeMap<String, u32>;
@@ -51,14 +51,14 @@ pub fn update_schemas(
             // If it's an update over our own schema, we download it and overwrite the current schema.
             // NOTE: Github's API has a limit of 1MB per file, so we take it directly from raw.githubusercontent.com instead.
             if remote_schema_version > local_schema_version {
-                let mut response: Schema = reqwest::get(&format!("https://raw.githubusercontent.com/Frodo45127/rpfm/master/schemas/{}", remote_schema_name))?.json()?;
+                let response: Schema = reqwest::get(&format!("https://raw.githubusercontent.com/Frodo45127/rpfm/master/schemas/{}", remote_schema_name))?.json()?;
                 response.save(remote_schema_name)?;
             }
         }
 
         // Otherwise, it's a new schema, so we just download it.
         else {
-            let mut response: Schema = reqwest::get(&format!("https://raw.githubusercontent.com/Frodo45127/rpfm/master/schemas/{}", remote_schema_name))?.json()?;
+            let response: Schema = reqwest::get(&format!("https://raw.githubusercontent.com/Frodo45127/rpfm/master/schemas/{}", remote_schema_name))?.json()?;
             response.save(remote_schema_name)?;
         }
     }

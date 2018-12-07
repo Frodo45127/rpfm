@@ -6,11 +6,11 @@ use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
 
-use error::Result;
+use crate::error::Result;
 use self::serde_xml_rs::deserialize;
 use super::DB;
 use super::schemas::*;
-use common::*;
+use crate::common::*;
 
 /// This is the base "table" file. From here we just want to save the field vector.
 #[allow(non_camel_case_types)]

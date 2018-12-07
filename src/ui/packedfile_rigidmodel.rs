@@ -13,13 +13,13 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::mpsc::{Sender, Receiver};
 
-use AppUI;
-use Commands;
-use Data;
-use common::coding_helpers::*;
-use common::communications::*;
-use ui::*;
-use error::{ErrorKind, Result};
+use crate::AppUI;
+use crate::Commands;
+use crate::Data;
+use crate::common::coding_helpers::*;
+use crate::common::communications::*;
+use crate::ui::*;
+use crate::error::{ErrorKind, Result};
 
 /// Struct PackedFileRigidModelDataView: contains all the stuff we need to give to the program to
 /// show a TreeView with the data of a RigidModel file, allowing us to manipulate it.

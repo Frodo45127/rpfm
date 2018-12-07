@@ -10,11 +10,11 @@ use chrono::{Utc, DateTime};
 use std::fs::{File, read_dir};
 use std::path::{Path, PathBuf};
 
-use SUPPORTED_GAMES;
-use GAME_SELECTED;
-use SETTINGS;
-use error::{ErrorKind, Result};
-use packfile::packfile::PackFile;
+use crate::SUPPORTED_GAMES;
+use crate::GAME_SELECTED;
+use crate::SETTINGS;
+use crate::error::{ErrorKind, Result};
+use crate::packfile::packfile::PackFile;
 
 pub mod coding_helpers;
 pub mod communications;

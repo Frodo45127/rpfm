@@ -18,10 +18,10 @@ use std::path::PathBuf;
 
 use self::uuid::Uuid;
 use self::csv::{ ReaderBuilder, WriterBuilder, QuoteStyle };
-use common::coding_helpers::*;
+use crate::common::coding_helpers::*;
 use super::SerializableToTSV;
 use self::schemas::*;
-use error::{Error, ErrorKind, Result};
+use crate::error::{Error, ErrorKind, Result};
 
 pub mod schemas;
 pub mod schemas_importer;

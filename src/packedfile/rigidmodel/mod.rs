@@ -2,8 +2,8 @@
 // This is the type used by 3D model files of units and buildings. Both are different, so we need to
 // take the type in count while processing them.
 
-use common::coding_helpers;
-use error::{ErrorKind, Result};
+use crate::common::coding_helpers;
+use crate::error::{ErrorKind, Result};
 
 /// Struct "RigidModel". For more info about this, check the comment at the start of "packedfile/
 /// rigidmodel/mod.rs".

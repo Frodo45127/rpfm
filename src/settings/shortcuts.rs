@@ -7,8 +7,8 @@ use std::fs::File;
 use std::io::Write;
 use std::io::{BufReader, BufWriter};
 
-use RPFM_PATH;
-use error::Result;
+use crate::RPFM_PATH;
+use crate::error::Result;
 
 const SHORTCUTS_FILE: &str = "shortcuts.json";
 

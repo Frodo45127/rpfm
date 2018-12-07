@@ -41,16 +41,16 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::mpsc::{Sender, Receiver};
 
-use TABLE_STATES_UI;
-use AppUI;
-use Commands;
-use Data;
-use QString;
-use common::*;
-use common::communications::*;
-use error::Result;
-use ui::*;
-use ui::table_state::*;
+use crate::TABLE_STATES_UI;
+use crate::AppUI;
+use crate::Commands;
+use crate::Data;
+use crate::QString;
+use crate::common::*;
+use crate::common::communications::*;
+use crate::error::Result;
+use crate::ui::*;
+use crate::ui::table_state::*;
 
 /// Struct `PackedFileLocTreeView`: contains all the stuff we need to give to the program to show a
 /// `TreeView` with the data of a Loc PackedFile, allowing us to manipulate it.
@@ -1711,6 +1711,7 @@ impl PackedFileLocTreeView {
                     
                     current_row_pack.reverse();
                     removed_rows_splitted.push(current_row_pack);
+                    if removed_rows_splitted[0].is_empty() { removed_rows_splitted.clear(); }
 
                     for row_pack in removed_rows_splitted.iter() {
                         unsafe { model.as_mut().unwrap().remove_rows((row_pack[0].0, row_pack.len() as i32)); }
@@ -1777,7 +1778,7 @@ impl PackedFileLocTreeView {
 
                             // Get all the matches from all the columns. Once you got them, process them and get their ModelIndex.
                             for index in 0..3 {
-                                let mut matches_unprocessed = unsafe { model.as_mut().unwrap().find_items((&QString::from_std_str(text), flags.clone(), index)) };
+                                let matches_unprocessed = unsafe { model.as_mut().unwrap().find_items((&QString::from_std_str(text), flags.clone(), index)) };
                                 for index in 0..matches_unprocessed.count() {
                                     let model_index = unsafe { matches_unprocessed.at(index).as_mut().unwrap().index() };
                                     let filter_model_index = unsafe { filter_model.as_mut().unwrap().map_from_source(&model_index) };
@@ -1792,7 +1793,7 @@ impl PackedFileLocTreeView {
                         _ => {
 
                             // Once you got them, process them and get their ModelIndex.
-                            let mut matches_unprocessed = unsafe { model.as_mut().unwrap().find_items((&QString::from_std_str(text), flags.clone(), column)) };
+                            let matches_unprocessed = unsafe { model.as_mut().unwrap().find_items((&QString::from_std_str(text), flags.clone(), column)) };
                             for index in 0..matches_unprocessed.count() {
                                 let model_index = unsafe { matches_unprocessed.at(index).as_mut().unwrap().index() };
                                 let filter_model_index = unsafe { filter_model.as_mut().unwrap().map_from_source(&model_index) };
@@ -1903,7 +1904,7 @@ impl PackedFileLocTreeView {
                             for index in 0..3 {
                                 
                                 // Get all the matches from all the columns. Once you got them, process them and get their ModelIndex.
-                                let mut matches_unprocessed = unsafe { model.as_mut().unwrap().find_items((&text, flags.clone(), index)) };
+                                let matches_unprocessed = unsafe { model.as_mut().unwrap().find_items((&text, flags.clone(), index)) };
                                 for index in 0..matches_unprocessed.count() {
                                     let model_index = unsafe { matches_unprocessed.at(index).as_mut().unwrap().index() };
                                     let filter_model_index = unsafe { filter_model.as_mut().unwrap().map_from_source(&model_index) };
@@ -1924,7 +1925,7 @@ impl PackedFileLocTreeView {
                             };
 
                             // Once you got them, process them and get their ModelIndex.
-                            let mut matches_unprocessed = unsafe { model.as_mut().unwrap().find_items((&text, flags.clone(), column)) };
+                            let matches_unprocessed = unsafe { model.as_mut().unwrap().find_items((&text, flags.clone(), column)) };
                             for index in 0..matches_unprocessed.count() {
                                 let model_index = unsafe { matches_unprocessed.at(index).as_mut().unwrap().index() };
                                 let filter_model_index = unsafe { filter_model.as_mut().unwrap().map_from_source(&model_index) };
@@ -2654,6 +2655,7 @@ impl PackedFileLocTreeView {
                 }
                 current_row_pack.reverse();
                 rows_splitted.push(current_row_pack);
+                if rows_splitted[0].is_empty() { rows_splitted.clear(); }
 
                 for row_pack in rows_splitted.iter() {
                     unsafe { model.as_mut().unwrap().remove_rows((row_pack[0].0, row_pack.len() as i32)); }

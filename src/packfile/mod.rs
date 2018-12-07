@@ -8,16 +8,16 @@ use std::path::PathBuf;
 use std::io::BufReader;
 use std::io::BufWriter;
 
-use SUPPORTED_GAMES;
-use GAME_SELECTED;
-use DEPENDENCY_DATABASE;
-use SCHEMA;
-use common::*;
-use error::{Error, ErrorKind, Result};
-use packfile::packfile::PFHFileType;
-use packedfile::loc::Loc;
-use packedfile::db::{DB, DecodedData};
-use packedfile::rigidmodel::RigidModel;
+use crate::SUPPORTED_GAMES;
+use crate::GAME_SELECTED;
+use crate::DEPENDENCY_DATABASE;
+use crate::SCHEMA;
+use crate::common::*;
+use crate::error::{Error, ErrorKind, Result};
+use crate::packfile::packfile::PFHFileType;
+use crate::packedfile::loc::Loc;
+use crate::packedfile::db::{DB, DecodedData};
+use crate::packedfile::rigidmodel::RigidModel;
 
 pub mod packfile;
 

@@ -7,9 +7,9 @@ extern crate serde;
 extern crate toml;
 extern crate uuid;
 
-use RPFM_PATH;
-use VERSION;
-use error::Result;
+use crate::RPFM_PATH;
+use crate::VERSION;
+use crate::error::Result;
 use self::failure::Backtrace;
 use self::uuid::Uuid;
 use std::fs::File;

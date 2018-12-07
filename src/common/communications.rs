@@ -6,19 +6,19 @@ use std::rc::Rc;
 use std::path::PathBuf;
 use std::sync::mpsc::{Receiver, TryRecvError};
 
-use GlobalMatch;
-use common::*;
-use error::Error;
-use packfile::packfile::{PFHFileType, PackFileUIData, PackedFile};
-use packedfile::*;
-use packedfile::loc::*;
-use packedfile::db::*;
-use packedfile::db::schemas::*;
-use packedfile::rigidmodel::*;
-use settings::*;
-use settings::shortcuts::Shortcuts;
-use updater::*;
-use ui::updater::{APIResponse, APIResponseSchema};
+use crate::GlobalMatch;
+use crate::common::*;
+use crate::error::Error;
+use crate::packfile::packfile::{PFHFileType, PackFileUIData, PackedFile};
+use crate::packedfile::*;
+use crate::packedfile::loc::*;
+use crate::packedfile::db::*;
+use crate::packedfile::db::schemas::*;
+use crate::packedfile::rigidmodel::*;
+use crate::settings::*;
+use crate::settings::shortcuts::Shortcuts;
+use crate::updater::*;
+use crate::ui::updater::{APIResponse, APIResponseSchema};
 use super::THREADS_COMMUNICATION_ERROR;
 
 /// This enum is meant for sending commands from the UI Thread to the Background thread.

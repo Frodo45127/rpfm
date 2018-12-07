@@ -8,27 +8,27 @@ use std::io::Write;
 use std::process::Command;
 use regex::Regex;
 
-use RPFM_PATH;
-use SUPPORTED_GAMES;
-use SHOW_TABLE_ERRORS;
-use SHORTCUTS;
-use SETTINGS;
-use SCHEMA;
-use DEPENDENCY_DATABASE;
-use GAME_SELECTED;
-use GlobalMatch;
-use common::*;
-use common::coding_helpers::*;
-use common::communications::*;
-use error::{Error, ErrorKind};
-use packfile;
-use packfile::packfile::{PackFile, PFHFlags};
-use packedfile::*;
-use packedfile::loc::*;
-use packedfile::db::*;
-use packedfile::db::schemas::*;
-use packedfile::rigidmodel::*;
-use updater::*;
+use crate::RPFM_PATH;
+use crate::SUPPORTED_GAMES;
+use crate::SHOW_TABLE_ERRORS;
+use crate::SHORTCUTS;
+use crate::SETTINGS;
+use crate::SCHEMA;
+use crate::DEPENDENCY_DATABASE;
+use crate::GAME_SELECTED;
+use crate::GlobalMatch;
+use crate::common::*;
+use crate::common::coding_helpers::*;
+use crate::common::communications::*;
+use crate::error::{Error, ErrorKind};
+use crate::packfile;
+use crate::packfile::packfile::{PackFile, PFHFlags};
+use crate::packedfile::*;
+use crate::packedfile::loc::*;
+use crate::packedfile::db::*;
+use crate::packedfile::db::schemas::*;
+use crate::packedfile::rigidmodel::*;
+use crate::updater::*;
 
 /// This is the background loop that's going to be executed in a parallel thread to the UI. No UI or "Unsafe" stuff here.
 /// The sender is to send stuff back (from Data enum) to the UI.
@@ -535,7 +535,7 @@ pub fn background_loop(
 
                         // Find the PackedFile we want and send back the response.
                         match pack_file_decoded.packed_files.iter_mut().find(|x| x.path == path) {
-                            Some(mut packed_file) => {
+                            Some(packed_file) => {
 
                                 // We try to decode it as a Loc PackedFile.
                                 match packed_file.get_data_and_keep_it() {
@@ -598,7 +598,7 @@ pub fn background_loop(
                         match *SCHEMA.lock().unwrap() {
                             Some(ref schema) => {
                                 match pack_file_decoded.packed_files.iter_mut().find(|x| x.path == path) {
-                                    Some(mut packed_file) => {
+                                    Some(packed_file) => {
 
                                         // We try to decode it as a DB PackedFile.
                                         match packed_file.get_data_and_keep_it() {
@@ -669,7 +669,7 @@ pub fn background_loop(
 
                         // Find the PackedFile we want and send back the response.
                         match pack_file_decoded.packed_files.iter_mut().find(|x| x.path == path) {
-                            Some(mut packed_file) => {
+                            Some(packed_file) => {
                                 match packed_file.get_data_and_keep_it() {
                                     Ok(data) => {
                                         
@@ -722,7 +722,7 @@ pub fn background_loop(
 
                         // Find the PackedFile we want and send back the response.
                         match pack_file_decoded.packed_files.iter_mut().find(|x| x.path == path) {
-                            Some(mut packed_file) => {
+                            Some(packed_file) => {
                                 match packed_file.get_data_and_keep_it() {
                                     Ok(data) => {
                                         
@@ -798,7 +798,7 @@ pub fn background_loop(
 
                         // Find the PackedFile we want and send back the response.
                         match pack_file_decoded.packed_files.iter_mut().find(|x| x.path == path) {
-                            Some(mut packed_file) => {
+                            Some(packed_file) => {
                                 match packed_file.get_data_and_keep_it() {
                                     Ok(image_data) => {
                                         
@@ -864,7 +864,7 @@ pub fn background_loop(
 
                         // Find the PackedFile we want and send back the response.
                         match pack_file_decoded.packed_files.iter_mut().find(|x| x.path == path) {
-                            Some(mut packed_file) => { 
+                            Some(packed_file) => { 
                                 match packed_file.load_data() {
                                     Ok(_) => sender.send(Data::PackedFile(packed_file.clone())).unwrap(),
                                     Err(_) => sender.send(Data::Error(Error::from(ErrorKind::PackedFileDataCouldNotBeLoaded))).unwrap(),
@@ -886,7 +886,7 @@ pub fn background_loop(
 
                         // Wait until we get the needed data from the UI thread.
                         let table_name = if let Data::String(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
-                        if let Some(mut vanilla_table) = DEPENDENCY_DATABASE.lock().unwrap().iter_mut().filter(|x| x.path.len() == 3).find(|x| x.path[1] == table_name) {
+                        if let Some(vanilla_table) = DEPENDENCY_DATABASE.lock().unwrap().iter_mut().filter(|x| x.path.len() == 3).find(|x| x.path[1] == table_name) {
                             match DB::get_header_data(&vanilla_table.get_data_and_keep_it().unwrap()) {
                                 Ok(data) => sender.send(Data::U32(data.0)).unwrap(),
                                 Err(error) => sender.send(Data::Error(error)).unwrap(),
@@ -943,7 +943,7 @@ pub fn background_loop(
                         let mut iter = DEPENDENCY_DATABASE.lock().unwrap();
                         let mut iter = iter.iter_mut();
                         if !dependency_data.0.is_empty() && !dependency_data.1.is_empty() {
-                            while let Some(mut packed_file) = iter.find(|x| x.path.starts_with(&["db".to_owned(), format!("{}_tables", dependency_data.0)])) {
+                            while let Some(packed_file) = iter.find(|x| x.path.starts_with(&["db".to_owned(), format!("{}_tables", dependency_data.0)])) {
                                 if let Some(ref schema) = *SCHEMA.lock().unwrap() {
                                     if let Ok(table) = DB::read(&packed_file.get_data_and_keep_it().unwrap(), &format!("{}_tables", dependency_data.0), &schema) {
                                         if let Some(column_index) = table.table_definition.fields.iter().position(|x| x.field_name == dependency_data.1) {
@@ -967,7 +967,7 @@ pub fn background_loop(
                         // The same for our own PackFile.
                         let mut iter = pack_file_decoded.packed_files.iter_mut();
                         if !dependency_data.0.is_empty() && !dependency_data.1.is_empty() {
-                            while let Some(mut packed_file) = iter.find(|x| x.path.starts_with(&["db".to_owned(), format!("{}_tables", dependency_data.0)])) {
+                            while let Some(packed_file) = iter.find(|x| x.path.starts_with(&["db".to_owned(), format!("{}_tables", dependency_data.0)])) {
                                 if let Some(ref schema) = *SCHEMA.lock().unwrap() {
                                     if let Ok(packed_file_data) = packed_file.get_data_and_keep_it() {
                                         if let Ok(table) = DB::read(&packed_file_data, &format!("{}_tables", dependency_data.0), &schema) {
@@ -1006,7 +1006,7 @@ pub fn background_loop(
                         // Get the paths we need.
                         if let Some(ref ca_types_file) = SUPPORTED_GAMES.get(&**GAME_SELECTED.lock().unwrap()).unwrap().ca_types_file {
                             let types_path = RPFM_PATH.to_path_buf().join(PathBuf::from("lua_types")).join(PathBuf::from(ca_types_file));
-                            let mut temp_folder_path = temp_dir().join(PathBuf::from("rpfm/scripts"));
+                            let temp_folder_path = temp_dir().join(PathBuf::from("rpfm/scripts"));
                             let mut config_path = temp_folder_path.to_path_buf();
                             config_path.push("kailua.json");
                             if Command::new("kailua").output().is_ok() {
@@ -1070,7 +1070,7 @@ pub fn background_loop(
                         for packed_file in &mut pack_file_decoded.packed_files {
                             let path = packed_file.path.to_vec();
                             let packedfile_name = path.last().unwrap().to_owned();
-                            let mut packed_file_type: &str =
+                            let packed_file_type: &str =
 
                                 // If it's in the "db" folder, it's a DB PackedFile (or you put something were it shouldn't be).
                                 if path[0] == "db" { "DB" }
@@ -1215,7 +1215,7 @@ pub fn background_loop(
                             if paths.contains(&packed_file.path) || is_in_folder {
                                 let path = packed_file.path.to_vec();
                                 let packedfile_name = path.last().unwrap().to_owned();
-                                let mut packed_file_type: &str =
+                                let packed_file_type: &str =
 
                                     // If it's in the "db" folder, it's a DB PackedFile (or you put something were it shouldn't be).
                                     if path[0] == "db" { "DB" }
@@ -1345,7 +1345,7 @@ pub fn background_loop(
 
                         // Find the PackedFile and get a mut ref to it, so we can "update" his data.
                         match pack_file_decoded.packed_files.iter_mut().find(|x| x.path == path) {
-                            Some(mut packed_file) => {
+                            Some(packed_file) => {
 
                                 // Create a temporal file for the PackedFile in the TEMP directory of the filesystem.
                                 let mut temp_path = temp_dir();
