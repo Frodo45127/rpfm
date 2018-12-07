@@ -2232,6 +2232,7 @@ impl PackedFileDBTreeView {
                     
                     current_row_pack.reverse();
                     removed_rows_splitted.push(current_row_pack);
+                    if removed_rows_splitted[0].is_empty() { removed_rows_splitted.clear(); }
 
                     for row_pack in removed_rows_splitted.iter() {
                         unsafe { model.as_mut().unwrap().remove_rows((row_pack[0].0, row_pack.len() as i32)); }
@@ -3314,6 +3315,7 @@ impl PackedFileDBTreeView {
                 }
                 current_row_pack.reverse();
                 rows_splitted.push(current_row_pack);
+                if rows_splitted[0].is_empty() { rows_splitted.clear(); }
 
                 for row_pack in rows_splitted.iter() {
                     unsafe { model.as_mut().unwrap().remove_rows((row_pack[0].0, row_pack.len() as i32)); }
