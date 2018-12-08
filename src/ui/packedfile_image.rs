@@ -21,7 +21,7 @@ use crate::error::Result;
 /// This function creates a new TreeView with the PackedFile's View as father and returns a
 /// `PackedFileLocTreeView` with all his data.
 pub fn create_image_view(
-    sender_qt: Sender<Commands>,
+    sender_qt: &Sender<Commands>,
     sender_qt_data: &Sender<Data>,
     receiver_qt: &Rc<RefCell<Receiver<Data>>>,
     layout: *mut GridLayout,

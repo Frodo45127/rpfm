@@ -135,7 +135,7 @@ pub fn tsv_mass_import(
 
                         // If that path already exists in the list of new PackedFiles to add, change it using the index.
                         let mut index = 1;
-                        while packed_files.iter().find(|x| x.path == path).is_some() {
+                        while packed_files.iter().any(|x| x.path == path) {
                             path[2] = format!("{}_{}.loc", name, index);
                             index += 1;
                         }
@@ -172,7 +172,7 @@ pub fn tsv_mass_import(
                         
                         // If that path already exists in the list of new PackedFiles to add, change it using the index.
                         let mut index = 1;
-                        while packed_files.iter().find(|x| x.path == path).is_some() {
+                        while packed_files.iter().any(|x| x.path == path) {
                             path[2] = format!("{}_{}.loc", name, index);
                             index += 1;
                         }

@@ -35,9 +35,9 @@ use crate::updater::*;
 /// The receiver is to receive orders to execute from the loop.
 /// The receiver_data is to receive data (whatever data is needed) inside a Data variant from the UI Thread.
 pub fn background_loop(
-    sender: Sender<Data>,
-    receiver: Receiver<Commands>,
-    receiver_data: Receiver<Data>
+    sender: &Sender<Data>,
+    receiver: &Receiver<Commands>,
+    receiver_data: &Receiver<Data>
 ) {
 
     //---------------------------------------------------------------------------------------//
@@ -93,7 +93,7 @@ pub fn background_loop(
                     // In case we want to "Open a PackFile"...
                     Commands::OpenPackFile => {
                         let path: PathBuf = if let Data::PathBuf(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-                        match packfile::open_packfile(path, *SETTINGS.lock().unwrap().settings_bool.get("use_lazy_loading").unwrap()) {
+                        match packfile::open_packfile(path, SETTINGS.lock().unwrap().settings_bool["use_lazy_loading"]) {
                             Ok(pack_file) => {
                                 pack_file_decoded = pack_file;
                                 sender.send(Data::PackFileUIData(pack_file_decoded.create_ui_data())).unwrap();
@@ -126,7 +126,7 @@ pub fn background_loop(
                     Commands::SavePackFile => {
 
                         // If it passed all the checks, then try to save it and return the result.
-                        match packfile::save_packfile(&mut pack_file_decoded, None, *SETTINGS.lock().unwrap().settings_bool.get("allow_editing_of_ca_packfiles").unwrap()) {
+                        match packfile::save_packfile(&mut pack_file_decoded, None, SETTINGS.lock().unwrap().settings_bool["allow_editing_of_ca_packfiles"]) {
                             Ok(_) => sender.send(Data::I64(pack_file_decoded.timestamp)).unwrap(),
                             Err(error) => {
                                 match error.kind() {
@@ -151,7 +151,7 @@ pub fn background_loop(
                         };
 
                         // Try to save the PackFile and return the results.
-                        match packfile::save_packfile(&mut pack_file_decoded, Some(path.to_path_buf()), *SETTINGS.lock().unwrap().settings_bool.get("allow_editing_of_ca_packfiles").unwrap()) {
+                        match packfile::save_packfile(&mut pack_file_decoded, Some(path.to_path_buf()), SETTINGS.lock().unwrap().settings_bool["allow_editing_of_ca_packfiles"]) {
                             Ok(_) => sender.send(Data::I64(pack_file_decoded.timestamp)).unwrap(),
                             Err(error) => sender.send(Data::Error(Error::from(ErrorKind::SavePackFileGeneric(format!("{}", error))))).unwrap(),
                         }
@@ -310,7 +310,7 @@ pub fn background_loop(
 
                         // Reload the currently loaded schema, just in case it was updated.
                         let data = if let Data::VersionsVersions(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-                        match update_schemas(data.0, data.1) {
+                        match update_schemas(&data.0, &data.1) {
                             Ok(_) => {
                                 *SCHEMA.lock().unwrap() = Schema::load(&SUPPORTED_GAMES.get(&**GAME_SELECTED.lock().unwrap()).unwrap().schema).ok();
                                 sender.send(Data::Success).unwrap();
@@ -1167,11 +1167,10 @@ pub fn background_loop(
                                                                     matches_in_file.push((field.field_name.to_owned(), column as i32, index as i64, data.to_owned())); 
                                                                 }
                                                             }
-                                                            else {
-                                                                if data.contains(&pattern) {
-                                                                    matches_in_file.push((field.field_name.to_owned(), column as i32, index as i64, data.to_owned())); 
-                                                                }
+                                                            else if data.contains(&pattern) {
+                                                                matches_in_file.push((field.field_name.to_owned(), column as i32, index as i64, data.to_owned())); 
                                                             }
+
                                                         _ => continue
                                                     }
                                                 }
@@ -1204,11 +1203,9 @@ pub fn background_loop(
                             // We need to take into account that we may pass here incomplete paths.
                             let mut is_in_folder = false;
                             for path in &paths {
-                                if !path.is_empty() {
-                                    if packed_file.path.starts_with(path) {
-                                        is_in_folder = true;
-                                        break;
-                                    }
+                                if !path.is_empty() && packed_file.path.starts_with(path) {
+                                    is_in_folder = true;
+                                    break;
                                 }
                             }
 
@@ -1312,12 +1309,11 @@ pub fn background_loop(
                                                                     matches_in_file.push((field.field_name.to_owned(), column as i32, index as i64, data.to_owned())); 
                                                                 }
                                                             }
-                                                            else {
-                                                                if data.contains(&pattern) {
-                                                                    matches_in_file.push((field.field_name.to_owned(), column as i32, index as i64, data.to_owned())); 
-                                                                }
+                                                            else if data.contains(&pattern) {
+                                                                matches_in_file.push((field.field_name.to_owned(), column as i32, index as i64, data.to_owned()));     
                                                             }
-                                                        _ => continue
+
+                                                            _ => continue
                                                         }
                                                     }
                                                 }
@@ -1364,7 +1360,7 @@ pub fn background_loop(
                                                 else { 
 
                                                     // No matter how many times I tried, it's IMPOSSIBLE to open a file on windows, so instead we use this magic crate that seems to work everywhere.
-                                                    if let Err(_) = open::that(&temp_path) { sender.send(Data::Error(Error::from(ErrorKind::IOGeneric))).unwrap(); }
+                                                    if open::that(&temp_path).is_err() { sender.send(Data::Error(Error::from(ErrorKind::IOGeneric))).unwrap(); }
                                                     else { sender.send(Data::Success).unwrap(); }
                                                 }
                                             },

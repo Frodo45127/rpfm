@@ -136,7 +136,7 @@ impl AddFromPackFileSlots {
 
     /// This function creates a new "Add From PackFile" struct and returns it.
     pub fn new_with_grid(
-        sender_qt: Sender<Commands>,
+        sender_qt: &Sender<Commands>,
         sender_qt_data: &Sender<Data>,
         receiver_qt: &Rc<RefCell<Receiver<Data>>>,
         app_ui: AppUI,
@@ -203,7 +203,7 @@ impl AddFromPackFileSlots {
                             update_treeview(
                                 &sender_qt,
                                 &sender_qt_data,
-                                receiver_qt.clone(),
+                                &receiver_qt,
                                 app_ui.window,
                                 app_ui.folder_tree_view,
                                 app_ui.folder_tree_model,
@@ -274,8 +274,8 @@ impl AddFromPackFileSlots {
         unsafe { tree_view_expand_all.as_ref().unwrap().signals().triggered().connect(&slots.slot_tree_view_expand_all); }
         unsafe { tree_view_collapse_all.as_ref().unwrap().signals().triggered().connect(&slots.slot_tree_view_collapse_all); }
 
-        unsafe { tree_view_expand_all.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().tree_view.get("expand_all").unwrap()))); }
-        unsafe { tree_view_collapse_all.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().tree_view.get("collapse_all").unwrap()))); }
+        unsafe { tree_view_expand_all.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["expand_all"]))); }
+        unsafe { tree_view_collapse_all.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["collapse_all"]))); }
 
         unsafe { tree_view_expand_all.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { tree_view_collapse_all.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
@@ -287,7 +287,7 @@ impl AddFromPackFileSlots {
         update_treeview(
             &sender_qt,
             &sender_qt_data,
-            receiver_qt.clone(),
+            &receiver_qt,
             app_ui.window,
             tree_view,
             tree_model,
@@ -459,7 +459,7 @@ pub fn create_new_packed_file_dialog(
     sender: &Sender<Commands>,
     sender_data: &Sender<Data>,
     receiver: &Rc<RefCell<Receiver<Data>>>,
-    packed_file_type: PackedFileType
+    packed_file_type: &PackedFileType
 ) -> Option<Result<PackedFileType>> {
 
     //-------------------------------------------------------------------------------------------//
@@ -895,7 +895,7 @@ pub enum TreeViewOperation {
 }
 
 /// Enum `ItemVisualStatus`: This enum represents the status of modification of an item in a TreeView.
-#[derive(PartialEq)]
+#[derive(Copy, Clone, PartialEq)]
 pub enum ItemVisualStatus {
     Added,
     Modified,
@@ -1169,7 +1169,7 @@ pub fn undo_paint_for_packed_file(
     let full_path = get_path_from_item(model, item, true);
 
     // Get the times we must to go up until we reach the parent.
-    let cycles = if full_path.len() > 0 { full_path.len() - 1 } else { 0 };
+    let cycles = if !full_path.is_empty() { full_path.len() - 1 } else { 0 };
 
     // Get his parent.
     let mut parent;
@@ -1727,9 +1727,9 @@ pub fn paint_treeview(
 ) {
 
     // Get the colors we need to apply.
-    let color_added = if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green };
-    let color_modified = if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkYellow } else { GlobalColor::Yellow };
-    let color_added_modified = if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkMagenta } else { GlobalColor::Magenta };
+    let color_added = if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] { GlobalColor::DarkGreen } else { GlobalColor::Green };
+    let color_modified = if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] { GlobalColor::DarkYellow } else { GlobalColor::Yellow };
+    let color_added_modified = if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] { GlobalColor::DarkMagenta } else { GlobalColor::Magenta };
     let color_untouched = GlobalColor::Transparent;
     let color = match &status {
         ItemVisualStatus::Added => color_added,
@@ -1740,7 +1740,7 @@ pub fn paint_treeview(
 
     // Get the full path of the item and the times we must to go up until we reach the parent.
     let full_path = get_path_from_item(model, item, true);
-    let cycles = if full_path.len() > 0 { full_path.len() - 1 } else { 0 };
+    let cycles = if !full_path.is_empty() { full_path.len() - 1 } else { 0 };
 
     // Paint it like one of your french girls.
     unsafe { item.as_mut().unwrap().set_background(&Brush::new(color.clone())); }
@@ -1885,7 +1885,7 @@ fn set_icon_to_item(
 pub fn update_treeview(
     sender_qt: &Sender<Commands>,
     sender_qt_data: &Sender<Data>,
-    receiver_qt_data: Rc<RefCell<Receiver<Data>>>,
+    receiver_qt_data: &Rc<RefCell<Receiver<Data>>>,
     window: *mut MainWindow,
     tree_view: *mut TreeView,
     model: *mut StandardItemModel,
@@ -2157,10 +2157,10 @@ pub fn update_treeview(
                             sort_item_in_tree_view(
                                 sender_qt,
                                 sender_qt_data,
-                                receiver_qt_data.clone(),
+                                &receiver_qt_data,
                                 model,
                                 item,
-                                item_type
+                                &item_type
                             );
                         }
                     }
@@ -2219,10 +2219,10 @@ pub fn update_treeview(
                                     sort_item_in_tree_view(
                                         sender_qt,
                                         sender_qt_data,
-                                        receiver_qt_data.clone(),
+                                        &receiver_qt_data,
                                         model,
                                         folder,
-                                        TreePathType::Folder(vec![String::new()])
+                                        &TreePathType::Folder(vec![String::new()])
                                     );
                                 }
                             }
@@ -2248,10 +2248,10 @@ pub fn update_treeview(
                                 sort_item_in_tree_view(
                                     sender_qt,
                                     sender_qt_data,
-                                    receiver_qt_data.clone(),
+                                    &receiver_qt_data,
                                     model,
                                     folder,
-                                    TreePathType::Folder(vec![String::new()])
+                                    &TreePathType::Folder(vec![String::new()])
                                 );
                             }
                         }
@@ -2309,7 +2309,7 @@ pub fn update_treeview(
                     update_treeview(
                         &sender_qt,
                         &sender_qt_data,
-                        receiver_qt_data.clone(),
+                        &receiver_qt_data,
                         window,
                         tree_view,
                         model,
@@ -2508,10 +2508,10 @@ pub fn update_treeview(
                     sort_item_in_tree_view(
                         sender_qt,
                         sender_qt_data,
-                        receiver_qt_data.clone(),
+                        &receiver_qt_data,
                         model,
                         item,
-                        path_type
+                        &path_type
                     );
                 }
 
@@ -2545,10 +2545,10 @@ pub fn update_treeview(
                 sort_item_in_tree_view(
                     sender_qt,
                     sender_qt_data,
-                    receiver_qt_data.clone(),
+                    &receiver_qt_data,
                     model,
                     item,
-                    TreePathType::File(new_path)
+                    &TreePathType::File(new_path)
                 );
             }
         },
@@ -2572,10 +2572,10 @@ pub fn update_treeview(
 fn sort_item_in_tree_view(
     sender_qt: &Sender<Commands>,
     sender_qt_data: &Sender<Data>,
-    receiver_qt: Rc<RefCell<Receiver<Data>>>,
+    receiver_qt: &Rc<RefCell<Receiver<Data>>>,
     model: *mut StandardItemModel,
     mut item: *mut StandardItem,
-    item_type: TreePathType,
+    item_type: &TreePathType,
 ) {
 
     // Get the ModelIndex of our Item and his row, as that's what we are going to be changing.
@@ -2644,7 +2644,7 @@ fn sort_item_in_tree_view(
 
     // If the top one is a folder, and the bottom one is a file, get the type of our iter.
     else if item_type_prev == TreePathType::Folder(vec![String::new()]) && item_type_next == TreePathType::File(vec![String::new()]) {
-        if item_type == TreePathType::Folder(vec![String::new()]) { true } else { false }
+        if *item_type == TreePathType::Folder(vec![String::new()]) { true } else { false }
     }
 
     // If the two around it are the same type, compare them and decide.
@@ -2708,7 +2708,7 @@ fn sort_item_in_tree_view(
             let item_sibling_type = if let Data::TreePathType(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
             // If both are of the same type...
-            if item_type == item_sibling_type {
+            if *item_type == item_sibling_type {
 
                 // Get both texts.
                 let item_name: String;
@@ -2761,7 +2761,7 @@ fn sort_item_in_tree_view(
             }
 
             // If the top one is a File and the bottom one a Folder, it's an special situation. Just swap them.
-            else if item_type == TreePathType::Folder(vec![String::new()]) && item_sibling_type == TreePathType::File(vec![String::new()]) {
+            else if *item_type == TreePathType::Folder(vec![String::new()]) && item_sibling_type == TreePathType::File(vec![String::new()]) {
 
                 // We swap them, and update them for the next loop.
                 let item_x;

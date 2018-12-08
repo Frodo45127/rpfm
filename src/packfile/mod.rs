@@ -107,7 +107,7 @@ pub fn load_dependency_packfiles(dependencies: &[String]) -> Vec<packfile::Packe
         // If the dependency PackFile is in the data folder...
         if let Some(ref paths) = data_packs_paths {
             for path in paths {
-                if path.file_name().unwrap().to_string_lossy().as_ref().to_owned() == *packfile {
+                if path.file_name().unwrap().to_string_lossy().as_ref() == *packfile {
                     if let Ok(pack_file) = open_packfile(path.to_path_buf(), true) {
 
                         // For each PackFile in the data.pack...
@@ -147,7 +147,7 @@ pub fn load_dependency_packfiles(dependencies: &[String]) -> Vec<packfile::Packe
         // If the dependency PackFile is in the content folder...
         if let Some(ref paths) = content_packs_paths {
             for path in paths {
-                if path.file_name().unwrap().to_string_lossy().as_ref().to_owned() == *packfile {
+                if path.file_name().unwrap().to_string_lossy().as_ref() == *packfile {
 
                     // Get all the DB Tables from the main DB PackFile, if it's configured.
                     if let Ok(pack_file) = open_packfile(path.to_path_buf(), true) {
@@ -310,7 +310,7 @@ pub fn add_file_to_packfile(
         theorical_path.insert(0, pack_file.file_path.file_name().unwrap().to_string_lossy().to_string());
 
         // Get the destination PackedFile.
-        let packed_file = &mut pack_file.packed_files.iter_mut().find(|x| x.path == tree_path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?;
+        let packed_file = &mut pack_file.packed_files.iter_mut().find(|x| x.path == tree_path).ok_or_else(|| Error::from(ErrorKind::PackedFileNotFound))?;
 
         // We get the data and his size...
         let mut file = BufReader::new(File::open(&file_path)?);
@@ -368,8 +368,8 @@ pub fn add_packedfile_to_packfile(
             if pack_file_destination.packedfile_exists(real_path) {
 
                 // Get the destination PackedFile. If it fails, CTD because it's a code problem.
-                let packed_file = &mut pack_file_destination.packed_files.iter_mut().find(|x| x.path == path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?;
-                packed_file.set_data(pack_file_source.packed_files.iter().find(|x| x.path == path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?.get_data()?);
+                let packed_file = &mut pack_file_destination.packed_files.iter_mut().find(|x| x.path == path).ok_or_else(|| Error::from(ErrorKind::PackedFileNotFound))?;
+                packed_file.set_data(pack_file_source.packed_files.iter().find(|x| x.path == path).ok_or_else(|| Error::from(ErrorKind::PackedFileNotFound))?.get_data()?);
 
                 // Return success.
                 Ok(())
@@ -379,7 +379,7 @@ pub fn add_packedfile_to_packfile(
             else {
 
                 // We get the PackedFile, clone it and add it to our own PackFile.
-                let mut packed_file = pack_file_source.packed_files.iter().find(|x| x.path == path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?.clone();
+                let mut packed_file = pack_file_source.packed_files.iter().find(|x| x.path == path).ok_or_else(|| Error::from(ErrorKind::PackedFileNotFound))?.clone();
                 packed_file.load_data()?;
                 pack_file_destination.add_packedfiles(vec![packed_file; 1]);
 
@@ -401,7 +401,7 @@ pub fn add_packedfile_to_packfile(
                     if pack_file_destination.packedfile_exists(&packed_file.path) {
 
                         // Get the destination PackedFile.
-                        let packed_file = &mut pack_file_destination.packed_files.iter_mut().find(|x| x.path == packed_file.path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?;
+                        let packed_file = &mut pack_file_destination.packed_files.iter_mut().find(|x| x.path == packed_file.path).ok_or_else(|| Error::from(ErrorKind::PackedFileNotFound))?;
 
                         // Then, we get his data.
                         let index = pack_file_source.packed_files.iter().position(|x| x.path == packed_file.path).unwrap();
@@ -412,7 +412,7 @@ pub fn add_packedfile_to_packfile(
                     else {
 
                         // We get the PackedFile, clone it and add it to our own PackFile.
-                        let mut packed_file = pack_file_source.packed_files.iter().find(|x| x.path == packed_file.path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?.clone();
+                        let mut packed_file = pack_file_source.packed_files.iter().find(|x| x.path == packed_file.path).ok_or_else(|| Error::from(ErrorKind::PackedFileNotFound))?.clone();
                         packed_file.load_data()?;
                         pack_file_destination.add_packedfiles(vec![packed_file]);
                     }
@@ -433,7 +433,7 @@ pub fn add_packedfile_to_packfile(
                 if pack_file_destination.packedfile_exists(&packed_file.path) {
 
                     // Get the destination PackedFile.
-                    let packed_file = &mut pack_file_destination.packed_files.iter_mut().find(|x| x.path == packed_file.path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?;
+                    let packed_file = &mut pack_file_destination.packed_files.iter_mut().find(|x| x.path == packed_file.path).ok_or_else(|| Error::from(ErrorKind::PackedFileNotFound))?;
 
                     // Then, we get his data.
                     let index = pack_file_source.packed_files.iter().position(|x| x.path == packed_file.path).unwrap();
@@ -444,7 +444,7 @@ pub fn add_packedfile_to_packfile(
                 else {
 
                     // We get the PackedFile.
-                    let mut packed_file = pack_file_source.packed_files.iter().find(|x| x.path == packed_file.path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?.clone();
+                    let mut packed_file = pack_file_source.packed_files.iter().find(|x| x.path == packed_file.path).ok_or_else(|| Error::from(ErrorKind::PackedFileNotFound))?.clone();
                     packed_file.load_data()?;
                     pack_file_destination.add_packedfiles(vec![packed_file]);
                 }
@@ -522,7 +522,7 @@ pub fn extract_from_packfile(
         // If it's a file, we try to create and write the file.
         TreePathType::File(path) => {
             let mut file = BufWriter::new(File::create(&extracted_path)?);
-            match file.write_all(&pack_file.packed_files.iter().find(|x| x.path == path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?.get_data()?){
+            match file.write_all(&pack_file.packed_files.iter().find(|x| x.path == path).ok_or_else(|| Error::from(ErrorKind::PackedFileNotFound))?.get_data()?){
                 Ok(_) => Ok(format!("File extracted successfully:\n{}", extracted_path.display())),
                 Err(_) => Err(ErrorKind::ExtractError(vec![format!("<li>{}</li>", extracted_path.display().to_string());1]))?
             }
@@ -657,7 +657,7 @@ pub fn rename_packed_file(
                 new_path.push(new_name.to_string());
 
                 if !pack_file.packedfile_exists(&new_path) {
-                    pack_file.packed_files.iter_mut().find(|x| x.path == path).ok_or(Error::from(ErrorKind::PackedFileNotFound))?.path = new_path;
+                    pack_file.packed_files.iter_mut().find(|x| x.path == path).ok_or_else(|| Error::from(ErrorKind::PackedFileNotFound))?.path = new_path;
                     Ok(())
                 }
                 else { Err(ErrorKind::NameAlreadyInUseInThisPath)? }
@@ -739,7 +739,7 @@ pub fn update_packed_file_data_loc(
     pack_file: &mut packfile::PackFile,
     path: &[String],
 ) {
-    let packed_file = &mut pack_file.packed_files.iter_mut().find(|x| x.path == path).ok_or(Error::from(ErrorKind::PackedFileNotFound)).unwrap();
+    let packed_file = &mut pack_file.packed_files.iter_mut().find(|x| x.path == path).ok_or_else(|| Error::from(ErrorKind::PackedFileNotFound)).unwrap();
     packed_file.set_data(Loc::save(packed_file_data_decoded));
 }
 
@@ -759,7 +759,7 @@ pub fn update_packed_file_data_db(
     path: &[String],
 ) {
 
-    let packed_file = &mut pack_file.packed_files.iter_mut().find(|x| x.path == path).ok_or(Error::from(ErrorKind::PackedFileNotFound)).unwrap();
+    let packed_file = &mut pack_file.packed_files.iter_mut().find(|x| x.path == path).ok_or_else(|| Error::from(ErrorKind::PackedFileNotFound)).unwrap();
     packed_file.set_data(DB::save(packed_file_data_decoded));
 }
 
@@ -778,7 +778,7 @@ pub fn update_packed_file_data_text(
     pack_file: &mut packfile::PackFile,
     path: &[String],
 ) {
-    let packed_file = &mut pack_file.packed_files.iter_mut().find(|x| x.path == path).ok_or(Error::from(ErrorKind::PackedFileNotFound)).unwrap();
+    let packed_file = &mut pack_file.packed_files.iter_mut().find(|x| x.path == path).ok_or_else(|| Error::from(ErrorKind::PackedFileNotFound)).unwrap();
     packed_file.set_data(packed_file_data_decoded.to_vec());
 }
 
@@ -790,7 +790,7 @@ pub fn update_packed_file_data_rigid(
     pack_file: &mut packfile::PackFile,
     path: &[String],
 ) -> Result<String> {
-    let packed_file = &mut pack_file.packed_files.iter_mut().find(|x| x.path == path).ok_or(Error::from(ErrorKind::PackedFileNotFound)).unwrap();
+    let packed_file = &mut pack_file.packed_files.iter_mut().find(|x| x.path == path).ok_or_else(|| Error::from(ErrorKind::PackedFileNotFound)).unwrap();
     packed_file.set_data(RigidModel::save(packed_file_data_decoded)?);
 
     Ok(format!("RigidModel PackedFile updated successfully."))

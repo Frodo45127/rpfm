@@ -157,47 +157,47 @@ impl Shortcuts {
 
         {          
             let mut keys_to_delete = vec![];
-            for (key, _) in shortcuts.menu_bar_packfile.clone() { if let None = defaults.menu_bar_packfile.get(&*key) { keys_to_delete.push(key); } }
+            for (key, _) in shortcuts.menu_bar_packfile.clone() { if defaults.menu_bar_packfile.get(&*key).is_none() { keys_to_delete.push(key); } }
             for key in &keys_to_delete { shortcuts.menu_bar_packfile.remove(key); }
 
             let mut keys_to_delete = vec![];
-            for (key, _) in shortcuts.menu_bar_about.clone() { if let None = defaults.menu_bar_about.get(&*key) { keys_to_delete.push(key); } }
+            for (key, _) in shortcuts.menu_bar_about.clone() { if defaults.menu_bar_about.get(&*key).is_none() { keys_to_delete.push(key); } }
             for key in &keys_to_delete { shortcuts.menu_bar_about.remove(key); }
 
             let mut keys_to_delete = vec![];
-            for (key, _) in shortcuts.tree_view.clone() { if let None = defaults.tree_view.get(&*key) { keys_to_delete.push(key); } }
+            for (key, _) in shortcuts.tree_view.clone() { if defaults.tree_view.get(&*key).is_none() { keys_to_delete.push(key); } }
             for key in &keys_to_delete { shortcuts.tree_view.remove(key); }
 
             let mut keys_to_delete = vec![];
-            for (key, _) in shortcuts.pack_files_list.clone() { if let None = defaults.pack_files_list.get(&*key) { keys_to_delete.push(key); } }
+            for (key, _) in shortcuts.pack_files_list.clone() { if defaults.pack_files_list.get(&*key).is_none() { keys_to_delete.push(key); } }
             for key in &keys_to_delete { shortcuts.pack_files_list.remove(key); }
 
             let mut keys_to_delete = vec![];
-            for (key, _) in shortcuts.packed_files_db.clone() { if let None = defaults.packed_files_db.get(&*key) { keys_to_delete.push(key); } }
+            for (key, _) in shortcuts.packed_files_db.clone() { if defaults.packed_files_db.get(&*key).is_none() { keys_to_delete.push(key); } }
             for key in &keys_to_delete { shortcuts.packed_files_db.remove(key); }
 
             let mut keys_to_delete = vec![];
-            for (key, _) in shortcuts.packed_files_loc.clone() { if let None = defaults.packed_files_loc.get(&*key) { keys_to_delete.push(key); } }
+            for (key, _) in shortcuts.packed_files_loc.clone() { if defaults.packed_files_loc.get(&*key).is_none() { keys_to_delete.push(key); } }
             for key in &keys_to_delete { shortcuts.packed_files_loc.remove(key); }
 
             let mut keys_to_delete = vec![];
-            for (key, _) in shortcuts.db_decoder_fields.clone() { if let None = defaults.db_decoder_fields.get(&*key) { keys_to_delete.push(key); } }
+            for (key, _) in shortcuts.db_decoder_fields.clone() { if defaults.db_decoder_fields.get(&*key).is_none() { keys_to_delete.push(key); } }
             for key in &keys_to_delete { shortcuts.db_decoder_fields.remove(key); }
 
             let mut keys_to_delete = vec![];
-            for (key, _) in shortcuts.db_decoder_definitions.clone() { if let None = defaults.db_decoder_definitions.get(&*key) { keys_to_delete.push(key); } }
+            for (key, _) in shortcuts.db_decoder_definitions.clone() { if defaults.db_decoder_definitions.get(&*key).is_none() { keys_to_delete.push(key); } }
             for key in &keys_to_delete { shortcuts.db_decoder_definitions.remove(key); }
         }
 
         {          
-            for (key, value) in defaults.menu_bar_packfile { if let None = shortcuts.menu_bar_packfile.get(&*key) { shortcuts.menu_bar_packfile.insert(key, value);  } }
-            for (key, value) in defaults.menu_bar_about { if let None = shortcuts.menu_bar_about.get(&*key) { shortcuts.menu_bar_about.insert(key, value);  } }
-            for (key, value) in defaults.tree_view { if let None = shortcuts.tree_view.get(&*key) { shortcuts.tree_view.insert(key, value);  } }
-            for (key, value) in defaults.pack_files_list { if let None = shortcuts.pack_files_list.get(&*key) { shortcuts.pack_files_list.insert(key, value);  } }
-            for (key, value) in defaults.packed_files_db { if let None = shortcuts.packed_files_db.get(&*key) { shortcuts.packed_files_db.insert(key, value);  } }
-            for (key, value) in defaults.packed_files_loc { if let None = shortcuts.packed_files_loc.get(&*key) { shortcuts.packed_files_loc.insert(key, value);  } }
-            for (key, value) in defaults.db_decoder_fields { if let None = shortcuts.db_decoder_fields.get(&*key) { shortcuts.db_decoder_fields.insert(key, value);  } }
-            for (key, value) in defaults.db_decoder_definitions { if let None = shortcuts.db_decoder_definitions.get(&*key) { shortcuts.db_decoder_definitions.insert(key, value);  } }
+            for (key, value) in defaults.menu_bar_packfile { if shortcuts.menu_bar_packfile.get(&*key).is_none() { shortcuts.menu_bar_packfile.insert(key, value);  } }
+            for (key, value) in defaults.menu_bar_about { if shortcuts.menu_bar_about.get(&*key).is_none() { shortcuts.menu_bar_about.insert(key, value);  } }
+            for (key, value) in defaults.tree_view { if shortcuts.tree_view.get(&*key).is_none() { shortcuts.tree_view.insert(key, value);  } }
+            for (key, value) in defaults.pack_files_list { if shortcuts.pack_files_list.get(&*key).is_none() { shortcuts.pack_files_list.insert(key, value);  } }
+            for (key, value) in defaults.packed_files_db { if shortcuts.packed_files_db.get(&*key).is_none() { shortcuts.packed_files_db.insert(key, value);  } }
+            for (key, value) in defaults.packed_files_loc { if shortcuts.packed_files_loc.get(&*key).is_none() { shortcuts.packed_files_loc.insert(key, value);  } }
+            for (key, value) in defaults.db_decoder_fields { if shortcuts.db_decoder_fields.get(&*key).is_none() { shortcuts.db_decoder_fields.insert(key, value);  } }
+            for (key, value) in defaults.db_decoder_definitions { if shortcuts.db_decoder_definitions.get(&*key).is_none() { shortcuts.db_decoder_definitions.insert(key, value);  } }
         }
 
         // Return the shortcuts.

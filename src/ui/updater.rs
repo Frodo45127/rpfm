@@ -60,7 +60,7 @@ pub fn check_updates(
     let (sender_net, receiver_ui) = channel();
 
     // Create the network thread with the "check_update" operation.
-    thread::spawn(move || { network_thread(sender_net, "check_updates"); });
+    thread::spawn(move || { network_thread(&sender_net, "check_updates"); });
 
     // If we want to use a Dialog to show the full searching process (clicking in the menu button)...
     if use_dialog {
@@ -71,7 +71,7 @@ pub fn check_updates(
             message_box::Icon::Information,
             &QString::from_std_str("Update Checker"),
             &QString::from_std_str("Searching for updates..."),
-            Flags::from_int(2097152), // Close button.
+            Flags::from_int(2_097_152), // Close button.
             app_ui.window as *mut Widget,
         )); }
 
@@ -111,7 +111,7 @@ pub fn check_updates(
             message_box::Icon::Information,
             &QString::from_std_str("Update Checker"),
             &QString::from_std_str(message),
-            Flags::from_int(2097152), // Close button.
+            Flags::from_int(2_097_152), // Close button.
             app_ui.window as *mut Widget,
         )); }
 
@@ -132,7 +132,7 @@ pub fn check_schema_updates(
 ) {
     // Create the network thread with the "check_schema_update" operation.
     let (sender_net, receiver_net) = channel();
-    thread::spawn(move || { network_thread(sender_net, "check_schema_updates"); });
+    thread::spawn(move || { network_thread(&sender_net, "check_schema_updates"); });
 
     // If we want to use a Dialog to show the full searching process.
     if use_dialog {
@@ -142,7 +142,7 @@ pub fn check_schema_updates(
             message_box::Icon::Information,
             &QString::from_std_str("Update Schema Checker"),
             &QString::from_std_str("Searching for updates..."),
-            Flags::from_int(2097152), // Close button.
+            Flags::from_int(2_097_152), // Close button.
             app_ui.window as *mut Widget,
         )) };
 
@@ -234,7 +234,7 @@ pub fn check_schema_updates(
             message_box::Icon::Information,
             &QString::from_std_str("Update Schema Checker"),
             &QString::from_std_str(message),
-            Flags::from_int(2097152), // Close button.
+            Flags::from_int(2_097_152), // Close button.
             app_ui.window as *mut Widget,
         )) };
 
@@ -265,7 +265,7 @@ pub fn check_schema_updates(
 /// This function check network stuff based on what operation we pass it. It REQUIRES to be executed
 /// in a different thread.
 fn network_thread(
-    sender: Sender<(APIResponse, APIResponseSchema)>,
+    sender: &Sender<(APIResponse, APIResponseSchema)>,
     operation: &str,
 ) {
     // Act depending on what that message is.

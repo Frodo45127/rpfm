@@ -14,8 +14,8 @@ use crate::common::coding_helpers::*;
 use crate::error::{ErrorKind, Result};
 
 /// These consts are used for dealing with Time-related operations.
-const WINDOWS_TICK: i64 = 10000000;
-const SEC_TO_UNIX_EPOCH: i64 = 11644473600;
+const WINDOWS_TICK: i64 = 10_000_000;
+const SEC_TO_UNIX_EPOCH: i64 = 11_644_473_600;
 
 /// These are the different Preamble/Id the PackFiles can have.
 const PFH5_PREAMBLE: &str = "PFH5"; // PFH5
@@ -143,8 +143,8 @@ pub enum PackedFileData {
 impl PFHFileType {
 
     /// This function returns the PackFile's **Type** in `u32` format. To know what value corresponds with what type, check their definition's comment.
-    pub fn get_value(&self) -> u32 {
-        match *self {
+    pub fn get_value(self) -> u32 {
+        match self {
             PFHFileType::Boot => FILE_TYPE_BOOT,
             PFHFileType::Release => FILE_TYPE_RELEASE,
             PFHFileType::Patch => FILE_TYPE_PATCH,
@@ -260,7 +260,7 @@ impl PackFile {
             file_path: self.file_path.to_path_buf(),
             pfh_version: self.pfh_version,
             pfh_file_type: self.pfh_file_type,
-            bitmask: self.bitmask.clone(),
+            bitmask: self.bitmask,
             timestamp: self.timestamp,
         }
     }
@@ -512,7 +512,7 @@ impl PackFile {
                         pack_file.clone(),
                         pack_file_data_position,
                         size,
-                        (pack_file_decoded.bitmask.contains(PFHFlags::HAS_ENCRYPTED_DATA), pack_file_decoded.pfh_version.clone())
+                        (pack_file_decoded.bitmask.contains(PFHFlags::HAS_ENCRYPTED_DATA), pack_file_decoded.pfh_version)
                     )
                 );
                 pack_file_decoded.packed_files.push(packed_file);
@@ -564,7 +564,7 @@ impl PackFile {
                         pack_file.clone(), 
                         pack_file_data_position, 
                         size, 
-                        (pack_file_decoded.bitmask.contains(PFHFlags::HAS_ENCRYPTED_DATA), pack_file_decoded.pfh_version.clone())
+                        (pack_file_decoded.bitmask.contains(PFHFlags::HAS_ENCRYPTED_DATA), pack_file_decoded.pfh_version)
                     )
                 );
                 pack_file_decoded.packed_files.push(packed_file);
@@ -711,7 +711,7 @@ impl PackedFile {
     /// This function reads the data from the disk if it's not loaded yet, and return it. This does not store the data in memory.
     pub fn get_data(&self) -> Result<Vec<u8>> {
         match self.data {
-            PackedFileData::OnMemory(ref data) => return Ok(data.to_vec()),
+            PackedFileData::OnMemory(ref data) => Ok(data.to_vec()),
             PackedFileData::OnDisk(ref file, position, size, (is_encrypted, pack_file_version)) => {
                 if is_encrypted {
                     match pack_file_version {
@@ -816,7 +816,7 @@ fn get_key_at(pos: usize) -> u8 {
 fn decrypt_index_item_file_length(ciphertext: u32, packed_files_after_this_one: u32, offset: &mut usize) -> u32 {
 
     // Decrypt the size of the PackedFile by xoring it. No idea where the 0x15091984 came from.
-    let decrypted_size = !packed_files_after_this_one ^ ciphertext ^ 0xE10B73F4;
+    let decrypted_size = !packed_files_after_this_one ^ ciphertext ^ 0xE10B_73F4;
 
     // Increase the offset.
     *offset += 4;
@@ -861,12 +861,12 @@ fn decrypt_index_item_filename(ciphertext: &[u8], decrypted_size: u8, offset: &m
 }
 
 // Key needed to decrypt files.
-static FILE_KEY: Wrapping<u64> = Wrapping(0x8FEB2A6740A6920E);
+static FILE_KEY: Wrapping<u64> = Wrapping(0x8FEB_2A67_40A6_920E);
 
 // Don't make me try to explain this. Is magic for me.
 pub fn decrypt_file(ciphertext: &[u8], length: usize, verbose: bool) -> Vec<u8> {
     let mut plaintext = Vec::with_capacity(ciphertext.len());
-    let padded_length = ciphertext.len() + 7 & !7;
+    let padded_length = (ciphertext.len() + 7) & !7;
     assert!(padded_length % 8 == 0);
     assert!(padded_length < ciphertext.len() + 8);
     let mut edi: u32 = 0;

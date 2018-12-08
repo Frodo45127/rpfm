@@ -38,12 +38,12 @@ impl RestPath<()> for LastestRelease {
 
 /// This function gets the lastest version of the schemas from RPFM's main repo, and updates them if needed.
 pub fn update_schemas(
-    local_versions: Versions,
-    remote_versions: Versions,
+    local_versions: &Versions,
+    remote_versions: &Versions,
 ) -> error::Result<()> {
 
     // For each schema in the repo, get his equivalent local_schema's path.
-    for (remote_schema_name, remote_schema_version) in &remote_versions {
+    for (remote_schema_name, remote_schema_version) in remote_versions {
 
         // If the schema exist in our local_versions, depending on the version we update it or not.
         if let Some(local_schema_version) = local_versions.get(remote_schema_name) {

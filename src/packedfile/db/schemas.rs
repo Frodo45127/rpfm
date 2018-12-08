@@ -54,7 +54,7 @@ pub struct Field {
 }
 
 /// Enum FieldType: This enum is used to define the possible types of a field in the schema.
-#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub enum FieldType {
     Boolean,
     Float,

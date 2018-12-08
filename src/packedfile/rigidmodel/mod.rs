@@ -51,7 +51,7 @@ impl RigidModel {
     /// so we return Result<RigidModel, Error>.
     pub fn read(packed_file_data: &[u8]) -> Result<RigidModel> {
         let packed_file_header = RigidModelHeader::read(&packed_file_data[..140])?;
-        let packed_file_data = RigidModelData::read(&packed_file_data[140..], &packed_file_header.packed_file_header_model_type, &packed_file_header.packed_file_header_lods_count)?;
+        let packed_file_data = RigidModelData::read(&packed_file_data[140..], packed_file_header.packed_file_header_model_type, packed_file_header.packed_file_header_lods_count)?;
 
         Ok(RigidModel {
             packed_file_header,
@@ -138,17 +138,17 @@ impl RigidModelData {
 
     /// This function reads the data from a Vec<u8> and decode it into a RigidModelData. This CAN FAIL,
     /// so we return Result<RigidModelData, Error>.
-    pub fn read(packed_file_data: &[u8], packed_file_header_model_type: &u32, packed_file_header_lods_count: &u32) -> Result<RigidModelData> {
+    pub fn read(packed_file_data: &[u8], packed_file_header_model_type: u32, packed_file_header_lods_count: u32) -> Result<RigidModelData> {
         let mut packed_file_data_lods_header: Vec<RigidModelLodHeader> = vec![];
         let mut index: usize = 0;
-        let offset: usize = match *packed_file_header_model_type {
+        let offset: usize = match packed_file_header_model_type {
             6 => 20, // Attila
             7 => 28, // Warhammer 1&2
             _ => return Err(ErrorKind::RigidModelNotSupportedType)?
         };
 
         // We get the "headers" of every lod.
-        for _ in 0..*packed_file_header_lods_count {
+        for _ in 0..packed_file_header_lods_count {
             let lod_header = match RigidModelLodHeader::read(&packed_file_data[index..(index + offset)]) {
                 Ok(data) => data,
                 Err(error) => return Err(error)

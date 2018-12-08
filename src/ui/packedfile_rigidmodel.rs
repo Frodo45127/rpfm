@@ -34,7 +34,7 @@ impl PackedFileRigidModelDataView {
     /// This function creates a "view" with the PackedFile's View as father and returns a
     /// `PackedFileRigidModelDataView` with all his slots.
     pub fn create_data_view(
-        sender_qt: Sender<Commands>,
+        sender_qt: &Sender<Commands>,
         sender_qt_data: &Sender<Data>,
         receiver_qt: &Rc<RefCell<Receiver<Data>>>,
         is_modified: &Rc<RefCell<bool>>,

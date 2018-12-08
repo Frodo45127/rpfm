@@ -211,7 +211,7 @@ impl PackedFileDBTreeView {
     /// This function creates a new Table with the PackedFile's View as father and returns a
     /// `PackedFileDBTreeView` with all his data.
     pub fn create_table_view(
-        sender_qt: Sender<Commands>,
+        sender_qt: &Sender<Commands>,
         sender_qt_data: &Sender<Data>,
         receiver_qt: &Rc<RefCell<Receiver<Data>>>,
         is_modified: &Rc<RefCell<bool>>,
@@ -264,7 +264,7 @@ impl PackedFileDBTreeView {
         let model = StandardItemModel::new(()).into_raw();
 
         // Make the last column fill all the available space, if the setting says so.
-        if *SETTINGS.lock().unwrap().settings_bool.get("extend_last_column_on_tables").unwrap() { 
+        if SETTINGS.lock().unwrap().settings_bool["extend_last_column_on_tables"] { 
             unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_stretch_last_section(true); }
         }
 
@@ -401,7 +401,7 @@ impl PackedFileDBTreeView {
         unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_visible(true); }
 
         // If we want to let the columns resize themselfs...
-        if *SETTINGS.lock().unwrap().settings_bool.get("adjust_columns_to_content").unwrap() {
+        if SETTINGS.lock().unwrap().settings_bool["adjust_columns_to_content"] {
             unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().resize_sections(ResizeMode::ResizeToContents); }
         }
 
@@ -442,24 +442,24 @@ impl PackedFileDBTreeView {
         let context_menu_redo = context_menu.add_action(&QString::from_std_str("&Redo"));
 
         // Set the shortcuts for these actions.
-        unsafe { context_menu_add.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_db.get("add_row").unwrap()))); }
-        unsafe { context_menu_insert.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_db.get("insert_row").unwrap()))); }
-        unsafe { context_menu_delete.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_db.get("delete_row").unwrap()))); }
-        unsafe { context_menu_apply_maths_to_selection.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_db.get("apply_maths_to_selection").unwrap()))); }
-        unsafe { context_menu_apply_prefix_to_selection.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_db.get("apply_prefix_to_selection").unwrap()))); }
-        unsafe { context_menu_clone.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_db.get("clone_row").unwrap()))); }
-        unsafe { context_menu_clone_and_append.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_db.get("clone_and_append_row").unwrap()))); }
-        unsafe { context_menu_copy.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_db.get("copy").unwrap()))); }
-        unsafe { context_menu_copy_as_lua_table.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_db.get("copy_as_lua_table").unwrap()))); }
-        unsafe { context_menu_paste_in_selection.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_db.get("paste_in_selection").unwrap()))); }
-        unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_db.get("paste_as_new_row").unwrap()))); }
-        unsafe { context_menu_paste_to_fill_selection.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_db.get("paste_to_fill_selection").unwrap()))); }
-        unsafe { context_menu_search.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_db.get("search").unwrap()))); }
-        unsafe { context_menu_import.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_db.get("import_tsv").unwrap()))); }
-        unsafe { context_menu_export.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_db.get("export_tsv").unwrap()))); }
-        unsafe { smart_delete.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_db.get("smart_delete").unwrap()))); }
-        unsafe { context_menu_undo.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_db.get("undo").unwrap()))); }
-        unsafe { context_menu_redo.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().packed_files_db.get("redo").unwrap()))); }
+        unsafe { context_menu_add.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_db["add_row"]))); }
+        unsafe { context_menu_insert.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_db["insert_row"]))); }
+        unsafe { context_menu_delete.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_db["delete_row"]))); }
+        unsafe { context_menu_apply_maths_to_selection.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_db["apply_maths_to_selection"]))); }
+        unsafe { context_menu_apply_prefix_to_selection.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_db["apply_prefix_to_selection"]))); }
+        unsafe { context_menu_clone.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_db["clone_row"]))); }
+        unsafe { context_menu_clone_and_append.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_db["clone_and_append_row"]))); }
+        unsafe { context_menu_copy.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_db["copy"]))); }
+        unsafe { context_menu_copy_as_lua_table.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_db["copy_as_lua_table"]))); }
+        unsafe { context_menu_paste_in_selection.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_db["paste_in_selection"]))); }
+        unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_db["paste_as_new_row"]))); }
+        unsafe { context_menu_paste_to_fill_selection.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_db["paste_to_fill_selection"]))); }
+        unsafe { context_menu_search.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_db["search"]))); }
+        unsafe { context_menu_import.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_db["import_tsv"]))); }
+        unsafe { context_menu_export.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_db["export_tsv"]))); }
+        unsafe { smart_delete.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_db["smart_delete"]))); }
+        unsafe { context_menu_undo.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_db["undo"]))); }
+        unsafe { context_menu_redo.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_db["redo"]))); }
 
         // Set the shortcuts to only trigger in the Table.
         unsafe { context_menu_add.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
@@ -785,7 +785,7 @@ impl PackedFileDBTreeView {
 
                             // We block the saving for painting, so this doesn't get rettriggered again.
                             let mut blocker = unsafe { SignalBlocker::new(model.as_mut().unwrap().static_cast_mut() as &mut Object) };
-                            unsafe { item.as_mut().unwrap().set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkYellow } else { GlobalColor::Yellow })); }
+                            unsafe { item.as_mut().unwrap().set_background(&Brush::new(if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] { GlobalColor::DarkYellow } else { GlobalColor::Yellow })); }
                             blocker.unblock();
 
                             update_undo_model(model, table_state_data.undo_model); 
@@ -795,7 +795,7 @@ impl PackedFileDBTreeView {
                     }
 
                     // If we have the dependency stuff enabled, check if it's a valid reference.
-                    if *SETTINGS.lock().unwrap().settings_bool.get("use_dependency_checker").unwrap() {
+                    if SETTINGS.lock().unwrap().settings_bool["use_dependency_checker"] {
                         let column = unsafe { item.as_mut().unwrap().column() };
                         if table_definition.fields[column as usize].field_is_reference.is_some() {
                             check_references(&dependency_data, column, item);
@@ -902,7 +902,7 @@ impl PackedFileDBTreeView {
                         };
 
                         // Paint the cells.
-                        item.set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                        item.set_background(&Brush::new(if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] { GlobalColor::DarkGreen } else { GlobalColor::Green }));
 
                         // Add the item to the list.
                         unsafe { qlist.append_unsafe(&item.into_raw()); }
@@ -989,7 +989,7 @@ impl PackedFileDBTreeView {
                         };
 
                         // Paint the cells.
-                        item.set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                        item.set_background(&Brush::new(if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] { GlobalColor::DarkGreen } else { GlobalColor::Green }));
 
                         // Add the item to the list.
                         unsafe { qlist.append_unsafe(&item.into_raw()); }
@@ -1317,7 +1317,7 @@ impl PackedFileDBTreeView {
                             // Get the original item and his clone.
                             let original_item = unsafe { model.as_mut().unwrap().item((*row, column as i32)) };
                             let item = unsafe { original_item.as_mut().unwrap().clone() };
-                            unsafe { item.as_mut().unwrap().set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green })); }
+                            unsafe { item.as_mut().unwrap().set_background(&Brush::new(if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] { GlobalColor::DarkGreen } else { GlobalColor::Green })); }
                             unsafe { qlist.append_unsafe(&item); }
                         }
 
@@ -1388,7 +1388,7 @@ impl PackedFileDBTreeView {
                             // Get the original item and his clone.
                             let original_item = unsafe { model.as_mut().unwrap().item((*row, column as i32)) };
                             let item = unsafe { original_item.as_mut().unwrap().clone() };
-                            unsafe { item.as_mut().unwrap().set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green })); }
+                            unsafe { item.as_mut().unwrap().set_background(&Brush::new(if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] { GlobalColor::DarkGreen } else { GlobalColor::Green })); }
                             unsafe { qlist.append_unsafe(&item); }
                         }
 
@@ -1445,11 +1445,11 @@ impl PackedFileDBTreeView {
                 let header = unsafe { table_view.as_ref().unwrap().horizontal_header().as_ref().unwrap() };
                 indexes_sorted.sort_unstable_by(|a, b| {
                     if a.row() == b.row() {
-                        if header.visual_index(a.column()) < header.visual_index(b.column()) { return Ordering::Less }
-                        else { return Ordering::Greater }
+                        if header.visual_index(a.column()) < header.visual_index(b.column()) { Ordering::Less }
+                        else { Ordering::Greater }
                     } 
-                    else if a.row() < b.row() { return Ordering::Less }
-                    else { return Ordering::Greater }
+                    else if a.row() < b.row() { Ordering::Less }
+                    else { Ordering::Greater }
                 });
 
                 // Build the copy String.
@@ -1506,7 +1506,7 @@ impl PackedFileDBTreeView {
                                     // If we have more than 3 decimals, we limit it to three, then do magic to remove trailing zeroes.
                                     if let Some(position) = data_str.find('.') {
                                         let decimals = &data_str[position..].len();
-                                        if decimals > &3 { format!("{}", format!("{:.3}", data).parse::<f32>().unwrap()) }
+                                        if *decimals > 3 { format!("{}", format!("{:.3}", data).parse::<f32>().unwrap()) }
                                         else { data_str }
                                     }
                                     else { data_str }
@@ -1646,11 +1646,11 @@ impl PackedFileDBTreeView {
                         let header = unsafe { table_view.as_ref().unwrap().horizontal_header().as_ref().unwrap() };
                         indexes_sorted.sort_unstable_by(|a, b| {
                             if a.row() == b.row() {
-                                if header.visual_index(a.column()) < header.visual_index(b.column()) { return Ordering::Less }
-                                else { return Ordering::Greater }
+                                if header.visual_index(a.column()) < header.visual_index(b.column()) { Ordering::Less }
+                                else { Ordering::Greater }
                             } 
-                            else if a.row() < b.row() { return Ordering::Less }
-                            else { return Ordering::Greater }
+                            else if a.row() < b.row() { Ordering::Less }
+                            else { Ordering::Greater }
                         });
 
                         // If the text ends in \n, remove it. Excel things. We don't use newlines, so replace them with '\t'.
@@ -1779,36 +1779,34 @@ impl PackedFileDBTreeView {
                                     item.set_editable(false);
                                     item.set_checkable(true);
                                     item.set_check_state(if cell.to_lowercase() == "true" || *cell == "1" { CheckState::Checked } else { CheckState::Unchecked });
-                                    item.set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                                    item.set_background(&Brush::new(if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] { GlobalColor::DarkGreen } else { GlobalColor::Green }));
                                 },
                                 
                                 FieldType::Float => {
                                     item.set_data((&Variant::new2(cell.parse::<f32>().unwrap()), 2));
-                                    item.set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                                    item.set_background(&Brush::new(if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] { GlobalColor::DarkGreen } else { GlobalColor::Green }));
                                 },
 
                                 FieldType::Integer => {
                                     item.set_data((&Variant::new0(cell.parse::<i32>().unwrap()), 2));
-                                    item.set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                                    item.set_background(&Brush::new(if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] { GlobalColor::DarkGreen } else { GlobalColor::Green }));
                                 },
 
                                 FieldType::LongInteger => {
                                     item.set_data((&Variant::new2(cell.parse::<i64>().unwrap()), 2));
-                                    item.set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                                    item.set_background(&Brush::new(if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] { GlobalColor::DarkGreen } else { GlobalColor::Green }));
                                 },
 
                                 // In any other case, we treat it as a string. Type-checking is done before this and while saving.
                                 _ => {
                                     item.set_text(&QString::from_std_str(cell));
-                                    item.set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                                    item.set_background(&Brush::new(if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] { GlobalColor::DarkGreen } else { GlobalColor::Green }));
                                 }
                             }
 
                             // If we have the dependency stuff enabled, check if it's a valid reference.
-                            if *SETTINGS.lock().unwrap().settings_bool.get("use_dependency_checker").unwrap() {
-                                if field.field_is_reference.is_some() {
-                                    check_references(&dependency_data, column as i32, item.as_mut_ptr());
-                                }
+                            if SETTINGS.lock().unwrap().settings_bool["use_dependency_checker"] && field.field_is_reference.is_some() {
+                                check_references(&dependency_data, column as i32, item.as_mut_ptr());
                             }
 
                             // Add the cell to the list.
@@ -1876,7 +1874,7 @@ impl PackedFileDBTreeView {
                                     FieldType::OptionalStringU16 => StandardItem::new(&QString::from_std_str("")),
                                 };
 
-                                item.set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkGreen } else { GlobalColor::Green }));
+                                item.set_background(&Brush::new(if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] { GlobalColor::DarkGreen } else { GlobalColor::Green }));
                                 qlist_unordered.push((column_logical_index, item.into_raw()));
                             }
 
@@ -1955,7 +1953,7 @@ impl PackedFileDBTreeView {
 
                                     FieldType::Float => {
                                         let current_value = unsafe { item.as_mut().unwrap().text().to_std_string() };
-                                        if &*current_value != text {
+                                        if *current_value != text {
                                             unsafe { item.as_mut().unwrap().set_data((&Variant::new2(text.parse::<f32>().unwrap()), 2)); }
                                             changed_cells += 1;
                                         }
@@ -1963,7 +1961,7 @@ impl PackedFileDBTreeView {
 
                                     FieldType::Integer => {
                                         let current_value = unsafe { item.as_mut().unwrap().text().to_std_string() };
-                                        if &*current_value != text {
+                                        if *current_value != text {
                                             unsafe { item.as_mut().unwrap().set_data((&Variant::new0(text.parse::<i32>().unwrap()), 2)); }
                                             changed_cells += 1;
                                         }
@@ -1971,7 +1969,7 @@ impl PackedFileDBTreeView {
 
                                     FieldType::LongInteger => {
                                         let current_value = unsafe { item.as_mut().unwrap().text().to_std_string() };
-                                        if &*current_value != text {
+                                        if *current_value != text {
                                             unsafe { item.as_mut().unwrap().set_data((&Variant::new2(text.parse::<i64>().unwrap()), 2)); }
                                             changed_cells += 1;
                                         }
@@ -1979,7 +1977,7 @@ impl PackedFileDBTreeView {
 
                                     _ => {
                                         let current_value = unsafe { item.as_mut().unwrap().text().to_std_string() };
-                                        if &*current_value != text {
+                                        if *current_value != text {
                                             unsafe { item.as_mut().unwrap().set_text(&QString::from_std_str(&text)); }
                                             changed_cells += 1;
                                         }
@@ -2054,7 +2052,7 @@ impl PackedFileDBTreeView {
                         // Build the Column's "Data".
                         build_columns(&table_definition, table_view, model);
 
-                        if *SETTINGS.lock().unwrap().settings_bool.get("adjust_columns_to_content").unwrap() {
+                        if SETTINGS.lock().unwrap().settings_bool["adjust_columns_to_content"] {
                             unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().resize_sections(ResizeMode::ResizeToContents); }
                         }
 
@@ -2115,7 +2113,7 @@ impl PackedFileDBTreeView {
 
                         // If there is an error, report it. Otherwise, we're done.
                         match check_message_validity_recv2(&receiver_qt) {
-                            Data::Success => return (),
+                            Data::Success => return,
                             Data::Error(error) => return show_dialog(app_ui.window, false, error),
                             _ => panic!(THREADS_MESSAGE_ERROR),
                         }
@@ -2828,7 +2826,7 @@ impl PackedFileDBTreeView {
                 let mut blocker1 = unsafe { SignalBlocker::new(table_view.as_mut().unwrap().static_cast_mut() as &mut Object) };
                 let mut blocker2 = unsafe { SignalBlocker::new(table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().static_cast_mut() as &mut Object) };
                 
-                if *SETTINGS.lock().unwrap().settings_bool.get("remember_column_state").unwrap() {
+                if SETTINGS.lock().unwrap().settings_bool["remember_column_state"] {
                     let sort_order = if state_data.columns_state.sorting_column.1 { SortOrder::Descending } else { SortOrder::Ascending };
                     unsafe { table_view.as_mut().unwrap().sort_by_column((state_data.columns_state.sorting_column.0, sort_order)); }
                     
@@ -2859,7 +2857,7 @@ impl PackedFileDBTreeView {
         unsafe { row_filter_case_sensitive_button.as_mut().unwrap().set_checked(!row_filter_case_sensitive_button.as_mut().unwrap().is_checked()); }
 
         // Return the slots to keep them as hostages.
-        return Ok(slots)
+        Ok(slots)
     }
 
     /// This function loads the data from a LocData into a TableView.
@@ -2896,7 +2894,7 @@ impl PackedFileDBTreeView {
                             let data_str = format!("{}", data);
                             if let Some(position) = data_str.find('.') {
                                 let decimals = &data_str[position..].len();
-                                if decimals > &3 { format!("{:.3}", data).parse::<f32>().unwrap() }
+                                if *decimals > 3 { format!("{:.3}", data).parse::<f32>().unwrap() }
                                 else { *data }
                             }
                             else { *data }
@@ -2924,18 +2922,17 @@ impl PackedFileDBTreeView {
                 };
 
                 // If we have the dependency stuff enabled, check if it's a valid reference.
-                if *SETTINGS.lock().unwrap().settings_bool.get("use_dependency_checker").unwrap() {
-                    if packed_file_data.table_definition.fields[index].field_is_reference.is_some() {
-                        check_references(dependency_data, index as i32, item.as_mut_ptr());
-                    }
+                if SETTINGS.lock().unwrap().settings_bool["use_dependency_checker"] && packed_file_data.table_definition.fields[index].field_is_reference.is_some() {
+                    check_references(dependency_data, index as i32, item.as_mut_ptr());
                 }
+
                 unsafe { qlist.append_unsafe(&item.into_raw()); }
             }
             unsafe { model.as_mut().unwrap().append_row(&qlist); }
         }
 
         // If the table it's empty, we add an empty row and delete it, so the "columns" get created.
-        if packed_file_data.entries.len() == 0 {
+        if packed_file_data.entries.is_empty() {
             let mut qlist = ListStandardItemMutPtr::new(());
             for field in &packed_file_data.table_definition.fields {
                 let item = match field.field_type {
@@ -2989,7 +2986,7 @@ impl PackedFileDBTreeView {
         }
 
         // We build the combos lists here, so it get's rebuilt if we import a TSV and clear the table.
-        if !*SETTINGS.lock().unwrap().settings_bool.get("disable_combos_on_tables").unwrap() {
+        if !SETTINGS.lock().unwrap().settings_bool["disable_combos_on_tables"] {
             for (column, data) in dependency_data {
                 let mut list = StringList::new(());
                 data.iter().for_each(|x| list.append(&QString::from_std_str(x)));
@@ -3349,7 +3346,7 @@ impl PackedFileDBTreeView {
                 build_columns(&data.borrow().table_definition, table_view, model);
 
                 // If we want to let the columns resize themselfs...
-                if *SETTINGS.lock().unwrap().settings_bool.get("adjust_columns_to_content").unwrap() {
+                if SETTINGS.lock().unwrap().settings_bool["adjust_columns_to_content"] {
                     unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().resize_sections(ResizeMode::ResizeToContents); }
                 }
 
@@ -3412,7 +3409,7 @@ impl PackedFileDBDecoder {
     /// This function creates the "Decoder View" with all the stuff needed to decode a table, and it
     /// returns it if it succeed. It can fail if the provided PackedFile is not a DB Table.
     pub fn create_decoder_view(
-        sender_qt: Sender<Commands>,
+        sender_qt: &Sender<Commands>,
         sender_qt_data: &Sender<Data>,
         receiver_qt: &Rc<RefCell<Receiver<Data>>>,
         app_ui: &AppUI,
@@ -3470,9 +3467,9 @@ impl PackedFileDBDecoder {
         let table_view_context_menu_delete = table_view_context_menu.add_action(&QString::from_std_str("&Delete"));
 
         // Set the shortcuts for these actions.
-        unsafe { table_view_context_menu_move_up.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().db_decoder_fields.get("move_up").unwrap()))); }
-        unsafe { table_view_context_menu_move_down.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().db_decoder_fields.get("move_down").unwrap()))); }
-        unsafe { table_view_context_menu_delete.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().db_decoder_fields.get("delete").unwrap()))); }
+        unsafe { table_view_context_menu_move_up.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().db_decoder_fields["move_up"]))); }
+        unsafe { table_view_context_menu_move_down.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().db_decoder_fields["move_down"]))); }
+        unsafe { table_view_context_menu_delete.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().db_decoder_fields["delete"]))); }
 
         // Set the shortcuts to only trigger in the TableView.
         unsafe { table_view_context_menu_move_up.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
@@ -3650,8 +3647,8 @@ impl PackedFileDBDecoder {
         let table_view_old_versions_context_menu_delete = table_view_old_versions_context_menu.add_action(&QString::from_std_str("&Delete"));
 
         // Set the shortcuts for these actions.
-        unsafe { table_view_old_versions_context_menu_load.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().db_decoder_definitions.get("load").unwrap()))); }
-        unsafe { table_view_old_versions_context_menu_delete.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().db_decoder_definitions.get("delete").unwrap()))); }
+        unsafe { table_view_old_versions_context_menu_load.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().db_decoder_definitions["load"]))); }
+        unsafe { table_view_old_versions_context_menu_delete.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().db_decoder_definitions["delete"]))); }
 
         // Set the shortcuts to only trigger in the TableView.
         unsafe { table_view_old_versions_context_menu_load.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
@@ -4380,21 +4377,21 @@ impl PackedFileDBDecoder {
                             }
 
                             // If there is no schema, return error.
-                            None => return Err(ErrorKind::SchemaNotFound)?
+                            None => Err(ErrorKind::SchemaNotFound)?
                         }
                     },
 
                     // If it fails, return error.
-                    Err(error) => return Err(error)
+                    Err(error) => Err(error)
                 }
             }
 
             // Otherwise, return error.
-            else { return Err(ErrorKind::DBTableIsNotADBTable)? }
+            else { Err(ErrorKind::DBTableIsNotADBTable)? }
         }
 
         // Otherwise, return error.
-        else { return Err(ErrorKind::DBTableIsNotADBTable)? }
+        else { Err(ErrorKind::DBTableIsNotADBTable)? }
     }
 
     /// This function is meant to load the static data of a DB PackedFile into the decoder, or return error.
@@ -4459,7 +4456,7 @@ impl PackedFileDBDecoder {
 
             // Prepare the format for the header.
             let mut header_format = TextCharFormat::new();
-            header_format.set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkRed } else { GlobalColor::Red }));
+            header_format.set_background(&Brush::new(if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] { GlobalColor::DarkRed } else { GlobalColor::Red }));
 
             // Get the cursor.
             let mut cursor;
@@ -4509,7 +4506,7 @@ impl PackedFileDBDecoder {
 
             // Prepare the format for the header.
             let mut header_format = TextCharFormat::new();
-            header_format.set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkRed } else { GlobalColor::Red }));
+            header_format.set_background(&Brush::new(if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] { GlobalColor::DarkRed } else { GlobalColor::Red }));
 
             // Get the cursor.
             let mut cursor;
@@ -4613,7 +4610,7 @@ impl PackedFileDBDecoder {
                         &stuff,
                         &stuff_non_ui,
                         &field.field_name,
-                        field.field_type.to_owned(),
+                        field.field_type,
                         field.field_is_key,
                         &field.field_is_reference,
                         &field.field_description,
@@ -4705,11 +4702,11 @@ impl PackedFileDBDecoder {
 
         // Prepare the format for the decoded row.
         let mut decoded_format = TextCharFormat::new();
-        decoded_format.set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkYellow } else { GlobalColor::Yellow }));
+        decoded_format.set_background(&Brush::new(if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] { GlobalColor::DarkYellow } else { GlobalColor::Yellow }));
 
         // Prepare the format for the current index.
         let mut index_format = TextCharFormat::new();
-        index_format.set_background(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::DarkMagenta } else { GlobalColor::Magenta }));
+        index_format.set_background(&Brush::new(if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] { GlobalColor::DarkMagenta } else { GlobalColor::Magenta }));
 
         // Clean both TextEdits.
         {
@@ -4888,7 +4885,7 @@ impl PackedFileDBDecoder {
         // Decode the data from the field.
         let decoded_data = Self::decode_data_by_fieldtype(
             &stuff_non_ui.packed_file_data,
-            &field_type,
+            field_type,
             &mut index_data
         );
 
@@ -5002,12 +4999,12 @@ impl PackedFileDBDecoder {
     /// (vec<u8>, being the first u8 the first byte to decode) and the index of the data in the Vec<u8>.
     fn decode_data_by_fieldtype(
         field_data: &[u8],
-        field_type: &FieldType,
+        field_type: FieldType,
         mut index_data: &mut usize
     ) -> String {
 
         // Try to decode the field, depending on what type that field is.
-        match *field_type {
+        match field_type {
 
             // If the field is a boolean...
             FieldType::Boolean => {
@@ -5176,7 +5173,7 @@ impl PackedFileDBDecoder {
                 // Get the decoded data using it's type...
                 let decoded_data = Self::decode_data_by_fieldtype(
                     &stuff_non_ui.packed_file_data,
-                    &field_type,
+                    field_type,
                     &mut index
                 );
 
@@ -5444,7 +5441,7 @@ fn check_references(
     if let Some(ref_data) = dependency_data.get(&column) {
 
         let text = unsafe { item.as_mut().unwrap().text().to_std_string() };
-        if ref_data.contains(&text) { unsafe { item.as_mut().unwrap().set_foreground(&Brush::new(if *SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap() { GlobalColor::White } else { GlobalColor::Black })); } }
+        if ref_data.contains(&text) { unsafe { item.as_mut().unwrap().set_foreground(&Brush::new(if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] { GlobalColor::White } else { GlobalColor::Black })); } }
         else if ref_data.is_empty() { unsafe { item.as_mut().unwrap().set_foreground(&Brush::new(GlobalColor::Blue)); } }
         else { unsafe { item.as_mut().unwrap().set_foreground(&Brush::new(GlobalColor::Red)); } }
     }
@@ -5471,11 +5468,11 @@ fn check_clipboard(
     let header = unsafe { table_view.as_ref().unwrap().horizontal_header().as_ref().unwrap() };
     indexes_sorted.sort_unstable_by(|a, b| {
         if a.row() == b.row() {
-            if header.visual_index(a.column()) < header.visual_index(b.column()) { return Ordering::Less }
-            else { return Ordering::Greater }
+            if header.visual_index(a.column()) < header.visual_index(b.column()) { Ordering::Less }
+            else { Ordering::Greater }
         } 
-        else if a.row() < b.row() { return Ordering::Less }
-        else { return Ordering::Greater }
+        else if a.row() < b.row() { Ordering::Less }
+        else { Ordering::Greater }
     });
 
     // If there is nothing selected, don't waste your time.
