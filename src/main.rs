@@ -15,6 +15,7 @@
     clippy::too_many_arguments,             // Disabled because you never have enough arguments.
     clippy::type_complexity,                // Disabled temporarily because there are other things to do before rewriting the types it warns about.
     clippy::useless_format,                 // Disabled due to false positives.
+    clippy::match_wild_err_arm              // Disabled because, despite being a bad practice, it's the intended behavior in the code it warns about.
 )]
 
 // This disables the terminal window, so it doesn't show up when executing RPFM in Windows.
