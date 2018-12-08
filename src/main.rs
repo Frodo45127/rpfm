@@ -20,7 +20,7 @@
     clippy::cast_lossless,
     clippy::module_inception,
     clippy::suspicious_else_formatting,
-    clippu::if_same_then_else,
+    clippy::if_same_then_else,
 )]
 
 // This disables the terminal window, so it doesn't show up when executing RPFM in Windows.
