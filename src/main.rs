@@ -1,26 +1,20 @@
-// This is the main file of RPFM. Here is the main loop that builds the UI and controls
-// his events.
+// This is the main file of RPFM. Here is the main loop that builds the UI and controls his events.
 
-// Disable warnings about unknown lints, so we don't have the linter warnings when compiling.
-#![allow(unknown_lints)]
-
-// Disable these two clippy linters. They throw a lot of false positives, and it's a pain in the ass
-// to separate their warnings from the rest. Also, disable "match_bool" because the methods it suggest
-// are harder to read than a match. And "redundant_closure", because the suggerences it gives doesn't work.
+// Disabled `Clippy` linters, with the reasons why they were disabled.
 #![allow(
-    clippy::doc_markdown,
-    clippy::useless_format,
-    clippy::match_bool,
-    clippy::redundant_closure,
-    clippy::needless_bool,
-    clippy::type_complexity,
-    clippy::cyclomatic_complexity,
-    clippy::too_many_arguments,
-    clippy::new_ret_no_self,
-    clippy::cast_lossless,
-    clippy::module_inception,
-    clippy::suspicious_else_formatting,
-    clippy::if_same_then_else,
+    clippy::cast_lossless,                  // Disabled due to useless warnings.
+    clippy::cyclomatic_complexity,          // Disabled due to useless warnings.
+    clippy::doc_markdown,                   // Disabled due to false positives on things that shouldn't be formated in the docs as it says.
+    clippy::if_same_then_else,              // Disabled because some of the solutions it provides are freaking hard to read.
+    clippy::match_bool,                     // Disabled because the solutions it provides are harder to read than the current code.
+    clippy::module_inception,               // Disabled because it's quite useless.
+    clippy::needless_bool,                  // Disabled because the solutions it provides are harder to read than the current code.
+    clippy::new_ret_no_self,                // Disabled because the reported situations are special cases. So no, I'm not going to rewrite them.
+    clippy::redundant_closure,              // Disabled because the solutions it provides doesn't even work.             
+    clippy::suspicious_else_formatting,     // Disabled because the errors it gives are actually false positives due to comments.
+    clippy::too_many_arguments,             // Disabled because you never have enough arguments.
+    clippy::type_complexity,                // Disabled temporarily because there are other things to do before rewriting the types it warns about.
+    clippy::useless_format,                 // Disabled due to false positives.
 )]
 
 // This disables the terminal window, so it doesn't show up when executing RPFM in Windows.
