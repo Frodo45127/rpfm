@@ -2137,7 +2137,9 @@ fn main() {
                     Mode::MyMod {ref game_folder_name, ref mod_name} => {
 
                         // In theory, if we reach this line this should always exist. In theory I should be rich.
-                        if let Some(ref mymods_base_path) = SETTINGS.lock().unwrap().paths["mymods_base_path"] {
+                        let settings = SETTINGS.lock().unwrap().clone();
+                        let mymods_base_path = &settings.paths["mymods_base_path"];
+                        if let Some(ref mymods_base_path) = mymods_base_path {
 
                             // We get the assets folder of our mod (without .pack extension).
                             let mut assets_folder = mymods_base_path.to_path_buf();
@@ -2381,7 +2383,9 @@ fn main() {
                     Mode::MyMod {ref game_folder_name, ref mod_name} => {
 
                         // In theory, if we reach this line this should always exist. In theory I should be rich.
-                        if let Some(ref mymods_base_path) = SETTINGS.lock().unwrap().paths["mymods_base_path"] {
+                        let settings = SETTINGS.lock().unwrap().clone();
+                        let mymods_base_path = &settings.paths["mymods_base_path"];
+                        if let Some(ref mymods_base_path) = mymods_base_path {
 
                             // We get the assets folder of our mod (without .pack extension).
                             let mut assets_folder = mymods_base_path.to_path_buf();
