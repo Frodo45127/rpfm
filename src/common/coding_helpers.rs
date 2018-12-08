@@ -8,12 +8,9 @@
 //
 // Note: the specific decoders return tuples with (value, index of the new thing to decode).
 
-extern crate byteorder;
-extern crate encoding;
-
-use self::byteorder::{ByteOrder, LittleEndian};
-use self::encoding::{Encoding, DecoderTrap};
-use self::encoding::all::ISO_8859_1;
+use byteorder::{ByteOrder, LittleEndian};
+use encoding::{Encoding, DecoderTrap};
+use encoding::all::ISO_8859_1;
 use crate::error::{Error, ErrorKind, Result};
 
 //-----------------------------------------------------//

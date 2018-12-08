@@ -1,9 +1,4 @@
 // Here it goes all the stuff related with "Settings" and "My Mod" windows.
-extern crate serde_json;
-extern crate qt_widgets;
-extern crate qt_gui;
-extern crate qt_core;
-extern crate cpp_utils;
 
 use qt_widgets::check_box::CheckBox;
 use qt_widgets::combo_box::ComboBox;

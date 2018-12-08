@@ -1,10 +1,4 @@
 // In this file are all the helper functions used by the UI (mainly Qt here)
-extern crate chrono;
-extern crate qt_widgets;
-extern crate qt_gui;
-extern crate qt_core;
-extern crate cpp_utils;
-extern crate serde_json;
 
 use qt_widgets::abstract_button::AbstractButton;
 use qt_widgets::action::Action;

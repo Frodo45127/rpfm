@@ -1,20 +1,18 @@
 // Here it goes the code needed to produce error files in panic, so I can debug properly the stupid CTDs people has, because sentry fails a lot.
 // If you're interested, is inspired in the human-panic crate. The reason to not use that crate is because it's not configurable. At all.
 // But otherwise, feel free to check it out if you need an easy-to-use simple error logger.
-extern crate failure;
-extern crate os_info;
-extern crate serde;
-extern crate toml;
-extern crate uuid;
+
+use failure::Backtrace;
+use uuid::Uuid;
+use serde_derive::Serialize;
+
+use std::fs::File;
+use std::io::{BufWriter, Write};
+use std::panic::PanicInfo;
 
 use crate::RPFM_PATH;
 use crate::VERSION;
 use crate::error::Result;
-use self::failure::Backtrace;
-use self::uuid::Uuid;
-use std::fs::File;
-use std::io::{BufWriter, Write};
-use std::panic::PanicInfo;
 
 /// This struct contains all the info to write into a bug report file.
 #[derive(Debug, Serialize)]

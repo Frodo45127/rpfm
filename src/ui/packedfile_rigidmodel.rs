@@ -1,7 +1,4 @@
 // In this file are all the helper functions used by the UI when decoding RigidModel PackedFiles.
-extern crate qt_widgets;
-extern crate qt_gui;
-extern crate qt_core;
 
 use qt_widgets::widget::Widget;
 use qt_widgets::group_box::GroupBox;

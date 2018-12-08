@@ -1,6 +1,6 @@
 /// Build script for the entire project.
 #[cfg(target_os = "windows")]
-extern crate winres;
+use winres;
 
 // Windows specific stuff.
 #[cfg(target_os = "windows")]

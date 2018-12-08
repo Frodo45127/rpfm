@@ -9,15 +9,14 @@
 // 1 misteryous byte
 // 4 bytes for the entry count, in u32 reversed.
 
-extern crate csv;
-extern crate uuid;
+use csv::{ ReaderBuilder, WriterBuilder, QuoteStyle };
+use serde_derive::{Serialize, Deserialize};
+use uuid::Uuid;
 
 use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
 
-use self::uuid::Uuid;
-use self::csv::{ ReaderBuilder, WriterBuilder, QuoteStyle };
 use crate::common::coding_helpers::*;
 use super::SerializableToTSV;
 use self::schemas::*;

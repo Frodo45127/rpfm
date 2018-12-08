@@ -1,7 +1,4 @@
 // In this file is all the stuff needed for the dependency manager to work.
-extern crate qt_widgets;
-extern crate qt_gui;
-extern crate qt_core;
 
 use qt_widgets::menu::Menu;
 use qt_widgets::slots::SlotQtCorePointRef;

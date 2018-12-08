@@ -1,7 +1,7 @@
 // In this file are all the Structs and Impls required to decode and encode the PackFiles.
 // NOTE: Arena support was implemented thanks to the work of "Trolldemorted" here: https://github.com/TotalWarArena-Modding/twa_pack_lib
-extern crate bitflags;
 
+use bitflags::bitflags;
 use std::num::Wrapping;
 use std::path::PathBuf;
 use std::io::prelude::*;
@@ -30,7 +30,6 @@ const FILE_TYPE_RELEASE: u32 = 1;
 const FILE_TYPE_PATCH: u32 = 2;
 const FILE_TYPE_MOD: u32 = 3;
 const FILE_TYPE_MOVIE: u32 = 4;
-
 bitflags! {
 
     /// This represents the bitmasks a PackFile can have applied to his type.

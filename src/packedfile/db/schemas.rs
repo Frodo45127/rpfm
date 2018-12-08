@@ -1,5 +1,6 @@
 // In this file goes all the stuff needed for the schema decoder to work.
-extern crate serde_json;
+
+use serde_derive::{Serialize, Deserialize};
 
 use std::path::PathBuf;
 use std::fs::File;

@@ -1,7 +1,4 @@
 // In this file are all the helper functions used by the UI when decoding DB PackedFiles.
-extern crate qt_widgets;
-extern crate qt_gui;
-extern crate qt_core;
 
 use qt_widgets::abstract_item_view::{EditTrigger, ScrollMode, SelectionMode};
 use qt_widgets::action::Action;

@@ -1,5 +1,6 @@
 // In this module should be everything related to the settings stuff.
-extern crate serde_json;
+
+use serde_derive::{Serialize, Deserialize};
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;

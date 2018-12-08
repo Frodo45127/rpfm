@@ -21,29 +21,7 @@
 // This disables the terminal window, so it doesn't show up when executing RPFM in Windows.
 #![windows_subsystem = "windows"]
 
-#[macro_use]
-extern crate bitflags;
-
-#[macro_use]
-extern crate serde_derive;
-extern crate serde_json;
-extern crate failure;
-extern crate num;
-extern crate chrono;
-extern crate regex;
-
-#[macro_use]
-extern crate sentry;
-extern crate open;
-extern crate qt_core;
-extern crate qt_gui;
-extern crate qt_widgets;
-extern crate cpp_utils;
-
-#[macro_use]
-extern crate lazy_static;
-extern crate indexmap;
-
+// Uses for everything we need. It's a looooong list.
 use qt_widgets::abstract_item_view::ScrollMode;
 use qt_widgets::action::Action;
 use qt_widgets::action_group::ActionGroup;
@@ -101,9 +79,9 @@ use std::panic;
 use std::path::{Path, PathBuf};
 use std::fs::{DirBuilder, copy, remove_file, remove_dir_all};
 
-use indexmap::map::IndexMap;
 use chrono::NaiveDateTime;
-use sentry::integrations::panic::register_panic_handler;
+use indexmap::map::IndexMap;
+use lazy_static::lazy_static;
 
 use crate::common::*;
 use crate::common::communications::*;
@@ -438,9 +416,6 @@ lazy_static! {
 /// in two different places in every update.
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-/// This is the DSN needed for Sentry reports to work. Don't change it.
-const SENTRY_DSN: &str = "https://a8bf0a98ed43467d841ec433fb3d75a8@sentry.io/1205298";
-
 /// This constant is used to enable or disable the generation of a new Schema file in compile time.
 /// If you don't want to explicity create a new Schema for a game, leave this disabled.
 const GENERATE_NEW_SCHEMA: bool = false;
@@ -597,16 +572,7 @@ pub struct AppUI {
 /// Main function.
 fn main() {
 
-    // Initialize sentry, so we can get CTD and thread errors reports.
-    let _guard = sentry::init((SENTRY_DSN, sentry::ClientOptions {
-        release: sentry_crate_release!(),
-        ..Default::default()
-    }));
-
-    // If this is a release, register Sentry's Panic Handler, so we get reports on CTD.
-    if !cfg!(debug_assertions) { register_panic_handler(); }
-
-    // Sentry fails quite a lot, so log the crashes so the user can send them himself.
+    // Log the crashes so the user can send them himself.
     if !cfg!(debug_assertions) { panic::set_hook(Box::new(move |info: &panic::PanicInfo| { Report::new(info).save().unwrap(); })); }
 
     // Create the application...

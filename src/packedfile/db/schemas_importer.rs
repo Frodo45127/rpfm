@@ -1,13 +1,14 @@
 // This is just a helper to get the schemas from the assembly kit. This is NOT INTENDED to work in
 // runtime, so we just wired up when we need to create a new schema from scratch.
-extern crate serde_xml_rs;
+
+use serde_derive::Deserialize;
+use serde_xml_rs::deserialize;
 
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
 
 use crate::error::Result;
-use self::serde_xml_rs::deserialize;
 use super::DB;
 use super::schemas::*;
 use crate::common::*;

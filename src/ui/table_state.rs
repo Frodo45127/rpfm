@@ -1,15 +1,17 @@
 // Usually this kind of stuff goes into the background thread, but this is only used in the UI. And I'm tired, so this'll stay here for the moment.
-extern crate serde_json;
 
 use qt_gui::standard_item_model::StandardItemModel;
 
-use crate::RPFM_PATH;
-use crate::TABLE_STATES_UI;
+use serde_derive::{Serialize, Deserialize};
+
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::fs::File;
 use std::io::Write;
 use std::io::{BufReader, BufWriter};
+
+use crate::RPFM_PATH;
+use crate::TABLE_STATES_UI;
 
 use crate::error::Result;
 use crate::ui::TableOperations;

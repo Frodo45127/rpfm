@@ -1,17 +1,14 @@
 // Here it goes all the stuff related to the UI part of the "Update Checker" and the future "Autoupdater".
-extern crate serde_json;
-extern crate restson;
-extern crate qt_widgets;
-extern crate qt_gui;
-extern crate qt_core;
-extern crate cpp_utils;
-extern crate reqwest;
 
-use qt_widgets::{widget::Widget, message_box, message_box::MessageBox};
+use qt_widgets::message_box;
+use qt_widgets::message_box::MessageBox;
+use qt_widgets::widget::Widget;
 
 use qt_core::flags::Flags;
 
-use self::restson::RestClient;
+use restson::RestClient;
+use serde_derive::{Serialize, Deserialize};
+
 use std::sync::mpsc::{channel, Sender, Receiver};
 use std::thread;
 use std::cell::RefCell;

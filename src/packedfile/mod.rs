@@ -1,5 +1,6 @@
 // In this file are all the Fn, Structs and Impls common to at least 2 PackedFile types.
-extern crate csv;
+
+use serde_derive::{Serialize, Deserialize};
 
 use std::io::{ BufReader, Read };
 use std::fs::File;

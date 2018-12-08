@@ -1,7 +1,4 @@
 // In this file are all the helper functions used by the UI when editing Text PackedFiles.
-extern crate qt_widgets;
-extern crate qt_gui;
-extern crate qt_core;
 
 use qt_widgets::dialog::Dialog;
 use qt_widgets::dialog_button_box::{DialogButtonBox, StandardButton};

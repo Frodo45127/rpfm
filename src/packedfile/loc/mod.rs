@@ -1,11 +1,12 @@
 // In this file we define the PackedFile type Loc for decoding and encoding it.
 // This is the type used by localisation files.
-extern crate csv;
+
+use csv::{ReaderBuilder, WriterBuilder, QuoteStyle};
+use serde_derive::{Serialize, Deserialize};
 
 use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
-use self::csv::{ ReaderBuilder, WriterBuilder, QuoteStyle };
 
 use crate::common::coding_helpers::*;
 use crate::error::{Error, ErrorKind, Result};

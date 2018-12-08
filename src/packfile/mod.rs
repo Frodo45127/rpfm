@@ -1,7 +1,6 @@
 // In this file are all the functions that the UI needs to interact with the PackFile logic.
 // As a rule, there should be no UI-related stuff in this module or his childrens.
 
-// use std::fs::{File, DirBuilder, copy};
 use std::fs::{File, DirBuilder};
 use std::io::{Read, Write};
 use std::path::PathBuf;

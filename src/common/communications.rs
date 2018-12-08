@@ -1,5 +1,4 @@
 // This module is for communication-related stuff.
-extern crate qt_core;
 
 use std::cell::RefCell;
 use std::rc::Rc;

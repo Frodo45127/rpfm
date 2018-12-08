@@ -1,9 +1,4 @@
 // Here is all the stuff related to the Shortcuts window. Keep in mind this window is just visual.
-// The shortcuts cannot be changed by the user.
-extern crate qt_widgets;
-extern crate qt_gui;
-extern crate qt_core;
-extern crate cpp_utils;
 
 use qt_widgets::dialog::Dialog;
 use qt_widgets::dialog_button_box;

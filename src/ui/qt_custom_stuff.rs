@@ -1,6 +1,4 @@
 // Here it goes ffi stuff, like subclassing and stuff like that.
-extern crate qt_widgets;
-extern crate qt_core;
 
 use qt_core::string_list::StringList;
 use qt_core::object::Object;

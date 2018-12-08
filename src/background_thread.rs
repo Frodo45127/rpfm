@@ -1,4 +1,4 @@
-extern crate open;
+// Here should go just the Background loop.
 
 use std::env::temp_dir;
 use std::sync::mpsc::{Sender, Receiver};

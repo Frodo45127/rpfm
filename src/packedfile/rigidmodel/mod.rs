@@ -2,6 +2,8 @@
 // This is the type used by 3D model files of units and buildings. Both are different, so we need to
 // take the type in count while processing them.
 
+use serde_derive::{Serialize, Deserialize};
+
 use crate::common::coding_helpers;
 use crate::error::{ErrorKind, Result};
 

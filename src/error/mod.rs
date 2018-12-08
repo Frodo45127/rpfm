@@ -1,14 +1,9 @@
 // Here should go all the stuff needed to get the damn error system working, so we can provide precise
 // error reports instead what we had before.
-extern crate failure;
-extern crate serde_json;
-extern crate csv;
-extern crate reqwest;
-extern crate toml;
 
 use failure::{Backtrace, Context, Fail};
 use serde_json::error::Category;
-use self::toml::ser;
+use toml::ser;
 
 use std::fmt;
 use std::fmt::Display;

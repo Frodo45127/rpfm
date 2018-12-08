@@ -1,11 +1,9 @@
 // In this file are all the "Generic" helper functions used by RPFM (no UI code here).
 // As we may or may not use them, all functions here should have the "#[allow(dead_code)]"
 // var set, so the compiler doesn't spam us every time we try to compile.
-extern crate chrono;
-extern crate serde;
-extern crate serde_json;
 
 use chrono::{Utc, DateTime};
+use serde_derive::{Serialize, Deserialize};
 
 use std::fs::{File, read_dir};
 use std::path::{Path, PathBuf};
