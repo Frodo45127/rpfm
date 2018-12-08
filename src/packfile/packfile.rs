@@ -373,12 +373,13 @@ impl PackFile {
         let mut pack_file = BufReader::new(File::open(&file_path)?);
         let mut pack_file_decoded = Self::new();
 
-        // First, we do some quick checkings to ensure it's a valid PackFile.
+        // First, we do some quick checkings to ensure it's a valid PackFile. 
+        // 24 is the bare minimum that we need to check how a PackFile should be internally, so any file with less than that is not a valid PackFile.
         let pack_file_len = pack_file.get_ref().metadata()?.len();
-        if pack_file_len < 8 { return Err(ErrorKind::PackFileHeaderNotComplete)? }
+        if pack_file_len < 24 { return Err(ErrorKind::PackFileHeaderNotComplete)? }
 
         // Create a little buffer to read the basic data from the header of the PackFile.
-        let mut buffer = vec![0; 8];
+        let mut buffer = vec![0; 24];
         pack_file.read_exact(&mut buffer)?;
 
         // Start populating our decoded PackFile Struct.
