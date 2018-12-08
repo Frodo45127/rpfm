@@ -631,24 +631,24 @@ impl PackFile {
         let mut file = BufWriter::new(File::create(&self.file_path)?);
 
         // Write the entire header.
-        file.write(&encode_string_u8(&self.pfh_version.get_value()))?;
-        file.write(&encode_integer_u32(self.bitmask.bits | self.pfh_file_type.get_value()))?;
-        file.write(&encode_integer_u32(self.pack_files.len() as u32))?;
-        file.write(&encode_integer_u32(pack_file_index.len() as u32))?;
-        file.write(&encode_integer_u32(self.packed_files.len() as u32))?;
-        file.write(&encode_integer_u32(packed_file_index.len() as u32))?;
+        file.write_all(&encode_string_u8(&self.pfh_version.get_value()))?;
+        file.write_all(&encode_integer_u32(self.bitmask.bits | self.pfh_file_type.get_value()))?;
+        file.write_all(&encode_integer_u32(self.pack_files.len() as u32))?;
+        file.write_all(&encode_integer_u32(pack_file_index.len() as u32))?;
+        file.write_all(&encode_integer_u32(self.packed_files.len() as u32))?;
+        file.write_all(&encode_integer_u32(packed_file_index.len() as u32))?;
 
         // Update the creation time, then save it.
         self.timestamp = get_current_time();
         match self.pfh_version {
-            PFHVersion::PFH5 | PFHVersion::PFH4 => file.write(&encode_integer_u32(self.timestamp as u32))?,
-            PFHVersion::PFH3 => file.write(&encode_integer_i64((self.timestamp + SEC_TO_UNIX_EPOCH) * WINDOWS_TICK))?,
+            PFHVersion::PFH5 | PFHVersion::PFH4 => file.write_all(&encode_integer_u32(self.timestamp as u32))?,
+            PFHVersion::PFH3 => file.write_all(&encode_integer_i64((self.timestamp + SEC_TO_UNIX_EPOCH) * WINDOWS_TICK))?,
         };
 
         // Write the indexes and the data of the PackedFiles. No need to keep the data, as it has been preloaded before.
-        file.write(&pack_file_index)?;
-        file.write(&packed_file_index)?;
-        for packed_file in &self.packed_files { file.write(&(packed_file.get_data()?))?; }
+        file.write_all(&pack_file_index)?;
+        file.write_all(&packed_file_index)?;
+        for packed_file in &self.packed_files { file.write_all(&(packed_file.get_data()?))?; }
 
         // If nothing has failed, return success.
         Ok(())
