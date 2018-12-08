@@ -391,8 +391,8 @@ impl PackFile {
         // Depending on the data we got, prepare to read the header and ensure we have all the bytes we need.
         match pack_file_decoded.pfh_version {
             PFHVersion::PFH5 | PFHVersion::PFH4 => {
-                if pack_file_decoded.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) && pack_file_len < 48 { return Err(ErrorKind::PackFileHeaderNotComplete)? }
-                else if !pack_file_decoded.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) && pack_file_len < 28 { return Err(ErrorKind::PackFileHeaderNotComplete)? }
+                if (pack_file_decoded.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) && pack_file_len < 48) ||
+                    (!pack_file_decoded.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) && pack_file_len < 28) { return Err(ErrorKind::PackFileHeaderNotComplete)? }
                 
                 if pack_file_decoded.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) { buffer = vec![0; 48]; }
                 else { buffer = vec![0; 28]; }
