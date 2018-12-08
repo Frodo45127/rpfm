@@ -1183,8 +1183,8 @@ impl PackedFileDBTreeView {
                                     };
 
                                     // If the value hasn't change (like when we add 0), set the operation as "None".
-                                    if result == value_to_operate { results.push(MathOperationResult::None) }
-
+                                    // Turns out that comparing equality of floats is asking for trouble, so... we have to do some magic here.
+                                    if (result - value_to_operate) < std::f64::EPSILON { results.push(MathOperationResult::None) }
                                     else if let Ok(result) = format!("{}", result).parse::<f32>() { results.push(MathOperationResult::Float(result)) }
                                     else { return show_dialog(app_ui.window, false, ErrorKind::DBTableApplyMathsOverflow) }
                                 }
