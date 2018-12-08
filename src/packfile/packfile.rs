@@ -379,7 +379,7 @@ impl PackFile {
 
         // Create a little buffer to read the basic data from the header of the PackFile.
         let mut buffer = vec![0; 8];
-        pack_file.read(&mut buffer)?;
+        pack_file.read_exact(&mut buffer)?;
 
         // Start populating our decoded PackFile Struct.
         pack_file_decoded.file_path = file_path;
@@ -405,7 +405,7 @@ impl PackFile {
         pack_file.seek(SeekFrom::Start(0))?;
 
         // We try to read the rest of the header.
-        pack_file.read(&mut buffer)?;
+        pack_file.read_exact(&mut buffer)?;
 
         // Fill the default header with the current PackFile values.
         let pack_file_count = decode_integer_u32(&buffer[8..12])?;
