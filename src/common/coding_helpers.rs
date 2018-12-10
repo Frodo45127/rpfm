@@ -100,6 +100,22 @@ pub fn decode_string_u8_0padded(string_encoded: &[u8]) -> Result<(String, usize)
     Ok((string_decoded, string_encoded.len()))
 }
 
+/// Common helper. This function allows us to decode a 00-Terminated UTF-8 encoded String. This type of String has 
+/// a 00 byte at his end and variable size. It advances the provided offset while decoding. We return the decoded String.
+#[allow(dead_code)]
+pub fn decode_string_u8_0terminated(string_encoded: &[u8], offset: &mut usize) -> Result<String> {
+    let mut string = String::new();
+    let mut index = 0;
+    loop {
+        let character = *string_encoded.get(index).ok_or_else(|| Error::from(ErrorKind::HelperDecodingEncodingError("<p>Error trying to decode an UTF-8 0-Terminated String.</p>".to_owned())))?;
+        index += 1;
+        if character == 0 { break; }
+        string.push(character as char);
+    }
+    *offset += index;
+    Ok(string)
+}
+
 /// Common helper. This function allows us to decode an UTF-16 encoded String.
 #[allow(dead_code)]
 pub fn decode_string_u16(string_encoded: &[u8]) -> Result<String> {

@@ -1,1199 +1,601 @@
-// In this file are all the functions that the UI needs to interact with the PackFile logic.
-// As a rule, there should be no UI-related stuff in this module or his childrens.
+// In this file are all the Structs and Impls required to decode and encode the PackFiles.
 
-use std::fs::{File, DirBuilder};
-use std::io::{Read, Write};
+use bitflags::bitflags;
+
 use std::path::PathBuf;
-use std::io::BufReader;
-use std::io::BufWriter;
+use std::io::prelude::*;
+use std::io::{ BufReader, BufWriter, Read, Write, SeekFrom };
+use std::fs::File;
+use std::sync::{Arc, Mutex};
 
-use crate::SUPPORTED_GAMES;
-use crate::GAME_SELECTED;
-use crate::DEPENDENCY_DATABASE;
-use crate::SCHEMA;
 use crate::common::*;
-use crate::error::{Error, ErrorKind, Result};
-use crate::packfile::packfile::PFHFileType;
-use crate::packedfile::loc::Loc;
-use crate::packedfile::db::{DB, DecodedData};
-use crate::packedfile::rigidmodel::RigidModel;
-
-pub mod packfile;
-
-/*
---------------------------------------------------------
-                PackFile-Related Functions
---------------------------------------------------------
-*/
-
-/// This function creates a new PackFile with the name received.
-pub fn new_packfile(file_name: String, pfh_version: packfile::PFHVersion) -> packfile::PackFile {
-    packfile::PackFile::new_with_name(file_name, pfh_version)
-}
-
-/// This function is used to open the PackFiles. It requires the path of the PackFile to open, and
-/// it returns the PackFile decoded (if success) or an error message (if error).
-pub fn open_packfile(pack_file_path: PathBuf, use_lazy_loading: bool) -> Result<packfile::PackFile> {
-
-    // If the name doesn't end in ".pack", we don't open it. It works, but it'll break some things.
-    if pack_file_path.file_name().unwrap().to_str().unwrap().ends_with(".pack") {
-        packfile::PackFile::read(pack_file_path, use_lazy_loading)
-    }
-
-    // Otherwise, return an error.
-    else { Err(ErrorKind::OpenPackFileInvalidExtension)? }
-}
-
-/// This function is a special open function, to get all the DB and LOC PackedFiles for a game, and a mod if that mode requires another mod.
-/// It returns all the PackedFiles in a big Vec<PackedFile>.
-pub fn load_dependency_packfiles(dependencies: &[String]) -> Vec<packfile::PackedFile> {
-
-    // Create the empty list.
-    let mut packed_files = vec![];
-
-    // Get all the paths we need.
-    let main_db_pack_paths = get_game_selected_db_pack_path();
-    let main_loc_pack_paths = get_game_selected_loc_pack_path();
-
-    let data_packs_paths = get_game_selected_data_packfiles_paths();
-    let content_packs_paths = get_game_selected_content_packfiles_paths();
-
-    // Get all the DB Tables from the main DB PackFiles, if it's configured.
-    if let Some(paths) = main_db_pack_paths {
-        for path in &paths {
-            if let Ok(pack_file) = open_packfile(path.to_path_buf(), true) {
-
-                // For each PackFile in the data.pack...
-                for packed_file in pack_file.packed_files.iter() {
-
-                    // If it's a DB file...
-                    if !packed_file.path.is_empty() && packed_file.path.starts_with(&["db".to_owned()]) {
-
-                        // Clone the PackedFile, and add it to the list.
-                        let mut packed_file = packed_file.clone();
-                        let _ = packed_file.load_data();
-                        packed_files.push(packed_file);
-                    }
-                }
-            }
-        }
-    }
-
-    // Get all the Loc PackedFiles from the main Loc PackFiles, if it's configured.
-    if let Some(paths) = main_loc_pack_paths {
-        for path in &paths {
-            if let Ok(pack_file) = open_packfile(path.to_path_buf(), true) {
-
-                // For each PackFile in the data.pack...
-                for packed_file in pack_file.packed_files.iter() {
-
-                    // If it's a Loc file...
-                    if !packed_file.path.is_empty() && packed_file.path.last().unwrap().ends_with(".loc") {
-
-                        // Clone the PackedFile, and add it to the list.
-                        let mut packed_file = packed_file.clone();
-                        let _ = packed_file.load_data();
-                        packed_files.push(packed_file);
-                    }
-                }
-            }
-        }
-    }
-
-    // Get all the DB and Loc files from any of the dependencies, searching in both, /data and /content.
-    for packfile in dependencies {
-
-        // If the dependency PackFile is in the data folder...
-        if let Some(ref paths) = data_packs_paths {
-            for path in paths {
-                if path.file_name().unwrap().to_string_lossy().as_ref() == *packfile {
-                    if let Ok(pack_file) = open_packfile(path.to_path_buf(), true) {
-
-                        // For each PackFile in the data.pack...
-                        for packed_file in pack_file.packed_files.iter() {
-
-                            // If it's a DB file...
-                            if !packed_file.path.is_empty() && packed_file.path.starts_with(&["db".to_owned()]) {
-
-                                // Clone the PackedFile, and add it to the list.
-                                let mut packed_file = packed_file.clone();
-                                let _ = packed_file.load_data();
-                                packed_files.push(packed_file);
-                            }
-                        }
-                    }
-
-                    // Get all the Loc PackedFiles from the main Loc PackFile, if it's configured.
-                    if let Ok(pack_file) = open_packfile(path.to_path_buf(), true) {
-
-                        // For each PackFile in the data.pack...
-                        for packed_file in pack_file.packed_files.iter() {
-
-                            // If it's a Loc file...
-                            if !packed_file.path.is_empty() && packed_file.path.last().unwrap().ends_with(".loc") {
-
-                                // Clone the PackedFile, and add it to the list.
-                                let mut packed_file = packed_file.clone();
-                                let _ = packed_file.load_data();
-                                packed_files.push(packed_file);
-                            }
-                        }
-                    }
-                }
-            } 
-        }
-
-        // If the dependency PackFile is in the content folder...
-        if let Some(ref paths) = content_packs_paths {
-            for path in paths {
-                if path.file_name().unwrap().to_string_lossy().as_ref() == *packfile {
-
-                    // Get all the DB Tables from the main DB PackFile, if it's configured.
-                    if let Ok(pack_file) = open_packfile(path.to_path_buf(), true) {
-
-                        // For each PackFile in the data.pack...
-                        for packed_file in pack_file.packed_files.iter() {
-
-                            // If it's a DB file...
-                            if !packed_file.path.is_empty() && packed_file.path.starts_with(&["db".to_owned()]) {
-
-                                // Clone the PackedFile and add it to the PackedFiles List.
-                                let mut packed_file = packed_file.clone();
-                                let _ = packed_file.load_data();
-                                packed_files.push(packed_file);
-                            }
-                        }
-                    }
-
-                    // Get all the Loc PackedFiles from the main Loc PackFile, if it's configured.
-                    if let Ok(pack_file) = open_packfile(path.to_path_buf(), true) {
-
-                        // For each PackFile in the data.pack...
-                        for packed_file in pack_file.packed_files.iter() {
-
-                            // If it's a Loc file...
-                            if !packed_file.path.is_empty() && packed_file.path.last().unwrap().ends_with(".loc") {
-
-                                // Clone the PackedFile and add it to the PackedFiles List.
-                                let mut packed_file = packed_file.clone();
-                                let _ = packed_file.load_data();
-                                packed_files.push(packed_file);
-                            }
-                        }
-                    }
-                }
-            } 
-        }
-    }
-
-    // Return the new PackedFiles list.
-    packed_files
-}
-
-/// This function is another special open function, to get all the PackedFiles from every CA PackFile of a game.
-/// It returns a fake PackFile with them.
-pub fn load_all_ca_packfiles() -> Result<packfile::PackFile> {
-
-    // Create the fake PackFile.
-    let pfh_version = SUPPORTED_GAMES.get(&**GAME_SELECTED.lock().unwrap()).unwrap().id;
-    let mut pack_file = packfile::PackFile::new_with_name(GAME_SELECTED.lock().unwrap().to_owned(), pfh_version);
-
-    // Get all the paths we need and open them one by one.
-    let packs_paths = if let Some(paths) = get_game_selected_data_packfiles_paths() { paths } else { Err(ErrorKind::GamePathNotConfigured)? };
-    let mut ca_pack_files = vec![];
-    for path in packs_paths {
-        ca_pack_files.push(packfile::PackFile::read(path, true)?);
-    }
-
-    // Get all the PackedFiles from each PackFile. First Boot type, then Release type, then Patch type, then Movie type.
-    let mut boot_files = vec![];
-    for ca_pack_file in &ca_pack_files {
-        if let PFHFileType::Boot = ca_pack_file.pfh_file_type {
-            ca_pack_file.packed_files.iter().for_each(|x| boot_files.push(x.clone()));
-        }
-    }
-    
-    let mut release_files = vec![];
-    for ca_pack_file in &ca_pack_files {
-        if let PFHFileType::Release = ca_pack_file.pfh_file_type {
-            ca_pack_file.packed_files.iter().for_each(|x| release_files.push(x.clone()));
-        }
-    }
-
-    let mut patch_files = vec![];
-    for ca_pack_file in &ca_pack_files {
-        if let PFHFileType::Patch = ca_pack_file.pfh_file_type {
-            ca_pack_file.packed_files.iter().for_each(|x| patch_files.push(x.clone()));
-        }
-    }
-
-    // This may load custom PackFiles. The only way to fix this is to read the manifest and checking if they are there, but I don't know if it's in all the games.
-    // TODO: Make this only load CA PackFiles.
-    let mut movie_files = vec![];
-    for ca_pack_file in &ca_pack_files {
-        if let PFHFileType::Movie = ca_pack_file.pfh_file_type {
-            ca_pack_file.packed_files.iter().for_each(|x| movie_files.push(x.clone()));
-        }
-    }
-
-    // The priority in case of collision is:
-    // - Same Type: First to come is the valid one.
-    // - Different Type: Last to come is the valid one.
-    boot_files.sort_by_key(|x| x.path.to_vec());
-    boot_files.dedup_by_key(|x| x.path.to_vec());
-
-    release_files.sort_by_key(|x| x.path.to_vec());
-    release_files.dedup_by_key(|x| x.path.to_vec());
-
-    patch_files.sort_by_key(|x| x.path.to_vec());
-    patch_files.dedup_by_key(|x| x.path.to_vec());
-
-    movie_files.sort_by_key(|x| x.path.to_vec());
-    movie_files.dedup_by_key(|x| x.path.to_vec());
-
-    pack_file.packed_files.append(&mut movie_files);
-    pack_file.packed_files.append(&mut patch_files);
-    pack_file.packed_files.append(&mut release_files);
-    pack_file.packed_files.append(&mut boot_files);
-
-    pack_file.packed_files.sort_by_key(|x| x.path.to_vec());
-    pack_file.packed_files.dedup_by_key(|x| x.path.to_vec());
-
-    // Set it as type "Other(200)", so we can easely identify it as fake in other places.
-    pack_file.pfh_file_type = PFHFileType::Other(200);
-
-    // Return the new PackedFiles list.
-    Ok(pack_file)
-}
-
-/// This function is used to take an open PackFile, encode it and save it into the disk. We return
-/// a result with a message of success or error.
-/// It requires:
-/// - pack_file: a &mut pack_file::PackFile. It's the PackFile we are going to save.
-/// - new_path: an Option<PathBuf> with the path were we are going to save the PackFile. None if we
-///   are saving it in the same path it's when we opened it.
-pub fn save_packfile(
-    mut pack_file: &mut packfile::PackFile,
-    new_path: Option<PathBuf>,
-    is_editing_of_ca_packfiles_allowed: bool
-) -> Result<()> {
-
-    // If any of the problematic masks in the header is set or is one of CA's, return an error.
-    if !pack_file.is_editable(is_editing_of_ca_packfiles_allowed) { return Err(ErrorKind::PackFileIsNonEditable)? }
-
-    // If we receive a new path, update it. Otherwise, ensure the file actually exists on disk.
-    if let Some(path) = new_path { pack_file.file_path = path; }
-    else if !pack_file.file_path.is_file() { return Err(ErrorKind::PackFileIsNotAFile)? }
-    
-    // And we try to save it.
-    packfile::PackFile::save(&mut pack_file)
-}
-
-/// This function is used to add a file to a PackFile, processing it and turning it into a PackedFile.
-/// It returns a success or error message, depending on whether the file has been added, or not.
-/// It requires:
-/// - pack_file: a &mut pack_file::PackFile. It's the PackFile where we are going add the file.
-/// - file_path: a PathBuf with the current path of the file.
-/// - tree_path: a Vec<String> with the path in the TreeView where we are going to add the file.
-pub fn add_file_to_packfile(
-    pack_file: &mut packfile::PackFile,
-    file_path: &PathBuf,
-    tree_path: Vec<String>
-) -> Result<()> {
-
-    // If there is already a PackedFile in that path...
-    if pack_file.packedfile_exists(&tree_path) {
-
-        // Create the theorical path of the PackedFile.
-        let mut theorical_path = tree_path.to_vec();
-        theorical_path.insert(0, pack_file.file_path.file_name().unwrap().to_string_lossy().to_string());
-
-        // Get the destination PackedFile.
-        let packed_file = &mut pack_file.packed_files.iter_mut().find(|x| x.path == tree_path).ok_or_else(|| Error::from(ErrorKind::PackedFileNotFound))?;
-
-        // We get the data and his size...
-        let mut file = BufReader::new(File::open(&file_path)?);
-        let mut data = vec![];
-        file.read_to_end(&mut data)?;
-        packed_file.set_data(data);
-
-        // Change his last modified time.
-        packed_file.timestamp = get_last_modified_time_from_file(&file.get_ref());
-
-        // And then, return sucess.
-        Ok(())
-    }
-
-    // Otherwise, we add it as a new PackedFile.
-    else {
-
-        // We get the data and his size...
-        let mut file = BufReader::new(File::open(&file_path)?);
-        let mut data = vec![];
-        file.read_to_end(&mut data)?;
-
-        // And then we make a PackedFile with it and save it.
-        let packed_files = vec![packfile::PackedFile::read(get_last_modified_time_from_file(&file.get_ref()), tree_path, data); 1];
-        pack_file.add_packedfiles(packed_files);
-        Ok(())
+use crate::common::coding_helpers::*;
+use crate::error::{ErrorKind, Result};
+use crate::packfile::crypto::*;
+use crate::packfile::packedfile::*;
+
+mod compression;
+mod crypto;
+pub mod packedfile;
+
+/// These consts are used for dealing with Time-related operations.
+const WINDOWS_TICK: i64 = 10_000_000;
+const SEC_TO_UNIX_EPOCH: i64 = 11_644_473_600;
+
+/// These are the different Preamble/Id the PackFiles can have.
+const PFH5_PREAMBLE: &str = "PFH5"; // PFH5
+const PFH4_PREAMBLE: &str = "PFH4"; // PFH4
+const PFH3_PREAMBLE: &str = "PFH3"; // PFH3
+const PFH2_PREAMBLE: &str = "PFH2"; // PFH2
+const PFH0_PREAMBLE: &str = "PFH0"; // PFH0
+
+/// These are the types the PackFiles can have.
+const FILE_TYPE_BOOT: u32 = 0;
+const FILE_TYPE_RELEASE: u32 = 1;
+const FILE_TYPE_PATCH: u32 = 2;
+const FILE_TYPE_MOD: u32 = 3;
+const FILE_TYPE_MOVIE: u32 = 4;
+bitflags! {
+
+    /// This represents the bitmasks a PackFile can have applied to his type.
+    ///
+    /// The possible bitmasks are:
+    /// - `HAS_EXTENDED_HEADER`: Used to specify that the header of the PackFile is extended by 20 bytes. Used in Arena.
+    /// - `HAS_ENCRYPTED_INDEX`: Used to specify that the PackedFile Index is encrypted. Used in Arena.
+    /// - `HAS_INDEX_WITH_TIMESTAMPS`: Used to specify that the PackedFile Index contains a timestamp of evey PackFile.
+    /// - `HAS_ENCRYPTED_DATA`: Used to specify that the PackedFile's data is encrypted. Seen in `music.pack` PackFiles and in Arena.
+    pub struct PFHFlags: u32 {
+        const HAS_EXTENDED_HEADER       = 0b0000_0001_0000_0000;
+        const HAS_ENCRYPTED_INDEX       = 0b0000_0000_1000_0000;
+        const HAS_INDEX_WITH_TIMESTAMPS = 0b0000_0000_0100_0000;
+        const HAS_ENCRYPTED_DATA        = 0b0000_0000_0001_0000;
     }
 }
 
-/// This function is used to add one or many PackedFiles to a PackFile (from another PackFile).
-/// It returns a success or error message, depending on whether the PackedFile has been added, or not.
-/// It requires:
-/// - pack_file_source: a &pack_file::PackFile. It's the PackFile from we are going to take the PackedFile.
-/// - pack_file_destination: a &mut pack_file::PackFile. It's the Destination PackFile for the PackedFile.
-/// - complete_tree_path: the complete path (with PackFile) of the PackedFile or PackedFiles we want to add. A &[String] it is.
-pub fn add_packedfile_to_packfile(
-    pack_file_source: &packfile::PackFile,
-    pack_file_destination: &mut packfile::PackFile,
-    complete_path: &[String],
-) -> Result<()> {
-
-    // Get the type of whatever we want to add.
-    let path_type = get_type_of_selected_path(complete_path, pack_file_source);
-
-    // Get the real path (without PackFile).
-    let real_path = if complete_path.len() > 1 { &complete_path[1..] } else { &[] };
-
-    // Act depending on the PackedFile type.
-    match path_type {
-
-        // If the path is a file...
-        TreePathType::File(path) => {
-
-            // Check if the PackedFile already exists in the destination.
-            if pack_file_destination.packedfile_exists(real_path) {
-
-                // Get the destination PackedFile. If it fails, CTD because it's a code problem.
-                let packed_file = &mut pack_file_destination.packed_files.iter_mut().find(|x| x.path == path).ok_or_else(|| Error::from(ErrorKind::PackedFileNotFound))?;
-                packed_file.set_data(pack_file_source.packed_files.iter().find(|x| x.path == path).ok_or_else(|| Error::from(ErrorKind::PackedFileNotFound))?.get_data()?);
-
-                // Return success.
-                Ok(())
-            }
-
-            // Otherwise...
-            else {
-
-                // We get the PackedFile, clone it and add it to our own PackFile.
-                let mut packed_file = pack_file_source.packed_files.iter().find(|x| x.path == path).ok_or_else(|| Error::from(ErrorKind::PackedFileNotFound))?.clone();
-                packed_file.load_data()?;
-                pack_file_destination.add_packedfiles(vec![packed_file; 1]);
-
-                // Return success.
-                Ok(())
-            }
-        }
-
-        // If the path is a folder...
-        TreePathType::Folder(_) => {
-
-            // For each PackedFile inside the folder...
-            for packed_file in pack_file_source.packed_files.iter() {
-
-                // If it's one of the PackedFiles we want...
-                if !packed_file.path.is_empty() && packed_file.path.starts_with(real_path) {
-
-                    // Check if the PackedFile already exists in the destination.
-                    if pack_file_destination.packedfile_exists(&packed_file.path) {
-
-                        // Get the destination PackedFile.
-                        let packed_file = &mut pack_file_destination.packed_files.iter_mut().find(|x| x.path == packed_file.path).ok_or_else(|| Error::from(ErrorKind::PackedFileNotFound))?;
-
-                        // Then, we get his data.
-                        let index = pack_file_source.packed_files.iter().position(|x| x.path == packed_file.path).unwrap();
-                        packed_file.set_data(pack_file_source.packed_files[index].get_data()?);
-                    }
-
-                    // Otherwise...
-                    else {
-
-                        // We get the PackedFile, clone it and add it to our own PackFile.
-                        let mut packed_file = pack_file_source.packed_files.iter().find(|x| x.path == packed_file.path).ok_or_else(|| Error::from(ErrorKind::PackedFileNotFound))?.clone();
-                        packed_file.load_data()?;
-                        pack_file_destination.add_packedfiles(vec![packed_file]);
-                    }
-                }
-            }
-
-            // Return success.
-            Ok(())
-        },
-
-        // If the path is the PackFile...
-        TreePathType::PackFile => {
-
-            // For each PackedFile inside the folder...
-            for packed_file in pack_file_source.packed_files.iter() {
-
-                // Check if the PackedFile already exists in the destination.
-                if pack_file_destination.packedfile_exists(&packed_file.path) {
-
-                    // Get the destination PackedFile.
-                    let packed_file = &mut pack_file_destination.packed_files.iter_mut().find(|x| x.path == packed_file.path).ok_or_else(|| Error::from(ErrorKind::PackedFileNotFound))?;
-
-                    // Then, we get his data.
-                    let index = pack_file_source.packed_files.iter().position(|x| x.path == packed_file.path).unwrap();
-                    packed_file.set_data(pack_file_source.packed_files[index].get_data()?)
-                }
-
-                // Otherwise...
-                else {
-
-                    // We get the PackedFile.
-                    let mut packed_file = pack_file_source.packed_files.iter().find(|x| x.path == packed_file.path).ok_or_else(|| Error::from(ErrorKind::PackedFileNotFound))?.clone();
-                    packed_file.load_data()?;
-                    pack_file_destination.add_packedfiles(vec![packed_file]);
-                }
-            }
-
-            // Return success.
-            Ok(())
-        },
-
-        // In any other case, there is a problem somewhere. Otherwise, this is unreachable.
-        _ => unreachable!()
-    }
+/// This enum represents the **Version** of a PackFile.
+///
+/// The possible values are:
+/// - `PFH5`: Used in Warhammer 2 and Arena.
+/// - `PFH4`: Used in Warhammer 1, Attila, Rome 2, and Thrones of Brittania.
+/// - `PFH3`: Used in Shogun 2.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PFHVersion {
+    PFH5,
+    PFH4,
+    PFH3,
 }
 
-/// This function is used to delete a PackedFile or a group of PackedFiles under the same tree_path
-/// from the PackFile. We just need the open PackFile and the tree_path of the file/folder to delete.
-pub fn delete_from_packfile(
-    pack_file: &mut packfile::PackFile,
-    tree_path: &[String]
-) -> Result<()> {
-
-    // Get what it's what we want to delete.
-    match get_type_of_selected_path(tree_path, pack_file) {
-
-        // If it's a file, easy job.
-        TreePathType::File(packed_file_path) => {
-            let index = pack_file.packed_files.iter().position(|x| x.path == packed_file_path).unwrap();
-            pack_file.remove_packedfile(index);
-        }
-
-        // If it's a folder... it's a bit tricky.
-        TreePathType::Folder(tree_path) => {
-
-            // We create a vector to store the indexes of the files we are going to delete.
-            let mut indexes = vec![];
-
-            // For each PackedFile in our PackFile...
-            for (index, packed_file) in pack_file.packed_files.iter().enumerate() {
-
-                // If the PackedFile it's in our folder...
-                if !packed_file.path.is_empty() && packed_file.path.starts_with(&tree_path) {
-
-                    // Add his index to the indexes list.
-                    indexes.push(index);
-                }
-            }
-
-            // For each PackedFile we want to remove (in reverse), we remove it individually.
-            indexes.iter().rev().for_each(|index| pack_file.remove_packedfile(*index));
-        },
-
-        // If it's a PackFile, easy job. For non-existant files, return an error so the UI does nothing.
-        TreePathType::PackFile => pack_file.remove_all_packedfiles(),
-        TreePathType::None => Err(ErrorKind::Generic)?,
-    }
-
-    // Return success.
-    Ok(())
+/// This enum represents the **Type** of a PackFile. 
+///
+/// The possible types are, in the order they'll load when the game starts (their numeric value is the number besides them):
+/// - `Boot` **(0)**: Used in CA PackFiles, not useful for modding.
+/// - `Release` **(1)**: Used in CA PackFiles, not useful for modding.
+/// - `Patch` **(2)**: Used in CA PackFiles, not useful for modding.
+/// - `Mod` **(3)**: Used for mods. PackFiles of this type are only loaded in the game if they are enabled in the Mod Manager/Launcher.
+/// - `Movie` **(4)**: Used in CA PackFiles and for some special mods. Unlike `Mod` PackFiles, these ones always get loaded.
+/// - `Other(u32)`: Wildcard for any type that doesn't fit in any of the other categories. The type's value is stored in the Variant.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PFHFileType {
+    Boot,
+    Release,
+    Patch,
+    Mod,
+    Movie,
+    Other(u32),
 }
 
-/// This function is used to extract a PackedFile or a folder from the PackFile.
-/// It requires:
-/// - pack_file: the PackFile from where we want to extract the PackedFile.
-/// - tree_path: the COMPLETE tree_path of the PackedFile we want to extract.
-/// - extracted_path: the destination path of the file we want to extract.
-pub fn extract_from_packfile(
-    pack_file: &packfile::PackFile,
-    tree_path: &[String],
-    extracted_path: &PathBuf
-) -> Result<String> {
+/// This `Struct` stores the data of the PackFile in memory, along with some extra data needed to manipulate the PackFile.
+///
+/// It stores the following data from the header:
+/// - `file_path`: the path of the PackFile on disk.
+/// - `pfh_version`: the version/id of the PackFile. Usually it's PFHX.
+/// - `pfh_file_type`: the type of the PackFile.
+/// - `bitmask`: the bitmasks applied to this PackFile.
+/// - `timestamp`: that `Last Modified Date` of the PackFile. It's usually that or all zeros.
+///
+/// And the following data from the *data* part of the PackFile:
+/// - `pack_files`: the list of PackFiles in the PackFile Index.
+/// - `packed_files`: the list of PackedFiles inside this PackFile.
+/// - `empty_folders`: the list of empty folder in the PackFile.
+#[derive(Debug)]
+pub struct PackFile {
+    pub file_path: PathBuf,
+    pub pfh_version: PFHVersion,
+    pub pfh_file_type: PFHFileType,
+    pub bitmask: PFHFlags,
+    pub timestamp: i64,
 
-    // Get what it's what we want to extract.
-    match get_type_of_selected_path(tree_path, pack_file) {
-
-        // If it's a file, we try to create and write the file.
-        TreePathType::File(path) => {
-            let mut file = BufWriter::new(File::create(&extracted_path)?);
-            match file.write_all(&pack_file.packed_files.iter().find(|x| x.path == path).ok_or_else(|| Error::from(ErrorKind::PackedFileNotFound))?.get_data()?){
-                Ok(_) => Ok(format!("File extracted successfully:\n{}", extracted_path.display())),
-                Err(_) => Err(ErrorKind::ExtractError(vec![format!("<li>{}</li>", extracted_path.display().to_string());1]))?
-            }
-        },
-
-        // If it's a folder...
-        TreePathType::Folder(tree_path) => {
-
-            // These variables are here to keep track of what we have extracted and what files failed.
-            let mut files_extracted = 0;
-            let mut error_files = vec![];
-
-            // For each PackedFile we have...
-            for packed_file in &pack_file.packed_files {
-
-                // If it's one we need to extract...
-                if packed_file.path.starts_with(&tree_path) {
-
-                    // We remove everything from his path up to the folder we want to extract (included).
-                    let mut additional_path = packed_file.path.to_vec();
-                    additional_path.drain(..(tree_path.len()));
-
-                    // Remove the name of the file from the path and keep it.
-                    let file_name = additional_path.pop().unwrap();
-
-                    // Get the destination path of our file, without the file at the end.
-                    let mut current_path = extracted_path.clone().join(additional_path.iter().collect::<PathBuf>());
-
-                    // Create that directory.
-                    DirBuilder::new().recursive(true).create(&current_path)?;
-
-                    // Get the full path of the file.
-                    current_path.push(&file_name);
-
-                    // Try to create the file.
-                    let mut file = BufWriter::new(File::create(&current_path)?);
-
-                    // And try to write it. If any of the files throws an error, add it to the list and continue.
-                    match file.write_all(&packed_file.get_data()?) {
-                        Ok(_) => files_extracted += 1,
-                        Err(_) => error_files.push(format!("{:?}", current_path)),
-                    }
-                }
-            }
-
-            // If there is any error in the list, report it.
-            if !error_files.is_empty() {
-                let error_files_string = error_files.iter().map(|x| format!("<li>{}</li>", x)).collect::<Vec<String>>();
-                return Err(ErrorKind::ExtractError(error_files_string))?
-            }
-
-            // If we reach this, return success.
-            Ok(format!("{} files extracted. No errors detected.", files_extracted))
-        },
-
-        // If it's the PackFile...
-        TreePathType::PackFile => {
-
-            // These variables are here to keep track of what we have extracted and what files failed.
-            let mut files_extracted = 0;
-            let mut error_files = vec![];
-
-            // For each PackedFile we have...
-            for packed_file in &pack_file.packed_files {
-
-                // We remove everything from his path up to the folder we want to extract (not included).
-                let mut additional_path = packed_file.path.to_vec();
-
-                // Remove the name of the file from the path and keep it.
-                let file_name = additional_path.pop().unwrap();
-
-                // Get the destination path of our file, with the name of the PackFile, without the file at the end.
-                let mut current_path = extracted_path.clone().join(additional_path.iter().collect::<PathBuf>());
-
-                // Create that directory.
-                DirBuilder::new().recursive(true).create(&current_path)?;
-
-                // Get the full path of the file.
-                current_path.push(&file_name);
-
-                // Try to create the file.
-                let mut file = BufWriter::new(File::create(&current_path)?);
-
-                // And try to write it. If any of the files throws an error, add it to the list and continue.
-                match file.write_all(&packed_file.get_data()?){
-                    Ok(_) => files_extracted += 1,
-                    Err(_) => error_files.push(format!("{:?}", current_path)),
-                }
-            }
-
-            // If there is any error in the list, report it.
-            if !error_files.is_empty() {
-                let error_files_string = error_files.iter().map(|x| format!("<li>{}</li>", x)).collect::<Vec<String>>();
-                return Err(ErrorKind::ExtractError(error_files_string))?
-            }
-
-            // If we reach this, return success.
-            Ok(format!("{} files extracted. No errors detected.", files_extracted))
-        }
-
-        // If it doesn't exist, there has been a bug somewhere else. Otherwise, this situation will never happen.
-        TreePathType::None => unreachable!(),
-    }
+    pub pack_files: Vec<String>,
+    pub packed_files: Vec<PackedFile>,
+    pub empty_folders: Vec<Vec<String>>
 }
 
-/// This function is used to rename anything in the TreeView (PackFile not included).
-/// It requires:
-/// - pack_file: a &mut pack_file::PackFile. It's the PackFile opened.
-/// - tree_path: a Vec<String> with the tree_path of the file to rename. It needs to be complete.
-/// - new_name: the new name of the file to rename.
-pub fn rename_packed_file(
-    pack_file: &mut packfile::PackFile,
-    tree_path: &[String],
-    new_name: &str
-) -> Result<()> {
+/// This `Struct` is a reduced version of the `PackFile` Struct, used to pass data to the UI.
+#[derive(Debug)]
+pub struct PackFileUIData {
+    pub file_path: PathBuf,
+    pub pfh_version: PFHVersion,
+    pub pfh_file_type: PFHFileType,
+    pub bitmask: PFHFlags,
+    pub timestamp: i64,
+}
 
-    // First we check if the name is valid, and return an error if the new name is invalid.
-    if new_name == tree_path.last().unwrap() { Err(ErrorKind::UnchangedInput)? }
-    else if new_name.is_empty() { Err(ErrorKind::EmptyInput)? }
+/// Implementation of PFHFileType.
+impl PFHFileType {
 
-    // If we reach this point, we can rename the file/folder.
-    else {
-        match get_type_of_selected_path(tree_path, pack_file) {
-            TreePathType::File(path) => {
+    /// This function returns the PackFile's **Type** in `u32` format. To know what value corresponds with what type, check their definition's comment.
+    pub fn get_value(self) -> u32 {
+        match self {
+            PFHFileType::Boot => FILE_TYPE_BOOT,
+            PFHFileType::Release => FILE_TYPE_RELEASE,
+            PFHFileType::Patch => FILE_TYPE_PATCH,
+            PFHFileType::Mod => FILE_TYPE_MOD,
+            PFHFileType::Movie => FILE_TYPE_MOVIE,
+            PFHFileType::Other(value) => value
+        }
+    }
 
-                // PackedFiles cannot have spaces in their name.
-                if new_name.contains(' ') { Err(ErrorKind::InvalidInput)? }
-
-                // Now we create the new path, while conserving the old one for checks
-                let mut new_path = path.to_owned();
-                new_path.pop();
-                new_path.push(new_name.to_string());
-
-                if !pack_file.packedfile_exists(&new_path) {
-                    pack_file.packed_files.iter_mut().find(|x| x.path == path).ok_or_else(|| Error::from(ErrorKind::PackedFileNotFound))?.path = new_path;
-                    Ok(())
-                }
-                else { Err(ErrorKind::NameAlreadyInUseInThisPath)? }
-            }
-            TreePathType::Folder(tree_path) => {
-                let mut new_tree_path = tree_path.to_owned();
-                new_tree_path.pop();
-                new_tree_path.push(new_name.to_string());
-
-                // If the folder doesn't exist yet, we change the name of the folder we want to rename
-                // in the path of every file that starts with his path.
-                if !pack_file.folder_exists(&new_tree_path) {
-                    let index_position = tree_path.len() - 1;
-                    for packed_file in &mut pack_file.packed_files {
-                        if packed_file.path.starts_with(&tree_path) {
-                            packed_file.path.remove(index_position);
-                            packed_file.path.insert(index_position, new_name.to_string());
-                        }
-                    }
-                    Ok(())
-                }
-                else {
-                    Err(ErrorKind::NameAlreadyInUseInThisPath)?
-                }
-            }
-            TreePathType::PackFile |
-            TreePathType::None => unreachable!(),
+    /// This function returns the PackFile's Type or an Error if the Type is invalid.
+    pub fn get_type(value: u32) -> Self {
+        match value {
+            FILE_TYPE_BOOT => PFHFileType::Boot,
+            FILE_TYPE_RELEASE => PFHFileType::Release,
+            FILE_TYPE_PATCH => PFHFileType::Patch,
+            FILE_TYPE_MOD => PFHFileType::Mod,
+            FILE_TYPE_MOVIE => PFHFileType::Movie,
+            _ => PFHFileType::Other(value),
         }
     }
 }
 
-/// This function is used to apply a prefix to any PackedFile under a path. It returns a tuple with the old
-/// paths and the new name for each PackedFile.
-/// It requires:
-/// - pack_file: a &mut pack_file::PackFile. It's the PackFile opened.
-/// - folder_path: a Vec<String> with the tree_path of the folder with the files to rename. It needs to be incomplete.
-/// - prefix: the prefix to apply to each PackedFile.
-pub fn apply_prefix_to_packed_files(
-    pack_file: &mut packfile::PackFile,
-    folder_path: &[String],
-    prefix: &str
-) -> Result<(Vec<Vec<String>>)> {
+/// Implementation of PFHVersion.
+impl PFHVersion {
 
-    // First we check if the prefix is valid, and return an error if the prefix is invalid.
-    if prefix.is_empty() { Err(ErrorKind::EmptyInput)? }
-    else if prefix.contains(' ') { Err(ErrorKind::InvalidInput)? }
-
-    // If we reach this point, we can safely add the prefix to the PackedFiles.
-    else {
-
-        // There is a situation where an old path and a new path can generate a duplicate. 
-        // Here is not a problem, but there is no way to prevent it in the UI, so we have to deal with it here.
-        let old_paths = pack_file.packed_files.iter().filter(|x| x.path.starts_with(&folder_path)).map(|x| x.path.to_vec()).collect::<Vec<Vec<String>>>();
-        let mut new_paths = old_paths.to_vec();
-        new_paths.iter_mut().for_each(|x| *x.last_mut().unwrap() = format!("{}{}", prefix, *x.last().unwrap()));
-
-        // Check if ANY of the new paths is also present in the old paths.
-        for path in &new_paths {
-            if old_paths.contains(&path) { return Err(ErrorKind::InvalidInput)? }
+    /// This function returns the PackFile's **Preamble** or **Id** (his 4 first bytes) in `u32` format.
+    pub fn get_value(&self) -> &str {
+        match *self {
+            PFHVersion::PFH5 => PFH5_PREAMBLE,
+            PFHVersion::PFH4 => PFH4_PREAMBLE,
+            PFHVersion::PFH3 => PFH3_PREAMBLE,
         }
+    }
 
-        pack_file.packed_files.iter_mut().filter(|x| x.path.starts_with(&folder_path)).for_each(|x| *x.path.last_mut().unwrap() = format!("{}{}", prefix, *x.path.last().unwrap()));
-
-        // If there were no errors, return the list of changed paths.
-        Ok(old_paths)
+    /// This function returns the PackFile's Version or an Error if the version is invalid.
+    pub fn get_version(version: &str) -> Result<Self> {
+        match version {
+            PFH5_PREAMBLE => Ok(PFHVersion::PFH5),
+            PFH4_PREAMBLE => Ok(PFHVersion::PFH4),
+            PFH3_PREAMBLE => Ok(PFHVersion::PFH3),
+            PFH2_PREAMBLE => Err(ErrorKind::PackFileNotSupported)?,
+            PFH0_PREAMBLE => Err(ErrorKind::PackFileNotSupported)?,
+            _ => Err(ErrorKind::PackFileIsNotAPackFile)?,
+        }
     }
 }
 
-/*
---------------------------------------------------------
-             PackedFile-Related Functions
---------------------------------------------------------
-*/
 
-/// This function saves the data of the edited Loc PackedFile in the main PackFile after a change has
-/// been done by the user. Checking for valid characters is done before this, so be careful to not break it.
-pub fn update_packed_file_data_loc(
-    packed_file_data_decoded: &Loc,
-    pack_file: &mut packfile::PackFile,
-    path: &[String],
-) {
-    let packed_file = &mut pack_file.packed_files.iter_mut().find(|x| x.path == path).ok_or_else(|| Error::from(ErrorKind::PackedFileNotFound)).unwrap();
-    packed_file.set_data(Loc::save(packed_file_data_decoded));
-}
+/// Implementation of `PackFile`.
+impl PackFile {
 
-/// Like the other one, but this one requires a PackedFile.
-pub fn update_packed_file_data_loc_2(
-    packed_file_data_decoded: &Loc,
-    packed_file: &mut packfile::PackedFile,
-) {
-    packed_file.set_data(Loc::save(packed_file_data_decoded));
-}
+    /// This function creates a new empty `PackFile`. This is used for creating a *dummy* PackFile.
+    pub fn new() -> Self {
+        Self {
+            file_path: PathBuf::new(),
+            pfh_version: PFHVersion::PFH5,
+            pfh_file_type: PFHFileType::Mod,
+            bitmask: PFHFlags::empty(),
+            timestamp: 0,
 
-/// This function saves the data of the edited DB PackedFile in the main PackFile after a change has
-/// been done by the user. Checking for valid characters is done before this, so be careful to not break it.
-pub fn update_packed_file_data_db(
-    packed_file_data_decoded: &DB,
-    pack_file: &mut packfile::PackFile,
-    path: &[String],
-) {
+            pack_files: vec![],
+            packed_files: vec![],
+            empty_folders: vec![]
+        }
+    }
 
-    let packed_file = &mut pack_file.packed_files.iter_mut().find(|x| x.path == path).ok_or_else(|| Error::from(ErrorKind::PackedFileNotFound)).unwrap();
-    packed_file.set_data(DB::save(packed_file_data_decoded));
-}
+    /// This function creates a new empty `PackFile` with a name and an specific id.
+    pub fn new_with_name(file_name: String, pfh_version: PFHVersion) -> Self {
+        let mut file_path = PathBuf::new();
+        file_path.set_file_name(file_name);
+        Self {
+            file_path,
+            pfh_version,
+            bitmask: PFHFlags::empty(),
+            pfh_file_type: PFHFileType::Mod,
+            timestamp: 0,
 
-// Same as the other one, but it requires a PackedFile to modify instead the entire PackFile.
-pub fn update_packed_file_data_db_2(
-    packed_file_data_decoded: &DB,
-    packed_file: &mut packfile::PackedFile,
-) {
-    packed_file.set_data(DB::save(packed_file_data_decoded));
-}
+            pack_files: vec![],
+            packed_files: vec![],
+            empty_folders: vec![]
+        }
+    }
 
-/// This function saves the data of the edited Text PackedFile in the main PackFile after a change has
-/// been done by the user. Checking for valid characters is done before this, so be careful to not break it.
-pub fn update_packed_file_data_text(
-    packed_file_data_decoded: &[u8],
-    pack_file: &mut packfile::PackFile,
-    path: &[String],
-) {
-    let packed_file = &mut pack_file.packed_files.iter_mut().find(|x| x.path == path).ok_or_else(|| Error::from(ErrorKind::PackedFileNotFound)).unwrap();
-    packed_file.set_data(packed_file_data_decoded.to_vec());
-}
+    /// This function replaces the current `PackFile List` with a new one.
+    ///
+    /// It requires:
+    /// - `&mut self`: the PackFile we are going to manipulate.
+    /// - `pack_files`: a Vec<String> we are going to use as new list.
+    pub fn save_packfiles_list(&mut self, pack_files: Vec<String>) {
+        self.pack_files = pack_files;
+    }
 
-/// This function saves the data of the edited RigidModel PackedFile in the main PackFile after a change has
-/// been done by the user. Checking for valid characters is done before this, so be careful to not break it.
-/// This can fail in case a 0-Padded String of the RigidModel fails his encoding, so we check that too.
-pub fn update_packed_file_data_rigid(
-    packed_file_data_decoded: &RigidModel,
-    pack_file: &mut packfile::PackFile,
-    path: &[String],
-) -> Result<String> {
-    let packed_file = &mut pack_file.packed_files.iter_mut().find(|x| x.path == path).ok_or_else(|| Error::from(ErrorKind::PackedFileNotFound)).unwrap();
-    packed_file.set_data(RigidModel::save(packed_file_data_decoded)?);
+    /// This function adds one or more `PackedFiles` to an existing `PackFile`.
+    ///
+    /// It requires:
+    /// - `&mut self`: the PackFile we are going to manipulate.
+    /// - `packed_files`: a Vec<PackedFile> we are going to add.
+    pub fn add_packedfiles(&mut self, mut packed_files: Vec<PackedFile>) {
+        self.packed_files.append(&mut packed_files);
+    }
 
-    Ok(format!("RigidModel PackedFile updated successfully."))
-}
+    /// This function returns the name of the PackedFile. If it's empty, it's a dummy PackFile. 
+    pub fn get_file_name(&self) -> String {
+        match self.file_path.file_name() {
+            Some(s) => s.to_string_lossy().to_string(),
+            None => String::new()
+        }
+    }
 
-/*
---------------------------------------------------------
-         Special PackedFile-Related Functions
---------------------------------------------------------
-*/
+    /// This function copies the data needed by the UI to load a PackFile.
+    pub fn create_ui_data(&self) -> PackFileUIData {
+        PackFileUIData {
+            file_path: self.file_path.to_path_buf(),
+            pfh_version: self.pfh_version,
+            pfh_file_type: self.pfh_file_type,
+            bitmask: self.bitmask,
+            timestamp: self.timestamp,
+        }
+    }
 
-/// This function is used to patch and clean a PackFile exported with Terry, so the SiegeAI (if there
-/// is SiegeAI implemented in the map) is patched and the extra useless .xml files are deleted.
-/// It requires a mut ref to a decoded PackFile, and returns an String and the list of removed PackedFiles.
-pub fn patch_siege_ai (
-    pack_file: &mut packfile::PackFile
-) -> Result<(String, Vec<TreePathType>)> {
+    /// This function returns if the PackFile is editable or not, depending on the type of the PackFile.
+    /// Basically, if the PackFile is not one of the known types OR it has any of the `pack_file_type` bitmasks
+    /// as true, this'll return false. Use it to disable saving functions for PackFiles we can read but not
+    /// save. Also, if the `is_editing_of_ca_packfiles_allowed` argument is false, return false for everything
+    /// except types "Mod" and "Movie".
+    pub fn is_editable(&self, is_editing_of_ca_packfiles_allowed: bool) -> bool {
 
-    let mut files_patched = 0;
-    let mut files_deleted = 0;
-    let mut files_to_delete: Vec<Vec<String>> = vec![];
-    let mut deleted_files_type: Vec<TreePathType> = vec![];
-    let mut packfile_is_empty = true;
-    let mut multiple_defensive_hill_hints = false;
+        // If it's this very specific type, don't save under any circunstance.
+        if let PFHFileType::Other(_) = self.pfh_file_type { false }
 
-    // For every PackedFile in the PackFile we check first if it's in the usual map folder, as we
-    // don't want to touch files outside that folder.
-    for i in &mut pack_file.packed_files {
-        if i.path.starts_with(&["terrain".to_owned(), "tiles".to_owned(), "battle".to_owned(), "_assembly_kit".to_owned()]) &&
-            i.path.last() != None {
+        // If ANY of these bitmask is detected in the PackFile, disable all saving.
+        else if self.bitmask.contains(PFHFlags::HAS_ENCRYPTED_DATA) || self.bitmask.contains(PFHFlags::HAS_ENCRYPTED_INDEX) || self.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) { false }
 
-            let x = i.path.last().unwrap().clone();
-            packfile_is_empty = false;
+        // These types are always editable.
+        else if self.pfh_file_type == PFHFileType::Mod || self.pfh_file_type == PFHFileType::Movie { true }
 
-            // If it's one of the possible candidates for Patching, we first check if it has
-            // an Area Node in it, as that's the base for SiegeAI. If it has an Area Node,
-            // we search the Defensive Hill and Patch it. After that, we check if there are
-            // more Defensive Hills in the file. If there are more, we return success but
-            // notify the modder that the file should have only one.
-            if x == "bmd_data.bin"
-                || x == "catchment_01_layer_bmd_data.bin"
-                || x == "catchment_02_layer_bmd_data.bin"
-                || x == "catchment_03_layer_bmd_data.bin"
-                || x == "catchment_04_layer_bmd_data.bin"
-                || x == "catchment_05_layer_bmd_data.bin"
-                || x == "catchment_06_layer_bmd_data.bin"
-                || x == "catchment_07_layer_bmd_data.bin"
-                || x == "catchment_08_layer_bmd_data.bin"
-                || x == "catchment_09_layer_bmd_data.bin" {
+        // If the "Allow Editing of CA PackFiles" is enabled, these types are also enabled.
+        else if is_editing_of_ca_packfiles_allowed && self.pfh_file_type.get_value() <= 2 { true }
 
-                    let mut data: Vec<u8> = i.get_data()?;
-                    if data.windows(19).find(|window: &&[u8]
-                        |String::from_utf8_lossy(window) == "AIH_SIEGE_AREA_NODE") != None {
+        // Otherwise, always return false.
+        else { false }
+    }
 
-                    let patch = "AIH_FORT_PERIMETER".to_string();
-                    let index = data.windows(18)
-                        .position(
-                            |window: &[u8]
-                            |String::from_utf8_lossy(window) == "AIH_DEFENSIVE_HILL");
+    /// This function removes a PackedFile from a PackFile.
+    ///
+    /// It requires:
+    /// - `&mut self`: the PackFile we are going to manipulate.
+    /// - `index`: the index of the PackedFile we want to remove from the PackFile.
+    pub fn remove_packedfile(&mut self, index: usize) {
+        self.packed_files.remove(index);
+    }
 
-                    if index != None {
-                        for j in 0..18 {
-                            data[index.unwrap() + (j as usize)] = patch.chars().nth(j).unwrap() as u8;
-                        }
-                        files_patched += 1;
-                    }
-                    if data.windows(18).find(|window: &&[u8]
-                            |String::from_utf8_lossy(window) == "AIH_DEFENSIVE_HILL") != None {
-                        multiple_defensive_hill_hints = true;
-                    }
-                }
-                i.set_data(data);
-            }
+    /// This function remove all PackedFiles from a PackFile.
+    ///
+    /// It requires:
+    /// - `&mut self`: the PackFile we are going to manipulate.
+    pub fn remove_all_packedfiles(&mut self) {
+        self.packed_files = vec![];
+    }
 
-            // If it's an xml, we add it to the list of files_to_delete, as all the .xml files
-            // in this folder are useless and only increase the size of the PackFile.
-            else if x.ends_with(".xml") {
-                files_to_delete.push(i.path.to_vec());
+    /// This function checks if a `PackedFile` exists in a `PackFile`.
+    ///
+    /// It requires:
+    /// - `&self`: a `PackFileData` to check for the `PackedFile`.
+    /// - `path`: the path of the `PackedFile` we want to check.
+    pub fn packedfile_exists(&self, path: &[String]) -> bool {
+        for packed_file in &self.packed_files {
+            if packed_file.path == path {
+                return true;
             }
         }
+        false
     }
 
-    // If there are files to delete, we delete them.
-    if !files_to_delete.is_empty() {
-        for tree_path in &mut files_to_delete {
+    /// This function checks if a folder with `PackedFiles` exists in a `PackFile`.
+    ///
+    /// It requires:
+    /// - `&elf`: a `PackFileData` to check for the folder.
+    /// - `path`: the path of the folder we want to check.
+    pub fn folder_exists(&self, path: &[String]) -> bool {
 
-            // Due to the rework of the "delete_from_packfile" function, we need to give it a complete
-            // path to delete, so we "complete" his path before deleting.
-            let file_name = vec![pack_file.get_file_name()];
-            tree_path.splice(0..0, file_name.iter().cloned());
-
-            // Get his type before deleting it.
-            deleted_files_type.push(get_type_of_selected_path(&tree_path, &pack_file));
-
-            // Delete the PackedFile. This cannot really fail during this process, so we can ignore this result.
-            delete_from_packfile(pack_file, tree_path).unwrap();
-            files_deleted += 1;
-        }
-    }
-
-    // And now we return success or error depending on what happened during the patching process.
-    if packfile_is_empty {
-        Err(ErrorKind::PatchSiegeAIEmptyPackFile)?
-    }
-    else if files_patched == 0 && files_deleted == 0 {
-        Err(ErrorKind::PatchSiegeAINoPatchableFiles)?
-    }
-    else if files_patched >= 0 || files_deleted >= 0 {
-        if files_patched == 0 {
-            Ok((format!("No file suitable for patching has been found.\n{} files deleted.", files_deleted), deleted_files_type))
-        }
-        else if multiple_defensive_hill_hints {
-            if files_deleted == 0 {
-                Ok((format!("{} files patched.\nNo file suitable for deleting has been found.\
-                \n\n\
-                WARNING: Multiple Defensive Hints have been found and we only patched the first one.\
-                 If you are using SiegeAI, you should only have one Defensive Hill in the map (the \
-                 one acting as the perimeter of your fort/city/castle). Due to SiegeAI being present, \
-                 in the map, normal Defensive Hills will not work anyways, and the only thing they do \
-                 is interfere with the patching process. So, if your map doesn't work properly after \
-                 patching, delete all the extra Defensive Hill Hints. They are the culprit.",
-                 files_patched), deleted_files_type))
-            }
-            else {
-                Ok((format!("{} files patched.\n{} files deleted.\
-                \n\n\
-                WARNING: Multiple Defensive Hints have been found and we only patched the first one.\
-                 If you are using SiegeAI, you should only have one Defensive Hill in the map (the \
-                 one acting as the perimeter of your fort/city/castle). Due to SiegeAI being present, \
-                 in the map, normal Defensive Hills will not work anyways, and the only thing they do \
-                 is interfere with the patching process. So, if your map doesn't work properly after \
-                 patching, delete all the extra Defensive Hill Hints. They are the culprit.",
-                files_patched, files_deleted), deleted_files_type))
-            }
-        }
-        else if files_deleted == 0 {
-            Ok((format!("{} files patched.\nNo file suitable for deleting has been found.", files_patched), deleted_files_type))
-        }
+        // If the path is empty, this triggers a false positive, so it needs to be checked here.
+        if path.is_empty() { false }
         else {
-            Ok((format!("{} files patched.\n{} files deleted.", files_patched, files_deleted), deleted_files_type))
-        }
-    }
-    else { unreachable!() }
-}
-
-/// This function is used to patch a RigidModel 3D model from Total War: Attila to work in Total War:
-/// Warhammer 1 and 2. The process to patch a RigidModel is simple:
-/// - We update the version of the RigidModel from 6(Attila) to 7(Warhammer 1&2).
-/// - We add 2 u32 to the Lods: a counter starting at 0, and a 0.
-/// - We increase the start_offset of every Lod by (8*amount_of_lods).
-/// - We may need to increase the zoom_factor of the first Lod to 1000.0, because otherwise sometimes the models
-///   disappear when you move the camera far from them.
-/// It requires a mut ref to a decoded PackFile, and returns an String (Result<Success, Error>).
-pub fn patch_rigid_model_attila_to_warhammer (
-    rigid_model: &mut RigidModel
-) -> Result<String> {
-
-    // If the RigidModel is an Attila RigidModel, we continue. Otherwise, return Error.
-    match rigid_model.packed_file_header.packed_file_header_model_type {
-        6 => {
-            // We update his version.
-            rigid_model.packed_file_header.packed_file_header_model_type = 7;
-
-            // Next, we change the needed data for every Lod.
-            for (index, lod) in rigid_model.packed_file_data.packed_file_data_lods_header.iter_mut().enumerate() {
-                lod.mysterious_data_1 = Some(index as u32);
-                lod.mysterious_data_2 = Some(0);
-                lod.start_offset += 8 * rigid_model.packed_file_header.packed_file_header_lods_count;
+            for packed_file in &self.packed_files {
+                if packed_file.path.starts_with(path) && packed_file.path.len() > path.len() {
+                    return true;
+                }
             }
-            Ok(format!("RigidModel patched succesfully."))
-        },
-        7 => Err(ErrorKind::RigidModelPatchToWarhammer("This is not an Attila's RigidModel, but a Warhammer one.".to_owned()))?,
-        _ => Err(ErrorKind::RigidModelPatchToWarhammer("I don't even know from what game is this RigidModel.".to_owned()))?,
-    }
-}
 
-/*
-/// This function is used to turn a bunch of catchment files into Prefabs. It requires:
-/// - name_list: the list of names for the new prefabs.
-/// - game_path: the base path of our game, to know where to put the xml files for the prefabs.
-/// - catchment_indexes: a list with the indexes of all the files we want to turn into prefabs.
-/// - pack_file: the PackFile we want to create the prefabs from.
-pub fn create_prefab_from_catchment(
-    name_list: &[String],
-    game_path: &PathBuf,
-    catchment_indexes: &[usize],
-    pack_file: &Rc<RefCell<packfile::PackFile>>,
-) -> Result<String> {
+            for folder in &self.empty_folders {
+                if folder.starts_with(path) { return true; }
+            }
 
-    // Create a new PackFile to store all the new prefabs, and make it "Movie" type.
-    let mut prefab_pack_file = new_packfile(format!("_prefab_{}", &pack_file.borrow().extra_data.file_name), &pack_file.borrow().header.id);
-    prefab_pack_file.header.pack_file_type = 4;
-
-    // Pair together the catchment indexes with the name list.
-    let prefab_list = catchment_indexes.iter().zip(name_list.iter());
-
-    // For each prefab we want to create...
-    for (index, prefab) in prefab_list.enumerate() {
-
-        // Add the PackedFile to the new PackFile.
-        prefab_pack_file.add_packedfiles(vec![pack_file.borrow().data.packed_files[*prefab.0].clone()]);
-
-        // Change his path to point to the prefab folder.
-        prefab_pack_file.data.packed_files[index].path = vec!["prefabs".to_owned(), format!("{}.bmd", prefab.1)];
-
-        // Get the path of the Terry's raw files for the map of our prefab.
-        let mut terry_map_path = game_path.to_path_buf().join(PathBuf::from("assembly_kit/raw_data/terrain/tiles/battle/_assembly_kit"));
-        terry_map_path.push(&pack_file.borrow().data.packed_files[*prefab.0].path[4]);
-
-        // If the map folder doesn't exist, return error.
-        if !terry_map_path.is_dir() { return Err(format_err!("The following map's original folder couldn't be found:\n{:?}", terry_map_path)) }
-
-        // Get the ".terry" file of the map.
-        let terry_file = get_files_from_subdir(&terry_map_path).unwrap().iter().filter(|x| x.file_name().unwrap().to_string_lossy().as_ref().to_owned().ends_with(".terry")).cloned().collect::<Vec<PathBuf>>();
-
-        // If the terry file wasn't found, return error.
-        if terry_file.is_empty() { return Err(format_err!("The following map's .terry file couldn't be found:\n{:?}", terry_map_path)) }
-
-        // Read it to a String so we can examine it properly.
-        let mut file = BufReader::new(File::open(&terry_file[0])?);
-        let mut terry_file_string = String::new();
-        file.read_to_string(&mut terry_file_string)?;
-
-        // Get the ID of the current catchment (catchment_XX) from the ".terry" file of his map.
-        let catchment_name = &pack_file.borrow().data.packed_files[*prefab.0].path[5][..12];
-
-        let line = match terry_file_string.find(&format!("bmd_export_type=\"{}\"/>", catchment_name)) {
-            Some(line) => line,
-            None => return Err(format_err!("The layer of \"{}\" couldn't be found in the following map's .terry file:\n{:?}", catchment_name, terry_map_path)),
-        };
-        terry_file_string.truncate(line);
-
-        let id_index = match terry_file_string.rfind(" id=\"") {
-            Some(id_index) => id_index,
-            None => return Err(format_err!("The id of the layer of \"{}\" couldn't be found in the following map's .terry file:\n{:?}", catchment_name, terry_map_path))
-        };
-        let id_layer = &terry_file_string[(id_index + 5)..(id_index + 20)];
-
-        // Get the corresponding layer file.
-        let mut layer_file = terry_file[0].to_path_buf();
-        let layer_file_name = layer_file.file_stem().unwrap().to_string_lossy().as_ref().to_owned();
-        layer_file.pop();
-        layer_file.push(format!("{}.{}.layer", layer_file_name, id_layer));
-
-        // Get the path where the raw files of the prefabs should be stored.
-        let mut prefabs_terry_path = game_path.to_path_buf().join(PathBuf::from("assembly_kit/raw_data/art/prefabs/battle/custom_prefabs"));
-
-        // We check that path exists, and create it if it doesn't.
-        if !prefabs_terry_path.is_dir() {
-            DirBuilder::new().recursive(true).create(&prefabs_terry_path)?;
+            false
         }
-
-        // Get the full path for the prefab's layer and terry files.
-        let mut prefabs_terry_path_layer = prefabs_terry_path.to_path_buf();
-        let mut prefabs_terry_path_terry = prefabs_terry_path.to_path_buf();
-        prefabs_terry_path_layer.push(format!("{}.{}.layer", prefab.1, id_layer));
-        prefabs_terry_path_terry.push(format!("{}.terry", prefab.1));
-
-        // Try to copy the layer file to his destination.
-        copy(layer_file, prefabs_terry_path_layer).map_err(Error::from)?;
-
-        // Try to write the prefab's terry file into his destination.
-        let mut file = BufWriter::new(File::create(&prefabs_terry_path_terry)?);
-        let prefab_terry_file = format!("<?xml version=\"1.0\" encoding=\"UTF-8\"?>
-            <project version=\"20\" id=\"15afc3311fc3488\">
-              <pc type=\"QTU::ProjectPrefab\">
-                <data database=\"battle\"/>
-              </pc>
-              <pc type=\"QTU::Scene\">
-                <data version=\"25\">
-                  <entity id=\"{}\" name=\"Default\">
-                    <ECFileLayer export=\"true\" bmd_export_type=\"\"/>
-                  </entity>
-                </data>
-              </pc>
-              <pc type=\"QTU::Terrain\"/>
-            </project>"
-            , id_layer
-        );
-        file.write_all(prefab_terry_file.as_bytes()).map_err(Error::from)?;
     }
 
-    // Get the PackFile name here, so we have no problems with references.
-    let prefab_pack_file_name = &prefab_pack_file.extra_data.file_name.to_owned();
-
-    // At the end, save the new PackFile.
-    save_packfile(&mut prefab_pack_file, Some(game_path.to_path_buf().join(PathBuf::from(format!("data/{}", prefab_pack_file_name)))))?;
-
-    // If nothing failed, return success.
-    Ok("Prefabs successfully created.".to_owned())
-}
-*/
-
-/// This function is used to optimize the size of a PackFile. It does two things: removes unchanged rows
-/// from tables (and if the table is empty, it removes it too) and it cleans the PackFile of extra .xml files 
-/// often created by map editors. It requires just the PackFile to optimize and the dependency PackFile.
-pub fn optimize_packfile(pack_file: &mut packfile::PackFile)-> Result<Vec<TreePathType>> {
-
-    // List of PackedFiles to delete. This includes empty DB Tables and empty Loc PackedFiles.
-    let mut files_to_delete: Vec<Vec<String>> = vec![];
-    let mut deleted_files_type: Vec<TreePathType> = vec![];
-
-    // Get a list of every Loc and DB PackedFiles in our dependency's files. For performance reasons, we decode every one of them here.
-    // Otherwise, they may have to be decoded multiple times, making this function take ages to finish. 
-    let game_locs = DEPENDENCY_DATABASE.lock().unwrap().iter()
-        .filter(|x| x.path.last().unwrap().ends_with(".loc"))
-        .filter_map(|x| x.get_data().ok())
-        .filter_map(|x| Loc::read(&x).ok())
-        .collect::<Vec<Loc>>();
-
-    let mut game_dbs = if let Some(ref schema) = *SCHEMA.lock().unwrap() {
-        DEPENDENCY_DATABASE.lock().unwrap().iter()
-            .filter(|x| x.path.len() == 3 && x.path[0] == "db")
-            .map(|x| (x.get_data(), x.path[1].to_owned()))
-            .filter(|x| x.0.is_ok())
-            .filter_map(|x| DB::read(&x.0.unwrap(), &x.1, &schema).ok())
-            .collect::<Vec<DB>>()
-    } else { vec![] };
-
-    // Due to precision issues with float fields, we have to round every float field from the tables to 3 decimals max.
-    game_dbs.iter_mut().for_each(|x| x.entries.iter_mut()
-        .for_each(|x| x.iter_mut()
-        .for_each(|x| if let DecodedData::Float(data) = x { *data = (*data * 1000f32).round() / 1000f32 })
-    ));
-
-    for mut packed_file in &mut pack_file.packed_files {
-
-        // If it's a DB table and we have an schema...
-        if packed_file.path.len() == 3 && packed_file.path[0] == "db" && !game_dbs.is_empty() {
-            if let Some(ref schema) = *SCHEMA.lock().unwrap() {
-
-                // Try to decode our table.
-                let mut optimized_table = match DB::read(&(packed_file.get_data_and_keep_it()?), &packed_file.path[1], &schema) {
-                    Ok(table) => table,
-                    Err(_) => continue,
-                };
-
-                // We have to round our floats too.
-                optimized_table.entries.iter_mut()
-                    .for_each(|x| x.iter_mut()
-                    .for_each(|x| if let DecodedData::Float(data) = x { *data = (*data * 1000f32).round() / 1000f32 })
-                );
-
-                // For each vanilla DB Table that coincide with our own, compare it row by row, cell by cell, with our own DB Table. Then delete in reverse every coincidence.
-                for game_db in &game_dbs {
-                    if game_db.db_type == optimized_table.db_type && game_db.version == optimized_table.version {
-                        let rows_to_delete = optimized_table.entries.iter().enumerate().filter(|(_, entry)| game_db.entries.contains(entry)).map(|(row, _)| row).collect::<Vec<usize>>();
-                        for row in rows_to_delete.iter().rev() {
-                            optimized_table.entries.remove(*row);
-                        } 
+    /// This functions serves to update the empty folder list.
+    pub fn update_empty_folders(&mut self) {
+        let packed_files = &self.packed_files;
+        self.empty_folders.retain(|folder| {
+            if folder.is_empty() { false }
+            else {
+                for packed_file in packed_files {
+                    if packed_file.path.starts_with(folder) && packed_file.path.len() > folder.len() {
+                        return false
                     }
                 }
+                true
+            }
+        })
+    }
 
-                // Save the data to the PackFile and, if it's empty, add it to the deletion list.
-                update_packed_file_data_db_2(&optimized_table, &mut packed_file);
-                if optimized_table.entries.is_empty() { files_to_delete.push(packed_file.path.to_vec()); }
+    /// This function reads the content of a PackFile and returns a `PackFile` with all the contents of the PackFile decoded.
+    ///
+    /// It requires:
+    /// - `file_path`: a `PathBuf` with the path of the PackFile.
+    /// - `use_lazy_loading`: if yes, don't load to memory his data.
+    pub fn read(
+        file_path: PathBuf,
+        use_lazy_loading: bool
+    ) -> Result<Self> {
+
+        // Prepare the PackFile to be read and the virtual PackFile to be written.
+        let mut pack_file = BufReader::new(File::open(&file_path)?);
+        let mut pack_file_decoded = Self::new();
+
+        // First, we do some quick checkings to ensure it's a valid PackFile. 
+        // 24 is the bare minimum that we need to check how a PackFile should be internally, so any file with less than that is not a valid PackFile.
+        let pack_file_len = pack_file.get_ref().metadata()?.len();
+        if pack_file_len < 24 { return Err(ErrorKind::PackFileHeaderNotComplete)? }
+
+        // Create a little buffer to read the basic data from the header of the PackFile.
+        let mut buffer = vec![0; 24];
+        pack_file.read_exact(&mut buffer)?;
+
+        // Start populating our decoded PackFile struct.
+        pack_file_decoded.file_path = file_path;
+        pack_file_decoded.pfh_version = PFHVersion::get_version(&decode_string_u8(&buffer[..4])?)?; 
+        pack_file_decoded.pfh_file_type = PFHFileType::get_type(decode_integer_u32(&buffer[4..8])? & 15);
+        pack_file_decoded.bitmask = PFHFlags::from_bits_truncate(decode_integer_u32(&buffer[4..8])? & !15);
+
+        // Read the data about the indexes to use it later.
+        let pack_file_count = decode_integer_u32(&buffer[8..12])?;
+        let pack_file_index_size = decode_integer_u32(&buffer[12..16])?;
+        let packed_file_count = decode_integer_u32(&buffer[16..20])?;
+        let packed_file_index_size = decode_integer_u32(&buffer[20..24])?;
+
+        // Depending on the data we got, prepare to read the header and ensure we have all the bytes we need.
+        match pack_file_decoded.pfh_version {
+            PFHVersion::PFH5 | PFHVersion::PFH4 => {
+                if (pack_file_decoded.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) && pack_file_len < 48) ||
+                    (!pack_file_decoded.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) && pack_file_len < 28) { return Err(ErrorKind::PackFileHeaderNotComplete)? }
+                
+                if pack_file_decoded.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) { buffer = vec![0; 48]; }
+                else { buffer = vec![0; 28]; }
             }
 
-            // Otherwise, we just check if it's empty. In that case, we delete it.
-            else if let Ok((_, entry_count, _)) = DB::get_header_data(&(packed_file.get_data()?)) {
-                if entry_count == 0 { files_to_delete.push(packed_file.path.to_vec()); }
-            }
+            PFHVersion::PFH3 => buffer = vec![0; 32],
         }
 
-        // If it's a Loc PackedFile and there are some Locs in our dependencies...
-        else if packed_file.path.last().unwrap().ends_with(".loc") && !game_locs.is_empty() {
+        // Restore the cursor of the BufReader to 0, so we can read the full header in one go. The first 24 bytes are
+        // already decoded but, for the sake of clarity in the positions of the rest of the header stuff, we do this.
+        pack_file.seek(SeekFrom::Start(0))?;
+        pack_file.read_exact(&mut buffer)?;
 
-            // Try to decode our Loc. If it's empty, skip it and continue with the next one.
-            let mut optimized_loc = match Loc::read(&(packed_file.get_data_and_keep_it()?)) {
-                Ok(loc) => if !loc.entries.is_empty() { loc } else { continue },
-                Err(_) => continue,
+        // The creation time is a bit of an asshole. Depending on the PackFile Version/Id/Preamble, it uses a type, another or it doesn't exists.
+        // Keep in mind that we store his raw value. If you want his legible value, you have to convert it yourself.
+        pack_file_decoded.timestamp = match pack_file_decoded.pfh_version {
+            PFHVersion::PFH5 | PFHVersion::PFH4 => decode_integer_u32(&buffer[24..28])? as i64,
+            PFHVersion::PFH3 => (decode_integer_i64(&buffer[24..32])? / WINDOWS_TICK) - SEC_TO_UNIX_EPOCH,
+        };
+
+        // Ensure the PackFile has all the data needed for the index. If the PackFile's data is encrypted 
+        // and the PackFile is PFH5, due to how the encryption works, the data should start in a multiple of 8.
+        let mut data_position = (buffer.len() as u32 + pack_file_index_size + packed_file_index_size) as u64;
+        if pack_file_decoded.bitmask.contains(PFHFlags::HAS_ENCRYPTED_DATA) && pack_file_decoded.pfh_version == PFHVersion::PFH5 {
+            data_position = if (data_position % 8) > 0 { data_position + 8 - (data_position % 8) } else { data_position };
+        }
+        if pack_file_len < data_position { return Err(ErrorKind::PackFileIndexesNotComplete)? }
+
+        // Create the buffers for the indexes data.
+        let mut pack_file_index = vec![0; pack_file_index_size as usize];
+        let mut packed_file_index = vec![0; packed_file_index_size as usize];
+
+        // Get the data from both indexes to their buffers.
+        pack_file.read_exact(&mut pack_file_index)?;
+        pack_file.read_exact(&mut packed_file_index)?;
+
+        // Read the PackFile Index.
+        let mut pack_file_index_position: usize = 0;
+
+        // First, we decode every entry in the PackFile index and store it. It's encoded in StringU8 terminated in 00,
+        // so we just read them char by char until hitting 0, then decode the next one and so on.
+        // NOTE: This doesn't deal with encryption, as we haven't seen any encrypted PackFile with data in this index.
+        for _ in 0..pack_file_count {
+            let pack_file_name = decode_string_u8_0terminated(&pack_file_index[pack_file_index_position..], &mut pack_file_index_position)?;
+            pack_file_decoded.pack_files.push(pack_file_name);
+        }
+
+        // Depending on the version of the PackFile and his bitmask, the PackedFile index has one format or another.
+        let packed_file_index_path_offset = match pack_file_decoded.pfh_version {
+            PFHVersion::PFH5 => {
+
+                // If it has the extended header bit, is an Arena PackFile. These ones use a normal PFH4 index format for some reason.
+                if pack_file_decoded.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) {
+                    if pack_file_decoded.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) { 8 } else { 4 }
+                }
+
+                // Otherwise, it's a Warhammer 2 PackFile. These ones have 4 bytes for the size, 4 for the timestamp and 1 for the compression.
+                else if pack_file_decoded.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) { 9 } else { 5 }
+            }
+
+            // If it has the last modified date of the PackedFiles, we default to 8. Otherwise, we default to 4.
+            PFHVersion::PFH4 => if pack_file_decoded.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) { 8 } else { 4 }
+
+            // These are like PFH4, but the timestamp has 8 bytes instead of 4,
+            PFHVersion::PFH3 => if pack_file_decoded.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) { 12 } else { 4 }
+        };
+
+        // Prepare the needed stuff to read the PackedFiles.
+        let mut index_position: usize = 0;
+        let pack_file = Arc::new(Mutex::new(pack_file));
+        for packed_files_to_decode in (0..packed_file_count).rev() {
+
+            // Get his size. If it's encrypted, decrypt it first.
+            let size = if pack_file_decoded.bitmask.contains(PFHFlags::HAS_ENCRYPTED_INDEX) {
+                let encrypted_size = decode_integer_u32(&packed_file_index[index_position..(index_position + 4)])?;
+                decrypt_index_item_file_length(encrypted_size, packed_files_to_decode as u32)
+            } else {
+                decode_integer_u32(&packed_file_index[index_position..index_position + 4])?
             };
 
-            // For each vanilla Loc, compare it row by row, cell by cell, with our own Loc. Then delete in reverse every coincidence.
-            for game_loc in &game_locs {
-                let rows_to_delete = optimized_loc.entries.iter().enumerate().filter(|(_, entry)| game_loc.entries.contains(entry)).map(|(row, _)| row).collect::<Vec<usize>>();
-                for row in rows_to_delete.iter().rev() {
-                    optimized_loc.entries.remove(*row);
-                } 
+            // If we have the last modified date of the PackedFiles in the Index, get it. Otherwise, default to 0,
+            // so we have something to write in case we want to enable them for our PackFile.
+            let timestamp = if pack_file_decoded.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) {
+                match pack_file_decoded.pfh_version {
+                    PFHVersion::PFH5 | PFHVersion::PFH4 => {
+                        let timestamp = decode_integer_u32(&packed_file_index[(index_position + 4)..(index_position + 8)])? as i64;
+                        if pack_file_decoded.bitmask.contains(PFHFlags::HAS_ENCRYPTED_INDEX) {
+                            decrypt_index_item_file_length(timestamp as u32, packed_files_to_decode as u32) as i64
+                        } else { timestamp }
+                    }
+
+                    // We haven't found a single encrypted PFH3 PackFile to test, so always assume these are unencrypted.
+                    PFHVersion::PFH3 => (decode_integer_i64(&packed_file_index[(index_position + 4)..(index_position + 12)])? / WINDOWS_TICK) - SEC_TO_UNIX_EPOCH,
+                }
+            } else { 0 };
+
+            // Update his offset, and get his compression data if it has it.
+            index_position += packed_file_index_path_offset;
+            let is_compressed = if let PFHVersion::PFH5 = pack_file_decoded.pfh_version {
+                if let Ok(true) = decode_bool(packed_file_index[(index_position - 1)]) { true } 
+                else { false }
+            } else { false };
+            
+            // Get his path. Like the PackFile index, it's a StringU8 terminated in 00. We get it and split it in folders for easy use.
+            let path = if pack_file_decoded.bitmask.contains(PFHFlags::HAS_ENCRYPTED_INDEX) {
+                decrypt_index_item_filename(&packed_file_index[index_position..], size as u8, &mut index_position)
+            }
+            else { decode_string_u8_0terminated(&packed_file_index[index_position..], &mut index_position)? };
+            let path = path.split('\\').map(|x| x.to_owned()).collect::<Vec<String>>();
+
+            // Once we are done, we create the and add it to the PackedFile list.
+            let packed_file = PackedFile::read_from_data(
+                path, 
+                timestamp,
+                is_compressed,
+                if pack_file_decoded.bitmask.contains(PFHFlags::HAS_ENCRYPTED_DATA) { Some(pack_file_decoded.pfh_version) } else { None },
+                PackedFileData::OnDisk(
+                    pack_file.clone(), 
+                    data_position, 
+                    size
+                )
+            );
+            pack_file_decoded.packed_files.push(packed_file);
+
+            // Then we move our data position. For encrypted files in PFH5 PackFiles we have to start the next one in a multiple of 8.
+            if pack_file_decoded.bitmask.contains(PFHFlags::HAS_ENCRYPTED_DATA) && pack_file_decoded.pfh_version == PFHVersion::PFH5 {
+                let padding = 8 - (size % 8);
+                let padded_size = if padding < 8 { size + padding } else { size };
+                data_position += padded_size as u64;
+            }
+            else { data_position += size as u64; }
+        }
+
+        // If at this point we have not reached the end of the PackFile, there is something wrong with it.
+        // NOTE: Arena PackFiles have extra data at the end. If we detect one of those PackFiles, take that into account.
+        if pack_file_decoded.pfh_version == PFHVersion::PFH5 && pack_file_decoded.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) {
+            if data_position + 256 != pack_file_len { return Err(ErrorKind::PackFileSizeIsNotWhatWeExpect(pack_file_len, data_position))? }
+        }
+        else if data_position != pack_file_len { return Err(ErrorKind::PackFileSizeIsNotWhatWeExpect(pack_file_len, data_position))? }
+
+        // If we disabled lazy-loading, load every PackedFile to memory.
+        if !use_lazy_loading { for packed_file in &mut pack_file_decoded.packed_files { packed_file.load_data()?; }}
+
+        // Return our PackFile.
+        Ok(pack_file_decoded)
+    }
+
+    /// This function takes a decoded `PackFile` and tries to encode it and write it on disk.
+    ///
+    /// It requires:
+    /// - `&mut self`: the `PackFile` we are trying to save.
+    pub fn save(&mut self) -> Result<()> {
+
+        // For some bizarre reason, if the PackedFiles are not alphabetically sorted they may or may not crash the game for particular people.
+        // So, to fix it, we have to sort all the PackedFiles here by path.
+        // NOTE: This sorting has to be CASE INSENSITIVE. This means for "ac", "Ab" and "aa" it'll be "aa", "Ab", "ac".
+        self.packed_files.sort_unstable_by(|a, b| a.path.join("\\").to_lowercase().cmp(&b.path.join("\\").to_lowercase()));
+        
+        // We ensure that all the data is loaded before attempting to save.
+        for packed_file in &mut self.packed_files { packed_file.load_data()?; }
+
+        // First we encode the indexes and the data (just in case we compressed it).
+        let mut pack_file_index = vec![];
+        let mut packed_file_index = vec![];
+
+        for pack_file in &self.pack_files {
+            pack_file_index.extend_from_slice(pack_file.as_bytes());
+            pack_file_index.push(0);
+        }
+
+        for packed_file in &self.packed_files {
+            packed_file_index.extend_from_slice(&encode_integer_u32(packed_file.get_size()));
+
+            // Depending on the version of the PackFile and his bitmask, the PackedFile index has one format or another.
+            // In PFH5 case, we don't support saving encrypted PackFiles for Arena. So we'll default to Warhammer 2 format.
+            match self.pfh_version {
+                PFHVersion::PFH5 => {
+                    if self.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) { packed_file_index.extend_from_slice(&encode_integer_u32(packed_file.timestamp as u32)); }
+                    if packed_file.is_compressed { packed_file_index.push(1); } else { packed_file_index.push(0); } 
+                }
+                PFHVersion::PFH4 => {
+                    if self.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) { packed_file_index.extend_from_slice(&encode_integer_u32(packed_file.timestamp as u32)); }
+                }
+                PFHVersion::PFH3 => {
+                    if self.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) { packed_file_index.extend_from_slice(&encode_integer_i64(packed_file.timestamp)); }
+                }
             }
 
-            // Save the data to the PackFile and, if it's empty, add it to the deletion list.
-            update_packed_file_data_loc_2(&optimized_loc, &mut packed_file);
-            if optimized_loc.entries.is_empty() { files_to_delete.push(packed_file.path.to_vec()); }
+            packed_file_index.append(&mut packed_file.path.join("\\").as_bytes().to_vec());
+            packed_file_index.push(0);
         }
+
+        // Create the file to save to, and save the header and the indexes.
+        let mut file = BufWriter::new(File::create(&self.file_path)?);
+
+        // Write the entire header.
+        file.write_all(&encode_string_u8(&self.pfh_version.get_value()))?;
+        file.write_all(&encode_integer_u32(self.bitmask.bits | self.pfh_file_type.get_value()))?;
+        file.write_all(&encode_integer_u32(self.pack_files.len() as u32))?;
+        file.write_all(&encode_integer_u32(pack_file_index.len() as u32))?;
+        file.write_all(&encode_integer_u32(self.packed_files.len() as u32))?;
+        file.write_all(&encode_integer_u32(packed_file_index.len() as u32))?;
+
+        // Update the creation time, then save it.
+        self.timestamp = get_current_time();
+        match self.pfh_version {
+            PFHVersion::PFH5 | PFHVersion::PFH4 => file.write_all(&encode_integer_u32(self.timestamp as u32))?,
+            PFHVersion::PFH3 => file.write_all(&encode_integer_i64((self.timestamp + SEC_TO_UNIX_EPOCH) * WINDOWS_TICK))?,
+        };
+
+        // Write the indexes and the data of the PackedFiles. No need to keep the data, as it has been preloaded before.
+        file.write_all(&pack_file_index)?;
+        file.write_all(&packed_file_index)?;
+        for packed_file in &self.packed_files { file.write(&(packed_file.get_data()?))?; }
+
+        // If nothing has failed, return success.
+        Ok(())
     }
-
-    // If there are files to delete, we delete them.
-    if !files_to_delete.is_empty() {
-        for tree_path in &mut files_to_delete {
-
-            // Due to the rework of the "delete_from_packfile" function, we need to give it a complete
-            // path to delete, so we "complete" his path before deleting.
-            let file_name = vec![pack_file.file_path.file_name().unwrap().to_string_lossy().to_string()];
-            tree_path.splice(0..0, file_name.iter().cloned());
-
-            // Get his type before deleting it.
-            deleted_files_type.push(get_type_of_selected_path(&tree_path, &pack_file));
-
-            // Delete the PackedFile.
-            delete_from_packfile(pack_file, tree_path).unwrap();
-        }
-    }
-
-    // Return the deleted file's types.
-    Ok(deleted_files_type)
 }

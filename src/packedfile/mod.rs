@@ -9,8 +9,8 @@ use std::path::PathBuf;
 use crate::common::*;
 use crate::common::coding_helpers::*;
 use crate::error::{Error, ErrorKind, Result};
-use crate::packfile::packfile::PackFile;
-use crate::packfile::packfile::PackedFile;
+use crate::packfile::PackFile;
+use crate::packfile::packedfile::PackedFile;
 use crate::packedfile::loc::*;
 use crate::packedfile::db::*;
 
@@ -92,7 +92,7 @@ pub fn create_packed_file(
     };
 
     // Create and add the new PackedFile to the PackFile.
-    pack_file.add_packedfiles(vec![PackedFile::read(get_current_time(), path, data); 1]);
+    pack_file.add_packedfiles(vec![PackedFile::read_from_vec(path, get_current_time(), false, data); 1]);
 
     // Return the path to update the UI.
     Ok(())
@@ -145,7 +145,7 @@ pub fn tsv_mass_import(
                         if pack_file.packedfile_exists(&path) { packed_files_to_remove.push(path.to_vec()) }
 
                         // Create and add the new PackedFile to the list of PackedFiles to add.
-                        packed_files.push(PackedFile::read(get_current_time(), path, data));
+                        packed_files.push(PackedFile::read_from_vec(path, get_current_time(), false, data));
                     }
                     Err(_) => error_files.push(path.to_string_lossy().to_string()),
                 }
@@ -168,7 +168,7 @@ pub fn tsv_mass_import(
                 match db.import_tsv(&path, &table_type) {
                     Ok(_) => {
 
-                        let data  = db.save();
+                        let data = db.save();
                         let mut path = vec!["db".to_owned(), table_type.to_owned(), name.to_owned()];
                         
                         // If that path already exists in the list of new PackedFiles to add, change it using the index.
@@ -182,7 +182,7 @@ pub fn tsv_mass_import(
                         if pack_file.packedfile_exists(&path) { packed_files_to_remove.push(path.to_vec()) }
 
                         // Create and add the new PackedFile to the list of PackedFiles to add.
-                        packed_files.push(PackedFile::read(get_current_time(), path, data));
+                        packed_files.push(PackedFile::read_from_vec(path, get_current_time(), false, data));
                     }
                     Err(_) => error_files.push(path.to_string_lossy().to_string()),
                 }

@@ -11,7 +11,7 @@ use std::io::{BufReader, BufWriter};
 use crate::RPFM_PATH;
 use crate::SUPPORTED_GAMES;
 use crate::error::Result;
-use crate::packfile::packfile::PFHVersion;
+use crate::packfile::PFHVersion;
 
 pub mod shortcuts;
 

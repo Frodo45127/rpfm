@@ -620,55 +620,6 @@ pub fn create_mass_import_tsv_dialog(app_ui: &AppUI) -> Option<(String, Vec<Path
     else { None }
 }
 
-/*
-/// This function serves as a common function to all the "Create Prefab" buttons from "Special Stuff".
-fn create_prefab(
-    application: &Application,
-    app_ui: &AppUI,
-    game_selected: &Rc<RefCell<GameSelected>>,
-    pack_file_decoded: &Rc<RefCell<PackFile>>,
-) {
-    // Create the list of PackedFiles to "move".
-    let mut prefab_catchments: Vec<usize> = vec![];
-
-    // For each PackedFile...
-    for (index, packed_file) in pack_file_decoded.borrow().data.packed_files.iter().enumerate() {
-
-        // If it's in the exported map's folder...
-        if packed_file.path.starts_with(&["terrain".to_owned(), "tiles".to_owned(), "battle".to_owned(), "_assembly_kit".to_owned()]) {
-
-            // Get his name.
-            let packed_file_name = packed_file.path.last().unwrap();
-
-            // If it's one of the exported layers...
-            if packed_file_name.starts_with("catchment") && packed_file_name.ends_with(".bin") {
-
-                // Add it to the list.
-                prefab_catchments.push(index);
-            }
-        }
-    }
-
-    // If we found at least one catchment PackedFile...
-    if !prefab_catchments.is_empty() {
-
-        // Disable the main window, so the user can't do anything until all the prefabs are processed.
-        app_ui.window.set_sensitive(false);
-
-        // We create a "New Prefabs" window.
-        NewPrefabWindow::create_new_prefab_window(
-            &app_ui,
-            application,
-            game_selected,
-            pack_file_decoded,
-            &prefab_catchments
-        );
-    }
-
-    // If there are not suitable PackedFiles...
-    else { show_dialog(app_ui.window, false, "There are no catchment PackedFiles in this PackFile."); }
-}*/
-
 /// This function creates the entire "Global Search" dialog. It returns the search info (pattern, case_sensitive).
 pub fn create_global_search_dialog(app_ui: &AppUI) -> Option<String> {
 

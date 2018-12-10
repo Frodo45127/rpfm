@@ -32,6 +32,7 @@ cpp_utils = "*"
 lazy_static = "1.2.0"
 os_info = "1.1.0"
 toml = "0.4.7"
+rust-lzma = "0.4"
 
 bitflags = "1.0"
 [target.'cfg(windows)'.build-dependencies]

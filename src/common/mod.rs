@@ -12,7 +12,7 @@ use crate::SUPPORTED_GAMES;
 use crate::GAME_SELECTED;
 use crate::SETTINGS;
 use crate::error::{ErrorKind, Result};
-use crate::packfile::packfile::PackFile;
+use crate::packfile::PackFile;
 
 pub mod coding_helpers;
 pub mod communications;

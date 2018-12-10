@@ -1273,12 +1273,10 @@ pub fn enable_packfile_actions(
         match &**GAME_SELECTED.lock().unwrap() {
             "warhammer_2" => {
                 unsafe { app_ui.wh2_patch_siege_ai.as_mut().unwrap().set_enabled(true); }
-                unsafe { app_ui.wh2_create_prefab.as_mut().unwrap().set_enabled(true); }
                 unsafe { app_ui.wh2_optimize_packfile.as_mut().unwrap().set_enabled(true); }
             },
             "warhammer" => {
                 unsafe { app_ui.wh_patch_siege_ai.as_mut().unwrap().set_enabled(true); }
-                unsafe { app_ui.wh_create_prefab.as_mut().unwrap().set_enabled(true); }
                 unsafe { app_ui.wh_optimize_packfile.as_mut().unwrap().set_enabled(true); }
             },
             "thrones_of_britannia" => {
@@ -1302,12 +1300,10 @@ pub fn enable_packfile_actions(
 
         // Disable Warhammer 2 actions...
         unsafe { app_ui.wh2_patch_siege_ai.as_mut().unwrap().set_enabled(false); }
-        unsafe { app_ui.wh2_create_prefab.as_mut().unwrap().set_enabled(false); }
         unsafe { app_ui.wh2_optimize_packfile.as_mut().unwrap().set_enabled(false); }
 
         // Disable Warhammer actions...
         unsafe { app_ui.wh_patch_siege_ai.as_mut().unwrap().set_enabled(false); }
-        unsafe { app_ui.wh_create_prefab.as_mut().unwrap().set_enabled(false); }
         unsafe { app_ui.wh_optimize_packfile.as_mut().unwrap().set_enabled(false); }
 
         // Disable Thrones of Britannia actions...

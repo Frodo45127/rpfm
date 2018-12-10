@@ -87,11 +87,11 @@ use crate::common::*;
 use crate::common::communications::*;
 use crate::error::{ErrorKind, logger::Report, Result};
 use crate::main_extra::*;
-use crate::packfile::packfile::PackedFile;
+use crate::packfile::packedfile::PackedFile;
 use crate::packedfile::*;
 use crate::packedfile::db::schemas::Schema;
 use crate::packedfile::db::schemas_importer::*;
-use crate::packfile::packfile::{PFHVersion, PFHFileType, PFHFlags};
+use crate::packfile::{PFHVersion, PFHFileType, PFHFlags};
 use crate::settings::*;
 use crate::settings::shortcuts::Shortcuts;
 use crate::ui::*;
@@ -124,6 +124,7 @@ macro_rules! clone {
 }
 
 mod background_thread;
+mod background_thread_extra;
 mod common;
 mod error;
 mod main_extra;
@@ -509,12 +510,10 @@ pub struct AppUI {
 
     // Warhammer 2's actions.
     pub wh2_patch_siege_ai: *mut Action,
-    pub wh2_create_prefab: *mut Action,
     pub wh2_optimize_packfile: *mut Action,
 
     // Warhammer's actions.
     pub wh_patch_siege_ai: *mut Action,
-    pub wh_create_prefab: *mut Action,
     pub wh_optimize_packfile: *mut Action,
 
     // Thrones of Britannia's actions.
@@ -822,14 +821,10 @@ fn main() {
 
             // Warhammer 2's actions.
             wh2_patch_siege_ai: menu_warhammer_2.as_mut().unwrap().add_action(&QString::from_std_str("&Patch Siege AI")),
-            // wh2_create_prefab: menu_warhammer_2.as_mut().unwrap().add_action(&QString::from_std_str("&Create Prefab")),
-            wh2_create_prefab: Action::new(&QString::from_std_str("&Create Prefab")).into_raw(),
             wh2_optimize_packfile: menu_warhammer_2.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
 
             // Warhammer's actions.
             wh_patch_siege_ai: menu_warhammer.as_mut().unwrap().add_action(&QString::from_std_str("&Patch Siege AI")),
-            // wh_create_prefab: menu_warhammer.as_mut().unwrap().add_action(&QString::from_std_str("&Create Prefab")),
-            wh_create_prefab: Action::new(&QString::from_std_str("&Create Prefab")).into_raw(),
             wh_optimize_packfile: menu_warhammer.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
             
             // Thrones of Britannia's actions.
@@ -1195,13 +1190,10 @@ fn main() {
 
         // Menu bar, Special Stuff.
         let patch_siege_ai_tip = QString::from_std_str("Patch & Clean an exported map's PackFile. It fixes the Siege AI (if it has it) and remove useless xml files that bloat the PackFile, reducing his size.");
-        let create_prefab_tip = QString::from_std_str("Create prefabs from exported maps. Currently bugged, so don't use it.");
         let optimize_packfile = QString::from_std_str("Check and remove any data in DB Tables and Locs (Locs only for english users) that is unchanged from the base game. That means your mod will only contain the stuff you change, avoiding incompatibilities with other mods.");
         unsafe { app_ui.wh2_patch_siege_ai.as_mut().unwrap().set_status_tip(&patch_siege_ai_tip); }
-        unsafe { app_ui.wh2_create_prefab.as_mut().unwrap().set_status_tip(&create_prefab_tip); }
         unsafe { app_ui.wh2_optimize_packfile.as_mut().unwrap().set_status_tip(&optimize_packfile); }
         unsafe { app_ui.wh_patch_siege_ai.as_mut().unwrap().set_status_tip(&patch_siege_ai_tip); }
-        unsafe { app_ui.wh_create_prefab.as_mut().unwrap().set_status_tip(&create_prefab_tip); }
         unsafe { app_ui.wh_optimize_packfile.as_mut().unwrap().set_status_tip(&optimize_packfile); }
         unsafe { app_ui.att_optimize_packfile.as_mut().unwrap().set_status_tip(&optimize_packfile); }
         unsafe { app_ui.rom2_optimize_packfile.as_mut().unwrap().set_status_tip(&optimize_packfile); }
