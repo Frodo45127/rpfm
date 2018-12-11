@@ -23398,6 +23398,35 @@
       "name": "campaign_agent_subtype_battle_tags_tables",
       "versions": [
         {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "agent_subtype",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "agent_subtypes",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "battle_tag",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "attacking",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        },
+        {
           "version": 0,
           "fields": [
             {
@@ -28993,6 +29022,91 @@
     {
       "name": "campaign_settlement_display_buildings_tables",
       "versions": [
+        {
+          "version": 7,
+          "fields": [
+            {
+              "field_name": "model_id",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "campaign_settlement_display_building_model_ids",
+                "id"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "key",
+              "field_type": "LongInteger",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "building_bmd",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "port_bmd",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "construction_bmd",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "damaged_bmd",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "destroyed_bmd",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "port_construction_bmd",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "port_walled_bmd",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "wall_bmd",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "on_sea_bmd",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        },
         {
           "version": 6,
           "fields": [
