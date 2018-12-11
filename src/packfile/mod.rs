@@ -558,7 +558,8 @@ impl PackFile {
             match self.pfh_version {
                 PFHVersion::PFH5 => {
                     if self.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) { packed_file_index.extend_from_slice(&encode_integer_u32(packed_file.timestamp as u32)); }
-                    if packed_file.is_compressed { packed_file_index.push(1); } else { packed_file_index.push(0); } 
+                    //if packed_file.is_compressed { packed_file_index.push(1); } else { packed_file_index.push(0); } 
+                    packed_file_index.push(0);
                 }
                 PFHVersion::PFH4 => {
                     if self.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) { packed_file_index.extend_from_slice(&encode_integer_u32(packed_file.timestamp as u32)); }
