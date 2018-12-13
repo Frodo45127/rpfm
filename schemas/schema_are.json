@@ -56922,12 +56922,12 @@
               "field_description": ""
             },
             {
-              "field_name": "subculture_key",
+              "field_name": "faction_key",
               "field_type": "OptionalStringU8",
-              "field_is_key": false,
+              "field_is_key": true,
               "field_is_reference": [
-                "cultures_subcultures",
-                "subculture"
+                "factions",
+                "key"
               ],
               "field_description": ""
             },
@@ -56952,12 +56952,12 @@
               "field_description": ""
             },
             {
-              "field_name": "faction_key",
+              "field_name": "subculture_key",
               "field_type": "OptionalStringU8",
-              "field_is_key": true,
+              "field_is_key": false,
               "field_is_reference": [
-                "factions",
-                "key"
+                "cultures_subcultures",
+                "subculture"
               ],
               "field_description": ""
             },
