@@ -594,7 +594,7 @@ impl PackFile {
         // Write the indexes and the data of the PackedFiles. No need to keep the data, as it has been preloaded before.
         file.write_all(&pack_file_index)?;
         file.write_all(&packed_file_index)?;
-        for packed_file in &self.packed_files { file.write(&(packed_file.get_data()?))?; }
+        for packed_file in &self.packed_files { file.write_all(&(packed_file.get_data()?))?; }
 
         // If nothing has failed, return success.
         Ok(())

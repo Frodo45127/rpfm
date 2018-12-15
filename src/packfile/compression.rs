@@ -1,6 +1,7 @@
 // Here should go all the functions related to the compresion/decompression of PackedFiles.
 
 use crate::error::{Error, ErrorKind, Result};
+
 /// This function decompress the data of a PackedFile, returning the decompressed data.
 pub fn decompress_data(mut data: Vec<u8>) -> Result<Vec<u8>> {
 
@@ -13,7 +14,7 @@ pub fn decompress_data(mut data: Vec<u8>) -> Result<Vec<u8>> {
         fixed_data.append(&mut data[0..4].to_vec());
         fixed_data.append(&mut vec![0; 4]);
         fixed_data.append(&mut data[9..].to_vec());
-        lzma::decompress(&mut fixed_data).map_err(|_| Error::from(ErrorKind::PackedFileDataCouldNotBeDecompressed))
+        lzma::decompress(&fixed_data).map_err(|_| Error::from(ErrorKind::PackedFileDataCouldNotBeDecompressed))
     }
     else { Err(ErrorKind::PackedFileDataCouldNotBeDecompressed)? }
 }
