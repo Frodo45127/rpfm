@@ -504,8 +504,10 @@ impl PackFile {
             );
             pack_file_decoded.packed_files.push(packed_file);
 
-            // Then we move our data position. For encrypted files in PFH5 PackFiles we have to start the next one in a multiple of 8.
-            if pack_file_decoded.bitmask.contains(PFHFlags::HAS_ENCRYPTED_DATA) && pack_file_decoded.pfh_version == PFHVersion::PFH5 {
+            // Then we move our data position. For encrypted files in PFH5 PackFiles (only ARENA) we have to start the next one in a multiple of 8.
+            if pack_file_decoded.bitmask.contains(PFHFlags::HAS_ENCRYPTED_DATA) && 
+                pack_file_decoded.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) &&
+                pack_file_decoded.pfh_version == PFHVersion::PFH5 {
                 let padding = 8 - (size % 8);
                 let padded_size = if padding < 8 { size + padding } else { size };
                 data_position += padded_size as u64;
