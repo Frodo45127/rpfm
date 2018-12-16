@@ -1110,21 +1110,21 @@ pub fn background_loop(
                                 // Otherwise, we don't have a decoder for that PackedFile... yet.
                                 else { "None" };
 
-                            let data = match packed_file.get_data_and_keep_it() {
-                                Ok(data) => data,
-                                Err(_) => {
-                                    sender.send(Data::Error(Error::from(ErrorKind::PackedFileDataCouldNotBeLoaded))).unwrap();
-                                    error = true;
-                                    break;
-                                }
-                            };
-
                             // Then, depending of his type we decode it properly (if we have it implemented support
                             // for his type).
                             match packed_file_type {
 
                                 // If the file is a Loc PackedFile, decode it and search in his key and text columns.
                                 "LOC" => {
+
+                                    let data = match packed_file.get_data_and_keep_it() {
+                                        Ok(data) => data,
+                                        Err(_) => {
+                                            sender.send(Data::Error(Error::from(ErrorKind::PackedFileDataCouldNotBeLoaded))).unwrap();
+                                            error = true;
+                                            break;
+                                        }
+                                    };
 
                                     // We try to decode it as a Loc PackedFile.
                                     if let Ok(packed_file) = Loc::read(&data) {
@@ -1147,6 +1147,15 @@ pub fn background_loop(
 
                                 // If the file is a DB PackedFile...
                                 "DB" => {
+
+                                    let data = match packed_file.get_data_and_keep_it() {
+                                        Ok(data) => data,
+                                        Err(_) => {
+                                            sender.send(Data::Error(Error::from(ErrorKind::PackedFileDataCouldNotBeLoaded))).unwrap();
+                                            error = true;
+                                            break;
+                                        }
+                                    };
 
                                     if let Some(ref schema) = *SCHEMA.lock().unwrap() {   
                                         if let Ok(packed_file) = DB::read(&data, &path[1], &schema) {
@@ -1252,21 +1261,21 @@ pub fn background_loop(
                                     // Otherwise, we don't have a decoder for that PackedFile... yet.
                                     else { "None" };
 
-                                let data = match packed_file.get_data_and_keep_it() {
-                                    Ok(data) => data,
-                                    Err(_) => {
-                                        sender.send(Data::Error(Error::from(ErrorKind::PackedFileDataCouldNotBeLoaded))).unwrap();
-                                        error = true;
-                                        break;
-                                    }
-                                };
-
                                 // Then, depending of his type we decode it properly (if we have it implemented support
                                 // for his type).
                                 match packed_file_type {
 
                                     // If the file is a Loc PackedFile, decode it and search in his key and text columns.
                                     "LOC" => {
+
+                                        let data = match packed_file.get_data_and_keep_it() {
+                                            Ok(data) => data,
+                                            Err(_) => {
+                                                sender.send(Data::Error(Error::from(ErrorKind::PackedFileDataCouldNotBeLoaded))).unwrap();
+                                                error = true;
+                                                break;
+                                            }
+                                        };
 
                                         // We try to decode it as a Loc PackedFile.
                                         if let Ok(packed_file) = Loc::read(&data) {
@@ -1289,6 +1298,15 @@ pub fn background_loop(
 
                                     // If the file is a DB PackedFile...
                                     "DB" => {
+
+                                        let data = match packed_file.get_data_and_keep_it() {
+                                            Ok(data) => data,
+                                            Err(_) => {
+                                                sender.send(Data::Error(Error::from(ErrorKind::PackedFileDataCouldNotBeLoaded))).unwrap();
+                                                error = true;
+                                                break;
+                                            }
+                                        };
 
                                         if let Some(ref schema) = *SCHEMA.lock().unwrap() {   
                                             if let Ok(packed_file) = DB::read(&data, &path[1], &schema) {
