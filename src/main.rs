@@ -174,7 +174,11 @@ lazy_static! {
             display_name: "Warhammer".to_owned(),
             id: PFHVersion::PFH4,
             schema: "schema_wh.json".to_owned(),
-            db_packs: vec!["data.pack".to_owned()],
+            db_packs: vec![
+                "data.pack".to_owned(),         // Central data PackFile
+                "data_bl.pack".to_owned(),      // Blood DLC Data
+                "data_bm.pack".to_owned()       // Beastmen DLC Data
+            ],
             loc_packs: vec![
                 "local_en.pack".to_owned(),     // English
                 "local_br.pack".to_owned(),     // Brazilian
