@@ -7280,21 +7280,21 @@
           "version": 0,
           "fields": [
             {
-              "field_name": "metadata_tag",
-              "field_type": "StringU8",
-              "field_is_key": true,
-              "field_is_reference": [
-                "audio_metadata_tags",
-                "key"
-              ],
-              "field_description": ""
-            },
-            {
               "field_name": "entity_type",
               "field_type": "StringU8",
               "field_is_key": true,
               "field_is_reference": [
                 "audio_entity_types",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "metadata_tag",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "audio_metadata_tags",
                 "key"
               ],
               "field_description": ""
@@ -19072,21 +19072,21 @@
           "version": 1,
           "fields": [
             {
-              "field_name": "agent_type_key",
-              "field_type": "StringU8",
-              "field_is_key": true,
-              "field_is_reference": [
-                "cai_agent_types",
-                "key"
-              ],
-              "field_description": ""
-            },
-            {
               "field_name": "agent_record_key",
               "field_type": "StringU8",
               "field_is_key": true,
               "field_is_reference": [
                 "agents",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "agent_type_key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "cai_agent_types",
                 "key"
               ],
               "field_description": ""
@@ -19107,21 +19107,21 @@
           "version": 0,
           "fields": [
             {
-              "field_name": "agent_type_key",
-              "field_type": "StringU8",
-              "field_is_key": true,
-              "field_is_reference": [
-                "cai_agent_types",
-                "key"
-              ],
-              "field_description": ""
-            },
-            {
               "field_name": "agent_record_key",
               "field_type": "StringU8",
               "field_is_key": true,
               "field_is_reference": [
                 "agents",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "agent_type_key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "cai_agent_types",
                 "key"
               ],
               "field_description": ""
@@ -26013,20 +26013,20 @@
           "version": 1,
           "fields": [
             {
-              "field_name": "id",
-              "field_type": "OptionalStringU8",
-              "field_is_key": false,
-              "field_is_reference": null,
-              "field_description": ""
-            },
-            {
               "field_name": "battle_type",
-              "field_type": "StringU8",
+              "field_type": "OptionalStringU8",
               "field_is_key": false,
               "field_is_reference": [
                 "campaign_battle_type_enums",
                 "key"
               ],
+              "field_description": ""
+            },
+            {
+              "field_name": "id",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
               "field_description": ""
             },
             {
@@ -27906,21 +27906,21 @@
           "version": 1,
           "fields": [
             {
-              "field_name": "category",
-              "field_type": "StringU8",
-              "field_is_key": true,
-              "field_is_reference": [
-                "campaign_effect_scope_categories",
-                "key"
-              ],
-              "field_description": ""
-            },
-            {
               "field_name": "scope",
               "field_type": "StringU8",
               "field_is_key": true,
               "field_is_reference": [
                 "campaign_effect_scopes",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "category",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "campaign_effect_scope_categories",
                 "key"
               ],
               "field_description": ""
@@ -38965,22 +38965,22 @@
           "version": 0,
           "fields": [
             {
-              "field_name": "effect",
-              "field_type": "StringU8",
-              "field_is_key": true,
-              "field_is_reference": [
-                "effects",
-                "effect"
-              ],
-              "field_description": ""
-            },
-            {
               "field_name": "bonus_value_id",
               "field_type": "StringU8",
               "field_is_key": true,
               "field_is_reference": [
                 "campaign_bonus_value_ids_agent_action_records",
                 "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "effect",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "effects",
+                "effect"
               ],
               "field_description": ""
             },
@@ -51139,13 +51139,6 @@
           "version": 0,
           "fields": [
             {
-              "field_name": "stat_key",
-              "field_type": "StringU8",
-              "field_is_key": true,
-              "field_is_reference": null,
-              "field_description": ""
-            },
-            {
               "field_name": "localisation",
               "field_type": "StringU8",
               "field_is_key": false,
@@ -51153,6 +51146,13 @@
                 "unit_stat_localisations",
                 "stat_key"
               ],
+              "field_description": ""
+            },
+            {
+              "field_name": "stat_key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
               "field_description": ""
             }
           ]
