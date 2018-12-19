@@ -26111,22 +26111,12 @@
               "field_description": ""
             },
             {
-              "field_name": "faction",
+              "field_name": "campaign",
               "field_type": "OptionalStringU8",
               "field_is_key": true,
               "field_is_reference": [
-                "factions",
-                "key"
-              ],
-              "field_description": ""
-            },
-            {
-              "field_name": "sub_culture",
-              "field_type": "OptionalStringU8",
-              "field_is_key": true,
-              "field_is_reference": [
-                "cultures_subcultures",
-                "subculture"
+                "campaigns",
+                "campaign_name"
               ],
               "field_description": ""
             },
@@ -26136,6 +26126,16 @@
               "field_is_key": true,
               "field_is_reference": [
                 "cultures",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "faction",
+              "field_type": "OptionalStringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "factions",
                 "key"
               ],
               "field_description": ""
@@ -26267,12 +26267,12 @@
               "field_description": ""
             },
             {
-              "field_name": "campaign",
+              "field_name": "sub_culture",
               "field_type": "OptionalStringU8",
               "field_is_key": true,
               "field_is_reference": [
-                "campaigns",
-                "campaign_name"
+                "cultures_subcultures",
+                "subculture"
               ],
               "field_description": ""
             }
@@ -45180,22 +45180,22 @@
           "version": 0,
           "fields": [
             {
+              "field_name": "campaign_key",
+              "field_type": "OptionalStringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "campaigns",
+                "campaign_name"
+              ],
+              "field_description": ""
+            },
+            {
               "field_name": "faction_key",
               "field_type": "OptionalStringU8",
               "field_is_key": true,
               "field_is_reference": [
                 "factions",
                 "key"
-              ],
-              "field_description": ""
-            },
-            {
-              "field_name": "subculture_key",
-              "field_type": "OptionalStringU8",
-              "field_is_key": true,
-              "field_is_reference": [
-                "cultures_subcultures",
-                "subculture"
               ],
               "field_description": ""
             },
@@ -45224,12 +45224,12 @@
               "field_description": ""
             },
             {
-              "field_name": "campaign_key",
+              "field_name": "subculture_key",
               "field_type": "OptionalStringU8",
               "field_is_key": true,
               "field_is_reference": [
-                "campaigns",
-                "campaign_name"
+                "cultures_subcultures",
+                "subculture"
               ],
               "field_description": ""
             },
@@ -89998,6 +89998,13 @@
               "field_description": ""
             },
             {
+              "field_name": "name",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
               "field_name": "unit",
               "field_type": "StringU8",
               "field_is_key": true,
@@ -90005,13 +90012,6 @@
                 "land_units",
                 "key"
               ],
-              "field_description": ""
-            },
-            {
-              "field_name": "name",
-              "field_type": "StringU8",
-              "field_is_key": false,
-              "field_is_reference": null,
               "field_description": ""
             },
             {
