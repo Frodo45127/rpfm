@@ -30110,6 +30110,52 @@
       "name": "campaign_map_attritions_tables",
       "versions": [
         {
+          "version": 4,
+          "fields": [
+            {
+              "field_name": "damage",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "campaign_map_attrition_damages",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "type",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "campaign_map_attrition_types",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "type_localised",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "is_snow",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        },
+        {
           "version": 3,
           "fields": [
             {
@@ -31389,6 +31435,67 @@
               "field_type": "OptionalStringU8",
               "field_is_key": false,
               "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "campaign_political_difficulty_handicap_effects_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "campaign_political_difficulty_handicap",
+              "field_type": "Integer",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "effect",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "effects",
+                "effect"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "effect_scope",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "campaign_effect_scopes",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "effect_value",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "human",
+              "field_type": "Boolean",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "optional_campaign_key",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "campaigns",
+                "campaign_name"
+              ],
               "field_description": ""
             }
           ]
@@ -36432,6 +36539,76 @@
       "name": "character_traits_tables",
       "versions": [
         {
+          "version": 3,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "trait_info",
+                "trait"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "no_going_back_level",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "hidden",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "precedence",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "icon",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "trait_categories",
+                "category"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "ui_priority",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "pre_battle_speech_parameter",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "pre_battle_speech_parameters_enum",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "trait_browser_sort_order",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        },
+        {
           "version": 2,
           "fields": [
             {
@@ -41200,6 +41377,56 @@
               "field_type": "Float",
               "field_is_key": false,
               "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "estate_and_trait_category_to_effects_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "effect_bundle",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "effect_bundles",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "estate_scope",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "estate_effect_scopes",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "estate_type",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "estate_effect_sets",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "trait_category",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "trait_categories",
+                "category"
+              ],
               "field_description": ""
             }
           ]
@@ -54319,6 +54546,59 @@
       "name": "political_actions_dilemma_junctions_tables",
       "versions": [
         {
+          "version": 3,
+          "fields": [
+            {
+              "field_name": "dilemma",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "dilemmas",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "political_action",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "political_actions",
+                "political_action_key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "weighting",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "optimal_outcome",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "min_political_difference",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "max_political_difference",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        },
+        {
           "version": 2,
           "fields": [
             {
@@ -64655,6 +64935,39 @@
     {
       "name": "trait_categories_tables",
       "versions": [
+        {
+          "version": 5,
+          "fields": [
+            {
+              "field_name": "category",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "icon_path",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "bundle",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "bundle applied to character when the trait category is active"
+            },
+            {
+              "field_name": "FIXME",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        },
         {
           "version": 0,
           "fields": [
