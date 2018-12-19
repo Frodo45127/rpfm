@@ -1,11 +1,9 @@
 // In this file are all the "Generic" helper functions used by RPFM (no UI code here).
 // As we may or may not use them, all functions here should have the "#[allow(dead_code)]"
 // var set, so the compiler doesn't spam us every time we try to compile.
-extern crate chrono;
-extern crate serde;
-extern crate serde_json;
 
 use chrono::{Utc, DateTime};
+use serde_derive::{Serialize, Deserialize};
 
 use std::fs::{File, read_dir};
 use std::path::{Path, PathBuf};
@@ -14,7 +12,7 @@ use crate::SUPPORTED_GAMES;
 use crate::GAME_SELECTED;
 use crate::SETTINGS;
 use crate::error::{ErrorKind, Result};
-use crate::packfile::packfile::PackFile;
+use crate::packfile::PackFile;
 
 pub mod coding_helpers;
 pub mod communications;
@@ -66,12 +64,10 @@ pub fn get_type_of_selected_path(
     let mut tree_path = tree_path.to_owned();
     
     // If we don't have anything, it's an invalid path.
-    if tree_path.is_empty() { return TreePathType::None }
+    if tree_path.is_empty() { TreePathType::None }
 
     // If the path is just the PackFile's name, it's the PackFile.
-    else if tree_path.len() == 1 {
-        return TreePathType::PackFile
-    }
+    else if tree_path.len() == 1 { TreePathType::PackFile }
 
     // If is not a PackFile...
     else {
@@ -90,7 +86,7 @@ pub fn get_type_of_selected_path(
         }
 
         // If is a file, we return it.
-        if is_a_file { return TreePathType::File(tree_path) }
+        if is_a_file { TreePathType::File(tree_path) }
 
         // Otherwise, we assume it's a folder. This is not bulletproof so FIXME: find a way to make this more solid.
         else {
@@ -99,10 +95,10 @@ pub fn get_type_of_selected_path(
             let is_a_folder = pack_file_decoded.folder_exists(&tree_path);
 
             // If it exists, we return it as a folder.
-            if is_a_folder { return TreePathType::Folder(tree_path) }
+            if is_a_folder { TreePathType::Folder(tree_path) }
 
             // Otherwise, it's a None.
-            else { return TreePathType::None }
+            else { TreePathType::None }
         }
     }
 }
@@ -209,7 +205,7 @@ pub fn get_last_modified_time_from_file(file: &File) -> i64 {
 /// Get the `/data` path of the game selected, straighoutta settings, if it's configured.
 #[allow(dead_code)]
 pub fn get_game_selected_data_path() -> Option<PathBuf> {
-    let mut path = SETTINGS.lock().unwrap().paths.get(&**GAME_SELECTED.lock().unwrap()).unwrap().clone()?;
+    let mut path = SETTINGS.lock().unwrap().paths[&**GAME_SELECTED.lock().unwrap()].clone()?;
     path.push("data");
     Some(path)
 }
@@ -218,8 +214,8 @@ pub fn get_game_selected_data_path() -> Option<PathBuf> {
 #[allow(dead_code)]
 pub fn get_game_selected_db_pack_path() -> Option<Vec<PathBuf>> {
 
-    let base_path = SETTINGS.lock().unwrap().paths.get(&**GAME_SELECTED.lock().unwrap()).unwrap().clone()?;
-    let db_packs = &SUPPORTED_GAMES.get(&**GAME_SELECTED.lock().unwrap()).unwrap().db_packs;
+    let base_path = SETTINGS.lock().unwrap().paths[&**GAME_SELECTED.lock().unwrap()].clone()?;
+    let db_packs = &SUPPORTED_GAMES[&**GAME_SELECTED.lock().unwrap()].db_packs;
     let mut db_paths = vec![];
     for pack in db_packs {
         let mut path = base_path.to_path_buf();
@@ -234,8 +230,8 @@ pub fn get_game_selected_db_pack_path() -> Option<Vec<PathBuf>> {
 #[allow(dead_code)]
 pub fn get_game_selected_loc_pack_path() -> Option<Vec<PathBuf>> {
 
-    let base_path = SETTINGS.lock().unwrap().paths.get(&**GAME_SELECTED.lock().unwrap()).unwrap().clone()?;
-    let loc_packs = &SUPPORTED_GAMES.get(&**GAME_SELECTED.lock().unwrap()).unwrap().loc_packs;
+    let base_path = SETTINGS.lock().unwrap().paths[&**GAME_SELECTED.lock().unwrap()].clone()?;
+    let loc_packs = &SUPPORTED_GAMES[&**GAME_SELECTED.lock().unwrap()].loc_packs;
     let mut loc_paths = vec![];
     for pack in loc_packs {
         let mut path = base_path.to_path_buf();
@@ -268,8 +264,8 @@ pub fn get_game_selected_data_packfiles_paths() -> Option<Vec<PathBuf>> {
 #[allow(dead_code)]
 pub fn get_game_selected_content_packfiles_paths() -> Option<Vec<PathBuf>> {
 
-    let mut path = SETTINGS.lock().unwrap().paths.get(&**GAME_SELECTED.lock().unwrap())?.clone()?;
-    let id = SUPPORTED_GAMES.get(&**GAME_SELECTED.lock().unwrap())?.steam_id?.to_string();
+    let mut path = SETTINGS.lock().unwrap().paths[&**GAME_SELECTED.lock().unwrap()].clone()?;
+    let id = SUPPORTED_GAMES[&**GAME_SELECTED.lock().unwrap()].steam_id?.to_string();
 
     path.pop();
     path.pop();

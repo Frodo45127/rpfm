@@ -1,5 +1,6 @@
 // In this module should be everything related to the settings stuff.
-extern crate serde_json;
+
+use serde_derive::{Serialize, Deserialize};
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -10,7 +11,7 @@ use std::io::{BufReader, BufWriter};
 use crate::RPFM_PATH;
 use crate::SUPPORTED_GAMES;
 use crate::error::Result;
-use crate::packfile::packfile::PFHVersion;
+use crate::packfile::PFHVersion;
 
 pub mod shortcuts;
 
@@ -104,22 +105,22 @@ impl Settings {
 
         {          
             let mut keys_to_delete = vec![];
-            for (key, _) in settings.paths.clone() { if let None = defaults.paths.get(&*key) { keys_to_delete.push(key); } }
+            for (key, _) in settings.paths.clone() { if defaults.paths.get(&*key).is_none() { keys_to_delete.push(key); } }
             for key in &keys_to_delete { settings.paths.remove(key); }
 
             let mut keys_to_delete = vec![];
-            for (key, _) in settings.settings_string.clone() { if let None = defaults.settings_string.get(&*key) { keys_to_delete.push(key); } }
+            for (key, _) in settings.settings_string.clone() { if defaults.settings_string.get(&*key).is_none() { keys_to_delete.push(key); } }
             for key in &keys_to_delete { settings.settings_string.remove(key); }
 
             let mut keys_to_delete = vec![];
-            for (key, _) in settings.settings_bool.clone() { if let None = defaults.settings_bool.get(&*key) { keys_to_delete.push(key); } }
+            for (key, _) in settings.settings_bool.clone() { if defaults.settings_bool.get(&*key).is_none() { keys_to_delete.push(key); } }
             for key in &keys_to_delete { settings.settings_bool.remove(key); }
         }
 
         {          
-            for (key, value) in defaults.paths { if let None = settings.paths.get(&*key) { settings.paths.insert(key, value);  } }
-            for (key, value) in defaults.settings_string { if let None = settings.settings_string.get(&*key) { settings.settings_string.insert(key, value);  } }
-            for (key, value) in defaults.settings_bool { if let None = settings.settings_bool.get(&*key) { settings.settings_bool.insert(key, value);  } }
+            for (key, value) in defaults.paths { if settings.paths.get(&*key).is_none() { settings.paths.insert(key, value);  } }
+            for (key, value) in defaults.settings_string { if settings.settings_string.get(&*key).is_none() { settings.settings_string.insert(key, value);  } }
+            for (key, value) in defaults.settings_bool { if settings.settings_bool.get(&*key).is_none() { settings.settings_bool.insert(key, value);  } }
         }
 
         Ok(settings)

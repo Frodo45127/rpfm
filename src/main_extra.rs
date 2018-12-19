@@ -52,7 +52,7 @@ pub fn open_packfile(
             update_treeview(
                 sender_qt,
                 sender_qt_data,
-                receiver_qt.clone(),
+                &receiver_qt,
                 app_ui.window,
                 app_ui.folder_tree_view,
                 app_ui.folder_tree_model,
@@ -123,7 +123,7 @@ pub fn open_packfile(
 
             // Close the Global Search stuff and reset the filter's history.
             unsafe { close_global_search_action.as_mut().unwrap().trigger(); }
-            if !SETTINGS.lock().unwrap().settings_bool.get("remember_table_state_permanently").unwrap() { TABLE_STATES_UI.lock().unwrap().clear(); }
+            if !SETTINGS.lock().unwrap().settings_bool["remember_table_state_permanently"] { TABLE_STATES_UI.lock().unwrap().clear(); }
 
             // Show the "Tips".
             display_help_tips(&app_ui);
@@ -264,7 +264,7 @@ pub fn open_packedfile(
 
                         // Try to get the view build, or return error.
                         match PackedFileLocTreeView::create_tree_view(
-                            sender_qt.clone(),
+                            &sender_qt,
                             &sender_qt_data,
                             &receiver_qt,
                             &is_modified,
@@ -290,7 +290,7 @@ pub fn open_packedfile(
 
                         // Try to get the view build, or return error.
                         match PackedFileDBTreeView::create_table_view(
-                            sender_qt.clone(),
+                            &sender_qt,
                             &sender_qt_data,
                             &receiver_qt,
                             &is_modified,
@@ -319,7 +319,7 @@ pub fn open_packedfile(
 
                         // Try to get the view build, or return error.
                         match PackedFileTextView::create_text_view(
-                            sender_qt.clone(),
+                            &sender_qt,
                             &sender_qt_data,
                             &receiver_qt,
                             &is_modified,
@@ -342,7 +342,7 @@ pub fn open_packedfile(
 
                         // Try to get the view build, or return error.
                         match PackedFileRigidModelDataView::create_data_view(
-                            sender_qt.clone(),
+                            &sender_qt,
                             &sender_qt_data,
                             &receiver_qt,
                             &is_modified,
@@ -365,7 +365,7 @@ pub fn open_packedfile(
 
                         // Try to get the view build, or return error.
                         if let Err(error) = ui::packedfile_image::create_image_view(
-                            sender_qt.clone(),
+                            &sender_qt,
                             &sender_qt_data,
                             &receiver_qt,
                             widget_layout,
@@ -492,7 +492,7 @@ pub fn save_packfile(
                             update_treeview(
                                 &sender_qt,
                                 &sender_qt_data,
-                                receiver_qt.clone(),
+                                &receiver_qt,
                                 app_ui.window,
                                 app_ui.folder_tree_view,
                                 app_ui.folder_tree_model,
@@ -554,13 +554,13 @@ pub fn save_packfile(
 /// - At the end of settings update.
 /// We need to return a tuple with the actions (for further manipulation) and the slots (to keep them alive).
 pub fn build_my_mod_menu(
-    sender_qt: Sender<Commands>,
+    sender_qt: &Sender<Commands>,
     sender_qt_data: &Sender<Data>,
-    receiver_qt: Rc<RefCell<Receiver<Data>>>,
+    receiver_qt: &Rc<RefCell<Receiver<Data>>>,
     app_ui: AppUI,
-    menu_bar_mymod: &*mut Menu,
-    is_modified: Rc<RefCell<bool>>,
-    mode: Rc<RefCell<Mode>>,
+    menu_bar_mymod: *mut Menu,
+    is_modified: &Rc<RefCell<bool>>,
+    mode: &Rc<RefCell<Mode>>,
     needs_rebuild: Rc<RefCell<bool>>,
     packedfiles_open_in_packedfile_view: &Rc<RefCell<BTreeMap<i32, Rc<RefCell<Vec<String>>>>>>,
     close_global_search_action: *mut Action,
@@ -626,18 +626,18 @@ pub fn build_my_mod_menu(
                         }
 
                         // Get his new path from the base "MyMod" path + `mod_game`.
-                        let mut mymod_path = SETTINGS.lock().unwrap().paths.get("mymods_base_path").unwrap().clone().unwrap();
+                        let mut mymod_path = SETTINGS.lock().unwrap().paths["mymods_base_path"].clone().unwrap();
                         mymod_path.push(&mod_game);
 
                         // Just in case the folder doesn't exist, we try to create it.
-                        if let Err(_) = DirBuilder::new().recursive(true).create(&mymod_path) {
+                        if DirBuilder::new().recursive(true).create(&mymod_path).is_err() {
                             return show_dialog(app_ui.window, false, ErrorKind::IOCreateAssetFolder);
                         }
 
                         // We need to create another folder inside the game's folder with the name of the new "MyMod", to store extracted files.
                         let mut mymod_path_private = mymod_path.to_path_buf();
                         mymod_path_private.push(&mod_name);
-                        if let Err(_) = DirBuilder::new().recursive(true).create(&mymod_path_private) {
+                        if DirBuilder::new().recursive(true).create(&mymod_path_private).is_err() {
                             return show_dialog(app_ui.window, false, ErrorKind::IOCreateNestedAssetFolder);
                         };
 
@@ -666,7 +666,7 @@ pub fn build_my_mod_menu(
 
                                 // Close the Global Search stuff and reset the filter's history.
                                 unsafe { close_global_search_action.as_mut().unwrap().trigger(); }
-                                if !SETTINGS.lock().unwrap().settings_bool.get("remember_table_state_permanently").unwrap() { TABLE_STATES_UI.lock().unwrap().clear(); }
+                                if !SETTINGS.lock().unwrap().settings_bool["remember_table_state_permanently"] { TABLE_STATES_UI.lock().unwrap().clear(); }
 
                                 // Show the "Tips".
                                 display_help_tips(&app_ui);
@@ -675,7 +675,7 @@ pub fn build_my_mod_menu(
                                 update_treeview(
                                     &sender_qt,
                                     &sender_qt_data,
-                                    receiver_qt.clone(),
+                                    &receiver_qt,
                                     app_ui.window,
                                     app_ui.folder_tree_view,
                                     app_ui.folder_tree_model,
@@ -695,10 +695,10 @@ pub fn build_my_mod_menu(
                                 *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
 
                                 // Enable the actions available for the PackFile from the `MenuBar`.
-                                enable_packfile_actions(&app_ui, &Rc::new(RefCell::new(mymod_stuff.clone())), true);
+                                enable_packfile_actions(&app_ui, &Rc::new(RefCell::new(mymod_stuff)), true);
 
                                 // Set the current "Operational Mode" to `MyMod`.
-                                set_my_mod_mode(&Rc::new(RefCell::new(mymod_stuff.clone())), &mode, Some(mymod_path));
+                                set_my_mod_mode(&Rc::new(RefCell::new(mymod_stuff)), &mode, Some(mymod_path));
 
                                 // Set it to rebuild next time we try to open the "MyMod" Menu.
                                 *needs_rebuild.borrow_mut() = true;
@@ -755,7 +755,7 @@ pub fn build_my_mod_menu(
                             old_mod_name = mod_name.to_owned();
 
                             // And the "MyMod" path is configured...
-                            if let Some(ref mymods_base_path) = SETTINGS.lock().unwrap().paths.get("mymods_base_path").unwrap() {
+                            if let Some(ref mymods_base_path) = SETTINGS.lock().unwrap().paths["mymods_base_path"] {
 
                                 // We get his path.
                                 let mut mymod_path = mymods_base_path.to_path_buf();
@@ -766,7 +766,7 @@ pub fn build_my_mod_menu(
                                 if !mymod_path.is_file() { return show_dialog(app_ui.window, false, ErrorKind::MyModPackFileDoesntExist); }
 
                                 // And we try to delete his PackFile. If it fails, return error.
-                                if let Err(_) = remove_file(&mymod_path) {
+                                if remove_file(&mymod_path).is_err() {
                                     return show_dialog(app_ui.window, false, ErrorKind::IOGenericDelete(vec![mymod_path; 1]));
                                 }
 
@@ -782,7 +782,7 @@ pub fn build_my_mod_menu(
                                 }
 
                                 // If the assets folder exists, we try to delete it. Again, this is optional, so it should not stop the deleting process.
-                                else if let Err(_) = remove_dir_all(&mymod_assets_path) {
+                                else if remove_dir_all(&mymod_assets_path).is_err() {
                                     show_dialog(app_ui.window, false, ErrorKind::IOGenericDelete(vec![mymod_assets_path; 1]));
                                 }
 
@@ -802,13 +802,13 @@ pub fn build_my_mod_menu(
                     if mod_deleted {
 
                         // Set the current "Operational Mode" to `Normal`.
-                        set_my_mod_mode(&Rc::new(RefCell::new(mymod_stuff.clone())), &mode, None);
+                        set_my_mod_mode(&Rc::new(RefCell::new(mymod_stuff)), &mode, None);
 
                         // Create a "dummy" PackFile, effectively closing the currently open PackFile.
                         sender_qt.send(Commands::ResetPackFile).unwrap();
 
                         // Disable the actions available for the PackFile from the `MenuBar`.
-                        enable_packfile_actions(&app_ui, &Rc::new(RefCell::new(mymod_stuff.clone())), false);
+                        enable_packfile_actions(&app_ui, &Rc::new(RefCell::new(mymod_stuff)), false);
 
                         // Clear the TreeView.
                         unsafe { app_ui.folder_tree_model.as_mut().unwrap().clear(); }
@@ -839,7 +839,7 @@ pub fn build_my_mod_menu(
 
                         // And the "MyMod" path is configured...
                         let settings = SETTINGS.lock().unwrap().clone();
-                        let mymods_base_path = settings.paths.get("mymods_base_path").unwrap();
+                        let mymods_base_path = &settings.paths["mymods_base_path"];
                         if let Some(ref mymods_base_path) = mymods_base_path {
 
                             // If we have a `game_data_path` for the current `GameSelected`...
@@ -862,7 +862,7 @@ pub fn build_my_mod_menu(
                                 game_data_path.push(&mod_name);
 
                                 // And copy the PackFile to his destination. If the copy fails, return an error.
-                                if let Err(_) = copy(mymod_path, game_data_path.to_path_buf()) {
+                                if copy(mymod_path, game_data_path.to_path_buf()).is_err() {
                                     return show_dialog(app_ui.window, false, ErrorKind::IOGenericCopy(game_data_path));
                                 }
                             }
@@ -903,7 +903,7 @@ pub fn build_my_mod_menu(
                             if !game_data_path.is_file() { return show_dialog(app_ui.window, false, ErrorKind::MyModNotInstalled); }
 
                             // If the "MyMod" is installed, we remove it. If there is a problem deleting it, return an error dialog.
-                            else if let Err(_) = remove_file(game_data_path.to_path_buf()) {
+                            else if remove_file(game_data_path.to_path_buf()).is_err() {
                                 return show_dialog(app_ui.window, false, ErrorKind::IOGenericDelete(vec![game_data_path; 1]));
                             }
                         }
@@ -942,7 +942,7 @@ pub fn build_my_mod_menu(
     unsafe { menu_bar_mymod.as_mut().unwrap().add_separator(); }
 
     // If we have the "MyMod" path configured...
-    if let Some(ref mymod_base_path) = SETTINGS.lock().unwrap().paths.get("mymods_base_path").unwrap() {
+    if let Some(ref mymod_base_path) = SETTINGS.lock().unwrap().paths["mymods_base_path"] {
 
         // And can get without errors the folders in that path...
         if let Ok(game_folder_list) = mymod_base_path.read_dir() {
@@ -954,14 +954,14 @@ pub fn build_my_mod_menu(
                 if let Ok(game_folder) = game_folder {
 
                     // Get the list of supported games folders.
-                    let supported_folders = SUPPORTED_GAMES.iter().filter(|(_, x)| x.supports_editing == true).map(|(folder_name,_)| folder_name.to_string()).collect::<Vec<String>>();
+                    let supported_folders = SUPPORTED_GAMES.iter().filter(|(_, x)| x.supports_editing).map(|(folder_name,_)| folder_name.to_string()).collect::<Vec<String>>();
 
                     // If it's a valid folder, and it's in our supported games list...
                     if game_folder.path().is_dir() && supported_folders.contains(&game_folder.file_name().to_string_lossy().as_ref().to_owned()) {
 
                         // We create that game's menu here.
                         let game_folder_name = game_folder.file_name().to_string_lossy().as_ref().to_owned();
-                        let game_display_name = &SUPPORTED_GAMES.get(&*game_folder_name).unwrap().display_name;
+                        let game_display_name = &SUPPORTED_GAMES[&*game_folder_name].display_name;
 
                         let mut game_submenu = Menu::new(&QString::from_std_str(&game_display_name));
 
@@ -985,7 +985,7 @@ pub fn build_my_mod_menu(
                                     let open_mod_action = game_submenu.add_action(&QString::from_std_str(mod_name));
 
                                     // Get this into an Rc so we can pass it to the "Open PackFile" closure.
-                                    let mymod_stuff = Rc::new(RefCell::new(mymod_stuff.clone()));
+                                    let mymod_stuff = Rc::new(RefCell::new(mymod_stuff));
 
                                     // Create the slot for that action.
                                     let slot_open_mod = SlotBool::new(clone!(
@@ -1043,7 +1043,7 @@ pub fn build_my_mod_menu(
     }
 
     // If there is a "MyMod" path set in the settings...
-    if let Some(ref path) = SETTINGS.lock().unwrap().paths.get("mymods_base_path").unwrap() {
+    if let Some(ref path) = SETTINGS.lock().unwrap().paths["mymods_base_path"] {
 
         // And it's a valid directory, enable the "New MyMod" button.
         if path.is_dir() { unsafe { mymod_stuff.new_mymod.as_mut().unwrap().set_enabled(true); }}
@@ -1056,7 +1056,7 @@ pub fn build_my_mod_menu(
     else { unsafe { mymod_stuff.new_mymod.as_mut().unwrap().set_enabled(false); }}
 
     // If we just created a MyMod, these options should be enabled.
-    if let Mode::MyMod{game_folder_name: _, mod_name: _} = *mode.borrow() {
+    if let Mode::MyMod{..} = *mode.borrow() {
         unsafe { mymod_stuff.delete_selected_mymod.as_mut().unwrap().set_enabled(true); }
         unsafe { mymod_stuff.install_mymod.as_mut().unwrap().set_enabled(true); }
         unsafe { mymod_stuff.uninstall_mymod.as_mut().unwrap().set_enabled(true); }
@@ -1077,12 +1077,12 @@ pub fn build_my_mod_menu(
 /// This function takes care of the re-creation of the "Open From Content" and "Open From Data" submenus.
 /// This has to be executed every time we change the Game Selected.
 pub fn build_open_from_submenus(
-    sender_qt: Sender<Commands>,
+    sender_qt: &Sender<Commands>,
     sender_qt_data: &Sender<Data>,
-    receiver_qt: Rc<RefCell<Receiver<Data>>>,
+    receiver_qt: &Rc<RefCell<Receiver<Data>>>,
     app_ui: AppUI,
-    submenu_open_from_content: &*mut Menu,
-    submenu_open_from_data: &*mut Menu,
+    submenu_open_from_content: *mut Menu,
+    submenu_open_from_data: *mut Menu,
     is_modified: &Rc<RefCell<bool>>,
     mode: &Rc<RefCell<Mode>>,
     packedfiles_open_in_packedfile_view: &Rc<RefCell<BTreeMap<i32, Rc<RefCell<Vec<String>>>>>>,
@@ -1249,7 +1249,7 @@ pub fn enable_packfile_actions(
         unsafe { app_ui.save_packfile_as.as_mut().unwrap().set_enabled(enable); }
 
         // If there is a "MyMod" path set in the settings...
-        if let Some(ref path) = SETTINGS.lock().unwrap().paths.get("mymods_base_path").unwrap() {
+        if let Some(ref path) = SETTINGS.lock().unwrap().paths["mymods_base_path"] {
 
             // And it's a valid directory, enable the "New MyMod" button.
             if path.is_dir() { unsafe { mymod_stuff.borrow().new_mymod.as_mut().unwrap().set_enabled(true); }}
@@ -1273,12 +1273,10 @@ pub fn enable_packfile_actions(
         match &**GAME_SELECTED.lock().unwrap() {
             "warhammer_2" => {
                 unsafe { app_ui.wh2_patch_siege_ai.as_mut().unwrap().set_enabled(true); }
-                unsafe { app_ui.wh2_create_prefab.as_mut().unwrap().set_enabled(true); }
                 unsafe { app_ui.wh2_optimize_packfile.as_mut().unwrap().set_enabled(true); }
             },
             "warhammer" => {
                 unsafe { app_ui.wh_patch_siege_ai.as_mut().unwrap().set_enabled(true); }
-                unsafe { app_ui.wh_create_prefab.as_mut().unwrap().set_enabled(true); }
                 unsafe { app_ui.wh_optimize_packfile.as_mut().unwrap().set_enabled(true); }
             },
             "thrones_of_britannia" => {
@@ -1302,12 +1300,10 @@ pub fn enable_packfile_actions(
 
         // Disable Warhammer 2 actions...
         unsafe { app_ui.wh2_patch_siege_ai.as_mut().unwrap().set_enabled(false); }
-        unsafe { app_ui.wh2_create_prefab.as_mut().unwrap().set_enabled(false); }
         unsafe { app_ui.wh2_optimize_packfile.as_mut().unwrap().set_enabled(false); }
 
         // Disable Warhammer actions...
         unsafe { app_ui.wh_patch_siege_ai.as_mut().unwrap().set_enabled(false); }
-        unsafe { app_ui.wh_create_prefab.as_mut().unwrap().set_enabled(false); }
         unsafe { app_ui.wh_optimize_packfile.as_mut().unwrap().set_enabled(false); }
 
         // Disable Thrones of Britannia actions...

@@ -1,5 +1,6 @@
 // In this file goes all the stuff needed for the schema decoder to work.
-extern crate serde_json;
+
+use serde_derive::{Serialize, Deserialize};
 
 use std::path::PathBuf;
 use std::fs::File;
@@ -54,7 +55,7 @@ pub struct Field {
 }
 
 /// Enum FieldType: This enum is used to define the possible types of a field in the schema.
-#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub enum FieldType {
     Boolean,
     Float,

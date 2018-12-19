@@ -8,12 +8,9 @@
 //
 // Note: the specific decoders return tuples with (value, index of the new thing to decode).
 
-extern crate byteorder;
-extern crate encoding;
-
-use self::byteorder::{ByteOrder, LittleEndian};
-use self::encoding::{Encoding, DecoderTrap};
-use self::encoding::all::ISO_8859_1;
+use byteorder::{ByteOrder, LittleEndian};
+use encoding::{Encoding, DecoderTrap};
+use encoding::all::ISO_8859_1;
 use crate::error::{Error, ErrorKind, Result};
 
 //-----------------------------------------------------//
@@ -101,6 +98,22 @@ pub fn decode_string_u8_0padded(string_encoded: &[u8]) -> Result<(String, usize)
     }
     let string_decoded = String::from_utf8(string_encoded_without_0).map_err(|_| Error::from(ErrorKind::HelperDecodingEncodingError("<p>Error trying to decode an UTF-8 0-Padded String.</p>".to_owned())))?;
     Ok((string_decoded, string_encoded.len()))
+}
+
+/// Common helper. This function allows us to decode a 00-Terminated UTF-8 encoded String. This type of String has 
+/// a 00 byte at his end and variable size. It advances the provided offset while decoding. We return the decoded String.
+#[allow(dead_code)]
+pub fn decode_string_u8_0terminated(string_encoded: &[u8], offset: &mut usize) -> Result<String> {
+    let mut string = String::new();
+    let mut index = 0;
+    loop {
+        let character = *string_encoded.get(index).ok_or_else(|| Error::from(ErrorKind::HelperDecodingEncodingError("<p>Error trying to decode an UTF-8 0-Terminated String.</p>".to_owned())))?;
+        index += 1;
+        if character == 0 { break; }
+        string.push(character as char);
+    }
+    *offset += index;
+    Ok(string)
 }
 
 /// Common helper. This function allows us to decode an UTF-16 encoded String.

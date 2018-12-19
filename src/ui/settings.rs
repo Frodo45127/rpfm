@@ -1,9 +1,4 @@
 // Here it goes all the stuff related with "Settings" and "My Mod" windows.
-extern crate serde_json;
-extern crate qt_widgets;
-extern crate qt_gui;
-extern crate qt_core;
-extern crate cpp_utils;
 
 use qt_widgets::check_box::CheckBox;
 use qt_widgets::combo_box::ComboBox;
@@ -82,7 +77,7 @@ impl SettingsDialog {
         app_ui: &AppUI,
         sender_qt: &Sender<Commands>,
         sender_qt_data: &Sender<Data>,
-        receiver_qt: Rc<RefCell<Receiver<Data>>>, 
+        receiver_qt: &Rc<RefCell<Receiver<Data>>>, 
     ) -> Option<Settings> {
 
         //-------------------------------------------------------------------------------------------//
@@ -373,7 +368,7 @@ impl SettingsDialog {
 
         // What happens when we hit the "..." button for Games.
         for (key, button) in game_buttons.iter() {
-            unsafe { button.as_mut().unwrap().signals().released().connect(slots_select_paths.get(key).unwrap()); }
+            unsafe { button.as_mut().unwrap().signals().released().connect(&slots_select_paths[key]); }
         }
 
         // What happens when we hit the "Shortcuts" button.
@@ -443,37 +438,37 @@ impl SettingsDialog {
     pub fn load_to_settings_dialog(&mut self) {
 
         // Load the MyMod Path, if exists.
-        unsafe { self.paths_mymod_line_edit.as_mut().unwrap().set_text(&QString::from_std_str(SETTINGS.lock().unwrap().paths.get("mymods_base_path").unwrap().clone().unwrap_or_else(||PathBuf::new()).to_string_lossy())); }
+        unsafe { self.paths_mymod_line_edit.as_mut().unwrap().set_text(&QString::from_std_str(SETTINGS.lock().unwrap().paths["mymods_base_path"].clone().unwrap_or_else(||PathBuf::new()).to_string_lossy())); }
 
         // Load the Game Paths, if they exists.
         for (key, path) in self.paths_games_line_edits.iter_mut() {
-            unsafe { path.as_mut().unwrap().set_text(&QString::from_std_str(&SETTINGS.lock().unwrap().paths.get(key).unwrap().clone().unwrap_or_else(||PathBuf::new()).to_string_lossy())); }
+            unsafe { path.as_mut().unwrap().set_text(&QString::from_std_str(&SETTINGS.lock().unwrap().paths[key].clone().unwrap_or_else(||PathBuf::new()).to_string_lossy())); }
         }
 
         // Get the Default Game.
         for (index, (folder_name,_)) in SUPPORTED_GAMES.iter().enumerate() {
-            if folder_name.to_string() == *SETTINGS.lock().unwrap().settings_string.get("default_game").unwrap() {
+            if *folder_name == SETTINGS.lock().unwrap().settings_string["default_game"] {
                 unsafe { self.extra_default_game_combobox.as_mut().unwrap().set_current_index(index as i32); }
                 break;
             }
         }
 
         // Load the UI Stuff.
-        unsafe { self.ui_adjust_columns_to_content.as_mut().unwrap().set_checked(*SETTINGS.lock().unwrap().settings_bool.get("adjust_columns_to_content").unwrap()); }
-        unsafe { self.ui_extend_last_column_on_tables.as_mut().unwrap().set_checked(*SETTINGS.lock().unwrap().settings_bool.get("extend_last_column_on_tables").unwrap()); }
-        unsafe { self.ui_disable_combos_on_tables.as_mut().unwrap().set_checked(*SETTINGS.lock().unwrap().settings_bool.get("disable_combos_on_tables").unwrap()); }
-        unsafe { self.ui_start_maximized.as_mut().unwrap().set_checked(*SETTINGS.lock().unwrap().settings_bool.get("start_maximized").unwrap()); }
-        unsafe { self.ui_remember_column_state.as_mut().unwrap().set_checked(*SETTINGS.lock().unwrap().settings_bool.get("remember_column_state").unwrap()); }
-        unsafe { self.ui_remember_table_state_permanently.as_mut().unwrap().set_checked(*SETTINGS.lock().unwrap().settings_bool.get("remember_table_state_permanently").unwrap()); }
-        unsafe { self.ui_use_dark_theme.as_mut().unwrap().set_checked(*SETTINGS.lock().unwrap().settings_bool.get("use_dark_theme").unwrap()); }
+        unsafe { self.ui_adjust_columns_to_content.as_mut().unwrap().set_checked(SETTINGS.lock().unwrap().settings_bool["adjust_columns_to_content"]); }
+        unsafe { self.ui_extend_last_column_on_tables.as_mut().unwrap().set_checked(SETTINGS.lock().unwrap().settings_bool["extend_last_column_on_tables"]); }
+        unsafe { self.ui_disable_combos_on_tables.as_mut().unwrap().set_checked(SETTINGS.lock().unwrap().settings_bool["disable_combos_on_tables"]); }
+        unsafe { self.ui_start_maximized.as_mut().unwrap().set_checked(SETTINGS.lock().unwrap().settings_bool["start_maximized"]); }
+        unsafe { self.ui_remember_column_state.as_mut().unwrap().set_checked(SETTINGS.lock().unwrap().settings_bool["remember_column_state"]); }
+        unsafe { self.ui_remember_table_state_permanently.as_mut().unwrap().set_checked(SETTINGS.lock().unwrap().settings_bool["remember_table_state_permanently"]); }
+        unsafe { self.ui_use_dark_theme.as_mut().unwrap().set_checked(SETTINGS.lock().unwrap().settings_bool["use_dark_theme"]); }
 
         // Load the Extra Stuff.
-        unsafe { self.extra_allow_editing_of_ca_packfiles.as_mut().unwrap().set_checked(*SETTINGS.lock().unwrap().settings_bool.get("allow_editing_of_ca_packfiles").unwrap()); }
-        unsafe { self.extra_check_updates_on_start.as_mut().unwrap().set_checked(*SETTINGS.lock().unwrap().settings_bool.get("check_updates_on_start").unwrap()); }
-        unsafe { self.extra_check_schema_updates_on_start.as_mut().unwrap().set_checked(*SETTINGS.lock().unwrap().settings_bool.get("check_schema_updates_on_start").unwrap()); }
-        unsafe { self.extra_use_pfm_extracting_behavior.as_mut().unwrap().set_checked(*SETTINGS.lock().unwrap().settings_bool.get("use_pfm_extracting_behavior").unwrap()); }
-        unsafe { self.extra_use_dependency_checker.as_mut().unwrap().set_checked(*SETTINGS.lock().unwrap().settings_bool.get("use_dependency_checker").unwrap()); }
-        unsafe { self.extra_use_lazy_loading_checker.as_mut().unwrap().set_checked(*SETTINGS.lock().unwrap().settings_bool.get("use_lazy_loading").unwrap()); }
+        unsafe { self.extra_allow_editing_of_ca_packfiles.as_mut().unwrap().set_checked(SETTINGS.lock().unwrap().settings_bool["allow_editing_of_ca_packfiles"]); }
+        unsafe { self.extra_check_updates_on_start.as_mut().unwrap().set_checked(SETTINGS.lock().unwrap().settings_bool["check_updates_on_start"]); }
+        unsafe { self.extra_check_schema_updates_on_start.as_mut().unwrap().set_checked(SETTINGS.lock().unwrap().settings_bool["check_schema_updates_on_start"]); }
+        unsafe { self.extra_use_pfm_extracting_behavior.as_mut().unwrap().set_checked(SETTINGS.lock().unwrap().settings_bool["use_pfm_extracting_behavior"]); }
+        unsafe { self.extra_use_dependency_checker.as_mut().unwrap().set_checked(SETTINGS.lock().unwrap().settings_bool["use_dependency_checker"]); }
+        unsafe { self.extra_use_lazy_loading_checker.as_mut().unwrap().set_checked(SETTINGS.lock().unwrap().settings_bool["use_lazy_loading"]); }
     }
 
     /// This function gets the data from the Settings Dialog and returns a Settings struct with that
@@ -744,7 +739,7 @@ fn check_my_mod_validity(mymod_dialog: &NewMyModDialog) {
     if !mod_name.is_empty() && !mod_name.contains(' ') {
 
         // If we have "MyMod" path configured (we SHOULD have it to access this window, but just in case...).
-        if let Some(ref mod_path) = SETTINGS.lock().unwrap().paths.get("mymods_base_path").unwrap() {
+        if let Some(ref mod_path) = SETTINGS.lock().unwrap().paths["mymods_base_path"] {
             let mut mod_path = mod_path.clone();
             mod_path.push(mod_game);
             mod_path.push(format!("{}.pack", mod_name));

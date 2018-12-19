@@ -1,7 +1,4 @@
 // In this file are all the helper functions used by the UI when showing Image PackedFiles.
-extern crate qt_widgets;
-extern crate qt_gui;
-extern crate qt_core;
 
 use qt_widgets::widget::Widget;
 use qt_widgets::label::Label;
@@ -21,7 +18,7 @@ use crate::error::Result;
 /// This function creates a new TreeView with the PackedFile's View as father and returns a
 /// `PackedFileLocTreeView` with all his data.
 pub fn create_image_view(
-    sender_qt: Sender<Commands>,
+    sender_qt: &Sender<Commands>,
     sender_qt_data: &Sender<Data>,
     receiver_qt: &Rc<RefCell<Receiver<Data>>>,
     layout: *mut GridLayout,

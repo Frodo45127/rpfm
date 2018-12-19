@@ -9,15 +9,14 @@
 // 1 misteryous byte
 // 4 bytes for the entry count, in u32 reversed.
 
-extern crate csv;
-extern crate uuid;
+use csv::{ ReaderBuilder, WriterBuilder, QuoteStyle };
+use serde_derive::{Serialize, Deserialize};
+use uuid::Uuid;
 
 use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
 
-use self::uuid::Uuid;
-use self::csv::{ ReaderBuilder, WriterBuilder, QuoteStyle };
 use crate::common::coding_helpers::*;
 use super::SerializableToTSV;
 use self::schemas::*;
@@ -200,10 +199,8 @@ impl DB {
         }
 
         // Otherwise, we report the specific problem.
-        else {
-            if entry_count == 0 { Err(ErrorKind::DBTableEmptyWithNoTableDefinition)? }
-            else { Err(ErrorKind::SchemaTableDefinitionNotFound)? }
-        }
+        else if entry_count == 0 { Err(ErrorKind::DBTableEmptyWithNoTableDefinition)? }
+        else { Err(ErrorKind::SchemaTableDefinitionNotFound)? }
     }
 
     /// This function takes an entire DB and encode it to Vec<u8>, so it can be written in the disk.
@@ -213,23 +210,23 @@ impl DB {
         // Create the vector for the encoded PackedFile.
         let mut packed_file: Vec<u8> = vec![];
         packed_file.extend_from_slice(GUID_MARKER);
-        packed_file.extend_from_slice(&mut encode_packedfile_string_u16(&format!("{}", Uuid::new_v4())));
+        packed_file.extend_from_slice(&encode_packedfile_string_u16(&format!("{}", Uuid::new_v4())));
         packed_file.extend_from_slice(VERSION_MARKER);
-        packed_file.extend_from_slice(&mut encode_integer_u32(self.version));
+        packed_file.extend_from_slice(&encode_integer_u32(self.version));
         packed_file.push(self.mysterious_byte);
-        packed_file.extend_from_slice(&mut encode_integer_u32(self.entries.len() as u32));
+        packed_file.extend_from_slice(&encode_integer_u32(self.entries.len() as u32));
 
         for row in &self.entries {        
             for cell in row {
                 match *cell {
                     DecodedData::Boolean(data) => packed_file.push(encode_bool(data)),
-                    DecodedData::Float(data) => packed_file.extend_from_slice(&mut encode_float_f32(data)),
-                    DecodedData::Integer(data) => packed_file.extend_from_slice(&mut encode_integer_i32(data)),
-                    DecodedData::LongInteger(data) => packed_file.extend_from_slice(&mut encode_integer_i64(data)),
-                    DecodedData::StringU8(ref data) => packed_file.extend_from_slice(&mut encode_packedfile_string_u8(data)),
-                    DecodedData::StringU16(ref data) => packed_file.extend_from_slice(&mut encode_packedfile_string_u16(data)),
-                    DecodedData::OptionalStringU8(ref data) => packed_file.extend_from_slice(&mut encode_packedfile_optional_string_u8(data)),
-                    DecodedData::OptionalStringU16(ref data) => packed_file.extend_from_slice(&mut encode_packedfile_optional_string_u16(data)),
+                    DecodedData::Float(data) => packed_file.extend_from_slice(&encode_float_f32(data)),
+                    DecodedData::Integer(data) => packed_file.extend_from_slice(&encode_integer_i32(data)),
+                    DecodedData::LongInteger(data) => packed_file.extend_from_slice(&encode_integer_i64(data)),
+                    DecodedData::StringU8(ref data) => packed_file.extend_from_slice(&encode_packedfile_string_u8(data)),
+                    DecodedData::StringU16(ref data) => packed_file.extend_from_slice(&encode_packedfile_string_u16(data)),
+                    DecodedData::OptionalStringU8(ref data) => packed_file.extend_from_slice(&encode_packedfile_optional_string_u8(data)),
+                    DecodedData::OptionalStringU16(ref data) => packed_file.extend_from_slice(&encode_packedfile_optional_string_u16(data)),
                 }
             }
         }

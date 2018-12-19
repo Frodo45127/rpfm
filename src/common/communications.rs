@@ -1,5 +1,4 @@
 // This module is for communication-related stuff.
-extern crate qt_core;
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -9,7 +8,8 @@ use std::sync::mpsc::{Receiver, TryRecvError};
 use crate::GlobalMatch;
 use crate::common::*;
 use crate::error::Error;
-use crate::packfile::packfile::{PFHFileType, PackFileUIData, PackedFile};
+use crate::packfile::{PFHFileType, PackFileUIData};
+use crate::packfile::packedfile::PackedFile;
 use crate::packedfile::*;
 use crate::packedfile::loc::*;
 use crate::packedfile::db::*;

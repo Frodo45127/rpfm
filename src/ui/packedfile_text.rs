@@ -1,7 +1,4 @@
 // In this file are all the helper functions used by the UI when editing Text PackedFiles.
-extern crate qt_widgets;
-extern crate qt_gui;
-extern crate qt_core;
 
 use qt_widgets::dialog::Dialog;
 use qt_widgets::dialog_button_box::{DialogButtonBox, StandardButton};
@@ -35,7 +32,7 @@ impl PackedFileTextView {
     /// This function creates a new TreeView with the PackedFile's View as father and returns a
     /// `PackedFileLocTreeView` with all his data.
     pub fn create_text_view(
-        sender_qt: Sender<Commands>,
+        sender_qt: &Sender<Commands>,
         sender_qt_data: &Sender<Data>,
         receiver_qt: &Rc<RefCell<Receiver<Data>>>,
         is_modified: &Rc<RefCell<bool>>,

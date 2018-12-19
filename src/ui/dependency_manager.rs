@@ -1,7 +1,4 @@
 // In this file is all the stuff needed for the dependency manager to work.
-extern crate qt_widgets;
-extern crate qt_gui;
-extern crate qt_core;
 
 use qt_widgets::menu::Menu;
 use qt_widgets::slots::SlotQtCorePointRef;
@@ -76,7 +73,7 @@ impl DependencyTableView {
     /// This function creates a new TableView with the PackedFile's View as father and returns a
     /// `DependencyTableView` with all his data.
     pub fn create_table_view(
-        sender_qt: Sender<Commands>,
+        sender_qt: &Sender<Commands>,
         sender_qt_data: &Sender<Data>,
         receiver_qt: &Rc<RefCell<Receiver<Data>>>,
         is_modified: &Rc<RefCell<bool>>,
@@ -132,12 +129,12 @@ impl DependencyTableView {
         let context_menu_paste_as_new_lines = context_menu_paste_submenu.add_action(&QString::from_std_str("&Paste as New Rows"));
 
         // Set the shortcuts for these actions.
-        unsafe { context_menu_add.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().pack_files_list.get("add_row").unwrap()))); }
-        unsafe { context_menu_insert.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().pack_files_list.get("insert_row").unwrap()))); }
-        unsafe { context_menu_delete.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().pack_files_list.get("delete_row").unwrap()))); }
-        unsafe { context_menu_copy.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().pack_files_list.get("copy").unwrap()))); }
-        unsafe { context_menu_paste.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().pack_files_list.get("paste").unwrap()))); }
-        unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(SHORTCUTS.lock().unwrap().pack_files_list.get("paste_as_new_row").unwrap()))); }
+        unsafe { context_menu_add.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().pack_files_list["add_row"]))); }
+        unsafe { context_menu_insert.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().pack_files_list["insert_row"]))); }
+        unsafe { context_menu_delete.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().pack_files_list["delete_row"]))); }
+        unsafe { context_menu_copy.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().pack_files_list["copy"]))); }
+        unsafe { context_menu_paste.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().pack_files_list["paste"]))); }
+        unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().pack_files_list["paste_as_new_row"]))); }
 
         // Set the shortcuts to only trigger in the Table.
         unsafe { context_menu_add.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
@@ -318,7 +315,7 @@ impl DependencyTableView {
                     unsafe { rows.iter().for_each(|x| _y = model.as_mut().unwrap().remove_rows((*x, 1))); }
 
                     // If we deleted anything, save the data.
-                    if rows.len() > 0 {
+                    if !rows.is_empty() {
 
                         // Get the new LocData to send.
 	                    let list = Self::return_data_from_table_view(model);
@@ -540,7 +537,7 @@ impl DependencyTableView {
         unsafe { table_view.as_mut().unwrap().selection_model().as_ref().unwrap().signals().selection_changed().connect(&slots.slot_context_menu_enabler); }
 
         // Return the slots to keep them as hostages.
-        return slots
+        slots
     }
 
     /// This function loads the data from a list into a TableView.
@@ -568,7 +565,7 @@ impl DependencyTableView {
         }
 
         // If there are no entries, add an empty row with default values, so Qt shows the table anyway.
-        if data.len() == 0 {
+        if data.is_empty() {
 
             // Create a new list of StandardItem.
             let mut qlist = ListStandardItemMutPtr::new(());

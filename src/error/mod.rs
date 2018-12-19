@@ -1,14 +1,9 @@
 // Here should go all the stuff needed to get the damn error system working, so we can provide precise
 // error reports instead what we had before.
-extern crate failure;
-extern crate serde_json;
-extern crate csv;
-extern crate reqwest;
-extern crate toml;
 
 use failure::{Backtrace, Context, Fail};
 use serde_json::error::Category;
-use self::toml::ser;
+use toml::ser;
 
 use std::fmt;
 use std::fmt::Display;
@@ -139,6 +134,9 @@ pub enum ErrorKind {
 
     // Error for when the PackedFile size doesn't match what we expect.
     PackedFileSizeIsNotWhatWeExpect(usize, usize),
+
+    // Error for when the compressed PackedFile is either incomplete (<9 bytes) or the decompression failed.
+    PackedFileDataCouldNotBeDecompressed,
 
     //--------------------------------//
     // DB Table Errors
@@ -429,6 +427,7 @@ impl Display for ErrorKind {
             ErrorKind::PackedFileIsOpenInAnotherView => write!(f, "<p>That PackedFile is already open in another view. Opening the same PackedFile in multiple views is not supported.</p>"),
             ErrorKind::PackedFileDataCouldNotBeLoaded => write!(f, "<p>This PackedFile's data could not be loaded. This means RPFM can no longer read the PackFile from the disk.</p>"),
             ErrorKind::PackedFileSizeIsNotWhatWeExpect(reported_size, expected_size) => write!(f, "<p>This PackedFile's reported size is <i><b>{}</b></i> bytes, but we expected it to be <i><b>{}</b></i> bytes. This means that either the decoding logic in RPFM is broken for this PackedFile, or this PackedFile is corrupted.</p>", reported_size, expected_size),
+            ErrorKind::PackedFileDataCouldNotBeDecompressed => write!(f, "<p>This is a compressed file and the decompresion failed for some reason. This means this PackedFile cannot be opened in RPFM.</p>"),
 
             //--------------------------------//
             // DB Table Errors
