@@ -303,29 +303,98 @@ lazy_static! {
             supports_editing: true,
         });
 
-        // // Napoleon
-        // map.insert("napoleon", GameInfo {
-        //     display_name: "Napoleon".to_owned(),
-        //     id: PFHVersion::PFH2,
-        //     schema: "schema_nap.json".to_owned(),
-        //     db_pack: "data.pack".to_owned(),
-        //     loc_pack: "local_en.pack".to_owned(),
-        //     steam_id: Some(34030),
-        //     ca_types_file: None,
-        //     supports_editing: true,
-        // });
+        // Napoleon
+        map.insert("napoleon", GameInfo {
+            display_name: "Napoleon".to_owned(),
+            id: PFHVersion::PFH0,
+            schema: "schema_nap.json".to_owned(),
+            db_packs: vec![                     // NOTE: Patches 5 and 7 has no table changes, so they should not be here.
+                "data.pack".to_owned(),         // Main DB PackFile
+                "patch.pack".to_owned(),        // First Patch
+                "patch2.pack".to_owned(),       // Second Patch
+                "patch3.pack".to_owned(),       // Third Patch
+                "patch4.pack".to_owned(),       // Fourth Patch
+                "patch6.pack".to_owned(),       // Six Patch
+            ],
+            loc_packs: vec![
+                "local_en.pack".to_owned(),         // English
+                "local_en_patch.pack".to_owned(),   // English Patch
+                "local_br.pack".to_owned(),         // Brazilian
+                "local_br_patch.pack".to_owned(),   // Brazilian Patch
+                "local_cz.pack".to_owned(),         // Czech
+                "local_cz_patch.pack".to_owned(),   // Czech Patch
+                "local_ge.pack".to_owned(),         // German
+                "local_ge_patch.pack".to_owned(),   // German Patch
+                "local_sp.pack".to_owned(),         // Spanish
+                "local_sp_patch.pack".to_owned(),   // Spanish Patch
+                "local_fr.pack".to_owned(),         // French
+                "local_fr_patch.pack".to_owned(),   // French Patch
+                "local_it.pack".to_owned(),         // Italian
+                "local_it_patch.pack".to_owned(),   // Italian Patch
+                "local_kr.pack".to_owned(),         // Korean
+                "local_kr_patch.pack".to_owned(),   // Korean Patch
+                "local_pl.pack".to_owned(),         // Polish
+                "local_pl_patch.pack".to_owned(),   // Polish Patch
+                "local_ru.pack".to_owned(),         // Russian
+                "local_ru_patch.pack".to_owned(),   // Russian Patch
+                "local_tr.pack".to_owned(),         // Turkish
+                "local_tr_patch.pack".to_owned(),   // Turkish Patch
+                "local_cn.pack".to_owned(),         // Simplified Chinese
+                "local_cn_patch.pack".to_owned(),   // Simplified Chinese Patch
+                "local_zh.pack".to_owned(),         // Traditional Chinese
+                "local_zh_patch.pack".to_owned(),   // Traditional Chinese Patch
+            ],
+            steam_id: Some(34030),
+            ca_types_file: None,
+            supports_editing: true,
+        });
 
-        // // Empire
-        // map.insert("empire", GameInfo {
-        //     display_name: "Empire".to_owned(),
-        //     id: PFHVersion::PFH0,
-        //     schema: "schema_emp.json".to_owned(),
-        //     db_pack: "data.pack".to_owned(),
-        //     loc_pack: "local_en.pack".to_owned(),
-        //     steam_id: Some(10500),
-        //     ca_types_file: None,
-        //     supports_editing: true,
-        // });
+        // Empire
+        map.insert("empire", GameInfo {
+            display_name: "Empire".to_owned(),
+            id: PFHVersion::PFH0,
+            schema: "schema_emp.json".to_owned(),
+            db_packs: vec![
+                "main.pack".to_owned(),         // Main DB PackFile
+                "models.pack".to_owned(),       // Models PackFile (contains model-related DB Tables)
+                "patch.pack".to_owned(),        // First Patch
+                "patch2.pack".to_owned(),       // Second Patch
+                "patch3.pack".to_owned(),       // Third Patch
+                "patch4.pack".to_owned(),       // Fourth Patch
+                "patch5.pack".to_owned(),       // Fifth Patch
+            ],
+            loc_packs: vec![
+                "local_en.pack".to_owned(),     // English
+                "patch_en.pack".to_owned(),     // English Patch
+                "local_br.pack".to_owned(),     // Brazilian
+                "patch_br.pack".to_owned(),     // Brazilian Patch
+                "local_cz.pack".to_owned(),     // Czech
+                "patch_cz.pack".to_owned(),     // Czech Patch
+                "local_ge.pack".to_owned(),     // German
+                "patch_ge.pack".to_owned(),     // German Patch
+                "local_sp.pack".to_owned(),     // Spanish
+                "patch_sp.pack".to_owned(),     // Spanish Patch
+                "local_fr.pack".to_owned(),     // French
+                "patch_fr.pack".to_owned(),     // French Patch
+                "local_it.pack".to_owned(),     // Italian
+                "patch_it.pack".to_owned(),     // Italian Patch
+                "local_kr.pack".to_owned(),     // Korean
+                "patch_kr.pack".to_owned(),     // Korean Patch
+                "local_pl.pack".to_owned(),     // Polish
+                "patch_pl.pack".to_owned(),     // Polish Patch
+                "local_ru.pack".to_owned(),     // Russian
+                "patch_ru.pack".to_owned(),     // Russian Patch
+                "local_tr.pack".to_owned(),     // Turkish
+                "patch_tr.pack".to_owned(),     // Turkish Patch
+                "local_cn.pack".to_owned(),     // Simplified Chinese
+                "patch_cn.pack".to_owned(),     // Simplified Chinese Patch
+                "local_zh.pack".to_owned(),     // Traditional Chinese
+                "patch_zh.pack".to_owned(),     // Traditional Chinese Patch
+            ],
+            steam_id: Some(10500),
+            ca_types_file: None,
+            supports_editing: true,
+        });
 
         // NOTE: There are things that depend on the order of this list, and this game must ALWAYS be the last one.
         // Otherwise, stuff that uses this list will probably break.
@@ -508,6 +577,8 @@ pub struct AppUI {
     pub attila: *mut Action,
     pub rome_2: *mut Action,
     pub shogun_2: *mut Action,
+    pub napoleon: *mut Action,
+    pub empire: *mut Action,
     pub arena: *mut Action,
 
     pub game_selected_group: *mut ActionGroup,
@@ -535,6 +606,12 @@ pub struct AppUI {
 
     // Shogun 2's actions.
     pub sho2_optimize_packfile: *mut Action,
+
+    // Napoleon's actions.
+    pub nap_optimize_packfile: *mut Action,
+
+    // Empire's actions.
+    pub emp_optimize_packfile: *mut Action,
 
     //-------------------------------------------------------------------------------//
     // "About" menu.
@@ -761,6 +838,8 @@ fn main() {
         let menu_attila = unsafe { menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("&Attila")) };
         let menu_rome_2 = unsafe { menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("&Rome 2")) };
         let menu_shogun_2 = unsafe { menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("&Shogun 2")) };
+        let menu_napoleon = unsafe { menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("&Napoleon")) };
+        let menu_empire = unsafe { menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("&Empire")) };
         
         // Contextual Menu for the TreeView.
         let mut folder_tree_view_context_menu = Menu::new(());
@@ -819,6 +898,8 @@ fn main() {
             attila: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("&Attila")),
             rome_2: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("R&ome 2")),
             shogun_2: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("&Shogun 2")),
+            napoleon: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("&Napoleon")),
+            empire: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("&Empire")),
             arena: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("A&rena")),
 
             game_selected_group: ActionGroup::new(menu_bar_game_seleted.as_mut().unwrap().static_cast_mut()).into_raw(),
@@ -846,6 +927,12 @@ fn main() {
 
             // Shogun 2's actions.
             sho2_optimize_packfile: menu_shogun_2.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
+
+            // Napoleon's actions.
+            nap_optimize_packfile: menu_napoleon.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
+
+            // Empire's actions.
+            emp_optimize_packfile: menu_empire.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
 
             //-------------------------------------------------------------------------------//
             // "About" menu.
@@ -928,6 +1015,8 @@ fn main() {
         unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.attila); }
         unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.rome_2); }
         unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.shogun_2); }
+        unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.napoleon); }
+        unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.empire); }
         unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.arena); }
         unsafe { app_ui.warhammer_2.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.warhammer.as_mut().unwrap().set_checkable(true); }
@@ -935,6 +1024,8 @@ fn main() {
         unsafe { app_ui.attila.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.rome_2.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.shogun_2.as_mut().unwrap().set_checkable(true); }
+        unsafe { app_ui.napoleon.as_mut().unwrap().set_checkable(true); }
+        unsafe { app_ui.empire.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.arena.as_mut().unwrap().set_checkable(true); }
 
         // Arena is special, so separate it from the rest.
@@ -1194,6 +1285,8 @@ fn main() {
         unsafe { app_ui.attila.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Attila' as 'Game Selected'.")); }
         unsafe { app_ui.rome_2.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Rome 2' as 'Game Selected'.")); }
         unsafe { app_ui.shogun_2.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Shogun 2' as 'Game Selected'.")); }
+        unsafe { app_ui.napoleon.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Napoleon' as 'Game Selected'.")); }
+        unsafe { app_ui.empire.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Empire' as 'Game Selected'.")); }
         unsafe { app_ui.arena.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Arena' as 'Game Selected'.")); }
 
         // Menu bar, Special Stuff.
@@ -1309,6 +1402,8 @@ fn main() {
         unsafe { app_ui.attila.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
         unsafe { app_ui.rome_2.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
         unsafe { app_ui.shogun_2.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
+        unsafe { app_ui.napoleon.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
+        unsafe { app_ui.empire.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
         unsafe { app_ui.arena.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
 
         // Update the "Game Selected" here, so we can skip some steps when initializing.
@@ -1320,7 +1415,9 @@ fn main() {
             "attila" => unsafe { app_ui.attila.as_mut().unwrap().trigger(); }
             "arena" => unsafe { app_ui.arena.as_mut().unwrap().trigger(); }
             "rome_2" => unsafe { app_ui.rome_2.as_mut().unwrap().trigger(); }
-            "shogun_2" | _ => unsafe { app_ui.shogun_2.as_mut().unwrap().trigger(); }
+            "shogun_2" => unsafe { app_ui.shogun_2.as_mut().unwrap().trigger(); }
+            "napoleon" => unsafe { app_ui.napoleon.as_mut().unwrap().trigger(); }
+            "empire" | _ => unsafe { app_ui.empire.as_mut().unwrap().trigger(); }
         }
 
         //-----------------------------------------------------//
@@ -1562,6 +1659,8 @@ fn main() {
                                 "attila" => unsafe { app_ui.attila.as_mut().unwrap().trigger(); }
                                 "rome_2" => unsafe { app_ui.rome_2.as_mut().unwrap().trigger(); }
                                 "shogun_2" => unsafe { app_ui.shogun_2.as_mut().unwrap().trigger(); }
+                                "napoleon" => unsafe { app_ui.napoleon.as_mut().unwrap().trigger(); }
+                                "empire" => unsafe { app_ui.empire.as_mut().unwrap().trigger(); }
                                 "arena" => unsafe { app_ui.arena.as_mut().unwrap().trigger(); },
                                 _ => unreachable!()
                             }

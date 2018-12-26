@@ -73,7 +73,9 @@ pub fn open_packfile(
                     "thrones_of_britannia" => unsafe { app_ui.thrones_of_britannia.as_mut().unwrap().trigger(); }
                     "attila" => unsafe { app_ui.attila.as_mut().unwrap().trigger(); }
                     "rome_2" => unsafe { app_ui.rome_2.as_mut().unwrap().trigger(); }
-                    "shogun_2" | _ => unsafe { app_ui.shogun_2.as_mut().unwrap().trigger(); }
+                    "shogun_2" => unsafe { app_ui.shogun_2.as_mut().unwrap().trigger(); }
+                    "napoleon" => unsafe { app_ui.napoleon.as_mut().unwrap().trigger(); }
+                    "empire" | _ => unsafe { app_ui.empire.as_mut().unwrap().trigger(); }
                 }
 
                 // Set the current "Operational Mode" to `MyMod`.
@@ -109,6 +111,15 @@ pub fn open_packfile(
 
                     // PFH3 is for Shogun 2.
                     PFHVersion::PFH3 => unsafe { app_ui.shogun_2.as_mut().unwrap().trigger(); }
+
+                    // PFH0 is for Napoleon/Empire.
+                    PFHVersion::PFH0 => {
+                        let game_selected = GAME_SELECTED.lock().unwrap().to_owned();
+                        match &*game_selected {
+                            "napoleon" => unsafe { app_ui.napoleon.as_mut().unwrap().trigger(); },
+                            "empire" | _ => unsafe { app_ui.empire.as_mut().unwrap().trigger(); }
+                        }
+                    },
                 }
 
                 // Set the current "Operational Mode" to `Normal`.
@@ -622,7 +633,9 @@ pub fn build_my_mod_menu(
                             "thrones_of_britannia" => unsafe { app_ui.thrones_of_britannia.as_mut().unwrap().trigger(); }
                             "attila" => unsafe { app_ui.attila.as_mut().unwrap().trigger(); }
                             "rome_2" => unsafe { app_ui.rome_2.as_mut().unwrap().trigger(); }
-                            "shogun_2" | _ => unsafe { app_ui.shogun_2.as_mut().unwrap().trigger(); }
+                            "shogun_2" => unsafe { app_ui.shogun_2.as_mut().unwrap().trigger(); }
+                            "napoleon" => unsafe { app_ui.napoleon.as_mut().unwrap().trigger(); }
+                            "empire" | _ => unsafe { app_ui.empire.as_mut().unwrap().trigger(); }
                         }
 
                         // Get his new path from the base "MyMod" path + `mod_game`.
@@ -1291,6 +1304,12 @@ pub fn enable_packfile_actions(
             "shogun_2" => {
                 unsafe { app_ui.sho2_optimize_packfile.as_mut().unwrap().set_enabled(true); }
             },
+            "napoleon" => {
+                unsafe { app_ui.nap_optimize_packfile.as_mut().unwrap().set_enabled(true); }
+            },
+            "empire" => {
+                unsafe { app_ui.emp_optimize_packfile.as_mut().unwrap().set_enabled(true); }
+            },
             _ => {},
         }
     }
@@ -1316,7 +1335,13 @@ pub fn enable_packfile_actions(
         unsafe { app_ui.rom2_optimize_packfile.as_mut().unwrap().set_enabled(false); }
 
         // Disable Shogun 2 actions...
-        unsafe { app_ui.rom2_optimize_packfile.as_mut().unwrap().set_enabled(false); }
+        unsafe { app_ui.sho2_optimize_packfile.as_mut().unwrap().set_enabled(false); }
+
+        // Disable Napoleon actions...
+        unsafe { app_ui.nap_optimize_packfile.as_mut().unwrap().set_enabled(false); }
+        
+        // Disable Empire actions...
+        unsafe { app_ui.emp_optimize_packfile.as_mut().unwrap().set_enabled(false); }
     }
 }
 

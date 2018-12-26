@@ -1,6 +1,8 @@
 {
   "schema_are.json": 5,
   "schema_att.json": 7,
+  "schema_emp.json": 0,
+  "schema_nap.json": 0,
   "schema_rom2.json": 8,
   "schema_sho2.json": 3,
   "schema_tob.json": 5,

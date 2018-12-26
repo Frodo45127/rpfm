@@ -26,7 +26,6 @@ const SEC_TO_UNIX_EPOCH: i64 = 11_644_473_600;
 const PFH5_PREAMBLE: &str = "PFH5"; // PFH5
 const PFH4_PREAMBLE: &str = "PFH4"; // PFH4
 const PFH3_PREAMBLE: &str = "PFH3"; // PFH3
-const PFH2_PREAMBLE: &str = "PFH2"; // PFH2
 const PFH0_PREAMBLE: &str = "PFH0"; // PFH0
 
 /// These are the types the PackFiles can have.
@@ -58,11 +57,13 @@ bitflags! {
 /// - `PFH5`: Used in Warhammer 2 and Arena.
 /// - `PFH4`: Used in Warhammer 1, Attila, Rome 2, and Thrones of Brittania.
 /// - `PFH3`: Used in Shogun 2.
+/// - `PFH0`: Used in Napoleon and Empire.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PFHVersion {
     PFH5,
     PFH4,
     PFH3,
+    PFH0
 }
 
 /// This enum represents the **Type** of a PackFile. 
@@ -157,6 +158,7 @@ impl PFHVersion {
             PFHVersion::PFH5 => PFH5_PREAMBLE,
             PFHVersion::PFH4 => PFH4_PREAMBLE,
             PFHVersion::PFH3 => PFH3_PREAMBLE,
+            PFHVersion::PFH0 => PFH0_PREAMBLE,
         }
     }
 
@@ -166,8 +168,7 @@ impl PFHVersion {
             PFH5_PREAMBLE => Ok(PFHVersion::PFH5),
             PFH4_PREAMBLE => Ok(PFHVersion::PFH4),
             PFH3_PREAMBLE => Ok(PFHVersion::PFH3),
-            PFH2_PREAMBLE => Err(ErrorKind::PackFileNotSupported)?,
-            PFH0_PREAMBLE => Err(ErrorKind::PackFileNotSupported)?,
+            PFH0_PREAMBLE => Ok(PFHVersion::PFH0),
             _ => Err(ErrorKind::PackFileIsNotAPackFile)?,
         }
     }
@@ -386,6 +387,7 @@ impl PackFile {
             }
 
             PFHVersion::PFH3 => buffer = vec![0; 32],
+            PFHVersion::PFH0 => buffer = vec![0; 24],
         }
 
         // Restore the cursor of the BufReader to 0, so we can read the full header in one go. The first 24 bytes are
@@ -394,10 +396,11 @@ impl PackFile {
         pack_file.read_exact(&mut buffer)?;
 
         // The creation time is a bit of an asshole. Depending on the PackFile Version/Id/Preamble, it uses a type, another or it doesn't exists.
-        // Keep in mind that we store his raw value. If you want his legible value, you have to convert it yourself.
+        // Keep in mind that we store his raw value. If you want his legible value, you have to convert it yourself. PFH0 doesn't have it.
         pack_file_decoded.timestamp = match pack_file_decoded.pfh_version {
             PFHVersion::PFH5 | PFHVersion::PFH4 => decode_integer_u32(&buffer[24..28])? as i64,
             PFHVersion::PFH3 => (decode_integer_i64(&buffer[24..32])? / WINDOWS_TICK) - SEC_TO_UNIX_EPOCH,
+            PFHVersion::PFH0 => 0
         };
 
         // Ensure the PackFile has all the data needed for the index. If the PackFile's data is encrypted 
@@ -443,8 +446,11 @@ impl PackFile {
             // If it has the last modified date of the PackedFiles, we default to 8. Otherwise, we default to 4.
             PFHVersion::PFH4 => if pack_file_decoded.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) { 8 } else { 4 }
 
-            // These are like PFH4, but the timestamp has 8 bytes instead of 4,
+            // These are like PFH4, but the timestamp has 8 bytes instead of 4.
             PFHVersion::PFH3 => if pack_file_decoded.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) { 12 } else { 4 }
+
+            // There isn't seem to be a bitmask in ANY PFH0 PackFile, so we will assume they didn't even use it back then.
+            PFHVersion::PFH0 => 4
         };
 
         // Prepare the needed stuff to read the PackedFiles.
@@ -471,8 +477,9 @@ impl PackFile {
                         } else { timestamp }
                     }
 
-                    // We haven't found a single encrypted PFH3 PackFile to test, so always assume these are unencrypted.
+                    // We haven't found a single encrypted PFH3/PFH0 PackFile to test, so always assume these are unencrypted. Also, PFH0 doesn't seem to have a timestamp.
                     PFHVersion::PFH3 => (decode_integer_i64(&packed_file_index[(index_position + 4)..(index_position + 12)])? / WINDOWS_TICK) - SEC_TO_UNIX_EPOCH,
+                    PFHVersion::PFH0 => 0,
                 }
             } else { 0 };
 
@@ -569,6 +576,9 @@ impl PackFile {
                 PFHVersion::PFH3 => {
                     if self.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) { packed_file_index.extend_from_slice(&encode_integer_i64(packed_file.timestamp)); }
                 }
+
+                // This one doesn't have timestamps, so we just skip this step.
+                PFHVersion::PFH0 => {}
             }
 
             packed_file_index.append(&mut packed_file.path.join("\\").as_bytes().to_vec());
@@ -586,11 +596,12 @@ impl PackFile {
         file.write_all(&encode_integer_u32(self.packed_files.len() as u32))?;
         file.write_all(&encode_integer_u32(packed_file_index.len() as u32))?;
 
-        // Update the creation time, then save it.
+        // Update the creation time, then save it. PFH0 files don't have timestamp in the headers.
         self.timestamp = get_current_time();
         match self.pfh_version {
             PFHVersion::PFH5 | PFHVersion::PFH4 => file.write_all(&encode_integer_u32(self.timestamp as u32))?,
             PFHVersion::PFH3 => file.write_all(&encode_integer_i64((self.timestamp + SEC_TO_UNIX_EPOCH) * WINDOWS_TICK))?,
+            PFHVersion::PFH0 => {}
         };
 
         // Write the indexes and the data of the PackedFiles. No need to keep the data, as it has been preloaded before.
